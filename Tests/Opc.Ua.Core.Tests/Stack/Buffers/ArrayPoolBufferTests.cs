@@ -51,13 +51,13 @@ namespace Opc.Ua.Buffers.Tests
 
             // Act
             Action act = () => writer.Dispose();
-            var buffer = new byte[1] { 0x23 };
+            byte[] buffer = new byte[1] { 0x23 };
 
-            var memory = writer.GetMemory(1);
+            Memory<byte> memory = writer.GetMemory(1);
             memory.Span[0] = 0x12;
             writer.Advance(1);
             writer.Write(buffer);
-            var sequence = writer.GetReadOnlySequence();
+            ReadOnlySequence<byte> sequence = writer.GetReadOnlySequence();
             Assert.ByVal(sequence.Length, Is.EqualTo(2));
             Assert.That(sequence.ToArray(), Is.EqualTo(new byte[] { 0x12, 0x23 }));
 
@@ -105,7 +105,7 @@ namespace Opc.Ua.Buffers.Tests
                         // get a new chunk
                         if (random.Next(2) == 0)
                         {
-                            var memory = writer.GetMemory(randomGetChunkSize);
+                            Memory<byte> memory = writer.GetMemory(randomGetChunkSize);
                             Assert.That(memory.Length, Is.GreaterThanOrEqualTo(chunkSize));
                             span = memory.Span;
                         }

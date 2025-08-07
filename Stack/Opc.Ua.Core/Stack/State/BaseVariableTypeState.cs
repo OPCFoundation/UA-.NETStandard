@@ -79,7 +79,7 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
-            BaseTypeState clone = (BaseTypeState)Activator.CreateInstance(this.GetType());
+            var clone = (BaseTypeState)Activator.CreateInstance(this.GetType());
             return CloneChildren(clone);
         }
         #endregion
@@ -572,7 +572,7 @@ namespace Opc.Ua
             {
                 case Attributes.DataType:
                 {
-                    NodeId dataType = value as NodeId;
+                    var dataType = value as NodeId;
 
                     if (dataType == null)
                     {
@@ -632,7 +632,7 @@ namespace Opc.Ua
 
                 case Attributes.ArrayDimensions:
                 {
-                    IList<uint> arrayDimensions = value as IList<uint>;
+                    var arrayDimensions = value as IList<uint>;
 
                     if ((WriteMask & AttributeWriteMask.ArrayDimensions) == 0)
                     {
@@ -695,7 +695,7 @@ namespace Opc.Ua
             }
 
             // verify data type.
-            TypeInfo typeInfo = TypeInfo.IsInstanceOfDataType(
+            var typeInfo = TypeInfo.IsInstanceOfDataType(
                 value,
                 m_dataType,
                 m_valueRank,

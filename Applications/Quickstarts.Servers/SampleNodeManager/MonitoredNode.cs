@@ -137,7 +137,7 @@ namespace Opc.Ua.Sample
             Range range,
             bool alwaysReportUpdates)
         {
-            DataChangeMonitoredItem monitoredItem = new DataChangeMonitoredItem(
+            var monitoredItem = new DataChangeMonitoredItem(
                 Server.MonitoredItemQueueFactory,
                 this,
                 monitoredItemId,
@@ -219,7 +219,7 @@ namespace Opc.Ua.Sample
         public DataChangeMonitoredItem RestoreDataChangeItem(
             IStoredMonitoredItem storedMonitoredItem)
         {
-            DataChangeMonitoredItem monitoredItem = new DataChangeMonitoredItem(
+            var monitoredItem = new DataChangeMonitoredItem(
                 Server.SubscriptionStore,
                 Server.MonitoredItemQueueFactory,
                 this,
@@ -382,7 +382,7 @@ namespace Opc.Ua.Sample
                     }
 
                     // get the set of condition events for the node and its children.
-                    List<IFilterTarget> events = new List<IFilterTarget>();
+                    var events = new List<IFilterTarget>();
                     m_node.ConditionRefresh(context, events, true);
 
                     // report the events to the monitored item.
@@ -396,9 +396,9 @@ namespace Opc.Ua.Sample
         #endregion
 
         #region Private Fields
-        private IServerInternal m_server;
-        private INodeManager m_nodeManager;
-        private NodeState m_node;
+        private readonly IServerInternal m_server;
+        private readonly INodeManager m_nodeManager;
+        private readonly NodeState m_node;
         private List<IEventMonitoredItem> m_eventSubscriptions;
         private List<DataChangeMonitoredItem> m_monitoredItems;
         #endregion

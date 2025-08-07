@@ -203,7 +203,7 @@ namespace Opc.Ua.Server
         /// <param name="e">The event.</param>
         public void OnReportEvent(ISystemContext context, NodeState node, IFilterTarget e)
         {
-            List<IEventMonitoredItem> eventMonitoredItems = new List<IEventMonitoredItem>();
+            var eventMonitoredItems = new List<IEventMonitoredItem>();
 
             lock (NodeManager.Lock)
             {
@@ -329,7 +329,7 @@ namespace Opc.Ua.Server
             NodeState node,
             MonitoredItem monitoredItem)
         {
-            DataValue value = new DataValue();
+            var value = new DataValue();
 
             value.Value = null;
             value.ServerTimestamp = DateTime.UtcNow;
@@ -372,14 +372,14 @@ namespace Opc.Ua.Server
             int currentTicks = HiResClock.TickCount;
 
             // Check if the context already exists in the cache
-            if (m_contextCache.TryGetValue(monitoredItemId, out var cachedEntry))
+            if (m_contextCache.TryGetValue(monitoredItemId, out (ServerSystemContext Context, int CreatedAtTicks) cachedEntry))
             {
                 // Check if the session or user identity has changed or the entry has expired
                 if (cachedEntry.Context.OperationContext.Session != monitoredItem.Session
                     || cachedEntry.Context.OperationContext.UserIdentity != monitoredItem.EffectiveIdentity
                     || (currentTicks - cachedEntry.CreatedAtTicks) > m_cacheLifetimeTicks)
                 {
-                    var updatedContext = context.Copy(new OperationContext(monitoredItem));
+                    ServerSystemContext updatedContext = context.Copy(new OperationContext(monitoredItem));
                     m_contextCache[monitoredItemId] = (updatedContext, currentTicks);
 
                     return updatedContext;
@@ -392,7 +392,7 @@ namespace Opc.Ua.Server
             }
 
             // Create a new context and add it to the cache
-            var newContext = context.Copy(new OperationContext(monitoredItem));
+            ServerSystemContext newContext = context.Copy(new OperationContext(monitoredItem));
             m_contextCache.TryAdd(monitoredItemId, (newContext, currentTicks));
 
             return newContext;

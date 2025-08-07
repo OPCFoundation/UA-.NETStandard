@@ -113,7 +113,7 @@ namespace Opc.Ua.Server
         /// </returns>
         public ServerSystemContext Copy(OperationContext context)
         {
-            ServerSystemContext copy = (ServerSystemContext)MemberwiseClone();
+            var copy = (ServerSystemContext)MemberwiseClone();
 
             if (context != null)
             {
@@ -132,7 +132,7 @@ namespace Opc.Ua.Server
         /// </returns>
         public ServerSystemContext Copy(ISession session)
         {
-            ServerSystemContext copy = (ServerSystemContext)MemberwiseClone();
+            var copy = (ServerSystemContext)MemberwiseClone();
 
             copy.OperationContext = null;
 
@@ -161,7 +161,7 @@ namespace Opc.Ua.Server
         /// </returns>
         public ServerSystemContext Copy(ServerSystemContext context)
         {
-            ServerSystemContext copy = (ServerSystemContext)MemberwiseClone();
+            var copy = (ServerSystemContext)MemberwiseClone();
 
             if (context != null)
             {

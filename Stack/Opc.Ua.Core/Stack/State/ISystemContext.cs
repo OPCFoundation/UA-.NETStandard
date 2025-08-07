@@ -307,7 +307,7 @@ namespace Opc.Ua
         /// </returns>
         public ISystemContext Copy(IOperationContext context)
         {
-            SystemContext copy = (SystemContext)MemberwiseClone();
+            var copy = (SystemContext)MemberwiseClone();
 
             if (context != null)
             {

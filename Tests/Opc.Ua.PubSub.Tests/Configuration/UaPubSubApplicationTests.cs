@@ -39,7 +39,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
     [TestFixture(Description = "Tests for UaPubSubApplication class")]
     public class UaPubSubApplicationTests
     {
-        private string ConfigurationFileName = Path.Combine("Configuration", "PublisherConfiguration.xml");
+        private readonly string ConfigurationFileName = Path.Combine("Configuration", "PublisherConfiguration.xml");
 
         private PubSubConfigurationDataType m_pubSubConfiguration;
 
@@ -66,12 +66,12 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void ValidateUaPubSubApplicationCreate()
         {
             // Arrange
-            UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(m_pubSubConfiguration);
+            var uaPubSubApplication = UaPubSubApplication.Create(m_pubSubConfiguration);
 
             // Assert
             Assert.IsTrue(uaPubSubApplication.PubSubConnections != null, "uaPubSubApplication.PubSubConnections collection is null");
             Assert.AreEqual(3, uaPubSubApplication.PubSubConnections.Count, "uaPubSubApplication.PubSubConnections count");
-            UaPubSubConnection connection = uaPubSubApplication.PubSubConnections[0] as UaPubSubConnection;
+            var connection = uaPubSubApplication.PubSubConnections[0] as UaPubSubConnection;
             Assert.IsTrue(connection.Publishers != null, "connection.Publishers is null");
             Assert.IsTrue(connection.Publishers.Count == 1, "connection.Publishers count is not 2");
             int index = 0;

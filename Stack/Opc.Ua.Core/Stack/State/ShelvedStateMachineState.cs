@@ -43,7 +43,7 @@ namespace Opc.Ua
         /// <summary>
         /// A table of valid states.
         /// </summary>
-        private ElementInfo[] s_StateTable = new ElementInfo[]
+        private readonly ElementInfo[] s_StateTable = new ElementInfo[]
         {
             new ElementInfo(Objects.ShelvedStateMachineType_OneShotShelved, BrowseNames.OneShotShelve, 1),
             new ElementInfo(Objects.ShelvedStateMachineType_TimedShelved, BrowseNames.TimedShelved, 2),
@@ -61,7 +61,7 @@ namespace Opc.Ua
         /// <summary>
         /// A table of valid transitions.
         /// </summary>
-        private ElementInfo[] s_TransitionTable = new ElementInfo[]
+        private readonly ElementInfo[] s_TransitionTable = new ElementInfo[]
         {
             new ElementInfo(Objects.ShelvedStateMachineType_OneShotShelvedToTimedShelved, BrowseNames.OneShotShelvedToTimedShelved, 1),
             new ElementInfo(Objects.ShelvedStateMachineType_OneShotShelvedToUnshelved, BrowseNames.OneShotShelvedToUnshelved, 2),
@@ -82,7 +82,7 @@ namespace Opc.Ua
         /// <summary>
         /// A table of the to and from states for the transitions.
         /// </summary>
-        private uint[,] s_TransitionMappings = new uint[,]
+        private readonly uint[,] s_TransitionMappings = new uint[,]
         {
             { Objects.ShelvedStateMachineType_OneShotShelvedToTimedShelved, Objects.ShelvedStateMachineType_OneShotShelved, Objects.ShelvedStateMachineType_TimedShelved, 0 },
             { Objects.ShelvedStateMachineType_OneShotShelvedToUnshelved, Objects.ShelvedStateMachineType_OneShotShelved, Objects.ShelvedStateMachineType_Unshelved, 1 },
@@ -103,7 +103,7 @@ namespace Opc.Ua
         /// <summary>
         /// A table of transitions for the available causes.
         /// </summary>
-        private uint[,] s_CauseMappings = new uint[,]
+        private readonly uint[,] s_CauseMappings = new uint[,]
         {
             { Methods.ShelvedStateMachineType_TimedShelve, Objects.ShelvedStateMachineType_OneShotShelved, Objects.ShelvedStateMachineType_OneShotShelvedToTimedShelved },
             { Methods.ShelvedStateMachineType_Unshelve, Objects.ShelvedStateMachineType_OneShotShelved, Objects.ShelvedStateMachineType_OneShotShelvedToUnshelved },

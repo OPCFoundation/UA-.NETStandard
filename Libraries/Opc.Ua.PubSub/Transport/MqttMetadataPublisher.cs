@@ -134,7 +134,7 @@ namespace Opc.Ua.PubSub.Transport
                 DataSetWriter = dataSetWriter;
                 LastSendTime = DateTime.MinValue;
 
-                BrokerDataSetWriterTransportDataType transport =
+                var transport =
                     ExtensionObject.ToEncodeable(DataSetWriter.TransportSettings)
                         as BrokerDataSetWriterTransportDataType;
 

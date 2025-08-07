@@ -60,7 +60,7 @@ namespace Opc.Ua.Server
             public MonitoringMode MonitoringMode;
         }
 
-        private static Queue<Event> m_events = new Queue<Event>();
+        private static readonly Queue<Event> m_events = new Queue<Event>();
         private static bool m_eventsEnabled;
 
         /// <summary>
@@ -99,7 +99,7 @@ namespace Opc.Ua.Server
 
             lock (m_events)
             {
-                Event e = new Event();
+                var e = new Event();
                 e.EventType = EventType.WriteValue;
                 e.NodeId = nodeId;
                 e.ServerHandle = 0;
@@ -130,7 +130,7 @@ namespace Opc.Ua.Server
 
             lock (m_events)
             {
-                Event e = new Event();
+                var e = new Event();
                 e.EventType = EventType.QueueValue;
                 e.NodeId = nodeId;
                 e.ServerHandle = serverHandle;
@@ -154,7 +154,7 @@ namespace Opc.Ua.Server
 
             lock (m_events)
             {
-                Event e = new Event();
+                var e = new Event();
                 e.EventType = EventType.FilterValue;
                 e.NodeId = nodeId;
                 e.ServerHandle = serverHandle;
@@ -178,7 +178,7 @@ namespace Opc.Ua.Server
 
             lock (m_events)
             {
-                Event e = new Event();
+                var e = new Event();
                 e.EventType = EventType.DiscardValue;
                 e.NodeId = nodeId;
                 e.ServerHandle = serverHandle;
@@ -202,7 +202,7 @@ namespace Opc.Ua.Server
 
             lock (m_events)
             {
-                Event e = new Event();
+                var e = new Event();
                 e.EventType = EventType.PublishValue;
                 e.NodeId = nodeId;
                 e.ServerHandle = serverHandle;
@@ -233,7 +233,7 @@ namespace Opc.Ua.Server
 
             lock (m_events)
             {
-                Event e = new Event();
+                var e = new Event();
                 e.EventType = EventType.CreateItem;
                 e.NodeId = nodeId;
                 e.ServerHandle = serverHandle;
@@ -268,7 +268,7 @@ namespace Opc.Ua.Server
 
             lock (m_events)
             {
-                Event e = new Event();
+                var e = new Event();
                 e.EventType = EventType.ModifyItem;
                 e.NodeId = nodeId;
                 e.ServerHandle = serverHandle;
@@ -294,7 +294,7 @@ namespace Opc.Ua.Server
             DiagnosticInfoCollection diagnosticInfos, 
             int                      index)
         {
-            ServiceResult error = new ServiceResult(code);
+            var error = new ServiceResult(code);
             
             if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
             {
@@ -313,7 +313,7 @@ namespace Opc.Ua.Server
             DiagnosticInfoCollection  diagnosticInfos, 
             OperationContext          context)
         {
-            ServiceResult error = new ServiceResult(code);
+            var error = new ServiceResult(code);
             results.Add(error.Code);
             
             if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
@@ -335,7 +335,7 @@ namespace Opc.Ua.Server
             int                      index,
             OperationContext         context)
         {
-            ServiceResult error = new ServiceResult(code);
+            var error = new ServiceResult(code);
             results[index] = error.Code;
             
             if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
@@ -377,7 +377,7 @@ namespace Opc.Ua.Server
             }
             
             // create diagnostics.
-            DiagnosticInfoCollection results = new DiagnosticInfoCollection(errors.Count);
+            var results = new DiagnosticInfoCollection(errors.Count);
 
             foreach (ServiceResult error in errors)
             {
@@ -405,7 +405,7 @@ namespace Opc.Ua.Server
             diagnosticInfos = null;
 
             bool noErrors = true;
-            StatusCodeCollection results = new StatusCodeCollection(errors.Count);
+            var results = new StatusCodeCollection(errors.Count);
 
             foreach (ServiceResult error in errors)
             {
@@ -453,7 +453,7 @@ namespace Opc.Ua.Server
                 translatedError = server.ResourceManager.Translate(context.PreferredLocales, error);
             }
 
-            DiagnosticInfo diagnosticInfo = new DiagnosticInfo(
+            var diagnosticInfo = new DiagnosticInfo(
                 translatedError, 
                 context.DiagnosticsMask, 
                 false, 

@@ -67,8 +67,8 @@ namespace Opc.Ua
 
             try
             {
-                MemoryStream istrm = new MemoryStream(encodedData, false);
-                DataContractSerializer serializer = new DataContractSerializer(typeof(SoftwareCertificate));
+                var istrm = new MemoryStream(encodedData, false);
+                var serializer = new DataContractSerializer(typeof(SoftwareCertificate));
                 softwareCertificate = (SoftwareCertificate)serializer.ReadObject(istrm);
                 softwareCertificate.SignedCertificate = certificate;
             }

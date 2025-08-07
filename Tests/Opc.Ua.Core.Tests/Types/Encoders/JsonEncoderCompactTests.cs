@@ -90,7 +90,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         private string ToString(Array input, int index)
         {
-            var element = input.GetValue(index % input.Length);
+            object element = input.GetValue(index % input.Length);
 
             if (element is byte[] oid)
             {
@@ -112,134 +112,182 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         private void CheckDecodedNodeIds(ServiceMessageContext context, JsonDecoder decoder, int index)
         {
-            var n0 = decoder.ReadNodeId("D0");
+            NodeId n0 = decoder.ReadNodeId("D0");
             Assert.AreEqual((int)n0.NamespaceIndex, 0);
             Assert.AreEqual(2263U, (uint)n0.Identifier);
 
-            var n1 = decoder.ReadNodeId("D1");
+            NodeId n1 = decoder.ReadNodeId("D1");
             Assert.AreEqual((int)n1.NamespaceIndex, context.NamespaceUris.GetIndex(Get(NamespaceUris, index)));
             Assert.AreEqual(Get(NumericIds, index), (uint)n1.Identifier);
 
-            var n2 = decoder.ReadNodeId("D2");
+            NodeId n2 = decoder.ReadNodeId("D2");
             Assert.AreEqual((int)n2.NamespaceIndex, context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1)));
             Assert.AreEqual(Get(StringIds, index), (string)n2.Identifier);
 
-            var n3 = decoder.ReadNodeId("D3");
+            NodeId n3 = decoder.ReadNodeId("D3");
             Assert.AreEqual((int)n3.NamespaceIndex, context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2)));
             Assert.AreEqual(Get(GuidIds, index), (Guid)n3.Identifier);
 
-            var n4 = decoder.ReadNodeId("D4");
+            NodeId n4 = decoder.ReadNodeId("D4");
             Assert.AreEqual((int)n4.NamespaceIndex, context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3)));
             Assert.AreEqual(Utils.ToHexString(Get(OpaqueIds, index)), Utils.ToHexString((byte[])n4.Identifier));
         }
 
         private void CheckDecodedExpandedNodeIds(ServiceMessageContext context, JsonDecoder decoder, int index)
         {
-            var n0 = decoder.ReadExpandedNodeId("D0");
+            ExpandedNodeId n0 = decoder.ReadExpandedNodeId("D0");
             Assert.AreEqual((int)n0.ServerIndex, 0);
             Assert.AreEqual((int)n0.NamespaceIndex, 0);
             Assert.AreEqual(2263U, (uint)n0.Identifier);
 
-            var n1 = decoder.ReadExpandedNodeId("D1");
+            ExpandedNodeId n1 = decoder.ReadExpandedNodeId("D1");
             Assert.AreEqual((int)n1.ServerIndex, 0);
 
-            var uri = Get(NamespaceUris, index);
-            var ns = context.NamespaceUris.GetIndex(uri);
-            if (ns < 0) Assert.AreEqual(n1.NamespaceUri, uri);
-            else Assert.AreEqual(n1.NamespaceIndex, ns);
+            string uri = Get(NamespaceUris, index);
+            int ns = context.NamespaceUris.GetIndex(uri);
+            if (ns < 0)
+            {
+                Assert.AreEqual(n1.NamespaceUri, uri);
+            }
+            else
+            {
+                Assert.AreEqual(n1.NamespaceIndex, ns);
+            }
 
             Assert.AreEqual(Get(NumericIds, index), (uint)n1.Identifier);
 
-            var n2 = decoder.ReadExpandedNodeId("D2");
+            ExpandedNodeId n2 = decoder.ReadExpandedNodeId("D2");
             Assert.AreEqual((int)n2.ServerIndex, 0);
 
             uri = Get(NamespaceUris, index + 1);
             ns = context.NamespaceUris.GetIndex(uri);
-            if (ns < 0) Assert.AreEqual(n2.NamespaceUri, uri);
-            else Assert.AreEqual(n2.NamespaceIndex, ns);
+            if (ns < 0)
+            {
+                Assert.AreEqual(n2.NamespaceUri, uri);
+            }
+            else
+            {
+                Assert.AreEqual(n2.NamespaceIndex, ns);
+            }
 
             Assert.AreEqual(Get(StringIds, index), (string)n2.Identifier);
 
-            var n3 = decoder.ReadExpandedNodeId("D3");
+            ExpandedNodeId n3 = decoder.ReadExpandedNodeId("D3");
             Assert.AreEqual((int)n3.ServerIndex, 0);
 
             uri = Get(NamespaceUris, index + 2);
             ns = context.NamespaceUris.GetIndex(uri);
-            if (ns < 0) Assert.AreEqual(n3.NamespaceUri, uri);
-            else Assert.AreEqual(n3.NamespaceIndex, ns);
+            if (ns < 0)
+            {
+                Assert.AreEqual(n3.NamespaceUri, uri);
+            }
+            else
+            {
+                Assert.AreEqual(n3.NamespaceIndex, ns);
+            }
 
             Assert.AreEqual(Get(GuidIds, index), (Guid)n3.Identifier);
 
-            var n4 = decoder.ReadExpandedNodeId("D4");
+            ExpandedNodeId n4 = decoder.ReadExpandedNodeId("D4");
             Assert.AreEqual((int)n4.ServerIndex, 0);
 
             uri = Get(NamespaceUris, index + 3);
             ns = context.NamespaceUris.GetIndex(uri);
-            if (ns < 0) Assert.AreEqual(n4.NamespaceUri, uri);
-            else Assert.AreEqual(n4.NamespaceIndex, ns);
+            if (ns < 0)
+            {
+                Assert.AreEqual(n4.NamespaceUri, uri);
+            }
+            else
+            {
+                Assert.AreEqual(n4.NamespaceIndex, ns);
+            }
 
             Assert.AreEqual(Utils.ToHexString(Get(OpaqueIds, index)), Utils.ToHexString((byte[])n4.Identifier));
 
-            var n5 = decoder.ReadExpandedNodeId("D5");
+            ExpandedNodeId n5 = decoder.ReadExpandedNodeId("D5");
             Assert.AreEqual((int)n5.ServerIndex, context.ServerUris.GetIndex(Get(ServerUris, index)));
 
             uri = Get(NamespaceUris, index);
             ns = context.NamespaceUris.GetIndex(uri);
-            if (ns < 0) Assert.AreEqual(n5.NamespaceUri, uri);
-            else Assert.AreEqual(n5.NamespaceIndex, ns);
+            if (ns < 0)
+            {
+                Assert.AreEqual(n5.NamespaceUri, uri);
+            }
+            else
+            {
+                Assert.AreEqual(n5.NamespaceIndex, ns);
+            }
 
             Assert.AreEqual(Get(NumericIds, index), (uint)n5.Identifier);
 
-            var n6 = decoder.ReadExpandedNodeId("D6");
+            ExpandedNodeId n6 = decoder.ReadExpandedNodeId("D6");
             Assert.AreEqual((int)n6.ServerIndex, context.ServerUris.GetIndex(Get(ServerUris, index + 1)));
 
             uri = Get(NamespaceUris, index + 1);
             ns = context.NamespaceUris.GetIndex(uri);
-            if (ns < 0) Assert.AreEqual(n6.NamespaceUri, uri);
-            else Assert.AreEqual(n6.NamespaceIndex, ns);
+            if (ns < 0)
+            {
+                Assert.AreEqual(n6.NamespaceUri, uri);
+            }
+            else
+            {
+                Assert.AreEqual(n6.NamespaceIndex, ns);
+            }
 
             Assert.AreEqual(Get(StringIds, index), (string)n6.Identifier);
 
-            var n7 = decoder.ReadExpandedNodeId("D7");
+            ExpandedNodeId n7 = decoder.ReadExpandedNodeId("D7");
             Assert.AreEqual((int)n7.ServerIndex, context.ServerUris.GetIndex(Get(ServerUris, index + 2)));
 
             uri = Get(NamespaceUris, index + 2);
             ns = context.NamespaceUris.GetIndex(uri);
-            if (ns < 0) Assert.AreEqual(n7.NamespaceUri, uri);
-            else Assert.AreEqual(n7.NamespaceIndex, ns);
+            if (ns < 0)
+            {
+                Assert.AreEqual(n7.NamespaceUri, uri);
+            }
+            else
+            {
+                Assert.AreEqual(n7.NamespaceIndex, ns);
+            }
 
             Assert.AreEqual(Get(GuidIds, index), (Guid)n7.Identifier);
 
-            var n8 = decoder.ReadExpandedNodeId("D8");
+            ExpandedNodeId n8 = decoder.ReadExpandedNodeId("D8");
             Assert.AreEqual((int)n8.ServerIndex, context.ServerUris.GetIndex(Get(ServerUris, index + 3)));
 
             uri = Get(NamespaceUris, index + 3);
             ns = context.NamespaceUris.GetIndex(uri);
-            if (ns < 0) Assert.AreEqual(n8.NamespaceUri, uri);
-            else Assert.AreEqual(n8.NamespaceIndex, ns);
+            if (ns < 0)
+            {
+                Assert.AreEqual(n8.NamespaceUri, uri);
+            }
+            else
+            {
+                Assert.AreEqual(n8.NamespaceIndex, ns);
+            }
 
             Assert.AreEqual(Utils.ToHexString(Get(OpaqueIds, index)), Utils.ToHexString((byte[])n8.Identifier));
         }
 
         private void CheckDecodedQualfiiedNames(ServiceMessageContext context, JsonDecoder decoder, int index)
         {
-            var n0 = decoder.ReadQualifiedName("D0");
+            QualifiedName n0 = decoder.ReadQualifiedName("D0");
             Assert.AreEqual((int)n0.NamespaceIndex, 0);
             Assert.AreEqual("ServerStatus", n0.Name);
 
-            var n1 = decoder.ReadQualifiedName("D1");
+            QualifiedName n1 = decoder.ReadQualifiedName("D1");
             Assert.AreEqual((int)n1.NamespaceIndex, context.NamespaceUris.GetIndex(Get(NamespaceUris, index)));
             Assert.AreEqual("N1", n1.Name);
 
-            var n2 = decoder.ReadQualifiedName("D2");
+            QualifiedName n2 = decoder.ReadQualifiedName("D2");
             Assert.AreEqual((int)n2.NamespaceIndex, context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1)));
             Assert.AreEqual("N2", n2.Name);
 
-            var n3 = decoder.ReadQualifiedName("D3");
+            QualifiedName n3 = decoder.ReadQualifiedName("D3");
             Assert.AreEqual((int)n3.NamespaceIndex, context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2)));
             Assert.AreEqual("N3", n3.Name);
 
-            var n4 = decoder.ReadQualifiedName("D4");
+            QualifiedName n4 = decoder.ReadQualifiedName("D4");
             Assert.AreEqual((int)n4.NamespaceIndex, context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3)));
             Assert.AreEqual("N4", n4.Name);
         }
@@ -250,7 +298,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [TestCase(2)]
         public void DecodeCompactAndVerboseNodeId(int index)
         {
-            var data = $@"
+            string data = $@"
                 {{
                     ""D0"": ""i=2263"",
                     ""D1"": ""nsu={ToString(NamespaceUris, index)};i={ToString(NumericIds, index)}"",
@@ -278,7 +326,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [TestCase(2, JsonEncodingType.Compact)]
         public void EncodeCompactOrVerboseNodeId(int index, JsonEncodingType jsonEncoding)
         {
-            var data = $@"
+            string data = $@"
                 {{
                     ""D0"": ""i=2263"",
                     ""D1"": ""nsu={ToString(NamespaceUris, index)};i={ToString(NumericIds, index)}"",
@@ -288,7 +336,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 }}
             ";
 
-            JObject jsonObj = JObject.Parse(data);
+            var jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
@@ -315,7 +363,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [TestCase(2)]
         public void DecodeCompactAndVerboseExpandedNodeId(int index)
         {
-            var data = $@"
+            string data = $@"
                 {{
                     ""D0"": ""i=2263"",
                     ""D1"": ""nsu={ToString(NamespaceUris, index)};i={ToString(NumericIds, index)}"",
@@ -348,7 +396,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         public void EncodeCompactOrVerboseExpandedNodeId(int index, JsonEncodingType jsonEncoding)
         {
-            var data = $@"
+            string data = $@"
                 {{
                     ""D0"": ""i=2263"",
                     ""D1"": ""nsu={ToString(NamespaceUris, index)};i={ToString(NumericIds, index)}"",
@@ -362,7 +410,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 }}
             ";
 
-            JObject jsonObj = JObject.Parse(data);
+            var jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
@@ -400,7 +448,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context1.NamespaceUris.Append(NamespaceUris[1]);
             context1.NamespaceUris.Append(NamespaceUris[2]);
 
-            var data = $@"
+            string data = $@"
                 {{
                     ""D0"": {{ ""Id"": 2263 }},
                     ""D1"": {{ ""Id"": {ToString(NumericIds, index)}, ""Namespace"":{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index))} }},
@@ -434,7 +482,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context1.NamespaceUris.Append(NamespaceUris[1]);
             context1.NamespaceUris.Append(NamespaceUris[2]);
 
-            var data = $@"
+            string data = $@"
                 {{
                     ""D0"": {{ ""Id"": 2263 }},
                     ""D1"": {{ ""Id"": {ToString(NumericIds, index)}, ""Namespace"":{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index))} }},
@@ -444,7 +492,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 }}
             ";
 
-            JObject jsonObj = JObject.Parse(data);
+            var jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
@@ -484,7 +532,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context1.ServerUris.Append(ServerUris[1]);
             context1.ServerUris.Append(ServerUris[2]);
 
-            var data = $@"
+            string data = $@"
                 {{
                     ""D0"": {{ ""Id"": 2263 }},
                     ""D1"": {{ ""Id"": {ToString(NumericIds, index)}, ""Namespace"":{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index))} }},
@@ -530,7 +578,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context1.ServerUris.Append(ServerUris[1]);
             context1.ServerUris.Append(ServerUris[2]);
 
-            var data = $@"
+            string data = $@"
                 {{
                     ""D0"": {{ ""Id"": 2263 }},
                     ""D1"": {{ ""Id"": {ToString(NumericIds, index)}, ""Namespace"":{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index))} }},
@@ -544,7 +592,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 }}
             ";
 
-            JObject jsonObj = JObject.Parse(data);
+            var jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
@@ -583,7 +631,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [TestCase(2)]
         public void DecodeNonReversibleNodeId(int index)
         {
-            var data = $@"
+            string data = $@"
                 {{
                     ""D0"": {{ ""Id"": 2263 }},
                     ""D1"": {{ ""Id"": {ToString(NumericIds, index)}, ""Namespace"":""{Get(NamespaceUris, index)}"" }},
@@ -613,7 +661,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context1.NamespaceUris.Append(NamespaceUris[1]);
             context1.NamespaceUris.Append(NamespaceUris[2]);
 
-            var data = $@"
+            string data = $@"
                 {{
                     ""D0"": {{ ""Id"": 2263 }},
                     ""D1"": {{ ""Id"": {ToString(NumericIds, index)}, ""Namespace"":""{Get(NamespaceUris, index)}"" }},
@@ -623,7 +671,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 }}
             ";
 
-            JObject jsonObj = JObject.Parse(data);
+            var jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
@@ -665,7 +713,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context1.ServerUris.Append(ServerUris[1]);
             context1.ServerUris.Append(ServerUris[2]);
 
-            var data = $@"
+            string data = $@"
                 {{
                     ""D0"": {{ ""Id"": 2263 }},
                     ""D1"": {{ ""Id"": {ToString(NumericIds, index)}, ""Namespace"":""{Get(NamespaceUris, index)}"" }},
@@ -704,7 +752,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context1.ServerUris.Append(ServerUris[1]);
             context1.ServerUris.Append(ServerUris[2]);
 
-            var data = $@"
+            string data = $@"
                 {{
                     ""D0"": {{ ""Id"": 2263 }},
                     ""D1"": {{ ""Id"": {ToString(NumericIds, index)}, ""Namespace"":""{Get(NamespaceUris, index)}"" }},
@@ -718,7 +766,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 }}
             ";
 
-            JObject jsonObj = JObject.Parse(data);
+            var jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
@@ -757,7 +805,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void DecodeCompactAndVerboseQualifiedName()
         {
-            var data = $@"
+            string data = $@"
                 {{
                     ""D0"": ""ServerStatus"",
                     ""D1"": ""nsu={ToString(NamespaceUris, 0)};N1"",
@@ -786,7 +834,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context1.NamespaceUris.Append(NamespaceUris[1]);
             context1.NamespaceUris.Append(NamespaceUris[2]);
 
-            var data = $@"
+            string data = $@"
                 {{
                     ""D0"": ""ServerStatus"",
                     ""D1"": ""nsu={ToString(NamespaceUris, 0)};N1"",
@@ -796,7 +844,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 }}
             ";
 
-            JObject jsonObj = JObject.Parse(data);
+            var jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
@@ -829,7 +877,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context1.NamespaceUris.Append(NamespaceUris[1]);
             context1.NamespaceUris.Append(NamespaceUris[2]);
 
-            var data = $@"
+            string data = $@"
                 {{
                     ""D0"": {{ ""Name"": ""ServerStatus"" }},
                     ""D1"": {{ ""Name"": ""N1"", ""Uri"":{context1.NamespaceUris.GetIndex(Get(NamespaceUris, 0))} }},
@@ -860,7 +908,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context1.NamespaceUris.Append(NamespaceUris[1]);
             context1.NamespaceUris.Append(NamespaceUris[2]);
 
-            var data = $@"
+            string data = $@"
                 {{
                     ""D0"": {{ ""Name"": ""ServerStatus"" }},
                     ""D1"": {{ ""Name"": ""N1"", ""Uri"":{context1.NamespaceUris.GetIndex(Get(NamespaceUris, 0))} }},
@@ -870,7 +918,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 }}
             ";
 
-            JObject jsonObj = JObject.Parse(data);
+            var jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
@@ -903,7 +951,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context1.NamespaceUris.Append(NamespaceUris[1]);
             context1.NamespaceUris.Append(NamespaceUris[2]);
 
-            var data = $@"
+            string data = $@"
                 {{
                     ""D0"": {{ ""Name"":""ServerStatus"" }},
                     ""D1"": {{ ""Name"": ""N1"", ""Uri"":""{Get(NamespaceUris, 0)}"" }},
@@ -934,7 +982,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context1.NamespaceUris.Append(NamespaceUris[1]);
             context1.NamespaceUris.Append(NamespaceUris[2]);
 
-            var data = $@"
+            string data = $@"
                 {{
                     ""D0"": {{ ""Name"": ""ServerStatus"" }},
                     ""D1"": {{ ""Name"": ""N1"", ""Uri"":""{Get(NamespaceUris, 0)}"" }},
@@ -944,7 +992,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 }}
             ";
 
-            JObject jsonObj = JObject.Parse(data);
+            var jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
@@ -975,7 +1023,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void DecodeCompactAndVerboseMatrix()
         {
-            var data = $@"
+            string data = $@"
                 {{
                     ""D0"": {{ ""Dimensions"": [ 2, 3 ], ""Array"": [ 1, 2, 3, 4, 5, 6 ] }},
                     ""D1"": {{ ""Dimensions"": [ 1, 2, 3 ], ""Array"": [ 1, 2, 3, 4, 5, 6 ] }}
@@ -1006,14 +1054,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [TestCase(JsonEncodingType.Verbose)]
         public void EncodeCompactAndVerboseMatrix(JsonEncodingType jsonEncoding)
         {
-            var data = $@"
+            string data = $@"
                 {{
                     ""D0"": {{ ""Dimensions"": [ 2, 3 ], ""Array"": [ 1, 2, 3, 4, 5, 6 ] }},
                     ""D1"": {{ ""Dimensions"": [ 1, 2, 3 ], ""Array"": [ 1, 2, 3, 4, 5, 6 ] }}
                 }}
             ";
 
-            JObject jsonObj = JObject.Parse(data);
+            var jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
@@ -1033,7 +1081,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void DecodeReversibleMatrix()
         {
-            var data = $@"
+            string data = $@"
                 {{
                     ""D0"": [[1, 2, 3], [4, 5, 6]],
                     ""D1"": [[[1, 2, 3], [4, 5, 6]]]
@@ -1064,14 +1112,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [TestCase(JsonEncodingType.NonReversible)]
         public void EncodeReversibleAndNonReversibleMatrix(JsonEncodingType jsonEncoding)
         {
-            var data = $@"
+            string data = $@"
                 {{
                     ""D0"": [[1, 2, 3], [4, 5, 6]],
                     ""D1"": [[[1, 2, 3], [4, 5, 6]]]
                 }}
             ";
 
-            JObject jsonObj = JObject.Parse(data);
+            var jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
@@ -1091,7 +1139,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void DecodeCompactExtensionObject()
         {
-            var data = $@"
+            string data = $@"
                 {{
                     ""D0"": {{
                         ""UaTypeId"": ""i=884"",
@@ -1118,14 +1166,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             using (var decoder = new JsonDecoder(data, context))
             {
-                var eo = decoder.ReadExtensionObject("D0");
+                ExtensionObject eo = decoder.ReadExtensionObject("D0");
                 Assert.AreEqual(Opc.Ua.DataTypeIds.Range.ToString(), eo.TypeId.ToString());
                 var range = eo.Body as Opc.Ua.Range;
                 Assert.IsNotNull(range);
                 Assert.AreEqual(0, range.Low);
                 Assert.AreEqual(9876.5432, range.High);
 
-                var v1 = decoder.ReadVariant("D1");
+                Variant v1 = decoder.ReadVariant("D1");
                 Assert.AreEqual(v1.TypeInfo.BuiltInType, BuiltInType.ExtensionObject);
 
                 eo = v1.Value as ExtensionObject;
@@ -1142,7 +1190,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void EncodeCompactExtensionObject()
         {
-            var data = $@"
+            string data = $@"
                 {{
                     ""D0"": {{
                         ""UaTypeId"": ""i=884"",
@@ -1164,7 +1212,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 }}
             ";
 
-            JObject jsonObj = JObject.Parse(data);
+            var jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
@@ -1203,7 +1251,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void DecodeVerboseExtensionObject()
         {
-            var data = $@"
+            string data = $@"
                 {{
                     ""D0"": {{
                         ""TypeId"": ""i=884"",
@@ -1233,14 +1281,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             using (var decoder = new JsonDecoder(data, context))
             {
-                var eo = decoder.ReadExtensionObject("D0");
+                ExtensionObject eo = decoder.ReadExtensionObject("D0");
                 Assert.AreEqual(Opc.Ua.DataTypeIds.Range.ToString(), eo.TypeId.ToString());
                 var range = eo.Body as Opc.Ua.Range;
                 Assert.IsNotNull(range);
                 Assert.AreEqual(0, range.Low);
                 Assert.AreEqual(9876.5432, range.High);
 
-                var v1 = decoder.ReadVariant("D1");
+                Variant v1 = decoder.ReadVariant("D1");
                 Assert.AreEqual(v1.TypeInfo.BuiltInType, BuiltInType.ExtensionObject);
 
                 eo = v1.Value as ExtensionObject;
@@ -1257,7 +1305,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void EncodeVerboseExtensionObject()
         {
-            var data = $@"
+            string data = $@"
                 {{
                     ""D0"": {{
                         ""UaTypeId"": ""i=884"",
@@ -1280,7 +1328,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 }}
             ";
 
-            JObject jsonObj = JObject.Parse(data);
+            var jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
@@ -1320,7 +1368,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void DecodeReversibleExtensionObject()
         {
-            var data = $@"
+            string data = $@"
                 {{
                     ""D0"": {{
                         ""TypeId"": {{ ""Id"": 884 }},
@@ -1349,14 +1397,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             using (var decoder = new JsonDecoder(data, context))
             {
-                var eo = decoder.ReadExtensionObject("D0");
+                ExtensionObject eo = decoder.ReadExtensionObject("D0");
                 Assert.AreEqual(Opc.Ua.DataTypeIds.Range.ToString(), eo.TypeId.ToString());
                 var range = eo.Body as Opc.Ua.Range;
                 Assert.IsNotNull(range);
                 Assert.AreEqual(0, range.Low);
                 Assert.AreEqual(9876.5432, range.High);
 
-                var v1 = decoder.ReadVariant("D1");
+                Variant v1 = decoder.ReadVariant("D1");
                 Assert.AreEqual(v1.TypeInfo.BuiltInType, BuiltInType.ExtensionObject);
 
                 eo = v1.Value as ExtensionObject;
@@ -1373,7 +1421,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void EncodeReversibleExtensionObject()
         {
-            var data = $@"
+            string data = $@"
                 {{
                     ""D0"": {{
                         ""TypeId"": {{ ""Id"": 884 }},
@@ -1397,7 +1445,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 }}
             ";
 
-            JObject jsonObj = JObject.Parse(data);
+            var jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 
@@ -1437,7 +1485,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void DecodeNonReversibleExtensionObject()
         {
-            var data = $@"
+            string data = $@"
                 {{
                     ""D0"": {{ ""Low"": 0, ""High"": 9876.5432 }},
                     ""D1"": {{
@@ -1473,7 +1521,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void EncodeNonReversibleExtensionObject()
         {
-            var data = $@"
+            string data = $@"
                 {{
                     ""D0"": {{ ""Low"": 0, ""High"": 9876.5432 }},
                     ""D1"": {{
@@ -1488,7 +1536,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 }}
             ";
 
-            JObject jsonObj = JObject.Parse(data);
+            var jsonObj = JObject.Parse(data);
             string expected = JsonConvert.SerializeObject(jsonObj, Formatting.None);
             EncoderCommon.PrettifyAndValidateJson(expected, true);
 

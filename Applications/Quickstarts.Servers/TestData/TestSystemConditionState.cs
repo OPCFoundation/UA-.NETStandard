@@ -58,7 +58,7 @@ namespace TestData
             NodeState node,
             ref object value)
         {
-            TestDataSystem system = context?.SystemHandle as TestDataSystem;
+            var system = context?.SystemHandle as TestDataSystem;
 
             if (system == null)
             {

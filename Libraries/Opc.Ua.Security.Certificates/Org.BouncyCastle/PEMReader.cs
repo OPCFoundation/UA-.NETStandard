@@ -112,7 +112,7 @@ namespace Opc.Ua.Security.Certificates
                     {
                         if (pemObject is Org.BouncyCastle.X509.X509Certificate bcCert)
                         {
-                            var rawData = bcCert.GetEncoded();
+                            byte[] rawData = bcCert.GetEncoded();
                             var cert = new X509Certificate2(rawData);
                             certificates.Add(cert);
                             certCount++;
@@ -213,7 +213,7 @@ namespace Opc.Ua.Security.Certificates
                         // Check for an EC private key
                         if (pemObject is ECPrivateKeyParameters ecParams)
                         {
-                            var ecdsa = CreateECDsaFromECPrivateKey(ecParams);
+                            ECDsa ecdsa = CreateECDsaFromECPrivateKey(ecParams);
                             key = ecdsa;
                             break;
                         }
@@ -238,18 +238,18 @@ namespace Opc.Ua.Security.Certificates
 #if NET472_OR_GREATER
         private static ECDsa CreateECDsaFromECPrivateKey(ECPrivateKeyParameters eCPrivateKeyParameters)
         {
-            var domainParams = eCPrivateKeyParameters.Parameters;
+            ECDomainParameters domainParams = eCPrivateKeyParameters.Parameters;
 
             // calculate keySize round up (bitLength + 7) / 8
             int keySizeBytes = (domainParams.N.BitLength + 7) / 8;
 
-            var curveOid = eCPrivateKeyParameters.PublicKeyParamSet.Id;
+            string curveOid = eCPrivateKeyParameters.PublicKeyParamSet.Id;
             var curve = ECCurve.CreateFromOid(new Oid(curveOid));
 
-            var q = domainParams.G.Multiply(eCPrivateKeyParameters.D).Normalize();
-            var x = q.AffineXCoord.ToBigInteger().ToByteArrayUnsigned();
-            var y = q.AffineYCoord.ToBigInteger().ToByteArrayUnsigned();
-            var d = eCPrivateKeyParameters.D.ToByteArrayUnsigned();
+            Org.BouncyCastle.Math.EC.ECPoint q = domainParams.G.Multiply(eCPrivateKeyParameters.D).Normalize();
+            byte[] x = q.AffineXCoord.ToBigInteger().ToByteArrayUnsigned();
+            byte[] y = q.AffineYCoord.ToBigInteger().ToByteArrayUnsigned();
+            byte[] d = eCPrivateKeyParameters.D.ToByteArrayUnsigned();
 
             // pad all to the same length since ToByteArrayUnsigned might drop leading zeroes
             x = X509Utils.PadWithLeadingZeros(x, keySizeBytes);

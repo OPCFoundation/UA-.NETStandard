@@ -41,7 +41,7 @@ namespace Opc.Ua.Core.Tests
     {
         public static string[] EnumerateTestAssets(string searchPattern)
         {
-            var assetsPath = Utils.GetAbsoluteDirectoryPath ("Assets", true, true, false);
+            string assetsPath = Utils.GetAbsoluteDirectoryPath ("Assets", true, true, false);
             if (assetsPath != null)
             {
                 return Directory.EnumerateFiles(assetsPath, searchPattern).ToArray();
@@ -58,15 +58,15 @@ namespace Opc.Ua.Core.Tests
         {
             if (store != null)
             {
-                var certs = await store.Enumerate().ConfigureAwait(false);
-                foreach (var cert in certs)
+                System.Security.Cryptography.X509Certificates.X509Certificate2Collection certs = await store.Enumerate().ConfigureAwait(false);
+                foreach (System.Security.Cryptography.X509Certificates.X509Certificate2 cert in certs)
                 {
                     await store.Delete(cert.Thumbprint).ConfigureAwait(false);
                 }
                 if (store.SupportsCRLs)
                 {
-                    var crls = await store.EnumerateCRLs().ConfigureAwait(false);
-                    foreach (var crl in crls)
+                    Ua.Security.Certificates.X509CRLCollection crls = await store.EnumerateCRLs().ConfigureAwait(false);
+                    foreach (Ua.Security.Certificates.X509CRL crl in crls)
                     {
                         await store.DeleteCRL(crl).ConfigureAwait(false);
                     }

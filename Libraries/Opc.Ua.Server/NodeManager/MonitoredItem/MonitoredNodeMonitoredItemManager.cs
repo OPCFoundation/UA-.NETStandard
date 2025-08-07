@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -86,7 +86,7 @@ namespace Opc.Ua.Server
             handle.MonitoredNode = monitoredNode;
 
             // create the item.
-            MonitoredItem datachangeItem = new MonitoredItem(
+            var datachangeItem = new MonitoredItem(
                 server,
                 m_nodeManager,
                 handle,
@@ -131,7 +131,7 @@ namespace Opc.Ua.Server
         public StatusCode DeleteMonitoredItem(ServerSystemContext context, IMonitoredItem monitoredItem, NodeHandle handle)
         {
             // check for valid monitored item.
-            MonitoredItem datachangeItem = monitoredItem as MonitoredItem;
+            var datachangeItem = monitoredItem as MonitoredItem;
 
             // check if the node is already being monitored.
             MonitoredNode2 monitoredNode = null;
@@ -158,7 +158,7 @@ namespace Opc.Ua.Server
         public (ServiceResult, MonitoringMode?) SetMonitoringMode(ServerSystemContext context, IMonitoredItem monitoredItem, MonitoringMode monitoringMode, NodeHandle handle)
         {
             // check for valid monitored item.
-            MonitoredItem datachangeItem = monitoredItem as MonitoredItem;
+            var datachangeItem = monitoredItem as MonitoredItem;
 
             // update monitoring mode.
             MonitoringMode previousMode = datachangeItem.SetMonitoringMode(monitoringMode);
@@ -282,7 +282,7 @@ namespace Opc.Ua.Server
             // this links the node to specified monitored item and ensures all events
             // reported by the node are added to the monitored item's queue.
             monitoredNode.Add(monitoredItem);
-            m_monitoredItems.TryAdd(monitoredItem.Id, monitoredItem);
+            _ = m_monitoredItems.TryAdd(monitoredItem.Id, monitoredItem);
 
             return (monitoredNode, ServiceResult.Good);
         }

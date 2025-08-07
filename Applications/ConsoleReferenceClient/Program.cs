@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -61,9 +61,9 @@ namespace Quickstarts.ConsoleReferenceClient
                 Utils.GetAssemblySoftwareVersion());
 
             // The application name and config file names
-            var applicationName = "ConsoleReferenceClient";
-            var configSectionName = "Quickstarts.ReferenceClient";
-            var usage = $"Usage: dotnet {applicationName}.dll [OPTIONS]";
+            string applicationName = "ConsoleReferenceClient";
+            string configSectionName = "Quickstarts.ReferenceClient";
+            string usage = $"Usage: dotnet {applicationName}.dll [OPTIONS]";
 
             // command line options
             bool showHelp = false;
@@ -124,7 +124,7 @@ namespace Quickstarts.ConsoleReferenceClient
             try
             {
                 // parse command line and set options
-                var extraArg = ConsoleUtils.ProcessCommandLine(output, args, options, ref showHelp, "REFCLIENT", false);
+                string extraArg = ConsoleUtils.ProcessCommandLine(output, args, options, ref showHelp, "REFCLIENT", false);
 
                 // connect Url?
                 Uri serverUrl = new Uri("opc.tcp://localhost:62541/Quickstarts/ReferenceServer");
@@ -150,14 +150,14 @@ namespace Quickstarts.ConsoleReferenceClient
                 };
 
                 // load the application configuration.
-                var config = await application.LoadApplicationConfiguration(silent: false).ConfigureAwait(false);
+                ApplicationConfiguration config = await application.LoadApplicationConfiguration(silent: false).ConfigureAwait(false);
 
                 // override logfile
                 if (logFile != null)
                 {
-                    var logFilePath = config.TraceConfiguration.OutputFilePath;
-                    var filename = Path.GetFileNameWithoutExtension(logFilePath);
-                    config.TraceConfiguration.OutputFilePath = logFilePath.Replace(filename, logFile);
+                    string logFilePath = config.TraceConfiguration.OutputFilePath;
+                    string filename = Path.GetFileNameWithoutExtension(logFilePath);
+                    config.TraceConfiguration.OutputFilePath = logFilePath.Replace(filename, logFile, StringComparison.Ordinal);
                     config.TraceConfiguration.DeleteOnLoad = true;
                     config.TraceConfiguration.ApplySettings();
                 }
@@ -189,7 +189,7 @@ namespace Quickstarts.ConsoleReferenceClient
 
                 // wait for timeout or Ctrl-C
                 var quitCTS = new CancellationTokenSource();
-                var quitEvent = ConsoleUtils.CtrlCHandler(quitCTS);
+                ManualResetEvent quitEvent = ConsoleUtils.CtrlCHandler(quitCTS);
 
                 // connect to a server until application stops
                 bool quit = false;
@@ -265,7 +265,7 @@ namespace Quickstarts.ConsoleReferenceClient
                             var samples = new ClientSamples(output, ClientBase.ValidateResponse, quitEvent, verbose);
                             if (loadTypes)
                             {
-                                var complexTypeSystem = await samples.LoadTypeSystemAsync(uaClient.Session).ConfigureAwait(false);
+                                Opc.Ua.Client.ComplexTypes.ComplexTypeSystem complexTypeSystem = await samples.LoadTypeSystemAsync(uaClient.Session).ConfigureAwait(false);
                             }
 
                             if (browseall || fetchall || jsonvalues || managedbrowseall)
@@ -313,7 +313,7 @@ namespace Quickstarts.ConsoleReferenceClient
 
                                 if (jsonvalues && variableIds != null)
                                 {
-                                    var (allValues, results) = await samples.ReadAllValuesAsync(uaClient, variableIds).ConfigureAwait(false);
+                                    (DataValueCollection allValues, IList<ServiceResult> results) = await samples.ReadAllValuesAsync(uaClient, variableIds).ConfigureAwait(false);
                                 }
 
                                 if (subscribe && (browseall || fetchall))
@@ -357,14 +357,14 @@ namespace Quickstarts.ConsoleReferenceClient
 
                                     waitTime = timeout - (int)DateTime.UtcNow.Subtract(start).TotalMilliseconds;
                                     DateTime endTime = waitTime > 0 ? DateTime.UtcNow.Add(TimeSpan.FromMilliseconds(waitTime)) : DateTime.MaxValue;
-                                    var variableIterator = variables.GetEnumerator();
+                                    List<Node>.Enumerator variableIterator = variables.GetEnumerator();
                                     while (!quit && endTime > DateTime.UtcNow)
                                     {
                                         if (variableIterator.MoveNext())
                                         {
                                             try
                                             {
-                                                var value = await uaClient.Session.ReadValueAsync(variableIterator.Current.NodeId).ConfigureAwait(false);
+                                                DataValue value = await uaClient.Session.ReadValueAsync(variableIterator.Current.NodeId).ConfigureAwait(false);
                                                 output.WriteLine("Value of {0} is {1}", variableIterator.Current.NodeId, value);
                                             }
                                             catch (Exception ex)

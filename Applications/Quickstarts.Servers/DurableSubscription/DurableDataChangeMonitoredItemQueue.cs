@@ -187,7 +187,7 @@ namespace Quickstarts.Servers
             }
             else if (m_dataChangeBatches.Count > 0)
             {
-                var batch = m_dataChangeBatches.Last();
+                DataChangeBatch batch = m_dataChangeBatches.Last();
                 batch.Values[batch.Values.Count - 1] = (value, error);
             }
             else
@@ -205,7 +205,7 @@ namespace Quickstarts.Servers
             m_queueErrors = queueErrors;
             m_queueSize = queueSize;
 
-            foreach (var batch in m_dataChangeBatches)
+            foreach (DataChangeBatch batch in m_dataChangeBatches)
             {
                 m_batchPersistor.DeleteBatch(batch);
             }
@@ -227,7 +227,7 @@ namespace Quickstarts.Servers
             }
             else if (m_dataChangeBatches.Count > 0)
             {
-                var batch = m_dataChangeBatches.Last();
+                DataChangeBatch batch = m_dataChangeBatches.Last();
                 return batch.Values[batch.Values.Count - 1].Item1;
             }
             else
@@ -322,7 +322,7 @@ namespace Quickstarts.Servers
         #region Private Fields
         private readonly uint m_monitoredItemId;
         private DataChangeBatch m_enqueueBatch;
-        private List<DataChangeBatch> m_dataChangeBatches = new List<DataChangeBatch>();
+        private readonly List<DataChangeBatch> m_dataChangeBatches = new List<DataChangeBatch>();
         private DataChangeBatch m_dequeueBatch;
         private int m_itemsInQueue;
         private uint m_queueSize;

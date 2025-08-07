@@ -50,8 +50,15 @@ namespace Opc.Ua.Server
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
-            if (server == null) throw new ArgumentNullException(nameof(server));
-            if (configuration == null) throw new ArgumentNullException(nameof(configuration));
+            if (server == null)
+            {
+                throw new ArgumentNullException(nameof(server));
+            }
+
+            if (configuration == null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
 
             m_server = server;
 
@@ -88,10 +95,10 @@ namespace Opc.Ua.Server
             if (disposing)
             {
                 // create snapshot of all sessions
-                var sessions = m_sessions.ToArray();
+                KeyValuePair<NodeId, ISession>[] sessions = m_sessions.ToArray();
                 m_sessions.Clear();
 
-                foreach (var sessionKeyValue in sessions)
+                foreach (KeyValuePair<NodeId, ISession> sessionKeyValue in sessions)
                 {
                     Utils.SilentDispose(sessionKeyValue.Value);
                 }
@@ -127,10 +134,10 @@ namespace Opc.Ua.Server
             m_shutdownEvent.Set();
 
             // dispose of session objects using a snapshot.
-            var sessions = m_sessions.ToArray();
+            KeyValuePair<NodeId, ISession>[] sessions = [.. m_sessions];
             m_sessions.Clear();
 
-            foreach (var sessionKeyValue in sessions)
+            foreach (KeyValuePair<NodeId, ISession> sessionKeyValue in sessions)
             {
                 Utils.SilentDispose(sessionKeyValue.Value);
             }
@@ -173,7 +180,7 @@ namespace Opc.Ua.Server
                 if (clientNonce != null)
                 {
                     // iterate over key/value pairs in the dictionary with a thread safe iterator
-                    foreach (var sessionKeyValueIterator in m_sessions)
+                    foreach (KeyValuePair<NodeId, ISession> sessionKeyValueIterator in m_sessions)
                     {
                         byte[] sessionClientNonce = sessionKeyValueIterator.Value?.ClientNonce;
                         if (Nonce.CompareNonce(sessionClientNonce, clientNonce))
@@ -329,7 +336,7 @@ namespace Opc.Ua.Server
                 {
                     if (m_impersonateUser != null)
                     {
-                        ImpersonateEventArgs args = new ImpersonateEventArgs(newIdentity, userTokenPolicy, context.ChannelContext.EndpointDescription);
+                        var args = new ImpersonateEventArgs(newIdentity, userTokenPolicy, context.ChannelContext.EndpointDescription);
                         m_impersonateUser(session, args);
 
                         if (ServiceResult.IsBad(args.IdentityValidationError))
@@ -448,7 +455,10 @@ namespace Opc.Ua.Server
         /// </remarks>
         public virtual OperationContext ValidateRequest(RequestHeader requestHeader, RequestType requestType)
         {
-            if (requestHeader == null) throw new ArgumentNullException(nameof(requestHeader));
+            if (requestHeader == null)
+            {
+                throw new ArgumentNullException(nameof(requestHeader));
+            }
 
             ISession session = null;
 
@@ -492,7 +502,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
-                ServiceResultException sre = e as ServiceResultException;
+                var sre = e as ServiceResultException;
 
                 if (sre != null && sre.StatusCode == StatusCodes.BadSessionNotActivated)
                 {
@@ -528,7 +538,7 @@ namespace Opc.Ua.Server
             int maxRequestAge, // TBD - Remove unused parameter.
             int maxContinuationPoints) // TBD - Remove unused parameter.
         {
-            Session session = new Session(
+            var session = new Session(
                 context,
                 m_server,
                 serverCertificate,
@@ -596,7 +606,7 @@ namespace Opc.Ua.Server
                 do
                 {
                     // enumerator is thread safe
-                    foreach (var sessionKeyValue in m_sessions)
+                    foreach (KeyValuePair<NodeId, ISession> sessionKeyValue in m_sessions)
                     {
                         ISession session = sessionKeyValue.Value;
                         if (session.HasExpired)
@@ -637,18 +647,18 @@ namespace Opc.Ua.Server
 
 #region Private Fields
         private readonly object m_lock = new object();
-        private IServerInternal m_server;
-        private NodeIdDictionary<ISession> m_sessions;
+        private readonly IServerInternal m_server;
+        private readonly NodeIdDictionary<ISession> m_sessions;
         private long m_lastSessionId;
-        private ManualResetEvent m_shutdownEvent;
+        private readonly ManualResetEvent m_shutdownEvent;
 
-        private int m_minSessionTimeout;
-        private int m_maxSessionTimeout;
-        private int m_maxSessionCount;
-        private int m_maxRequestAge;
+        private readonly int m_minSessionTimeout;
+        private readonly int m_maxSessionTimeout;
+        private readonly int m_maxSessionCount;
+        private readonly int m_maxRequestAge;
 
-        private int m_maxBrowseContinuationPoints;
-        private int m_maxHistoryContinuationPoints;
+        private readonly int m_maxBrowseContinuationPoints;
+        private readonly int m_maxHistoryContinuationPoints;
 
         private readonly object m_eventLock = new object();
         private event SessionEventHandler m_sessionCreated;
@@ -785,7 +795,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                return new List<ISession>(m_sessions.Values);
+                return [.. m_sessions.Values];
             }
         }
 

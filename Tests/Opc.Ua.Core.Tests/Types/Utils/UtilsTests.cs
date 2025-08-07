@@ -58,13 +58,13 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             byte[] blob = new byte[] { 0, 1, 2, 3, 4, 5, 6, 255 };
             string hex = "00010203040506FF";
-            var hexutil = Utils.ToHexString(blob);
+            string hexutil = Utils.ToHexString(blob);
             Assert.AreEqual(hex, hexutil);
-            var byteblob = Utils.FromHexString(hex);
+            byte[] byteblob = Utils.FromHexString(hex);
             Assert.AreEqual(blob, byteblob);
-            var byteblob2 = Utils.FromHexString(hexutil);
+            byte[] byteblob2 = Utils.FromHexString(hexutil);
             Assert.AreEqual(blob, byteblob2);
-            var hexutil2 = Utils.ToHexString(byteblob);
+            string hexutil2 = Utils.ToHexString(byteblob);
             Assert.AreEqual(hex, hexutil2);
         }
 
@@ -75,13 +75,13 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void ToHexEndianessValidation()
         {
             // definition as big endian 64,206(0xFACE) 
-            var bigEndian = new byte[] { 64206 / 256, 64206 % 256 };
+            byte[] bigEndian = new byte[] { 64206 / 256, 64206 % 256 };
             // big endian is written as FA CE.
             Assert.AreEqual("FACE", Utils.ToHexString(bigEndian, false));
             // In Little Endian it's written as CE FA
             Assert.AreEqual("CEFA", Utils.ToHexString(bigEndian, true));
             // definition as little endian 64,206(0xFACE) 
-            var littleEndian = new byte[] { 64206 & 0xff, 64206 >> 8 };
+            byte[] littleEndian = new byte[] { 64206 & 0xff, 64206 >> 8 };
             // big endian is written as FA CE.
             Assert.AreEqual("FACE", Utils.ToHexString(littleEndian, true));
             // In Little Endian it's written as CE FA
@@ -95,7 +95,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             byte[] blob = new byte[] { 0, 1, 2, 3, 4, 5, 6, 255 };
             string hex = "FF06050403020100";
-            var hexutil = Utils.ToHexString(blob, true);
+            string hexutil = Utils.ToHexString(blob, true);
             Assert.AreEqual(hex, hexutil);
         }
 
@@ -114,10 +114,10 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void AreDomainsEqual()
         {
-            Uri uri1 = new Uri("opc.tcp://host1:4840");
-            Uri uri1_dupe = new Uri("opc.tcp://host1:4840");
-            Uri uri2 = new Uri($"opc.tcp://localhost:4840");
-            Uri uri2_dupe = new Uri($"opc.tcp://{Utils.GetHostName()}:4840");
+            var uri1 = new Uri("opc.tcp://host1:4840");
+            var uri1_dupe = new Uri("opc.tcp://host1:4840");
+            var uri2 = new Uri($"opc.tcp://localhost:4840");
+            var uri2_dupe = new Uri($"opc.tcp://{Utils.GetHostName()}:4840");
 
             // uri compare resolves localhost
             Assert.True(Utils.AreDomainsEqual(uri1, uri1_dupe));
@@ -146,7 +146,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 
         public class TestClone
         {
-            object m_object;
+            readonly object m_object;
 
             public TestClone(object value)
             {
@@ -161,7 +161,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 
         public class TestNoClone
         {
-            object m_object;
+            readonly object m_object;
 
             public TestNoClone(object value)
             {
@@ -176,7 +176,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 
         public class TestMemberwiseClone
         {
-            object m_object;
+            readonly object m_object;
 
             public TestMemberwiseClone(object value)
             {
@@ -238,7 +238,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void RelativePathParseNumericStringNonDeep()
         {
-            TypeTable typeTable = new TypeTable(new NamespaceTable());
+            var typeTable = new TypeTable(new NamespaceTable());
             string str = "/11";
             Assert.AreEqual(str, RelativePath.Parse(str, typeTable).Format(typeTable));
         }
@@ -249,7 +249,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void RelativePathParseNumericStringDeepPath()
         {
-            TypeTable typeTable = new TypeTable(new NamespaceTable());
+            var typeTable = new TypeTable(new NamespaceTable());
             string str = "/123/789";
             Assert.AreEqual(str, RelativePath.Parse(str, typeTable).Format(typeTable));
         }
@@ -260,7 +260,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void RelativePathParseAlphanumericStringPath()
         {
-            TypeTable typeTable = new TypeTable(new NamespaceTable());
+            var typeTable = new TypeTable(new NamespaceTable());
             string str = "/123A/78B9";
             Assert.AreEqual(str, RelativePath.Parse(str, typeTable).Format(typeTable));
         }
@@ -271,7 +271,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void RelativePathParseAlphanumericStringPath2()
         {
-            TypeTable typeTable = new TypeTable(new NamespaceTable());
+            var typeTable = new TypeTable(new NamespaceTable());
             string str = "/AA123A/bb78B9";
             Assert.AreEqual(str, RelativePath.Parse(str, typeTable).Format(typeTable));
         }
@@ -282,7 +282,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void RelativePathParseAlphaStringPath()
         {
-            TypeTable typeTable = new TypeTable(new NamespaceTable());
+            var typeTable = new TypeTable(new NamespaceTable());
             string str = "/abc/def";
             Assert.AreEqual(str, RelativePath.Parse(str, typeTable).Format(typeTable));
         }
@@ -293,7 +293,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void RelativePathParseAlphanumericWithNamespaceIndexStringPath()
         {
-            TypeTable typeTable = new TypeTable(new NamespaceTable());
+            var typeTable = new TypeTable(new NamespaceTable());
             string str = "/1:abc/2:def";
             Assert.AreEqual(str, RelativePath.Parse(str, typeTable).Format(typeTable));
         }
@@ -311,7 +311,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             var currentTable = new NamespaceTable(new List<string>() { Namespaces.OpcUa, "1", Namespaces.OpcUaGds });
             var targetTable = new NamespaceTable(new List<string>() { Namespaces.OpcUa, "1", "2", Namespaces.OpcUaGds });
 
-            TypeTable typeTable = new TypeTable(new NamespaceTable());
+            var typeTable = new TypeTable(new NamespaceTable());
             typeTable.AddReferenceSubtype(Opc.Ua.ReferenceTypeIds.HasChild, NodeId.Null, new QualifiedName("HasChild", 3));
             Assert.AreEqual(output, RelativePath.Parse(input, typeTable, currentTable, targetTable).Format(typeTable));
         }
@@ -341,8 +341,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             var currentTable = new NamespaceTable(new List<string>(currentNamespaces));
             var targetTable = new NamespaceTable(new List<string>(targetNamespaces));
 
-            TypeTable typeTable = new TypeTable(new NamespaceTable());
-            var sre = Assert.Throws<ServiceResultException>(() => RelativePath.Parse(path, typeTable, currentTable, targetTable).Format(typeTable));
+            var typeTable = new TypeTable(new NamespaceTable());
+            ServiceResultException sre = Assert.Throws<ServiceResultException>(() => RelativePath.Parse(path, typeTable, currentTable, targetTable).Format(typeTable));
             Assert.AreEqual((StatusCode)StatusCodes.BadIndexRangeInvalid, (StatusCode)sre.StatusCode);
         }
 
@@ -358,7 +358,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 "exponential entity expansion in this version of .NET.")]
         public void ExponentialEntityExpansionProcessing()
         {
-            StringBuilder xmlEEXX = new StringBuilder();
+            var xmlEEXX = new StringBuilder();
             xmlEEXX.AppendLine("<?xml version=\"1.0\" encoding=\"utf-8\" ?>");
             xmlEEXX.AppendLine("<!DOCTYPE lolz [<!ENTITY lol \"lol\">");
             xmlEEXX.AppendLine("<!ENTITY lol1 \"&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;\" >");
@@ -374,8 +374,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 
             // Validate the default reader (expansion limited at 10000000 bytes)
             TestContext.Out.WriteLine("Testing XmlDocument.LoadXml.");
-            var ex = Assert.Throws<XmlException>(() => {
-                XmlDocument document = new XmlDocument();
+            XmlException ex = Assert.Throws<XmlException>(() => {
+                var document = new XmlDocument();
                 document.LoadXml(xmlEEXX.ToString());
             });
             TestContext.Out.WriteLine(ex.Message);
@@ -383,18 +383,19 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             // Validate the InnerXml default (expansion limited at 10000000 bytes)
             TestContext.Out.WriteLine("Testing XmlDocument.InnerXml.");
             ex = Assert.Throws<XmlException>(() => {
-                XmlDocument document = new XmlDocument();
-                document.InnerXml = xmlEEXX.ToString();
+                var document = new XmlDocument {
+                    InnerXml = xmlEEXX.ToString()
+                };
             });
             TestContext.Out.WriteLine(ex.Message);
 
             // Validate the default Xml Reader settings prohibit Dtd (recommended)
             TestContext.Out.WriteLine("Testing XmlDocument.Load with default xml reader.");
-            using (StringReader stream = new StringReader(xmlEEXX.ToString()))
-            using (XmlReader reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings()))
+            using (var stream = new StringReader(xmlEEXX.ToString()))
+            using (var reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings()))
             {
                 ex = Assert.Throws<XmlException>(() => {
-                    XmlDocument document = new XmlDocument();
+                    var document = new XmlDocument();
                     document.Load(reader);
                 });
                 TestContext.Out.WriteLine(ex.Message);
@@ -403,7 +404,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             // Validate the LoadInnerXml helper settings prohibit Dtd (recommended)
             TestContext.Out.WriteLine("Testing LoadInnerXml helper.");
             ex = Assert.Throws<XmlException>(() => {
-                XmlDocument document = new XmlDocument();
+                var document = new XmlDocument();
                 document.LoadInnerXml(xmlEEXX.ToString());
             });
             TestContext.Out.WriteLine(ex.Message);
@@ -419,13 +420,13 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             Assert.AreEqual(BuiltInType.DateTime, TypeInfo.GetBuiltInType(DataTypeIds.UtcTime));
 
-            List<string> bnList = new List<string> { BrowseNames.ApplicationInstanceCertificate, BrowseNames.AudioDataType,
+            var bnList = new List<string> { BrowseNames.ApplicationInstanceCertificate, BrowseNames.AudioDataType,
                 BrowseNames.ContinuationPoint, BrowseNames.Image,
                 BrowseNames.ImageBMP, BrowseNames.ImageGIF,
                 BrowseNames.ImageJPG, BrowseNames.ImagePNG };
             foreach (string name in bnList)
             {
-                var staticValue = typeof(DataTypeIds).GetFields(BindingFlags.Public | BindingFlags.Static).First(f => f.Name == name).GetValue(null);
+                object staticValue = typeof(DataTypeIds).GetFields(BindingFlags.Public | BindingFlags.Static).First(f => f.Name == name).GetValue(null);
                 Assert.AreEqual(BuiltInType.ByteString, TypeInfo.GetBuiltInType((NodeId)staticValue));
             }
 
@@ -435,7 +436,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             bnList = new List<string> { BrowseNames.IntegerId, BrowseNames.Index, BrowseNames.VersionTime, BrowseNames.Counter };
             foreach (string name in bnList)
             {
-                var staticValue = typeof(DataTypeIds).GetFields(BindingFlags.Public | BindingFlags.Static).First(f => f.Name == name).GetValue(null);
+                object staticValue = typeof(DataTypeIds).GetFields(BindingFlags.Public | BindingFlags.Static).First(f => f.Name == name).GetValue(null);
                 Assert.AreEqual(BuiltInType.UInt32, TypeInfo.GetBuiltInType((NodeId)staticValue));
             }
 
@@ -447,7 +448,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 BrowseNames.TimeString };
             foreach (string name in bnList)
             {
-                var staticValue = typeof(DataTypeIds).GetFields(BindingFlags.Public | BindingFlags.Static).First(f => f.Name == name).GetValue(null);
+                object staticValue = typeof(DataTypeIds).GetFields(BindingFlags.Public | BindingFlags.Static).First(f => f.Name == name).GetValue(null);
                 Assert.AreEqual(BuiltInType.String, TypeInfo.GetBuiltInType((NodeId)staticValue));
             }
         }
@@ -482,7 +483,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void RelativePathParseNonEscapedHash()
         {
-            TypeTable typeTable = new TypeTable(new NamespaceTable());
+            var typeTable = new TypeTable(new NamespaceTable());
             string str = "/abc#def";
             Assert.Throws<ServiceResultException>(() => RelativePath.Parse(str, typeTable).Format(typeTable));
         }
@@ -493,7 +494,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void RelativePathParseEscapedHash()
         {
-            TypeTable typeTable = new TypeTable(new NamespaceTable());
+            var typeTable = new TypeTable(new NamespaceTable());
             string str = "/abc&#def";
             string expected = "/abc#def";
             Assert.AreEqual(expected, RelativePath.Parse(str, typeTable).Format(typeTable));
@@ -505,7 +506,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void RelativePathParseEscapedHashFollowedByExclamation()
         {
-            TypeTable typeTable = new TypeTable(new NamespaceTable());
+            var typeTable = new TypeTable(new NamespaceTable());
             string str = "/abc&#!def";
             Assert.Throws<ServiceResultException>(() => RelativePath.Parse(str, typeTable).Format(typeTable));
         }
@@ -516,7 +517,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void RelativePathParseEscapedHashFollowedByExclamationInReferenceType()
         {
-            TypeTable typeTable = new TypeTable(new NamespaceTable());
+            var typeTable = new TypeTable(new NamespaceTable());
             string str = "<abc&#!def>";
             Assert.Throws<ServiceResultException>(() => RelativePath.Parse(str, typeTable).Format(typeTable));
         }
@@ -527,7 +528,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void RelativePathParseInvalidEscapeSequence()
         {
-            TypeTable typeTable = new TypeTable(new NamespaceTable());
+            var typeTable = new TypeTable(new NamespaceTable());
             string str = "/abc&$!def";
             Assert.Throws<ServiceResultException>(() => RelativePath.Parse(str, typeTable).Format(typeTable));
         }

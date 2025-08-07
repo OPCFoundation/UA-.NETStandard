@@ -236,9 +236,9 @@ namespace Opc.Ua.Server
 
         #region Private Fields
         private readonly object m_lock = new object();
-        private IServerInternal m_server;
+        private readonly IServerInternal m_server;
         private AggregateConfiguration m_defaultConfiguration;
-        private NodeIdDictionary<AggregatorFactory> m_factories;
+        private readonly NodeIdDictionary<AggregatorFactory> m_factories;
         private double m_minimumProcessingInterval;
         #endregion
     }

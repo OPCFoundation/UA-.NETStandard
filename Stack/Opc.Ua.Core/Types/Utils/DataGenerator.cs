@@ -65,10 +65,13 @@ namespace Opc.Ua.Test
             m_random = new Random(seed);
         }
 
-        /// <summary cref="IRandomSource.NextBytes" />
+        /// <inheritdoc/>
         public void NextBytes(byte[] bytes, int offset, int count)
         {
-            if (bytes == null) throw new ArgumentNullException(nameof(bytes));
+            if (bytes == null)
+            {
+                throw new ArgumentNullException(nameof(bytes));
+            }
 
             if (offset < 0 || (offset != 0 && offset >= bytes.Length))
             {
@@ -97,7 +100,7 @@ namespace Opc.Ua.Test
             }
         }
 
-        /// <summary cref="IRandomSource.NextInt32" />
+        /// <inheritdoc/>
         public int NextInt32(int max)
         {
             if (max < 0)
@@ -113,7 +116,7 @@ namespace Opc.Ua.Test
             return m_random.Next(max);
         }
 
-        private Random m_random;
+        private readonly Random m_random;
     }
 
     /// <summary>
@@ -422,19 +425,19 @@ namespace Opc.Ua.Test
 
                 case BuiltInType.Number:
                 {
-                    BuiltInType builtInType = (BuiltInType)(m_random.NextInt32(9) + (int)BuiltInType.SByte);
+                    var builtInType = (BuiltInType)(m_random.NextInt32(9) + (int)BuiltInType.SByte);
                     return GetRandomVariant(builtInType, false);
                 }
 
                 case BuiltInType.Integer:
                 {
-                    BuiltInType builtInType = (BuiltInType)((m_random.NextInt32(3) * 2) + (int)BuiltInType.SByte);
+                    var builtInType = (BuiltInType)((m_random.NextInt32(3) * 2) + (int)BuiltInType.SByte);
                     return GetRandomVariant(builtInType, false);
                 }
 
                 case BuiltInType.UInteger:
                 {
-                    BuiltInType builtInType = (BuiltInType)((m_random.NextInt32(3) * 2) + (int)BuiltInType.Byte);
+                    var builtInType = (BuiltInType)((m_random.NextInt32(3) * 2) + (int)BuiltInType.Byte);
                     return GetRandomVariant(builtInType, false);
                 }
             }
@@ -475,19 +478,19 @@ namespace Opc.Ua.Test
                 case BuiltInType.ExtensionObject: { return GetRandomArray<ExtensionObject>(useBoundaryValues, length, fixedLength); }
                 case BuiltInType.Number:
                 {
-                    BuiltInType builtInType = (BuiltInType)(m_random.NextInt32(9) + (int)BuiltInType.SByte);
+                    var builtInType = (BuiltInType)(m_random.NextInt32(9) + (int)BuiltInType.SByte);
                     return GetRandomArrayInVariant(builtInType, useBoundaryValues, length, fixedLength);
                 }
 
                 case BuiltInType.Integer:
                 {
-                    BuiltInType builtInType = (BuiltInType)((m_random.NextInt32(3) * 2) + (int)BuiltInType.SByte);
+                    var builtInType = (BuiltInType)((m_random.NextInt32(3) * 2) + (int)BuiltInType.SByte);
                     return GetRandomArrayInVariant(builtInType, useBoundaryValues, length, fixedLength);
                 }
 
                 case BuiltInType.UInteger:
                 {
-                    BuiltInType builtInType = (BuiltInType)((m_random.NextInt32(3) * 2) + (int)BuiltInType.Byte);
+                    var builtInType = (BuiltInType)((m_random.NextInt32(3) * 2) + (int)BuiltInType.Byte);
                     return GetRandomArrayInVariant(builtInType, useBoundaryValues, length, fixedLength);
                 }
                 case BuiltInType.Enumeration: { return GetRandomArray<int>(useBoundaryValues, length, fixedLength); }
@@ -502,8 +505,8 @@ namespace Opc.Ua.Test
         private Variant[] GetRandomArrayInVariant(BuiltInType builtInType, bool useBoundaryValues, int length, bool fixedLength)
         {
             Array array = GetRandomArray(builtInType, useBoundaryValues, length, fixedLength);
-            Variant[] variants = new Variant[array.Length];
-            TypeInfo typeInfo = new TypeInfo(builtInType, ValueRanks.Scalar);
+            var variants = new Variant[array.Length];
+            var typeInfo = new TypeInfo(builtInType, ValueRanks.Scalar);
 
             for (int ii = 0; ii < variants.Length; ii++)
             {
@@ -546,7 +549,7 @@ namespace Opc.Ua.Test
                 length = m_random.NextInt32(length);
             }
 
-            T[] value = new T[length];
+            var value = new T[length];
 
             for (int ii = 0; ii < value.Length; ii++)
             {
@@ -571,7 +574,7 @@ namespace Opc.Ua.Test
                 length = m_random.NextInt32(length);
             }
 
-            T[] value = new T[length];
+            var value = new T[length];
 
             for (int ii = 0; ii < value.Length; ii++)
             {
@@ -607,7 +610,7 @@ namespace Opc.Ua.Test
         }
 
         #region Boolean
-        /// <summary cref="GetRandom(Type)" />
+        /// <inheritdoc/>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public bool GetRandomBoolean()
         {
@@ -616,7 +619,7 @@ namespace Opc.Ua.Test
         #endregion
 
         #region SByte
-        /// <summary cref="GetRandom(Type)" />
+        /// <inheritdoc/>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public sbyte GetRandomSByte()
         {
@@ -632,7 +635,7 @@ namespace Opc.Ua.Test
         #endregion
 
         #region Byte
-        /// <summary cref="GetRandom(Type)" />
+        /// <inheritdoc/>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public byte GetRandomByte()
         {
@@ -641,7 +644,7 @@ namespace Opc.Ua.Test
         #endregion
 
         #region Int16
-        /// <summary cref="GetRandom(Type)" />
+        /// <inheritdoc/>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public short GetRandomInt16()
         {
@@ -657,7 +660,7 @@ namespace Opc.Ua.Test
         #endregion
 
         #region UInt16
-        /// <summary cref="GetRandom(Type)" />
+        /// <inheritdoc/>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public ushort GetRandomUInt16()
         {
@@ -666,7 +669,7 @@ namespace Opc.Ua.Test
         #endregion
 
         #region Int32
-        /// <summary cref="GetRandom(Type)" />
+        /// <inheritdoc/>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public int GetRandomInt32()
         {
@@ -675,7 +678,7 @@ namespace Opc.Ua.Test
         #endregion
 
         #region UInt32
-        /// <summary cref="GetRandom(Type)" />
+        /// <inheritdoc/>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public uint GetRandomUInt32()
         {
@@ -686,7 +689,7 @@ namespace Opc.Ua.Test
         #endregion
 
         #region Int64
-        /// <summary cref="GetRandom(Type)" />
+        /// <inheritdoc/>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public long GetRandomInt64()
         {
@@ -697,7 +700,7 @@ namespace Opc.Ua.Test
         #endregion
 
         #region UInt64
-        /// <summary cref="GetRandom(Type)" />
+        /// <inheritdoc/>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public ulong GetRandomUInt64()
         {
@@ -708,7 +711,7 @@ namespace Opc.Ua.Test
         #endregion
 
         #region Float
-        /// <summary cref="GetRandom(Type)" />
+        /// <inheritdoc/>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public float GetRandomFloat()
         {
@@ -719,7 +722,7 @@ namespace Opc.Ua.Test
         #endregion
 
         #region Double
-        /// <summary cref="GetRandom(Type)" />
+        /// <inheritdoc/>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public double GetRandomDouble()
         {
@@ -765,7 +768,7 @@ namespace Opc.Ua.Test
         #endregion
 
         #region DateTime
-        /// <summary cref="GetRandom(Type)" />
+        /// <inheritdoc/>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public DateTime GetRandomDateTime()
         {
@@ -783,7 +786,7 @@ namespace Opc.Ua.Test
         #endregion
 
         #region Guid
-        /// <summary cref="GetRandom(Type)" />
+        /// <inheritdoc/>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public Guid GetRandomGuid()
         {
@@ -792,7 +795,7 @@ namespace Opc.Ua.Test
             return new Guid(bytes);
         }
 
-        /// <summary cref="GetRandom(Type)" />
+        /// <inheritdoc/>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public Uuid GetRandomUuid()
         {
@@ -803,7 +806,7 @@ namespace Opc.Ua.Test
         #endregion
 
         #region ByteString
-        /// <summary cref="GetRandom(Type)" />
+        /// <inheritdoc/>
         public byte[] GetRandomByteString()
         {
             int length = m_random.NextInt32(m_maxStringLength);
@@ -816,7 +819,7 @@ namespace Opc.Ua.Test
         #endregion
 
         #region XmlElement
-        /// <summary cref="GetRandom(Type)" />
+        /// <inheritdoc/>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public XmlElement GetRandomXmlElement()
         {
@@ -824,7 +827,7 @@ namespace Opc.Ua.Test
             string locale2 = GetRandomLocale();
 
             // create the root element.
-            XmlDocument document = new XmlDocument();
+            var document = new XmlDocument();
 
             XmlElement element = document.CreateElement(
                 "n0",
@@ -866,13 +869,13 @@ namespace Opc.Ua.Test
         #endregion
 
         #region NodeId
-        /// <summary cref="GetRandom(Type)" />
+        /// <inheritdoc/>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public NodeId GetRandomNodeId()
         {
             ushort ns = (ushort)m_random.NextInt32(m_namespaceUris.Count - 1);
 
-            IdType idType = (IdType)m_random.NextInt32(4);
+            var idType = (IdType)m_random.NextInt32(4);
 
             switch (idType)
             {
@@ -897,7 +900,7 @@ namespace Opc.Ua.Test
         #endregion
 
         #region ExpandedNodeId
-        /// <summary cref="GetRandom(Type)" />
+        /// <inheritdoc/>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public ExpandedNodeId GetRandomExpandedNodeId()
         {
@@ -908,7 +911,7 @@ namespace Opc.Ua.Test
         #endregion
 
         #region QualifiedName
-        /// <summary cref="GetRandom(Type)" />
+        /// <inheritdoc/>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public QualifiedName GetRandomQualifiedName()
         {
@@ -918,7 +921,7 @@ namespace Opc.Ua.Test
         #endregion
 
         #region LocalizedText
-        /// <summary cref="GetRandom(Type)" />
+        /// <inheritdoc/>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public LocalizedText GetRandomLocalizedText()
         {
@@ -930,13 +933,13 @@ namespace Opc.Ua.Test
         #region StatusCode
         private readonly List<KeyValuePair<uint, string>> KnownsStatusCodes = new List<KeyValuePair<uint, string>>();
 
-        /// <summary cref="GetRandom(Type)" />
+        /// <inheritdoc/>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public StatusCode GetRandomStatusCode()
         {
             if (KnownsStatusCodes.Count == 0)
             {
-                foreach (var field in typeof(StatusCodes).GetFields(BindingFlags.Public | BindingFlags.Static))
+                foreach (FieldInfo field in typeof(StatusCodes).GetFields(BindingFlags.Public | BindingFlags.Static))
                 {
                     if (field.Name.StartsWith("Good") || field.Name.StartsWith("Uncertain") || field.Name.StartsWith("Bad"))
                     {
@@ -945,19 +948,19 @@ namespace Opc.Ua.Test
                 }
             }
 
-            var index = GetRandomRange(0, KnownsStatusCodes.Count-1);
+            int index = GetRandomRange(0, KnownsStatusCodes.Count-1);
             return KnownsStatusCodes[index].Key;
         }
         #endregion
 
         #region Variant
-        /// <summary cref="GetRandom(Type)" />
+        /// <inheritdoc/>
         public Variant GetRandomVariant()
         {
             return GetRandomVariant(true);
         }
 
-        /// <summary cref="GetRandom(Type)" />
+        /// <inheritdoc/>
         public Variant GetRandomVariant(bool allowArrays)
         {
             // randomly choose a built-in type.
@@ -1027,7 +1030,7 @@ namespace Opc.Ua.Test
         #endregion
 
         #region ExtensionObject
-        /// <summary cref="GetRandom(Type)" />
+        /// <inheritdoc/>
         public ExtensionObject GetRandomExtensionObject()
         {
             NodeId typeId = GetRandomNodeId();
@@ -1081,7 +1084,7 @@ namespace Opc.Ua.Test
         #endregion
 
         #region Number
-        /// <summary cref="GetRandom(Type)" />
+        /// <inheritdoc/>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public object GetRandomNumber()
         {
@@ -1099,7 +1102,7 @@ namespace Opc.Ua.Test
         #endregion
 
         #region Integer
-        /// <summary cref="GetRandom(Type)" />
+        /// <inheritdoc/>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public object GetRandomInteger()
         {
@@ -1114,7 +1117,7 @@ namespace Opc.Ua.Test
         #endregion
 
         #region UInteger
-        /// <summary cref="GetRandom(Type)" />
+        /// <inheritdoc/>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public object GetRandomUInteger()
         {
@@ -1141,7 +1144,7 @@ namespace Opc.Ua.Test
 
                 if (values != null)
                 {
-                    Values = new List<object>(values);
+                    Values = [.. values];
                 }
                 else
                 {
@@ -1189,7 +1192,7 @@ namespace Opc.Ua.Test
         /// </summary>
         private static SortedDictionary<string, string[]> LoadStringData(string resourceName)
         {
-            SortedDictionary<string, string[]> dictionary = new SortedDictionary<string, string[]>();
+            var dictionary = new SortedDictionary<string, string[]>();
 
             try
             {
@@ -1200,11 +1203,11 @@ namespace Opc.Ua.Test
                 if (istrm == null)
                 {
                     // try to load from app directory
-                    FileInfo file = new FileInfo(resourceName);
+                    var file = new FileInfo(resourceName);
                     istrm = file.OpenRead();
                 }
 
-                using (StreamReader reader = new StreamReader(istrm))
+                using (var reader = new StreamReader(istrm))
                 {
                     for (string line = reader.ReadLine(); line != null; line = reader.ReadLine())
                     {
@@ -1300,7 +1303,7 @@ namespace Opc.Ua.Test
         /// </summary>
         private object GetRandom(Type expectedType)
         {
-            var builtInType = TypeInfo.Construct(expectedType).BuiltInType;
+            BuiltInType builtInType = TypeInfo.Construct(expectedType).BuiltInType;
             object value = GetRandom(builtInType);
 
             if (builtInType == BuiltInType.Guid &&
@@ -1344,7 +1347,7 @@ namespace Opc.Ua.Test
                 length = m_random.NextInt32(m_maxStringLength) + 1;
             }
 
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
 
             while (buffer.Length < length)
             {
@@ -1368,7 +1371,7 @@ namespace Opc.Ua.Test
         #endregion
 
         #region Private Fields
-        private IRandomSource m_random;
+        private readonly IRandomSource m_random;
         private int m_maxArrayLength;
         private int m_maxStringLength;
         private DateTime m_minDateTimeValue;
@@ -1378,9 +1381,9 @@ namespace Opc.Ua.Test
         private int m_maxXmlElementCount;
         private NamespaceTable m_namespaceUris;
         private StringTable m_serverUris;
-        private SortedDictionary<string, object[]> m_boundaryValues;
-        private string[] m_availableLocales;
-        private SortedDictionary<string, string[]> m_tokenValues;
+        private readonly SortedDictionary<string, object[]> m_boundaryValues;
+        private readonly string[] m_availableLocales;
+        private readonly SortedDictionary<string, string[]> m_tokenValues;
         private const string kPunctuation = "`~!@#$%^&*()_-+={}[]:\"';?><,./";
         #endregion
     }

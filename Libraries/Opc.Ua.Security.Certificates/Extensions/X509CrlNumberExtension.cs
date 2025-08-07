@@ -110,7 +110,11 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         public override void CopyFrom(AsnEncodedData asnEncodedData)
         {
-            if (asnEncodedData == null) throw new ArgumentNullException(nameof(asnEncodedData));
+            if (asnEncodedData == null)
+            {
+                throw new ArgumentNullException(nameof(asnEncodedData));
+            }
+
             Oid = asnEncodedData.Oid;
             RawData = asnEncodedData.RawData;
             Decode(RawData);

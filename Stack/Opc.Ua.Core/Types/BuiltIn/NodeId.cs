@@ -83,7 +83,10 @@ namespace Opc.Ua
         /// <exception cref="ArgumentNullException">Thrown when <i>value</i> is null</exception>
         public NodeId(NodeId value)
         {
-            if (value == null) throw new ArgumentNullException(nameof(value));
+            if (value == null)
+            {
+                throw new ArgumentNullException(nameof(value));
+            }
 
             m_namespaceIndex = value.m_namespaceIndex;
             m_identifierType = value.m_identifierType;
@@ -219,7 +222,7 @@ namespace Opc.Ua
         /// <param name="text">The string id of this new node</param>
         public NodeId(string text)
         {
-            NodeId nodeId = NodeId.Parse(text);
+            var nodeId = NodeId.Parse(text);
 
             m_namespaceIndex = nodeId.NamespaceIndex;
             m_identifierType = nodeId.IdType;
@@ -307,7 +310,7 @@ namespace Opc.Ua
                 return Null;
             }
 
-            var originalText = text;
+            string originalText = text;
             int namespaceIndex = 0;
 
             if (text.StartsWith("nsu=", StringComparison.Ordinal))
@@ -319,7 +322,7 @@ namespace Opc.Ua
                     throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, "Invalid NodeId ({0}).", originalText);
                 }
 
-                var namespaceUri = Utils.UnescapeUri(text.Substring(4, index - 4));
+                string namespaceUri = Utils.UnescapeUri(text.Substring(4, index - 4));
                 namespaceIndex = (options?.UpdateTables == true) ? context.NamespaceUris.GetIndexOrAppend(namespaceUri) : context.NamespaceUris.GetIndex(namespaceUri);
 
                 if (namespaceIndex < 0)
@@ -383,10 +386,10 @@ namespace Opc.Ua
                     {
                         try
                         {
-                            var bytes = Convert.FromBase64String(text);
+                            byte[] bytes = Convert.FromBase64String(text);
                             return new NodeId(bytes, (ushort)namespaceIndex);
                         }
-                        catch (Exception)
+                        catch
                         {
                             // error handled after the switch statement.
                         }
@@ -396,7 +399,7 @@ namespace Opc.Ua
 
                     case 'g':
                     {
-                        if (Guid.TryParse(text, out var guid))
+                        if (Guid.TryParse(text, out Guid guid))
                         {
                             return new NodeId(guid, (ushort)namespaceIndex);
                         }
@@ -428,7 +431,7 @@ namespace Opc.Ua
             {
                 if (useNamespaceUri)
                 {
-                    var namespaceUri = context.NamespaceUris.GetString(m_namespaceIndex);
+                    string namespaceUri = context.NamespaceUris.GetString(m_namespaceIndex);
 
                     if (!string.IsNullOrEmpty(namespaceUri))
                     {
@@ -519,39 +522,39 @@ namespace Opc.Ua
         /// </remarks>
         /// <example>
         /// <code lang="C#">
-        /// 
+        ///
         /// //create some variables
         /// uint id1 = 100, id2=101;
         /// NodeId node1;
-        /// 
+        ///
         /// //create our node
         /// node1 = new NodeId(id1);
-        /// 
+        ///
         /// //now to compare the node to the ids using a simple comparison and Equals:
         /// Utils.LogInfo("Comparing NodeId to uint");
         /// Utils.LogInfo("\tComparing 100 to 100 = [equals] {0}", node1.Equals(id1));
         /// Utils.LogInfo("\tComparing 100 to 100 = [ ==   ] {0}", node1 == id1);
         /// Utils.LogInfo("\tComparing 100 to 101 = [equals] {0}", node1.Equals(id2));
         /// Utils.LogInfo("\tComparing 100 to 101 = [ ==   ] {0}", node1 == id2);
-        /// 
+        ///
         /// </code>
         /// <code lang="Visual Basic">
-        /// 
+        ///
         /// 'create some variables
         /// Dim id1 As UInt = 100
         /// Dim id2 As UInt = 102
         /// Dim node1 As NodeId
-        /// 
+        ///
         /// 'create our node
         /// node1 = new NodeId(id1)
-        /// 
+        ///
         /// 'now to compare the node to the ids using a simple comparison and Equals:
         /// Utils.LogInfo("Comparing NodeId to uint")
         /// Utils.LogInfo("   Comparing 100 to 100 = [equals] {0}", node1.Equals(id1))
         /// Utils.LogInfo("   Comparing 100 to 100 = [  =   ] {0}", node1 = id1)
         /// Utils.LogInfo("   Comparing 100 to 101 = [equals] {0}", node1.Equals(id2))
         /// Utils.LogInfo("   Comparing 100 to 101 = [  =   ] {0}", node1 = id2)
-        /// 
+        ///
         /// </code>
         /// <para>
         /// This produces the following output (taken from C# example):
@@ -578,33 +581,33 @@ namespace Opc.Ua
         /// </remarks>
         /// <example>
         /// <code lang="C#">
-        /// 
+        ///
         /// //define our 2 GUID ids, and then define our node to use the first id.
         /// Guid id1 = Guid.NewGuid(), id2 = Guid.NewGuid();
         /// NodeId node1 = new NodeId(id1);
-        /// 
+        ///
         /// //now to compare the node to the guids
         /// Utils.LogInfo("\n\nComparing NodeId to GUID");
         /// Utils.LogInfo("\tComparing {0} to {0} = [equals] {2}", id1, id1, node1.Equals(id1));
         /// Utils.LogInfo("\tComparing {0} to {0} = [ ==   ] {2}", id1, id1, node1 == id1);
         /// Utils.LogInfo("\tComparing {0} to {1} = [equals] {2}", id1, id2, node1.Equals(id2));
         /// Utils.LogInfo("\tComparing {0} to {1} = [ ==   ] {2}", id1, id2, node1 == id2);
-        /// 
+        ///
         /// </code>
         /// <code lang="Visual Basic">
-        /// 
+        ///
         /// 'define our 2 GUID ids, and then define our node to use the first id.
         /// Dim id1 As Guid = Guid.NewGuid()
         /// Dim id2 As Guid = Guid.NewGuid()
         /// Dim node1 As NodeId = new NodeId(id1)
-        /// 
+        ///
         /// 'now to compare the node to the guids
         /// Utils.LogInfo("Comparing NodeId to GUID")
         /// Utils.LogInfo("  Comparing {0} to {0} = [equals] {2}", id1, id1, node1.Equals(id1));
         /// Utils.LogInfo("  Comparing {0} to {0} = [  =   ] {2}", id1, id1, node1 = id1);
         /// Utils.LogInfo("  Comparing {0} to {0} = [equals] {2}", id1, id2, node1.Equals(id2));
         /// Utils.LogInfo("  Comparing {0} to {0} = [  =   ] {2}", id1, id2, node1 = id2);
-        /// 
+        ///
         /// </code>
         /// <para>
         /// This produces the following output (taken from C# example):
@@ -631,42 +634,42 @@ namespace Opc.Ua
         /// </remarks>
         /// <example>
         /// <code lang="C#">
-        /// 
+        ///
         /// //define our 2 Byte[] ids, and then define our node to use the first id.
         /// byte[] id1 = new byte[] { 65, 66, 67, 68, 69 };
         /// byte[] id2 = new byte[] { 97, 98, 99, 100, 101 };
         /// NodeId node1 = new NodeId(id1);
-        /// 
-        /// //convert our bytes to string so we can display them 
+        ///
+        /// //convert our bytes to string so we can display them
         /// string id1String = System.Text.ASCIIEncoding.ASCII.GetString(id1);
         /// string id2String = System.Text.ASCIIEncoding.ASCII.GetString(id2);
-        /// 
+        ///
         /// //now to compare the node to the guids
         /// Utils.LogInfo("\n\nComparing NodeId to Byte[]");
         /// Utils.LogInfo("\tComparing {0} to {0} = [equals] {2}", id1String, id1String, node1.Equals(id1));
         /// Utils.LogInfo("\tComparing {0} to {0} = [  =   ] {2}", id1String, id1String, node1 == id1);
         /// Utils.LogInfo("\tComparing {0} to {1} = [equals] {2}", id1String, id2String, node1.Equals(id2));
         /// Utils.LogInfo("\tComparing {0} to {1} = [  =   ] {2}", id1String, id2String, node1 == id2);
-        /// 
+        ///
         /// </code>
         /// <code lang="Visual Basic">
-        /// 
+        ///
         /// 'define our 2 Byte[] ids, and then define our node to use the first id.
         /// Dim id1 As Byte() = New Byte() { 65, 66, 67, 68, 69 }
         /// Dim id2 As Byte() = New Byte() { 97, 98, 99, 100, 101 }
         /// Dim node1 As NodeId = New NodeId(id1)
-        /// 
-        /// 'convert our bytes to string so we can display them 
+        ///
+        /// 'convert our bytes to string so we can display them
         /// Dim id1String As String = System.Text.ASCIIEncoding.ASCII.GetString(id1)
         /// Dim id2String As String = System.Text.ASCIIEncoding.ASCII.GetString(id2)
-        /// 
+        ///
         /// 'now to compare the node to the guids
         /// Utils.LogInfo("Comparing NodeId to Byte()")
         /// Utils.LogInfo("Comparing {0} to {0} = [equals] {2}", id1String, id1String, node1.Equals(id1))
         /// Utils.LogInfo("Comparing {0} to {0} = [  =   ] {2}", id1String, id1String, node1 = id1)
         /// Utils.LogInfo("Comparing {0} to {1} = [equals] {2}", id1String, id2String, node1.Equals(id2))
         /// Utils.LogInfo("Comparing {0} to {1} = [  =   ] {2}", id1String, id2String, node1 = id2)
-        /// 
+        ///
         /// </code>
         /// <para>
         /// This produces the following output (taken from C# example):
@@ -693,34 +696,34 @@ namespace Opc.Ua
         /// </remarks>
         /// <example>
         /// <code lang="C#">
-        /// 
+        ///
         /// //define our 2 String ids, and then define our node to use the first id.
         /// String id1 = "Hello", id2 = "World";
         /// NodeId node1 = new NodeId(id1);
-        /// 
+        ///
         /// //now to compare the node to the guids
         /// Utils.LogInfo("\n\nComparing NodeId to String");
         /// Utils.LogInfo("\tComparing {0} to {1} = [equals] {2}", id1, id1, node1.Equals(id1));
         /// Utils.LogInfo("\tComparing {0} to {1} = [ ==   ] {2}", id1, id1, node1 == id1);
         /// Utils.LogInfo("\tComparing {0} to {1} = [equals] {2}", id1, id2, node1.Equals(id2));
         /// Utils.LogInfo("\tComparing {0} to {1} = [ ==   ] {2}", id1, id2, node1 == id2);
-        /// 
-        /// 
+        ///
+        ///
         /// </code>
         /// <code lang="Visual Basic">
-        /// 
+        ///
         /// 'define our 2 String ids, and then define our node to use the first id.
         /// Dim id1 As String = "Hello"
         /// Dim id2 As String = "World"
         /// Dim node1 As NodeId = New NodeId(id1)
-        /// 
+        ///
         /// 'now to compare the node to the guids
         /// Utils.LogInfo("Comparing NodeId to String");
         /// Utils.LogInfo("Comparing {0} to {1} = [equals] {2}", id1, id1, node1.Equals(id1));
         /// Utils.LogInfo("Comparing {0} to {1} = [  =   ] {2}", id1, id1, node1 = id1);
         /// Utils.LogInfo("Comparing {0} to {1} = [equals] {2}", id1, id2, node1.Equals(id2));
         /// Utils.LogInfo("Comparing {0} to {1} = [  =   ] {2}", id1, id2, node1 = id2);
-        /// 
+        ///
         /// </code>
         /// </example>
         /// <param name="text">The <see cref="string"/> to compare this node to.</param>
@@ -897,7 +900,7 @@ namespace Opc.Ua
         /// </remarks>
         private string Format(IFormatProvider formatProvider)
         {
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
             Format(formatProvider, buffer);
             return buffer.ToString();
         }
@@ -988,7 +991,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            ExpandedNodeId expandedId = new ExpandedNodeId(nodeId);
+            var expandedId = new ExpandedNodeId(nodeId);
 
             if (nodeId.NamespaceIndex > 0)
             {
@@ -1081,7 +1084,7 @@ namespace Opc.Ua
             object id = null;
 
             // check for expanded node ids.
-            NodeId nodeId = obj as NodeId;
+            var nodeId = obj as NodeId;
 
             if (!Object.ReferenceEquals(nodeId, null))
             {
@@ -1131,7 +1134,7 @@ namespace Opc.Ua
                     return (id1 < id2) ? -1 : +1;
                 }
 
-                ExpandedNodeId expandedId = obj as ExpandedNodeId;
+                var expandedId = obj as ExpandedNodeId;
 
                 if (!Object.ReferenceEquals(expandedId, null))
                 {
@@ -1151,8 +1154,8 @@ namespace Opc.Ua
                 }
                 else if (obj != null)
                 {
-                    Guid? guid2 = obj as Guid?;
-                    Uuid? uuid2 = obj as Uuid?;
+                    var guid2 = obj as Guid?;
+                    var uuid2 = obj as Uuid?;
                     if (guid2 != null || uuid2 != null)
                     {
                         if (namespaceIndex != 0 || idType != IdType.Guid)
@@ -1508,7 +1511,7 @@ namespace Opc.Ua
             {
                 ValidateImmutableNodeIdIsNotModified();
 
-                NodeId nodeId = NodeId.Parse(value);
+                var nodeId = NodeId.Parse(value);
 
                 m_namespaceIndex = nodeId.NamespaceIndex;
                 m_identifierType = nodeId.IdType;
@@ -2002,7 +2005,7 @@ namespace Opc.Ua
         /// </remarks>
         public new object MemberwiseClone()
         {
-            NodeIdCollection clone = new NodeIdCollection(this.Count);
+            var clone = new NodeIdCollection(this.Count);
 
             foreach (NodeId element in this)
             {

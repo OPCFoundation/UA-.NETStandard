@@ -87,9 +87,9 @@ namespace Opc.Ua.Server
             {
                 ISystemContext systemContext = server.DefaultAuditContext;
 
-                AuditEventState e = new AuditEventState(null);
+                var e = new AuditEventState(null);
 
-                TranslationInfo message = new TranslationInfo(
+                var message = new TranslationInfo(
                    "AuditEvent",
                    "en-US",
                    $"Method {methodName} failed. Result: {serviceResultException.Message}.");
@@ -145,9 +145,9 @@ namespace Opc.Ua.Server
 
             try
             {
-                AuditWriteUpdateEventState e = new AuditWriteUpdateEventState(null);
+                var e = new AuditWriteUpdateEventState(null);
 
-                TranslationInfo message = new TranslationInfo(
+                var message = new TranslationInfo(
                    "AuditWriteUpdateEvent",
                     "en-US",
                     "AuditWriteUpdateEvent.");
@@ -210,7 +210,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                AuditHistoryValueUpdateEventState e = new AuditHistoryValueUpdateEventState(null);
+                var e = new AuditHistoryValueUpdateEventState(null);
 
                 InitializeAuditHistoryUpdateEvent(e,
                         systemContext,
@@ -255,7 +255,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                AuditHistoryAnnotationUpdateEventState e = new AuditHistoryAnnotationUpdateEventState(null);
+                var e = new AuditHistoryAnnotationUpdateEventState(null);
 
                 InitializeAuditHistoryUpdateEvent(e,
                     systemContext,
@@ -299,7 +299,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                AuditHistoryEventUpdateEventState e = new AuditHistoryEventUpdateEventState(null);
+                var e = new AuditHistoryEventUpdateEventState(null);
 
                 InitializeAuditHistoryUpdateEvent(e,
                     systemContext,
@@ -345,7 +345,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                AuditHistoryRawModifyDeleteEventState e = new AuditHistoryRawModifyDeleteEventState(null);
+                var e = new AuditHistoryRawModifyDeleteEventState(null);
 
                 InitializeAuditHistoryUpdateEvent(e,
                     systemContext,
@@ -391,7 +391,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                AuditHistoryAtTimeDeleteEventState e = new AuditHistoryAtTimeDeleteEventState(null);
+                var e = new AuditHistoryAtTimeDeleteEventState(null);
 
                 InitializeAuditHistoryUpdateEvent(e,
                     systemContext,
@@ -436,7 +436,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                AuditHistoryEventDeleteEventState e = new AuditHistoryEventDeleteEventState(null);
+                var e = new AuditHistoryEventDeleteEventState(null);
 
                 InitializeAuditHistoryUpdateEvent(e,
                     systemContext,
@@ -597,7 +597,7 @@ namespace Opc.Ua.Server
                 ISystemContext systemContext = server.DefaultAuditContext;
 
                 // create AuditCertificateDataMismatchEventType
-                AuditCertificateDataMismatchEventState e = new AuditCertificateDataMismatchEventState(null);
+                var e = new AuditCertificateDataMismatchEventState(null);
 
                 e.Initialize(
                    systemContext,
@@ -651,7 +651,7 @@ namespace Opc.Ua.Server
                 ISystemContext systemContext = server.DefaultAuditContext;
 
                 // create AuditCancelEventState
-                AuditCancelEventState e = new AuditCancelEventState(null);
+                var e = new AuditCancelEventState(null);
 
                 e.Initialize(
                    systemContext,
@@ -706,7 +706,7 @@ namespace Opc.Ua.Server
             try
             {
                 // create RoleMappingRuleChangedAuditEventState
-                RoleMappingRuleChangedAuditEventState e = new RoleMappingRuleChangedAuditEventState(null);
+                var e = new RoleMappingRuleChangedAuditEventState(null);
 
                 e.Initialize(
                    systemContext,
@@ -758,7 +758,7 @@ namespace Opc.Ua.Server
                 ISystemContext systemContext = server.DefaultAuditContext;
 
                 // raise an audit event.
-                AuditCreateSessionEventState e = new AuditCreateSessionEventState(null);
+                var e = new AuditCreateSessionEventState(null);
 
                 TranslationInfo message = null;
                 if (exception == null)
@@ -819,7 +819,7 @@ namespace Opc.Ua.Server
             {
                 ISystemContext systemContext = server.DefaultAuditContext;
 
-                AuditActivateSessionEventState e = new AuditActivateSessionEventState(null);
+                var e = new AuditActivateSessionEventState(null);
 
                 TranslationInfo message = null;
                 if (exception == null)
@@ -845,10 +845,10 @@ namespace Opc.Ua.Server
                 if (softwareCertificates != null)
                 {
                     // build the list of SignedSoftwareCertificate
-                    List<SignedSoftwareCertificate> signedSoftwareCertificates = new List<SignedSoftwareCertificate>();
+                    var signedSoftwareCertificates = new List<SignedSoftwareCertificate>();
                     foreach (SoftwareCertificate softwareCertificate in softwareCertificates)
                     {
-                        SignedSoftwareCertificate item = new SignedSoftwareCertificate();
+                        var item = new SignedSoftwareCertificate();
                         item.CertificateData = softwareCertificate.SignedCertificate.RawData;
                         signedSoftwareCertificates.Add(item);
                     }
@@ -888,9 +888,9 @@ namespace Opc.Ua.Server
             {
                 ISystemContext systemContext = server.DefaultAuditContext;
 
-                AuditUrlMismatchEventState e = new AuditUrlMismatchEventState(null);
+                var e = new AuditUrlMismatchEventState(null);
 
-                TranslationInfo message = new TranslationInfo(
+                var message = new TranslationInfo(
                      "AuditUrlMismatchEvent",
                      "en-US",
                      $"Session with ID:{session.Id} was created but the endpoint URL does not match the domain names in the server certificate.");
@@ -942,9 +942,9 @@ namespace Opc.Ua.Server
                 ISystemContext systemContext = server.DefaultAuditContext;
 
                 // raise an audit event.
-                AuditSessionEventState e = new AuditSessionEventState(null);
+                var e = new AuditSessionEventState(null);
 
-                TranslationInfo message = new TranslationInfo(
+                var message = new TranslationInfo(
                     "AuditCloseSessionEvent",
                     "en-US",
                     $"Session with ID:{session?.Id} was closed.");
@@ -985,9 +985,9 @@ namespace Opc.Ua.Server
                 ISystemContext systemContext = server.DefaultAuditContext;
 
                 // raise an audit event.
-                AuditSessionEventState e = new AuditSessionEventState(null);
+                var e = new AuditSessionEventState(null);
 
-                TranslationInfo message = new TranslationInfo(
+                var message = new TranslationInfo(
                     "AuditSessionEventState",
                     "en-US",
                     $"Transfer subscription for session ID:{session?.Id} has statusCode {statusCode}.");
@@ -1028,7 +1028,7 @@ namespace Opc.Ua.Server
         {
             try
             {
-                CertificateUpdatedAuditEventState e = new CertificateUpdatedAuditEventState(null);
+                var e = new CertificateUpdatedAuditEventState(null);
 
                 TranslationInfo message = null;
                 if (exception == null)
@@ -1089,9 +1089,9 @@ namespace Opc.Ua.Server
         {
             try
             {
-                CertificateUpdateRequestedAuditEventState e = new CertificateUpdateRequestedAuditEventState(null);
+                var e = new CertificateUpdateRequestedAuditEventState(null);
 
-                TranslationInfo message = new TranslationInfo(
+                var message = new TranslationInfo(
                        "CertificateUpdateRequestedAuditEvent",
                        "en-US",
                        "CertificateUpdateRequestedAuditEvent.");
@@ -1144,9 +1144,9 @@ namespace Opc.Ua.Server
 
             try
             {
-                AuditAddNodesEventState e = new AuditAddNodesEventState(null);
+                var e = new AuditAddNodesEventState(null);
 
-                TranslationInfo message = new TranslationInfo(
+                var message = new TranslationInfo(
                            "AuditAddNodesEventState",
                            "en-US",
                            $"'{customMessage}' returns StatusCode: {statusCode.ToString(null, CultureInfo.InvariantCulture)}.");
@@ -1196,9 +1196,9 @@ namespace Opc.Ua.Server
 
             try
             {
-                AuditDeleteNodesEventState e = new AuditDeleteNodesEventState(null);
+                var e = new AuditDeleteNodesEventState(null);
 
-                TranslationInfo message = new TranslationInfo(
+                var message = new TranslationInfo(
                            "AuditDeleteNodesEventState",
                            "en-US",
                            $"'{customMessage}' returns StatusCode: {statusCode.ToString(null, CultureInfo.InvariantCulture)}.");
@@ -1251,7 +1251,7 @@ namespace Opc.Ua.Server
             try
             {
                 // raise an audit event.
-                AuditOpenSecureChannelEventState e = new AuditOpenSecureChannelEventState(null);
+                var e = new AuditOpenSecureChannelEventState(null);
                 TranslationInfo message = null;
                 if (exception == null)
                 {
@@ -1349,7 +1349,7 @@ namespace Opc.Ua.Server
             try
             {
                 // raise an audit event.
-                AuditChannelEventState e = new AuditChannelEventState(null);
+                var e = new AuditChannelEventState(null);
 
                 TranslationInfo message = null;
                 if (exception == null)
@@ -1436,9 +1436,9 @@ namespace Opc.Ua.Server
             }
             try
             {
-                AuditUpdateMethodEventState e = new AuditUpdateMethodEventState(null);
+                var e = new AuditUpdateMethodEventState(null);
 
-                TranslationInfo message = new TranslationInfo(
+                var message = new TranslationInfo(
                            "AuditUpdateMethodEventState",
                            "en-US",
                            $"'{customMessage}' returns StatusCode: {statusCode.ToString(null, CultureInfo.InvariantCulture)}.");
@@ -1490,9 +1490,9 @@ namespace Opc.Ua.Server
         {
             try
             {
-                TrustListUpdatedAuditEventState e = new TrustListUpdatedAuditEventState(null);
+                var e = new TrustListUpdatedAuditEventState(null);
 
-                TranslationInfo message = new TranslationInfo(
+                var message = new TranslationInfo(
                    "TrustListUpdatedAuditEvent",
                    "en-US",
                    $"TrustListUpdatedAuditEvent result is: {statusCode.ToString(null, CultureInfo.InvariantCulture)}");
@@ -1539,9 +1539,9 @@ namespace Opc.Ua.Server
         {
             try
             {
-                TrustListUpdateRequestedAuditEventState e = new TrustListUpdateRequestedAuditEventState(null);
+                var e = new TrustListUpdateRequestedAuditEventState(null);
 
-                TranslationInfo message = new TranslationInfo(
+                var message = new TranslationInfo(
                    "TrustListUpdateRequestedAuditEvent",
                    "en-US",
                    $"TrustListUpdateRequestedAuditEvent.");
@@ -1588,7 +1588,7 @@ namespace Opc.Ua.Server
             HistoryUpdateDetails historyUpdateDetails,
             StatusCode statusCode)
         {
-            TranslationInfo message = new TranslationInfo(
+            var message = new TranslationInfo(
                auditEventName,
                "en-US",
                $"{auditEventName} has Result: {statusCode.ToString(null, CultureInfo.InvariantCulture)}.");

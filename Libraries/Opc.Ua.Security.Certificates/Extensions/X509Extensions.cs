@@ -59,7 +59,11 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="extensions">The extensions to search.</param>
         public static T FindExtension<T>(this X509ExtensionCollection extensions) where T : X509Extension
         {
-            if (extensions == null) throw new ArgumentNullException(nameof(extensions));
+            if (extensions == null)
+            {
+                throw new ArgumentNullException(nameof(extensions));
+            }
+
             lock (extensions.SyncRoot)
             {
                 // search known custom extensions

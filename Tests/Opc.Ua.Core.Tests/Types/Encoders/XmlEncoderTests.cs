@@ -45,7 +45,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     public class XmlEncoderTests
     {
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "SYSLIB1045:Convert to 'GeneratedRegexAttribute'.", Justification = "Tests")]
-        static Regex REValue = new Regex("Value>([^<]*)<");
+        static readonly Regex REValue = new Regex("Value>([^<]*)<");
 
         #region Test Methods
         /// <summary>
@@ -76,7 +76,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             // Decode
             float actualBinaryValue;
-            using (XmlReader reader = XmlReader.Create(new StringReader(actualXmlValue)))
+            using (var reader = XmlReader.Create(new StringReader(actualXmlValue)))
             {
                 using (IDecoder xmlDecoder = new XmlDecoder(null, reader, context))
                 {
@@ -123,7 +123,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             // Decode
             double actualBinaryValue;
-            using (XmlReader reader = XmlReader.Create(new StringReader(actualXmlValue)))
+            using (var reader = XmlReader.Create(new StringReader(actualXmlValue)))
             {
                 using (IDecoder xmlDecoder = new XmlDecoder(null, reader, context))
                 {
@@ -173,7 +173,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             // Decode
             Variant actualVariant;
-            using (XmlReader reader = XmlReader.Create(new StringReader(actualXmlValue)))
+            using (var reader = XmlReader.Create(new StringReader(actualXmlValue)))
             {
                 using (IDecoder xmlDecoder = new XmlDecoder(null, reader, context))
                 {
@@ -192,7 +192,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void EncodeDecodeVariantNil()
         {
 
-            var variant = Variant.Null;
+            Variant variant = Variant.Null;
 
             string expected = "<?xml version=\"1.0\" encoding=\"utf-16\"?>\r\n<uax:VariantTest xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\r\n  <uax:Test>\r\n    <uax:Value xsi:nil=\"true\" />\r\n  </uax:Test>\r\n</uax:VariantTest>";
 
@@ -212,7 +212,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             // Decode
             Variant actualVariant;
-            using (XmlReader reader = XmlReader.Create(new StringReader(actualXmlValue)))
+            using (var reader = XmlReader.Create(new StringReader(actualXmlValue)))
             {
                 using (IDecoder xmlDecoder = new XmlDecoder(null, reader, context))
                 {

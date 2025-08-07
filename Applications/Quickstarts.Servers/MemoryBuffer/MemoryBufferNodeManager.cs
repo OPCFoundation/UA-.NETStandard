@@ -115,7 +115,7 @@ namespace MemoryBuffer
                 // create the nodes from configuration.
                 ushort namespaceIndex = Server.NamespaceUris.GetIndexOrAppend(Namespaces.MemoryBuffer);
 
-                BaseInstanceState root = (BaseInstanceState)FindPredefinedNode(
+                var root = (BaseInstanceState)FindPredefinedNode(
                     new NodeId(Objects.MemoryBuffers, namespaceIndex),
                     typeof(BaseInstanceState));
 
@@ -129,7 +129,7 @@ namespace MemoryBuffer
                         MemoryBufferInstance instance = m_configuration.Buffers[ii];
 
                         // create a new buffer.
-                        MemoryBufferState bufferNode = new MemoryBufferState(SystemContext, instance);
+                        var bufferNode = new MemoryBufferState(SystemContext, instance);
 
                         // assign node ids.
                         bufferNode.Create(
@@ -157,7 +157,7 @@ namespace MemoryBuffer
         /// </summary>
         protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
         {
-            NodeStateCollection predefinedNodes = new NodeStateCollection();
+            var predefinedNodes = new NodeStateCollection();
             predefinedNodes.LoadFromBinaryResource(context, "Quickstarts.Servers.MemoryBuffer.MemoryBuffer.PredefinedNodes.uanodes", this.GetType().GetTypeInfo().Assembly, true);
             return predefinedNodes;
         }
@@ -277,7 +277,7 @@ namespace MemoryBuffer
             filterError = null;
             monitoredItem = null;
 
-            MemoryTagState tag = source as MemoryTagState;
+            var tag = source as MemoryTagState;
 
             // use default behavior for non-tag sources.
             if (tag == null)
@@ -300,7 +300,7 @@ namespace MemoryBuffer
             MonitoringParameters parameters = itemToCreate.RequestedParameters;
 
             // no filters supported at this time.
-            MonitoringFilter filter = (MonitoringFilter)ExtensionObject.ToEncodeable(parameters.Filter);
+            var filter = (MonitoringFilter)ExtensionObject.ToEncodeable(parameters.Filter);
 
             if (filter != null)
             {
@@ -320,7 +320,7 @@ namespace MemoryBuffer
             }
 
             // read initial value.
-            DataValue initialValue = new DataValue();
+            var initialValue = new DataValue();
 
             initialValue.Value = null;
             initialValue.ServerTimestamp = DateTime.UtcNow;
@@ -340,7 +340,7 @@ namespace MemoryBuffer
             }
 
             // get the monitored node for the containing buffer.
-            MemoryBufferState buffer = tag.Parent as MemoryBufferState;
+            var buffer = tag.Parent as MemoryBufferState;
 
             if (buffer == null)
             {
@@ -393,7 +393,7 @@ namespace MemoryBuffer
         {
             monitoredItem = null;
 
-            MemoryTagState tag = source as MemoryTagState;
+            var tag = source as MemoryTagState;
 
             // use default behavior for non-tag sources.
             if (tag == null)
@@ -406,7 +406,7 @@ namespace MemoryBuffer
             }
 
             // get the monitored node for the containing buffer.
-            MemoryBufferState buffer = tag.Parent as MemoryBufferState;
+            var buffer = tag.Parent as MemoryBufferState;
 
             if (buffer == null)
             {
@@ -439,7 +439,7 @@ namespace MemoryBuffer
             filterError = null;
 
             // check for valid handle.
-            MemoryBufferState buffer = monitoredItem.ManagerHandle as MemoryBufferState;
+            var buffer = monitoredItem.ManagerHandle as MemoryBufferState;
 
             if (buffer == null)
             {
@@ -456,7 +456,7 @@ namespace MemoryBuffer
             itemToModify.Processed = true;
 
             // get the monitored item.
-            MemoryBufferMonitoredItem datachangeItem = monitoredItem as MemoryBufferMonitoredItem;
+            var datachangeItem = monitoredItem as MemoryBufferMonitoredItem;
 
             if (datachangeItem == null)
             {
@@ -467,7 +467,7 @@ namespace MemoryBuffer
             MonitoringParameters parameters = itemToModify.RequestedParameters;
 
             // no filters supported at this time.
-            MonitoringFilter filter = (MonitoringFilter)ExtensionObject.ToEncodeable(parameters.Filter);
+            var filter = (MonitoringFilter)ExtensionObject.ToEncodeable(parameters.Filter);
 
             if (filter != null)
             {
@@ -495,7 +495,7 @@ namespace MemoryBuffer
             processed = false;
 
             // check for valid handle.
-            MemoryBufferState buffer = monitoredItem.ManagerHandle as MemoryBufferState;
+            var buffer = monitoredItem.ManagerHandle as MemoryBufferState;
 
             if (buffer == null)
             {
@@ -509,7 +509,7 @@ namespace MemoryBuffer
             processed = true;
 
             // get the monitored item.
-            MemoryBufferMonitoredItem datachangeItem = monitoredItem as MemoryBufferMonitoredItem;
+            var datachangeItem = monitoredItem as MemoryBufferMonitoredItem;
 
             if (datachangeItem == null)
             {
@@ -534,7 +534,7 @@ namespace MemoryBuffer
             processed = false;
 
             // check for valid handle.
-            MemoryBufferState buffer = monitoredItem.ManagerHandle as MemoryBufferState;
+            var buffer = monitoredItem.ManagerHandle as MemoryBufferState;
 
             if (buffer == null)
             {
@@ -549,7 +549,7 @@ namespace MemoryBuffer
             processed = true;
 
             // get the monitored item.
-            MemoryBufferMonitoredItem datachangeItem = monitoredItem as MemoryBufferMonitoredItem;
+            var datachangeItem = monitoredItem as MemoryBufferMonitoredItem;
 
             if (datachangeItem == null)
             {
@@ -562,14 +562,14 @@ namespace MemoryBuffer
             // need to provide an immediate update after enabling.
             if (previousMode == MonitoringMode.Disabled && monitoringMode != MonitoringMode.Disabled)
             {
-                DataValue initialValue = new DataValue();
+                var initialValue = new DataValue();
 
                 initialValue.Value = null;
                 initialValue.ServerTimestamp = DateTime.UtcNow;
                 initialValue.SourceTimestamp = DateTime.MinValue;
                 initialValue.StatusCode = StatusCodes.Good;
 
-                MemoryTagState tag = new MemoryTagState(buffer, datachangeItem.Offset);
+                var tag = new MemoryTagState(buffer, datachangeItem.Offset);
 
                 ServiceResult error = tag.ReadAttribute(
                     context,
@@ -586,8 +586,8 @@ namespace MemoryBuffer
         #endregion
 
         #region Private Fields
-        private MemoryBufferConfiguration m_configuration;
-        private Dictionary<string, MemoryBufferState> m_buffers;
+        private readonly MemoryBufferConfiguration m_configuration;
+        private readonly Dictionary<string, MemoryBufferState> m_buffers;
         #endregion
     }
 }

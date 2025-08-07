@@ -101,10 +101,10 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private string m_secureChannelId;
-        private EndpointDescription m_endpointDescription;
-        private RequestEncoding m_messageEncoding;
-        private static ThreadLocal<SecureChannelContext> s_Dataslot = new ThreadLocal<SecureChannelContext>();
+        private readonly string m_secureChannelId;
+        private readonly EndpointDescription m_endpointDescription;
+        private readonly RequestEncoding m_messageEncoding;
+        private static readonly ThreadLocal<SecureChannelContext> s_Dataslot = new ThreadLocal<SecureChannelContext>();
         #endregion
     }
 

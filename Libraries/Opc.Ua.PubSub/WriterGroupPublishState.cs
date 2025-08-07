@@ -53,7 +53,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// The DataSetStates indexed by dataset writer group id.
         /// </summary>
-        private Dictionary<ushort, DataSetState> m_dataSetStates;
+        private readonly Dictionary<ushort, DataSetState> m_dataSetStates;
 
         #region Constructor
         /// <summary>
@@ -143,8 +143,8 @@ namespace Opc.Ua.PubSub
 
                 for (int ii = 0; ii < dataset.Fields.Length && ii < lastDataSet.Fields.Length; ii++)
                 {
-                    var field1 = dataset.Fields[ii];
-                    var field2 = lastDataSet.Fields[ii];
+                    Field field1 = dataset.Fields[ii];
+                    Field field2 = lastDataSet.Fields[ii];
 
                     if (field1 == null || field2 == null)
                     {
@@ -200,7 +200,7 @@ namespace Opc.Ua.PubSub
 
                     for (int ii = 0; ii < dataset.Fields.Length && ii < state.LastDataSet.Fields.Length; ii++)
                     {
-                        var field = dataset.Fields[ii];
+                        Field field = dataset.Fields[ii];
 
                         if (field != null)
                         {

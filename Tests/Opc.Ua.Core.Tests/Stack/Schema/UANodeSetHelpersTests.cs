@@ -31,7 +31,6 @@
 using System;
 using System.IO;
 using System.Text;
-using System.Xml;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
@@ -82,8 +81,8 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
         [Test]
         public void ArrayDimensionsValidationTest()
         {
-            var bufferPath = @"./ArrayDimensionsValidationTest.xml";
-            var importBuffer = @"<?xml version='1.0' encoding='utf-8'?>
+            string bufferPath = @"./ArrayDimensionsValidationTest.xml";
+            string importBuffer = @"<?xml version='1.0' encoding='utf-8'?>
                 <UANodeSet xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xmlns:xsd='http://www.w3.org/2001/XMLSchema' LastModified='2021-09-16T19:10:18.097476Z' xmlns='http://opcfoundation.org/UA/2011/03/UANodeSet.xsd'>
                   <NamespaceUris>
                     <Uri>urn:foobar</Uri>
@@ -140,10 +139,10 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
                 var importedNodeSet = Opc.Ua.Export.UANodeSet.Read(importStream);
 
                 var importedNodeStates = new NodeStateCollection();
-                var localContext = new SystemContext();
-
-                localContext.NamespaceUris = new NamespaceTable();
-                foreach (var namespaceUri in importedNodeSet.NamespaceUris)
+                var localContext = new SystemContext {
+                    NamespaceUris = new NamespaceTable()
+                };
+                foreach (string namespaceUri in importedNodeSet.NamespaceUris)
                 {
                     localContext.NamespaceUris.Append(namespaceUri);
                 }
@@ -179,7 +178,7 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
 
                         var exportedNodeStates = new NodeStateCollection();
                         localContext.NamespaceUris = new NamespaceTable();
-                        foreach (var namespaceUri in exportedNodeSet.NamespaceUris)
+                        foreach (string namespaceUri in exportedNodeSet.NamespaceUris)
                         {
                             localContext.NamespaceUris.Append(namespaceUri);
                         }
@@ -220,18 +219,19 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
         [TestCase("Applications/Quickstarts.Servers/Boiler/Boiler.NodeSet2.xml")]
         public void NodeSet2ValidationTest(string nodeset2File)
         {
-            var assetPath = Utils.GetAbsoluteFilePath("../../../../../" + nodeset2File, true, false, false);
+            string assetPath = Utils.GetAbsoluteFilePath("../../../../../" + nodeset2File, true, false, false);
             using (var importStream = new FileStream(assetPath, FileMode.Open))
             {
                 var importedNodeSet = Export.UANodeSet.Read(importStream);
                 Assert.NotNull(importedNodeSet);
 
                 var importedNodeStates = new NodeStateCollection();
-                var localContext = new SystemContext();
-                localContext.NamespaceUris = new NamespaceTable();
+                var localContext = new SystemContext {
+                    NamespaceUris = new NamespaceTable()
+                };
                 if (importedNodeSet.NamespaceUris != null)
                 {
-                    foreach (var namespaceUri in importedNodeSet.NamespaceUris)
+                    foreach (string namespaceUri in importedNodeSet.NamespaceUris)
                     {
                         localContext.NamespaceUris.Append(namespaceUri);
                     }
@@ -252,11 +252,12 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
                 Assert.NotNull(importedNodeSet);
 
                 var importedNodeStates = new NodeStateCollection();
-                var localContext = new SystemContext();
-                localContext.NamespaceUris = new NamespaceTable();
+                var localContext = new SystemContext {
+                    NamespaceUris = new NamespaceTable()
+                };
                 if (importedNodeSet.NamespaceUris != null)
                 {
-                    foreach (var namespaceUri in importedNodeSet.NamespaceUris)
+                    foreach (string namespaceUri in importedNodeSet.NamespaceUris)
                     {
                         localContext.NamespaceUris.Append(namespaceUri);
                     }
@@ -286,7 +287,7 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
 
         public string ToString(string format, IFormatProvider formatProvider)
         {
-            var file = System.IO.Path.GetFileName(Path);
+            string file = System.IO.Path.GetFileName(Path);
             return $"{file}";
         }
     }

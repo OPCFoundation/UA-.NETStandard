@@ -172,7 +172,7 @@ namespace Opc.Ua
         /// </summary>
         private FilterOperand[] GetOperands(ContentFilterElement element, int expectedCount)
         {
-            FilterOperand[] operands = new FilterOperand[element.FilterOperands.Count];
+            var operands = new FilterOperand[element.FilterOperands.Count];
 
             int ii = 0;
 
@@ -734,7 +734,7 @@ namespace Opc.Ua
 
                 case BuiltInType.StatusCode:
                 {
-                    StatusCode code = (StatusCode)value;
+                    var code = (StatusCode)value;
                     return (ushort)(code.CodeBits >> 16);
                 }
             }
@@ -1177,7 +1177,7 @@ namespace Opc.Ua
 
             if (value is Array array)
             {
-                DateTime[] output = new DateTime[array.Length];
+                var output = new DateTime[array.Length];
 
                 for (int ii = 0; ii < array.Length; ii++)
                 {
@@ -1214,7 +1214,7 @@ namespace Opc.Ua
 
             if (value is Array array)
             {
-                Guid[] output = new Guid[array.Length];
+                var output = new Guid[array.Length];
 
                 for (int ii = 0; ii < array.Length; ii++)
                 {
@@ -1293,7 +1293,7 @@ namespace Opc.Ua
 
             if (value is Array array)
             {
-                NodeId[] output = new NodeId[array.Length];
+                var output = new NodeId[array.Length];
 
                 for (int ii = 0; ii < array.Length; ii++)
                 {
@@ -1335,7 +1335,7 @@ namespace Opc.Ua
 
             if (value is Array array)
             {
-                ExpandedNodeId[] output = new ExpandedNodeId[array.Length];
+                var output = new ExpandedNodeId[array.Length];
 
                 for (int ii = 0; ii < array.Length; ii++)
                 {
@@ -1377,7 +1377,7 @@ namespace Opc.Ua
 
             if (value is Array array)
             {
-                StatusCode[] output = new StatusCode[array.Length];
+                var output = new StatusCode[array.Length];
 
                 for (int ii = 0; ii < array.Length; ii++)
                 {
@@ -1436,7 +1436,7 @@ namespace Opc.Ua
 
             if (value is Array array)
             {
-                QualifiedName[] output = new QualifiedName[array.Length];
+                var output = new QualifiedName[array.Length];
 
                 for (int ii = 0; ii < array.Length; ii++)
                 {
@@ -1473,7 +1473,7 @@ namespace Opc.Ua
 
             if (value is Array array)
             {
-                LocalizedText[] output = new LocalizedText[array.Length];
+                var output = new LocalizedText[array.Length];
 
                 for (int ii = 0; ii < array.Length; ii++)
                 {
@@ -1861,7 +1861,7 @@ namespace Opc.Ua
 
             object firstOperand = GetValue(context, operands[0], target);
             string lhs;
-            LocalizedText firstOperandLocalizedText = firstOperand as LocalizedText;
+            var firstOperandLocalizedText = firstOperand as LocalizedText;
             if (firstOperandLocalizedText != null)
             {
                 lhs = firstOperandLocalizedText.Text;
@@ -1873,7 +1873,7 @@ namespace Opc.Ua
 
             object secondOperand = GetValue(context, operands[1], target);
             string rhs;
-            LocalizedText secondOperandLocalizedText = secondOperand as LocalizedText;
+            var secondOperandLocalizedText = secondOperand as LocalizedText;
             if (secondOperandLocalizedText != null)
             {
                 rhs = secondOperandLocalizedText.Text;
@@ -1925,7 +1925,7 @@ namespace Opc.Ua
             }
 
             // get the datatype to cast to.
-            NodeId datatype = GetValue(context, operands[1], target) as NodeId;
+            var datatype = GetValue(context, operands[1], target) as NodeId;
 
             if (datatype == null)
             {
@@ -1946,7 +1946,7 @@ namespace Opc.Ua
             FilterOperand[] operands = GetOperands(element, 1);
 
             // get the desired type.
-            NodeId typeDefinitionId = GetValue(context, operands[0], target) as NodeId;
+            var typeDefinitionId = GetValue(context, operands[0], target) as NodeId;
 
             if (typeDefinitionId == null || target == null)
             {
@@ -1979,7 +1979,7 @@ namespace Opc.Ua
             FilterOperand[] operands = GetOperands(element, 1);
 
             // get the desired type.
-            NodeId viewId = GetValue(context, operands[0], target) as NodeId;
+            var viewId = GetValue(context, operands[0], target) as NodeId;
 
             if (viewId == null || target == null)
             {
@@ -2020,7 +2020,7 @@ namespace Opc.Ua
             FilterOperand[] operands = GetOperands(element, 6);
 
             // get the type of the source.
-            NodeId sourceTypeId = GetValue(context, operands[0], target) as NodeId;
+            var sourceTypeId = GetValue(context, operands[0], target) as NodeId;
 
             if (sourceTypeId == null)
             {
@@ -2028,7 +2028,7 @@ namespace Opc.Ua
             }
 
             // get the type of reference to follow.
-            NodeId referenceTypeId = GetValue(context, operands[2], target) as NodeId;
+            var referenceTypeId = GetValue(context, operands[2], target) as NodeId;
 
             if (referenceTypeId == null)
             {
@@ -2096,7 +2096,7 @@ namespace Opc.Ua
                 // get the target type from the first operand of the chained element.
                 if (chainedElement.FilterOperator == FilterOperator.RelatedTo)
                 {
-                    FilterOperand nestedType = ExtensionObject.ToEncodeable(chainedElement.FilterOperands[0]) as FilterOperand;
+                    var nestedType = ExtensionObject.ToEncodeable(chainedElement.FilterOperands[0]) as FilterOperand;
 
                     targetTypeId = GetValue(context, nestedType, target) as NodeId;
 

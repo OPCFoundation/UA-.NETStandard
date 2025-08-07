@@ -63,8 +63,8 @@ namespace Opc.Ua.Core.Tests.Types.Schemas
         public void LoadResources(string[] schemaData)
         {
             Assert.That(schemaData.Length == 2);
-            var assembly = typeof(XmlSchemaValidator).GetTypeInfo().Assembly;
-            using (var stream = assembly.GetManifestResourceStream(schemaData[1]))
+            Assembly assembly = typeof(XmlSchemaValidator).GetTypeInfo().Assembly;
+            using (Stream stream = assembly.GetManifestResourceStream(schemaData[1]))
             {
                 Assert.IsNotNull(stream);
             }
@@ -76,8 +76,8 @@ namespace Opc.Ua.Core.Tests.Types.Schemas
         [Theory]
         public void ValidateResources(string[] schemaData)
         {
-            var assembly = typeof(XmlSchemaValidator).GetTypeInfo().Assembly;
-            using (var stream = assembly.GetManifestResourceStream(schemaData[1]))
+            Assembly assembly = typeof(XmlSchemaValidator).GetTypeInfo().Assembly;
+            using (Stream stream = assembly.GetManifestResourceStream(schemaData[1]))
             {
                 Assert.IsNotNull(stream);
                 var schema = new XmlSchemaValidator();
@@ -97,18 +97,18 @@ namespace Opc.Ua.Core.Tests.Types.Schemas
         {
             const string schemaPrefix = "Opc.Ua.Schema.";
             const string zipExtension = ".zip";
-            var assembly = typeof(XmlSchemaValidator).GetTypeInfo().Assembly;
+            Assembly assembly = typeof(XmlSchemaValidator).GetTypeInfo().Assembly;
 
-            using (var stream = assembly.GetManifestResourceStream(schemaPrefix + resource + zipExtension))
+            using (Stream stream = assembly.GetManifestResourceStream(schemaPrefix + resource + zipExtension))
             {
                 Assert.IsNotNull(stream);
-                using (ZipArchive zipArchive = new ZipArchive(stream, ZipArchiveMode.Read))
+                using (var zipArchive = new ZipArchive(stream, ZipArchiveMode.Read))
                 {
                     Assert.NotNull(zipArchive);
                     Assert.AreEqual(1, zipArchive.Entries.Count);
-                    var zipEntry = zipArchive.GetEntry(zipArchive.Entries[0].Name);
+                    ZipArchiveEntry zipEntry = zipArchive.GetEntry(zipArchive.Entries[0].Name);
                     Assert.AreEqual(resource, zipEntry.Name);
-                    var zipStream = zipEntry.Open();
+                    Stream zipStream = zipEntry.Open();
                     Assert.IsNotNull(zipStream);
 
                     XmlReaderSettings settings = Utils.DefaultXmlReaderSettings();
@@ -121,7 +121,7 @@ namespace Opc.Ua.Core.Tests.Types.Schemas
                     var exportedNodeSet = Export.UANodeSet.Read(zipStream);
                     Assert.IsNotNull(exportedNodeSet);
                     exportedNodeSet.NamespaceUris = exportedNodeSet.NamespaceUris ?? System.Array.Empty<string>();
-                    foreach (var namespaceUri in exportedNodeSet.NamespaceUris)
+                    foreach (string namespaceUri in exportedNodeSet.NamespaceUris)
                     {
                         localContext.NamespaceUris.Append(namespaceUri);
                     }

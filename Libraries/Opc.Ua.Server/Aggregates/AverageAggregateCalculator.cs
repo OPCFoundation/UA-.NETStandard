@@ -151,7 +151,7 @@ namespace Opc.Ua.Server
             double result = total/count;
 
             // set the timestamp and status.
-            DataValue value = new DataValue();
+            var value = new DataValue();
             value.WrappedValue = new Variant(result, TypeInfo.Scalars.Double);
             value.SourceTimestamp = GetTimestamp(slice);
             value.ServerTimestamp = GetTimestamp(slice);
@@ -224,7 +224,7 @@ namespace Opc.Ua.Server
             }
 
             // set the timestamp and status.
-            DataValue value = new DataValue();
+            var value = new DataValue();
             value.WrappedValue = new Variant(result, TypeInfo.Scalars.Double);
             value.SourceTimestamp = GetTimestamp(slice);
             value.ServerTimestamp = GetTimestamp(slice);

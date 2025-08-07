@@ -64,7 +64,10 @@ namespace Opc.Ua
         /// </summary>
         private DiagnosticInfo(DiagnosticInfo value, int depth)
         {
-            if (value == null) throw new ArgumentNullException(nameof(value));
+            if (value == null)
+            {
+                throw new ArgumentNullException(nameof(value));
+            }
 
             m_symbolicId = value.m_symbolicId;
             m_namespaceUri = value.m_namespaceUri;
@@ -211,7 +214,10 @@ namespace Opc.Ua
             StringTable stringTable,
             int depth)
         {
-            if (stringTable == null) throw new ArgumentNullException(nameof(stringTable));
+            if (stringTable == null)
+            {
+                throw new ArgumentNullException(nameof(stringTable));
+            }
 
             Initialize();
 
@@ -651,7 +657,7 @@ namespace Opc.Ua
         /// </remarks>
         public new object MemberwiseClone()
         {
-            DiagnosticInfoCollection clone = new DiagnosticInfoCollection(this.Count);
+            var clone = new DiagnosticInfoCollection(this.Count);
 
             foreach (DiagnosticInfo element in this)
             {

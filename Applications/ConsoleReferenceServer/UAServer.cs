@@ -95,7 +95,7 @@ namespace Quickstarts
         {
             try
             {
-                var config = m_application.ApplicationConfiguration;
+                ApplicationConfiguration config = m_application.ApplicationConfiguration;
                 if (renewCertificate)
                 {
                     await m_application.DeleteApplicationInstanceCertificate().ConfigureAwait(false);
@@ -130,7 +130,7 @@ namespace Quickstarts
                 m_server = new T();
                 if (nodeManagerFactories != null)
                 {
-                    foreach (var factory in nodeManagerFactories)
+                    foreach (INodeManagerFactory factory in nodeManagerFactories)
                     {
                         m_server.AddNodeManager(factory);
                     }
@@ -159,8 +159,8 @@ namespace Quickstarts
                 ExitCode = ExitCode.ErrorRunning;
 
                 // print endpoint info
-                var endpoints = m_application.Server.GetEndpoints().Select(e => e.EndpointUrl).Distinct();
-                foreach (var endpoint in endpoints)
+                IEnumerable<string> endpoints = m_application.Server.GetEndpoints().Select(e => e.EndpointUrl).Distinct();
+                foreach (string endpoint in endpoints)
                 {
                     m_output.WriteLine(endpoint);
                 }

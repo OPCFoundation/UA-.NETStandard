@@ -54,7 +54,7 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
-            DataTypeState clone = (DataTypeState)Activator.CreateInstance(this.GetType());
+            var clone = (DataTypeState)Activator.CreateInstance(this.GetType());
             return CloneChildren(clone);
         }
         #endregion
@@ -251,7 +251,7 @@ namespace Opc.Ua
             {
                 case Attributes.DataTypeDefinition:
                 {
-                    ExtensionObject dataTypeDefinition = value as ExtensionObject;
+                    var dataTypeDefinition = value as ExtensionObject;
 
                     if ((WriteMask & AttributeWriteMask.DataTypeDefinition) == 0)
                     {

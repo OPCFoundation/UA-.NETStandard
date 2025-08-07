@@ -52,7 +52,7 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private ServiceResult m_result;
+        private readonly ServiceResult m_result;
         #endregion
     }
 }

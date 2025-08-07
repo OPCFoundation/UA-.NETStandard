@@ -170,7 +170,7 @@ namespace Opc.Ua
         private StringTable m_serverUris;
         private IEncodeableFactory m_factory;
 
-        private static ServiceMessageContext s_globalContext = new ServiceMessageContext(true);
+        private static readonly ServiceMessageContext s_globalContext = new ServiceMessageContext(true);
         #endregion
     }
 }

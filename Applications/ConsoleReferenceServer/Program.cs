@@ -53,8 +53,8 @@ namespace Quickstarts.ReferenceServer
                 Utils.GetAssemblySoftwareVersion());
 
             // The application name and config file names
-            var applicationName = Utils.IsRunningOnMono() ? "MonoReferenceServer" : "ConsoleReferenceServer";
-            var configSectionName = Utils.IsRunningOnMono() ? "Quickstarts.MonoReferenceServer" : "Quickstarts.ReferenceServer";
+            string applicationName = Utils.IsRunningOnMono() ? "MonoReferenceServer" : "ConsoleReferenceServer";
+            string configSectionName = Utils.IsRunningOnMono() ? "Quickstarts.MonoReferenceServer" : "Quickstarts.ReferenceServer";
 
             // command line options
             bool showHelp = false;
@@ -68,7 +68,7 @@ namespace Quickstarts.ReferenceServer
             string password = null;
             int timeout = -1;
 
-            var usage = Utils.IsRunningOnMono() ? $"Usage: mono {applicationName}.exe [OPTIONS]" : $"Usage: dotnet {applicationName}.dll [OPTIONS]";
+            string usage = Utils.IsRunningOnMono() ? $"Usage: mono {applicationName}.exe [OPTIONS]" : $"Usage: dotnet {applicationName}.dll [OPTIONS]";
             Mono.Options.OptionSet options = new Mono.Options.OptionSet {
                 usage,
                 { "h|help", "show this message and exit", h => showHelp = h != null },
@@ -107,9 +107,9 @@ namespace Quickstarts.ReferenceServer
                 if (shadowConfig)
                 {
                     output.WriteLine("Using shadow configuration.");
-                    var shadowPath = Directory.GetParent(Path.GetDirectoryName(
+                    string shadowPath = Directory.GetParent(Path.GetDirectoryName(
                         Utils.ReplaceSpecialFolderNames(server.Configuration.TraceConfiguration.OutputFilePath))).FullName;
-                    var shadowFilePath = Path.Combine(shadowPath, Path.GetFileName(server.Configuration.SourceFilePath));
+                    string shadowFilePath = Path.Combine(shadowPath, Path.GetFileName(server.Configuration.SourceFilePath));
                     if (!File.Exists(shadowFilePath))
                     {
                         output.WriteLine("Create a copy of the config in the shadow location.");
@@ -151,7 +151,7 @@ namespace Quickstarts.ReferenceServer
 
                 // wait for timeout or Ctrl-C
                 var quitCTS = new CancellationTokenSource();
-                var quitEvent = ConsoleUtils.CtrlCHandler(quitCTS);
+                ManualResetEvent quitEvent = ConsoleUtils.CtrlCHandler(quitCTS);
                 bool ctrlc = quitEvent.WaitOne(timeout);
 
                 // stop server. May have to wait for clients to disconnect.

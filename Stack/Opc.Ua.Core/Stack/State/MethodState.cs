@@ -90,7 +90,7 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
-            MethodState clone = (MethodState)Activator.CreateInstance(this.GetType(), this.Parent);
+            var clone = (MethodState)Activator.CreateInstance(this.GetType(), this.Parent);
             return CloneChildren(clone);
         }
         #endregion
@@ -631,7 +631,7 @@ namespace Opc.Ua
             }
 
             // validate input arguments.
-            List<object> inputs = new List<object>();
+            var inputs = new List<object>();
 
             // check for too few or too many arguments.
             int expectedCount = 0;
@@ -676,7 +676,7 @@ namespace Opc.Ua
             }
 
             // set output arguments to default values.
-            List<object> outputs = new List<object>();
+            var outputs = new List<object>();
 
             PropertyState<Argument[]> expectedOutputArguments = OutputArguments;
 
@@ -792,7 +792,7 @@ namespace Opc.Ua
 
             Argument expectedArgument = arguments[index];
 
-            TypeInfo typeInfo = TypeInfo.IsInstanceOfDataType(
+            var typeInfo = TypeInfo.IsInstanceOfDataType(
                 inputArgument.Value,
                 expectedArgument.DataType,
                 expectedArgument.ValueRank,

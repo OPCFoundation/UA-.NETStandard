@@ -102,7 +102,7 @@ namespace Opc.Ua
             lock (m_lock)
             {
                 string trimmedLocation = Utils.ReplaceSpecialFolderNames(location);
-                var directory = !string.IsNullOrEmpty(trimmedLocation) ? new DirectoryInfo(trimmedLocation) : null;
+                DirectoryInfo directory = !string.IsNullOrEmpty(trimmedLocation) ? new DirectoryInfo(trimmedLocation) : null;
                 if (directory == null ||
                     m_directory?.FullName.Equals(directory.FullName, StringComparison.Ordinal) != true ||
                     NoPrivateKeys != noPrivateKeys)
@@ -172,7 +172,10 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public Task Add(X509Certificate2 certificate, string password = null)
         {
-            if (certificate == null) throw new ArgumentNullException(nameof(certificate));
+            if (certificate == null)
+            {
+                throw new ArgumentNullException(nameof(certificate));
+            }
 
             lock (m_lock)
             {
@@ -217,7 +220,10 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public Task AddRejected(X509Certificate2Collection certificates, int maxCertificates)
         {
-            if (certificates == null) throw new ArgumentNullException(nameof(certificates));
+            if (certificates == null)
+            {
+                throw new ArgumentNullException(nameof(certificates));
+            }
 
             var deleteEntryList = new List<Entry>();
             lock (m_lock)
@@ -227,7 +233,7 @@ namespace Opc.Ua
 
                 DateTime now = DateTime.UtcNow;
                 int entries = 0;
-                foreach (var certificate in certificates)
+                foreach (X509Certificate2 certificate in certificates)
                 {
                     // limit the number of certificates added per call.
                     if (maxCertificates != 0 && entries >= maxCertificates)
@@ -245,7 +251,7 @@ namespace Opc.Ua
                         string fileName = GetFileName(certificate);
 
                         // store is created if it does not exist
-                        var fileInfo = WriteFile(certificate.RawData, fileName, false, true);
+                        FileInfo fileInfo = WriteFile(certificate.RawData, fileName, false, true);
 
                         // add entry
                         entry = new Entry {
@@ -274,7 +280,7 @@ namespace Opc.Ua
             }
 
             bool reload = false;
-            foreach (var entry in deleteEntryList)
+            foreach (Entry entry in deleteEntryList)
             {
                 try
                 {
@@ -499,9 +505,9 @@ namespace Opc.Ua
                             certificatesInFile.Add(X509CertificateLoader.LoadCertificateFromFile(file.FullName));
                         }
 
-                        foreach (var cert in certificatesInFile)
+                        foreach (X509Certificate2 cert in certificatesInFile)
                         {
-                            var certificate = cert;
+                            X509Certificate2 certificate = cert;
 
                             if (!string.IsNullOrEmpty(thumbprint) &&
                                 !string.Equals(certificate.Thumbprint, thumbprint, StringComparison.OrdinalIgnoreCase))
@@ -919,7 +925,7 @@ namespace Opc.Ua
                             certificatesInFile.Add(X509CertificateLoader.LoadCertificateFromFile(file.FullName));
                         }
 
-                        foreach (var certificate in certificatesInFile)
+                        foreach (X509Certificate2 certificate in certificatesInFile)
                         {
                             var entry = new Entry {
                                 Certificate = certificate,
@@ -933,7 +939,7 @@ namespace Opc.Ua
                             {
                                 string fileRoot = file.Name.Substring(0, entry.CertificateFile.Name.Length - entry.CertificateFile.Extension.Length);
 
-                                var filePath = new StringBuilder()
+                                StringBuilder filePath = new StringBuilder()
                                     .Append(m_privateKeySubdir.FullName)
                                     .Append(Path.DirectorySeparatorChar)
                                     .Append(fileRoot);
@@ -1043,7 +1049,7 @@ namespace Opc.Ua
                 fileName.Append(ch);
             }
 
-            var signatureQualifier = X509Utils.GetECDsaQualifier(certificate);
+            string signatureQualifier = X509Utils.GetECDsaQualifier(certificate);
             if (!string.IsNullOrEmpty(signatureQualifier))
             {
                 fileName.Append(" [");
@@ -1104,7 +1110,7 @@ namespace Opc.Ua
             }
 
             // write file.
-            var fileMode = allowOverride ? FileMode.OpenOrCreate : FileMode.Create;
+            FileMode fileMode = allowOverride ? FileMode.OpenOrCreate : FileMode.Create;
             var writer = new BinaryWriter(fileInfo.Open(fileMode, FileAccess.Write));
             try
             {
@@ -1136,12 +1142,12 @@ namespace Opc.Ua
 
         #region Private Fields
         private readonly object m_lock = new object();
-        private bool m_noSubDirs;
+        private readonly bool m_noSubDirs;
         private DirectoryInfo m_directory;
         private DirectoryInfo m_certificateSubdir;
         private DirectoryInfo m_crlSubdir;
         private DirectoryInfo m_privateKeySubdir;
-        private Dictionary<string, Entry> m_certificates;
+        private readonly Dictionary<string, Entry> m_certificates;
         private DateTime m_lastDirectoryCheck;
         #endregion
     }

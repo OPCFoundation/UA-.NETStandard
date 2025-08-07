@@ -101,7 +101,7 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            ParsedNodeId parsedNodeId = new ParsedNodeId();
+            var parsedNodeId = new ParsedNodeId();
             parsedNodeId.NamespaceIndex = nodeId.NamespaceIndex;
 
             // extract the type of identifier.
@@ -127,7 +127,7 @@ namespace Opc.Ua.Server
             }
 
             // extract any component path.
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
 
             int index = start+1;
             int end = identifier.Length;
@@ -173,7 +173,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public static NodeId Construct(int rootType, string rootId, ushort namespaceIndex, params string[] componentNames)
         {
-            ParsedNodeId pnd = new ParsedNodeId();
+            var pnd = new ParsedNodeId();
 
             pnd.RootType = rootType;
             pnd.RootId = rootId;
@@ -181,7 +181,7 @@ namespace Opc.Ua.Server
 
             if (componentNames != null)
             {
-                StringBuilder path = new StringBuilder();
+                var path = new StringBuilder();
 
                 for (int ii = 0; ii < componentNames.Length; ii++)
                 {
@@ -214,7 +214,7 @@ namespace Opc.Ua.Server
         /// <returns>The node identifier.</returns>
         public NodeId Construct(string componentName)
         {
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
 
             // add the root type.
             buffer.Append(RootType);
@@ -274,7 +274,7 @@ namespace Opc.Ua.Server
             }
 
             // components must be instances with a parent.
-            BaseInstanceState instance = component as BaseInstanceState;
+            var instance = component as BaseInstanceState;
 
             if (instance == null || instance.Parent == null)
             {
@@ -289,7 +289,7 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
             buffer.Append(parentId);
 
             // check if the parent is another component.

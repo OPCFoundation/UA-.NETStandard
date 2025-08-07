@@ -55,9 +55,16 @@ namespace Opc.Ua.Server
             ApplicationConfiguration configuration,
             ushort                   dynamicNamespaceIndex)
         {
-            if (server == null)        throw new ArgumentNullException(nameof(server));
-            if (configuration == null) throw new ArgumentNullException(nameof(configuration));
-                  
+            if (server == null)
+            {
+                throw new ArgumentNullException(nameof(server));
+            }
+
+            if (configuration == null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
+
             m_server                         = server;
             m_nodes                          = new NodeTable(server.NamespaceUris, server.ServerUris, server.TypeTree);
             m_monitoredItems                 = new Dictionary<uint,MonitoredItem>();
@@ -101,7 +108,7 @@ namespace Opc.Ua.Server
 
                 lock(m_lock)
                 {
-                    nodes = new List<INode>(m_nodes);
+                    nodes = [.. m_nodes];
                     m_nodes.Clear();
 
                     m_monitoredItems.Clear();
@@ -140,7 +147,7 @@ namespace Opc.Ua.Server
         /// </summary>
         internal void ImportNodes(ISystemContext context, IEnumerable<NodeState> predefinedNodes, bool isInternal)
         {
-            NodeTable nodesToExport = new NodeTable(Server.NamespaceUris, Server.ServerUris, Server.TypeTree);
+            var nodesToExport = new NodeTable(Server.NamespaceUris, Server.ServerUris, Server.TypeTree);
 
             foreach (NodeState node in predefinedNodes)
             {
@@ -157,7 +164,7 @@ namespace Opc.Ua.Server
         }
  
         #region INodeManager Members
-        /// <summary cref="INodeManager.NamespaceUris" />
+        /// <inheritdoc/>
         public IEnumerable<string> NamespaceUris
         {
             get
@@ -166,7 +173,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary cref="INodeManager.CreateAddressSpace" />
+        /// <inheritdoc/>
         /// <remarks>
         /// Populates the NodeManager by loading the standard nodes from an XML file stored as an embedded resource.
         /// </remarks>
@@ -175,20 +182,20 @@ namespace Opc.Ua.Server
             // TBD
         }
                 
-        /// <summary cref="INodeManager.DeleteAddressSpace" />
+        /// <inheritdoc/>
         /// <remarks>
         /// Disposes all of the nodes.
         /// </remarks>
         public void DeleteAddressSpace()
         {
-            List<IDisposable> nodesToDispose = new List<IDisposable>();
+            var nodesToDispose = new List<IDisposable>();
 
             lock(m_lock)
             {
                 // collect nodes to dispose.
                 foreach (INode node in m_nodes)
                 {
-                    IDisposable disposable = node as IDisposable;
+                    var disposable = node as IDisposable;
 
                     if (disposable != null)
                     {
@@ -235,13 +242,28 @@ namespace Opc.Ua.Server
             IList<ExpandedNodeId> targetIds,
             IList<NodeId>         unresolvedTargetIds)
         {
-            if (sourceHandle == null) throw new ArgumentNullException(nameof(sourceHandle));
-            if (relativePath == null) throw new ArgumentNullException(nameof(relativePath));
-            if (targetIds == null) throw new ArgumentNullException(nameof(targetIds));
-            if (unresolvedTargetIds == null) throw new ArgumentNullException(nameof(unresolvedTargetIds));
+            if (sourceHandle == null)
+            {
+                throw new ArgumentNullException(nameof(sourceHandle));
+            }
+
+            if (relativePath == null)
+            {
+                throw new ArgumentNullException(nameof(relativePath));
+            }
+
+            if (targetIds == null)
+            {
+                throw new ArgumentNullException(nameof(targetIds));
+            }
+
+            if (unresolvedTargetIds == null)
+            {
+                throw new ArgumentNullException(nameof(unresolvedTargetIds));
+            }
 
             // check for valid handle.
-            ILocalNode source = sourceHandle as ILocalNode;
+            var source = sourceHandle as ILocalNode;
 
             if (source == null)
             {
@@ -298,12 +320,23 @@ namespace Opc.Ua.Server
             ref ContinuationPoint       continuationPoint,
             IList<ReferenceDescription> references)
         {              
-            if (context == null) throw new ArgumentNullException(nameof(context));
-            if (continuationPoint == null) throw new ArgumentNullException(nameof(continuationPoint));
-            if (references == null) throw new ArgumentNullException(nameof(references));
-            
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            if (continuationPoint == null)
+            {
+                throw new ArgumentNullException(nameof(continuationPoint));
+            }
+
+            if (references == null)
+            {
+                throw new ArgumentNullException(nameof(references));
+            }
+
             // check for valid handle.
-            ILocalNode source = continuationPoint.NodeToBrowse as ILocalNode;
+            var source = continuationPoint.NodeToBrowse as ILocalNode;
 
             if (source == null)
             {
@@ -322,12 +355,12 @@ namespace Opc.Ua.Server
                 uint maxResultsToReturn = continuationPoint.MaxResultsToReturn;
 
                 // get previous enumerator.
-                IEnumerator<IReference> enumerator = continuationPoint.Data as IEnumerator<IReference>;
+                var enumerator = continuationPoint.Data as IEnumerator<IReference>;
             
                 // fetch a snapshot all references for node.
                 if (enumerator == null)
                 {
-                    List<IReference> copy = new List<IReference>(source.References);
+                    var copy = new List<IReference>(source.References);
                     enumerator = copy.GetEnumerator();
                     enumerator.MoveNext();
                 }
@@ -351,7 +384,7 @@ namespace Opc.Ua.Server
 
                     if (include)
                     {                 
-                        ReferenceDescription description = new ReferenceDescription();
+                        var description = new ReferenceDescription();
                         
                         description.NodeId = reference.TargetId;
                         description.SetReferenceType(continuationPoint.ResultMask, reference.ReferenceTypeId, !reference.IsInverse);
@@ -460,10 +493,13 @@ namespace Opc.Ua.Server
             object           targetHandle,
             BrowseResultMask resultMask)
         {
-            if (context == null) throw new ArgumentNullException(nameof(context));
-            
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
             // find target.
-            ILocalNode target = targetHandle as ILocalNode;
+            var target = targetHandle as ILocalNode;
 
             if (target == null)
             {
@@ -473,7 +509,7 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 // copy the default metadata.
-                NodeMetadata metadata = new NodeMetadata(target, target.NodeId);
+                var metadata = new NodeMetadata(target, target.NodeId);
                 
                 // copy target attributes.
                 if ((resultMask & BrowseResultMask.NodeClass) != 0)
@@ -501,7 +537,7 @@ namespace Opc.Ua.Server
 
                 if (metadata.WriteMask != AttributeWriteMask.None)
                 {
-                    DataValue value = new DataValue((uint)(int)target.UserWriteMask);
+                    var value = new DataValue((uint)(int)target.UserWriteMask);
                     ServiceResult result = target.Read(context, Attributes.UserWriteMask, value);
 
                     if (ServiceResult.IsBad(result))
@@ -534,13 +570,13 @@ namespace Opc.Ua.Server
 
                     case NodeClass.Variable:
                     {
-                        IVariable variable = (IVariable)target;
+                        var variable = (IVariable)target;
                         metadata.DataType = variable.DataType;
                         metadata.ValueRank = variable.ValueRank;
                         metadata.ArrayDimensions = variable.ArrayDimensions;                        
                         metadata.AccessLevel = variable.AccessLevel;
 
-                        DataValue value = new DataValue(variable.UserAccessLevel);
+                        var value = new DataValue(variable.UserAccessLevel);
                         ServiceResult result = variable.Read(context, Attributes.UserAccessLevel, value);
 
                         if (ServiceResult.IsBad(result))
@@ -555,12 +591,12 @@ namespace Opc.Ua.Server
 
                     case NodeClass.Method:
                     {
-                        IMethod method = (IMethod)target;
+                        var method = (IMethod)target;
                         metadata.Executable = method.Executable;
 
                         if (metadata.Executable)
                         {
-                            DataValue value = new DataValue(method.UserExecutable);
+                            var value = new DataValue(method.UserExecutable);
                             ServiceResult result = method.Read(context, Attributes.UserExecutable, value);
 
                             if (ServiceResult.IsBad(result))
@@ -586,7 +622,7 @@ namespace Opc.Ua.Server
                 }
 
                 // Set AccessRestrictions and RolePermissions
-                Node node = (Node)target;
+                var node = (Node)target;
                 metadata.AccessRestrictions = (AccessRestrictionType)Enum.Parse(typeof(AccessRestrictionType), node.AccessRestrictions.ToString(CultureInfo.InvariantCulture)); 
                 metadata.RolePermissions = node.RolePermissions;
                 metadata.UserRolePermissions = node.UserRolePermissions;
@@ -608,13 +644,16 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary cref="INodeManager.AddReferences" />
+        /// <inheritdoc/>
         /// <remarks>
         /// This method must not be called without first acquiring 
         /// </remarks>
         public void AddReferences(IDictionary<NodeId,IList<IReference>> references)
         {
-            if (references == null) throw new ArgumentNullException(nameof(references));
+            if (references == null)
+            {
+                throw new ArgumentNullException(nameof(references));
+            }
 
             lock (m_lock)
             {
@@ -643,10 +682,25 @@ namespace Opc.Ua.Server
             IList<DataValue>     values,
             IList<ServiceResult> errors)
         {
-            if (context == null)     throw new ArgumentNullException(nameof(context));
-            if (nodesToRead == null) throw new ArgumentNullException(nameof(nodesToRead));
-            if (values == null)      throw new ArgumentNullException(nameof(values));
-            if (errors == null)      throw new ArgumentNullException(nameof(errors));
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            if (nodesToRead == null)
+            {
+                throw new ArgumentNullException(nameof(nodesToRead));
+            }
+
+            if (values == null)
+            {
+                throw new ArgumentNullException(nameof(values));
+            }
+
+            if (errors == null)
+            {
+                throw new ArgumentNullException(nameof(errors));
+            }
 
             lock (m_lock)
             {
@@ -757,16 +811,35 @@ namespace Opc.Ua.Server
             IList<HistoryReadResult>  results, 
             IList<ServiceResult>      errors) 
         {
-            if (context == null)     throw new ArgumentNullException(nameof(context));
-            if (details == null)     throw new ArgumentNullException(nameof(details));
-            if (nodesToRead == null) throw new ArgumentNullException(nameof(nodesToRead));
-            if (results == null)     throw new ArgumentNullException(nameof(results));
-            if (errors == null)      throw new ArgumentNullException(nameof(errors));
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
 
-            ReadRawModifiedDetails readRawModifiedDetails = details as ReadRawModifiedDetails;
-            ReadAtTimeDetails readAtTimeDetails = details as ReadAtTimeDetails;
-            ReadProcessedDetails readProcessedDetails = details as ReadProcessedDetails;
-            ReadEventDetails readEventDetails = details as ReadEventDetails;
+            if (details == null)
+            {
+                throw new ArgumentNullException(nameof(details));
+            }
+
+            if (nodesToRead == null)
+            {
+                throw new ArgumentNullException(nameof(nodesToRead));
+            }
+
+            if (results == null)
+            {
+                throw new ArgumentNullException(nameof(results));
+            }
+
+            if (errors == null)
+            {
+                throw new ArgumentNullException(nameof(errors));
+            }
+
+            var readRawModifiedDetails = details as ReadRawModifiedDetails;
+            var readAtTimeDetails = details as ReadAtTimeDetails;
+            var readProcessedDetails = details as ReadProcessedDetails;
+            var readEventDetails = details as ReadEventDetails;
 
             lock (m_lock)
             {
@@ -805,9 +878,20 @@ namespace Opc.Ua.Server
             IList<WriteValue>    nodesToWrite, 
             IList<ServiceResult> errors)
         {
-            if (context == null)      throw new ArgumentNullException(nameof(context));
-            if (nodesToWrite == null) throw new ArgumentNullException(nameof(nodesToWrite));
-            if (errors == null)       throw new ArgumentNullException(nameof(errors));
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            if (nodesToWrite == null)
+            {
+                throw new ArgumentNullException(nameof(nodesToWrite));
+            }
+
+            if (errors == null)
+            {
+                throw new ArgumentNullException(nameof(errors));
+            }
 
             lock (m_lock)
             {
@@ -907,7 +991,7 @@ namespace Opc.Ua.Server
                     // check whether value being written is an instance of the expected data type.
                     object valueToWrite = nodeToWrite.Value.Value;
 
-                    TypeInfo typeInfo = TypeInfo.IsInstanceOfDataType(
+                    var typeInfo = TypeInfo.IsInstanceOfDataType(
                         valueToWrite,
                         expectedDatatypeId,
                         expectedValueRank,
@@ -933,7 +1017,7 @@ namespace Opc.Ua.Server
                         // check index range for arrays.
                         else
                         {
-                            Array array = (Array)valueToWrite;
+                            var array = (Array)valueToWrite;
 
                             if (nodeToWrite.ParsedIndexRange.Count != array.Length)
                             {
@@ -964,10 +1048,25 @@ namespace Opc.Ua.Server
             IList<HistoryUpdateResult>  results, 
             IList<ServiceResult>        errors) 
         {
-            if (context == null)       throw new ArgumentNullException(nameof(context));
-            if (nodesToUpdate == null) throw new ArgumentNullException(nameof(nodesToUpdate));
-            if (results == null)       throw new ArgumentNullException(nameof(results));
-            if (errors == null)        throw new ArgumentNullException(nameof(errors));
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            if (nodesToUpdate == null)
+            {
+                throw new ArgumentNullException(nameof(nodesToUpdate));
+            }
+
+            if (results == null)
+            {
+                throw new ArgumentNullException(nameof(results));
+            }
+
+            if (errors == null)
+            {
+                throw new ArgumentNullException(nameof(errors));
+            }
 
             lock (m_lock)
             {
@@ -1006,10 +1105,25 @@ namespace Opc.Ua.Server
             IList<CallMethodResult>  results,
             IList<ServiceResult>     errors)
         {
-            if (context == null)       throw new ArgumentNullException(nameof(context));
-            if (methodsToCall == null) throw new ArgumentNullException(nameof(methodsToCall));
-            if (results == null)       throw new ArgumentNullException(nameof(results));
-            if (errors == null)        throw new ArgumentNullException(nameof(errors));
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            if (methodsToCall == null)
+            {
+                throw new ArgumentNullException(nameof(methodsToCall));
+            }
+
+            if (results == null)
+            {
+                throw new ArgumentNullException(nameof(results));
+            }
+
+            if (errors == null)
+            {
+                throw new ArgumentNullException(nameof(errors));
+            }
 
             lock (m_lock)
             {
@@ -1063,9 +1177,20 @@ namespace Opc.Ua.Server
             IEventMonitoredItem monitoredItem,
             bool                unsubscribe)
         {
-            if (context == null)  throw new ArgumentNullException(nameof(context));
-            if (sourceId == null) throw new ArgumentNullException(nameof(sourceId));
-            if (monitoredItem == null) throw new ArgumentNullException(nameof(monitoredItem));
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            if (sourceId == null)
+            {
+                throw new ArgumentNullException(nameof(sourceId));
+            }
+
+            if (monitoredItem == null)
+            {
+                throw new ArgumentNullException(nameof(monitoredItem));
+            }
 
             lock (m_lock)
             {
@@ -1100,9 +1225,16 @@ namespace Opc.Ua.Server
             IEventMonitoredItem monitoredItem,
             bool                unsubscribe)
         {  
-            if (context == null)  throw new ArgumentNullException(nameof(context));
-            if (monitoredItem == null)  throw new ArgumentNullException(nameof(monitoredItem));
-            
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            if (monitoredItem == null)
+            {
+                throw new ArgumentNullException(nameof(monitoredItem));
+            }
+
             return ServiceResult.Good;
         }
 
@@ -1111,8 +1243,11 @@ namespace Opc.Ua.Server
             OperationContext           context,
             IList<IEventMonitoredItem> monitoredItems)
         {            
-            if (context == null)  throw new ArgumentNullException(nameof(context));
-            
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
             return ServiceResult.Good;
         }
 
@@ -1133,10 +1268,25 @@ namespace Opc.Ua.Server
             bool                              createDurable,
             ref long                          globalIdCounter)
         {
-            if (context == null)         throw new ArgumentNullException(nameof(context));
-            if (itemsToCreate == null)   throw new ArgumentNullException(nameof(itemsToCreate));
-            if (errors == null)          throw new ArgumentNullException(nameof(errors));
-            if (monitoredItems == null)  throw new ArgumentNullException(nameof(monitoredItems));
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            if (itemsToCreate == null)
+            {
+                throw new ArgumentNullException(nameof(itemsToCreate));
+            }
+
+            if (errors == null)
+            {
+                throw new ArgumentNullException(nameof(errors));
+            }
+
+            if (monitoredItems == null)
+            {
+                throw new ArgumentNullException(nameof(monitoredItems));
+            }
 
             lock (m_lock)
             {
@@ -1232,7 +1382,7 @@ namespace Opc.Ua.Server
                     if (itemToCreate.ItemToMonitor.AttributeId == Attributes.Value)
                     {
                         // use the MinimumSamplingInterval attribute to limit the sampling rate for value attributes.
-                        IVariable variableNode = node as IVariable;
+                        var variableNode = node as IVariable;
  
                         if (variableNode != null)
                         {
@@ -1295,8 +1445,15 @@ namespace Opc.Ua.Server
             IList<IMonitoredItem> monitoredItems,
             IUserIdentity savedOwnerIdentity)
         {
-            if (itemsToRestore == null) throw new ArgumentNullException(nameof(itemsToRestore));
-            if (monitoredItems == null) throw new ArgumentNullException(nameof(monitoredItems));
+            if (itemsToRestore == null)
+            {
+                throw new ArgumentNullException(nameof(itemsToRestore));
+            }
+
+            if (monitoredItems == null)
+            {
+                throw new ArgumentNullException(nameof(monitoredItems));
+            }
 
             if (m_server.IsRunning)
             {
@@ -1356,7 +1513,7 @@ namespace Opc.Ua.Server
             ILocalNode node,
             IDataChangeMonitoredItem2 monitoredItem)
         {
-            DataValue initialValue = new DataValue {
+            var initialValue = new DataValue {
                 Value = null,
                 ServerTimestamp = DateTime.UtcNow,
                 SourceTimestamp = DateTime.MinValue,
@@ -1387,10 +1544,25 @@ namespace Opc.Ua.Server
             IList<ServiceResult>              errors,
             IList<MonitoringFilterResult>     filterErrors)
         { 
-            if (context == null)         throw new ArgumentNullException(nameof(context));
-            if (monitoredItems == null)  throw new ArgumentNullException(nameof(monitoredItems));
-            if (itemsToModify == null)   throw new ArgumentNullException(nameof(itemsToModify));
-            if (errors == null)          throw new ArgumentNullException(nameof(errors));
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            if (monitoredItems == null)
+            {
+                throw new ArgumentNullException(nameof(monitoredItems));
+            }
+
+            if (itemsToModify == null)
+            {
+                throw new ArgumentNullException(nameof(itemsToModify));
+            }
+
+            if (errors == null)
+            {
+                throw new ArgumentNullException(nameof(errors));
+            }
 
             lock (m_lock)
             {
@@ -1429,7 +1601,7 @@ namespace Opc.Ua.Server
                     }
                     
                     // find the node being monitored.
-                    ILocalNode node = monitoredItem.ManagerHandle as ILocalNode;
+                    var node = monitoredItem.ManagerHandle as ILocalNode;
 
                     if (node == null)
                     {
@@ -1501,9 +1673,20 @@ namespace Opc.Ua.Server
             IList<bool>           processedItems,
             IList<ServiceResult>  errors)
         {
-            if (context == null)        throw new ArgumentNullException(nameof(context));
-            if (monitoredItems == null) throw new ArgumentNullException(nameof(monitoredItems));
-            if (errors == null)         throw new ArgumentNullException(nameof(errors));
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            if (monitoredItems == null)
+            {
+                throw new ArgumentNullException(nameof(monitoredItems));
+            }
+
+            if (errors == null)
+            {
+                throw new ArgumentNullException(nameof(errors));
+            }
 
             lock (m_lock)
             {
@@ -1569,9 +1752,20 @@ namespace Opc.Ua.Server
             IList<bool> processedItems,
             IList<ServiceResult> errors)
         {
-            if (context == null) throw new ArgumentNullException(nameof(context));
-            if (monitoredItems == null) throw new ArgumentNullException(nameof(monitoredItems));
-            if (processedItems == null) throw new ArgumentNullException(nameof(processedItems));
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            if (monitoredItems == null)
+            {
+                throw new ArgumentNullException(nameof(monitoredItems));
+            }
+
+            if (processedItems == null)
+            {
+                throw new ArgumentNullException(nameof(processedItems));
+            }
 
             lock (m_lock)
             {
@@ -1596,7 +1790,7 @@ namespace Opc.Ua.Server
                     IMonitoredItem monitoredItem = monitoredItems[ii];
 
                     // find the node being monitored.
-                    ILocalNode node = monitoredItem.ManagerHandle as ILocalNode;
+                    var node = monitoredItem.ManagerHandle as ILocalNode;
                     if (node == null)
                     {
                         continue;
@@ -1623,9 +1817,20 @@ namespace Opc.Ua.Server
             IList<ServiceResult>  errors)
         {
 
-            if (context == null)        throw new ArgumentNullException(nameof(context));
-            if (monitoredItems == null) throw new ArgumentNullException(nameof(monitoredItems));
-            if (errors == null)         throw new ArgumentNullException(nameof(errors));
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            if (monitoredItems == null)
+            {
+                throw new ArgumentNullException(nameof(monitoredItems));
+            }
+
+            if (errors == null)
+            {
+                throw new ArgumentNullException(nameof(errors));
+            }
 
             lock (m_lock)
             {
@@ -1667,13 +1872,13 @@ namespace Opc.Ua.Server
                     // need to provide an immediate update after enabling.
                     if (previousMode == MonitoringMode.Disabled && monitoringMode != MonitoringMode.Disabled)
                     {
-                        DataValue initialValue = new DataValue();
+                        var initialValue = new DataValue();
 
                         initialValue.ServerTimestamp = DateTime.UtcNow;
                         initialValue.StatusCode      = StatusCodes.BadWaitingForInitialData;
                         
                         // read the initial value.
-                        Node node = monitoredItem.ManagerHandle as Node;
+                        var node = monitoredItem.ManagerHandle as Node;
                         
                         if (node != null)
                         {
@@ -1757,19 +1962,26 @@ namespace Opc.Ua.Server
         /// </summary>
         public NodeIdCollection FindLocalNodes(NodeId sourceId, NodeId referenceTypeId, bool isInverse)
         {
-            if (sourceId == null)        throw new ArgumentNullException(nameof(sourceId));
-            if (referenceTypeId == null) throw new ArgumentNullException(nameof(referenceTypeId));
+            if (sourceId == null)
+            {
+                throw new ArgumentNullException(nameof(sourceId));
+            }
+
+            if (referenceTypeId == null)
+            {
+                throw new ArgumentNullException(nameof(referenceTypeId));
+            }
 
             lock (m_lock)
             {
-                ILocalNode source = GetManagerHandle(sourceId) as ILocalNode;
+                var source = GetManagerHandle(sourceId) as ILocalNode;
 
                 if (source == null)
                 {
                     return null;
                 }
 
-                NodeIdCollection targets = new NodeIdCollection();
+                var targets = new NodeIdCollection();
                 
                 foreach (IReference reference in source.References)
                 {
@@ -1797,12 +2009,19 @@ namespace Opc.Ua.Server
         /// </summary>
         public NodeId FindTargetId(NodeId sourceId, NodeId referenceTypeId, bool isInverse, QualifiedName browseName)
         {
-            if (sourceId == null)        throw new ArgumentNullException(nameof(sourceId));
-            if (referenceTypeId == null) throw new ArgumentNullException(nameof(referenceTypeId));
+            if (sourceId == null)
+            {
+                throw new ArgumentNullException(nameof(sourceId));
+            }
+
+            if (referenceTypeId == null)
+            {
+                throw new ArgumentNullException(nameof(referenceTypeId));
+            }
 
             lock (m_lock)
             {
-                ILocalNode source = GetManagerHandle(sourceId) as ILocalNode;
+                var source = GetManagerHandle(sourceId) as ILocalNode;
 
                 if (source == null)
                 {
@@ -1823,7 +2042,7 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    ILocalNode target = GetManagerHandle((NodeId)targetId) as ILocalNode;
+                    var target = GetManagerHandle((NodeId)targetId) as ILocalNode;
 
                     if (target == null)
                     {
@@ -1894,7 +2113,7 @@ namespace Opc.Ua.Server
             NodeId           sourceId, 
             RelativePath     relativePath)
         {
-            List<NodeId> targets = new List<NodeId>();
+            var targets = new List<NodeId>();
 
             if (relativePath == null || relativePath.Elements.Count == 0)
             {
@@ -1929,8 +2148,15 @@ namespace Opc.Ua.Server
         /// </remarks>
         public void RegisterSource(NodeId nodeId, object source, object handle, bool isEventSource)
         {
-            if (nodeId == null) throw new ArgumentNullException(nameof(nodeId));
-            if (source == null) throw new ArgumentNullException(nameof(source));
+            if (nodeId == null)
+            {
+                throw new ArgumentNullException(nameof(nodeId));
+            }
+
+            if (source == null)
+            {
+                throw new ArgumentNullException(nameof(source));
+            }
         }   
 
         /// <summary>
@@ -1959,20 +2185,27 @@ namespace Opc.Ua.Server
             ILocalNode templateDeclaration, 
             ushort     namespaceIndex)
         {
-            if (instance == null) throw new ArgumentNullException(nameof(instance));
-            if (typeDefinition == null) throw new ArgumentNullException(nameof(typeDefinition));
+            if (instance == null)
+            {
+                throw new ArgumentNullException(nameof(instance));
+            }
+
+            if (typeDefinition == null)
+            {
+                throw new ArgumentNullException(nameof(typeDefinition));
+            }
 
             // check existing type definition.
             UpdateTypeDefinition(instance, typeDefinition.NodeId);
 
             // create list of declarations for the type definition (recursively collects definitions from supertypes).
-            List<DeclarationNode> declarations = new List<DeclarationNode>();
+            var declarations = new List<DeclarationNode>();
             BuildDeclarationList(typeDefinition, declarations);
             
             // add instance declaration if provided.
             if (templateDeclaration != null)
             {
-                DeclarationNode declaration = new DeclarationNode();
+                var declaration = new DeclarationNode();
 
                 declaration.Node = templateDeclaration;
                 declaration.BrowsePath = string.Empty;
@@ -1983,9 +2216,9 @@ namespace Opc.Ua.Server
             }
 
             // build list of instances to create.
-            List<ILocalNode> typeDefinitions = new List<ILocalNode>();
-            SortedDictionary<string,ILocalNode> instanceDeclarations = new SortedDictionary<string,ILocalNode>();
-            SortedDictionary<NodeId,ILocalNode> possibleTargets = new SortedDictionary<NodeId,ILocalNode>();
+            var typeDefinitions = new List<ILocalNode>();
+            var instanceDeclarations = new SortedDictionary<string,ILocalNode>();
+            var possibleTargets = new SortedDictionary<NodeId,ILocalNode>();
             
             // create instances from declarations.
             // subtypes appear in list last so traversing the list backwards find the overridden nodes first.
@@ -2015,11 +2248,11 @@ namespace Opc.Ua.Server
             }
             
             // build list of instances that already exist.
-            SortedDictionary<string,ILocalNode> existingInstances = new SortedDictionary<string,ILocalNode>();
+            var existingInstances = new SortedDictionary<string,ILocalNode>();
             BuildInstanceList(instance, string.Empty, existingInstances);
 
             // maps the instance declaration onto an instance node.
-            Dictionary<NodeId,ILocalNode> instancesToCreate = new Dictionary<NodeId,ILocalNode>(); 
+            var instancesToCreate = new Dictionary<NodeId,ILocalNode>(); 
             
             // apply modelling rules to instance declarations.
             foreach (KeyValuePair<string,ILocalNode> current in instanceDeclarations)
@@ -2251,8 +2484,15 @@ namespace Opc.Ua.Server
         /// </summary>
         private void BuildDeclarationList(ILocalNode typeDefinition, List<DeclarationNode> declarations)
         {
-            if (typeDefinition == null) throw new ArgumentNullException(nameof(typeDefinition));
-            if (declarations == null) throw new ArgumentNullException(nameof(declarations));
+            if (typeDefinition == null)
+            {
+                throw new ArgumentNullException(nameof(typeDefinition));
+            }
+
+            if (declarations == null)
+            {
+                throw new ArgumentNullException(nameof(declarations));
+            }
 
             // guard against loops (i.e. common grandparents).
             for (int ii = 0; ii < declarations.Count; ii++)
@@ -2264,7 +2504,7 @@ namespace Opc.Ua.Server
             }
 
             // create the root declaration for the type.
-            DeclarationNode declaration = new DeclarationNode();
+            var declaration = new DeclarationNode();
 
             declaration.Node = typeDefinition;
             declaration.BrowsePath = string.Empty;
@@ -2293,8 +2533,15 @@ namespace Opc.Ua.Server
         /// </summary>
         private void BuildDeclarationList(DeclarationNode parent, List<DeclarationNode> declarations)
         {            
-            if (parent == null) throw new ArgumentNullException(nameof(parent));
-            if (declarations == null) throw new ArgumentNullException(nameof(declarations));
+            if (parent == null)
+            {
+                throw new ArgumentNullException(nameof(parent));
+            }
+
+            if (declarations == null)
+            {
+                throw new ArgumentNullException(nameof(declarations));
+            }
 
             // get list of children.
             IList<IReference> references = parent.Node.References.Find(ReferenceTypeIds.HierarchicalReferences, false, true, m_nodes.TypeTree);
@@ -2316,7 +2563,7 @@ namespace Opc.Ua.Server
                 }
 
                 // create the declartion node.
-                DeclarationNode declaration = new DeclarationNode();
+                var declaration = new DeclarationNode();
 
                 declaration.Node = child;
                 declaration.BrowsePath = Utils.Format("{0}.{1}", parent.BrowsePath, child.BrowseName);
@@ -2338,9 +2585,16 @@ namespace Opc.Ua.Server
         /// </summary>
         private void BuildInstanceList(ILocalNode parent, string browsePath, IDictionary<string,ILocalNode> instances)
         { 
-            if (parent == null) throw new ArgumentNullException(nameof(parent));
-            if (instances == null) throw new ArgumentNullException(nameof(instances));
-            
+            if (parent == null)
+            {
+                throw new ArgumentNullException(nameof(parent));
+            }
+
+            if (instances == null)
+            {
+                throw new ArgumentNullException(nameof(instances));
+            }
+
             // guard against loops.
             if (instances.ContainsKey(browsePath))
             {
@@ -2572,10 +2826,13 @@ namespace Opc.Ua.Server
         /// </summary>
         public void DeleteNode(NodeId nodeId, bool deleteChildren, bool silent)
         {
-            if (nodeId == null) throw new ArgumentNullException(nameof(nodeId));
-            
+            if (nodeId == null)
+            {
+                throw new ArgumentNullException(nameof(nodeId));
+            }
+
             // find the node to delete.
-            ILocalNode node = GetManagerHandle(nodeId) as ILocalNode;
+            var node = GetManagerHandle(nodeId) as ILocalNode;
 
             if (node == null)
             {
@@ -2589,7 +2846,7 @@ namespace Opc.Ua.Server
 
             bool instance = (node.NodeClass & (NodeClass.Object | NodeClass.Variable)) != 0;
 
-            Dictionary<NodeId,IList<IReference>> referencesToDelete = new Dictionary<NodeId,IList<IReference>>();
+            var referencesToDelete = new Dictionary<NodeId,IList<IReference>>();
             
             if (silent)
             {
@@ -2621,10 +2878,13 @@ namespace Opc.Ua.Server
         /// </summary>
         private void DeleteNode(ILocalNode node, bool deleteChildren, bool instance, Dictionary<NodeId,IList<IReference>> referencesToDelete)
         {
-            if (node == null) throw new ArgumentNullException(nameof(node));
+            if (node == null)
+            {
+                throw new ArgumentNullException(nameof(node));
+            }
 
-            List<ILocalNode> nodesToDelete = new List<ILocalNode>();
-            List<IReference> referencesForNode = new List<IReference>();
+            var nodesToDelete = new List<ILocalNode>();
+            var referencesForNode = new List<IReference>();
 
             lock (m_lock)
             {
@@ -2649,7 +2909,7 @@ namespace Opc.Ua.Server
                     }
 
                     // find the target.
-                    ILocalNode target = GetManagerHandle(reference.TargetId) as ILocalNode;
+                    var target = GetManagerHandle(reference.TargetId) as ILocalNode;
 
                     if (target == null)
                     {
@@ -2688,7 +2948,7 @@ namespace Opc.Ua.Server
         /// </summary>
         private void OnDeleteReferences(object state)
         {            
-            Dictionary<NodeId,IList<IReference>> referencesToDelete = state as Dictionary<NodeId,IList<IReference>>;
+            var referencesToDelete = state as Dictionary<NodeId,IList<IReference>>;
 
             if (state == null)
             {
@@ -2719,7 +2979,7 @@ namespace Opc.Ua.Server
             NodeClass  targetNodeClass)
         {
             // find reference type.
-            IReferenceType referenceType = GetLocalNode(referenceTypeId) as IReferenceType;
+            var referenceType = GetLocalNode(referenceTypeId) as IReferenceType;
 
             if (referenceType == null)
             {
@@ -2807,7 +3067,7 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 // find source.
-                ILocalNode source = GetManagerHandle(sourceId) as ILocalNode;
+                var source = GetManagerHandle(sourceId) as ILocalNode;
 
                 if (source == null)
                 {
@@ -2818,7 +3078,7 @@ namespace Opc.Ua.Server
                 if (bidirectional)
                 {              
                     // find target.
-                    ILocalNode target = GetManagerHandle(targetId) as ILocalNode;
+                    var target = GetManagerHandle(targetId) as ILocalNode;
 
                     if (target == null)
                     {
@@ -2950,13 +3210,24 @@ namespace Opc.Ua.Server
             ExpandedNodeId targetId, 
             bool           deleteBidirectional)
         {
-            if (sourceHandle == null)    throw new ArgumentNullException(nameof(sourceHandle));
-            if (referenceTypeId == null) throw new ArgumentNullException(nameof(referenceTypeId));
-            if (targetId == null)        throw new ArgumentNullException(nameof(targetId));
+            if (sourceHandle == null)
+            {
+                throw new ArgumentNullException(nameof(sourceHandle));
+            }
+
+            if (referenceTypeId == null)
+            {
+                throw new ArgumentNullException(nameof(referenceTypeId));
+            }
+
+            if (targetId == null)
+            {
+                throw new ArgumentNullException(nameof(targetId));
+            }
 
             lock (m_lock)
             {
-                ILocalNode source = sourceHandle as ILocalNode;
+                var source = sourceHandle as ILocalNode;
 
                 if (source == null)
                 {
@@ -2967,7 +3238,7 @@ namespace Opc.Ua.Server
 
                 if (deleteBidirectional)
                 {
-                    ILocalNode target = GetManagerHandle(targetId) as ILocalNode;
+                    var target = GetManagerHandle(targetId) as ILocalNode;
 
                     if (target != null)
                     {
@@ -3080,7 +3351,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                List<ILocalNode> targets = new List<ILocalNode>();
+                var targets = new List<ILocalNode>();
 
                 ILocalNode source = GetLocalNode(sourceId);
 
@@ -3166,7 +3437,10 @@ namespace Opc.Ua.Server
         /// </summary>
         private void AttachNode(ILocalNode node, bool isInternal)
         {
-            if (node == null) throw new ArgumentNullException(nameof(node));
+            if (node == null)
+            {
+                throw new ArgumentNullException(nameof(node));
+            }
 
             lock (m_lock)
             {
@@ -3232,7 +3506,7 @@ namespace Opc.Ua.Server
         {
             range = null;
 
-            IVariable target = GetTargetNode(node, ReferenceTypes.HasProperty, false, true, BrowseNames.EURange) as IVariable;
+            var target = GetTargetNode(node, ReferenceTypes.HasProperty, false, true, BrowseNames.EURange) as IVariable;
 
             if (target == null)
             {
@@ -3323,14 +3597,14 @@ namespace Opc.Ua.Server
         
         #region Private Fields
         private readonly object m_lock = new object();
-        private IServerInternal m_server;
-        private NodeTable m_nodes;
+        private readonly IServerInternal m_server;
+        private readonly NodeTable m_nodes;
         private long m_lastId;
-        private SamplingGroupManager m_samplingGroupManager;
-        private Dictionary<uint, MonitoredItem> m_monitoredItems;
-        private double m_defaultMinimumSamplingInterval;
-        private List<string> m_namespaceUris;
-        private ushort m_dynamicNamespaceIndex;
+        private readonly SamplingGroupManager m_samplingGroupManager;
+        private readonly Dictionary<uint, MonitoredItem> m_monitoredItems;
+        private readonly double m_defaultMinimumSamplingInterval;
+        private readonly List<string> m_namespaceUris;
+        private readonly ushort m_dynamicNamespaceIndex;
         #endregion            
     }    
     

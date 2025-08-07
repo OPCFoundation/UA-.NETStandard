@@ -300,15 +300,15 @@ namespace Opc.Ua
 
         #region Private Fields
         private readonly object m_lock = new object();
-        private ISystemContext m_context;
-        private ViewDescription m_view;
-        private NodeId m_referenceType;
-        private bool m_includeSubtypes;
-        private BrowseDirection m_browseDirection;
+        private readonly ISystemContext m_context;
+        private readonly ViewDescription m_view;
+        private readonly NodeId m_referenceType;
+        private readonly bool m_includeSubtypes;
+        private readonly BrowseDirection m_browseDirection;
         private IReference m_pushBack;
-        private List<IReference> m_references;
-        private QualifiedName m_browseName;
-        private bool m_internalOnly;
+        private readonly List<IReference> m_references;
+        private readonly QualifiedName m_browseName;
+        private readonly bool m_internalOnly;
         private int m_index;
         #endregion
     }
@@ -355,19 +355,19 @@ namespace Opc.Ua
         #endregion
 
         #region IReference Members
-        /// <summary cref="IReference.ReferenceTypeId" />
+        /// <inheritdoc/>
         public NodeId ReferenceTypeId
         {
             get { return m_referenceTypeId; }
         }
 
-        /// <summary cref="IReference.IsInverse" />
+        /// <inheritdoc/>
         public bool IsInverse
         {
             get { return m_isInverse; }
         }
 
-        /// <summary cref="IReference.TargetId" />
+        /// <inheritdoc/>
         public ExpandedNodeId TargetId
         {
             get { return m_targetId; }
@@ -375,10 +375,10 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private NodeId m_referenceTypeId;
-        private bool m_isInverse;
-        private ExpandedNodeId m_targetId;
-        private NodeState m_target;
+        private readonly NodeId m_referenceTypeId;
+        private readonly bool m_isInverse;
+        private readonly ExpandedNodeId m_targetId;
+        private readonly NodeState m_target;
         #endregion
     }
     #endregion

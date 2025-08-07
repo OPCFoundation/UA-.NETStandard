@@ -90,7 +90,7 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
-            BaseEventState clone = (BaseEventState)Activator.CreateInstance(this.GetType());
+            var clone = (BaseEventState)Activator.CreateInstance(this.GetType());
             return CloneChildren(clone);
         }
         #endregion

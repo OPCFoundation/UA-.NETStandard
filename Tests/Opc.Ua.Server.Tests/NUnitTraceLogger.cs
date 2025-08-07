@@ -39,7 +39,7 @@ namespace Opc.Ua.Server.Tests
     public class NUnitTraceLogger
     {
         private TextWriter m_writer;
-        private int m_traceMasks;
+        private readonly int m_traceMasks;
 
         /// <summary>
         /// Create a nunit trace logger which replaces the default logging.

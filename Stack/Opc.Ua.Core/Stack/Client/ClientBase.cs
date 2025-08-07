@@ -29,7 +29,10 @@ namespace Opc.Ua
         /// <param name="channel">The channel.</param>
         public ClientBase(ITransportChannel channel)
         {
-            if (channel == null) throw new ArgumentNullException(nameof(channel));
+            if (channel == null)
+            {
+                throw new ArgumentNullException(nameof(channel));
+            }
 
             InitializeChannel(channel);
         }

@@ -230,7 +230,7 @@ namespace MemoryBuffer
             ref StatusCode statusCode,
             ref DateTime timestamp)
         {
-            MemoryTagState tag = node as MemoryTagState;
+            var tag = node as MemoryTagState;
 
             if (tag == null)
             {
@@ -282,7 +282,7 @@ namespace MemoryBuffer
             ref StatusCode statusCode,
             ref DateTime timestamp)
         {
-            MemoryTagState tag = node as MemoryTagState;
+            var tag = node as MemoryTagState;
 
             if (tag == null)
             {
@@ -462,7 +462,7 @@ namespace MemoryBuffer
         {
             lock (m_dataLock)
             {
-                MemoryBufferMonitoredItem monitoredItem = new MemoryBufferMonitoredItem(
+                var monitoredItem = new MemoryBufferMonitoredItem(
                     m_server,
                     m_nodeManager,
                     this,
@@ -512,7 +512,7 @@ namespace MemoryBuffer
         {
             lock (m_dataLock)
             {
-                MemoryBufferMonitoredItem monitoredItem = new MemoryBufferMonitoredItem(
+                var monitoredItem = new MemoryBufferMonitoredItem(
                     m_server,
                     m_nodeManager,
                     this,
@@ -660,7 +660,7 @@ namespace MemoryBuffer
 
                     if (monitoredItems != null)
                     {
-                        DataValue value = new DataValue();
+                        var value = new DataValue();
 
                         value.WrappedValue = GetValueAtOffset(offset);
                         value.StatusCode = StatusCodes.Good;

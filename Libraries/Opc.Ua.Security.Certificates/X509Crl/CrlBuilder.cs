@@ -82,7 +82,7 @@ namespace Opc.Ua.Security.Certificates
             ThisUpdate = crl.ThisUpdate;
             NextUpdate = crl.NextUpdate;
             RawData = crl.RawData;
-            m_revokedCertificates = new List<RevokedCertificate>(crl.RevokedCertificates);
+            m_revokedCertificates = [.. crl.RevokedCertificates];
             m_crlExtensions = new X509ExtensionCollection();
             foreach (X509Extension extension in crl.CrlExtensions)
             {
@@ -184,7 +184,11 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="crlReason">The revocation reason</param>
         public CrlBuilder AddRevokedSerialNumbers(string[] serialNumbers, CRLReason crlReason = CRLReason.Unspecified)
         {
-            if (serialNumbers == null) throw new ArgumentNullException(nameof(serialNumbers));
+            if (serialNumbers == null)
+            {
+                throw new ArgumentNullException(nameof(serialNumbers));
+            }
+
             m_revokedCertificates.AddRange(serialNumbers.Select(s => new RevokedCertificate(s, crlReason)).ToList());
             return this;
         }
@@ -196,7 +200,11 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="crlReason">The revocation reason</param>
         public CrlBuilder AddRevokedCertificate(X509Certificate2 certificate, CRLReason crlReason = CRLReason.Unspecified)
         {
-            if (certificate == null) throw new ArgumentNullException(nameof(certificate));
+            if (certificate == null)
+            {
+                throw new ArgumentNullException(nameof(certificate));
+            }
+
             m_revokedCertificates.Add(new RevokedCertificate(certificate.SerialNumber, crlReason));
             return this;
         }
@@ -206,7 +214,11 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         public CrlBuilder AddRevokedCertificate(RevokedCertificate revokedCertificate)
         {
-            if (revokedCertificate == null) throw new ArgumentNullException(nameof(revokedCertificate));
+            if (revokedCertificate == null)
+            {
+                throw new ArgumentNullException(nameof(revokedCertificate));
+            }
+
             m_revokedCertificates.Add(revokedCertificate);
             return this;
         }
@@ -216,7 +228,11 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         public CrlBuilder AddRevokedCertificates(IList<RevokedCertificate> revokedCertificates)
         {
-            if (revokedCertificates == null) throw new ArgumentNullException(nameof(revokedCertificates));
+            if (revokedCertificates == null)
+            {
+                throw new ArgumentNullException(nameof(revokedCertificates));
+            }
+
             m_revokedCertificates.AddRange(revokedCertificates);
             return this;
         }
@@ -410,8 +426,8 @@ namespace Opc.Ua.Security.Certificates
         #endregion
 
         #region Private Fields
-        private List<RevokedCertificate> m_revokedCertificates;
-        private X509ExtensionCollection m_crlExtensions;
+        private readonly List<RevokedCertificate> m_revokedCertificates;
+        private readonly X509ExtensionCollection m_crlExtensions;
         #endregion
     }
 }

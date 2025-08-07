@@ -86,7 +86,7 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
-            ViewState clone = (ViewState)Activator.CreateInstance(this.GetType());
+            var clone = (ViewState)Activator.CreateInstance(this.GetType());
             return CloneChildren(clone);
         }
         #endregion

@@ -236,9 +236,9 @@ namespace Opc.Ua
                 nameof(Basic256)
             };
             var defaultUris = new List<string>();
-            foreach (var name in defaultNames)
+            foreach (string name in defaultNames)
             {
-                var uri = GetUri(name);
+                string uri = GetUri(name);
                 if (uri != null)
                 {
                     defaultUris.Add(uri);
@@ -257,9 +257,9 @@ namespace Opc.Ua
                 nameof(Aes128_Sha256_RsaOaep),
                 nameof(Aes256_Sha256_RsaPss) };
             var defaultUris = new List<string>();
-            foreach (var name in defaultNames)
+            foreach (string name in defaultNames)
             {
-                var uri = GetUri(name);
+                string uri = GetUri(name);
                 if (uri != null)
                 {
                     defaultUris.Add(uri);
@@ -280,9 +280,9 @@ namespace Opc.Ua
                 nameof(ECC_brainpoolP384r1)
                 };
             var defaultUris = new List<string>();
-            foreach (var name in defaultNames)
+            foreach (string name in defaultNames)
             {
-                var uri = GetUri(name);
+                string uri = GetUri(name);
                 if (uri != null)
                 {
                     defaultUris.Add(uri);
@@ -296,7 +296,7 @@ namespace Opc.Ua
         /// </summary>
         public static EncryptedData Encrypt(X509Certificate2 certificate, string securityPolicyUri, byte[] plainText)
         {
-            EncryptedData encryptedData = new EncryptedData();
+            var encryptedData = new EncryptedData();
 
             encryptedData.Algorithm = null;
             encryptedData.Data = plainText;
@@ -450,7 +450,7 @@ namespace Opc.Ua
         /// </summary>
         public static SignatureData Sign(X509Certificate2 certificate, string securityPolicyUri, byte[] dataToSign)
         {
-            SignatureData signatureData = new SignatureData();
+            var signatureData = new SignatureData();
 
             // check if nothing to do.
             if (dataToSign == null)

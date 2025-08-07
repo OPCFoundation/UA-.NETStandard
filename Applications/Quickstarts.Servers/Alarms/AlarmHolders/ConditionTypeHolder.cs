@@ -173,7 +173,7 @@ namespace Alarms
 
                 alarm.ClearChangeMasks(SystemContext, true);
 
-                InstanceStateSnapshot eventSnapshot = new InstanceStateSnapshot();
+                var eventSnapshot = new InstanceStateSnapshot();
                 eventSnapshot.Initialize(SystemContext, alarm);
                 alarm.ReportEvent(SystemContext, eventSnapshot);
             }

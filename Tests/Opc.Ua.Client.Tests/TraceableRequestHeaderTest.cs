@@ -81,7 +81,7 @@ namespace Opc.Ua.Client.Tests
         [Benchmark]
         public void ReadValuesWithTracing()
         {
-            var namespaceUris = Session.NamespaceUris;
+            NamespaceTable namespaceUris = Session.NamespaceUris;
             var testSet = new NodeIdCollection(GetTestSetStatic(namespaceUris));
             testSet.AddRange(GetTestSetFullSimulation(namespaceUris));
             Session.ReadValues(testSet, out DataValueCollection values, out IList<ServiceResult> errors);

@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -102,9 +102,9 @@ namespace Opc.Ua.Security.Certificates
                     {
                         return certificates;
                     }
-                    var pemCertificateContent = pemText.Slice(beginIndex, endIndex - beginIndex);
-                    Span<byte> pemCertificateDecoded = new Span<byte>(new byte[pemCertificateContent.Length]);
-                    if (Convert.TryFromBase64Chars(pemCertificateContent, pemCertificateDecoded, out var bytesWritten))
+                    ReadOnlySpan<char> pemCertificateContent = pemText[beginIndex..endIndex];
+                    var pemCertificateDecoded = new Span<byte>(new byte[pemCertificateContent.Length]);
+                    if (Convert.TryFromBase64Chars(pemCertificateContent, pemCertificateDecoded, out int bytesWritten))
                     {
 #if NET6_0_OR_GREATER
                         certificates.Add(X509CertificateLoader.LoadCertificate(pemCertificateDecoded));
@@ -113,7 +113,7 @@ namespace Opc.Ua.Security.Certificates
 #endif
                     }
 
-                    pemText = pemText.Slice(endIndex + endlabel.Length);
+                    pemText = pemText[(endIndex + endlabel.Length)..];
                 }
             }
             catch (CryptographicException)
@@ -145,7 +145,7 @@ namespace Opc.Ua.Security.Certificates
             {
                 string pemText = Encoding.UTF8.GetString(pemDataBlob);
                 int count = 0;
-                foreach (var label in labels)
+                foreach (string label in labels)
                 {
                     count++;
                     string beginlabel = $"-----BEGIN {label}-----";
@@ -161,12 +161,12 @@ namespace Opc.Ua.Security.Certificates
                     {
                         continue;
                     }
-                    var pemData = pemText.Substring(beginIndex, endIndex - beginIndex);
+                    string pemData = pemText[beginIndex..endIndex];
                     byte[] pemDecoded = new byte[pemData.Length];
                     int bytesDecoded;
                     if (Convert.TryFromBase64Chars(pemData, pemDecoded, out bytesDecoded))
                     {
-                        RSA rsaPrivateKey = RSA.Create();
+                        var rsaPrivateKey = RSA.Create();
                         int bytesRead;
                         switch (count)
                         {
@@ -220,7 +220,7 @@ namespace Opc.Ua.Security.Certificates
                 string pemText = Encoding.UTF8.GetString(pemDataBlob);
 
                 int labelIndex = 0;
-                foreach (var label in labels)
+                foreach (string label in labels)
                 {
                     labelIndex++;
                     string beginLabel = $"-----BEGIN {label}-----";
@@ -239,7 +239,7 @@ namespace Opc.Ua.Security.Certificates
                     }
 
                     // Extract the base64-encoded section
-                    string pemData = pemText.Substring(beginIndex, endIndex - beginIndex).Trim();
+                    string pemData = pemText[beginIndex..endIndex].Trim();
                     byte[] decodedBytes = new byte[pemData.Length];
                     if (Convert.TryFromBase64Chars(pemData, decodedBytes, out int bytesDecoded))
                     {
@@ -247,7 +247,7 @@ namespace Opc.Ua.Security.Certificates
                         Array.Resize(ref decodedBytes, bytesDecoded);
 
                         // Create an ECDsa object
-                        ECDsa ecdsaKey = ECDsa.Create();
+                        var ecdsaKey = ECDsa.Create();
                         switch (labelIndex)
                         {
                             case 1:

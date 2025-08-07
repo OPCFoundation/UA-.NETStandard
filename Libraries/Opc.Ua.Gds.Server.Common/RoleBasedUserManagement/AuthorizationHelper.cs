@@ -56,18 +56,22 @@ namespace Opc.Ua.Gds.Server
         {
             if (context != null)
             {
-                List<Role> allowedRoles = roles.ToList();
+                var allowedRoles = roles.ToList();
                 bool selfAdmin = allowedRoles.Remove(GdsRole.ApplicationSelfAdmin);
 
                 //if true access is allowed
                 if (HasRole(context.UserIdentity, allowedRoles))
+                {
                     return;
+                }
 
                 if (selfAdmin)
                 {
                     //if true access to own application is allowed
                     if (CheckSelfAdminPrivilege(context.UserIdentity, applicationId))
+                    {
                         return;
+                    }
                 }
                 throw new ServiceResultException(StatusCodes.BadUserAccessDenied, $"At least one of the Roles {string.Join(", ", roles)} is required to call the method");
             }
@@ -84,11 +88,15 @@ namespace Opc.Ua.Gds.Server
         {
             var roles = new List<Role> { GdsRole.CertificateAuthorityAdmin, Role.SecurityAdmin };
             if (HasRole(context.UserIdentity, roles))
+            {
                 return;
+            }
 
             if (trustedStore != null && certTypeMap != null && applicationsDatabase != null &&
                 CheckSelfAdminPrivilege(context.UserIdentity, trustedStore, certTypeMap, applicationsDatabase))
+            {
                 return;
+            }
 
             throw new ServiceResultException(StatusCodes.BadUserAccessDenied, $"At least one of the Roles {string.Join(", ", roles)} or ApplicationSelfAdminPrivilege is required to use the TrustList");
         }
@@ -99,7 +107,7 @@ namespace Opc.Ua.Gds.Server
         /// <exception cref="ServiceResultException"></exception>
         public static void HasAuthenticatedSecureChannel(ISystemContext context)
         {
-            OperationContext operationContext = (context as SystemContext)?.OperationContext as OperationContext;
+            var operationContext = (context as SystemContext)?.OperationContext as OperationContext;
             if (operationContext != null)
             {
                 if (operationContext.ChannelContext?.EndpointDescription?.SecurityMode != MessageSecurityMode.SignAndEncrypt)
@@ -126,9 +134,11 @@ namespace Opc.Ua.Gds.Server
         private static bool CheckSelfAdminPrivilege(IUserIdentity userIdentity, NodeId applicationId)
         {
             if (applicationId is null || applicationId.IsNullNodeId)
+            {
                 return false;
+            }
 
-            GdsRoleBasedIdentity identity = userIdentity as GdsRoleBasedIdentity;
+            var identity = userIdentity as GdsRoleBasedIdentity;
             if (identity != null)
             {
                 //self Admin only has access to own application
@@ -142,12 +152,12 @@ namespace Opc.Ua.Gds.Server
 
         private static bool CheckSelfAdminPrivilege(IUserIdentity userIdentity, CertificateStoreIdentifier trustedStore, Dictionary<NodeId, string> certTypeMap, IApplicationsDatabase applicationsDatabase)
         {
-            GdsRoleBasedIdentity identity = userIdentity as GdsRoleBasedIdentity;
+            var identity = userIdentity as GdsRoleBasedIdentity;
             if (identity != null)
             {
-                foreach (var certType in certTypeMap.Values)
+                foreach (string certType in certTypeMap.Values)
                 {
-                    applicationsDatabase.GetApplicationTrustLists(identity.ApplicationId, certType, out var trustListId);
+                    applicationsDatabase.GetApplicationTrustLists(identity.ApplicationId, certType, out string trustListId);
                     if (trustedStore.StorePath == trustListId)
                     {
                         return true;

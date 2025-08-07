@@ -109,7 +109,7 @@ namespace Opc.Ua.Bindings
         /// <returns></returns>
         public BufferCollection GetBuffers(string owner)
         {
-            BufferCollection buffers = new BufferCollection(m_buffers.Count);
+            var buffers = new BufferCollection(m_buffers.Count);
 
             for (int ii = 0; ii < m_buffers.Count; ii++)
             {
@@ -256,14 +256,14 @@ namespace Opc.Ua.Bindings
                 // copy the bytes requested.
                 if (bytesLeft > count)
                 {
-                    m_currentBuffer.AsSpan(m_currentPosition, count).CopyTo(buffer.Slice(offset));
+                    m_currentBuffer.AsSpan(m_currentPosition, count).CopyTo(buffer[offset..]);
                     bytesRead += count;
                     m_currentPosition += count;
                     return bytesRead;
                 }
 
                 // copy the bytes available and move to next buffer.
-                m_currentBuffer.AsSpan(m_currentPosition, bytesLeft).CopyTo(buffer.Slice(offset));
+                m_currentBuffer.AsSpan(m_currentPosition, bytesLeft).CopyTo(buffer[offset..]);
                 bytesRead += bytesLeft;
 
                 offset += bytesLeft;
@@ -640,9 +640,9 @@ namespace Opc.Ua.Bindings
         private int m_currentPosition;
         private BufferCollection m_buffers;
         private BufferManager m_bufferManager;
-        private int m_start;
-        private int m_count;
-        private int m_bufferSize;
+        private readonly int m_start;
+        private readonly int m_count;
+        private readonly int m_bufferSize;
         private int m_endOfLastBuffer;
         #endregion
     }

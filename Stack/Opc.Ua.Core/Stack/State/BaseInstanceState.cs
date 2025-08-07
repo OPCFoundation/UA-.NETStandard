@@ -74,7 +74,7 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
-            BaseInstanceState clone = new BaseInstanceState(this.NodeClass, this.Parent);
+            var clone = new BaseInstanceState(this.NodeClass, this.Parent);
             return CloneChildren(clone);
         }
         #endregion
@@ -128,12 +128,12 @@ namespace Opc.Ua
                 return name;
             }
 
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
 
             if (maxLength > 2)
             {
                 NodeState parent = stateParent;
-                List<string> names = new List<string>();
+                var names = new List<string>();
 
                 while (parent != null)
                 {
@@ -405,7 +405,7 @@ namespace Opc.Ua
                 variable.MinimumSamplingInterval = minimumSamplingInterval;
             }
 
-            List<BaseInstanceState> children = new List<BaseInstanceState>();
+            var children = new List<BaseInstanceState>();
             GetChildren(context, children);
 
             for (int ii = 0; ii < children.Count; ii++)
@@ -423,7 +423,7 @@ namespace Opc.Ua
         #endregion
 
         #region IFilterTarget Members
-        /// <summary cref="IFilterTarget.IsTypeOf" />
+        /// <inheritdoc/>
         public virtual bool IsTypeOf(FilterContext context, NodeId typeDefinitionId)
         {
             if (!NodeId.IsNull(typeDefinitionId))
@@ -437,7 +437,7 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="IFilterTarget.GetAttributeValue" />
+        /// <inheritdoc/>
         public virtual object GetAttributeValue(
             FilterContext context,
             NodeId typeDefinitionId,
@@ -455,7 +455,7 @@ namespace Opc.Ua
             }
 
             // read the child attribute.
-            DataValue dataValue = new DataValue();
+            var dataValue = new DataValue();
 
             ServiceResult result = ReadChildAttribute(
                 null,

@@ -62,7 +62,7 @@ namespace Opc.Ua.Tests
 
         public AssetCollection(IEnumerable<string> filelist)
         {
-            foreach (var file in filelist)
+            foreach (string file in filelist)
             {
                 Add(file);
             }
@@ -71,7 +71,7 @@ namespace Opc.Ua.Tests
         public void Add(string path)
         {
             byte[] blob = File.ReadAllBytes(path);
-            T asset = new T();
+            var asset = new T();
             asset.Initialize(blob, path);
             Add(asset);
         }
@@ -86,7 +86,7 @@ namespace Opc.Ua.Tests
     {
         public static string[] EnumerateTestAssets(string folder, string searchPattern)
         {
-            var assetsPath = Utils.GetAbsoluteDirectoryPath(folder, true, false, false);
+            string assetsPath = Utils.GetAbsoluteDirectoryPath(folder, true, false, false);
             if (assetsPath != null)
             {
                 return Directory.EnumerateFiles(assetsPath, searchPattern).ToArray();
@@ -96,7 +96,7 @@ namespace Opc.Ua.Tests
 
         public static void ValidateSelSignedBasicConstraints(X509Certificate2 certificate)
         {
-            var basicConstraintsExtension = X509Extensions.FindExtension<X509BasicConstraintsExtension>(certificate.Extensions);
+            X509BasicConstraintsExtension basicConstraintsExtension = X509Extensions.FindExtension<X509BasicConstraintsExtension>(certificate.Extensions);
             Assert.NotNull(basicConstraintsExtension);
             Assert.False(basicConstraintsExtension.CertificateAuthority);
             Assert.True(basicConstraintsExtension.Critical);

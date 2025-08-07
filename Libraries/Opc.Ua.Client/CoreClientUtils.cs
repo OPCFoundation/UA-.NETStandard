@@ -66,14 +66,14 @@ namespace Opc.Ua.Client
             int discoverTimeout
             )
         {
-            List<string> serverUrls = new List<string>();
+            var serverUrls = new List<string>();
 
             // set a short timeout because this is happening in the drop down event.
             var endpointConfiguration = EndpointConfiguration.Create(configuration);
             endpointConfiguration.OperationTimeout = discoverTimeout;
 
             // Connect to the local discovery server and find the available servers.
-            using (DiscoveryClient client = DiscoveryClient.Create(new Uri(Utils.Format(Utils.DiscoveryUrls[0], "localhost")), endpointConfiguration))
+            using (var client = DiscoveryClient.Create(new Uri(Utils.Format(Utils.DiscoveryUrls[0], "localhost")), endpointConfiguration))
             {
                 ApplicationDescriptionCollection servers = client.FindServers(null);
 
@@ -133,10 +133,10 @@ namespace Opc.Ua.Client
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = discoverTimeout > 0 ? discoverTimeout : DefaultDiscoverTimeout;
 
-            using (DiscoveryClient client = DiscoveryClient.Create(application, connection, endpointConfiguration))
+            using (var client = DiscoveryClient.Create(application, connection, endpointConfiguration))
             {
                 var url = new Uri(client.Endpoint.EndpointUrl);
-                var endpoints = client.GetEndpoints(null);
+                EndpointDescriptionCollection endpoints = client.GetEndpoints(null);
                 return SelectEndpoint(application, url, endpoints, useSecurity);
             }
         }
@@ -171,23 +171,24 @@ namespace Opc.Ua.Client
             int discoverTimeout
             )
         {
-            var uri = GetDiscoveryUrl(discoveryUrl);
+            Uri uri = GetDiscoveryUrl(discoveryUrl);
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = discoverTimeout;
 
             using (var client = DiscoveryClient.Create(application, uri, endpointConfiguration))
             {
                 // Connect to the server's discovery endpoint and find the available configuration.
-                Uri url = new Uri(client.Endpoint.EndpointUrl);
-                var endpoints = client.GetEndpoints(null);
-                var selectedEndpoint = SelectEndpoint(application, url, endpoints, useSecurity);
+                var url = new Uri(client.Endpoint.EndpointUrl);
+                EndpointDescriptionCollection endpoints = client.GetEndpoints(null);
+                EndpointDescription selectedEndpoint = SelectEndpoint(application, url, endpoints, useSecurity);
 
                 Uri endpointUrl = Utils.ParseUri(selectedEndpoint.EndpointUrl);
                 if (endpointUrl != null && endpointUrl.Scheme == uri.Scheme)
                 {
-                    UriBuilder builder = new UriBuilder(endpointUrl);
-                    builder.Host = uri.DnsSafeHost;
-                    builder.Port = uri.Port;
+                    var builder = new UriBuilder(endpointUrl) {
+                        Host = uri.DnsSafeHost,
+                        Port = uri.Port
+                    };
                     selectedEndpoint.EndpointUrl = builder.ToString();
                 }
 

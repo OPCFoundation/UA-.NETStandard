@@ -304,7 +304,7 @@ namespace Opc.Ua.Server
             }
 
             // create processed value.
-            DataValue value = new DataValue();
+            var value = new DataValue();
             value.WrappedValue = new Variant(processedValue, processedType);
             value.StatusCode = statusCode;
 
@@ -487,7 +487,7 @@ namespace Opc.Ua.Server
             }
 
             // create processed value.
-            DataValue value = new DataValue();
+            var value = new DataValue();
             value.WrappedValue = new Variant(processedValue, processedType);
             value.StatusCode = GetTimeBasedStatusCode(slice, values, statusCode);
 

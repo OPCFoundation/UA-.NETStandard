@@ -45,7 +45,7 @@ namespace Opc.Ua
         {
             Initialize();
 
-            RelativePathElement element = new RelativePathElement();
+            var element = new RelativePathElement();
 
             element.ReferenceTypeId = referenceTypeId;
             element.IsInverse = isInverse;
@@ -62,7 +62,7 @@ namespace Opc.Ua
         /// </summary>
         public string Format(ITypeTable typeTree)
         {
-            RelativePathFormatter formatter = new RelativePathFormatter(this, typeTree);
+            var formatter = new RelativePathFormatter(this, typeTree);
             return formatter.ToString();
         }
 
@@ -84,17 +84,20 @@ namespace Opc.Ua
         /// </summary>
         public static RelativePath Parse(string browsePath, ITypeTable typeTree)
         {
-            if (typeTree == null) throw new ArgumentNullException(nameof(typeTree));
+            if (typeTree == null)
+            {
+                throw new ArgumentNullException(nameof(typeTree));
+            }
 
             // parse the string.
-            RelativePathFormatter formatter = RelativePathFormatter.Parse(browsePath);
+            var formatter = RelativePathFormatter.Parse(browsePath);
 
             // convert the browse names to node ids.
-            RelativePath relativePath = new RelativePath();
+            var relativePath = new RelativePath();
 
             foreach (RelativePathFormatter.Element element in formatter.Elements)
             {
-                RelativePathElement parsedElement = new RelativePathElement();
+                var parsedElement = new RelativePathElement();
 
                 parsedElement.ReferenceTypeId = null;
                 parsedElement.IsInverse = false;
@@ -154,14 +157,14 @@ namespace Opc.Ua
 
         {
             // parse the string.
-            RelativePathFormatter formatter = RelativePathFormatter.Parse(browsePath, currentTable, targetTable);
+            var formatter = RelativePathFormatter.Parse(browsePath, currentTable, targetTable);
 
             // convert the browse names to node ids.
-            RelativePath relativePath = new RelativePath();
+            var relativePath = new RelativePath();
 
             foreach (RelativePathFormatter.Element element in formatter.Elements)
             {
-                RelativePathElement parsedElement = new RelativePathElement();
+                var parsedElement = new RelativePathElement();
 
                 parsedElement.ReferenceTypeId = null;
                 parsedElement.IsInverse = false;
@@ -408,7 +411,7 @@ namespace Opc.Ua
         {
             if (format == null)
             {
-                StringBuilder path = new StringBuilder();
+                var path = new StringBuilder();
 
                 foreach (Element element in m_elements)
                 {
@@ -469,15 +472,15 @@ namespace Opc.Ua
                 return new RelativePathFormatter();
             }
 
-            RelativePathFormatter path = new RelativePathFormatter();
+            var path = new RelativePathFormatter();
 
             try
             {
-                StringReader reader = new StringReader(textToParse);
+                var reader = new StringReader(textToParse);
 
                 while (reader.Peek() != -1)
                 {
-                    Element element = Element.Parse(reader);
+                    var element = Element.Parse(reader);
                     path.m_elements.Add(element);
                 }
             }
@@ -506,8 +509,15 @@ namespace Opc.Ua
             /// </summary>
             public Element(RelativePathElement element, ITypeTable typeTree)
             {
-                if (element == null) throw new ArgumentNullException(nameof(element));
-                if (typeTree == null) throw new ArgumentNullException(nameof(typeTree));
+                if (element == null)
+                {
+                    throw new ArgumentNullException(nameof(element));
+                }
+
+                if (typeTree == null)
+                {
+                    throw new ArgumentNullException(nameof(typeTree));
+                }
 
                 m_referenceTypeName = null;
                 m_targetName = element.TargetName;
@@ -611,7 +621,7 @@ namespace Opc.Ua
             {
                 if (format == null)
                 {
-                    StringBuilder path = new StringBuilder();
+                    var path = new StringBuilder();
 
                     // write the reference type component.
                     switch (m_elementType)
@@ -683,7 +693,7 @@ namespace Opc.Ua
             /// <param name="reader">The string read stream containing the text to convert to a RelativePathStringElement</param>
             public static Element Parse(StringReader reader)
             {
-                Element element = new Element();
+                var element = new Element();
 
                 int next = reader.Peek();
 
@@ -748,7 +758,7 @@ namespace Opc.Ua
                 ushort namespaceIndex = 0;
 
                 // extract namespace index if present.
-                StringBuilder buffer = new StringBuilder();
+                var buffer = new StringBuilder();
 
                 int last = reader.Peek();
 
@@ -928,7 +938,7 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private List<Element> m_elements;
+        private readonly List<Element> m_elements;
         #endregion
     }
 }

@@ -37,7 +37,7 @@ namespace Opc.Ua
         {
             if (format == null)
             {
-                StringBuilder buffer = new StringBuilder();
+                var buffer = new StringBuilder();
 
                 for (int ii = 0; ii < this.Elements.Count; ii++)
                 {
@@ -71,7 +71,7 @@ namespace Opc.Ua
         /// <returns>The result of validation.</returns>
         public Result Validate(FilterContext context)
         {
-            Result result = new Result(null);
+            var result = new Result(null);
 
             // check for empty filter.
             if (m_elements == null || m_elements.Count == 0)
@@ -88,7 +88,7 @@ namespace Opc.Ua
                 // check for null.
                 if (element == null)
                 {
-                    ServiceResult nullResult = ServiceResult.Create(
+                    var nullResult = ServiceResult.Create(
                         StatusCodes.BadStructureMissing,
                         "ContentFilterElement is null (Index={0}).",
                         ii);
@@ -141,7 +141,7 @@ namespace Opc.Ua
             }
 
             // create the element and set the operator.
-            ContentFilterElement element = new ContentFilterElement();
+            var element = new ContentFilterElement();
             element.FilterOperator = op;
 
             for (int ii = 0; ii < operands.Length; ii++)
@@ -165,7 +165,7 @@ namespace Opc.Ua
                         throw ServiceResultException.Create(StatusCodes.BadInvalidArgument, "ContentFilterElement is not part of the ContentFilter.");
                     }
 
-                    ElementOperand operand = new ElementOperand();
+                    var operand = new ElementOperand();
                     operand.Index = (uint)index;
 
                     element.FilterOperands.Add(new ExtensionObject(operand));
@@ -173,7 +173,7 @@ namespace Opc.Ua
                 }
 
                 // assume a literal operand.
-                LiteralOperand literalOperand = new LiteralOperand();
+                var literalOperand = new LiteralOperand();
                 literalOperand.Value = new Variant(operands[ii]);
                 element.FilterOperands.Add(new ExtensionObject(literalOperand));
             }
@@ -279,7 +279,7 @@ namespace Opc.Ua
             /// <returns></returns>
             public ContentFilterResult ToContextFilterResult(DiagnosticsMasks diagnosticsMasks, StringTable stringTable)
             {
-                ContentFilterResult result = new ContentFilterResult();
+                var result = new ContentFilterResult();
 
                 if (m_elementResults == null || m_elementResults.Count == 0)
                 {
@@ -387,7 +387,7 @@ namespace Opc.Ua
             /// <returns></returns>
             public ContentFilterElementResult ToContentFilterElementResult(DiagnosticsMasks diagnosticsMasks, StringTable stringTable)
             {
-                ContentFilterElementResult result = new ContentFilterElementResult();
+                var result = new ContentFilterElementResult();
 
                 if (ServiceResult.IsGood(m_status))
                 {
@@ -450,7 +450,7 @@ namespace Opc.Ua
         {
             if (format == null)
             {
-                StringBuilder buffer = new StringBuilder();
+                var buffer = new StringBuilder();
 
                 buffer.AppendFormat(formatProvider, "<{0}", this.FilterOperator);
 
@@ -507,7 +507,7 @@ namespace Opc.Ua
         /// <returns>The results of the validation.</returns>
         public virtual ContentFilter.ElementResult Validate(FilterContext context, int index)
         {
-            ContentFilter.ElementResult result = new ContentFilter.ElementResult(null);
+            var result = new ContentFilter.ElementResult(null);
 
             // check the number of operands.
             int operandCount = -1;
@@ -658,7 +658,7 @@ namespace Opc.Ua
         /// <returns>The list of operands for the element.</returns>
         public List<FilterOperand> GetOperands()
         {
-            List<FilterOperand> operands = new List<FilterOperand>(FilterOperands.Count);
+            var operands = new List<FilterOperand>(FilterOperands.Count);
 
             foreach (ExtensionObject extension in FilterOperands)
             {
@@ -716,7 +716,7 @@ namespace Opc.Ua
             string operand2 = (operands.Count > 1) ? operands[1].ToString(nodeTable) : null;
             string operand3 = (operands.Count > 2) ? operands[2].ToString(nodeTable) : null;
 
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
 
             switch (FilterOperator)
             {
@@ -876,7 +876,7 @@ namespace Opc.Ua
 
             m_browsePath = new RelativePath();
 
-            RelativePathElement element = new RelativePathElement();
+            var element = new RelativePathElement();
 
             element.ReferenceTypeId = ReferenceTypeIds.Aggregates;
             element.IsInverse = false;
@@ -901,7 +901,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < browsePaths.Count; ii++)
             {
-                RelativePathElement element = new RelativePathElement();
+                var element = new RelativePathElement();
 
                 element.ReferenceTypeId = ReferenceTypeIds.Aggregates;
                 element.IsInverse = false;
@@ -970,7 +970,7 @@ namespace Opc.Ua
         {
             if (format == null)
             {
-                StringBuilder buffer = new StringBuilder();
+                var buffer = new StringBuilder();
 
                 for (int ii = 0; ii < m_browsePath.Elements.Count; ii++)
                 {
@@ -1092,7 +1092,7 @@ namespace Opc.Ua
         /// <returns>AttributeOperand as a displayable string.</returns>
         public override string ToString(INodeTable nodeTable)
         {
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
 
             INode node = nodeTable.Find(m_nodeId);
 
@@ -1301,7 +1301,7 @@ namespace Opc.Ua
         /// <returns>LiteralOperand as a displayable string.</returns>
         public override string ToString(INodeTable nodeTable)
         {
-            ExpandedNodeId nodeId = Value.Value as ExpandedNodeId;
+            var nodeId = Value.Value as ExpandedNodeId;
 
             if (nodeId == null)
             {

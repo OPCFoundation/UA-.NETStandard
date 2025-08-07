@@ -26,7 +26,7 @@ namespace Opc.Ua
         /// </summary>
         public static EndpointConfiguration Create()
         {
-            EndpointConfiguration configuration = new EndpointConfiguration {
+            var configuration = new EndpointConfiguration {
                 // message defaults
                 OperationTimeout = TcpMessageLimits.DefaultOperationTimeout,
                 UseBinaryEncoding = true,
@@ -56,7 +56,7 @@ namespace Opc.Ua
                 return Create();
             }
 
-            EndpointConfiguration configuration = new EndpointConfiguration {
+            var configuration = new EndpointConfiguration {
                 OperationTimeout = applicationConfiguration.TransportQuotas.OperationTimeout,
                 UseBinaryEncoding = true,
                 MaxArrayLength = applicationConfiguration.TransportQuotas.MaxArrayLength,

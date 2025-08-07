@@ -37,7 +37,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             typeNode.ValueRank = valueRank;
             var loadedVariable = new BaseDataVariableTypeState();
-            using (MemoryStream stream = new MemoryStream())
+            using (var stream = new MemoryStream())
             {
                 typeNode.SaveAsBinary(systemContext, stream);
                 stream.Position = 0;
@@ -66,10 +66,11 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             // The instance BaseAnalogState node is a subtype of BaseVariableState for
             // which valueRank attribute is tested
-            var instanceNode = new BaseAnalogState(typeNode);
-            instanceNode.ValueRank = valueRank;
+            var instanceNode = new BaseAnalogState(typeNode) {
+                ValueRank = valueRank
+            };
             var loadedVariable = new BaseAnalogState(typeNode);
-            using (MemoryStream stream = new MemoryStream())
+            using (var stream = new MemoryStream())
             {
                 instanceNode.SaveAsBinary(systemContext, stream);
                 stream.Position = 0;

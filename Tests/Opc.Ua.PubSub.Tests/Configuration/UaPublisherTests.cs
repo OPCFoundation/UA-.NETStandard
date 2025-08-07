@@ -41,7 +41,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
     public class UaPublisherTests
     {
         static List<long> s_publishTicks = new List<long>();
-        static object s_lock = new object();
+        static readonly object s_lock = new object();
 
         [Test(Description = "Test that PublishMessage method is called after a UAPublisher is started.")]
         [Combinatorial]
@@ -66,11 +66,11 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                     }
                 });
 
-            WriterGroupDataType writerGroupDataType = new WriterGroupDataType();
+            var writerGroupDataType = new WriterGroupDataType();
             writerGroupDataType.PublishingInterval = publishingInterval;
 
             //Act 
-            UaPublisher publisher = new UaPublisher(mockConnection.Object, writerGroupDataType);
+            var publisher = new UaPublisher(mockConnection.Object, writerGroupDataType);
             publisher.Start();
 
             //wait so many seconds

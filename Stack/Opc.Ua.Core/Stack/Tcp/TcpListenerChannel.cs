@@ -112,7 +112,10 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void Attach(uint channelId, Socket socket)
         {
-            if (socket == null) throw new ArgumentNullException(nameof(socket));
+            if (socket == null)
+            {
+                throw new ArgumentNullException(nameof(socket));
+            }
 
             lock (DataLock)
             {
@@ -370,7 +373,7 @@ namespace Opc.Ua.Bindings
 
             try
             {
-                using (BinaryEncoder encoder = new BinaryEncoder(buffer, 0, SendBufferSize, Quotas.MessageContext))
+                using (var encoder = new BinaryEncoder(buffer, 0, SendBufferSize, Quotas.MessageContext))
                 {
                     encoder.WriteUInt32(null, TcpMessageType.Error);
                     encoder.WriteUInt32(null, 0);
@@ -405,11 +408,11 @@ namespace Opc.Ua.Bindings
             try
             {
                 // construct fault.
-                ServiceFault response = new ServiceFault();
+                var response = new ServiceFault();
 
                 response.ResponseHeader.ServiceResult = fault.Code;
 
-                StringTable stringTable = new StringTable();
+                var stringTable = new StringTable();
 
                 response.ResponseHeader.ServiceDiagnostics = new DiagnosticInfo(
                     fault,
@@ -480,11 +483,11 @@ namespace Opc.Ua.Bindings
             try
             {
                 // construct fault.
-                ServiceFault response = new ServiceFault();
+                var response = new ServiceFault();
 
                 response.ResponseHeader.ServiceResult = fault.Code;
 
-                StringTable stringTable = new StringTable();
+                var stringTable = new StringTable();
 
                 response.ResponseHeader.ServiceDiagnostics = new DiagnosticInfo(
                     fault,
@@ -570,7 +573,7 @@ namespace Opc.Ua.Bindings
         #endregion
 
         #region Private Fields
-        private ITcpChannelListener m_listener;
+        private readonly ITcpChannelListener m_listener;
         private bool m_responseRequired;
         private TcpChannelRequestEventHandler m_requestReceived;
         private ReportAuditOpenSecureChannelEventHandler m_reportAuditOpenSecureChannelEvent;

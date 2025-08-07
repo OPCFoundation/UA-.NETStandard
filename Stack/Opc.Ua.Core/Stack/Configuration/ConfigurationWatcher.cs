@@ -26,9 +26,12 @@ namespace Opc.Ua
         /// </summary>
         public ConfigurationWatcher(ApplicationConfiguration configuration)
         {
-            if (configuration == null) throw new ArgumentNullException(nameof(configuration));
+            if (configuration == null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
 
-            FileInfo fileInfo = new FileInfo(configuration.SourceFilePath);
+            var fileInfo = new FileInfo(configuration.SourceFilePath);
 
             if (!fileInfo.Exists)
             {
@@ -93,7 +96,7 @@ namespace Opc.Ua
         {
             try
             {
-                FileInfo fileInfo = new FileInfo(m_configuration.SourceFilePath);
+                var fileInfo = new FileInfo(m_configuration.SourceFilePath);
 
                 if (!fileInfo.Exists)
                 {
@@ -118,7 +121,7 @@ namespace Opc.Ua
 
         #region Private Fields
         private readonly object m_lock = new object();
-        private ApplicationConfiguration m_configuration;
+        private readonly ApplicationConfiguration m_configuration;
         private System.Threading.Timer m_watcher;
         private DateTime m_lastWriteTime;
         private event EventHandler<ConfigurationWatcherEventArgs> m_Changed;
@@ -163,8 +166,8 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private ApplicationConfiguration m_configuration;
-        private string m_filePath;
+        private readonly ApplicationConfiguration m_configuration;
+        private readonly string m_filePath;
         #endregion
     }
     #endregion

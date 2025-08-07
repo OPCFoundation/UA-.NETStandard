@@ -102,11 +102,11 @@ namespace Opc.Ua.Bindings
                     // read peer information.
                     string serverUri = decoder.ReadString(null);
                     string endpointUrlString = decoder.ReadString(null);
-                    Uri endpointUri = new Uri(endpointUrlString);
+                    var endpointUri = new Uri(endpointUrlString);
 
                     State = TcpChannelState.Connecting;
 
-                    Task t = Task.Run(async () => {
+                    var t = Task.Run(async () => {
                         try
                         {
                             if (false == await Listener.TransferListenerChannel(Id, serverUri, endpointUri).ConfigureAwait(false))

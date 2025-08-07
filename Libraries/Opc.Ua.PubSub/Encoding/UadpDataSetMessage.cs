@@ -358,7 +358,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="binaryEncoder"></param>
         private void EncodeMessageDataKeyFrame(BinaryEncoder binaryEncoder)
         {
-            FieldTypeEncodingMask fieldType = (FieldTypeEncodingMask)(((byte)DataSetFlags1 & kFieldTypeUsedBits) >> 1);
+            var fieldType = (FieldTypeEncodingMask)(((byte)DataSetFlags1 & kFieldTypeUsedBits) >> 1);
             switch (fieldType)
             {
                 case FieldTypeEncodingMask.Variant:
@@ -402,12 +402,15 @@ namespace Opc.Ua.PubSub.Encoding
             // The field count is written for RadData encoding too unlike for KeyFrame message
             binaryEncoder.WriteUInt16("FieldCount", (ushort)fieldCount);
 
-            FieldTypeEncodingMask fieldType = (FieldTypeEncodingMask)(((byte)DataSetFlags1 & kFieldTypeUsedBits) >> 1);
+            var fieldType = (FieldTypeEncodingMask)(((byte)DataSetFlags1 & kFieldTypeUsedBits) >> 1);
 
             for (int i = 0; i < DataSet.Fields.Length; i++)
             {
                 Field field = DataSet.Fields[i];
-                if (field == null) continue; // ignore null fields
+                if (field == null)
+                {
+                    continue; // ignore null fields
+                }
 
                 // write field index
                 binaryEncoder.WriteUInt16("FieldIndex", (ushort)i);
@@ -505,7 +508,7 @@ namespace Opc.Ua.PubSub.Encoding
             try
             {
                 ushort fieldCount = 0;
-                FieldTypeEncodingMask fieldType = (FieldTypeEncodingMask)(((byte)DataSetFlags1 & kFieldTypeUsedBits) >> 1);
+                var fieldType = (FieldTypeEncodingMask)(((byte)DataSetFlags1 & kFieldTypeUsedBits) >> 1);
                 if (fieldType == FieldTypeEncodingMask.RawData)
                 {
                     if (dataSetMetaData != null)
@@ -521,7 +524,7 @@ namespace Opc.Ua.PubSub.Encoding
 
 
                 // check configuration version
-                List<DataValue> dataValues = new List<DataValue>();
+                var dataValues = new List<DataValue>();
                 switch (fieldType)
                 {
                     case FieldTypeEncodingMask.Variant:
@@ -544,7 +547,7 @@ namespace Opc.Ua.PubSub.Encoding
                                 FieldMetaData fieldMetaData = dataSetMetaData.Fields[i];
                                 if (fieldMetaData != null)
                                 {
-                                    var decodedValue = DecodeRawData(binaryDecoder, fieldMetaData);
+                                    object decodedValue = DecodeRawData(binaryDecoder, fieldMetaData);
                                     dataValues.Add(new DataValue(new Variant(decodedValue)));
                                 }
                             }
@@ -556,11 +559,11 @@ namespace Opc.Ua.PubSub.Encoding
                         break;
                 }
 
-                List<Field> dataFields = new List<Field>();
+                var dataFields = new List<Field>();
 
                 for (int i = 0; i < dataValues.Count; i++)
                 {
-                    Field dataField = new Field();
+                    var dataField = new Field();
                     dataField.FieldMetaData = dataSetMetaData?.Fields[i];
                     dataField.Value = dataValues[i];
 
@@ -579,7 +582,7 @@ namespace Opc.Ua.PubSub.Encoding
                     return null; //the dataset cannot be decoded
                 }
 
-                DataSet dataSet = new DataSet(dataSetMetaData?.Name);
+                var dataSet = new DataSet(dataSetMetaData?.Name);
                 dataSet.DataSetMetaData = dataSetMetaData;
                 dataSet.Fields = dataFields.ToArray();
                 dataSet.DataSetWriterId = DataSetWriterId;
@@ -604,15 +607,15 @@ namespace Opc.Ua.PubSub.Encoding
             DataSetMetaDataType dataSetMetaData = dataSetReader.DataSetMetaData;
             try
             {
-                FieldTypeEncodingMask fieldType = (FieldTypeEncodingMask)(((byte)DataSetFlags1 & kFieldTypeUsedBits) >> 1);
+                var fieldType = (FieldTypeEncodingMask)(((byte)DataSetFlags1 & kFieldTypeUsedBits) >> 1);
 
                 if (dataSetMetaData != null)
                 {
                     // create dataFields collection
-                    List<Field> dataFields = new List<Field>();
+                    var dataFields = new List<Field>();
                     for (int i = 0; i < dataSetMetaData.Fields.Count; i++)
                     {
-                        Field dataField = new Field();
+                        var dataField = new Field();
                         dataField.FieldMetaData = dataSetMetaData?.Fields[i];
 
                         if (ExtensionObject.ToEncodeable(dataSetReader.SubscribedDataSet) is TargetVariablesDataType targetVariablesData && targetVariablesData.TargetVariables != null
@@ -645,7 +648,7 @@ namespace Opc.Ua.PubSub.Encoding
                                 FieldMetaData fieldMetaData = dataSetMetaData.Fields[fieldIndex];
                                 if (fieldMetaData != null)
                                 {
-                                    var decodedValue = DecodeRawData(binaryDecoder, fieldMetaData);
+                                    object decodedValue = DecodeRawData(binaryDecoder, fieldMetaData);
                                     dataFields[fieldIndex].Value = new DataValue(new Variant(decodedValue));
                                 }
                                 break;
@@ -655,7 +658,7 @@ namespace Opc.Ua.PubSub.Encoding
                         }
                     }
 
-                    DataSet dataSet = new DataSet(dataSetMetaData?.Name);
+                    var dataSet = new DataSet(dataSetMetaData?.Name);
                     dataSet.DataSetMetaData = dataSetMetaData;
                     dataSet.Fields = dataFields.ToArray();
                     dataSet.IsDeltaFrame = true;
@@ -682,7 +685,7 @@ namespace Opc.Ua.PubSub.Encoding
             try
             {
                 // 01 RawData Field Encoding 
-                var variant = field.Value.WrappedValue;
+                Variant variant = field.Value.WrappedValue;
 
                 if (variant.TypeInfo == null || variant.TypeInfo.BuiltInType == BuiltInType.Null)
                 {

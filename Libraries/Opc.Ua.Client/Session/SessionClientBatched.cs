@@ -85,11 +85,11 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxNodesPerNodeManagement;
             InitResponseCollections<AddNodesResult, AddNodesResultCollection>(
-                out results, out diagnosticInfos, out var stringTable,
+                out results, out diagnosticInfos, out StringCollection stringTable,
                 nodesToAdd.Count, operationLimit
                 );
 
-            foreach (var batchNodesToAdd in
+            foreach (AddNodesItemCollection batchNodesToAdd in
                 nodesToAdd.Batch<AddNodesItem, AddNodesItemCollection>(operationLimit))
             {
                 if (requestHeader != null)
@@ -124,11 +124,11 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxNodesPerNodeManagement;
             InitResponseCollections<AddNodesResult, AddNodesResultCollection>(
-                out var results, out var diagnosticInfos, out var stringTable,
+                out AddNodesResultCollection results, out DiagnosticInfoCollection diagnosticInfos, out StringCollection stringTable,
                 nodesToAdd.Count, operationLimit
                 );
 
-            foreach (var batchNodesToAdd in
+            foreach (AddNodesItemCollection batchNodesToAdd in
                 nodesToAdd.Batch<AddNodesItem, AddNodesItemCollection>(operationLimit))
             {
                 if (requestHeader != null)
@@ -169,11 +169,11 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxNodesPerNodeManagement;
             InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out results, out diagnosticInfos, out var stringTable,
+                out results, out diagnosticInfos, out StringCollection stringTable,
                 referencesToAdd.Count, operationLimit
                 );
 
-            foreach (var batchReferencesToAdd in
+            foreach (AddReferencesItemCollection batchReferencesToAdd in
                 referencesToAdd.Batch<AddReferencesItem, AddReferencesItemCollection>(operationLimit))
             {
                 if (requestHeader != null)
@@ -208,11 +208,11 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxNodesPerNodeManagement;
             InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out var results, out var diagnosticInfos, out var stringTable,
+                out StatusCodeCollection results, out DiagnosticInfoCollection diagnosticInfos, out StringCollection stringTable,
                 referencesToAdd.Count, operationLimit
                 );
 
-            foreach (var batchReferencesToAdd in
+            foreach (AddReferencesItemCollection batchReferencesToAdd in
                 referencesToAdd.Batch<AddReferencesItem, AddReferencesItemCollection>(operationLimit))
             {
                 if (requestHeader != null)
@@ -253,11 +253,11 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxNodesPerNodeManagement;
             InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out results, out diagnosticInfos, out var stringTable,
+                out results, out diagnosticInfos, out StringCollection stringTable,
                 nodesToDelete.Count, operationLimit
                 );
 
-            foreach (var batchNodesToDelete in
+            foreach (DeleteNodesItemCollection batchNodesToDelete in
                 nodesToDelete.Batch<DeleteNodesItem, DeleteNodesItemCollection>(operationLimit))
             {
                 if (requestHeader != null)
@@ -292,11 +292,11 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxNodesPerNodeManagement;
             InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out var results, out var diagnosticInfos, out var stringTable,
+                out StatusCodeCollection results, out DiagnosticInfoCollection diagnosticInfos, out StringCollection stringTable,
                 nodesToDelete.Count, operationLimit
                 );
 
-            foreach (var batchNodesToDelete in
+            foreach (DeleteNodesItemCollection batchNodesToDelete in
                 nodesToDelete.Batch<DeleteNodesItem, DeleteNodesItemCollection>(operationLimit))
             {
                 if (requestHeader != null)
@@ -338,11 +338,11 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxNodesPerNodeManagement;
             InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out results, out diagnosticInfos, out var stringTable,
+                out results, out diagnosticInfos, out StringCollection stringTable,
                 referencesToDelete.Count, operationLimit
                 );
 
-            foreach (var batchReferencesToDelete in
+            foreach (DeleteReferencesItemCollection batchReferencesToDelete in
                 referencesToDelete.Batch<DeleteReferencesItem, DeleteReferencesItemCollection>(operationLimit))
             {
                 if (requestHeader != null)
@@ -377,11 +377,11 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxNodesPerNodeManagement;
             InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out var results, out var diagnosticInfos, out var stringTable,
+                out StatusCodeCollection results, out DiagnosticInfoCollection diagnosticInfos, out StringCollection stringTable,
                 referencesToDelete.Count, operationLimit
                 );
 
-            foreach (var batchReferencesToDelete in
+            foreach (DeleteReferencesItemCollection batchReferencesToDelete in
                 referencesToDelete.Batch<DeleteReferencesItem, DeleteReferencesItemCollection>(operationLimit))
             {
                 if (requestHeader != null)
@@ -425,11 +425,11 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxNodesPerBrowse;
             InitResponseCollections<BrowseResult, BrowseResultCollection>(
-                out results, out diagnosticInfos, out var stringTable,
+                out results, out diagnosticInfos, out StringCollection stringTable,
                 nodesToBrowse.Count, operationLimit
                 );
 
-            foreach (var nodesToBrowseBatch in
+            foreach (BrowseDescriptionCollection nodesToBrowseBatch in
                 nodesToBrowse.Batch<BrowseDescription, BrowseDescriptionCollection>(operationLimit))
             {
                 if (requestHeader != null)
@@ -468,11 +468,11 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxNodesPerBrowse;
             InitResponseCollections<BrowseResult, BrowseResultCollection>(
-                out var results, out var diagnosticInfos, out var stringTable,
+                out BrowseResultCollection results, out DiagnosticInfoCollection diagnosticInfos, out StringCollection stringTable,
                 nodesToBrowse.Count, operationLimit
                 );
 
-            foreach (var nodesToBrowseBatch in
+            foreach (BrowseDescriptionCollection nodesToBrowseBatch in
                 nodesToBrowse.Batch<BrowseDescription, BrowseDescriptionCollection>(operationLimit))
             {
                 if (requestHeader != null)
@@ -517,11 +517,11 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds;
             InitResponseCollections<BrowsePathResult, BrowsePathResultCollection>(
-                out results, out diagnosticInfos, out var stringTable,
+                out results, out diagnosticInfos, out StringCollection stringTable,
                 browsePaths.Count, operationLimit
                 );
 
-            foreach (var batchBrowsePaths in
+            foreach (BrowsePathCollection batchBrowsePaths in
                 browsePaths.Batch<BrowsePath, BrowsePathCollection>(operationLimit))
             {
                 if (requestHeader != null)
@@ -556,11 +556,11 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds;
             InitResponseCollections<BrowsePathResult, BrowsePathResultCollection>(
-                out var results, out var diagnosticInfos, out var stringTable,
+                out BrowsePathResultCollection results, out DiagnosticInfoCollection diagnosticInfos, out StringCollection stringTable,
                 browsePaths.Count, operationLimit
                 );
 
-            foreach (var batchBrowsePaths in
+            foreach (BrowsePathCollection batchBrowsePaths in
                 browsePaths.Batch<BrowsePath, BrowsePathCollection>(operationLimit))
             {
                 if (requestHeader != null)
@@ -602,7 +602,7 @@ namespace Opc.Ua
             ResponseHeader responseHeader = null;
             registeredNodeIds = new NodeIdCollection();
 
-            foreach (var batchNodesToRegister in
+            foreach (NodeIdCollection batchNodesToRegister in
                 nodesToRegister.Batch<NodeId, NodeIdCollection>(OperationLimits.MaxNodesPerRegisterNodes))
             {
                 if (requestHeader != null)
@@ -633,7 +633,7 @@ namespace Opc.Ua
             RegisterNodesResponse response = null;
             var registeredNodeIds = new NodeIdCollection();
 
-            foreach (var batchNodesToRegister in
+            foreach (NodeIdCollection batchNodesToRegister in
                 nodesToRegister.Batch<NodeId, NodeIdCollection>(OperationLimits.MaxNodesPerRegisterNodes))
             {
                 if (requestHeader != null)
@@ -667,7 +667,7 @@ namespace Opc.Ua
         {
             ResponseHeader responseHeader = null;
 
-            foreach (var batchNodesToUnregister in
+            foreach (NodeIdCollection batchNodesToUnregister in
                 nodesToUnregister.Batch<NodeId, NodeIdCollection>(OperationLimits.MaxNodesPerRegisterNodes))
             {
                 if (requestHeader != null)
@@ -690,7 +690,7 @@ namespace Opc.Ua
         {
             UnregisterNodesResponse response = null;
 
-            foreach (var batchNodesToUnregister in
+            foreach (NodeIdCollection batchNodesToUnregister in
                 nodesToUnregister.Batch<NodeId, NodeIdCollection>(OperationLimits.MaxNodesPerRegisterNodes))
             {
                 if (requestHeader != null)
@@ -720,11 +720,11 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxNodesPerRead;
             InitResponseCollections<DataValue, DataValueCollection>(
-                out results, out diagnosticInfos, out var stringTable,
+                out results, out diagnosticInfos, out StringCollection stringTable,
                 nodesToRead.Count, operationLimit
                 );
 
-            foreach (var batchAttributesToRead in
+            foreach (ReadValueIdCollection batchAttributesToRead in
                             nodesToRead.Batch<ReadValueId, ReadValueIdCollection>(operationLimit))
             {
                 if (requestHeader != null)
@@ -764,11 +764,11 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxNodesPerRead;
             InitResponseCollections<DataValue, DataValueCollection>(
-                out var results, out var diagnosticInfos, out var stringTable,
+                out DataValueCollection results, out DiagnosticInfoCollection diagnosticInfos, out StringCollection stringTable,
                 nodesToRead.Count, operationLimit
                 );
 
-            foreach (var batchAttributesToRead in
+            foreach (ReadValueIdCollection batchAttributesToRead in
                 nodesToRead.Batch<ReadValueId, ReadValueIdCollection>(operationLimit))
             {
                 if (requestHeader != null)
@@ -821,11 +821,11 @@ namespace Opc.Ua
             }
 
             InitResponseCollections<HistoryReadResult, HistoryReadResultCollection>(
-                out results, out diagnosticInfos, out var stringTable,
+                out results, out diagnosticInfos, out StringCollection stringTable,
                 nodesToRead.Count, operationLimit
                 );
 
-            foreach (var batchNodesToRead in
+            foreach (HistoryReadValueIdCollection batchNodesToRead in
                 nodesToRead.Batch<HistoryReadValueId, HistoryReadValueIdCollection>(operationLimit))
             {
                 if (requestHeader != null)
@@ -871,11 +871,11 @@ namespace Opc.Ua
             }
 
             InitResponseCollections<HistoryReadResult, HistoryReadResultCollection>(
-                out var results, out var diagnosticInfos, out var stringTable,
+                out HistoryReadResultCollection results, out DiagnosticInfoCollection diagnosticInfos, out StringCollection stringTable,
                 nodesToRead.Count, operationLimit
                 );
 
-            foreach (var batchNodesToRead in
+            foreach (HistoryReadValueIdCollection batchNodesToRead in
                 nodesToRead.Batch<HistoryReadValueId, HistoryReadValueIdCollection>(operationLimit))
             {
                 if (requestHeader != null)
@@ -920,11 +920,11 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxNodesPerWrite;
             InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out results, out diagnosticInfos, out var stringTable,
+                out results, out diagnosticInfos, out StringCollection stringTable,
                 nodesToWrite.Count, operationLimit
                 );
 
-            foreach (var batchNodesToWrite in
+            foreach (WriteValueCollection batchNodesToWrite in
                 nodesToWrite.Batch<WriteValue, WriteValueCollection>(operationLimit))
             {
                 if (requestHeader != null)
@@ -959,11 +959,11 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxNodesPerWrite;
             InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out var results, out var diagnosticInfos, out var stringTable,
+                out StatusCodeCollection results, out DiagnosticInfoCollection diagnosticInfos, out StringCollection stringTable,
                 nodesToWrite.Count, operationLimit
                 );
 
-            foreach (var batchNodesToWrite in
+            foreach (WriteValueCollection batchNodesToWrite in
                 nodesToWrite.Batch<WriteValue, WriteValueCollection>(operationLimit))
             {
                 if (requestHeader != null)
@@ -1015,11 +1015,11 @@ namespace Opc.Ua
             }
 
             InitResponseCollections<HistoryUpdateResult, HistoryUpdateResultCollection>(
-                out results, out diagnosticInfos, out var stringTable,
+                out results, out diagnosticInfos, out StringCollection stringTable,
                 historyUpdateDetails.Count, operationLimit
                 );
 
-            foreach (var batchHistoryUpdateDetails in
+            foreach (ExtensionObjectCollection batchHistoryUpdateDetails in
                 historyUpdateDetails.Batch<ExtensionObject, ExtensionObjectCollection>(operationLimit))
             {
                 if (requestHeader != null)
@@ -1060,11 +1060,11 @@ namespace Opc.Ua
             }
 
             InitResponseCollections<HistoryUpdateResult, HistoryUpdateResultCollection>(
-                out var results, out var diagnosticInfos, out var stringTable,
+                out HistoryUpdateResultCollection results, out DiagnosticInfoCollection diagnosticInfos, out StringCollection stringTable,
                 historyUpdateDetails.Count, operationLimit
                 );
 
-            foreach (var batchHistoryUpdateDetails in
+            foreach (ExtensionObjectCollection batchHistoryUpdateDetails in
                 historyUpdateDetails.Batch<ExtensionObject, ExtensionObjectCollection>(operationLimit))
             {
                 if (requestHeader != null)
@@ -1105,11 +1105,11 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxNodesPerMethodCall;
             InitResponseCollections<CallMethodResult, CallMethodResultCollection>(
-                out results, out diagnosticInfos, out var stringTable,
+                out results, out diagnosticInfos, out StringCollection stringTable,
                 methodsToCall.Count, operationLimit
                 );
 
-            foreach (var batchMethodsToCall in
+            foreach (CallMethodRequestCollection batchMethodsToCall in
                 methodsToCall.Batch<CallMethodRequest, CallMethodRequestCollection>(operationLimit))
             {
                 if (requestHeader != null)
@@ -1144,11 +1144,11 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxNodesPerMethodCall;
             InitResponseCollections<CallMethodResult, CallMethodResultCollection>(
-                out var results, out var diagnosticInfos, out var stringTable,
+                out CallMethodResultCollection results, out DiagnosticInfoCollection diagnosticInfos, out StringCollection stringTable,
                 methodsToCall.Count, operationLimit
                 );
 
-            foreach (var batchMethodsToCall in
+            foreach (CallMethodRequestCollection batchMethodsToCall in
                 methodsToCall.Batch<CallMethodRequest, CallMethodRequestCollection>(operationLimit))
             {
                 if (requestHeader != null)
@@ -1192,11 +1192,11 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxMonitoredItemsPerCall;
             InitResponseCollections<MonitoredItemCreateResult, MonitoredItemCreateResultCollection>(
-                out results, out diagnosticInfos, out var stringTable,
+                out results, out diagnosticInfos, out StringCollection stringTable,
                 itemsToCreate.Count, operationLimit
                 );
 
-            foreach (var batchItemsToCreate in
+            foreach (MonitoredItemCreateRequestCollection batchItemsToCreate in
                 itemsToCreate.Batch<MonitoredItemCreateRequest, MonitoredItemCreateRequestCollection>(operationLimit))
             {
                 if (requestHeader != null)
@@ -1235,11 +1235,11 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxMonitoredItemsPerCall;
             InitResponseCollections<MonitoredItemCreateResult, MonitoredItemCreateResultCollection>(
-                out var results, out var diagnosticInfos, out var stringTable,
+                out MonitoredItemCreateResultCollection results, out DiagnosticInfoCollection diagnosticInfos, out StringCollection stringTable,
                 itemsToCreate.Count, operationLimit
                 );
 
-            foreach (var batchItemsToCreate in
+            foreach (MonitoredItemCreateRequestCollection batchItemsToCreate in
                 itemsToCreate.Batch<MonitoredItemCreateRequest, MonitoredItemCreateRequestCollection>(operationLimit))
             {
                 if (requestHeader != null)
@@ -1285,11 +1285,11 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxMonitoredItemsPerCall;
             InitResponseCollections<MonitoredItemModifyResult, MonitoredItemModifyResultCollection>(
-                out results, out diagnosticInfos, out var stringTable,
+                out results, out diagnosticInfos, out StringCollection stringTable,
                 itemsToModify.Count, operationLimit
                 );
 
-            foreach (var batchItemsToModify in
+            foreach (MonitoredItemModifyRequestCollection batchItemsToModify in
                 itemsToModify.Batch<MonitoredItemModifyRequest, MonitoredItemModifyRequestCollection>(operationLimit))
             {
                 if (requestHeader != null)
@@ -1328,11 +1328,11 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxMonitoredItemsPerCall;
             InitResponseCollections<MonitoredItemModifyResult, MonitoredItemModifyResultCollection>(
-                out var results, out var diagnosticInfos, out var stringTable,
+                out MonitoredItemModifyResultCollection results, out DiagnosticInfoCollection diagnosticInfos, out StringCollection stringTable,
                 itemsToModify.Count, operationLimit
                 );
 
-            foreach (var batchItemsToModify in
+            foreach (MonitoredItemModifyRequestCollection batchItemsToModify in
                 itemsToModify.Batch<MonitoredItemModifyRequest, MonitoredItemModifyRequestCollection>(operationLimit))
             {
                 if (requestHeader != null)
@@ -1378,11 +1378,11 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxMonitoredItemsPerCall;
             InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out results, out diagnosticInfos, out var stringTable,
+                out results, out diagnosticInfos, out StringCollection stringTable,
                 monitoredItemIds.Count, operationLimit
                 );
 
-            foreach (var batchMonitoredItemIds in
+            foreach (UInt32Collection batchMonitoredItemIds in
                 monitoredItemIds.Batch<uint, UInt32Collection>(operationLimit))
             {
                 if (requestHeader != null)
@@ -1421,11 +1421,11 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxMonitoredItemsPerCall;
             InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out var results, out var diagnosticInfos, out var stringTable,
+                out StatusCodeCollection results, out DiagnosticInfoCollection diagnosticInfos, out StringCollection stringTable,
                 monitoredItemIds.Count, operationLimit
                 );
 
-            foreach (var batchMonitoredItemIds in
+            foreach (UInt32Collection batchMonitoredItemIds in
                 monitoredItemIds.Batch<uint, UInt32Collection>(operationLimit))
             {
                 if (requestHeader != null)
@@ -1474,7 +1474,7 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxMonitoredItemsPerCall;
             InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out addResults, out addDiagnosticInfos, out var stringTable,
+                out addResults, out addDiagnosticInfos, out StringCollection stringTable,
                 linksToAdd.Count, operationLimit
                 );
 
@@ -1483,7 +1483,7 @@ namespace Opc.Ua
                 linksToRemove.Count, operationLimit
                 );
 
-            foreach (var batchLinksToAdd in
+            foreach (UInt32Collection batchLinksToAdd in
                 linksToAdd.Batch<uint, UInt32Collection>(operationLimit))
             {
                 UInt32Collection batchLinksToRemove;
@@ -1532,7 +1532,7 @@ namespace Opc.Ua
 
             if (linksToRemove.Count > 0)
             {
-                foreach (var batchLinksToRemove in
+                foreach (UInt32Collection batchLinksToRemove in
                     linksToRemove.Batch<uint, UInt32Collection>(operationLimit))
                 {
                     if (requestHeader != null)
@@ -1582,16 +1582,16 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxMonitoredItemsPerCall;
             InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out var addResults, out var addDiagnosticInfos, out var stringTable,
+                out StatusCodeCollection addResults, out DiagnosticInfoCollection addDiagnosticInfos, out StringCollection stringTable,
                 linksToAdd.Count, operationLimit
                 );
 
             InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out var removeResults, out var removeDiagnosticInfos, out _,
+                out StatusCodeCollection removeResults, out DiagnosticInfoCollection removeDiagnosticInfos, out _,
                 linksToRemove.Count, operationLimit
                 );
 
-            foreach (var batchLinksToAdd in
+            foreach (UInt32Collection batchLinksToAdd in
                 linksToAdd.Batch<uint, UInt32Collection>(operationLimit))
             {
                 UInt32Collection batchLinksToRemove;
@@ -1641,7 +1641,7 @@ namespace Opc.Ua
 
             if (linksToRemove.Count > 0)
             {
-                foreach (var batchLinksToRemove in
+                foreach (UInt32Collection batchLinksToRemove in
                     linksToRemove.Batch<uint, UInt32Collection>(operationLimit))
                 {
                     if (requestHeader != null)
@@ -1699,11 +1699,11 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxMonitoredItemsPerCall;
             InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out results, out diagnosticInfos, out var stringTable,
+                out results, out diagnosticInfos, out StringCollection stringTable,
                 monitoredItemIds.Count, operationLimit
                 );
 
-            foreach (var batchMonitoredItemIds in
+            foreach (UInt32Collection batchMonitoredItemIds in
                 monitoredItemIds.Batch<uint, UInt32Collection>(operationLimit))
             {
                 if (requestHeader != null)
@@ -1740,11 +1740,11 @@ namespace Opc.Ua
 
             uint operationLimit = OperationLimits.MaxMonitoredItemsPerCall;
             InitResponseCollections<StatusCode, StatusCodeCollection>(
-                out var results, out var diagnosticInfos, out var stringTable,
+                out StatusCodeCollection results, out DiagnosticInfoCollection diagnosticInfos, out StringCollection stringTable,
                 monitoredItemIds.Count, operationLimit
                 );
 
-            foreach (var batchMonitoredItemIds in
+            foreach (UInt32Collection batchMonitoredItemIds in
                 monitoredItemIds.Batch<uint, UInt32Collection>(operationLimit))
             {
                 if (requestHeader != null)
@@ -1924,7 +1924,7 @@ namespace Opc.Ua
             }
             else
             {
-                C nextbatch = new C {
+                var nextbatch = new C {
                     Capacity = (int)batchSize
                 };
                 foreach (T item in collection)

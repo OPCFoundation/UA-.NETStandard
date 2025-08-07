@@ -206,10 +206,10 @@ namespace Quickstarts
                     EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(m_configuration);
                     ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
 
-                    var sessionFactory = TraceableSessionFactory.Instance;
+                    TraceableSessionFactory sessionFactory = TraceableSessionFactory.Instance;
 
                     // Create the session
-                    var session = await sessionFactory.CreateAsync(
+                    ISession session = await sessionFactory.CreateAsync(
                         m_configuration,
                         connection,
                         endpoint,
@@ -319,7 +319,7 @@ namespace Quickstarts
                         return;
                     }
 
-                    var state = m_reconnectHandler.BeginReconnect(m_session, m_reverseConnectManager, ReconnectPeriod, Client_ReconnectComplete);
+                    SessionReconnectHandler.ReconnectState state = m_reconnectHandler.BeginReconnect(m_session, m_reverseConnectManager, ReconnectPeriod, Client_ReconnectComplete);
                     if (state == SessionReconnectHandler.ReconnectState.Triggered)
                     {
                         Utils.LogInfo("KeepAlive status {0}, reconnect status {1}, reconnect period {2}ms.", e.Status, state, ReconnectPeriod);
@@ -362,7 +362,7 @@ namespace Quickstarts
                     if (!Object.ReferenceEquals(m_session, m_reconnectHandler.Session))
                     {
                         m_output.WriteLine("--- RECONNECTED TO NEW SESSION --- {0}", m_reconnectHandler.Session.SessionId);
-                        var session = m_session;
+                        ISession session = m_session;
                         m_session = m_reconnectHandler.Session;
                         Utils.SilentDispose(session);
                     }

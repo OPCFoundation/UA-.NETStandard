@@ -215,7 +215,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<Node> FetchNodeAsync(ExpandedNodeId nodeId, CancellationToken ct)
         {
-            NodeId localId = ExpandedNodeId.ToNodeId(nodeId, m_session.NamespaceUris);
+            var localId = ExpandedNodeId.ToNodeId(nodeId, m_session.NamespaceUris);
 
             if (localId == null)
             {
@@ -244,7 +244,7 @@ namespace Opc.Ua.Client
                                 reference.NodeId = ExpandedNodeId.ToNodeId(reference.NodeId, NamespaceUris);
                             }
 
-                            Node target = new Node(reference);
+                            var target = new Node(reference);
 
                             InternalWriteLockedAttach(target);
                         }
@@ -277,7 +277,7 @@ namespace Opc.Ua.Client
                 return new List<Node>();
             }
 
-            NodeIdCollection localIds = new NodeIdCollection(
+            var localIds = new NodeIdCollection(
                 nodeIds.Select(nodeId => ExpandedNodeId.ToNodeId(nodeId, m_session.NamespaceUris)));
 
             // fetch nodes and references from server.
@@ -312,7 +312,7 @@ namespace Opc.Ua.Client
                                     reference.NodeId = ExpandedNodeId.ToNodeId(reference.NodeId, NamespaceUris);
                                 }
 
-                                Node target = new Node(reference);
+                                var target = new Node(reference);
 
                                 InternalWriteLockedAttach(target);
                             }
@@ -343,7 +343,7 @@ namespace Opc.Ua.Client
         {
             IList<INode> targets = new List<INode>();
 
-            Node source = await FindAsync(nodeId, ct).ConfigureAwait(false) as Node;
+            var source = await FindAsync(nodeId, ct).ConfigureAwait(false) as Node;
 
             if (source == null)
             {
@@ -390,7 +390,7 @@ namespace Opc.Ua.Client
             {
                 return targets;
             }
-            ExpandedNodeIdCollection targetIds = new ExpandedNodeIdCollection();
+            var targetIds = new ExpandedNodeIdCollection();
             IList<INode> sources = await FindAsync(nodeIds, ct).ConfigureAwait(false);
             foreach (INode source in sources)
             {
@@ -399,7 +399,7 @@ namespace Opc.Ua.Client
                     continue;
                 }
 
-                foreach (var referenceTypeId in referenceTypeIds)
+                foreach (NodeId referenceTypeId in referenceTypeIds)
                 {
                     IList<IReference> references;
 
@@ -434,7 +434,7 @@ namespace Opc.Ua.Client
         public async Task FetchSuperTypesAsync(ExpandedNodeId nodeId, CancellationToken ct)
         {
             // find the target node,
-            ILocalNode source = await FindAsync(nodeId, ct).ConfigureAwait(false) as ILocalNode;
+            var source = await FindAsync(nodeId, ct).ConfigureAwait(false) as ILocalNode;
 
             if (source == null)
             {

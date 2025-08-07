@@ -84,7 +84,7 @@ namespace Opc.Ua.Core.Tests
                 m_issuerStore = null;
                 m_trustedStore = null;
                 m_rejectedStore = null;
-                var path = Utils.ReplaceSpecialFolderNames(m_pkiRoot);
+                string path = Utils.ReplaceSpecialFolderNames(m_pkiRoot);
                 int retries = 5;
                 while (retries-- > 0)
                 {
@@ -165,7 +165,7 @@ namespace Opc.Ua.Core.Tests
         private DirectoryCertificateStore m_issuerStore;
         private DirectoryCertificateStore m_trustedStore;
         private DirectoryCertificateStore m_rejectedStore;
-        private string m_pkiRoot;
+        private readonly string m_pkiRoot;
         #endregion
     };
 }

@@ -87,7 +87,7 @@ namespace Opc.Ua.Gds.Server.Database
 
             if (application.DiscoveryUrls != null)
             {
-                foreach (var discoveryUrl in application.DiscoveryUrls)
+                foreach (string discoveryUrl in application.DiscoveryUrls)
                 {
                     if (string.IsNullOrEmpty(discoveryUrl))
                     {
@@ -249,7 +249,7 @@ namespace Opc.Ua.Gds.Server.Database
                 return true;
             }
 
-            var tokens = Parse(pattern);
+            List<string> tokens = Parse(pattern);
 
             int targetIndex = 0;
 
@@ -278,13 +278,13 @@ namespace Opc.Ua.Gds.Server.Database
 
         public static bool IsMatchPattern(string pattern)
         {
-            var patternChars = new char[] { '%', '_', '\\', '[', ']', '!' };
+            char[] patternChars = new char[] { '%', '_', '\\', '[', ']', '!' };
             if (string.IsNullOrEmpty(pattern))
             {
                 return false;
             }
 
-            foreach (var patternChar in patternChars)
+            foreach (char patternChar in patternChars)
             {
                 if (pattern.Contains(patternChar, StringComparison.Ordinal))
                 {
@@ -304,11 +304,11 @@ namespace Opc.Ua.Gds.Server.Database
                 }
             }
 
-            StringBuilder capabilities = new StringBuilder();
+            var capabilities = new StringBuilder();
             if (application.ServerCapabilities != null)
             {
                 application.ServerCapabilities.Sort();
-                foreach (var capability in application.ServerCapabilities)
+                foreach (string capability in application.ServerCapabilities)
                 {
                     if (string.IsNullOrEmpty(capability))
                     {
@@ -341,7 +341,7 @@ namespace Opc.Ua.Gds.Server.Database
                 throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
             }
 
-            Guid? id = nodeId.Identifier as Guid?;
+            var id = nodeId.Identifier as Guid?;
 
             if (id == null)
             {
@@ -391,7 +391,7 @@ namespace Opc.Ua.Gds.Server.Database
             if (nodeId.IdType == IdType.Guid)
             {
                 // test if identifier is a valid Guid
-                Guid? id = nodeId.Identifier as Guid?;
+                var id = nodeId.Identifier as Guid?;
 
                 if (id == null)
                 {
@@ -404,7 +404,7 @@ namespace Opc.Ua.Gds.Server.Database
         #region Private Members
         private static List<string> Parse(string pattern)
         {
-            List<string> tokens = new List<string>();
+            var tokens = new List<string>();
 
             int ii = 0;
             var buffer = new System.Text.StringBuilder();

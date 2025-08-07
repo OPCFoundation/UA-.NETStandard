@@ -548,8 +548,8 @@ namespace Opc.Ua.Test
 
             if (value1 != value2)
             {
-                NodeId nodeId1 = ExpandedNodeId.ToNodeId(value1, m_context.NamespaceUris);
-                NodeId nodeId2 = ExpandedNodeId.ToNodeId(value2, m_context.NamespaceUris);
+                var nodeId1 = ExpandedNodeId.ToNodeId(value1, m_context.NamespaceUris);
+                var nodeId2 = ExpandedNodeId.ToNodeId(value2, m_context.NamespaceUris);
 
                 if (nodeId1 != nodeId2)
                 {
@@ -956,7 +956,7 @@ namespace Opc.Ua.Test
             if (body is XmlElement xml)
             {
                 XmlQualifiedName xmlName = Opc.Ua.EncodeableFactory.GetXmlName(expectedType);
-                using (XmlDecoder decoder = new XmlDecoder(xml, context))
+                using (var decoder = new XmlDecoder(xml, context))
                 {
                     decoder.PushNamespace(xmlName.Namespace);
                     body = decoder.ReadEncodeable(xmlName.Name, expectedType);
@@ -970,7 +970,7 @@ namespace Opc.Ua.Test
 
             if (body is byte[] bytes)
             {
-                using (BinaryDecoder decoder = new BinaryDecoder(bytes, context))
+                using (var decoder = new BinaryDecoder(bytes, context))
                 {
                     body = decoder.ReadEncodeable(null, expectedType);
                     decoder.Close();
@@ -1148,7 +1148,7 @@ namespace Opc.Ua.Test
         #endregion
 
         #region Private Fields
-        private IServiceMessageContext m_context;
+        private readonly IServiceMessageContext m_context;
         private bool m_throwOnError;
         #endregion
     }

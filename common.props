@@ -28,7 +28,20 @@
     <AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <CodeAnalysisTreatWarningsAsErrors>false</CodeAnalysisTreatWarningsAsErrors>
+    <AnalysisLevel>preview</AnalysisLevel>
+    <AnalysisMode>all</AnalysisMode>
+    <AnalysisModeStyle>default</AnalysisModeStyle>
   </PropertyGroup>
+
+  <ItemGroup Condition="$(NO_RCS) == ''">
+    <PackageReference Include="Roslynator.Analyzers" PrivateAssets="All"/>
+    <PackageReference Include="Roslynator.Formatting.Analyzers" PrivateAssets="All"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Polyfills for .NET Standard 2.0 and .net 4.8 -->
+    <PackageReference Include="PolySharp" PrivateAssets="All"/>
+  </ItemGroup>
 
   <PropertyGroup>
     <PackageIcon>images/logo.jpg</PackageIcon>

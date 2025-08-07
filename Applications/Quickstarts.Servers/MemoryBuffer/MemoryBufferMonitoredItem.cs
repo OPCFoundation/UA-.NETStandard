@@ -137,6 +137,6 @@ namespace MemoryBuffer
             }
         }
 
-        private uint m_offset;
+        private readonly uint m_offset;
     }
 }

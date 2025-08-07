@@ -81,7 +81,10 @@ namespace Opc.Ua
         /// <exception cref="ArgumentNullException">Thrown when the value is null</exception>
         public DataValue(DataValue value)
         {
-            if (value == null) throw new ArgumentNullException(nameof(value));
+            if (value == null)
+            {
+                throw new ArgumentNullException(nameof(value));
+            }
 
             m_value.Value = Utils.Clone(value.m_value.Value);
             m_statusCode = value.m_statusCode;
@@ -759,7 +762,7 @@ namespace Opc.Ua
         /// </remarks>
         public new object MemberwiseClone()
         {
-            DataValueCollection clone = new DataValueCollection(this.Count);
+            var clone = new DataValueCollection(this.Count);
 
             foreach (DataValue element in this)
             {

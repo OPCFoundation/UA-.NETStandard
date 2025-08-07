@@ -66,7 +66,10 @@ namespace Opc.Ua
         /// <exception cref="ArgumentNullException">Thrown if the provided value is null</exception>
         public QualifiedName(QualifiedName value)
         {
-            if (value == null) throw new ArgumentNullException(nameof(value));
+            if (value == null)
+            {
+                throw new ArgumentNullException(nameof(value));
+            }
 
             m_name = value.m_name;
             m_namespaceIndex = value.m_namespaceIndex;
@@ -109,7 +112,7 @@ namespace Opc.Ua
         /// </remarks>
         public ushort NamespaceIndex => m_namespaceIndex;
 
-        /// <summary cref="QualifiedName.NamespaceIndex" />
+        /// <inheritdoc/>
         [DataMember(Name = "NamespaceIndex", Order = 1)]
         internal ushort XmlEncodedNamespaceIndex
         {
@@ -126,7 +129,7 @@ namespace Opc.Ua
         public string Name => m_name;
 
         /// <summary>
-        ///
+        /// Xml encoded name
         /// </summary>
         [DataMember(Name = "Name", Order = 2)]
         internal string XmlEncodedName
@@ -158,7 +161,7 @@ namespace Opc.Ua
                 return 0;
             }
 
-            QualifiedName qname = obj as QualifiedName;
+            var qname = obj as QualifiedName;
 
             if (qname == null)
             {
@@ -247,7 +250,7 @@ namespace Opc.Ua
                 return true;
             }
 
-            QualifiedName qname = obj as QualifiedName;
+            var qname = obj as QualifiedName;
 
             if (qname == null)
             {
@@ -326,7 +329,7 @@ namespace Opc.Ua
             {
                 int capacity = (m_name != null) ? m_name.Length : 0;
 
-                StringBuilder builder = new StringBuilder(capacity + 10);
+                var builder = new StringBuilder(capacity + 10);
 
                 if (this.m_namespaceIndex == 0)
                 {
@@ -497,7 +500,7 @@ namespace Opc.Ua
                 return QualifiedName.Null;
             }
 
-            var originalText = text;
+            string originalText = text;
             int namespaceIndex = 0;
 
             if (text.StartsWith("nsu=", StringComparison.Ordinal))
@@ -509,7 +512,7 @@ namespace Opc.Ua
                     throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, $"Invalid QualifiedName ({originalText}).");
                 }
 
-                var namespaceUri = Utils.UnescapeUri(text.Substring(4, index-4));
+                string namespaceUri = Utils.UnescapeUri(text.Substring(4, index-4));
                 namespaceIndex = (updateTables) ? context.NamespaceUris.GetIndexOrAppend(namespaceUri) : context.NamespaceUris.GetIndex(namespaceUri);
 
                 if (namespaceIndex < 0)
@@ -560,7 +563,7 @@ namespace Opc.Ua
             {
                 if (useNamespaceUri)
                 {
-                    var namespaceUri = context.NamespaceUris.GetString(m_namespaceIndex);
+                    string namespaceUri = context.NamespaceUris.GetString(m_namespaceIndex);
 
                     if (!string.IsNullOrEmpty(namespaceUri))
                     {
@@ -721,7 +724,7 @@ namespace Opc.Ua
         /// </remarks>
         public new object MemberwiseClone()
         {
-            QualifiedNameCollection clone = new QualifiedNameCollection(this.Count);
+            var clone = new QualifiedNameCollection(this.Count);
 
             foreach (QualifiedName element in this)
             {

@@ -219,7 +219,11 @@ namespace Opc.Ua.Server
         /// <returns>true if the reverse connection is found and removed</returns>
         public virtual bool RemoveReverseConnection(Uri url)
         {
-            if (url == null) throw new ArgumentNullException(nameof(url));
+            if (url == null)
+            {
+                throw new ArgumentNullException(nameof(url));
+            }
+
             lock (m_connectionsLock)
             {
                 bool connectionRemoved = m_connections.Remove(url);
@@ -260,7 +264,7 @@ namespace Opc.Ua.Server
             {
                 lock (m_connectionsLock)
                 {
-                    foreach (var reverseConnection in m_connections.Values)
+                    foreach (ReverseConnectProperty reverseConnection in m_connections.Values)
                     {
                         // recharge a rejected connection after timeout
                         if (reverseConnection.LastState == ReverseConnectState.Rejected &&
@@ -387,8 +391,8 @@ namespace Opc.Ua.Server
         {
             lock (m_connectionsLock)
             {
-                var toRemove = m_connections.Where(r => r.Value.ConfigEntry == configEntry);
-                foreach (var entry in toRemove)
+                IEnumerable<KeyValuePair<Uri, ReverseConnectProperty>> toRemove = m_connections.Where(r => r.Value.ConfigEntry == configEntry);
+                foreach (KeyValuePair<Uri, ReverseConnectProperty> entry in toRemove)
                 {
                     m_connections.Remove(entry.Key);
                 }
@@ -403,7 +407,7 @@ namespace Opc.Ua.Server
             ClearConnections(true);
 
             // get the configuration for the reverse connections.
-            var reverseConnect = configuration?.ServerConfiguration?.ReverseConnect;
+            ReverseConnectServerConfiguration reverseConnect = configuration?.ServerConfiguration?.ReverseConnect;
 
             // add configuration reverse client connection properties.
             if (reverseConnect != null)
@@ -415,9 +419,9 @@ namespace Opc.Ua.Server
                     m_rejectTimeout = reverseConnect.RejectTimeout > 0 ? reverseConnect.RejectTimeout : DefaultReverseConnectRejectTimeout;
                     if (reverseConnect.Clients != null)
                     {
-                        foreach (var client in reverseConnect.Clients)
+                        foreach (ReverseConnectClient client in reverseConnect.Clients)
                         {
-                            var uri = Utils.ParseUri(client.EndpointUrl);
+                            Uri uri = Utils.ParseUri(client.EndpointUrl);
                             if (uri != null)
                             {
                                 if (m_connections.ContainsKey(uri))
@@ -442,7 +446,7 @@ namespace Opc.Ua.Server
         private int m_connectInterval;
         private int m_connectTimeout;
         private int m_rejectTimeout;
-        private Dictionary<Uri, ReverseConnectProperty> m_connections;
+        private readonly Dictionary<Uri, ReverseConnectProperty> m_connections;
         private readonly object m_connectionsLock = new object();
         #endregion
     }

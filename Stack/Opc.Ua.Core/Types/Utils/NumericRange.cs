@@ -392,7 +392,7 @@ namespace Opc.Ua
             if (index >= 0)
             {
                 int start = 0;
-                List<NumericRange> subranges = new List<NumericRange>();
+                var subranges = new List<NumericRange>();
 
                 for (int ii = 0; ii < textToParse.Length; ii++)
                 {
@@ -400,7 +400,7 @@ namespace Opc.Ua
 
                     if (ch == ',' || ii == textToParse.Length - 1)
                     {
-                        NumericRange subrange = new NumericRange();
+                        var subrange = new NumericRange();
                         string subtext = (ch == ',') ? textToParse.Substring(start, ii - start) : textToParse.Substring(start);
                         ServiceResult result = Validate(subtext, out subrange);
 
@@ -483,7 +483,7 @@ namespace Opc.Ua
         /// </summary>
         private StatusCode ApplyMultiRange(ref object value)
         {
-            Array array = value as Array;
+            var array = value as Array;
             TypeInfo typeInfo = null;
 
             // check for matrix.
@@ -618,7 +618,7 @@ namespace Opc.Ua
                 return StatusCodes.BadIndexRangeNoData;
             }
 
-            TypeInfo dstTypeInfo = TypeInfo.Construct(dst);
+            var dstTypeInfo = TypeInfo.Construct(dst);
 
             // check for subset of string or byte string.
             if (dstTypeInfo.ValueRank == ValueRanks.Scalar)
@@ -679,8 +679,8 @@ namespace Opc.Ua
                 return StatusCodes.BadIndexRangeInvalid;
             }
 
-            Array srcArray = src as Array;
-            Array dstArray = dst as Array;
+            var srcArray = src as Array;
+            var dstArray = dst as Array;
 
             // check for destinations specified as a matrix.
             if (dstArray == null)
@@ -704,7 +704,7 @@ namespace Opc.Ua
                 srcArray = matrix.ToArray();
             }
 
-            TypeInfo srcTypeInfo = TypeInfo.Construct(srcArray);
+            var srcTypeInfo = TypeInfo.Construct(srcArray);
 
             if (srcTypeInfo.BuiltInType != dstTypeInfo.BuiltInType)
             {
@@ -954,7 +954,7 @@ namespace Opc.Ua
                 return StatusCodes.Good;
             }
 
-            Array array = value as Array;
+            var array = value as Array;
 
             // check for list type.
             IList list = null;

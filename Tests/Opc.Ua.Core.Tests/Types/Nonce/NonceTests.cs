@@ -61,7 +61,7 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
             {
                 uint nonceLength = Ua.Nonce.GetNonceLength(securityPolicyUri);
 
-                Ua.Nonce nonce = Ua.Nonce.CreateNonce(securityPolicyUri);
+                var nonce = Ua.Nonce.CreateNonce(securityPolicyUri);
 
                 Assert.IsNotNull(nonce);
                 Assert.IsNotNull(nonce.Data);
@@ -86,9 +86,9 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
             if (IsSupportedByPlatform(securityPolicyUri))
             {
                 uint nonceLength = Ua.Nonce.GetNonceLength(securityPolicyUri);
-                Ua.Nonce nonceByLen = Ua.Nonce.CreateNonce(securityPolicyUri);
+                var nonceByLen = Ua.Nonce.CreateNonce(securityPolicyUri);
 
-                Ua.Nonce nonceByData = Ua.Nonce.CreateNonce(securityPolicyUri, nonceByLen.Data);
+                var nonceByData = Ua.Nonce.CreateNonce(securityPolicyUri, nonceByLen.Data);
 
                 Assert.IsNotNull(nonceByData);
                 Assert.IsNotNull(nonceByData.Data);
@@ -128,7 +128,7 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
                 }
                 else
                 {
-                    Ua.Nonce rsaNonce = Ua.Nonce.CreateNonce(securityPolicyUri, randomValue);
+                    var rsaNonce = Ua.Nonce.CreateNonce(securityPolicyUri, randomValue);
                     Assert.AreEqual(rsaNonce.Data, randomValue);
                 }
             }

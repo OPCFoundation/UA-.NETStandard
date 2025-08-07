@@ -30,9 +30,12 @@ namespace Opc.Ua
             EventHandler<ConnectionStatusEventArgs> OnConnectionStatusChanged
             )
         {
-            if (url == null) throw new ArgumentNullException(nameof(url));
+            if (url == null)
+            {
+                throw new ArgumentNullException(nameof(url));
+            }
 
-            var listener = TransportBindings.Listeners.GetListener(url.Scheme);
+            ITransportListener listener = TransportBindings.Listeners.GetListener(url.Scheme);
             if (listener == null)
             {
                 throw ServiceResultException.Create(

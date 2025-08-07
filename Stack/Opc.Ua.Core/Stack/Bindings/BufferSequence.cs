@@ -68,10 +68,10 @@ namespace Opc.Ua.Bindings
         public ReadOnlySequence<byte> Sequence => m_sequence;
 
         #region Private 
-        private BufferManager m_bufferManager;
+        private readonly BufferManager m_bufferManager;
         private BufferSegment m_firstSegment;
         private ReadOnlySequence<byte> m_sequence;
-        private string m_owner;
+        private readonly string m_owner;
         #endregion
     }
 }

@@ -477,13 +477,13 @@ namespace Opc.Ua.Client.Tests
         private ExpandedNodeId[] ReadCustomTestSet(string param)
         {
             // load custom test sets
-            var testSetParameter = TestContext.Parameters[param];
-            var testSetParameters = testSetParameter.Split('#');
+            string testSetParameter = TestContext.Parameters[param];
+            string[] testSetParameters = testSetParameter.Split('#');
             if (testSetParameters != null)
             {
                 // parse the custom content
                 var testSet = new List<ExpandedNodeId>();
-                foreach (var parameter in testSetParameters)
+                foreach (string parameter in testSetParameters)
                 {
                     testSet.Add(ExpandedNodeId.Parse(parameter));
                 }

@@ -34,7 +34,7 @@ using Opc.Ua.Bindings;
 
 public static partial class FuzzableCode
 {
-    private static ServiceMessageContext messageContext = ServiceMessageContext.GlobalContext;
+    private static readonly ServiceMessageContext messageContext = ServiceMessageContext.GlobalContext;
 
     /// <summary>
     /// Print information about the fuzzer target.

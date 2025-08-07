@@ -45,7 +45,7 @@ namespace Opc.Ua
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public async Task<X509Certificate2Collection> GetCertificates()
         {
-            X509Certificate2Collection collection = new X509Certificate2Collection();
+            var collection = new X509Certificate2Collection();
 
             if (!string.IsNullOrEmpty(this.StorePath))
             {

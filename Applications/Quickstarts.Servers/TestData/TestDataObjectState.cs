@@ -64,7 +64,7 @@ namespace TestData
             }
 
             // set a valid initial value.
-            TestDataSystem system = context.SystemHandle as TestDataSystem;
+            var system = context.SystemHandle as TestDataSystem;
 
             if (system != null)
             {
@@ -78,7 +78,7 @@ namespace TestData
 
                 var children = new List<BaseInstanceState>();
                 variable.GetChildren(context, children);
-                foreach (var child in children)
+                foreach (BaseInstanceState child in children)
                 {
                     if (child is BaseVariableState variableChild)
                     {
@@ -89,7 +89,7 @@ namespace TestData
             }
 
             // set the EU range.
-            BaseVariableState euRange = variable.FindChild(context, Opc.Ua.BrowseNames.EURange) as BaseVariableState;
+            var euRange = variable.FindChild(context, Opc.Ua.BrowseNames.EURange) as BaseVariableState;
 
             if (euRange != null)
             {
@@ -116,21 +116,21 @@ namespace TestData
             try
             {
 
-                BaseVariableState euRange = node.FindChild(context, Opc.Ua.BrowseNames.EURange) as BaseVariableState;
+                var euRange = node.FindChild(context, Opc.Ua.BrowseNames.EURange) as BaseVariableState;
 
                 if (euRange == null)
                 {
                     return ServiceResult.Good;
                 }
 
-                Range range = euRange.Value as Range;
+                var range = euRange.Value as Range;
 
                 if (range == null)
                 {
                     return ServiceResult.Good;
                 }
 
-                Array array = value as Array;
+                var array = value as Array;
 
                 if (array != null)
                 {
@@ -192,9 +192,9 @@ namespace TestData
 
             if (AreEventsMonitored)
             {
-                GenerateValuesEventState e = new GenerateValuesEventState(null);
+                var e = new GenerateValuesEventState(null);
 
-                TranslationInfo message = new TranslationInfo(
+                var message = new TranslationInfo(
                     "GenerateValuesEventType",
                     "en-US",
                     "New values generated for test source '{0}'.",
@@ -234,7 +234,7 @@ namespace TestData
             ref StatusCode statusCode,
             ref DateTime timestamp)
         {
-            BaseVariableState variable = node as BaseVariableState;
+            var variable = node as BaseVariableState;
 
             if (variable == null)
             {
@@ -246,7 +246,7 @@ namespace TestData
                 return ServiceResult.Good;
             }
 
-            TestDataSystem system = context.SystemHandle as TestDataSystem;
+            var system = context.SystemHandle as TestDataSystem;
 
             if (system == null)
             {

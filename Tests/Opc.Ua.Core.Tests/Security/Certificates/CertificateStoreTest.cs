@@ -66,13 +66,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [OneTimeTearDown]
         protected async Task OneTimeTearDown()
         {
-            foreach (var certStore in CertStores)
+            foreach (string certStore in CertStores)
             {
                 using (var x509Store = new X509CertificateStore())
                 {
                     x509Store.Open(certStore);
-                    var collection = await x509Store.Enumerate().ConfigureAwait(false);
-                    foreach (var cert in collection)
+                    X509Certificate2Collection collection = await x509Store.Enumerate().ConfigureAwait(false);
+                    foreach (X509Certificate2 cert in collection)
                     {
                         if (X509Utils.CompareDistinguishedName(X509StoreSubject, cert.Subject))
                         {
@@ -111,14 +111,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Theory, Order(10)]
         public async Task VerifyAppCertX509Store(string storePath)
         {
-            var appCertificate = GetTestCert();
+            X509Certificate2 appCertificate = GetTestCert();
             Assert.NotNull(appCertificate);
             Assert.True(appCertificate.HasPrivateKey);
             appCertificate.AddToStore(
                     CertificateStoreType.X509Store,
                     storePath
                 );
-            using (var publicKey = X509CertificateLoader.LoadCertificate(appCertificate.RawData))
+            using (X509Certificate2 publicKey = X509CertificateLoader.LoadCertificate(appCertificate.RawData))
             {
                 Assert.NotNull(publicKey);
                 Assert.False(publicKey.HasPrivateKey);
@@ -128,7 +128,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     StorePath = storePath,
                     StoreType = CertificateStoreType.X509Store
                 };
-                var privateKey = await id.LoadPrivateKey(null).ConfigureAwait(false);
+                X509Certificate2 privateKey = await id.LoadPrivateKey(null).ConfigureAwait(false);
                 Assert.NotNull(privateKey);
                 Assert.True(privateKey.HasPrivateKey);
 
@@ -149,21 +149,21 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test, Order(20)]
         public async Task VerifyAppCertDirectoryStore()
         {
-            var appCertificate = GetTestCert();
+            X509Certificate2 appCertificate = GetTestCert();
             Assert.NotNull(appCertificate);
             Assert.True(appCertificate.HasPrivateKey);
 
             string password = Guid.NewGuid().ToString();
             // pki directory root for app cert
-            var pkiRoot = Path.GetTempPath() + Path.GetRandomFileName() + Path.DirectorySeparatorChar;
-            var storePath = pkiRoot + "own";
+            string pkiRoot = Path.GetTempPath() + Path.GetRandomFileName() + Path.DirectorySeparatorChar;
+            string storePath = pkiRoot + "own";
             var certificateStoreIdentifier = new CertificateStoreIdentifier(storePath, false);
             const string storeType = CertificateStoreType.Directory;
             appCertificate.AddToStore(
                 certificateStoreIdentifier, password
                 );
 
-            using (var publicKey = X509CertificateLoader.LoadCertificate(appCertificate.RawData))
+            using (X509Certificate2 publicKey = X509CertificateLoader.LoadCertificate(appCertificate.RawData))
             {
                 Assert.NotNull(publicKey);
                 Assert.False(publicKey.HasPrivateKey);
@@ -176,23 +176,23 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                 {
                     // check no password fails to load
-                    var nullKey = await id.LoadPrivateKey(null).ConfigureAwait(false);
+                    X509Certificate2 nullKey = await id.LoadPrivateKey(null).ConfigureAwait(false);
                     Assert.IsNull(nullKey);
                 }
 
                 {
                     // check invalid password fails to load
-                    var nullKey = await id.LoadPrivateKey("123").ConfigureAwait(false);
+                    X509Certificate2 nullKey = await id.LoadPrivateKey("123").ConfigureAwait(false);
                     Assert.IsNull(nullKey);
                 }
 
                 {
                     // check invalid password fails to load
-                    var nullKey = await id.LoadPrivateKeyEx(new CertificatePasswordProvider("123")).ConfigureAwait(false);
+                    X509Certificate2 nullKey = await id.LoadPrivateKeyEx(new CertificatePasswordProvider("123")).ConfigureAwait(false);
                     Assert.IsNull(nullKey);
                 }
 
-                var privateKey = await id.LoadPrivateKeyEx(new CertificatePasswordProvider(password)).ConfigureAwait(false);
+                X509Certificate2 privateKey = await id.LoadPrivateKeyEx(new CertificatePasswordProvider(password)).ConfigureAwait(false);
 
                 Assert.NotNull(privateKey);
                 Assert.True(privateKey.HasPrivateKey);
@@ -220,10 +220,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
 #endif
             // pki directory root for app cert
-            var pkiRoot = Path.GetTempPath() + Path.GetRandomFileName() + Path.DirectorySeparatorChar;
-            var storePath = pkiRoot + "trusted";
-            var certPath = storePath + Path.DirectorySeparatorChar + "certs";
-            var privatePath = storePath + Path.DirectorySeparatorChar + "private";
+            string pkiRoot = Path.GetTempPath() + Path.GetRandomFileName() + Path.DirectorySeparatorChar;
+            string storePath = pkiRoot + "trusted";
+            string certPath = storePath + Path.DirectorySeparatorChar + "certs";
+            string privatePath = storePath + Path.DirectorySeparatorChar + "private";
 
             Directory.CreateDirectory(certPath);
             Directory.CreateDirectory(privatePath);
@@ -236,7 +236,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 //Add Test PEM Chain
                 File.Copy(TestUtils.EnumerateTestAssets("Test_chain.pem").First(), certPath + Path.DirectorySeparatorChar + "Test_chain.pem");
 
-                var certificates = await store.Enumerate().ConfigureAwait(false);
+                X509Certificate2Collection certificates = await store.Enumerate().ConfigureAwait(false);
 
                 Assert.AreEqual(3, certificates.Count);
 
@@ -248,7 +248,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
 
                 //Load private key
-                var cert = await store.LoadPrivateKey("14A630438BF775E19169D3279069BBF20419EF84", null, null, null, null).ConfigureAwait(false);
+                X509Certificate2 cert = await store.LoadPrivateKey("14A630438BF775E19169D3279069BBF20419EF84", null, null, null, null).ConfigureAwait(false);
 
                 Assert.NotNull(cert);
                 Assert.True(cert.HasPrivateKey);
@@ -283,10 +283,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
 #endif
             // pki directory root for app cert
-            var pkiRoot = Path.GetTempPath() + Path.GetRandomFileName() + Path.DirectorySeparatorChar;
-            var storePath = pkiRoot + "trusted";
-            var certPath = storePath + Path.DirectorySeparatorChar + "certs";
-            var privatePath = storePath + Path.DirectorySeparatorChar + "private";
+            string pkiRoot = Path.GetTempPath() + Path.GetRandomFileName() + Path.DirectorySeparatorChar;
+            string storePath = pkiRoot + "trusted";
+            string certPath = storePath + Path.DirectorySeparatorChar + "certs";
+            string privatePath = storePath + Path.DirectorySeparatorChar + "private";
 
             Directory.CreateDirectory(certPath);
             Directory.CreateDirectory(privatePath);
@@ -299,13 +299,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 // Add leaf cert with private key
                 File.WriteAllBytes(certPath + Path.DirectorySeparatorChar + "Test_keyPair.pem", DecryptKeyPairPemBase64());
 
-                var certificates = await store.Enumerate().ConfigureAwait(false);
+                X509Certificate2Collection certificates = await store.Enumerate().ConfigureAwait(false);
 
                 Assert.AreEqual(1, certificates.Count);
 
                 Assert.NotNull(certificates.Find(X509FindType.FindByThumbprint, "14A630438BF775E19169D3279069BBF20419EF84", false));
                 //Load private key
-                var cert = await store.LoadPrivateKey("14A630438BF775E19169D3279069BBF20419EF84", null, null, null, null).ConfigureAwait(false);
+                X509Certificate2 cert = await store.LoadPrivateKey("14A630438BF775E19169D3279069BBF20419EF84", null, null, null, null).ConfigureAwait(false);
 
                 Assert.NotNull(cert);
                 Assert.True(cert.HasPrivateKey);
@@ -328,7 +328,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test, Order(30)]
         public void VerifyInvalidAppCertX509Store()
         {
-            var appCertificate = GetTestCert();
+            X509Certificate2 appCertificate = GetTestCert();
             _ = Assert.Throws<ServiceResultException>(
                 () => appCertificate.AddToStore(
                     CertificateStoreType.X509Store,
@@ -395,7 +395,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     crls[0].RevokedCertificates.First().SerialNumber);
 
                 //TestRevocation
-                var statusCode = await x509Store.IsRevoked(GetTestCert(), GetTestCert()).ConfigureAwait(false);
+                StatusCode statusCode = await x509Store.IsRevoked(GetTestCert(), GetTestCert()).ConfigureAwait(false);
                 Assert.AreEqual((StatusCode)StatusCodes.BadCertificateRevoked, statusCode);
 
 
@@ -420,7 +420,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 X509CRL crl = (await x509Store.EnumerateCRLs().ConfigureAwait(false)).First();
 
                 //Test Revocation before adding cert
-                var statusCode = await x509Store.IsRevoked(GetTestCert(), GetTestCert2()).ConfigureAwait(false);
+                StatusCode statusCode = await x509Store.IsRevoked(GetTestCert(), GetTestCert2()).ConfigureAwait(false);
                 Assert.AreEqual((StatusCode)StatusCodes.Good, statusCode);
 
                 var crlBuilder = CrlBuilder.Create(crl);
@@ -435,7 +435,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                 Assert.AreEqual(2, crls[0].RevokedCertificates.Count);
                 //Test Revocation after adding cert
-                var statusCode2 = await x509Store.IsRevoked(GetTestCert(), GetTestCert2()).ConfigureAwait(false);
+                StatusCode statusCode2 = await x509Store.IsRevoked(GetTestCert(), GetTestCert2()).ConfigureAwait(false);
                 Assert.AreEqual((StatusCode)StatusCodes.BadCertificateRevoked, statusCode2);
             }
         }
@@ -496,7 +496,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 Assert.Null(crlsAfterFirstDelete.FirstOrDefault(c => c == crl));
 
                 //make shure IsRevoked can't find crl anymore
-                var statusCode = await x509Store.IsRevoked(GetTestCert(), GetTestCert()).ConfigureAwait(false);
+                StatusCode statusCode = await x509Store.IsRevoked(GetTestCert(), GetTestCert()).ConfigureAwait(false);
                 Assert.AreEqual((StatusCode)StatusCodes.BadCertificateRevocationUnknown, statusCode);
 
                 //Delete second (empty) crl from store
@@ -583,11 +583,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
         private static byte[] DecryptKeyPairPemBase64()
         {
-            var encryptedBytes = Convert.FromBase64String(s_keyPairPemBase64Encrypted);
+            byte[] encryptedBytes = Convert.FromBase64String(s_keyPairPemBase64Encrypted);
             using var aes = Aes.Create();
             aes.Key = s_aesKey;
             aes.IV = s_aesIV;
-            using var decryptor = aes.CreateDecryptor();
+            using ICryptoTransform decryptor = aes.CreateDecryptor();
             using var ms = new MemoryStream(encryptedBytes);
             using var cs = new CryptoStream(ms, decryptor, CryptoStreamMode.Read);
             using var output = new MemoryStream();

@@ -27,18 +27,18 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public async Task CertificateStoreTypeConfigTest()
         {
             var fileInfo = new FileInfo(Path.Combine(TestContext.CurrentContext.TestDirectory, "Security", "Certificates", "CertificateStoreTypeTestConfig.xml"));
-            var appConfig = await ApplicationConfiguration.Load(fileInfo, ApplicationType.Client, null).ConfigureAwait(false);
+            ApplicationConfiguration appConfig = await ApplicationConfiguration.Load(fileInfo, ApplicationType.Client, null).ConfigureAwait(false);
             int instancesCreatedWhileLoadingConfig = TestCertStore.InstancesCreated;
             Assert.IsTrue(instancesCreatedWhileLoadingConfig > 0);
-            var trustedIssuers = appConfig.SecurityConfiguration.TrustedIssuerCertificates;
-            using (var trustedIssuersStore = trustedIssuers.OpenStore())
+            CertificateTrustList trustedIssuers = appConfig.SecurityConfiguration.TrustedIssuerCertificates;
+            using (ICertificateStore trustedIssuersStore = trustedIssuers.OpenStore())
             {
                 trustedIssuersStore.Close();
                 int instancesCreatedWhileOpeningAuthRootStore = TestCertStore.InstancesCreated;
                 Assert.IsTrue(instancesCreatedWhileLoadingConfig < instancesCreatedWhileOpeningAuthRootStore);
 
                 var certificateStoreIdentifier = new CertificateStoreIdentifier(TestCertStore.StoreTypePrefix + @"CurrentUser\Disallowed");
-                using (var store = certificateStoreIdentifier.OpenStore())
+                using (ICertificateStore store = certificateStoreIdentifier.OpenStore())
                 {
 
                     Assert.IsTrue(instancesCreatedWhileOpeningAuthRootStore < TestCertStore.InstancesCreated);

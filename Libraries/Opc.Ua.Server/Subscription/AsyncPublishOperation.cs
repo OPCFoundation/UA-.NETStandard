@@ -130,10 +130,10 @@ namespace Opc.Ua.Server
         #endregion
 
         #region Private Fields
-        private IEndpointIncomingRequest m_request;
-        private StandardServer m_server;
-        private OperationContext m_context;
-        private PublishResponse m_response;
+        private readonly IEndpointIncomingRequest m_request;
+        private readonly StandardServer m_server;
+        private readonly OperationContext m_context;
+        private readonly PublishResponse m_response;
         private object m_calldata;
         #endregion
     }

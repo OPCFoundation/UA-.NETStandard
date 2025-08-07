@@ -33,7 +33,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 new LocalizedText("TestNode"),
                 true);
 
-            List<IReference> references = new List<IReference>();
+            var references = new List<IReference>();
 
             testNodeState.GetReferences(systemContext, references);
 
@@ -41,7 +41,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
 
             uint index = 0;
-            BlockingCollection<ExpandedNodeId> referenceTargets = new BlockingCollection<ExpandedNodeId>();
+            var referenceTargets = new BlockingCollection<ExpandedNodeId>();
 
             var task = Task.Run(() => {
 
@@ -58,9 +58,9 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             }, cancellationToken);
 
-            foreach (var target in referenceTargets.GetConsumingEnumerable(cancellationToken))
+            foreach (ExpandedNodeId target in referenceTargets.GetConsumingEnumerable(cancellationToken))
             {
-                var removeReferenceSuccess = testNodeState.RemoveReference(ReferenceTypeIds.HasComponent, false, target);
+                bool removeReferenceSuccess = testNodeState.RemoveReference(ReferenceTypeIds.HasComponent, false, target);
                 Assert.IsTrue(removeReferenceSuccess);
             }
 
@@ -89,7 +89,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 new LocalizedText("TestNode"),
                 true);
 
-            List<NodeState.Notifier> notifiers = new List<NodeState.Notifier>();
+            var notifiers = new List<NodeState.Notifier>();
 
             testNodeState.GetNotifiers(systemContext, notifiers);
 
@@ -97,7 +97,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
 
             uint index = 0;
-            BlockingCollection<NodeState> notifierTargets = new BlockingCollection<NodeState>();
+            var notifierTargets = new BlockingCollection<NodeState>();
 
             var task = Task.Run(() => {
 
@@ -123,7 +123,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             }, cancellationToken);
 
-            foreach(var target in notifierTargets.GetConsumingEnumerable(cancellationToken))
+            foreach(NodeState target in notifierTargets.GetConsumingEnumerable(cancellationToken))
             {
                 testNodeState.RemoveNotifier(systemContext, target, false);
             }
@@ -153,7 +153,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 new LocalizedText("TestNode"),
                 true);
 
-            List<BaseInstanceState> children = new List<BaseInstanceState>();
+            var children = new List<BaseInstanceState>();
 
             testNodeState.GetChildren(systemContext, children);
 
@@ -161,7 +161,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
 
             uint index = 0;
-            BlockingCollection<BaseInstanceState> childrenCollection = new BlockingCollection<BaseInstanceState>();
+            var childrenCollection = new BlockingCollection<BaseInstanceState>();
 
             var task = Task.Run(() => {
 
@@ -187,7 +187,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             }, cancellationToken);
 
-            foreach (var child in childrenCollection.GetConsumingEnumerable(cancellationToken))
+            foreach (BaseInstanceState child in childrenCollection.GetConsumingEnumerable(cancellationToken))
             {
                 testNodeState.RemoveChild(child);
             }

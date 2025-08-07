@@ -107,7 +107,11 @@ namespace Opc.Ua.Security.Certificates
         /// <inheritdoc/>
         public override X509Certificate2 CreateForRSA(X509SignatureGenerator generator)
         {
-            if (generator == null) throw new ArgumentNullException(nameof(generator));
+            if (generator == null)
+            {
+                throw new ArgumentNullException(nameof(generator));
+            }
+
             ISignatureFactory signatureFactory = new X509SignatureFactory(HashAlgorithmName, generator);
             if (m_rsaPublicKey != null)
             {
@@ -123,7 +127,11 @@ namespace Opc.Ua.Security.Certificates
         /// <inheritdoc/>
         public override ICertificateBuilderCreateForRSAAny SetRSAPublicKey(byte[] publicKey)
         {
-            if (publicKey == null) throw new ArgumentNullException(nameof(publicKey));
+            if (publicKey == null)
+            {
+                throw new ArgumentNullException(nameof(publicKey));
+            }
+
             try
             {
                 m_rsaPublicKey = X509Utils.SetRSAPublicKey(publicKey);
@@ -188,10 +196,14 @@ namespace Opc.Ua.Security.Certificates
             IList<string> domainNames = null
             )
         {
-            if (certificate == null) throw new ArgumentNullException(nameof(certificate));
+            if (certificate == null)
+            {
+                throw new ArgumentNullException(nameof(certificate));
+            }
+
             using (var cfrg = new CryptoApiRandomGenerator())
             {
-                SecureRandom random = new SecureRandom(cfrg);
+                var random = new SecureRandom(cfrg);
 
                 // try to get signing/private key from certificate passed in
                 AsymmetricKeyParameter signingKey = X509Utils.GetRsaPrivateKeyParameter(certificate);
@@ -202,7 +214,7 @@ namespace Opc.Ua.Security.Certificates
 
                 Asn1Set attributes = null;
                 X509SubjectAltNameExtension san = X509Extensions.FindExtension<X509SubjectAltNameExtension>(certificate);
-                X509SubjectAltNameExtension alternateName = new X509SubjectAltNameExtension(san, san.Critical);
+                var alternateName = new X509SubjectAltNameExtension(san, san.Critical);
 
                 string applicationUri = null;
                 domainNames = domainNames ?? new List<string>();
@@ -328,7 +340,7 @@ namespace Opc.Ua.Security.Certificates
             }
 
             // Basic constraints
-            BasicConstraints basicConstraints = new BasicConstraints(m_isCA);
+            var basicConstraints = new BasicConstraints(m_isCA);
             if (m_isCA && m_pathLengthConstraint >= 0)
             {
                 basicConstraints = new BasicConstraints(m_pathLengthConstraint);
@@ -471,11 +483,11 @@ namespace Opc.Ua.Security.Certificates
             using (var cfrg = new CryptoApiRandomGenerator())
             {
                 // cert generators
-                SecureRandom random = new SecureRandom(cfrg);
+                var random = new SecureRandom(cfrg);
 
                 CreateDefaults(cfrg);
 
-                X509V3CertificateGenerator cg = new X509V3CertificateGenerator();
+                var cg = new X509V3CertificateGenerator();
                 CreateMandatoryFields(cg);
 
                 // create Private/Public Keypair

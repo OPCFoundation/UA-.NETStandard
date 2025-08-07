@@ -116,7 +116,7 @@ namespace Opc.Ua
         {
             FieldInfo[] fields = typeof(Attributes).GetFields(BindingFlags.Public | BindingFlags.Static);
 
-            UInt32Collection ids = new UInt32Collection(fields.Length);
+            var ids = new UInt32Collection(fields.Length);
 
             foreach (FieldInfo field in fields)
             {

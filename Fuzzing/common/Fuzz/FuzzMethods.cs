@@ -54,13 +54,13 @@ public static class FuzzMethods
     /// </summary>
     public static List<Delegate> FindFuzzMethods(Type delegateType)
     {
-        List<Delegate> fuzzMethods = new List<Delegate>();
+        var fuzzMethods = new List<Delegate>();
         Type delegateParameterType;
         Type type = typeof(FuzzableCode);
         if (FuzzMethodsToParameterType.TryGetValue(delegateType, out delegateParameterType))
         {
             MethodInfo[] methods = type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static);
-            foreach (var method in methods)
+            foreach (MethodInfo method in methods)
             {
                 // Determine the target signature
                 ParameterInfo[] parameters = method.GetParameters();

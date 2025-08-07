@@ -63,7 +63,10 @@ namespace Opc.Ua.Server
             double sourceSamplingInterval,
             bool createDurable = false)
         {
-            if (itemToMonitor == null) throw new ArgumentNullException(nameof(itemToMonitor));
+            if (itemToMonitor == null)
+            {
+                throw new ArgumentNullException(nameof(itemToMonitor));
+            }
 
             Initialize();
 
@@ -114,7 +117,7 @@ namespace Opc.Ua.Server
             }
 
             // create aggregate calculator.
-            ServerAggregateFilter aggregateFilter = filterToUse as ServerAggregateFilter;
+            var aggregateFilter = filterToUse as ServerAggregateFilter;
 
             if (filterToUse is ServerAggregateFilter)
             {
@@ -154,7 +157,10 @@ namespace Opc.Ua.Server
             object managerHandle,
             IStoredMonitoredItem storedMonitoredItem)
         {
-            if (storedMonitoredItem == null) throw new ArgumentNullException(nameof(storedMonitoredItem));
+            if (storedMonitoredItem == null)
+            {
+                throw new ArgumentNullException(nameof(storedMonitoredItem));
+            }
 
             Initialize();
 
@@ -564,7 +570,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                ReadValueId valueId = new ReadValueId {
+                var valueId = new ReadValueId {
                     NodeId = m_nodeId,
                     AttributeId = m_attributeId,
                     IndexRange = m_indexRange,
@@ -676,18 +682,45 @@ namespace Opc.Ua.Server
                 m_queueSize = queueSize;
 
                 // check if aggregate filter has been updated.
-                ServerAggregateFilter aggregateFilter = filterToUse as ServerAggregateFilter;
+                var aggregateFilter = filterToUse as ServerAggregateFilter;
 
                 if (filterToUse is ServerAggregateFilter)
                 {
-                    ServerAggregateFilter existingFilter = filterToUse as ServerAggregateFilter;
+                    var existingFilter = filterToUse as ServerAggregateFilter;
 
                     bool match = existingFilter != null;
 
-                    if (match) if (existingFilter.AggregateType != aggregateFilter.AggregateType) match = false;
-                    if (match) if (existingFilter.ProcessingInterval != aggregateFilter.ProcessingInterval) match = false;
-                    if (match) if (existingFilter.StartTime != aggregateFilter.StartTime) match = false;
-                    if (match) if (!existingFilter.AggregateConfiguration.IsEqual(aggregateFilter.AggregateConfiguration)) match = false;
+                    if (match)
+                    {
+                        if (existingFilter.AggregateType != aggregateFilter.AggregateType)
+                        {
+                            match = false;
+                        }
+                    }
+
+                    if (match)
+                    {
+                        if (existingFilter.ProcessingInterval != aggregateFilter.ProcessingInterval)
+                        {
+                            match = false;
+                        }
+                    }
+
+                    if (match)
+                    {
+                        if (existingFilter.StartTime != aggregateFilter.StartTime)
+                        {
+                            match = false;
+                        }
+                    }
+
+                    if (match)
+                    {
+                        if (!existingFilter.AggregateConfiguration.IsEqual(aggregateFilter.AggregateConfiguration))
+                        {
+                            match = false;
+                        }
+                    }
 
                     if (!match)
                     {
@@ -955,7 +988,7 @@ namespace Opc.Ua.Server
         private EventFieldList GetEventFields(FilterContext context, EventFilter filter, IFilterTarget instance)
         {
             // fetch the event fields.
-            EventFieldList fields = new EventFieldList();
+            var fields = new EventFieldList();
 
             fields.ClientHandle = m_clientHandle;
             fields.Handle = instance;
@@ -974,7 +1007,7 @@ namespace Opc.Ua.Server
                 if (value != null)
                 {
                     // translate any localized text.
-                    LocalizedText text = value as LocalizedText;
+                    var text = value as LocalizedText;
 
                     if (text != null)
                     {
@@ -1008,7 +1041,10 @@ namespace Opc.Ua.Server
         /// </summary>
         public virtual void QueueEvent(IFilterTarget instance, bool bypassFilter)
         {
-            if (instance == null) throw new ArgumentNullException(nameof(instance));
+            if (instance == null)
+            {
+                throw new ArgumentNullException(nameof(instance));
+            }
 
             lock (m_lock)
             {
@@ -1037,10 +1073,10 @@ namespace Opc.Ua.Server
                 }
 
                 // construct the context to use for the event filter.
-                FilterContext context = new FilterContext(m_server.NamespaceUris, m_server.TypeTree, Session?.PreferredLocales);
+                var context = new FilterContext(m_server.NamespaceUris, m_server.TypeTree, Session?.PreferredLocales);
 
                 // event filter must be specified.
-                EventFilter filter = m_filterToUse as EventFilter;
+                var filter = m_filterToUse as EventFilter;
 
                 if (filter == null)
                 {
@@ -1085,7 +1121,7 @@ namespace Opc.Ua.Server
 
             ConditionState alarmCondition = null;
             NodeId conditionId = null;
-            InstanceStateSnapshot instanceStateSnapshot = instance as InstanceStateSnapshot;
+            var instanceStateSnapshot = instance as InstanceStateSnapshot;
             if (instanceStateSnapshot != null)
             {
                 alarmCondition = instanceStateSnapshot.Handle as ConditionState;
@@ -1188,8 +1224,15 @@ namespace Opc.Ua.Server
         /// </summary>
         public virtual bool Publish(OperationContext context, Queue<EventFieldList> notifications, uint maxNotificationsPerPublish)
         {
-            if (context == null) throw new ArgumentNullException(nameof(context));
-            if (notifications == null) throw new ArgumentNullException(nameof(notifications));
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            if (notifications == null)
+            {
+                throw new ArgumentNullException(nameof(notifications));
+            }
 
             lock (m_lock)
             {
@@ -1219,9 +1262,9 @@ namespace Opc.Ua.Server
                     if (m_eventQueueHandler.Overflow)
                     {
                         // construct event.
-                        EventQueueOverflowEventState e = new EventQueueOverflowEventState(null);
+                        var e = new EventQueueOverflowEventState(null);
 
-                        TranslationInfo message = new TranslationInfo(
+                        var message = new TranslationInfo(
                             "EventQueueOverflowEventState",
                             "en-US",
                             "Events lost due to queue overflow.");
@@ -1288,9 +1331,20 @@ namespace Opc.Ua.Server
             Queue<DiagnosticInfo> diagnostics,
             uint maxNotificationsPerPublish)
         {
-            if (context == null) throw new ArgumentNullException(nameof(context));
-            if (notifications == null) throw new ArgumentNullException(nameof(notifications));
-            if (diagnostics == null) throw new ArgumentNullException(nameof(diagnostics));
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            if (notifications == null)
+            {
+                throw new ArgumentNullException(nameof(notifications));
+            }
+
+            if (diagnostics == null)
+            {
+                throw new ArgumentNullException(nameof(diagnostics));
+            }
 
             lock (m_lock)
             {
@@ -1422,7 +1476,7 @@ namespace Opc.Ua.Server
             }
 
             // copy data value.
-            MonitoredItemNotification item = new MonitoredItemNotification();
+            var item = new MonitoredItemNotification();
 
             item.ClientHandle = m_clientHandle;
             item.Value = value;
@@ -1496,7 +1550,7 @@ namespace Opc.Ua.Server
                         return 0;
                     }
 
-                    var now = HiResClock.TickCount64;
+                    long now = HiResClock.TickCount64;
 
                     if (m_nextSamplingTime <= now)
                     {
@@ -1547,7 +1601,10 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual bool ApplyFilter(DataValue value, ServiceResult error)
         {
-            if (value == null) throw new ArgumentNullException(nameof(value));
+            if (value == null)
+            {
+                throw new ArgumentNullException(nameof(value));
+            }
 
             bool changed = ValueChanged(
                 value,
@@ -1571,7 +1628,10 @@ namespace Opc.Ua.Server
             DataChangeFilter filter,
             double range)
         {
-            if (value == null) throw new ArgumentNullException(nameof(value));
+            if (value == null)
+            {
+                throw new ArgumentNullException(nameof(value));
+            }
 
             // select default data change filters.
             double deadband = 0.0;
@@ -1692,14 +1752,14 @@ namespace Opc.Ua.Server
             }
 
             // check for arrays.
-            Array array1 = value1 as Array;
-            Array array2 = value2 as Array;
+            var array1 = value1 as Array;
+            var array2 = value2 as Array;
 
             if (array1 == null || array2 == null)
             {
 
-                XmlElement xmlElement1 = value1 as XmlElement;
-                XmlElement xmlElement2 = value2 as XmlElement;
+                var xmlElement1 = value1 as XmlElement;
+                var xmlElement2 = value2 as XmlElement;
 
                 if (xmlElement1 != null && xmlElement2 != null)
                 {
@@ -1997,7 +2057,7 @@ namespace Opc.Ua.Server
         private object m_managerHandle;
         private uint m_subscriptionId;
         private uint m_id;
-        private int m_typeMask;
+        private readonly int m_typeMask;
         private NodeId m_nodeId;
         private uint m_attributeId;
         private string m_indexRange;
@@ -2022,7 +2082,7 @@ namespace Opc.Ua.Server
         private readonly IMonitoredItemQueueFactory m_monitoredItemQueueFactory;
         private IDataChangeQueueHandler m_dataChangeQueueHandler;
         private IEventQueueHandler m_eventQueueHandler;
-        private ISubscriptionStore m_subscriptionStore;
+        private readonly ISubscriptionStore m_subscriptionStore;
         private bool m_readyToPublish;
         private bool m_readyToTrigger;
         private bool m_semanticsChanged;

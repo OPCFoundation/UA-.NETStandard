@@ -137,7 +137,7 @@ namespace Opc.Ua.Server
                 }
 
                 // build list of unique servers.
-                Dictionary<string, ApplicationDescription> uniqueServers = new Dictionary<string, ApplicationDescription>();
+                var uniqueServers = new Dictionary<string, ApplicationDescription>();
 
                 foreach (EndpointDescription description in GetEndpoints())
                 {
@@ -459,7 +459,7 @@ namespace Opc.Ua.Server
                     try
                     {
                         // check the endpointurl
-                        ConfiguredEndpoint configuredEndpoint = new ConfiguredEndpoint() {
+                        var configuredEndpoint = new ConfiguredEndpoint() {
                             EndpointUrl = new Uri(endpointUrl)
                         };
 
@@ -582,16 +582,16 @@ namespace Opc.Ua.Server
             {
                 response = new AdditionalParametersType();
 
-                foreach (var ii in parameters.Parameters)
+                foreach (KeyValuePair ii in parameters.Parameters)
                 {
                     if (ii.Key == "ECDHPolicyUri")
                     {
-                        var policyUri = ii.Value.ToString();
+                        string policyUri = ii.Value.ToString();
 
                         if (EccUtils.IsEccPolicy(policyUri))
                         {
                             session.SetEccUserTokenSecurityPolicy(policyUri);
-                            var key = session.GetNewEccKey();
+                            EphemeralKeyType key = session.GetNewEccKey();
                             response.Parameters.Add(new KeyValuePair() { Key = "ECDHKey", Value = new ExtensionObject(key) });
                         }
                         else
@@ -615,7 +615,7 @@ namespace Opc.Ua.Server
         {
             AdditionalParametersType response = null;
 
-            var key = session.GetNewEccKey();
+            EphemeralKeyType key = session.GetNewEccKey();
 
             if (key != null)
             {
@@ -661,7 +661,7 @@ namespace Opc.Ua.Server
 
             OperationContext context = ValidateRequest(requestHeader, RequestType.ActivateSession);
             // validate client's software certificates.
-            List<SoftwareCertificate> softwareCertificates = new List<SoftwareCertificate>();
+            var softwareCertificates = new List<SoftwareCertificate>();
 
             try
             {
@@ -837,14 +837,14 @@ namespace Opc.Ua.Server
         /// <returns>Returns a description for the ResponseHeader DataType. </returns>
         protected ResponseHeader CreateResponse(RequestHeader requestHeader, ServiceResultException exception)
         {
-            ResponseHeader responseHeader = new ResponseHeader();
+            var responseHeader = new ResponseHeader();
 
             responseHeader.ServiceResult = exception.StatusCode;
 
             responseHeader.Timestamp = DateTime.UtcNow;
             responseHeader.RequestHandle = requestHeader.RequestHandle;
 
-            StringTable stringTable = new StringTable();
+            var stringTable = new StringTable();
             responseHeader.ServiceDiagnostics = new DiagnosticInfo(exception, (DiagnosticsMasks)requestHeader.ReturnDiagnostics, true, stringTable);
             responseHeader.StringTable = stringTable.ToArray();
 
@@ -1694,12 +1694,12 @@ namespace Opc.Ua.Server
         /// <param name="request">The request.</param>
         public virtual void BeginPublish(IEndpointIncomingRequest request)
         {
-            PublishRequest input = (PublishRequest)request.Request;
+            var input = (PublishRequest)request.Request;
             OperationContext context = ValidateRequest(input.RequestHeader, RequestType.Publish);
 
             try
             {
-                AsyncPublishOperation operation = new AsyncPublishOperation(context, request, this);
+                var operation = new AsyncPublishOperation(context, request, this);
 
                 uint subscriptionId = 0;
                 UInt32Collection availableSequenceNumbers = null;
@@ -1759,7 +1759,7 @@ namespace Opc.Ua.Server
         /// <param name="request">The request.</param>
         public virtual void CompletePublish(IEndpointIncomingRequest request)
         {
-            AsyncPublishOperation operation = (AsyncPublishOperation)request.Calldata;
+            var operation = (AsyncPublishOperation)request.Calldata;
             OperationContext context = operation.Context;
 
             try
@@ -2353,7 +2353,7 @@ namespace Opc.Ua.Server
         /// <returns>Boolean value.</returns>
         public bool RegisterWithDiscoveryServer()
         {
-            ApplicationConfiguration configuration = new ApplicationConfiguration(base.Configuration);
+            var configuration = new ApplicationConfiguration(base.Configuration);
 
             // use a dedicated certificate validator with the registration, but derive behavior from server config
             var registrationCertificateValidator = new CertificateValidationEventHandler(RegistrationValidator_CertificateValidation);
@@ -2393,11 +2393,11 @@ namespace Opc.Ua.Server
                                     endpoint.UpdateBeforeConnect = false;
                                 }
 
-                                RequestHeader requestHeader = new RequestHeader();
+                                var requestHeader = new RequestHeader();
                                 requestHeader.Timestamp = DateTime.UtcNow;
 
                                 // create the client.
-                                var instanceCertificate = InstanceCertificateTypesProvider.GetInstanceCertificate(endpoint.Description?.SecurityPolicyUri ?? SecurityPolicies.None);
+                                X509Certificate2 instanceCertificate = InstanceCertificateTypesProvider.GetInstanceCertificate(endpoint.Description?.SecurityPolicyUri ?? SecurityPolicies.None);
                                 client = RegistrationClient.Create(
                                     configuration,
                                     endpoint.Description,
@@ -2409,14 +2409,14 @@ namespace Opc.Ua.Server
                                 // register the server.
                                 if (m_useRegisterServer2)
                                 {
-                                    ExtensionObjectCollection discoveryConfiguration = new ExtensionObjectCollection();
+                                    var discoveryConfiguration = new ExtensionObjectCollection();
                                     StatusCodeCollection configurationResults = null;
                                     DiagnosticInfoCollection diagnosticInfos = null;
-                                    MdnsDiscoveryConfiguration mdnsDiscoveryConfig = new MdnsDiscoveryConfiguration {
+                                    var mdnsDiscoveryConfig = new MdnsDiscoveryConfiguration {
                                         ServerCapabilities = configuration.ServerConfiguration.ServerCapabilities,
                                         MdnsServerName = Utils.GetHostName()
                                     };
-                                    ExtensionObject extensionObject = new ExtensionObject(mdnsDiscoveryConfig);
+                                    var extensionObject = new ExtensionObject(mdnsDiscoveryConfig);
                                     discoveryConfiguration.Add(extensionObject);
                                     client.RegisterServer2(
                                         requestHeader,
@@ -2771,7 +2771,7 @@ namespace Opc.Ua.Server
             }
 
             // create new result object.
-            ServiceResult result = new ServiceResult(
+            var result = new ServiceResult(
                 e.StatusCode,
                 e.SymbolicId,
                 e.NamespaceUri,
@@ -2923,7 +2923,7 @@ namespace Opc.Ua.Server
             // ensure at least one user token policy exists.
             if (configuration.ServerConfiguration.UserTokenPolicies.Count == 0)
             {
-                UserTokenPolicy userTokenPolicy = new UserTokenPolicy();
+                var userTokenPolicy = new UserTokenPolicy();
 
                 userTokenPolicy.TokenType = UserTokenType.Anonymous;
                 userTokenPolicy.PolicyId = userTokenPolicy.TokenType.ToString();
@@ -2943,12 +2943,12 @@ namespace Opc.Ua.Server
             endpoints = new EndpointDescriptionCollection();
             IList<EndpointDescription> endpointsForHost = null;
 
-            var baseAddresses = configuration.ServerConfiguration.BaseAddresses;
-            var requiredSchemes = Utils.DefaultUriSchemes.Where(scheme => baseAddresses.Any(a => a.StartsWith(scheme, StringComparison.Ordinal)));
+            StringCollection baseAddresses = configuration.ServerConfiguration.BaseAddresses;
+            IEnumerable<string> requiredSchemes = Utils.DefaultUriSchemes.Where(scheme => baseAddresses.Any(a => a.StartsWith(scheme, StringComparison.Ordinal)));
 
-            foreach (var scheme in requiredSchemes)
+            foreach (string scheme in requiredSchemes)
             {
-                var binding = bindingFactory.GetBinding(scheme);
+                ITransportListenerFactory binding = bindingFactory.GetBinding(scheme);
                 if (binding != null)
                 {
                     endpointsForHost = binding.CreateServiceHost(
@@ -2964,7 +2964,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            return new List<ServiceHost>(hosts.Values);
+            return [.. hosts.Values];
         }
 
         /// <summary>
@@ -3102,7 +3102,7 @@ namespace Opc.Ua.Server
 
                         for (int ii = 0; ii < BaseAddresses.Count; ii++)
                         {
-                            UriBuilder uri = new UriBuilder(BaseAddresses[ii].DiscoveryUrl);
+                            var uri = new UriBuilder(BaseAddresses[ii].DiscoveryUrl);
 
                             if (string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase))
                             {
@@ -3166,10 +3166,10 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
-                    var message = "Unexpected error starting application";
+                    string message = "Unexpected error starting application";
                     Utils.LogCritical(TraceMasks.StartStop, e, message);
                     m_serverInternal = null;
-                    ServiceResult error = ServiceResult.Create(e, StatusCodes.BadInternalError, message);
+                    var error = ServiceResult.Create(e, StatusCodes.BadInternalError, message);
                     ServerError = error;
                     throw new ServiceResultException(error);
                 }
@@ -3291,7 +3291,7 @@ namespace Opc.Ua.Server
                         });
 
                         // exit if all client connections are closed.
-                        var sessions = ServerInternal.SessionManager.GetSessions().Count;
+                        int sessions = ServerInternal.SessionManager.GetSessions().Count;
                         if (sessions == 0)
                         {
                             break;
@@ -3330,7 +3330,7 @@ namespace Opc.Ua.Server
         /// <returns>The manager.</returns>
         protected virtual AggregateManager CreateAggregateManager(IServerInternal server, ApplicationConfiguration configuration)
         {
-            AggregateManager manager = new AggregateManager(server);
+            var manager = new AggregateManager(server);
 
             manager.RegisterFactory(ObjectIds.AggregateFunction_Interpolative, BrowseNames.AggregateFunction_Interpolative, Aggregators.CreateStandardCalculator);
             manager.RegisterFactory(ObjectIds.AggregateFunction_Average, BrowseNames.AggregateFunction_Average, Aggregators.CreateStandardCalculator);
@@ -3386,7 +3386,7 @@ namespace Opc.Ua.Server
         /// <returns>Returns an object that manages access to localized resources, the return type is <seealso cref="ResourceManager"/>.</returns>
         protected virtual ResourceManager CreateResourceManager(IServerInternal server, ApplicationConfiguration configuration)
         {
-            ResourceManager resourceManager = new ResourceManager(server, configuration);
+            var resourceManager = new ResourceManager(server, configuration);
 
             // load default text for all status codes.
             resourceManager.LoadDefaultText();
@@ -3404,7 +3404,7 @@ namespace Opc.Ua.Server
         {
             var nodeManagers = new List<INodeManager>();
 
-            foreach (var nodeManagerFactory in m_nodeManagerFactories)
+            foreach (INodeManagerFactory nodeManagerFactory in m_nodeManagerFactories)
             {
                 nodeManagers.Add(nodeManagerFactory.Create(server, configuration));
             }
@@ -3526,7 +3526,7 @@ namespace Opc.Ua.Server
             string secureChannelId = session?.SecureChannelId;
             if (!string.IsNullOrEmpty(secureChannelId))
             {
-                var transportListener = TransportListeners.FirstOrDefault(tl => secureChannelId.StartsWith(tl.ListenerId, StringComparison.Ordinal));
+                ITransportListener transportListener = TransportListeners.FirstOrDefault(tl => secureChannelId.StartsWith(tl.ListenerId, StringComparison.Ordinal));
                 transportListener?.UpdateChannelLastActiveTime(secureChannelId);
             }
         }
@@ -3550,7 +3550,7 @@ namespace Opc.Ua.Server
         private bool m_registeredWithDiscoveryServer;
         private int m_minNonceLength;
         private bool m_useRegisterServer2;
-        private List<INodeManagerFactory> m_nodeManagerFactories;
+        private readonly List<INodeManagerFactory> m_nodeManagerFactories;
         #endregion
     }
 }

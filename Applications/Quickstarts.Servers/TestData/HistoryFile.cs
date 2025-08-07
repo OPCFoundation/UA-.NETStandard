@@ -101,7 +101,7 @@ namespace TestData
 
                 HistoryEntry entry = m_entries[position];
 
-                DataValue value = new DataValue();
+                var value = new DataValue();
 
                 value.Value = entry.Value.Value;
                 value.ServerTimestamp = entry.Value.ServerTimestamp;
@@ -133,7 +133,7 @@ namespace TestData
 
                 HistoryEntry entry = m_entries[position];
 
-                DataValue value = new DataValue();
+                var value = new DataValue();
 
                 value.Value = entry.Value.Value;
                 value.ServerTimestamp = entry.Value.ServerTimestamp;
@@ -147,7 +147,7 @@ namespace TestData
 
         #region Private Fields
         private readonly object m_lock = new object();
-        private List<HistoryEntry> m_entries;
+        private readonly List<HistoryEntry> m_entries;
         #endregion
     }
 }

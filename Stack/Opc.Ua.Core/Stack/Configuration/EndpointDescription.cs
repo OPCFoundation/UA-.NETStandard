@@ -30,7 +30,7 @@ namespace Opc.Ua
         {
             Initialize();
 
-            UriBuilder parsedUrl = new UriBuilder(url);
+            var parsedUrl = new UriBuilder(url);
 
             if (Utils.IsUriHttpRelatedScheme(parsedUrl.Scheme))
             {

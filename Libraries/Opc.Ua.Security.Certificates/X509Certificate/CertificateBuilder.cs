@@ -280,7 +280,10 @@ namespace Opc.Ua.Security.Certificates
         /// <inheritdoc/>
         public override ICertificateBuilderCreateForECDsaAny SetECDsaPublicKey(byte[] publicKey)
         {
-            if (publicKey == null) throw new ArgumentNullException(nameof(publicKey));
+            if (publicKey == null)
+            {
+                throw new ArgumentNullException(nameof(publicKey));
+            }
 
             int bytes = 0;
             try
@@ -296,13 +299,13 @@ namespace Opc.Ua.Security.Certificates
 
                 var asn1Obj = Asn1Object.FromByteArray(publicKey);
                 var publicKeyInfo = SubjectPublicKeyInfo.GetInstance(asn1Obj);
-                var algParams = publicKeyInfo.Algorithm.Parameters;
+                Asn1Encodable algParams = publicKeyInfo.Algorithm.Parameters;
                 var x962Params = X962Parameters.GetInstance(algParams);
                     
-                ECParameters ecParameters = new ECParameters();
+                var ecParameters = new ECParameters();
 
-                var domainParameters = asymmetricPubKeyParameters.Parameters;
-                var q = asymmetricPubKeyParameters.Q;
+                Org.BouncyCastle.Crypto.Parameters.ECDomainParameters domainParameters = asymmetricPubKeyParameters.Parameters;
+                Org.BouncyCastle.Math.EC.ECPoint q = asymmetricPubKeyParameters.Q;
                 // calculate keySize round up (bitLength + 7) / 8
                 int keySizeBytes = (domainParameters.N.BitLength + 7) / 8;
 
@@ -317,13 +320,13 @@ namespace Opc.Ua.Security.Certificates
                 else
                 {
                     // Explicit parameters
-                    var a = X509Utils.PadWithLeadingZeros(domainParameters.Curve.A.ToBigInteger().ToByteArrayUnsigned(), keySizeBytes);
-                    var b = X509Utils.PadWithLeadingZeros(domainParameters.Curve.B.ToBigInteger().ToByteArrayUnsigned(), keySizeBytes);
+                    byte[] a = X509Utils.PadWithLeadingZeros(domainParameters.Curve.A.ToBigInteger().ToByteArrayUnsigned(), keySizeBytes);
+                    byte[] b = X509Utils.PadWithLeadingZeros(domainParameters.Curve.B.ToBigInteger().ToByteArrayUnsigned(), keySizeBytes);
                     ecParameters.Curve = BouncyCastle.X509Utils.IdentifyEccCurveByCoefficients(a,b);
                 }
 
-                var x = X509Utils.PadWithLeadingZeros(q.AffineXCoord.ToBigInteger().ToByteArrayUnsigned(), keySizeBytes);
-                var y = X509Utils.PadWithLeadingZeros(q.AffineYCoord.ToBigInteger().ToByteArrayUnsigned(), keySizeBytes);
+                byte[] x = X509Utils.PadWithLeadingZeros(q.AffineXCoord.ToBigInteger().ToByteArrayUnsigned(), keySizeBytes);
+                byte[] y = X509Utils.PadWithLeadingZeros(q.AffineYCoord.ToBigInteger().ToByteArrayUnsigned(), keySizeBytes);
                 // Use the Q point
                 ecParameters.Q = new System.Security.Cryptography.ECPoint {
                     X = x,
@@ -354,7 +357,11 @@ namespace Opc.Ua.Security.Certificates
         /// <inheritdoc/>
         public override ICertificateBuilderCreateForRSAAny SetRSAPublicKey(byte[] publicKey)
         {
-            if (publicKey == null) throw new ArgumentNullException(nameof(publicKey));
+            if (publicKey == null)
+            {
+                throw new ArgumentNullException(nameof(publicKey));
+            }
+
             int bytes = 0;
             try
             {

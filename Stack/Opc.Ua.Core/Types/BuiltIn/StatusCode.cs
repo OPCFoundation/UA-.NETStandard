@@ -535,7 +535,7 @@ namespace Opc.Ua
         /// </remarks>
         public override string ToString()
         {
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
 
             buffer.Append(LookupSymbolicId(m_code));
 

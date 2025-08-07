@@ -184,14 +184,14 @@ namespace Opc.Ua.Security.Certificates
                     {
                         return false;
                     }
-                    var pemCertificateContent = pemText.Substring(beginIndex, endIndex - beginIndex);
-                    Span<byte> pemCertificateDecoded = new Span<byte>(new byte[pemCertificateContent.Length]);
-                    if (Convert.TryFromBase64Chars(pemCertificateContent, pemCertificateDecoded, out var bytesWritten))
+                    string pemCertificateContent = pemText[beginIndex..endIndex];
+                    var pemCertificateDecoded = new Span<byte>(new byte[pemCertificateContent.Length]);
+                    if (Convert.TryFromBase64Chars(pemCertificateContent, pemCertificateDecoded, out int bytesWritten))
                     {
 #if NET6_0_OR_GREATER
-                        var certificate = X509CertificateLoader.LoadCertificate(pemCertificateDecoded);
+                        X509Certificate2 certificate = X509CertificateLoader.LoadCertificate(pemCertificateDecoded);
 #else
-                        var certificate = X509CertificateLoader.LoadCertificate(pemCertificateDecoded.ToArray());
+                        X509Certificate2 certificate = X509CertificateLoader.LoadCertificate(pemCertificateDecoded.ToArray());
 #endif
                         if (thumbprint.Equals(certificate.Thumbprint, StringComparison.OrdinalIgnoreCase))
                         {
@@ -215,8 +215,15 @@ namespace Opc.Ua.Security.Certificates
         #region Private Methods
         private static byte[] EncodeAsPEM(byte[] content, string contentType)
         {
-            if (content == null) throw new ArgumentNullException(nameof(content));
-            if (string.IsNullOrEmpty(contentType)) throw new ArgumentNullException(nameof(contentType));
+            if (content == null)
+            {
+                throw new ArgumentNullException(nameof(content));
+            }
+
+            if (string.IsNullOrEmpty(contentType))
+            {
+                throw new ArgumentNullException(nameof(contentType));
+            }
 
             const int LineLength = 64;
             string base64 = Convert.ToBase64String(content);
@@ -235,7 +242,7 @@ namespace Opc.Ua.Security.Certificates
                     offset += LineLength;
                 }
 
-                var length = base64.Length - offset;
+                int length = base64.Length - offset;
                 if (length > 0)
                 {
 #if NETSTANDARD2_1 || NET5_0_OR_GREATER

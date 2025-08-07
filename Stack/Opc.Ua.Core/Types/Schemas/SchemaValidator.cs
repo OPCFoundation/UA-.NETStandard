@@ -211,7 +211,7 @@ namespace Opc.Ua.Schema
                 }
 
                 // check for file in the same directory as the input file.
-                FileInfo inputInfo = new FileInfo(FilePath);
+                var inputInfo = new FileInfo(FilePath);
 
                 fileInfo = new FileInfo(inputInfo.DirectoryName + Path.DirectorySeparatorChar + fileInfo.Name);
 
@@ -237,10 +237,10 @@ namespace Opc.Ua.Schema
         /// </summary>
         protected static object LoadFile(Type type, string path)
         {
-            using (StreamReader reader = new StreamReader(new FileStream(path, FileMode.Open)))
-            using (XmlReader xmlReader = XmlReader.Create(reader, Utils.DefaultXmlReaderSettings()))
+            using (var reader = new StreamReader(new FileStream(path, FileMode.Open)))
+            using (var xmlReader = XmlReader.Create(reader, Utils.DefaultXmlReaderSettings()))
             {
-                XmlSerializer serializer = new XmlSerializer(type);
+                var serializer = new XmlSerializer(type);
                 return serializer.Deserialize(xmlReader);
             }
         }
@@ -250,10 +250,10 @@ namespace Opc.Ua.Schema
         /// </summary>
         protected static object LoadFile(Type type, Stream stream)
         {
-            using (StreamReader reader = new StreamReader(stream))
-            using (XmlReader xmlReader = XmlReader.Create(reader, Utils.DefaultXmlReaderSettings()))
+            using (var reader = new StreamReader(stream))
+            using (var xmlReader = XmlReader.Create(reader, Utils.DefaultXmlReaderSettings()))
             {
-                XmlSerializer serializer = new XmlSerializer(type);
+                var serializer = new XmlSerializer(type);
                 return serializer.Deserialize(xmlReader);
             }
         }
@@ -270,10 +270,10 @@ namespace Opc.Ua.Schema
                     assembly = typeof(SchemaValidator).GetTypeInfo().Assembly;
                 }
 
-                using (StreamReader reader = new StreamReader(assembly.GetManifestResourceStream(path)))
-                using (XmlReader xmlReader = XmlReader.Create(reader, Utils.DefaultXmlReaderSettings()))
+                using (var reader = new StreamReader(assembly.GetManifestResourceStream(path)))
+                using (var xmlReader = XmlReader.Create(reader, Utils.DefaultXmlReaderSettings()))
                 {
-                    XmlSerializer serializer = new XmlSerializer(type);
+                    var serializer = new XmlSerializer(type);
                     return serializer.Deserialize(xmlReader);
                 }
 
@@ -313,9 +313,9 @@ namespace Opc.Ua.Schema
         #endregion
 
         #region Private Fields
-        private IDictionary<string, string> m_knownFiles;
-        private IDictionary<string, object> m_loadedFiles;
-        private IDictionary<string, byte[]> m_importFiles;
+        private readonly IDictionary<string, string> m_knownFiles;
+        private readonly IDictionary<string, object> m_loadedFiles;
+        private readonly IDictionary<string, byte[]> m_importFiles;
         #endregion
     }
 }

@@ -98,7 +98,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             EnumerationCollection clone = new EnumerationCollection(this.Count);
@@ -186,7 +186,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             NamingRuleTypeCollection clone = new NamingRuleTypeCollection(this.Count);
@@ -233,19 +233,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.Union; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.Union_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.Union_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.Union_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -254,7 +254,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -263,7 +263,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -282,13 +282,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (Union)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             Union clone = (Union)base.MemberwiseClone();
@@ -352,7 +352,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             UnionCollection clone = new UnionCollection(this.Count);
@@ -444,7 +444,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             RedundantServerModeCollection clone = new RedundantServerModeCollection(this.Count);
@@ -508,19 +508,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.KeyValuePair; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.KeyValuePair_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.KeyValuePair_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.KeyValuePair_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -531,7 +531,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -542,7 +542,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -563,13 +563,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (KeyValuePair)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             KeyValuePair clone = (KeyValuePair)base.MemberwiseClone();
@@ -637,7 +637,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             KeyValuePairCollection clone = new KeyValuePairCollection(this.Count);
@@ -704,19 +704,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.AdditionalParametersType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.AdditionalParametersType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.AdditionalParametersType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.AdditionalParametersType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -726,7 +726,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -736,7 +736,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -756,13 +756,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (AdditionalParametersType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             AdditionalParametersType clone = (AdditionalParametersType)base.MemberwiseClone();
@@ -827,19 +827,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.EphemeralKeyType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.EphemeralKeyType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.EphemeralKeyType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.EphemeralKeyType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -850,7 +850,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -861,7 +861,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -882,13 +882,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (EphemeralKeyType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             EphemeralKeyType clone = (EphemeralKeyType)base.MemberwiseClone();
@@ -973,19 +973,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.EndpointType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.EndpointType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.EndpointType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.EndpointType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -998,7 +998,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -1011,7 +1011,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -1034,13 +1034,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (EndpointType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             EndpointType clone = (EndpointType)base.MemberwiseClone();
@@ -1112,7 +1112,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             EndpointTypeCollection clone = new EndpointTypeCollection(this.Count);
@@ -1203,19 +1203,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.BitFieldDefinition; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.BitFieldDefinition_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.BitFieldDefinition_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.BitFieldDefinition_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -1229,7 +1229,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -1243,7 +1243,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -1267,13 +1267,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (BitFieldDefinition)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             BitFieldDefinition clone = (BitFieldDefinition)base.MemberwiseClone();
@@ -1347,7 +1347,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             BitFieldDefinitionCollection clone = new BitFieldDefinitionCollection(this.Count);
@@ -1411,19 +1411,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.RationalNumber; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.RationalNumber_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RationalNumber_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.RationalNumber_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -1434,7 +1434,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -1445,7 +1445,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -1466,13 +1466,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (RationalNumber)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             RationalNumber clone = (RationalNumber)base.MemberwiseClone();
@@ -1540,7 +1540,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             RationalNumberCollection clone = new RationalNumberCollection(this.Count);
@@ -1587,19 +1587,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.Vector; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.Vector_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.Vector_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.Vector_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -1608,7 +1608,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -1617,7 +1617,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -1636,13 +1636,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (Vector)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             Vector clone = (Vector)base.MemberwiseClone();
@@ -1706,7 +1706,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             VectorCollection clone = new VectorCollection(this.Count);
@@ -1779,19 +1779,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.ThreeDVector; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.ThreeDVector_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ThreeDVector_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.ThreeDVector_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -1805,7 +1805,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -1819,7 +1819,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -1841,13 +1841,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (ThreeDVector)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ThreeDVector clone = (ThreeDVector)base.MemberwiseClone();
@@ -1917,7 +1917,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ThreeDVectorCollection clone = new ThreeDVectorCollection(this.Count);
@@ -1964,19 +1964,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.CartesianCoordinates; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.CartesianCoordinates_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CartesianCoordinates_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.CartesianCoordinates_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -1985,7 +1985,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -1994,7 +1994,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -2013,13 +2013,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (CartesianCoordinates)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             CartesianCoordinates clone = (CartesianCoordinates)base.MemberwiseClone();
@@ -2083,7 +2083,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             CartesianCoordinatesCollection clone = new CartesianCoordinatesCollection(this.Count);
@@ -2156,19 +2156,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.ThreeDCartesianCoordinates; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.ThreeDCartesianCoordinates_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ThreeDCartesianCoordinates_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.ThreeDCartesianCoordinates_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -2182,7 +2182,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -2196,7 +2196,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -2218,13 +2218,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (ThreeDCartesianCoordinates)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ThreeDCartesianCoordinates clone = (ThreeDCartesianCoordinates)base.MemberwiseClone();
@@ -2294,7 +2294,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ThreeDCartesianCoordinatesCollection clone = new ThreeDCartesianCoordinatesCollection(this.Count);
@@ -2341,19 +2341,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.Orientation; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.Orientation_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.Orientation_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.Orientation_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -2362,7 +2362,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -2371,7 +2371,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -2390,13 +2390,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (Orientation)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             Orientation clone = (Orientation)base.MemberwiseClone();
@@ -2460,7 +2460,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             OrientationCollection clone = new OrientationCollection(this.Count);
@@ -2533,19 +2533,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.ThreeDOrientation; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.ThreeDOrientation_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ThreeDOrientation_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.ThreeDOrientation_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -2559,7 +2559,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -2573,7 +2573,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -2595,13 +2595,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (ThreeDOrientation)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ThreeDOrientation clone = (ThreeDOrientation)base.MemberwiseClone();
@@ -2671,7 +2671,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ThreeDOrientationCollection clone = new ThreeDOrientationCollection(this.Count);
@@ -2718,19 +2718,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.Frame; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.Frame_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.Frame_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.Frame_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -2739,7 +2739,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -2748,7 +2748,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -2767,13 +2767,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (Frame)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             Frame clone = (Frame)base.MemberwiseClone();
@@ -2837,7 +2837,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             FrameCollection clone = new FrameCollection(this.Count);
@@ -2925,19 +2925,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.ThreeDFrame; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.ThreeDFrame_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ThreeDFrame_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.ThreeDFrame_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -2950,7 +2950,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -2963,7 +2963,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -2984,13 +2984,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (ThreeDFrame)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ThreeDFrame clone = (ThreeDFrame)base.MemberwiseClone();
@@ -3058,7 +3058,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ThreeDFrameCollection clone = new ThreeDFrameCollection(this.Count);
@@ -3150,7 +3150,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             OpenFileModeCollection clone = new OpenFileModeCollection(this.Count);
@@ -3262,7 +3262,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             IdentityCriteriaTypeCollection clone = new IdentityCriteriaTypeCollection(this.Count);
@@ -3326,19 +3326,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.IdentityMappingRuleType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.IdentityMappingRuleType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.IdentityMappingRuleType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.IdentityMappingRuleType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -3349,7 +3349,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -3360,7 +3360,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -3381,13 +3381,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (IdentityMappingRuleType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             IdentityMappingRuleType clone = (IdentityMappingRuleType)base.MemberwiseClone();
@@ -3455,7 +3455,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             IdentityMappingRuleTypeCollection clone = new IdentityMappingRuleTypeCollection(this.Count);
@@ -3537,19 +3537,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.CurrencyUnitType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.CurrencyUnitType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CurrencyUnitType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.CurrencyUnitType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -3562,7 +3562,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -3575,7 +3575,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -3598,13 +3598,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (CurrencyUnitType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             CurrencyUnitType clone = (CurrencyUnitType)base.MemberwiseClone();
@@ -3676,7 +3676,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             CurrencyUnitTypeCollection clone = new CurrencyUnitTypeCollection(this.Count);
@@ -3749,19 +3749,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.AnnotationDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.AnnotationDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.AnnotationDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.AnnotationDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -3773,7 +3773,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -3785,7 +3785,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -3807,13 +3807,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (AnnotationDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             AnnotationDataType clone = (AnnotationDataType)base.MemberwiseClone();
@@ -3883,7 +3883,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             AnnotationDataTypeCollection clone = new AnnotationDataTypeCollection(this.Count);
@@ -3965,19 +3965,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.LinearConversionDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.LinearConversionDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.LinearConversionDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.LinearConversionDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -3990,7 +3990,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -4003,7 +4003,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -4026,13 +4026,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (LinearConversionDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             LinearConversionDataType clone = (LinearConversionDataType)base.MemberwiseClone();
@@ -4104,7 +4104,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             LinearConversionDataTypeCollection clone = new LinearConversionDataTypeCollection(this.Count);
@@ -4192,7 +4192,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ConversionLimitEnumCollection clone = new ConversionLimitEnumCollection(this.Count);
@@ -4310,19 +4310,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.QuantityDimension; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.QuantityDimension_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.QuantityDimension_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.QuantityDimension_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -4339,7 +4339,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -4356,7 +4356,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -4383,13 +4383,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (QuantityDimension)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             QuantityDimension clone = (QuantityDimension)base.MemberwiseClone();
@@ -4469,7 +4469,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             QuantityDimensionCollection clone = new QuantityDimensionCollection(this.Count);
@@ -4561,7 +4561,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             AlarmMaskCollection clone = new AlarmMaskCollection(this.Count);
@@ -4778,19 +4778,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.TrustListDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.TrustListDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.TrustListDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.TrustListDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -4804,7 +4804,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -4818,7 +4818,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -4842,13 +4842,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (TrustListDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             TrustListDataType clone = (TrustListDataType)base.MemberwiseClone();
@@ -4922,7 +4922,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             TrustListDataTypeCollection clone = new TrustListDataTypeCollection(this.Count);
@@ -4998,19 +4998,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.BaseConfigurationDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.BaseConfigurationDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.BaseConfigurationDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.BaseConfigurationDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -5021,7 +5021,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -5032,7 +5032,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -5053,13 +5053,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (BaseConfigurationDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             BaseConfigurationDataType clone = (BaseConfigurationDataType)base.MemberwiseClone();
@@ -5127,7 +5127,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             BaseConfigurationDataTypeCollection clone = new BaseConfigurationDataTypeCollection(this.Count);
@@ -5203,19 +5203,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.BaseConfigurationRecordDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.BaseConfigurationRecordDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.BaseConfigurationRecordDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.BaseConfigurationRecordDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -5226,7 +5226,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -5237,7 +5237,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -5258,13 +5258,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (BaseConfigurationRecordDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             BaseConfigurationRecordDataType clone = (BaseConfigurationRecordDataType)base.MemberwiseClone();
@@ -5332,7 +5332,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             BaseConfigurationRecordDataTypeCollection clone = new BaseConfigurationRecordDataTypeCollection(this.Count);
@@ -5438,19 +5438,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.CertificateGroupDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.CertificateGroupDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.CertificateGroupDataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.CertificateGroupDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -5465,7 +5465,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -5480,7 +5480,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -5503,13 +5503,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (CertificateGroupDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             CertificateGroupDataType clone = (CertificateGroupDataType)base.MemberwiseClone();
@@ -5581,7 +5581,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             CertificateGroupDataTypeCollection clone = new CertificateGroupDataTypeCollection(this.Count);
@@ -5645,19 +5645,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.ConfigurationUpdateTargetType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ConfigurationUpdateTargetType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ConfigurationUpdateTargetType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ConfigurationUpdateTargetType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -5668,7 +5668,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -5679,7 +5679,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -5700,13 +5700,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (ConfigurationUpdateTargetType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ConfigurationUpdateTargetType clone = (ConfigurationUpdateTargetType)base.MemberwiseClone();
@@ -5774,7 +5774,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ConfigurationUpdateTargetTypeCollection clone = new ConfigurationUpdateTargetTypeCollection(this.Count);
@@ -5866,7 +5866,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ConfigurationUpdateTypeCollection clone = new ConfigurationUpdateTypeCollection(this.Count);
@@ -5939,19 +5939,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.TransactionErrorType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.TransactionErrorType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.TransactionErrorType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.TransactionErrorType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -5963,7 +5963,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -5975,7 +5975,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -5997,13 +5997,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (TransactionErrorType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             TransactionErrorType clone = (TransactionErrorType)base.MemberwiseClone();
@@ -6073,7 +6073,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             TransactionErrorTypeCollection clone = new TransactionErrorTypeCollection(this.Count);
@@ -6266,19 +6266,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.ApplicationConfigurationDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.ApplicationConfigurationDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ApplicationConfigurationDataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.ApplicationConfigurationDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -6296,7 +6296,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -6314,7 +6314,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -6340,13 +6340,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (ApplicationConfigurationDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ApplicationConfigurationDataType clone = (ApplicationConfigurationDataType)base.MemberwiseClone();
@@ -6424,7 +6424,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ApplicationConfigurationDataTypeCollection clone = new ApplicationConfigurationDataTypeCollection(this.Count);
@@ -6521,19 +6521,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.ApplicationIdentityDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.ApplicationIdentityDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ApplicationIdentityDataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.ApplicationIdentityDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -6547,7 +6547,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -6561,7 +6561,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -6583,13 +6583,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (ApplicationIdentityDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ApplicationIdentityDataType clone = (ApplicationIdentityDataType)base.MemberwiseClone();
@@ -6659,7 +6659,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ApplicationIdentityDataTypeCollection clone = new ApplicationIdentityDataTypeCollection(this.Count);
@@ -6744,19 +6744,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.EndpointDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.EndpointDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.EndpointDataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.EndpointDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -6770,7 +6770,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -6784,7 +6784,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -6806,13 +6806,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (EndpointDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             EndpointDataType clone = (EndpointDataType)base.MemberwiseClone();
@@ -6882,7 +6882,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             EndpointDataTypeCollection clone = new EndpointDataTypeCollection(this.Count);
@@ -7021,19 +7021,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.ServerEndpointDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.ServerEndpointDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ServerEndpointDataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.ServerEndpointDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -7049,7 +7049,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -7065,7 +7065,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -7089,13 +7089,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (ServerEndpointDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ServerEndpointDataType clone = (ServerEndpointDataType)base.MemberwiseClone();
@@ -7169,7 +7169,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ServerEndpointDataTypeCollection clone = new ServerEndpointDataTypeCollection(this.Count);
@@ -7266,19 +7266,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.SecuritySettingsDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.SecuritySettingsDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.SecuritySettingsDataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.SecuritySettingsDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -7292,7 +7292,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -7306,7 +7306,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -7328,13 +7328,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (SecuritySettingsDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             SecuritySettingsDataType clone = (SecuritySettingsDataType)base.MemberwiseClone();
@@ -7404,7 +7404,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             SecuritySettingsDataTypeCollection clone = new SecuritySettingsDataTypeCollection(this.Count);
@@ -7504,19 +7504,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.UserTokenSettingsDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.UserTokenSettingsDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.UserTokenSettingsDataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.UserTokenSettingsDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -7533,7 +7533,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -7550,7 +7550,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -7575,13 +7575,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (UserTokenSettingsDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             UserTokenSettingsDataType clone = (UserTokenSettingsDataType)base.MemberwiseClone();
@@ -7657,7 +7657,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             UserTokenSettingsDataTypeCollection clone = new UserTokenSettingsDataTypeCollection(this.Count);
@@ -7742,19 +7742,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.AuthorizationServiceConfigurationDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.AuthorizationServiceConfigurationDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.AuthorizationServiceConfigurationDataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.AuthorizationServiceConfigurationDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -7768,7 +7768,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -7782,7 +7782,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -7804,13 +7804,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (AuthorizationServiceConfigurationDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             AuthorizationServiceConfigurationDataType clone = (AuthorizationServiceConfigurationDataType)base.MemberwiseClone();
@@ -7880,7 +7880,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             AuthorizationServiceConfigurationDataTypeCollection clone = new AuthorizationServiceConfigurationDataTypeCollection(this.Count);
@@ -7944,19 +7944,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.DecimalDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DecimalDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DecimalDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DecimalDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -7967,7 +7967,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -7978,7 +7978,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -7999,13 +7999,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (DecimalDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DecimalDataType clone = (DecimalDataType)base.MemberwiseClone();
@@ -8138,19 +8138,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.DataTypeSchemaHeader; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DataTypeSchemaHeader_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DataTypeSchemaHeader_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DataTypeSchemaHeader_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -8163,7 +8163,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -8176,7 +8176,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -8199,13 +8199,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (DataTypeSchemaHeader)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DataTypeSchemaHeader clone = (DataTypeSchemaHeader)base.MemberwiseClone();
@@ -8277,7 +8277,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DataTypeSchemaHeaderCollection clone = new DataTypeSchemaHeaderCollection(this.Count);
@@ -8341,19 +8341,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.DataTypeDescription; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DataTypeDescription_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DataTypeDescription_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DataTypeDescription_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -8364,7 +8364,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -8375,7 +8375,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -8396,13 +8396,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (DataTypeDescription)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DataTypeDescription clone = (DataTypeDescription)base.MemberwiseClone();
@@ -8470,7 +8470,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DataTypeDescriptionCollection clone = new DataTypeDescriptionCollection(this.Count);
@@ -8537,19 +8537,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.StructureDescription; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.StructureDescription_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.StructureDescription_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.StructureDescription_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -8561,7 +8561,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -8573,7 +8573,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -8593,13 +8593,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (StructureDescription)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             StructureDescription clone = (StructureDescription)base.MemberwiseClone();
@@ -8665,7 +8665,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             StructureDescriptionCollection clone = new StructureDescriptionCollection(this.Count);
@@ -8741,19 +8741,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.EnumDescription; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.EnumDescription_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.EnumDescription_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.EnumDescription_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -8766,7 +8766,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -8779,7 +8779,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -8800,13 +8800,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (EnumDescription)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             EnumDescription clone = (EnumDescription)base.MemberwiseClone();
@@ -8874,7 +8874,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             EnumDescriptionCollection clone = new EnumDescriptionCollection(this.Count);
@@ -8938,19 +8938,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.SimpleTypeDescription; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.SimpleTypeDescription_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.SimpleTypeDescription_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.SimpleTypeDescription_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -8963,7 +8963,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -8976,7 +8976,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -8997,13 +8997,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (SimpleTypeDescription)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             SimpleTypeDescription clone = (SimpleTypeDescription)base.MemberwiseClone();
@@ -9071,7 +9071,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             SimpleTypeDescriptionCollection clone = new SimpleTypeDescriptionCollection(this.Count);
@@ -9156,19 +9156,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.UABinaryFileDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.UABinaryFileDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.UABinaryFileDataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.UABinaryFileDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -9182,7 +9182,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -9196,7 +9196,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -9218,13 +9218,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (UABinaryFileDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             UABinaryFileDataType clone = (UABinaryFileDataType)base.MemberwiseClone();
@@ -9294,7 +9294,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             UABinaryFileDataTypeCollection clone = new UABinaryFileDataTypeCollection(this.Count);
@@ -9358,19 +9358,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.PortableQualifiedName; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.PortableQualifiedName_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PortableQualifiedName_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.PortableQualifiedName_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -9381,7 +9381,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -9392,7 +9392,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -9413,13 +9413,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (PortableQualifiedName)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PortableQualifiedName clone = (PortableQualifiedName)base.MemberwiseClone();
@@ -9487,7 +9487,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PortableQualifiedNameCollection clone = new PortableQualifiedNameCollection(this.Count);
@@ -9551,19 +9551,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.PortableNodeId; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.PortableNodeId_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PortableNodeId_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.PortableNodeId_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -9574,7 +9574,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -9585,7 +9585,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -9606,13 +9606,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (PortableNodeId)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PortableNodeId clone = (PortableNodeId)base.MemberwiseClone();
@@ -9680,7 +9680,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PortableNodeIdCollection clone = new PortableNodeIdCollection(this.Count);
@@ -9744,19 +9744,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.UnsignedRationalNumber; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.UnsignedRationalNumber_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.UnsignedRationalNumber_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.UnsignedRationalNumber_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -9767,7 +9767,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -9778,7 +9778,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -9799,13 +9799,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (UnsignedRationalNumber)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             UnsignedRationalNumber clone = (UnsignedRationalNumber)base.MemberwiseClone();
@@ -9873,7 +9873,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             UnsignedRationalNumberCollection clone = new UnsignedRationalNumberCollection(this.Count);
@@ -9969,7 +9969,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PubSubStateCollection clone = new PubSubStateCollection(this.Count);
@@ -10084,19 +10084,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.DataSetMetaDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.DataSetMetaDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.DataSetMetaDataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.DataSetMetaDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -10112,7 +10112,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -10128,7 +10128,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -10152,13 +10152,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (DataSetMetaDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DataSetMetaDataType clone = (DataSetMetaDataType)base.MemberwiseClone();
@@ -10232,7 +10232,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DataSetMetaDataTypeCollection clone = new DataSetMetaDataTypeCollection(this.Count);
@@ -10392,19 +10392,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.FieldMetaData; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.FieldMetaData_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.FieldMetaData_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.FieldMetaData_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -10423,7 +10423,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -10442,7 +10442,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -10471,13 +10471,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (FieldMetaData)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             FieldMetaData clone = (FieldMetaData)base.MemberwiseClone();
@@ -10561,7 +10561,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             FieldMetaDataCollection clone = new FieldMetaDataCollection(this.Count);
@@ -10644,19 +10644,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.ConfigurationVersionDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ConfigurationVersionDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ConfigurationVersionDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ConfigurationVersionDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -10667,7 +10667,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -10678,7 +10678,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -10699,13 +10699,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (ConfigurationVersionDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ConfigurationVersionDataType clone = (ConfigurationVersionDataType)base.MemberwiseClone();
@@ -10773,7 +10773,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ConfigurationVersionDataTypeCollection clone = new ConfigurationVersionDataTypeCollection(this.Count);
@@ -10900,19 +10900,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.PublishedDataSetDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.PublishedDataSetDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PublishedDataSetDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.PublishedDataSetDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -10926,7 +10926,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -10940,7 +10940,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -10964,13 +10964,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (PublishedDataSetDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PublishedDataSetDataType clone = (PublishedDataSetDataType)base.MemberwiseClone();
@@ -11044,7 +11044,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PublishedDataSetDataTypeCollection clone = new PublishedDataSetDataTypeCollection(this.Count);
@@ -11091,19 +11091,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.PublishedDataSetSourceDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.PublishedDataSetSourceDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PublishedDataSetSourceDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.PublishedDataSetSourceDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -11112,7 +11112,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -11121,7 +11121,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -11140,13 +11140,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (PublishedDataSetSourceDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PublishedDataSetSourceDataType clone = (PublishedDataSetSourceDataType)base.MemberwiseClone();
@@ -11210,7 +11210,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PublishedDataSetSourceDataTypeCollection clone = new PublishedDataSetSourceDataTypeCollection(this.Count);
@@ -11340,19 +11340,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.PublishedVariableDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.PublishedVariableDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PublishedVariableDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.PublishedVariableDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -11369,7 +11369,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -11386,7 +11386,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -11413,13 +11413,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (PublishedVariableDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PublishedVariableDataType clone = (PublishedVariableDataType)base.MemberwiseClone();
@@ -11499,7 +11499,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PublishedVariableDataTypeCollection clone = new PublishedVariableDataTypeCollection(this.Count);
@@ -11566,19 +11566,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.PublishedDataItemsDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.PublishedDataItemsDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.PublishedDataItemsDataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.PublishedDataItemsDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -11590,7 +11590,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -11602,7 +11602,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -11622,13 +11622,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (PublishedDataItemsDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PublishedDataItemsDataType clone = (PublishedDataItemsDataType)base.MemberwiseClone();
@@ -11694,7 +11694,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PublishedDataItemsDataTypeCollection clone = new PublishedDataItemsDataTypeCollection(this.Count);
@@ -11791,19 +11791,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.PublishedEventsDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.PublishedEventsDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.PublishedEventsDataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.PublishedEventsDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -11817,7 +11817,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -11831,7 +11831,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -11853,13 +11853,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (PublishedEventsDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PublishedEventsDataType clone = (PublishedEventsDataType)base.MemberwiseClone();
@@ -11929,7 +11929,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PublishedEventsDataTypeCollection clone = new PublishedEventsDataTypeCollection(this.Count);
@@ -11984,19 +11984,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.PublishedDataSetCustomSourceDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.PublishedDataSetCustomSourceDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.PublishedDataSetCustomSourceDataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.PublishedDataSetCustomSourceDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -12008,7 +12008,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -12020,7 +12020,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -12040,13 +12040,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (PublishedDataSetCustomSourceDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PublishedDataSetCustomSourceDataType clone = (PublishedDataSetCustomSourceDataType)base.MemberwiseClone();
@@ -12112,7 +12112,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PublishedDataSetCustomSourceDataTypeCollection clone = new PublishedDataSetCustomSourceDataTypeCollection(this.Count);
@@ -12185,19 +12185,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.ActionTargetDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ActionTargetDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ActionTargetDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ActionTargetDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -12209,7 +12209,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -12221,7 +12221,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -12243,13 +12243,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (ActionTargetDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ActionTargetDataType clone = (ActionTargetDataType)base.MemberwiseClone();
@@ -12319,7 +12319,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ActionTargetDataTypeCollection clone = new ActionTargetDataTypeCollection(this.Count);
@@ -12407,19 +12407,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.PublishedActionDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.PublishedActionDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.PublishedActionDataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.PublishedActionDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -12432,7 +12432,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -12445,7 +12445,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -12466,13 +12466,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (PublishedActionDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PublishedActionDataType clone = (PublishedActionDataType)base.MemberwiseClone();
@@ -12540,7 +12540,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PublishedActionDataTypeCollection clone = new PublishedActionDataTypeCollection(this.Count);
@@ -12628,7 +12628,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ActionStateCollection clone = new ActionStateCollection(this.Count);
@@ -12692,19 +12692,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.ActionMethodDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ActionMethodDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ActionMethodDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ActionMethodDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -12715,7 +12715,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -12726,7 +12726,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -12747,13 +12747,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (ActionMethodDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ActionMethodDataType clone = (ActionMethodDataType)base.MemberwiseClone();
@@ -12821,7 +12821,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ActionMethodDataTypeCollection clone = new ActionMethodDataTypeCollection(this.Count);
@@ -12888,19 +12888,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.PublishedActionMethodDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.PublishedActionMethodDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.PublishedActionMethodDataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.PublishedActionMethodDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -12912,7 +12912,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -12924,7 +12924,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -12944,13 +12944,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (PublishedActionMethodDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PublishedActionMethodDataType clone = (PublishedActionMethodDataType)base.MemberwiseClone();
@@ -13016,7 +13016,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PublishedActionMethodDataTypeCollection clone = new PublishedActionMethodDataTypeCollection(this.Count);
@@ -13120,7 +13120,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DataSetFieldContentMaskCollection clone = new DataSetFieldContentMaskCollection(this.Count);
@@ -13259,19 +13259,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.DataSetWriterDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DataSetWriterDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DataSetWriterDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DataSetWriterDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -13289,7 +13289,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -13307,7 +13307,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -13335,13 +13335,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (DataSetWriterDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DataSetWriterDataType clone = (DataSetWriterDataType)base.MemberwiseClone();
@@ -13423,7 +13423,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DataSetWriterDataTypeCollection clone = new DataSetWriterDataTypeCollection(this.Count);
@@ -13470,19 +13470,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.DataSetWriterTransportDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DataSetWriterTransportDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DataSetWriterTransportDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DataSetWriterTransportDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -13491,7 +13491,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -13500,7 +13500,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -13519,13 +13519,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (DataSetWriterTransportDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DataSetWriterTransportDataType clone = (DataSetWriterTransportDataType)base.MemberwiseClone();
@@ -13589,7 +13589,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DataSetWriterTransportDataTypeCollection clone = new DataSetWriterTransportDataTypeCollection(this.Count);
@@ -13636,19 +13636,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.DataSetWriterMessageDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DataSetWriterMessageDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DataSetWriterMessageDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DataSetWriterMessageDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -13657,7 +13657,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -13666,7 +13666,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -13685,13 +13685,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (DataSetWriterMessageDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DataSetWriterMessageDataType clone = (DataSetWriterMessageDataType)base.MemberwiseClone();
@@ -13755,7 +13755,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DataSetWriterMessageDataTypeCollection clone = new DataSetWriterMessageDataTypeCollection(this.Count);
@@ -13888,19 +13888,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.PubSubGroupDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.PubSubGroupDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PubSubGroupDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.PubSubGroupDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -13916,7 +13916,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -13932,7 +13932,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -13958,13 +13958,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (PubSubGroupDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PubSubGroupDataType clone = (PubSubGroupDataType)base.MemberwiseClone();
@@ -14042,7 +14042,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PubSubGroupDataTypeCollection clone = new PubSubGroupDataTypeCollection(this.Count);
@@ -14193,19 +14193,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.WriterGroupDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.WriterGroupDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.WriterGroupDataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.WriterGroupDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -14225,7 +14225,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -14245,7 +14245,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -14273,13 +14273,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (WriterGroupDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             WriterGroupDataType clone = (WriterGroupDataType)base.MemberwiseClone();
@@ -14361,7 +14361,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             WriterGroupDataTypeCollection clone = new WriterGroupDataTypeCollection(this.Count);
@@ -14408,19 +14408,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.WriterGroupTransportDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.WriterGroupTransportDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.WriterGroupTransportDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.WriterGroupTransportDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -14429,7 +14429,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -14438,7 +14438,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -14457,13 +14457,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (WriterGroupTransportDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             WriterGroupTransportDataType clone = (WriterGroupTransportDataType)base.MemberwiseClone();
@@ -14527,7 +14527,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             WriterGroupTransportDataTypeCollection clone = new WriterGroupTransportDataTypeCollection(this.Count);
@@ -14574,19 +14574,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.WriterGroupMessageDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.WriterGroupMessageDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.WriterGroupMessageDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.WriterGroupMessageDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -14595,7 +14595,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -14604,7 +14604,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -14623,13 +14623,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (WriterGroupMessageDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             WriterGroupMessageDataType clone = (WriterGroupMessageDataType)base.MemberwiseClone();
@@ -14693,7 +14693,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             WriterGroupMessageDataTypeCollection clone = new WriterGroupMessageDataTypeCollection(this.Count);
@@ -14856,19 +14856,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.PubSubConnectionDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.PubSubConnectionDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PubSubConnectionDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.PubSubConnectionDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -14886,7 +14886,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -14904,7 +14904,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -14932,13 +14932,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (PubSubConnectionDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PubSubConnectionDataType clone = (PubSubConnectionDataType)base.MemberwiseClone();
@@ -15020,7 +15020,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PubSubConnectionDataTypeCollection clone = new PubSubConnectionDataTypeCollection(this.Count);
@@ -15067,19 +15067,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.ConnectionTransportDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ConnectionTransportDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ConnectionTransportDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ConnectionTransportDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -15088,7 +15088,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -15097,7 +15097,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -15116,13 +15116,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (ConnectionTransportDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ConnectionTransportDataType clone = (ConnectionTransportDataType)base.MemberwiseClone();
@@ -15186,7 +15186,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ConnectionTransportDataTypeCollection clone = new ConnectionTransportDataTypeCollection(this.Count);
@@ -15241,19 +15241,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.NetworkAddressDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.NetworkAddressDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.NetworkAddressDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.NetworkAddressDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -15263,7 +15263,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -15273,7 +15273,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -15293,13 +15293,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (NetworkAddressDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             NetworkAddressDataType clone = (NetworkAddressDataType)base.MemberwiseClone();
@@ -15365,7 +15365,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             NetworkAddressDataTypeCollection clone = new NetworkAddressDataTypeCollection(this.Count);
@@ -15420,19 +15420,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.NetworkAddressUrlDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.NetworkAddressUrlDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.NetworkAddressUrlDataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.NetworkAddressUrlDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -15444,7 +15444,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -15456,7 +15456,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -15476,13 +15476,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (NetworkAddressUrlDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             NetworkAddressUrlDataType clone = (NetworkAddressUrlDataType)base.MemberwiseClone();
@@ -15548,7 +15548,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             NetworkAddressUrlDataTypeCollection clone = new NetworkAddressUrlDataTypeCollection(this.Count);
@@ -15633,19 +15633,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.ReaderGroupDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.ReaderGroupDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ReaderGroupDataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.ReaderGroupDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -15659,7 +15659,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -15673,7 +15673,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -15695,13 +15695,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (ReaderGroupDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ReaderGroupDataType clone = (ReaderGroupDataType)base.MemberwiseClone();
@@ -15771,7 +15771,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ReaderGroupDataTypeCollection clone = new ReaderGroupDataTypeCollection(this.Count);
@@ -15818,19 +15818,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.ReaderGroupTransportDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ReaderGroupTransportDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ReaderGroupTransportDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ReaderGroupTransportDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -15839,7 +15839,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -15848,7 +15848,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -15867,13 +15867,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (ReaderGroupTransportDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ReaderGroupTransportDataType clone = (ReaderGroupTransportDataType)base.MemberwiseClone();
@@ -15937,7 +15937,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ReaderGroupTransportDataTypeCollection clone = new ReaderGroupTransportDataTypeCollection(this.Count);
@@ -15984,19 +15984,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.ReaderGroupMessageDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ReaderGroupMessageDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ReaderGroupMessageDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ReaderGroupMessageDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -16005,7 +16005,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -16014,7 +16014,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -16033,13 +16033,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (ReaderGroupMessageDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ReaderGroupMessageDataType clone = (ReaderGroupMessageDataType)base.MemberwiseClone();
@@ -16103,7 +16103,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ReaderGroupMessageDataTypeCollection clone = new ReaderGroupMessageDataTypeCollection(this.Count);
@@ -16338,19 +16338,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.DataSetReaderDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DataSetReaderDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DataSetReaderDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DataSetReaderDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -16376,7 +16376,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -16402,7 +16402,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -16438,13 +16438,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (DataSetReaderDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DataSetReaderDataType clone = (DataSetReaderDataType)base.MemberwiseClone();
@@ -16542,7 +16542,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DataSetReaderDataTypeCollection clone = new DataSetReaderDataTypeCollection(this.Count);
@@ -16589,19 +16589,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.DataSetReaderTransportDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DataSetReaderTransportDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DataSetReaderTransportDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DataSetReaderTransportDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -16610,7 +16610,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -16619,7 +16619,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -16638,13 +16638,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (DataSetReaderTransportDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DataSetReaderTransportDataType clone = (DataSetReaderTransportDataType)base.MemberwiseClone();
@@ -16708,7 +16708,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DataSetReaderTransportDataTypeCollection clone = new DataSetReaderTransportDataTypeCollection(this.Count);
@@ -16755,19 +16755,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.DataSetReaderMessageDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DataSetReaderMessageDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DataSetReaderMessageDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DataSetReaderMessageDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -16776,7 +16776,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -16785,7 +16785,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -16804,13 +16804,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (DataSetReaderMessageDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DataSetReaderMessageDataType clone = (DataSetReaderMessageDataType)base.MemberwiseClone();
@@ -16874,7 +16874,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DataSetReaderMessageDataTypeCollection clone = new DataSetReaderMessageDataTypeCollection(this.Count);
@@ -16921,19 +16921,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.SubscribedDataSetDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SubscribedDataSetDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SubscribedDataSetDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.SubscribedDataSetDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -16942,7 +16942,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -16951,7 +16951,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -16970,13 +16970,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (SubscribedDataSetDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             SubscribedDataSetDataType clone = (SubscribedDataSetDataType)base.MemberwiseClone();
@@ -17040,7 +17040,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             SubscribedDataSetDataTypeCollection clone = new SubscribedDataSetDataTypeCollection(this.Count);
@@ -17107,19 +17107,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.TargetVariablesDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.TargetVariablesDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.TargetVariablesDataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.TargetVariablesDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -17131,7 +17131,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -17143,7 +17143,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -17163,13 +17163,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (TargetVariablesDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             TargetVariablesDataType clone = (TargetVariablesDataType)base.MemberwiseClone();
@@ -17235,7 +17235,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             TargetVariablesDataTypeCollection clone = new TargetVariablesDataTypeCollection(this.Count);
@@ -17344,19 +17344,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.FieldTargetDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.FieldTargetDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.FieldTargetDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.FieldTargetDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -17372,7 +17372,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -17388,7 +17388,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -17414,13 +17414,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (FieldTargetDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             FieldTargetDataType clone = (FieldTargetDataType)base.MemberwiseClone();
@@ -17498,7 +17498,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             FieldTargetDataTypeCollection clone = new FieldTargetDataTypeCollection(this.Count);
@@ -17586,7 +17586,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             OverrideValueHandlingCollection clone = new OverrideValueHandlingCollection(this.Count);
@@ -17662,19 +17662,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.SubscribedDataSetMirrorDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.SubscribedDataSetMirrorDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.SubscribedDataSetMirrorDataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.SubscribedDataSetMirrorDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -17687,7 +17687,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -17700,7 +17700,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -17721,13 +17721,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (SubscribedDataSetMirrorDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             SubscribedDataSetMirrorDataType clone = (SubscribedDataSetMirrorDataType)base.MemberwiseClone();
@@ -17795,7 +17795,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             SubscribedDataSetMirrorDataTypeCollection clone = new SubscribedDataSetMirrorDataTypeCollection(this.Count);
@@ -17892,19 +17892,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.PubSubConfigurationDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.PubSubConfigurationDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PubSubConfigurationDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.PubSubConfigurationDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -17916,7 +17916,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -17928,7 +17928,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -17950,13 +17950,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (PubSubConfigurationDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PubSubConfigurationDataType clone = (PubSubConfigurationDataType)base.MemberwiseClone();
@@ -18026,7 +18026,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PubSubConfigurationDataTypeCollection clone = new PubSubConfigurationDataTypeCollection(this.Count);
@@ -18081,19 +18081,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.StandaloneSubscribedDataSetRefDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.StandaloneSubscribedDataSetRefDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.StandaloneSubscribedDataSetRefDataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.StandaloneSubscribedDataSetRefDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -18105,7 +18105,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -18117,7 +18117,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -18137,13 +18137,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (StandaloneSubscribedDataSetRefDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             StandaloneSubscribedDataSetRefDataType clone = (StandaloneSubscribedDataSetRefDataType)base.MemberwiseClone();
@@ -18209,7 +18209,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             StandaloneSubscribedDataSetRefDataTypeCollection clone = new StandaloneSubscribedDataSetRefDataTypeCollection(this.Count);
@@ -18315,19 +18315,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.StandaloneSubscribedDataSetDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.StandaloneSubscribedDataSetDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.StandaloneSubscribedDataSetDataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.StandaloneSubscribedDataSetDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -18342,7 +18342,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -18357,7 +18357,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -18380,13 +18380,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (StandaloneSubscribedDataSetDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             StandaloneSubscribedDataSetDataType clone = (StandaloneSubscribedDataSetDataType)base.MemberwiseClone();
@@ -18458,7 +18458,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             StandaloneSubscribedDataSetDataTypeCollection clone = new StandaloneSubscribedDataSetDataTypeCollection(this.Count);
@@ -18621,19 +18621,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.SecurityGroupDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SecurityGroupDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SecurityGroupDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.SecurityGroupDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -18651,7 +18651,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -18669,7 +18669,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -18697,13 +18697,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (SecurityGroupDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             SecurityGroupDataType clone = (SecurityGroupDataType)base.MemberwiseClone();
@@ -18785,7 +18785,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             SecurityGroupDataTypeCollection clone = new SecurityGroupDataTypeCollection(this.Count);
@@ -18960,19 +18960,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.PubSubKeyPushTargetDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.PubSubKeyPushTargetDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PubSubKeyPushTargetDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.PubSubKeyPushTargetDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -18990,7 +18990,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -19008,7 +19008,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -19036,13 +19036,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (PubSubKeyPushTargetDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PubSubKeyPushTargetDataType clone = (PubSubKeyPushTargetDataType)base.MemberwiseClone();
@@ -19124,7 +19124,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PubSubKeyPushTargetDataTypeCollection clone = new PubSubKeyPushTargetDataTypeCollection(this.Count);
@@ -19305,19 +19305,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.PubSubConfiguration2DataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.PubSubConfiguration2DataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.PubSubConfiguration2DataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.PubSubConfiguration2DataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -19335,7 +19335,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -19353,7 +19353,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -19379,13 +19379,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (PubSubConfiguration2DataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PubSubConfiguration2DataType clone = (PubSubConfiguration2DataType)base.MemberwiseClone();
@@ -19463,7 +19463,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PubSubConfiguration2DataTypeCollection clone = new PubSubConfiguration2DataTypeCollection(this.Count);
@@ -19551,7 +19551,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DataSetOrderingTypeCollection clone = new DataSetOrderingTypeCollection(this.Count);
@@ -19675,7 +19675,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             UadpNetworkMessageContentMaskCollection clone = new UadpNetworkMessageContentMaskCollection(this.Count);
@@ -19778,19 +19778,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.UadpWriterGroupMessageDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.UadpWriterGroupMessageDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.UadpWriterGroupMessageDataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.UadpWriterGroupMessageDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -19806,7 +19806,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -19822,7 +19822,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -19846,13 +19846,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (UadpWriterGroupMessageDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             UadpWriterGroupMessageDataType clone = (UadpWriterGroupMessageDataType)base.MemberwiseClone();
@@ -19926,7 +19926,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             UadpWriterGroupMessageDataTypeCollection clone = new UadpWriterGroupMessageDataTypeCollection(this.Count);
@@ -20030,7 +20030,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             UadpDataSetMessageContentMaskCollection clone = new UadpDataSetMessageContentMaskCollection(this.Count);
@@ -20112,19 +20112,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.UadpDataSetWriterMessageDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.UadpDataSetWriterMessageDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.UadpDataSetWriterMessageDataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.UadpDataSetWriterMessageDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -20139,7 +20139,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -20154,7 +20154,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -20177,13 +20177,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (UadpDataSetWriterMessageDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             UadpDataSetWriterMessageDataType clone = (UadpDataSetWriterMessageDataType)base.MemberwiseClone();
@@ -20255,7 +20255,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             UadpDataSetWriterMessageDataTypeCollection clone = new UadpDataSetWriterMessageDataTypeCollection(this.Count);
@@ -20382,19 +20382,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.UadpDataSetReaderMessageDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.UadpDataSetReaderMessageDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.UadpDataSetReaderMessageDataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.UadpDataSetReaderMessageDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -20414,7 +20414,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -20434,7 +20434,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -20462,13 +20462,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (UadpDataSetReaderMessageDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             UadpDataSetReaderMessageDataType clone = (UadpDataSetReaderMessageDataType)base.MemberwiseClone();
@@ -20550,7 +20550,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             UadpDataSetReaderMessageDataTypeCollection clone = new UadpDataSetReaderMessageDataTypeCollection(this.Count);
@@ -20658,7 +20658,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             JsonNetworkMessageContentMaskCollection clone = new JsonNetworkMessageContentMaskCollection(this.Count);
@@ -20713,19 +20713,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.JsonWriterGroupMessageDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.JsonWriterGroupMessageDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.JsonWriterGroupMessageDataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.JsonWriterGroupMessageDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -20737,7 +20737,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -20749,7 +20749,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -20769,13 +20769,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (JsonWriterGroupMessageDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             JsonWriterGroupMessageDataType clone = (JsonWriterGroupMessageDataType)base.MemberwiseClone();
@@ -20841,7 +20841,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             JsonWriterGroupMessageDataTypeCollection clone = new JsonWriterGroupMessageDataTypeCollection(this.Count);
@@ -20969,7 +20969,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             JsonDataSetMessageContentMaskCollection clone = new JsonDataSetMessageContentMaskCollection(this.Count);
@@ -21024,19 +21024,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.JsonDataSetWriterMessageDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.JsonDataSetWriterMessageDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.JsonDataSetWriterMessageDataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.JsonDataSetWriterMessageDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -21048,7 +21048,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -21060,7 +21060,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -21080,13 +21080,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (JsonDataSetWriterMessageDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             JsonDataSetWriterMessageDataType clone = (JsonDataSetWriterMessageDataType)base.MemberwiseClone();
@@ -21152,7 +21152,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             JsonDataSetWriterMessageDataTypeCollection clone = new JsonDataSetWriterMessageDataTypeCollection(this.Count);
@@ -21216,19 +21216,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.JsonDataSetReaderMessageDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.JsonDataSetReaderMessageDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.JsonDataSetReaderMessageDataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.JsonDataSetReaderMessageDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -21241,7 +21241,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -21254,7 +21254,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -21275,13 +21275,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (JsonDataSetReaderMessageDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             JsonDataSetReaderMessageDataType clone = (JsonDataSetReaderMessageDataType)base.MemberwiseClone();
@@ -21349,7 +21349,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             JsonDataSetReaderMessageDataTypeCollection clone = new JsonDataSetReaderMessageDataTypeCollection(this.Count);
@@ -21396,19 +21396,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.QosDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.QosDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.QosDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.QosDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -21417,7 +21417,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -21426,7 +21426,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -21445,13 +21445,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (QosDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             QosDataType clone = (QosDataType)base.MemberwiseClone();
@@ -21515,7 +21515,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             QosDataTypeCollection clone = new QosDataTypeCollection(this.Count);
@@ -21562,19 +21562,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.TransmitQosDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.TransmitQosDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.TransmitQosDataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.TransmitQosDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -21585,7 +21585,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -21596,7 +21596,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -21615,13 +21615,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (TransmitQosDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             TransmitQosDataType clone = (TransmitQosDataType)base.MemberwiseClone();
@@ -21685,7 +21685,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             TransmitQosDataTypeCollection clone = new TransmitQosDataTypeCollection(this.Count);
@@ -21740,19 +21740,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.TransmitQosPriorityDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.TransmitQosPriorityDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.TransmitQosPriorityDataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.TransmitQosPriorityDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -21764,7 +21764,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -21776,7 +21776,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -21796,13 +21796,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (TransmitQosPriorityDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             TransmitQosPriorityDataType clone = (TransmitQosPriorityDataType)base.MemberwiseClone();
@@ -21868,7 +21868,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             TransmitQosPriorityDataTypeCollection clone = new TransmitQosPriorityDataTypeCollection(this.Count);
@@ -21915,19 +21915,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.ReceiveQosDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.ReceiveQosDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ReceiveQosDataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.ReceiveQosDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -21938,7 +21938,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -21949,7 +21949,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -21968,13 +21968,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (ReceiveQosDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ReceiveQosDataType clone = (ReceiveQosDataType)base.MemberwiseClone();
@@ -22038,7 +22038,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ReceiveQosDataTypeCollection clone = new ReceiveQosDataTypeCollection(this.Count);
@@ -22093,19 +22093,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.ReceiveQosPriorityDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.ReceiveQosPriorityDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ReceiveQosPriorityDataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.ReceiveQosPriorityDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -22117,7 +22117,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -22129,7 +22129,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -22149,13 +22149,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (ReceiveQosPriorityDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ReceiveQosPriorityDataType clone = (ReceiveQosPriorityDataType)base.MemberwiseClone();
@@ -22221,7 +22221,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ReceiveQosPriorityDataTypeCollection clone = new ReceiveQosPriorityDataTypeCollection(this.Count);
@@ -22276,19 +22276,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.DatagramConnectionTransportDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.DatagramConnectionTransportDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.DatagramConnectionTransportDataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.DatagramConnectionTransportDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -22300,7 +22300,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -22312,7 +22312,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -22332,13 +22332,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (DatagramConnectionTransportDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DatagramConnectionTransportDataType clone = (DatagramConnectionTransportDataType)base.MemberwiseClone();
@@ -22404,7 +22404,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DatagramConnectionTransportDataTypeCollection clone = new DatagramConnectionTransportDataTypeCollection(this.Count);
@@ -22486,19 +22486,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.DatagramConnectionTransport2DataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.DatagramConnectionTransport2DataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.DatagramConnectionTransport2DataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.DatagramConnectionTransport2DataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -22513,7 +22513,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -22528,7 +22528,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -22551,13 +22551,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (DatagramConnectionTransport2DataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DatagramConnectionTransport2DataType clone = (DatagramConnectionTransport2DataType)base.MemberwiseClone();
@@ -22629,7 +22629,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DatagramConnectionTransport2DataTypeCollection clone = new DatagramConnectionTransport2DataTypeCollection(this.Count);
@@ -22693,19 +22693,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.DatagramWriterGroupTransportDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.DatagramWriterGroupTransportDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.DatagramWriterGroupTransportDataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.DatagramWriterGroupTransportDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -22718,7 +22718,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -22731,7 +22731,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -22752,13 +22752,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (DatagramWriterGroupTransportDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DatagramWriterGroupTransportDataType clone = (DatagramWriterGroupTransportDataType)base.MemberwiseClone();
@@ -22826,7 +22826,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DatagramWriterGroupTransportDataTypeCollection clone = new DatagramWriterGroupTransportDataTypeCollection(this.Count);
@@ -22917,19 +22917,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.DatagramWriterGroupTransport2DataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.DatagramWriterGroupTransport2DataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.DatagramWriterGroupTransport2DataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.DatagramWriterGroupTransport2DataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -22945,7 +22945,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -22961,7 +22961,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -22985,13 +22985,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (DatagramWriterGroupTransport2DataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DatagramWriterGroupTransport2DataType clone = (DatagramWriterGroupTransport2DataType)base.MemberwiseClone();
@@ -23065,7 +23065,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DatagramWriterGroupTransport2DataTypeCollection clone = new DatagramWriterGroupTransport2DataTypeCollection(this.Count);
@@ -23147,19 +23147,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.DatagramDataSetReaderTransportDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.DatagramDataSetReaderTransportDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.DatagramDataSetReaderTransportDataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.DatagramDataSetReaderTransportDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -23174,7 +23174,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -23189,7 +23189,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -23212,13 +23212,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (DatagramDataSetReaderTransportDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DatagramDataSetReaderTransportDataType clone = (DatagramDataSetReaderTransportDataType)base.MemberwiseClone();
@@ -23290,7 +23290,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DatagramDataSetReaderTransportDataTypeCollection clone = new DatagramDataSetReaderTransportDataTypeCollection(this.Count);
@@ -23393,19 +23393,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.DtlsPubSubConnectionDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DtlsPubSubConnectionDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DtlsPubSubConnectionDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DtlsPubSubConnectionDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -23419,7 +23419,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -23433,7 +23433,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -23457,13 +23457,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (DtlsPubSubConnectionDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DtlsPubSubConnectionDataType clone = (DtlsPubSubConnectionDataType)base.MemberwiseClone();
@@ -23537,7 +23537,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DtlsPubSubConnectionDataTypeCollection clone = new DtlsPubSubConnectionDataTypeCollection(this.Count);
@@ -23601,19 +23601,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.BrokerConnectionTransportDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.BrokerConnectionTransportDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.BrokerConnectionTransportDataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.BrokerConnectionTransportDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -23626,7 +23626,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -23639,7 +23639,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -23660,13 +23660,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (BrokerConnectionTransportDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             BrokerConnectionTransportDataType clone = (BrokerConnectionTransportDataType)base.MemberwiseClone();
@@ -23734,7 +23734,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             BrokerConnectionTransportDataTypeCollection clone = new BrokerConnectionTransportDataTypeCollection(this.Count);
@@ -23830,7 +23830,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             BrokerTransportQualityOfServiceCollection clone = new BrokerTransportQualityOfServiceCollection(this.Count);
@@ -23912,19 +23912,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.BrokerWriterGroupTransportDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.BrokerWriterGroupTransportDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.BrokerWriterGroupTransportDataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.BrokerWriterGroupTransportDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -23939,7 +23939,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -23954,7 +23954,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -23977,13 +23977,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (BrokerWriterGroupTransportDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             BrokerWriterGroupTransportDataType clone = (BrokerWriterGroupTransportDataType)base.MemberwiseClone();
@@ -24055,7 +24055,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             BrokerWriterGroupTransportDataTypeCollection clone = new BrokerWriterGroupTransportDataTypeCollection(this.Count);
@@ -24155,19 +24155,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.BrokerDataSetWriterTransportDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.BrokerDataSetWriterTransportDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.BrokerDataSetWriterTransportDataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.BrokerDataSetWriterTransportDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -24184,7 +24184,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -24201,7 +24201,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -24226,13 +24226,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (BrokerDataSetWriterTransportDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             BrokerDataSetWriterTransportDataType clone = (BrokerDataSetWriterTransportDataType)base.MemberwiseClone();
@@ -24308,7 +24308,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             BrokerDataSetWriterTransportDataTypeCollection clone = new BrokerDataSetWriterTransportDataTypeCollection(this.Count);
@@ -24399,19 +24399,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.BrokerDataSetReaderTransportDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.BrokerDataSetReaderTransportDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.BrokerDataSetReaderTransportDataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.BrokerDataSetReaderTransportDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -24427,7 +24427,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -24443,7 +24443,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -24467,13 +24467,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (BrokerDataSetReaderTransportDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             BrokerDataSetReaderTransportDataType clone = (BrokerDataSetReaderTransportDataType)base.MemberwiseClone();
@@ -24547,7 +24547,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             BrokerDataSetReaderTransportDataTypeCollection clone = new BrokerDataSetReaderTransportDataTypeCollection(this.Count);
@@ -24679,7 +24679,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PubSubConfigurationRefMaskCollection clone = new PubSubConfigurationRefMaskCollection(this.Count);
@@ -24761,19 +24761,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.PubSubConfigurationRefDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.PubSubConfigurationRefDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PubSubConfigurationRefDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.PubSubConfigurationRefDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -24786,7 +24786,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -24799,7 +24799,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -24822,13 +24822,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (PubSubConfigurationRefDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PubSubConfigurationRefDataType clone = (PubSubConfigurationRefDataType)base.MemberwiseClone();
@@ -24900,7 +24900,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PubSubConfigurationRefDataTypeCollection clone = new PubSubConfigurationRefDataTypeCollection(this.Count);
@@ -24985,19 +24985,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.PubSubConfigurationValueDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.PubSubConfigurationValueDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PubSubConfigurationValueDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.PubSubConfigurationValueDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -25009,7 +25009,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -25021,7 +25021,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -25043,13 +25043,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (PubSubConfigurationValueDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PubSubConfigurationValueDataType clone = (PubSubConfigurationValueDataType)base.MemberwiseClone();
@@ -25119,7 +25119,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PubSubConfigurationValueDataTypeCollection clone = new PubSubConfigurationValueDataTypeCollection(this.Count);
@@ -25215,7 +25215,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DiagnosticsLevelCollection clone = new DiagnosticsLevelCollection(this.Count);
@@ -25299,7 +25299,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PubSubDiagnosticsCounterClassificationCollection clone = new PubSubDiagnosticsCounterClassificationCollection(this.Count);
@@ -25399,19 +25399,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.JsonNetworkMessage; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => NodeId.Null;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => NodeId.Null;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => NodeId.Null; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -25426,7 +25426,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -25441,7 +25441,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -25466,13 +25466,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (JsonNetworkMessage)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             JsonNetworkMessage clone = (JsonNetworkMessage)base.MemberwiseClone();
@@ -25640,19 +25640,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.JsonDataSetMessage; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => NodeId.Null;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => NodeId.Null;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => NodeId.Null; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -25672,7 +25672,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -25692,7 +25692,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -25722,13 +25722,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (JsonDataSetMessage)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             JsonDataSetMessage clone = (JsonDataSetMessage)base.MemberwiseClone();
@@ -25879,19 +25879,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.JsonDataSetMetaDataMessage; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => NodeId.Null;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => NodeId.Null;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => NodeId.Null; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -25908,7 +25908,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -25925,7 +25925,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -25952,13 +25952,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (JsonDataSetMetaDataMessage)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             JsonDataSetMetaDataMessage clone = (JsonDataSetMetaDataMessage)base.MemberwiseClone();
@@ -26097,19 +26097,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.JsonApplicationDescriptionMessage; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => NodeId.Null;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => NodeId.Null;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => NodeId.Null; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -26124,7 +26124,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -26139,7 +26139,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -26164,13 +26164,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (JsonApplicationDescriptionMessage)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             JsonApplicationDescriptionMessage clone = (JsonApplicationDescriptionMessage)base.MemberwiseClone();
@@ -26305,19 +26305,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.JsonServerEndpointsMessage; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => NodeId.Null;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => NodeId.Null;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => NodeId.Null; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -26332,7 +26332,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -26347,7 +26347,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -26372,13 +26372,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (JsonServerEndpointsMessage)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             JsonServerEndpointsMessage clone = (JsonServerEndpointsMessage)base.MemberwiseClone();
@@ -26498,19 +26498,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.JsonStatusMessage; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => NodeId.Null;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => NodeId.Null;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => NodeId.Null; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -26526,7 +26526,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -26542,7 +26542,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -26568,13 +26568,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (JsonStatusMessage)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             JsonStatusMessage clone = (JsonStatusMessage)base.MemberwiseClone();
@@ -26690,19 +26690,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.JsonPubSubConnectionMessage; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => NodeId.Null;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => NodeId.Null;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => NodeId.Null; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -26716,7 +26716,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -26730,7 +26730,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -26754,13 +26754,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (JsonPubSubConnectionMessage)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             JsonPubSubConnectionMessage clone = (JsonPubSubConnectionMessage)base.MemberwiseClone();
@@ -26953,19 +26953,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.JsonActionMetaDataMessage; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => NodeId.Null;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => NodeId.Null;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => NodeId.Null; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -26984,7 +26984,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -27003,7 +27003,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -27032,13 +27032,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (JsonActionMetaDataMessage)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             JsonActionMetaDataMessage clone = (JsonActionMetaDataMessage)base.MemberwiseClone();
@@ -27160,19 +27160,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.JsonActionResponderMessage; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => NodeId.Null;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => NodeId.Null;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => NodeId.Null; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -27186,7 +27186,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -27200,7 +27200,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -27224,13 +27224,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (JsonActionResponderMessage)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             JsonActionResponderMessage clone = (JsonActionResponderMessage)base.MemberwiseClone();
@@ -27366,19 +27366,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.JsonActionNetworkMessage; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => NodeId.Null;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => NodeId.Null;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => NodeId.Null; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -27396,7 +27396,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -27414,7 +27414,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -27442,13 +27442,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (JsonActionNetworkMessage)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             JsonActionNetworkMessage clone = (JsonActionNetworkMessage)base.MemberwiseClone();
@@ -27622,19 +27622,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.JsonActionRequestMessage; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => NodeId.Null;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => NodeId.Null;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => NodeId.Null; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -27654,7 +27654,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -27674,7 +27674,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -27704,13 +27704,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (JsonActionRequestMessage)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             JsonActionRequestMessage clone = (JsonActionRequestMessage)base.MemberwiseClone();
@@ -27897,19 +27897,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.JsonActionResponseMessage; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => NodeId.Null;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => NodeId.Null;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => NodeId.Null; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -27930,7 +27930,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -27951,7 +27951,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -27982,13 +27982,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (JsonActionResponseMessage)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             JsonActionResponseMessage clone = (JsonActionResponseMessage)base.MemberwiseClone();
@@ -28087,19 +28087,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.AliasNameDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.AliasNameDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.AliasNameDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.AliasNameDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -28110,7 +28110,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -28121,7 +28121,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -28142,13 +28142,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (AliasNameDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             AliasNameDataType clone = (AliasNameDataType)base.MemberwiseClone();
@@ -28216,7 +28216,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             AliasNameDataTypeCollection clone = new AliasNameDataTypeCollection(this.Count);
@@ -28332,7 +28332,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PasswordOptionsMaskCollection clone = new PasswordOptionsMaskCollection(this.Count);
@@ -28428,7 +28428,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             UserConfigurationMaskCollection clone = new UserConfigurationMaskCollection(this.Count);
@@ -28501,19 +28501,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.UserManagementDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.UserManagementDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.UserManagementDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.UserManagementDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -28525,7 +28525,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -28537,7 +28537,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -28559,13 +28559,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (UserManagementDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             UserManagementDataType clone = (UserManagementDataType)base.MemberwiseClone();
@@ -28635,7 +28635,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             UserManagementDataTypeCollection clone = new UserManagementDataTypeCollection(this.Count);
@@ -28723,7 +28723,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DuplexCollection clone = new DuplexCollection(this.Count);
@@ -28811,7 +28811,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             InterfaceAdminStatusCollection clone = new InterfaceAdminStatusCollection(this.Count);
@@ -28915,7 +28915,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             InterfaceOperStatusCollection clone = new InterfaceOperStatusCollection(this.Count);
@@ -29011,7 +29011,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             NegotiationStatusCollection clone = new NegotiationStatusCollection(this.Count);
@@ -29191,7 +29191,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             TsnFailureCodeCollection clone = new TsnFailureCodeCollection(this.Count);
@@ -29287,7 +29287,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             TsnStreamStateCollection clone = new TsnStreamStateCollection(this.Count);
@@ -29375,7 +29375,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             TsnTalkerStatusCollection clone = new TsnTalkerStatusCollection(this.Count);
@@ -29467,7 +29467,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             TsnListenerStatusCollection clone = new TsnListenerStatusCollection(this.Count);
@@ -29571,7 +29571,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ChassisIdSubtypeCollection clone = new ChassisIdSubtypeCollection(this.Count);
@@ -29675,7 +29675,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PortIdSubtypeCollection clone = new PortIdSubtypeCollection(this.Count);
@@ -29767,7 +29767,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ManAddrIfSubtypeCollection clone = new ManAddrIfSubtypeCollection(this.Count);
@@ -29849,19 +29849,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.PriorityMappingEntryType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.PriorityMappingEntryType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PriorityMappingEntryType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.PriorityMappingEntryType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -29874,7 +29874,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -29887,7 +29887,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -29910,13 +29910,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (PriorityMappingEntryType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PriorityMappingEntryType clone = (PriorityMappingEntryType)base.MemberwiseClone();
@@ -29988,7 +29988,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PriorityMappingEntryTypeCollection clone = new PriorityMappingEntryTypeCollection(this.Count);
@@ -30088,19 +30088,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.LldpManagementAddressTxPortType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.LldpManagementAddressTxPortType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.LldpManagementAddressTxPortType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.LldpManagementAddressTxPortType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -30115,7 +30115,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -30130,7 +30130,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -30155,13 +30155,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (LldpManagementAddressTxPortType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             LldpManagementAddressTxPortType clone = (LldpManagementAddressTxPortType)base.MemberwiseClone();
@@ -30237,7 +30237,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             LldpManagementAddressTxPortTypeCollection clone = new LldpManagementAddressTxPortTypeCollection(this.Count);
@@ -30319,19 +30319,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.LldpManagementAddressType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.LldpManagementAddressType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.LldpManagementAddressType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.LldpManagementAddressType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -30344,7 +30344,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -30357,7 +30357,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -30380,13 +30380,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (LldpManagementAddressType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             LldpManagementAddressType clone = (LldpManagementAddressType)base.MemberwiseClone();
@@ -30458,7 +30458,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             LldpManagementAddressTypeCollection clone = new LldpManagementAddressTypeCollection(this.Count);
@@ -30522,19 +30522,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.LldpTlvType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.LldpTlvType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.LldpTlvType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.LldpTlvType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -30545,7 +30545,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -30556,7 +30556,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -30577,13 +30577,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (LldpTlvType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             LldpTlvType clone = (LldpTlvType)base.MemberwiseClone();
@@ -30651,7 +30651,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             LldpTlvTypeCollection clone = new LldpTlvTypeCollection(this.Count);
@@ -30775,7 +30775,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             LldpSystemCapabilitiesMapCollection clone = new LldpSystemCapabilitiesMapCollection(this.Count);
@@ -30857,19 +30857,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.ReferenceDescriptionDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ReferenceDescriptionDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ReferenceDescriptionDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ReferenceDescriptionDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -30882,7 +30882,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -30895,7 +30895,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -30918,13 +30918,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (ReferenceDescriptionDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ReferenceDescriptionDataType clone = (ReferenceDescriptionDataType)base.MemberwiseClone();
@@ -30996,7 +30996,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ReferenceDescriptionDataTypeCollection clone = new ReferenceDescriptionDataTypeCollection(this.Count);
@@ -31069,19 +31069,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.ReferenceListEntryDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ReferenceListEntryDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ReferenceListEntryDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ReferenceListEntryDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -31093,7 +31093,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -31105,7 +31105,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -31127,13 +31127,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (ReferenceListEntryDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ReferenceListEntryDataType clone = (ReferenceListEntryDataType)base.MemberwiseClone();
@@ -31203,7 +31203,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ReferenceListEntryDataTypeCollection clone = new ReferenceListEntryDataTypeCollection(this.Count);
@@ -31369,19 +31369,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.LogRecord; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.LogRecord_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.LogRecord_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.LogRecord_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -31399,7 +31399,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -31418,7 +31418,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -31447,13 +31447,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (LogRecord)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             LogRecord clone = (LogRecord)base.MemberwiseClone();
@@ -31537,7 +31537,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             LogRecordCollection clone = new LogRecordCollection(this.Count);
@@ -31604,19 +31604,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.LogRecordsDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.LogRecordsDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.LogRecordsDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.LogRecordsDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -31626,7 +31626,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -31636,7 +31636,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -31656,13 +31656,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (LogRecordsDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             LogRecordsDataType clone = (LogRecordsDataType)base.MemberwiseClone();
@@ -31728,7 +31728,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             LogRecordsDataTypeCollection clone = new LogRecordsDataTypeCollection(this.Count);
@@ -31792,19 +31792,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.SpanContextDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SpanContextDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SpanContextDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.SpanContextDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -31815,7 +31815,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -31826,7 +31826,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -31847,13 +31847,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (SpanContextDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             SpanContextDataType clone = (SpanContextDataType)base.MemberwiseClone();
@@ -31921,7 +31921,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             SpanContextDataTypeCollection clone = new SpanContextDataTypeCollection(this.Count);
@@ -31985,19 +31985,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.TraceContextDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.TraceContextDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.TraceContextDataType_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.TraceContextDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -32010,7 +32010,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -32023,7 +32023,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -32044,13 +32044,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (TraceContextDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             TraceContextDataType clone = (TraceContextDataType)base.MemberwiseClone();
@@ -32118,7 +32118,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             TraceContextDataTypeCollection clone = new TraceContextDataTypeCollection(this.Count);
@@ -32182,19 +32182,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.NameValuePair; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.NameValuePair_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.NameValuePair_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.NameValuePair_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -32205,7 +32205,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -32216,7 +32216,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -32237,13 +32237,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (NameValuePair)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             NameValuePair clone = (NameValuePair)base.MemberwiseClone();
@@ -32311,7 +32311,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             NameValuePairCollection clone = new NameValuePairCollection(this.Count);
@@ -32411,7 +32411,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             LogRecordMaskCollection clone = new LogRecordMaskCollection(this.Count);
@@ -32503,7 +32503,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             IdTypeCollection clone = new IdTypeCollection(this.Count);
@@ -32865,19 +32865,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.RolePermissionType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.RolePermissionType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RolePermissionType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.RolePermissionType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -32888,7 +32888,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -32899,7 +32899,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -32920,13 +32920,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (RolePermissionType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             RolePermissionType clone = (RolePermissionType)base.MemberwiseClone();
@@ -32994,7 +32994,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             RolePermissionTypeCollection clone = new RolePermissionTypeCollection(this.Count);
@@ -33041,19 +33041,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.DataTypeDefinition; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DataTypeDefinition_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DataTypeDefinition_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DataTypeDefinition_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -33062,7 +33062,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -33071,7 +33071,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -33090,13 +33090,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (DataTypeDefinition)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DataTypeDefinition clone = (DataTypeDefinition)base.MemberwiseClone();
@@ -33160,7 +33160,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DataTypeDefinitionCollection clone = new DataTypeDefinitionCollection(this.Count);
@@ -33312,19 +33312,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.StructureField; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.StructureField_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.StructureField_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.StructureField_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -33340,7 +33340,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -33356,7 +33356,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -33382,13 +33382,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (StructureField)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             StructureField clone = (StructureField)base.MemberwiseClone();
@@ -33466,7 +33466,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             StructureFieldCollection clone = new StructureFieldCollection(this.Count);
@@ -33560,19 +33560,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.StructureDefinition; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.StructureDefinition_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.StructureDefinition_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.StructureDefinition_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -33587,7 +33587,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -33602,7 +33602,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -33625,13 +33625,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (StructureDefinition)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             StructureDefinition clone = (StructureDefinition)base.MemberwiseClone();
@@ -33703,7 +33703,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             StructureDefinitionCollection clone = new StructureDefinitionCollection(this.Count);
@@ -33770,19 +33770,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.EnumDefinition; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.EnumDefinition_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.EnumDefinition_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.EnumDefinition_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -33794,7 +33794,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -33806,7 +33806,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -33826,13 +33826,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (EnumDefinition)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             EnumDefinition clone = (EnumDefinition)base.MemberwiseClone();
@@ -33898,7 +33898,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             EnumDefinitionCollection clone = new EnumDefinitionCollection(this.Count);
@@ -34079,19 +34079,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.Node; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.Node_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.Node_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.Node_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -34111,7 +34111,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -34131,7 +34131,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -34161,13 +34161,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (Node)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             Node clone = (Node)base.MemberwiseClone();
@@ -34253,7 +34253,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             NodeCollection clone = new NodeCollection(this.Count);
@@ -34300,19 +34300,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.InstanceNode; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.InstanceNode_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.InstanceNode_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.InstanceNode_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -34323,7 +34323,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -34334,7 +34334,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -34353,13 +34353,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (InstanceNode)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             InstanceNode clone = (InstanceNode)base.MemberwiseClone();
@@ -34405,19 +34405,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.TypeNode; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.TypeNode_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.TypeNode_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.TypeNode_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -34428,7 +34428,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -34439,7 +34439,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -34458,13 +34458,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (TypeNode)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             TypeNode clone = (TypeNode)base.MemberwiseClone();
@@ -34518,19 +34518,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.ObjectNode; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.ObjectNode_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ObjectNode_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.ObjectNode_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -34542,7 +34542,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -34554,7 +34554,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -34574,13 +34574,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (ObjectNode)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ObjectNode clone = (ObjectNode)base.MemberwiseClone();
@@ -34636,19 +34636,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.ObjectTypeNode; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.ObjectTypeNode_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ObjectTypeNode_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.ObjectTypeNode_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -34660,7 +34660,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -34672,7 +34672,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -34692,13 +34692,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (ObjectTypeNode)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ObjectTypeNode clone = (ObjectTypeNode)base.MemberwiseClone();
@@ -34838,19 +34838,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.VariableNode; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.VariableNode_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.VariableNode_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.VariableNode_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -34870,7 +34870,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -34890,7 +34890,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -34918,13 +34918,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (VariableNode)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             VariableNode clone = (VariableNode)base.MemberwiseClone();
@@ -35044,19 +35044,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.VariableTypeNode; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.VariableTypeNode_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.VariableTypeNode_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.VariableTypeNode_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -35072,7 +35072,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -35088,7 +35088,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -35112,13 +35112,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (VariableTypeNode)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             VariableTypeNode clone = (VariableTypeNode)base.MemberwiseClone();
@@ -35200,19 +35200,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.ReferenceTypeNode; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.ReferenceTypeNode_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ReferenceTypeNode_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.ReferenceTypeNode_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -35226,7 +35226,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -35240,7 +35240,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -35262,13 +35262,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (ReferenceTypeNode)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ReferenceTypeNode clone = (ReferenceTypeNode)base.MemberwiseClone();
@@ -35337,19 +35337,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.MethodNode; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.MethodNode_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.MethodNode_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.MethodNode_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -35362,7 +35362,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -35375,7 +35375,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -35396,13 +35396,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (MethodNode)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             MethodNode clone = (MethodNode)base.MemberwiseClone();
@@ -35469,19 +35469,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.ViewNode; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.ViewNode_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ViewNode_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.ViewNode_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -35494,7 +35494,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -35507,7 +35507,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -35528,13 +35528,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (ViewNode)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ViewNode clone = (ViewNode)base.MemberwiseClone();
@@ -35601,19 +35601,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.DataTypeNode; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.DataTypeNode_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.DataTypeNode_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.DataTypeNode_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -35626,7 +35626,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -35639,7 +35639,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -35660,13 +35660,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (DataTypeNode)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DataTypeNode clone = (DataTypeNode)base.MemberwiseClone();
@@ -35742,19 +35742,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.ReferenceNode; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ReferenceNode_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ReferenceNode_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ReferenceNode_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -35766,7 +35766,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -35778,7 +35778,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -35800,13 +35800,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (ReferenceNode)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ReferenceNode clone = (ReferenceNode)base.MemberwiseClone();
@@ -35876,7 +35876,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ReferenceNodeCollection clone = new ReferenceNodeCollection(this.Count);
@@ -35979,19 +35979,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.Argument; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.Argument_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.Argument_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.Argument_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -36005,7 +36005,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -36019,7 +36019,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -36043,13 +36043,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (Argument)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             Argument clone = (Argument)base.MemberwiseClone();
@@ -36123,7 +36123,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ArgumentCollection clone = new ArgumentCollection(this.Count);
@@ -36196,19 +36196,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.EnumValueType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.EnumValueType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.EnumValueType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.EnumValueType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -36220,7 +36220,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -36232,7 +36232,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -36254,13 +36254,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (EnumValueType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             EnumValueType clone = (EnumValueType)base.MemberwiseClone();
@@ -36330,7 +36330,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             EnumValueTypeCollection clone = new EnumValueTypeCollection(this.Count);
@@ -36385,19 +36385,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.EnumField; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.EnumField_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.EnumField_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.EnumField_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -36409,7 +36409,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -36421,7 +36421,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -36441,13 +36441,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (EnumField)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             EnumField clone = (EnumField)base.MemberwiseClone();
@@ -36513,7 +36513,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             EnumFieldCollection clone = new EnumFieldCollection(this.Count);
@@ -36577,19 +36577,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.OptionSet; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.OptionSet_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.OptionSet_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.OptionSet_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -36600,7 +36600,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -36611,7 +36611,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -36632,13 +36632,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (OptionSet)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             OptionSet clone = (OptionSet)base.MemberwiseClone();
@@ -36706,7 +36706,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             OptionSetCollection clone = new OptionSetCollection(this.Count);
@@ -36770,19 +36770,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.TimeZoneDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.TimeZoneDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.TimeZoneDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.TimeZoneDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -36793,7 +36793,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -36804,7 +36804,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -36825,13 +36825,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (TimeZoneDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             TimeZoneDataType clone = (TimeZoneDataType)base.MemberwiseClone();
@@ -36899,7 +36899,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             TimeZoneDataTypeCollection clone = new TimeZoneDataTypeCollection(this.Count);
@@ -37047,19 +37047,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.ApplicationDescription; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ApplicationDescription_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ApplicationDescription_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ApplicationDescription_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -37075,7 +37075,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -37091,7 +37091,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -37117,13 +37117,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (ApplicationDescription)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ApplicationDescription clone = (ApplicationDescription)base.MemberwiseClone();
@@ -37201,7 +37201,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ApplicationDescriptionCollection clone = new ApplicationDescriptionCollection(this.Count);
@@ -37310,19 +37310,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.RequestHeader; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.RequestHeader_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RequestHeader_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.RequestHeader_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -37338,7 +37338,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -37354,7 +37354,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -37380,13 +37380,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (RequestHeader)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             RequestHeader clone = (RequestHeader)base.MemberwiseClone();
@@ -37511,19 +37511,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.ResponseHeader; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ResponseHeader_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ResponseHeader_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ResponseHeader_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -37538,7 +37538,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -37553,7 +37553,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -37578,13 +37578,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (ResponseHeader)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ResponseHeader clone = (ResponseHeader)base.MemberwiseClone();
@@ -37662,19 +37662,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.ServiceFault; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ServiceFault_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ServiceFault_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ServiceFault_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -37684,7 +37684,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -37694,7 +37694,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -37714,13 +37714,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (ServiceFault)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ServiceFault clone = (ServiceFault)base.MemberwiseClone();
@@ -37848,19 +37848,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.SessionlessInvokeRequestType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SessionlessInvokeRequestType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SessionlessInvokeRequestType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.SessionlessInvokeRequestType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -37874,7 +37874,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -37888,7 +37888,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -37912,13 +37912,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (SessionlessInvokeRequestType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             SessionlessInvokeRequestType clone = (SessionlessInvokeRequestType)base.MemberwiseClone();
@@ -38024,19 +38024,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.SessionlessInvokeResponseType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SessionlessInvokeResponseType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SessionlessInvokeResponseType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.SessionlessInvokeResponseType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -38048,7 +38048,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -38060,7 +38060,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -38082,13 +38082,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (SessionlessInvokeResponseType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             SessionlessInvokeResponseType clone = (SessionlessInvokeResponseType)base.MemberwiseClone();
@@ -38211,19 +38211,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.FindServersRequest; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.FindServersRequest_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.FindServersRequest_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.FindServersRequest_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -38236,7 +38236,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -38249,7 +38249,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -38272,13 +38272,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (FindServersRequest)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             FindServersRequest clone = (FindServersRequest)base.MemberwiseClone();
@@ -38373,19 +38373,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.FindServersResponse; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.FindServersResponse_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.FindServersResponse_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.FindServersResponse_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -38396,7 +38396,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -38407,7 +38407,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -38428,13 +38428,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (FindServersResponse)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             FindServersResponse clone = (FindServersResponse)base.MemberwiseClone();
@@ -38531,19 +38531,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.ServerOnNetwork; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ServerOnNetwork_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ServerOnNetwork_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ServerOnNetwork_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -38556,7 +38556,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -38569,7 +38569,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -38592,13 +38592,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (ServerOnNetwork)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ServerOnNetwork clone = (ServerOnNetwork)base.MemberwiseClone();
@@ -38670,7 +38670,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ServerOnNetworkCollection clone = new ServerOnNetworkCollection(this.Count);
@@ -38776,19 +38776,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.FindServersOnNetworkRequest; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.FindServersOnNetworkRequest_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.FindServersOnNetworkRequest_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.FindServersOnNetworkRequest_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -38801,7 +38801,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -38814,7 +38814,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -38837,13 +38837,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (FindServersOnNetworkRequest)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             FindServersOnNetworkRequest clone = (FindServersOnNetworkRequest)base.MemberwiseClone();
@@ -38947,19 +38947,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.FindServersOnNetworkResponse; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.FindServersOnNetworkResponse_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.FindServersOnNetworkResponse_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.FindServersOnNetworkResponse_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -38971,7 +38971,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -38983,7 +38983,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -39005,13 +39005,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (FindServersOnNetworkResponse)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             FindServersOnNetworkResponse clone = (FindServersOnNetworkResponse)base.MemberwiseClone();
@@ -39108,7 +39108,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             MessageSecurityModeCollection clone = new MessageSecurityModeCollection(this.Count);
@@ -39226,19 +39226,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.UserTokenPolicy; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.UserTokenPolicy_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.UserTokenPolicy_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.UserTokenPolicy_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -39252,7 +39252,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -39266,7 +39266,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -39290,13 +39290,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (UserTokenPolicy)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             UserTokenPolicy clone = (UserTokenPolicy)base.MemberwiseClone();
@@ -39370,7 +39370,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             UserTokenPolicyCollection clone = new UserTokenPolicyCollection(this.Count);
@@ -39512,19 +39512,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.EndpointDescription; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.EndpointDescription_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.EndpointDescription_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.EndpointDescription_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -39541,7 +39541,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -39558,7 +39558,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -39585,13 +39585,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (EndpointDescription)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             EndpointDescription clone = (EndpointDescription)base.MemberwiseClone();
@@ -39671,7 +39671,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             EndpointDescriptionCollection clone = new EndpointDescriptionCollection(this.Count);
@@ -39789,19 +39789,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.GetEndpointsRequest; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.GetEndpointsRequest_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.GetEndpointsRequest_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.GetEndpointsRequest_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -39814,7 +39814,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -39827,7 +39827,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -39850,13 +39850,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (GetEndpointsRequest)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             GetEndpointsRequest clone = (GetEndpointsRequest)base.MemberwiseClone();
@@ -39951,19 +39951,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.GetEndpointsResponse; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.GetEndpointsResponse_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.GetEndpointsResponse_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.GetEndpointsResponse_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -39974,7 +39974,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -39985,7 +39985,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -40006,13 +40006,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (GetEndpointsResponse)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             GetEndpointsResponse clone = (GetEndpointsResponse)base.MemberwiseClone();
@@ -40157,19 +40157,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.RegisteredServer; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.RegisteredServer_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RegisteredServer_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.RegisteredServer_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -40186,7 +40186,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -40203,7 +40203,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -40230,13 +40230,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (RegisteredServer)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             RegisteredServer clone = (RegisteredServer)base.MemberwiseClone();
@@ -40316,7 +40316,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             RegisteredServerCollection clone = new RegisteredServerCollection(this.Count);
@@ -40404,19 +40404,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.RegisterServerRequest; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.RegisterServerRequest_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RegisterServerRequest_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.RegisterServerRequest_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -40427,7 +40427,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -40438,7 +40438,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -40459,13 +40459,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (RegisterServerRequest)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             RegisterServerRequest clone = (RegisterServerRequest)base.MemberwiseClone();
@@ -40535,19 +40535,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.RegisterServerResponse; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.RegisterServerResponse_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RegisterServerResponse_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.RegisterServerResponse_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -40557,7 +40557,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -40567,7 +40567,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -40587,13 +40587,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (RegisterServerResponse)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             RegisterServerResponse clone = (RegisterServerResponse)base.MemberwiseClone();
@@ -40641,19 +40641,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.DiscoveryConfiguration; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DiscoveryConfiguration_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DiscoveryConfiguration_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DiscoveryConfiguration_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -40662,7 +40662,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -40671,7 +40671,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -40690,13 +40690,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (DiscoveryConfiguration)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DiscoveryConfiguration clone = (DiscoveryConfiguration)base.MemberwiseClone();
@@ -40771,19 +40771,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.MdnsDiscoveryConfiguration; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.MdnsDiscoveryConfiguration_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.MdnsDiscoveryConfiguration_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.MdnsDiscoveryConfiguration_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -40796,7 +40796,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -40809,7 +40809,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -40830,13 +40830,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (MdnsDiscoveryConfiguration)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             MdnsDiscoveryConfiguration clone = (MdnsDiscoveryConfiguration)base.MemberwiseClone();
@@ -40948,19 +40948,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.RegisterServer2Request; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.RegisterServer2Request_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RegisterServer2Request_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.RegisterServer2Request_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -40972,7 +40972,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -40984,7 +40984,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -41006,13 +41006,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (RegisterServer2Request)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             RegisterServer2Request clone = (RegisterServer2Request)base.MemberwiseClone();
@@ -41126,19 +41126,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.RegisterServer2Response; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.RegisterServer2Response_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RegisterServer2Response_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.RegisterServer2Response_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -41150,7 +41150,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -41162,7 +41162,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -41184,13 +41184,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (RegisterServer2Response)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             RegisterServer2Response clone = (RegisterServer2Response)base.MemberwiseClone();
@@ -41296,19 +41296,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.ChannelSecurityToken; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ChannelSecurityToken_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ChannelSecurityToken_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ChannelSecurityToken_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -41321,7 +41321,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -41334,7 +41334,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -41357,13 +41357,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (ChannelSecurityToken)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ChannelSecurityToken clone = (ChannelSecurityToken)base.MemberwiseClone();
@@ -41482,19 +41482,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.OpenSecureChannelRequest; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.OpenSecureChannelRequest_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.OpenSecureChannelRequest_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.OpenSecureChannelRequest_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -41509,7 +41509,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -41524,7 +41524,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -41549,13 +41549,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (OpenSecureChannelRequest)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             OpenSecureChannelRequest clone = (OpenSecureChannelRequest)base.MemberwiseClone();
@@ -41672,19 +41672,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.OpenSecureChannelResponse; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.OpenSecureChannelResponse_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.OpenSecureChannelResponse_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.OpenSecureChannelResponse_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -41697,7 +41697,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -41710,7 +41710,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -41733,13 +41733,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (OpenSecureChannelResponse)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             OpenSecureChannelResponse clone = (OpenSecureChannelResponse)base.MemberwiseClone();
@@ -41813,19 +41813,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.CloseSecureChannelRequest; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.CloseSecureChannelRequest_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CloseSecureChannelRequest_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.CloseSecureChannelRequest_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -41835,7 +41835,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -41845,7 +41845,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -41865,13 +41865,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (CloseSecureChannelRequest)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             CloseSecureChannelRequest clone = (CloseSecureChannelRequest)base.MemberwiseClone();
@@ -41939,19 +41939,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.CloseSecureChannelResponse; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.CloseSecureChannelResponse_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CloseSecureChannelResponse_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.CloseSecureChannelResponse_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -41961,7 +41961,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -41971,7 +41971,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -41991,13 +41991,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (CloseSecureChannelResponse)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             CloseSecureChannelResponse clone = (CloseSecureChannelResponse)base.MemberwiseClone();
@@ -42062,19 +42062,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.SignedSoftwareCertificate; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SignedSoftwareCertificate_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SignedSoftwareCertificate_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.SignedSoftwareCertificate_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -42085,7 +42085,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -42096,7 +42096,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -42117,13 +42117,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (SignedSoftwareCertificate)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             SignedSoftwareCertificate clone = (SignedSoftwareCertificate)base.MemberwiseClone();
@@ -42191,7 +42191,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             SignedSoftwareCertificateCollection clone = new SignedSoftwareCertificateCollection(this.Count);
@@ -42255,19 +42255,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.SignatureData; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SignatureData_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SignatureData_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.SignatureData_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -42278,7 +42278,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -42289,7 +42289,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -42310,13 +42310,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (SignatureData)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             SignatureData clone = (SignatureData)base.MemberwiseClone();
@@ -42470,19 +42470,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.CreateSessionRequest; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.CreateSessionRequest_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CreateSessionRequest_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.CreateSessionRequest_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -42500,7 +42500,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -42518,7 +42518,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -42546,13 +42546,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (CreateSessionRequest)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             CreateSessionRequest clone = (CreateSessionRequest)base.MemberwiseClone();
@@ -42753,19 +42753,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.CreateSessionResponse; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.CreateSessionResponse_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CreateSessionResponse_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.CreateSessionResponse_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -42784,7 +42784,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -42803,7 +42803,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -42832,13 +42832,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (CreateSessionResponse)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             CreateSessionResponse clone = (CreateSessionResponse)base.MemberwiseClone();
@@ -42912,19 +42912,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.UserIdentityToken; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.UserIdentityToken_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.UserIdentityToken_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.UserIdentityToken_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -42934,7 +42934,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -42944,7 +42944,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -42964,13 +42964,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (UserIdentityToken)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             UserIdentityToken clone = (UserIdentityToken)base.MemberwiseClone();
@@ -43018,19 +43018,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.AnonymousIdentityToken; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.AnonymousIdentityToken_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.AnonymousIdentityToken_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.AnonymousIdentityToken_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -43041,7 +43041,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -43052,7 +43052,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -43071,13 +43071,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (AnonymousIdentityToken)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             AnonymousIdentityToken clone = (AnonymousIdentityToken)base.MemberwiseClone();
@@ -43149,19 +43149,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.UserNameIdentityToken; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.UserNameIdentityToken_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.UserNameIdentityToken_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.UserNameIdentityToken_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -43175,7 +43175,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -43189,7 +43189,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -43211,13 +43211,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (UserNameIdentityToken)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             UserNameIdentityToken clone = (UserNameIdentityToken)base.MemberwiseClone();
@@ -43277,19 +43277,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.X509IdentityToken; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.X509IdentityToken_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.X509IdentityToken_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.X509IdentityToken_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -43301,7 +43301,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -43313,7 +43313,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -43333,13 +43333,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (X509IdentityToken)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             X509IdentityToken clone = (X509IdentityToken)base.MemberwiseClone();
@@ -43404,19 +43404,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.IssuedIdentityToken; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.IssuedIdentityToken_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.IssuedIdentityToken_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.IssuedIdentityToken_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -43429,7 +43429,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -43442,7 +43442,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -43463,13 +43463,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (IssuedIdentityToken)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             IssuedIdentityToken clone = (IssuedIdentityToken)base.MemberwiseClone();
@@ -43632,19 +43632,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.ActivateSessionRequest; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ActivateSessionRequest_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ActivateSessionRequest_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ActivateSessionRequest_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -43659,7 +43659,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -43674,7 +43674,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -43699,13 +43699,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (ActivateSessionRequest)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ActivateSessionRequest clone = (ActivateSessionRequest)base.MemberwiseClone();
@@ -43834,19 +43834,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.ActivateSessionResponse; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ActivateSessionResponse_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ActivateSessionResponse_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ActivateSessionResponse_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -43859,7 +43859,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -43872,7 +43872,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -43895,13 +43895,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (ActivateSessionResponse)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ActivateSessionResponse clone = (ActivateSessionResponse)base.MemberwiseClone();
@@ -43984,19 +43984,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.CloseSessionRequest; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.CloseSessionRequest_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CloseSessionRequest_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.CloseSessionRequest_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -44007,7 +44007,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -44018,7 +44018,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -44039,13 +44039,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (CloseSessionRequest)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             CloseSessionRequest clone = (CloseSessionRequest)base.MemberwiseClone();
@@ -44115,19 +44115,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.CloseSessionResponse; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.CloseSessionResponse_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CloseSessionResponse_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.CloseSessionResponse_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -44137,7 +44137,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -44147,7 +44147,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -44167,13 +44167,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (CloseSessionResponse)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             CloseSessionResponse clone = (CloseSessionResponse)base.MemberwiseClone();
@@ -44250,19 +44250,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.CancelRequest; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.CancelRequest_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CancelRequest_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.CancelRequest_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -44273,7 +44273,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -44284,7 +44284,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -44305,13 +44305,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (CancelRequest)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             CancelRequest clone = (CancelRequest)base.MemberwiseClone();
@@ -44390,19 +44390,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.CancelResponse; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.CancelResponse_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CancelResponse_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.CancelResponse_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -44413,7 +44413,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -44424,7 +44424,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -44445,13 +44445,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (CancelResponse)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             CancelResponse clone = (CancelResponse)base.MemberwiseClone();
@@ -44696,19 +44696,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.NodeAttributes; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.NodeAttributes_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.NodeAttributes_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.NodeAttributes_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -44722,7 +44722,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -44736,7 +44736,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -44760,13 +44760,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (NodeAttributes)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             NodeAttributes clone = (NodeAttributes)base.MemberwiseClone();
@@ -44830,19 +44830,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.ObjectAttributes; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.ObjectAttributes_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ObjectAttributes_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.ObjectAttributes_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -44854,7 +44854,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -44866,7 +44866,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -44886,13 +44886,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (ObjectAttributes)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ObjectAttributes clone = (ObjectAttributes)base.MemberwiseClone();
@@ -45023,19 +45023,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.VariableAttributes; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.VariableAttributes_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.VariableAttributes_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.VariableAttributes_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -45054,7 +45054,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -45073,7 +45073,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -45100,13 +45100,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (VariableAttributes)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             VariableAttributes clone = (VariableAttributes)base.MemberwiseClone();
@@ -45185,19 +45185,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.MethodAttributes; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.MethodAttributes_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.MethodAttributes_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.MethodAttributes_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -45210,7 +45210,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -45223,7 +45223,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -45244,13 +45244,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (MethodAttributes)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             MethodAttributes clone = (MethodAttributes)base.MemberwiseClone();
@@ -45308,19 +45308,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.ObjectTypeAttributes; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.ObjectTypeAttributes_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ObjectTypeAttributes_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.ObjectTypeAttributes_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -45332,7 +45332,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -45344,7 +45344,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -45364,13 +45364,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (ObjectTypeAttributes)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ObjectTypeAttributes clone = (ObjectTypeAttributes)base.MemberwiseClone();
@@ -45474,19 +45474,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.VariableTypeAttributes; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.VariableTypeAttributes_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.VariableTypeAttributes_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.VariableTypeAttributes_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -45502,7 +45502,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -45518,7 +45518,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -45542,13 +45542,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (VariableTypeAttributes)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             VariableTypeAttributes clone = (VariableTypeAttributes)base.MemberwiseClone();
@@ -45630,19 +45630,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.ReferenceTypeAttributes; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.ReferenceTypeAttributes_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ReferenceTypeAttributes_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.ReferenceTypeAttributes_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -45656,7 +45656,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -45670,7 +45670,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -45692,13 +45692,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (ReferenceTypeAttributes)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ReferenceTypeAttributes clone = (ReferenceTypeAttributes)base.MemberwiseClone();
@@ -45758,19 +45758,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.DataTypeAttributes; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.DataTypeAttributes_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.DataTypeAttributes_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.DataTypeAttributes_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -45782,7 +45782,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -45794,7 +45794,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -45814,13 +45814,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (DataTypeAttributes)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DataTypeAttributes clone = (DataTypeAttributes)base.MemberwiseClone();
@@ -45885,19 +45885,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.ViewAttributes; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.ViewAttributes_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ViewAttributes_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.ViewAttributes_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -45910,7 +45910,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -45923,7 +45923,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -45944,13 +45944,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (ViewAttributes)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ViewAttributes clone = (ViewAttributes)base.MemberwiseClone();
@@ -46017,19 +46017,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.GenericAttributeValue; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.GenericAttributeValue_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.GenericAttributeValue_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.GenericAttributeValue_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -46040,7 +46040,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -46051,7 +46051,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -46072,13 +46072,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (GenericAttributeValue)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             GenericAttributeValue clone = (GenericAttributeValue)base.MemberwiseClone();
@@ -46146,7 +46146,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             GenericAttributeValueCollection clone = new GenericAttributeValueCollection(this.Count);
@@ -46213,19 +46213,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.GenericAttributes; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.GenericAttributes_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.GenericAttributes_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.GenericAttributes_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -46237,7 +46237,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -46249,7 +46249,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -46269,13 +46269,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (GenericAttributes)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             GenericAttributes clone = (GenericAttributes)base.MemberwiseClone();
@@ -46385,19 +46385,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.AddNodesItem; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.AddNodesItem_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.AddNodesItem_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.AddNodesItem_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -46413,7 +46413,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -46429,7 +46429,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -46455,13 +46455,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (AddNodesItem)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             AddNodesItem clone = (AddNodesItem)base.MemberwiseClone();
@@ -46539,7 +46539,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             AddNodesItemCollection clone = new AddNodesItemCollection(this.Count);
@@ -46603,19 +46603,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.AddNodesResult; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.AddNodesResult_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.AddNodesResult_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.AddNodesResult_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -46626,7 +46626,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -46637,7 +46637,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -46658,13 +46658,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (AddNodesResult)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             AddNodesResult clone = (AddNodesResult)base.MemberwiseClone();
@@ -46732,7 +46732,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             AddNodesResultCollection clone = new AddNodesResultCollection(this.Count);
@@ -46820,19 +46820,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.AddNodesRequest; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.AddNodesRequest_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.AddNodesRequest_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.AddNodesRequest_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -46843,7 +46843,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -46854,7 +46854,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -46875,13 +46875,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (AddNodesRequest)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             AddNodesRequest clone = (AddNodesRequest)base.MemberwiseClone();
@@ -46993,19 +46993,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.AddNodesResponse; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.AddNodesResponse_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.AddNodesResponse_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.AddNodesResponse_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -47017,7 +47017,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -47029,7 +47029,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -47051,13 +47051,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (AddNodesResponse)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             AddNodesResponse clone = (AddNodesResponse)base.MemberwiseClone();
@@ -47162,19 +47162,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.AddReferencesItem; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.AddReferencesItem_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.AddReferencesItem_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.AddReferencesItem_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -47189,7 +47189,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -47204,7 +47204,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -47229,13 +47229,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (AddReferencesItem)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             AddReferencesItem clone = (AddReferencesItem)base.MemberwiseClone();
@@ -47311,7 +47311,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             AddReferencesItemCollection clone = new AddReferencesItemCollection(this.Count);
@@ -47399,19 +47399,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.AddReferencesRequest; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.AddReferencesRequest_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.AddReferencesRequest_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.AddReferencesRequest_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -47422,7 +47422,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -47433,7 +47433,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -47454,13 +47454,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (AddReferencesRequest)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             AddReferencesRequest clone = (AddReferencesRequest)base.MemberwiseClone();
@@ -47572,19 +47572,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.AddReferencesResponse; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.AddReferencesResponse_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.AddReferencesResponse_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.AddReferencesResponse_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -47596,7 +47596,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -47608,7 +47608,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -47630,13 +47630,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (AddReferencesResponse)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             AddReferencesResponse clone = (AddReferencesResponse)base.MemberwiseClone();
@@ -47705,19 +47705,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.DeleteNodesItem; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DeleteNodesItem_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DeleteNodesItem_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DeleteNodesItem_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -47728,7 +47728,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -47739,7 +47739,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -47760,13 +47760,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (DeleteNodesItem)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DeleteNodesItem clone = (DeleteNodesItem)base.MemberwiseClone();
@@ -47834,7 +47834,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DeleteNodesItemCollection clone = new DeleteNodesItemCollection(this.Count);
@@ -47922,19 +47922,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.DeleteNodesRequest; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DeleteNodesRequest_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DeleteNodesRequest_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DeleteNodesRequest_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -47945,7 +47945,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -47956,7 +47956,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -47977,13 +47977,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (DeleteNodesRequest)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DeleteNodesRequest clone = (DeleteNodesRequest)base.MemberwiseClone();
@@ -48095,19 +48095,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.DeleteNodesResponse; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DeleteNodesResponse_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DeleteNodesResponse_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DeleteNodesResponse_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -48119,7 +48119,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -48131,7 +48131,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -48153,13 +48153,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (DeleteNodesResponse)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DeleteNodesResponse clone = (DeleteNodesResponse)base.MemberwiseClone();
@@ -48255,19 +48255,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.DeleteReferencesItem; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DeleteReferencesItem_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DeleteReferencesItem_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DeleteReferencesItem_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -48281,7 +48281,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -48295,7 +48295,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -48319,13 +48319,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (DeleteReferencesItem)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DeleteReferencesItem clone = (DeleteReferencesItem)base.MemberwiseClone();
@@ -48399,7 +48399,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DeleteReferencesItemCollection clone = new DeleteReferencesItemCollection(this.Count);
@@ -48487,19 +48487,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.DeleteReferencesRequest; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DeleteReferencesRequest_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DeleteReferencesRequest_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DeleteReferencesRequest_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -48510,7 +48510,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -48521,7 +48521,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -48542,13 +48542,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (DeleteReferencesRequest)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DeleteReferencesRequest clone = (DeleteReferencesRequest)base.MemberwiseClone();
@@ -48660,19 +48660,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.DeleteReferencesResponse; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DeleteReferencesResponse_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DeleteReferencesResponse_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DeleteReferencesResponse_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -48684,7 +48684,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -48696,7 +48696,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -48718,13 +48718,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (DeleteReferencesResponse)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DeleteReferencesResponse clone = (DeleteReferencesResponse)base.MemberwiseClone();
@@ -48948,19 +48948,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.ViewDescription; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ViewDescription_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ViewDescription_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ViewDescription_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -48972,7 +48972,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -48984,7 +48984,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -49006,13 +49006,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (ViewDescription)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ViewDescription clone = (ViewDescription)base.MemberwiseClone();
@@ -49117,19 +49117,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.BrowseDescription; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.BrowseDescription_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.BrowseDescription_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.BrowseDescription_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -49144,7 +49144,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -49159,7 +49159,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -49184,13 +49184,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (BrowseDescription)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             BrowseDescription clone = (BrowseDescription)base.MemberwiseClone();
@@ -49266,7 +49266,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             BrowseDescriptionCollection clone = new BrowseDescriptionCollection(this.Count);
@@ -49426,19 +49426,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.ReferenceDescription; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ReferenceDescription_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ReferenceDescription_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ReferenceDescription_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -49454,7 +49454,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -49470,7 +49470,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -49496,13 +49496,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (ReferenceDescription)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ReferenceDescription clone = (ReferenceDescription)base.MemberwiseClone();
@@ -49580,7 +49580,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ReferenceDescriptionCollection clone = new ReferenceDescriptionCollection(this.Count);
@@ -49665,19 +49665,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.BrowseResult; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.BrowseResult_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.BrowseResult_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.BrowseResult_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -49689,7 +49689,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -49701,7 +49701,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -49723,13 +49723,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (BrowseResult)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             BrowseResult clone = (BrowseResult)base.MemberwiseClone();
@@ -49799,7 +49799,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             BrowseResultCollection clone = new BrowseResultCollection(this.Count);
@@ -49917,19 +49917,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.BrowseRequest; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.BrowseRequest_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.BrowseRequest_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.BrowseRequest_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -49942,7 +49942,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -49955,7 +49955,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -49978,13 +49978,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (BrowseRequest)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             BrowseRequest clone = (BrowseRequest)base.MemberwiseClone();
@@ -50100,19 +50100,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.BrowseResponse; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.BrowseResponse_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.BrowseResponse_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.BrowseResponse_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -50124,7 +50124,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -50136,7 +50136,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -50158,13 +50158,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (BrowseResponse)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             BrowseResponse clone = (BrowseResponse)base.MemberwiseClone();
@@ -50266,19 +50266,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.BrowseNextRequest; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.BrowseNextRequest_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.BrowseNextRequest_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.BrowseNextRequest_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -50290,7 +50290,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -50302,7 +50302,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -50324,13 +50324,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (BrowseNextRequest)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             BrowseNextRequest clone = (BrowseNextRequest)base.MemberwiseClone();
@@ -50444,19 +50444,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.BrowseNextResponse; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.BrowseNextResponse_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.BrowseNextResponse_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.BrowseNextResponse_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -50468,7 +50468,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -50480,7 +50480,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -50502,13 +50502,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (BrowseNextResponse)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             BrowseNextResponse clone = (BrowseNextResponse)base.MemberwiseClone();
@@ -50595,19 +50595,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.RelativePathElement; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.RelativePathElement_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RelativePathElement_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.RelativePathElement_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -50620,7 +50620,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -50633,7 +50633,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -50656,13 +50656,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (RelativePathElement)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             RelativePathElement clone = (RelativePathElement)base.MemberwiseClone();
@@ -50734,7 +50734,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             RelativePathElementCollection clone = new RelativePathElementCollection(this.Count);
@@ -50801,19 +50801,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.RelativePath; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.RelativePath_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RelativePath_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.RelativePath_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -50823,7 +50823,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -50833,7 +50833,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -50853,13 +50853,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (RelativePath)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             RelativePath clone = (RelativePath)base.MemberwiseClone();
@@ -50936,19 +50936,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.BrowsePath; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.BrowsePath_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.BrowsePath_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.BrowsePath_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -50959,7 +50959,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -50970,7 +50970,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -50991,13 +50991,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (BrowsePath)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             BrowsePath clone = (BrowsePath)base.MemberwiseClone();
@@ -51065,7 +51065,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             BrowsePathCollection clone = new BrowsePathCollection(this.Count);
@@ -51129,19 +51129,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.BrowsePathTarget; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.BrowsePathTarget_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.BrowsePathTarget_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.BrowsePathTarget_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -51152,7 +51152,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -51163,7 +51163,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -51184,13 +51184,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (BrowsePathTarget)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             BrowsePathTarget clone = (BrowsePathTarget)base.MemberwiseClone();
@@ -51258,7 +51258,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             BrowsePathTargetCollection clone = new BrowsePathTargetCollection(this.Count);
@@ -51334,19 +51334,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.BrowsePathResult; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.BrowsePathResult_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.BrowsePathResult_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.BrowsePathResult_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -51357,7 +51357,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -51368,7 +51368,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -51389,13 +51389,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (BrowsePathResult)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             BrowsePathResult clone = (BrowsePathResult)base.MemberwiseClone();
@@ -51463,7 +51463,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             BrowsePathResultCollection clone = new BrowsePathResultCollection(this.Count);
@@ -51551,19 +51551,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.TranslateBrowsePathsToNodeIdsRequest; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.TranslateBrowsePathsToNodeIdsRequest_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.TranslateBrowsePathsToNodeIdsRequest_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.TranslateBrowsePathsToNodeIdsRequest_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -51574,7 +51574,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -51585,7 +51585,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -51606,13 +51606,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (TranslateBrowsePathsToNodeIdsRequest)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             TranslateBrowsePathsToNodeIdsRequest clone = (TranslateBrowsePathsToNodeIdsRequest)base.MemberwiseClone();
@@ -51724,19 +51724,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.TranslateBrowsePathsToNodeIdsResponse; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.TranslateBrowsePathsToNodeIdsResponse_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.TranslateBrowsePathsToNodeIdsResponse_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.TranslateBrowsePathsToNodeIdsResponse_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -51748,7 +51748,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -51760,7 +51760,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -51782,13 +51782,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (TranslateBrowsePathsToNodeIdsResponse)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             TranslateBrowsePathsToNodeIdsResponse clone = (TranslateBrowsePathsToNodeIdsResponse)base.MemberwiseClone();
@@ -51881,19 +51881,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.RegisterNodesRequest; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.RegisterNodesRequest_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RegisterNodesRequest_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.RegisterNodesRequest_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -51904,7 +51904,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -51915,7 +51915,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -51936,13 +51936,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (RegisterNodesRequest)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             RegisterNodesRequest clone = (RegisterNodesRequest)base.MemberwiseClone();
@@ -52033,19 +52033,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.RegisterNodesResponse; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.RegisterNodesResponse_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RegisterNodesResponse_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.RegisterNodesResponse_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -52056,7 +52056,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -52067,7 +52067,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -52088,13 +52088,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (RegisterNodesResponse)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             RegisterNodesResponse clone = (RegisterNodesResponse)base.MemberwiseClone();
@@ -52185,19 +52185,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.UnregisterNodesRequest; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.UnregisterNodesRequest_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.UnregisterNodesRequest_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.UnregisterNodesRequest_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -52208,7 +52208,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -52219,7 +52219,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -52240,13 +52240,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (UnregisterNodesRequest)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             UnregisterNodesRequest clone = (UnregisterNodesRequest)base.MemberwiseClone();
@@ -52316,19 +52316,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.UnregisterNodesResponse; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.UnregisterNodesResponse_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.UnregisterNodesResponse_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.UnregisterNodesResponse_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -52338,7 +52338,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -52348,7 +52348,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -52368,13 +52368,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (UnregisterNodesResponse)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             UnregisterNodesResponse clone = (UnregisterNodesResponse)base.MemberwiseClone();
@@ -52502,19 +52502,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.EndpointConfiguration; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.EndpointConfiguration_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.EndpointConfiguration_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.EndpointConfiguration_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -52532,7 +52532,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -52550,7 +52550,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -52578,13 +52578,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (EndpointConfiguration)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             EndpointConfiguration clone = (EndpointConfiguration)base.MemberwiseClone();
@@ -52666,7 +52666,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             EndpointConfigurationCollection clone = new EndpointConfigurationCollection(this.Count);
@@ -52751,19 +52751,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.QueryDataDescription; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.QueryDataDescription_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.QueryDataDescription_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.QueryDataDescription_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -52775,7 +52775,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -52787,7 +52787,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -52809,13 +52809,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (QueryDataDescription)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             QueryDataDescription clone = (QueryDataDescription)base.MemberwiseClone();
@@ -52885,7 +52885,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             QueryDataDescriptionCollection clone = new QueryDataDescriptionCollection(this.Count);
@@ -52970,19 +52970,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.NodeTypeDescription; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.NodeTypeDescription_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.NodeTypeDescription_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.NodeTypeDescription_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -52994,7 +52994,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -53006,7 +53006,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -53028,13 +53028,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (NodeTypeDescription)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             NodeTypeDescription clone = (NodeTypeDescription)base.MemberwiseClone();
@@ -53104,7 +53104,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             NodeTypeDescriptionCollection clone = new NodeTypeDescriptionCollection(this.Count);
@@ -53272,19 +53272,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.QueryDataSet; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.QueryDataSet_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.QueryDataSet_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.QueryDataSet_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -53296,7 +53296,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -53308,7 +53308,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -53330,13 +53330,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (QueryDataSet)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             QueryDataSet clone = (QueryDataSet)base.MemberwiseClone();
@@ -53406,7 +53406,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             QueryDataSetCollection clone = new QueryDataSetCollection(this.Count);
@@ -53500,19 +53500,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.NodeReference; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.NodeReference_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.NodeReference_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.NodeReference_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -53525,7 +53525,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -53538,7 +53538,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -53561,13 +53561,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (NodeReference)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             NodeReference clone = (NodeReference)base.MemberwiseClone();
@@ -53639,7 +53639,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             NodeReferenceCollection clone = new NodeReferenceCollection(this.Count);
@@ -53715,19 +53715,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.ContentFilterElement; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ContentFilterElement_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ContentFilterElement_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ContentFilterElement_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -53738,7 +53738,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -53749,7 +53749,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -53770,13 +53770,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (ContentFilterElement)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ContentFilterElement clone = (ContentFilterElement)base.MemberwiseClone();
@@ -53844,7 +53844,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ContentFilterElementCollection clone = new ContentFilterElementCollection(this.Count);
@@ -53911,19 +53911,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.ContentFilter; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ContentFilter_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ContentFilter_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ContentFilter_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -53933,7 +53933,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -53943,7 +53943,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -53963,13 +53963,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (ContentFilter)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ContentFilter clone = (ContentFilter)base.MemberwiseClone();
@@ -54035,7 +54035,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ContentFilterCollection clone = new ContentFilterCollection(this.Count);
@@ -54082,19 +54082,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.FilterOperand; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.FilterOperand_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.FilterOperand_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.FilterOperand_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -54103,7 +54103,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -54112,7 +54112,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -54131,13 +54131,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (FilterOperand)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             FilterOperand clone = (FilterOperand)base.MemberwiseClone();
@@ -54191,19 +54191,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.ElementOperand; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.ElementOperand_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ElementOperand_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.ElementOperand_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -54215,7 +54215,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -54227,7 +54227,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -54247,13 +54247,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (ElementOperand)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ElementOperand clone = (ElementOperand)base.MemberwiseClone();
@@ -54309,19 +54309,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.LiteralOperand; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.LiteralOperand_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.LiteralOperand_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.LiteralOperand_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -54333,7 +54333,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -54345,7 +54345,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -54365,13 +54365,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (LiteralOperand)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             LiteralOperand clone = (LiteralOperand)base.MemberwiseClone();
@@ -54475,19 +54475,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.AttributeOperand; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.AttributeOperand_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.AttributeOperand_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.AttributeOperand_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -54503,7 +54503,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -54519,7 +54519,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -54543,13 +54543,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (AttributeOperand)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             AttributeOperand clone = (AttributeOperand)base.MemberwiseClone();
@@ -54652,19 +54652,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.SimpleAttributeOperand; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.SimpleAttributeOperand_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.SimpleAttributeOperand_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.SimpleAttributeOperand_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -54679,7 +54679,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -54694,7 +54694,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -54717,13 +54717,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (SimpleAttributeOperand)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             SimpleAttributeOperand clone = (SimpleAttributeOperand)base.MemberwiseClone();
@@ -54795,7 +54795,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             SimpleAttributeOperandCollection clone = new SimpleAttributeOperandCollection(this.Count);
@@ -54892,19 +54892,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.ContentFilterElementResult; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ContentFilterElementResult_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ContentFilterElementResult_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ContentFilterElementResult_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -54916,7 +54916,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -54928,7 +54928,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -54950,13 +54950,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (ContentFilterElementResult)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ContentFilterElementResult clone = (ContentFilterElementResult)base.MemberwiseClone();
@@ -55026,7 +55026,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ContentFilterElementResultCollection clone = new ContentFilterElementResultCollection(this.Count);
@@ -55114,19 +55114,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.ContentFilterResult; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ContentFilterResult_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ContentFilterResult_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ContentFilterResult_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -55137,7 +55137,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -55148,7 +55148,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -55169,13 +55169,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (ContentFilterResult)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ContentFilterResult clone = (ContentFilterResult)base.MemberwiseClone();
@@ -55275,19 +55275,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.ParsingResult; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ParsingResult_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ParsingResult_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ParsingResult_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -55299,7 +55299,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -55311,7 +55311,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -55333,13 +55333,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (ParsingResult)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ParsingResult clone = (ParsingResult)base.MemberwiseClone();
@@ -55409,7 +55409,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ParsingResultCollection clone = new ParsingResultCollection(this.Count);
@@ -55557,19 +55557,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.QueryFirstRequest; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.QueryFirstRequest_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.QueryFirstRequest_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.QueryFirstRequest_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -55584,7 +55584,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -55599,7 +55599,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -55624,13 +55624,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (QueryFirstRequest)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             QueryFirstRequest clone = (QueryFirstRequest)base.MemberwiseClone();
@@ -55801,19 +55801,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.QueryFirstResponse; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.QueryFirstResponse_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.QueryFirstResponse_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.QueryFirstResponse_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -55828,7 +55828,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -55843,7 +55843,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -55868,13 +55868,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (QueryFirstResponse)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             QueryFirstResponse clone = (QueryFirstResponse)base.MemberwiseClone();
@@ -55970,19 +55970,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.QueryNextRequest; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.QueryNextRequest_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.QueryNextRequest_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.QueryNextRequest_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -55994,7 +55994,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -56006,7 +56006,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -56028,13 +56028,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (QueryNextRequest)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             QueryNextRequest clone = (QueryNextRequest)base.MemberwiseClone();
@@ -56136,19 +56136,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.QueryNextResponse; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.QueryNextResponse_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.QueryNextResponse_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.QueryNextResponse_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -56160,7 +56160,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -56172,7 +56172,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -56194,13 +56194,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (QueryNextResponse)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             QueryNextResponse clone = (QueryNextResponse)base.MemberwiseClone();
@@ -56318,19 +56318,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.ReadValueId; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ReadValueId_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ReadValueId_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ReadValueId_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -56343,7 +56343,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -56356,7 +56356,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -56379,13 +56379,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (ReadValueId)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ReadValueId clone = (ReadValueId)base.MemberwiseClone();
@@ -56457,7 +56457,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ReadValueIdCollection clone = new ReadValueIdCollection(this.Count);
@@ -56563,19 +56563,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.ReadRequest; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ReadRequest_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ReadRequest_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ReadRequest_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -56588,7 +56588,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -56601,7 +56601,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -56624,13 +56624,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (ReadRequest)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ReadRequest clone = (ReadRequest)base.MemberwiseClone();
@@ -56746,19 +56746,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.ReadResponse; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ReadResponse_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ReadResponse_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ReadResponse_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -56770,7 +56770,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -56782,7 +56782,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -56804,13 +56804,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (ReadResponse)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ReadResponse clone = (ReadResponse)base.MemberwiseClone();
@@ -56897,19 +56897,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.HistoryReadValueId; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.HistoryReadValueId_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.HistoryReadValueId_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.HistoryReadValueId_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -56922,7 +56922,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -56935,7 +56935,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -56958,13 +56958,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (HistoryReadValueId)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             HistoryReadValueId clone = (HistoryReadValueId)base.MemberwiseClone();
@@ -57036,7 +57036,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             HistoryReadValueIdCollection clone = new HistoryReadValueIdCollection(this.Count);
@@ -57109,19 +57109,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.HistoryReadResult; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.HistoryReadResult_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.HistoryReadResult_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.HistoryReadResult_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -57133,7 +57133,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -57145,7 +57145,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -57167,13 +57167,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (HistoryReadResult)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             HistoryReadResult clone = (HistoryReadResult)base.MemberwiseClone();
@@ -57243,7 +57243,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             HistoryReadResultCollection clone = new HistoryReadResultCollection(this.Count);
@@ -57290,19 +57290,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.HistoryReadDetails; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.HistoryReadDetails_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.HistoryReadDetails_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.HistoryReadDetails_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -57311,7 +57311,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -57320,7 +57320,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -57339,13 +57339,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (HistoryReadDetails)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             HistoryReadDetails clone = (HistoryReadDetails)base.MemberwiseClone();
@@ -57438,19 +57438,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.ReadEventDetails; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.ReadEventDetails_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ReadEventDetails_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.ReadEventDetails_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -57465,7 +57465,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -57480,7 +57480,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -57503,13 +57503,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (ReadEventDetails)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ReadEventDetails clone = (ReadEventDetails)base.MemberwiseClone();
@@ -57571,19 +57571,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.ReadEventDetails2; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.ReadEventDetails2_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ReadEventDetails2_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.ReadEventDetails2_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -57595,7 +57595,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -57607,7 +57607,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -57627,13 +57627,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (ReadEventDetails2)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ReadEventDetails2 clone = (ReadEventDetails2)base.MemberwiseClone();
@@ -57729,19 +57729,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.SortRuleElement; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SortRuleElement_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SortRuleElement_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.SortRuleElement_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -57752,7 +57752,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -57763,7 +57763,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -57784,13 +57784,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (SortRuleElement)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             SortRuleElement clone = (SortRuleElement)base.MemberwiseClone();
@@ -57858,7 +57858,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             SortRuleElementCollection clone = new SortRuleElementCollection(this.Count);
@@ -57925,19 +57925,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.ReadEventDetailsSorted; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.ReadEventDetailsSorted_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ReadEventDetailsSorted_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.ReadEventDetailsSorted_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -57949,7 +57949,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -57961,7 +57961,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -57981,13 +57981,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (ReadEventDetailsSorted)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ReadEventDetailsSorted clone = (ReadEventDetailsSorted)base.MemberwiseClone();
@@ -58079,19 +58079,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.ReadRawModifiedDetails; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.ReadRawModifiedDetails_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ReadRawModifiedDetails_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.ReadRawModifiedDetails_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -58107,7 +58107,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -58123,7 +58123,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -58147,13 +58147,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (ReadRawModifiedDetails)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ReadRawModifiedDetails clone = (ReadRawModifiedDetails)base.MemberwiseClone();
@@ -58277,19 +58277,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.ReadProcessedDetails; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.ReadProcessedDetails_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ReadProcessedDetails_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.ReadProcessedDetails_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -58305,7 +58305,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -58321,7 +58321,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -58345,13 +58345,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (ReadProcessedDetails)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ReadProcessedDetails clone = (ReadProcessedDetails)base.MemberwiseClone();
@@ -58436,19 +58436,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.ReadAtTimeDetails; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.ReadAtTimeDetails_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ReadAtTimeDetails_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.ReadAtTimeDetails_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -58461,7 +58461,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -58474,7 +58474,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -58495,13 +58495,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (ReadAtTimeDetails)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ReadAtTimeDetails clone = (ReadAtTimeDetails)base.MemberwiseClone();
@@ -58571,19 +58571,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.ReadAnnotationDataDetails; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.ReadAnnotationDataDetails_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.ReadAnnotationDataDetails_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.ReadAnnotationDataDetails_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -58595,7 +58595,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -58607,7 +58607,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -58627,13 +58627,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (ReadAnnotationDataDetails)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ReadAnnotationDataDetails clone = (ReadAnnotationDataDetails)base.MemberwiseClone();
@@ -58701,19 +58701,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.HistoryData; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.HistoryData_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.HistoryData_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.HistoryData_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -58723,7 +58723,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -58733,7 +58733,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -58753,13 +58753,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (HistoryData)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             HistoryData clone = (HistoryData)base.MemberwiseClone();
@@ -58833,19 +58833,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.ModificationInfo; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ModificationInfo_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ModificationInfo_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ModificationInfo_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -58857,7 +58857,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -58869,7 +58869,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -58891,13 +58891,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (ModificationInfo)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ModificationInfo clone = (ModificationInfo)base.MemberwiseClone();
@@ -58967,7 +58967,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ModificationInfoCollection clone = new ModificationInfoCollection(this.Count);
@@ -59034,19 +59034,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.HistoryModifiedData; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.HistoryModifiedData_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.HistoryModifiedData_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.HistoryModifiedData_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -59058,7 +59058,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -59070,7 +59070,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -59090,13 +59090,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (HistoryModifiedData)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             HistoryModifiedData clone = (HistoryModifiedData)base.MemberwiseClone();
@@ -59164,19 +59164,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.HistoryEvent; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.HistoryEvent_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.HistoryEvent_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.HistoryEvent_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -59186,7 +59186,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -59196,7 +59196,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -59216,13 +59216,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (HistoryEvent)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             HistoryEvent clone = (HistoryEvent)base.MemberwiseClone();
@@ -59290,19 +59290,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.HistoryModifiedEvent; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.HistoryModifiedEvent_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.HistoryModifiedEvent_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.HistoryModifiedEvent_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -59314,7 +59314,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -59326,7 +59326,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -59346,13 +59346,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (HistoryModifiedEvent)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             HistoryModifiedEvent clone = (HistoryModifiedEvent)base.MemberwiseClone();
@@ -59468,19 +59468,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.HistoryReadRequest; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.HistoryReadRequest_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.HistoryReadRequest_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.HistoryReadRequest_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -59494,7 +59494,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -59508,7 +59508,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -59532,13 +59532,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (HistoryReadRequest)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             HistoryReadRequest clone = (HistoryReadRequest)base.MemberwiseClone();
@@ -59656,19 +59656,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.HistoryReadResponse; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.HistoryReadResponse_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.HistoryReadResponse_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.HistoryReadResponse_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -59680,7 +59680,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -59692,7 +59692,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -59714,13 +59714,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (HistoryReadResponse)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             HistoryReadResponse clone = (HistoryReadResponse)base.MemberwiseClone();
@@ -59807,19 +59807,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.WriteValue; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.WriteValue_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.WriteValue_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.WriteValue_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -59832,7 +59832,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -59845,7 +59845,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -59868,13 +59868,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (WriteValue)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             WriteValue clone = (WriteValue)base.MemberwiseClone();
@@ -59946,7 +59946,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             WriteValueCollection clone = new WriteValueCollection(this.Count);
@@ -60034,19 +60034,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.WriteRequest; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.WriteRequest_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.WriteRequest_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.WriteRequest_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -60057,7 +60057,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -60068,7 +60068,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -60089,13 +60089,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (WriteRequest)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             WriteRequest clone = (WriteRequest)base.MemberwiseClone();
@@ -60207,19 +60207,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.WriteResponse; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.WriteResponse_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.WriteResponse_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.WriteResponse_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -60231,7 +60231,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -60243,7 +60243,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -60265,13 +60265,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (WriteResponse)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             WriteResponse clone = (WriteResponse)base.MemberwiseClone();
@@ -60323,19 +60323,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.HistoryUpdateDetails; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.HistoryUpdateDetails_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.HistoryUpdateDetails_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.HistoryUpdateDetails_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -60344,7 +60344,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -60353,7 +60353,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -60372,13 +60372,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (HistoryUpdateDetails)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             HistoryUpdateDetails clone = (HistoryUpdateDetails)base.MemberwiseClone();
@@ -60516,19 +60516,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.UpdateDataDetails; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.UpdateDataDetails_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.UpdateDataDetails_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.UpdateDataDetails_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -60542,7 +60542,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -60556,7 +60556,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -60578,13 +60578,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (UpdateDataDetails)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             UpdateDataDetails clone = (UpdateDataDetails)base.MemberwiseClone();
@@ -60674,19 +60674,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.UpdateStructureDataDetails; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.UpdateStructureDataDetails_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.UpdateStructureDataDetails_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.UpdateStructureDataDetails_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -60700,7 +60700,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -60714,7 +60714,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -60736,13 +60736,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (UpdateStructureDataDetails)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             UpdateStructureDataDetails clone = (UpdateStructureDataDetails)base.MemberwiseClone();
@@ -60853,19 +60853,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.UpdateEventDetails; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.UpdateEventDetails_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.UpdateEventDetails_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.UpdateEventDetails_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -60880,7 +60880,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -60895,7 +60895,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -60918,13 +60918,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (UpdateEventDetails)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             UpdateEventDetails clone = (UpdateEventDetails)base.MemberwiseClone();
@@ -61013,19 +61013,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.DeleteRawModifiedDetails; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.DeleteRawModifiedDetails_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.DeleteRawModifiedDetails_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.DeleteRawModifiedDetails_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -61040,7 +61040,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -61055,7 +61055,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -61078,13 +61078,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (DeleteRawModifiedDetails)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DeleteRawModifiedDetails clone = (DeleteRawModifiedDetails)base.MemberwiseClone();
@@ -61167,19 +61167,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.DeleteAtTimeDetails; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.DeleteAtTimeDetails_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.DeleteAtTimeDetails_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.DeleteAtTimeDetails_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -61192,7 +61192,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -61205,7 +61205,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -61226,13 +61226,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (DeleteAtTimeDetails)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DeleteAtTimeDetails clone = (DeleteAtTimeDetails)base.MemberwiseClone();
@@ -61311,19 +61311,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.DeleteEventDetails; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.DeleteEventDetails_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.DeleteEventDetails_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.DeleteEventDetails_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -61336,7 +61336,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -61349,7 +61349,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -61370,13 +61370,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (DeleteEventDetails)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DeleteEventDetails clone = (DeleteEventDetails)base.MemberwiseClone();
@@ -61476,19 +61476,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.HistoryUpdateResult; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.HistoryUpdateResult_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.HistoryUpdateResult_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.HistoryUpdateResult_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -61500,7 +61500,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -61512,7 +61512,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -61534,13 +61534,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (HistoryUpdateResult)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             HistoryUpdateResult clone = (HistoryUpdateResult)base.MemberwiseClone();
@@ -61610,7 +61610,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             HistoryUpdateResultCollection clone = new HistoryUpdateResultCollection(this.Count);
@@ -61698,19 +61698,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.HistoryUpdateRequest; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.HistoryUpdateRequest_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.HistoryUpdateRequest_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.HistoryUpdateRequest_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -61721,7 +61721,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -61732,7 +61732,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -61753,13 +61753,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (HistoryUpdateRequest)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             HistoryUpdateRequest clone = (HistoryUpdateRequest)base.MemberwiseClone();
@@ -61871,19 +61871,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.HistoryUpdateResponse; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.HistoryUpdateResponse_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.HistoryUpdateResponse_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.HistoryUpdateResponse_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -61895,7 +61895,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -61907,7 +61907,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -61929,13 +61929,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (HistoryUpdateResponse)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             HistoryUpdateResponse clone = (HistoryUpdateResponse)base.MemberwiseClone();
@@ -62025,19 +62025,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.CallMethodRequest; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.CallMethodRequest_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CallMethodRequest_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.CallMethodRequest_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -62049,7 +62049,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -62061,7 +62061,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -62083,13 +62083,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (CallMethodRequest)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             CallMethodRequest clone = (CallMethodRequest)base.MemberwiseClone();
@@ -62159,7 +62159,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             CallMethodRequestCollection clone = new CallMethodRequestCollection(this.Count);
@@ -62277,19 +62277,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.CallMethodResult; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.CallMethodResult_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CallMethodResult_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.CallMethodResult_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -62302,7 +62302,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -62315,7 +62315,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -62338,13 +62338,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (CallMethodResult)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             CallMethodResult clone = (CallMethodResult)base.MemberwiseClone();
@@ -62416,7 +62416,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             CallMethodResultCollection clone = new CallMethodResultCollection(this.Count);
@@ -62504,19 +62504,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.CallRequest; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.CallRequest_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CallRequest_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.CallRequest_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -62527,7 +62527,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -62538,7 +62538,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -62559,13 +62559,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (CallRequest)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             CallRequest clone = (CallRequest)base.MemberwiseClone();
@@ -62677,19 +62677,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.CallResponse; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.CallResponse_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CallResponse_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.CallResponse_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -62701,7 +62701,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -62713,7 +62713,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -62735,13 +62735,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (CallResponse)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             CallResponse clone = (CallResponse)base.MemberwiseClone();
@@ -62862,19 +62862,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.MonitoringFilter; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.MonitoringFilter_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.MonitoringFilter_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.MonitoringFilter_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -62883,7 +62883,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -62892,7 +62892,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -62911,13 +62911,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (MonitoringFilter)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             MonitoringFilter clone = (MonitoringFilter)base.MemberwiseClone();
@@ -62989,19 +62989,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.DataChangeFilter; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.DataChangeFilter_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.DataChangeFilter_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.DataChangeFilter_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -63015,7 +63015,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -63029,7 +63029,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -63051,13 +63051,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (DataChangeFilter)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DataChangeFilter clone = (DataChangeFilter)base.MemberwiseClone();
@@ -63150,19 +63150,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.EventFilter; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.EventFilter_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.EventFilter_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.EventFilter_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -63175,7 +63175,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -63188,7 +63188,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -63209,13 +63209,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (EventFilter)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             EventFilter clone = (EventFilter)base.MemberwiseClone();
@@ -63309,19 +63309,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.AggregateConfiguration; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.AggregateConfiguration_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.AggregateConfiguration_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.AggregateConfiguration_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -63335,7 +63335,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -63349,7 +63349,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -63373,13 +63373,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (AggregateConfiguration)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             AggregateConfiguration clone = (AggregateConfiguration)base.MemberwiseClone();
@@ -63482,19 +63482,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.AggregateFilter; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.AggregateFilter_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.AggregateFilter_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.AggregateFilter_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -63509,7 +63509,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -63524,7 +63524,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -63547,13 +63547,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (AggregateFilter)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             AggregateFilter clone = (AggregateFilter)base.MemberwiseClone();
@@ -63607,19 +63607,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.MonitoringFilterResult; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.MonitoringFilterResult_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.MonitoringFilterResult_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.MonitoringFilterResult_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -63628,7 +63628,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -63637,7 +63637,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -63656,13 +63656,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (MonitoringFilterResult)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             MonitoringFilterResult clone = (MonitoringFilterResult)base.MemberwiseClone();
@@ -63770,19 +63770,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.EventFilterResult; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.EventFilterResult_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.EventFilterResult_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.EventFilterResult_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -63796,7 +63796,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -63810,7 +63810,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -63832,13 +63832,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (EventFilterResult)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             EventFilterResult clone = (EventFilterResult)base.MemberwiseClone();
@@ -63928,19 +63928,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.AggregateFilterResult; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.AggregateFilterResult_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.AggregateFilterResult_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.AggregateFilterResult_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -63954,7 +63954,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -63968,7 +63968,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -63990,13 +63990,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (AggregateFilterResult)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             AggregateFilterResult clone = (AggregateFilterResult)base.MemberwiseClone();
@@ -64092,19 +64092,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.MonitoringParameters; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.MonitoringParameters_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.MonitoringParameters_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.MonitoringParameters_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -64118,7 +64118,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -64132,7 +64132,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -64156,13 +64156,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (MonitoringParameters)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             MonitoringParameters clone = (MonitoringParameters)base.MemberwiseClone();
@@ -64268,19 +64268,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.MonitoredItemCreateRequest; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.MonitoredItemCreateRequest_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.MonitoredItemCreateRequest_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.MonitoredItemCreateRequest_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -64292,7 +64292,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -64304,7 +64304,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -64326,13 +64326,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (MonitoredItemCreateRequest)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             MonitoredItemCreateRequest clone = (MonitoredItemCreateRequest)base.MemberwiseClone();
@@ -64402,7 +64402,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             MonitoredItemCreateRequestCollection clone = new MonitoredItemCreateRequestCollection(this.Count);
@@ -64493,19 +64493,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.MonitoredItemCreateResult; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.MonitoredItemCreateResult_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.MonitoredItemCreateResult_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.MonitoredItemCreateResult_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -64519,7 +64519,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -64533,7 +64533,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -64557,13 +64557,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (MonitoredItemCreateResult)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             MonitoredItemCreateResult clone = (MonitoredItemCreateResult)base.MemberwiseClone();
@@ -64637,7 +64637,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             MonitoredItemCreateResultCollection clone = new MonitoredItemCreateResultCollection(this.Count);
@@ -64743,19 +64743,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.CreateMonitoredItemsRequest; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.CreateMonitoredItemsRequest_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CreateMonitoredItemsRequest_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.CreateMonitoredItemsRequest_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -64768,7 +64768,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -64781,7 +64781,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -64804,13 +64804,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (CreateMonitoredItemsRequest)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             CreateMonitoredItemsRequest clone = (CreateMonitoredItemsRequest)base.MemberwiseClone();
@@ -64926,19 +64926,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.CreateMonitoredItemsResponse; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.CreateMonitoredItemsResponse_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CreateMonitoredItemsResponse_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.CreateMonitoredItemsResponse_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -64950,7 +64950,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -64962,7 +64962,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -64984,13 +64984,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (CreateMonitoredItemsResponse)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             CreateMonitoredItemsResponse clone = (CreateMonitoredItemsResponse)base.MemberwiseClone();
@@ -65071,19 +65071,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.MonitoredItemModifyRequest; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.MonitoredItemModifyRequest_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.MonitoredItemModifyRequest_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.MonitoredItemModifyRequest_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -65094,7 +65094,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -65105,7 +65105,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -65126,13 +65126,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (MonitoredItemModifyRequest)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             MonitoredItemModifyRequest clone = (MonitoredItemModifyRequest)base.MemberwiseClone();
@@ -65200,7 +65200,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             MonitoredItemModifyRequestCollection clone = new MonitoredItemModifyRequestCollection(this.Count);
@@ -65282,19 +65282,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.MonitoredItemModifyResult; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.MonitoredItemModifyResult_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.MonitoredItemModifyResult_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.MonitoredItemModifyResult_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -65307,7 +65307,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -65320,7 +65320,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -65343,13 +65343,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (MonitoredItemModifyResult)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             MonitoredItemModifyResult clone = (MonitoredItemModifyResult)base.MemberwiseClone();
@@ -65421,7 +65421,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             MonitoredItemModifyResultCollection clone = new MonitoredItemModifyResultCollection(this.Count);
@@ -65527,19 +65527,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.ModifyMonitoredItemsRequest; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ModifyMonitoredItemsRequest_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ModifyMonitoredItemsRequest_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ModifyMonitoredItemsRequest_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -65552,7 +65552,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -65565,7 +65565,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -65588,13 +65588,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (ModifyMonitoredItemsRequest)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ModifyMonitoredItemsRequest clone = (ModifyMonitoredItemsRequest)base.MemberwiseClone();
@@ -65710,19 +65710,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.ModifyMonitoredItemsResponse; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ModifyMonitoredItemsResponse_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ModifyMonitoredItemsResponse_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ModifyMonitoredItemsResponse_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -65734,7 +65734,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -65746,7 +65746,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -65768,13 +65768,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (ModifyMonitoredItemsResponse)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ModifyMonitoredItemsResponse clone = (ModifyMonitoredItemsResponse)base.MemberwiseClone();
@@ -65885,19 +65885,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.SetMonitoringModeRequest; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SetMonitoringModeRequest_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SetMonitoringModeRequest_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.SetMonitoringModeRequest_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -65910,7 +65910,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -65923,7 +65923,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -65946,13 +65946,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (SetMonitoringModeRequest)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             SetMonitoringModeRequest clone = (SetMonitoringModeRequest)base.MemberwiseClone();
@@ -66068,19 +66068,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.SetMonitoringModeResponse; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SetMonitoringModeResponse_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SetMonitoringModeResponse_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.SetMonitoringModeResponse_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -66092,7 +66092,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -66104,7 +66104,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -66126,13 +66126,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (SetMonitoringModeResponse)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             SetMonitoringModeResponse clone = (SetMonitoringModeResponse)base.MemberwiseClone();
@@ -66264,19 +66264,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.SetTriggeringRequest; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SetTriggeringRequest_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SetTriggeringRequest_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.SetTriggeringRequest_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -66290,7 +66290,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -66304,7 +66304,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -66328,13 +66328,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (SetTriggeringRequest)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             SetTriggeringRequest clone = (SetTriggeringRequest)base.MemberwiseClone();
@@ -66494,19 +66494,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.SetTriggeringResponse; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SetTriggeringResponse_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SetTriggeringResponse_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.SetTriggeringResponse_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -66520,7 +66520,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -66534,7 +66534,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -66558,13 +66558,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (SetTriggeringResponse)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             SetTriggeringResponse clone = (SetTriggeringResponse)base.MemberwiseClone();
@@ -66670,19 +66670,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.DeleteMonitoredItemsRequest; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DeleteMonitoredItemsRequest_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DeleteMonitoredItemsRequest_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DeleteMonitoredItemsRequest_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -66694,7 +66694,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -66706,7 +66706,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -66728,13 +66728,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (DeleteMonitoredItemsRequest)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DeleteMonitoredItemsRequest clone = (DeleteMonitoredItemsRequest)base.MemberwiseClone();
@@ -66848,19 +66848,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.DeleteMonitoredItemsResponse; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DeleteMonitoredItemsResponse_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DeleteMonitoredItemsResponse_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DeleteMonitoredItemsResponse_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -66872,7 +66872,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -66884,7 +66884,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -66906,13 +66906,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (DeleteMonitoredItemsResponse)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DeleteMonitoredItemsResponse clone = (DeleteMonitoredItemsResponse)base.MemberwiseClone();
@@ -67038,19 +67038,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.CreateSubscriptionRequest; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.CreateSubscriptionRequest_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CreateSubscriptionRequest_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.CreateSubscriptionRequest_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -67066,7 +67066,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -67082,7 +67082,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -67108,13 +67108,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (CreateSubscriptionRequest)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             CreateSubscriptionRequest clone = (CreateSubscriptionRequest)base.MemberwiseClone();
@@ -67230,19 +67230,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.CreateSubscriptionResponse; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.CreateSubscriptionResponse_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.CreateSubscriptionResponse_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.CreateSubscriptionResponse_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -67256,7 +67256,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -67270,7 +67270,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -67294,13 +67294,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (CreateSubscriptionResponse)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             CreateSubscriptionResponse clone = (CreateSubscriptionResponse)base.MemberwiseClone();
@@ -67430,19 +67430,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.ModifySubscriptionRequest; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ModifySubscriptionRequest_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ModifySubscriptionRequest_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ModifySubscriptionRequest_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -67458,7 +67458,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -67474,7 +67474,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -67500,13 +67500,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (ModifySubscriptionRequest)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ModifySubscriptionRequest clone = (ModifySubscriptionRequest)base.MemberwiseClone();
@@ -67613,19 +67613,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.ModifySubscriptionResponse; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ModifySubscriptionResponse_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ModifySubscriptionResponse_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ModifySubscriptionResponse_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -67638,7 +67638,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -67651,7 +67651,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -67674,13 +67674,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (ModifySubscriptionResponse)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ModifySubscriptionResponse clone = (ModifySubscriptionResponse)base.MemberwiseClone();
@@ -67784,19 +67784,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.SetPublishingModeRequest; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SetPublishingModeRequest_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SetPublishingModeRequest_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.SetPublishingModeRequest_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -67808,7 +67808,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -67820,7 +67820,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -67842,13 +67842,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (SetPublishingModeRequest)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             SetPublishingModeRequest clone = (SetPublishingModeRequest)base.MemberwiseClone();
@@ -67962,19 +67962,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.SetPublishingModeResponse; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SetPublishingModeResponse_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SetPublishingModeResponse_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.SetPublishingModeResponse_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -67986,7 +67986,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -67998,7 +67998,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -68020,13 +68020,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (SetPublishingModeResponse)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             SetPublishingModeResponse clone = (SetPublishingModeResponse)base.MemberwiseClone();
@@ -68116,19 +68116,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.NotificationMessage; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.NotificationMessage_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.NotificationMessage_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.NotificationMessage_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -68140,7 +68140,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -68152,7 +68152,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -68174,13 +68174,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (NotificationMessage)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             NotificationMessage clone = (NotificationMessage)base.MemberwiseClone();
@@ -68232,19 +68232,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.NotificationData; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.NotificationData_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.NotificationData_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.NotificationData_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -68253,7 +68253,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -68262,7 +68262,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -68281,13 +68281,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (NotificationData)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             NotificationData clone = (NotificationData)base.MemberwiseClone();
@@ -68374,19 +68374,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.DataChangeNotification; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.DataChangeNotification_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.DataChangeNotification_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.DataChangeNotification_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -68399,7 +68399,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -68412,7 +68412,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -68433,13 +68433,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (DataChangeNotification)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DataChangeNotification clone = (DataChangeNotification)base.MemberwiseClone();
@@ -68506,19 +68506,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.MonitoredItemNotification; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.MonitoredItemNotification_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.MonitoredItemNotification_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.MonitoredItemNotification_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -68529,7 +68529,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -68540,7 +68540,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -68561,13 +68561,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (MonitoredItemNotification)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             MonitoredItemNotification clone = (MonitoredItemNotification)base.MemberwiseClone();
@@ -68635,7 +68635,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             MonitoredItemNotificationCollection clone = new MonitoredItemNotificationCollection(this.Count);
@@ -68702,19 +68702,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.EventNotificationList; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.EventNotificationList_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.EventNotificationList_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.EventNotificationList_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -68726,7 +68726,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -68738,7 +68738,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -68758,13 +68758,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (EventNotificationList)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             EventNotificationList clone = (EventNotificationList)base.MemberwiseClone();
@@ -68841,19 +68841,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.EventFieldList; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.EventFieldList_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.EventFieldList_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.EventFieldList_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -68864,7 +68864,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -68875,7 +68875,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -68896,13 +68896,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (EventFieldList)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             EventFieldList clone = (EventFieldList)base.MemberwiseClone();
@@ -68970,7 +68970,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             EventFieldListCollection clone = new EventFieldListCollection(this.Count);
@@ -69037,19 +69037,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.HistoryEventFieldList; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.HistoryEventFieldList_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.HistoryEventFieldList_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.HistoryEventFieldList_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -69059,7 +69059,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -69069,7 +69069,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -69089,13 +69089,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (HistoryEventFieldList)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             HistoryEventFieldList clone = (HistoryEventFieldList)base.MemberwiseClone();
@@ -69161,7 +69161,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             HistoryEventFieldListCollection clone = new HistoryEventFieldListCollection(this.Count);
@@ -69225,19 +69225,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId TypeId => DataTypeIds.StatusChangeNotification; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId BinaryEncodingId => ObjectIds.StatusChangeNotification_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId XmlEncodingId => ObjectIds.StatusChangeNotification_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public override ExpandedNodeId JsonEncodingId => ObjectIds.StatusChangeNotification_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
             base.Encode(encoder);
@@ -69250,7 +69250,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public override void Decode(IDecoder decoder)
         {
             base.Decode(decoder);
@@ -69263,7 +69263,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public override bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -69284,13 +69284,13 @@ namespace Opc.Ua
             return base.IsEqual(encodeable);
         }    
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public override object Clone()
         {
             return (StatusChangeNotification)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             StatusChangeNotification clone = (StatusChangeNotification)base.MemberwiseClone();
@@ -69357,19 +69357,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.SubscriptionAcknowledgement; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SubscriptionAcknowledgement_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SubscriptionAcknowledgement_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.SubscriptionAcknowledgement_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -69380,7 +69380,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -69391,7 +69391,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -69412,13 +69412,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (SubscriptionAcknowledgement)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             SubscriptionAcknowledgement clone = (SubscriptionAcknowledgement)base.MemberwiseClone();
@@ -69486,7 +69486,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             SubscriptionAcknowledgementCollection clone = new SubscriptionAcknowledgementCollection(this.Count);
@@ -69574,19 +69574,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.PublishRequest; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.PublishRequest_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PublishRequest_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.PublishRequest_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -69597,7 +69597,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -69608,7 +69608,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -69629,13 +69629,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (PublishRequest)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PublishRequest clone = (PublishRequest)base.MemberwiseClone();
@@ -69807,19 +69807,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.PublishResponse; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.PublishResponse_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.PublishResponse_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.PublishResponse_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -69835,7 +69835,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -69851,7 +69851,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -69877,13 +69877,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (PublishResponse)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             PublishResponse clone = (PublishResponse)base.MemberwiseClone();
@@ -69981,19 +69981,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.RepublishRequest; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.RepublishRequest_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RepublishRequest_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.RepublishRequest_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -70005,7 +70005,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -70017,7 +70017,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -70039,13 +70039,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (RepublishRequest)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             RepublishRequest clone = (RepublishRequest)base.MemberwiseClone();
@@ -70138,19 +70138,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.RepublishResponse; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.RepublishResponse_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RepublishResponse_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.RepublishResponse_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -70161,7 +70161,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -70172,7 +70172,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -70193,13 +70193,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (RepublishResponse)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             RepublishResponse clone = (RepublishResponse)base.MemberwiseClone();
@@ -70278,19 +70278,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.TransferResult; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.TransferResult_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.TransferResult_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.TransferResult_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -70301,7 +70301,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -70312,7 +70312,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -70333,13 +70333,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (TransferResult)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             TransferResult clone = (TransferResult)base.MemberwiseClone();
@@ -70407,7 +70407,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             TransferResultCollection clone = new TransferResultCollection(this.Count);
@@ -70504,19 +70504,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.TransferSubscriptionsRequest; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.TransferSubscriptionsRequest_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.TransferSubscriptionsRequest_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.TransferSubscriptionsRequest_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -70528,7 +70528,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -70540,7 +70540,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -70562,13 +70562,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (TransferSubscriptionsRequest)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             TransferSubscriptionsRequest clone = (TransferSubscriptionsRequest)base.MemberwiseClone();
@@ -70682,19 +70682,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.TransferSubscriptionsResponse; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.TransferSubscriptionsResponse_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.TransferSubscriptionsResponse_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.TransferSubscriptionsResponse_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -70706,7 +70706,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -70718,7 +70718,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -70740,13 +70740,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (TransferSubscriptionsResponse)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             TransferSubscriptionsResponse clone = (TransferSubscriptionsResponse)base.MemberwiseClone();
@@ -70839,19 +70839,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.DeleteSubscriptionsRequest; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DeleteSubscriptionsRequest_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DeleteSubscriptionsRequest_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DeleteSubscriptionsRequest_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -70862,7 +70862,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -70873,7 +70873,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -70894,13 +70894,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (DeleteSubscriptionsRequest)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DeleteSubscriptionsRequest clone = (DeleteSubscriptionsRequest)base.MemberwiseClone();
@@ -71012,19 +71012,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.DeleteSubscriptionsResponse; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DeleteSubscriptionsResponse_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DeleteSubscriptionsResponse_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DeleteSubscriptionsResponse_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -71036,7 +71036,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -71048,7 +71048,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -71070,13 +71070,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (DeleteSubscriptionsResponse)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DeleteSubscriptionsResponse clone = (DeleteSubscriptionsResponse)base.MemberwiseClone();
@@ -71181,19 +71181,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.BuildInfo; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.BuildInfo_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.BuildInfo_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.BuildInfo_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -71208,7 +71208,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -71223,7 +71223,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -71248,13 +71248,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (BuildInfo)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             BuildInfo clone = (BuildInfo)base.MemberwiseClone();
@@ -71416,19 +71416,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.RedundantServerDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.RedundantServerDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.RedundantServerDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.RedundantServerDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -71440,7 +71440,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -71452,7 +71452,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -71474,13 +71474,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (RedundantServerDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             RedundantServerDataType clone = (RedundantServerDataType)base.MemberwiseClone();
@@ -71550,7 +71550,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             RedundantServerDataTypeCollection clone = new RedundantServerDataTypeCollection(this.Count);
@@ -71617,19 +71617,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.EndpointUrlListDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.EndpointUrlListDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.EndpointUrlListDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.EndpointUrlListDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -71639,7 +71639,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -71649,7 +71649,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -71669,13 +71669,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (EndpointUrlListDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             EndpointUrlListDataType clone = (EndpointUrlListDataType)base.MemberwiseClone();
@@ -71741,7 +71741,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             EndpointUrlListDataTypeCollection clone = new EndpointUrlListDataTypeCollection(this.Count);
@@ -71817,19 +71817,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.NetworkGroupDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.NetworkGroupDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.NetworkGroupDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.NetworkGroupDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -71840,7 +71840,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -71851,7 +71851,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -71872,13 +71872,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (NetworkGroupDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             NetworkGroupDataType clone = (NetworkGroupDataType)base.MemberwiseClone();
@@ -71946,7 +71946,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             NetworkGroupDataTypeCollection clone = new NetworkGroupDataTypeCollection(this.Count);
@@ -72028,19 +72028,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.SamplingIntervalDiagnosticsDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SamplingIntervalDiagnosticsDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SamplingIntervalDiagnosticsDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.SamplingIntervalDiagnosticsDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -72053,7 +72053,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -72066,7 +72066,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -72089,13 +72089,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (SamplingIntervalDiagnosticsDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             SamplingIntervalDiagnosticsDataType clone = (SamplingIntervalDiagnosticsDataType)base.MemberwiseClone();
@@ -72167,7 +72167,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             SamplingIntervalDiagnosticsDataTypeCollection clone = new SamplingIntervalDiagnosticsDataTypeCollection(this.Count);
@@ -72321,19 +72321,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.ServerDiagnosticsSummaryDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ServerDiagnosticsSummaryDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ServerDiagnosticsSummaryDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ServerDiagnosticsSummaryDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -72354,7 +72354,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -72375,7 +72375,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -72406,13 +72406,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (ServerDiagnosticsSummaryDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ServerDiagnosticsSummaryDataType clone = (ServerDiagnosticsSummaryDataType)base.MemberwiseClone();
@@ -72547,19 +72547,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.ServerStatusDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ServerStatusDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ServerStatusDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ServerStatusDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -72574,7 +72574,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -72589,7 +72589,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -72614,13 +72614,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (ServerStatusDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ServerStatusDataType clone = (ServerStatusDataType)base.MemberwiseClone();
@@ -73436,19 +73436,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.SessionDiagnosticsDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SessionDiagnosticsDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SessionDiagnosticsDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.SessionDiagnosticsDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -73500,7 +73500,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -73552,7 +73552,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -73614,13 +73614,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (SessionDiagnosticsDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             SessionDiagnosticsDataType clone = (SessionDiagnosticsDataType)base.MemberwiseClone();
@@ -73770,7 +73770,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             SessionDiagnosticsDataTypeCollection clone = new SessionDiagnosticsDataTypeCollection(this.Count);
@@ -73909,19 +73909,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.SessionSecurityDiagnosticsDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SessionSecurityDiagnosticsDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SessionSecurityDiagnosticsDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.SessionSecurityDiagnosticsDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -73939,7 +73939,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -73957,7 +73957,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -73985,13 +73985,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (SessionSecurityDiagnosticsDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             SessionSecurityDiagnosticsDataType clone = (SessionSecurityDiagnosticsDataType)base.MemberwiseClone();
@@ -74073,7 +74073,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             SessionSecurityDiagnosticsDataTypeCollection clone = new SessionSecurityDiagnosticsDataTypeCollection(this.Count);
@@ -74137,19 +74137,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.ServiceCounterDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ServiceCounterDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ServiceCounterDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ServiceCounterDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -74160,7 +74160,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -74171,7 +74171,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -74192,13 +74192,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (ServiceCounterDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ServiceCounterDataType clone = (ServiceCounterDataType)base.MemberwiseClone();
@@ -74265,19 +74265,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.StatusResult; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.StatusResult_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.StatusResult_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.StatusResult_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -74288,7 +74288,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -74299,7 +74299,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -74320,13 +74320,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (StatusResult)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             StatusResult clone = (StatusResult)base.MemberwiseClone();
@@ -74394,7 +74394,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             StatusResultCollection clone = new StatusResultCollection(this.Count);
@@ -74719,19 +74719,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.SubscriptionDiagnosticsDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SubscriptionDiagnosticsDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SubscriptionDiagnosticsDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.SubscriptionDiagnosticsDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -74771,7 +74771,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -74811,7 +74811,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -74861,13 +74861,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (SubscriptionDiagnosticsDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             SubscriptionDiagnosticsDataType clone = (SubscriptionDiagnosticsDataType)base.MemberwiseClone();
@@ -74993,7 +74993,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             SubscriptionDiagnosticsDataTypeCollection clone = new SubscriptionDiagnosticsDataTypeCollection(this.Count);
@@ -75097,19 +75097,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.ModelChangeStructureDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ModelChangeStructureDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ModelChangeStructureDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ModelChangeStructureDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -75121,7 +75121,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -75133,7 +75133,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -75155,13 +75155,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (ModelChangeStructureDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ModelChangeStructureDataType clone = (ModelChangeStructureDataType)base.MemberwiseClone();
@@ -75231,7 +75231,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ModelChangeStructureDataTypeCollection clone = new ModelChangeStructureDataTypeCollection(this.Count);
@@ -75295,19 +75295,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.SemanticChangeStructureDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.SemanticChangeStructureDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.SemanticChangeStructureDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.SemanticChangeStructureDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -75318,7 +75318,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -75329,7 +75329,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -75350,13 +75350,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (SemanticChangeStructureDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             SemanticChangeStructureDataType clone = (SemanticChangeStructureDataType)base.MemberwiseClone();
@@ -75424,7 +75424,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             SemanticChangeStructureDataTypeCollection clone = new SemanticChangeStructureDataTypeCollection(this.Count);
@@ -75488,19 +75488,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.Range; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.Range_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.Range_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.Range_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -75511,7 +75511,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -75522,7 +75522,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -75543,13 +75543,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (Range)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             Range clone = (Range)base.MemberwiseClone();
@@ -75617,7 +75617,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             RangeCollection clone = new RangeCollection(this.Count);
@@ -75699,19 +75699,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.EUInformation; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.EUInformation_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.EUInformation_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.EUInformation_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -75724,7 +75724,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -75737,7 +75737,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -75760,13 +75760,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (EUInformation)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             EUInformation clone = (EUInformation)base.MemberwiseClone();
@@ -75838,7 +75838,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             EUInformationCollection clone = new EUInformationCollection(this.Count);
@@ -75926,7 +75926,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             AxisScaleEnumerationCollection clone = new AxisScaleEnumerationCollection(this.Count);
@@ -75990,19 +75990,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.ComplexNumberType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ComplexNumberType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ComplexNumberType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ComplexNumberType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -76013,7 +76013,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -76024,7 +76024,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -76045,13 +76045,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (ComplexNumberType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ComplexNumberType clone = (ComplexNumberType)base.MemberwiseClone();
@@ -76119,7 +76119,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ComplexNumberTypeCollection clone = new ComplexNumberTypeCollection(this.Count);
@@ -76183,19 +76183,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.DoubleComplexNumberType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.DoubleComplexNumberType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.DoubleComplexNumberType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.DoubleComplexNumberType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -76206,7 +76206,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -76217,7 +76217,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -76238,13 +76238,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (DoubleComplexNumberType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DoubleComplexNumberType clone = (DoubleComplexNumberType)base.MemberwiseClone();
@@ -76312,7 +76312,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             DoubleComplexNumberTypeCollection clone = new DoubleComplexNumberTypeCollection(this.Count);
@@ -76439,19 +76439,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.AxisInformation; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.AxisInformation_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.AxisInformation_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.AxisInformation_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -76465,7 +76465,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -76479,7 +76479,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -76503,13 +76503,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (AxisInformation)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             AxisInformation clone = (AxisInformation)base.MemberwiseClone();
@@ -76583,7 +76583,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             AxisInformationCollection clone = new AxisInformationCollection(this.Count);
@@ -76647,19 +76647,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.XVType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.XVType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.XVType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.XVType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -76670,7 +76670,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -76681,7 +76681,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -76702,13 +76702,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (XVType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             XVType clone = (XVType)base.MemberwiseClone();
@@ -76776,7 +76776,7 @@ namespace Opc.Ua
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             XVTypeCollection clone = new XVTypeCollection(this.Count);
@@ -76948,19 +76948,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.ProgramDiagnosticDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ProgramDiagnosticDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ProgramDiagnosticDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ProgramDiagnosticDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -76979,7 +76979,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -76998,7 +76998,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -77027,13 +77027,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (ProgramDiagnosticDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ProgramDiagnosticDataType clone = (ProgramDiagnosticDataType)base.MemberwiseClone();
@@ -77254,19 +77254,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.ProgramDiagnostic2DataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ProgramDiagnostic2DataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ProgramDiagnostic2DataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ProgramDiagnostic2DataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -77287,7 +77287,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -77308,7 +77308,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -77339,13 +77339,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (ProgramDiagnostic2DataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ProgramDiagnostic2DataType clone = (ProgramDiagnostic2DataType)base.MemberwiseClone();
@@ -77441,19 +77441,19 @@ namespace Opc.Ua
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.Annotation; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.Annotation_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.Annotation_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.Annotation_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -77465,7 +77465,7 @@ namespace Opc.Ua
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Namespaces.OpcUaXsd);
@@ -77477,7 +77477,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -77499,13 +77499,13 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (Annotation)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             Annotation clone = (Annotation)base.MemberwiseClone();

@@ -135,7 +135,7 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         public async Task GetEndpointsInternal()
         {
-            var config = ClientFixture.Config;
+            ApplicationConfiguration config = ClientFixture.Config;
             ITransportWaitingConnection connection;
             using (var cancellationTokenSource = new CancellationTokenSource(MaxTimeout))
             {
@@ -148,7 +148,7 @@ namespace Opc.Ua.Client.Tests
             {
                 var endpointConfiguration = EndpointConfiguration.Create();
                 endpointConfiguration.OperationTimeout = MaxTimeout;
-                using (DiscoveryClient client = DiscoveryClient.Create(config, connection, endpointConfiguration))
+                using (var client = DiscoveryClient.Create(config, connection, endpointConfiguration))
                 {
                     Endpoints = await client.GetEndpointsAsync(null, cancellationTokenSource.Token).ConfigureAwait(false);
                     await client.CloseAsync(cancellationTokenSource.Token).ConfigureAwait(false);
@@ -159,7 +159,7 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(200)]
         public async Task SelectEndpoint()
         {
-            var config = ClientFixture.Config;
+            ApplicationConfiguration config = ClientFixture.Config;
             ITransportWaitingConnection connection;
             using (var cancellationTokenSource = new CancellationTokenSource(MaxTimeout))
             {
@@ -167,7 +167,7 @@ namespace Opc.Ua.Client.Tests
                     m_endpointUrl, null, cancellationTokenSource.Token).ConfigureAwait(false);
                 Assert.NotNull(connection, "Failed to get connection.");
             }
-            var selectedEndpoint = CoreClientUtils.SelectEndpoint(config, connection, true, MaxTimeout);
+            EndpointDescription selectedEndpoint = CoreClientUtils.SelectEndpoint(config, connection, true, MaxTimeout);
             Assert.NotNull(selectedEndpoint);
         }
 
@@ -178,7 +178,7 @@ namespace Opc.Ua.Client.Tests
             await RequireEndpoints().ConfigureAwait(false);
 
             // get a connection
-            var config = ClientFixture.Config;
+            ApplicationConfiguration config = ClientFixture.Config;
             ITransportWaitingConnection connection;
             using (var cancellationTokenSource = new CancellationTokenSource(MaxTimeout))
             {
@@ -189,13 +189,13 @@ namespace Opc.Ua.Client.Tests
 
             // select the secure endpoint
             var endpointConfiguration = EndpointConfiguration.Create(config);
-            var selectedEndpoint = ClientFixture.SelectEndpoint(config, Endpoints, m_endpointUrl, securityPolicy);
+            EndpointDescription selectedEndpoint = ClientFixture.SelectEndpoint(config, Endpoints, m_endpointUrl, securityPolicy);
             Assert.NotNull(selectedEndpoint);
             var endpoint = new ConfiguredEndpoint(null, selectedEndpoint, endpointConfiguration);
             Assert.NotNull(endpoint);
 
             // connect
-            var session = await sessionFactory.CreateAsync(config, connection, endpoint, false, false, "Reverse Connect Client",
+            ISession session = await sessionFactory.CreateAsync(config, connection, endpoint, false, false, "Reverse Connect Client",
                                MaxTimeout, new UserIdentity(new AnonymousIdentityToken()), null).ConfigureAwait(false);
             Assert.NotNull(session);
 
@@ -206,11 +206,11 @@ namespace Opc.Ua.Client.Tests
 
             // Browse
             var clientTestServices = new ClientTestServices(session);
-            var referenceDescriptions = CommonTestWorkers.BrowseFullAddressSpaceWorker(clientTestServices, requestHeader);
+            ReferenceDescriptionCollection referenceDescriptions = CommonTestWorkers.BrowseFullAddressSpaceWorker(clientTestServices, requestHeader);
             Assert.NotNull(referenceDescriptions);
 
             // close session
-            var result = session.Close();
+            StatusCode result = session.Close();
             Assert.NotNull(result);
             session.Dispose();
         }
@@ -224,17 +224,17 @@ namespace Opc.Ua.Client.Tests
             await RequireEndpoints().ConfigureAwait(false);
 
             // get a connection
-            var config = ClientFixture.Config;
+            ApplicationConfiguration config = ClientFixture.Config;
 
             // select the secure endpoint
             var endpointConfiguration = EndpointConfiguration.Create(config);
-            var selectedEndpoint = ClientFixture.SelectEndpoint(config, Endpoints, m_endpointUrl, securityPolicy);
+            EndpointDescription selectedEndpoint = ClientFixture.SelectEndpoint(config, Endpoints, m_endpointUrl, securityPolicy);
             Assert.NotNull(selectedEndpoint);
             var endpoint = new ConfiguredEndpoint(null, selectedEndpoint, endpointConfiguration);
             Assert.NotNull(endpoint);
 
             // connect
-            var session = await sessionFactory.CreateAsync(config, ClientFixture.ReverseConnectManager, endpoint, updateBeforeConnect, checkDomain, "Reverse Connect Client",
+            ISession session = await sessionFactory.CreateAsync(config, ClientFixture.ReverseConnectManager, endpoint, updateBeforeConnect, checkDomain, "Reverse Connect Client",
                 MaxTimeout, new UserIdentity(new AnonymousIdentityToken()), null).ConfigureAwait(false);
 
             Assert.NotNull(session);
@@ -246,11 +246,11 @@ namespace Opc.Ua.Client.Tests
 
             // Browse
             var clientTestServices = new ClientTestServices(session);
-            var referenceDescriptions = CommonTestWorkers.BrowseFullAddressSpaceWorker(clientTestServices, requestHeader);
+            ReferenceDescriptionCollection referenceDescriptions = CommonTestWorkers.BrowseFullAddressSpaceWorker(clientTestServices, requestHeader);
             Assert.NotNull(referenceDescriptions);
 
             // close session
-            var result = session.Close();
+            StatusCode result = session.Close();
             Assert.NotNull(result);
             session.Dispose();
         }
@@ -274,6 +274,6 @@ namespace Opc.Ua.Client.Tests
         }
         #endregion
 
-        private SemaphoreSlim m_requiredLock = new SemaphoreSlim(1);
+        private readonly SemaphoreSlim m_requiredLock = new SemaphoreSlim(1);
     }
 }

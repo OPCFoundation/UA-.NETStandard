@@ -77,7 +77,7 @@ namespace Opc.Ua.Gds.Tests
                 string thumbprint = Config.SecurityConfiguration.ApplicationCertificate.Thumbprint;
                 if (thumbprint != null)
                 {
-                    using (var store = Config.SecurityConfiguration.ApplicationCertificate.OpenStore())
+                    using (ICertificateStore store = Config.SecurityConfiguration.ApplicationCertificate.OpenStore())
                     {
                         await store.Delete(thumbprint).ConfigureAwait(false);
                     }
@@ -124,7 +124,7 @@ namespace Opc.Ua.Gds.Tests
                 // clean up GDS stores
                 TestUtils.DeleteDirectory(gdsConfiguration.AuthoritiesStorePath);
                 TestUtils.DeleteDirectory(gdsConfiguration.ApplicationCertificatesStorePath);
-                foreach (var group in gdsConfiguration.CertificateGroups)
+                foreach (CertificateGroupConfiguration group in gdsConfiguration.CertificateGroups)
                 {
                     TestUtils.DeleteDirectory(group.BaseStorePath);
                 }

@@ -77,7 +77,7 @@ namespace Opc.Ua.Client.Tests
         {
             Configuration.ServerConfiguration.MaxBrowseContinuationPoints = (int)maxNumberOfContinuationPoints;
             ((MasterNodeManagerWithLimits)MasterNodeManagerReference).MaxContinuationPointsPerBrowseForUnitTest = maxNumberOfContinuationPoints;
-            List<Opc.Ua.Server.ISession> theServerSideSessions = SessionManagerForTest.GetSessions().ToList();
+            var theServerSideSessions = SessionManagerForTest.GetSessions().ToList();
             foreach (Opc.Ua.Server.ISession session in theServerSideSessions)
             {
                 try
@@ -98,7 +98,7 @@ namespace Opc.Ua.Client.Tests
             // create the custom node manager.
             nodeManagers.Add(new ReferenceNodeManager(server, configuration));
 
-            foreach (var nodeManagerFactory in NodeManagerFactories)
+            foreach (INodeManagerFactory nodeManagerFactory in NodeManagerFactories)
             {
                 nodeManagers.Add(nodeManagerFactory.Create(server, configuration));
             }
@@ -171,10 +171,10 @@ namespace Opc.Ua.Client.Tests
     /// </summary>
     public class SessionManagerWithLimits : Opc.Ua.Server.SessionManager
     {
-        private IServerInternal m_4TestServer;
-        private int m_4TestMaxRequestAge;
-        private int m_4TestMaxBrowseContinuationPoints;
-        private int m_4TestMaxHistoryContinuationPoints;
+        private readonly IServerInternal m_4TestServer;
+        private readonly int m_4TestMaxRequestAge;
+        private readonly int m_4TestMaxBrowseContinuationPoints;
+        private readonly int m_4TestMaxHistoryContinuationPoints;
         public SessionManagerWithLimits(IServerInternal server, ApplicationConfiguration configuration) : base(server, configuration)
         {
             m_4TestServer = server;
@@ -200,7 +200,7 @@ namespace Opc.Ua.Client.Tests
             int maxRequestAge, // TBD - Remove unused parameter.
             int maxContinuationPoints) // TBD - Remove unused parameter.
         {
-            ServerSessionWithLimits session = new ServerSessionWithLimits(
+            var session = new ServerSessionWithLimits(
                 context,
                 m_4TestServer,
                 serverCertificate,
@@ -246,8 +246,15 @@ namespace Opc.Ua.Client.Tests
             out BrowseResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
-            if (context == null) throw new ArgumentNullException(nameof(context));
-            if (nodesToBrowse == null) throw new ArgumentNullException(nameof(nodesToBrowse));
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            if (nodesToBrowse == null)
+            {
+                throw new ArgumentNullException(nameof(nodesToBrowse));
+            }
 
             if (view != null && !NodeId.IsNull(view.ViewId))
             {
@@ -302,7 +309,7 @@ namespace Opc.Ua.Client.Tests
                 BrowseDescription nodeToBrowse = nodesToBrowse[ii];
 
                 // initialize result.
-                BrowseResult result = new BrowseResult();
+                var result = new BrowseResult();
                 result.StatusCode = StatusCodes.Good;
                 results.Add(result);
 

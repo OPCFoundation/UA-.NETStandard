@@ -36,7 +36,7 @@ namespace Opc.Ua.Client.Tests
     /// </summary>
     public class ClientTestServices : IServerTestServices
     {
-        private ISession m_session;
+        private readonly ISession m_session;
 
         public ClientTestServices(ISession session)
         {

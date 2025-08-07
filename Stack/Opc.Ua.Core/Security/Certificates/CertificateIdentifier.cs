@@ -40,7 +40,11 @@ namespace Opc.Ua
         /// </returns>
         public string ToString(string format, IFormatProvider formatProvider)
         {
-            if (format != null) throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
+            if (format != null)
+            {
+                throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
+            }
+
             return ToString();
         }
         #endregion
@@ -271,7 +275,7 @@ namespace Opc.Ua
                 return name;
             }
 
-            StringBuilder buffer = new StringBuilder(name.Length);
+            var buffer = new StringBuilder(name.Length);
 
             // skip characters until finding the '=' character
             for (int ii = index + 2; ii < name.Length; ii++)
@@ -473,7 +477,7 @@ namespace Opc.Ua
                 case Oids.ECDsaWithSha384:
                 case Oids.ECDsaWithSha256:
                 case Oids.ECDsaWithSha512:
-                    var certType = EccUtils.GetEccCertificateTypeId(certificate);
+                    NodeId certType = EccUtils.GetEccCertificateTypeId(certificate);
                     if (certType.IsNullNodeId)
                     {
                         return false;
@@ -567,7 +571,7 @@ namespace Opc.Ua
         /// </summary>
         public void DisposeCertificate()
         {
-            var certificate = m_certificate;
+            X509Certificate2 certificate = m_certificate;
             m_certificate = null;
             Utils.SilentDispose(certificate);
         }
@@ -577,7 +581,7 @@ namespace Opc.Ua
         /// <summary>
         /// The tags of the supported certificate types.
         /// </summary>
-        private static Dictionary<uint, string> m_supportedCertificateTypes = new Dictionary<uint, string>() {
+        private static readonly Dictionary<uint, string> m_supportedCertificateTypes = new Dictionary<uint, string>() {
             { ObjectTypes.EccNistP256ApplicationCertificateType, "NistP256"},
             { ObjectTypes.EccNistP384ApplicationCertificateType, "NistP384"},
             { ObjectTypes.EccBrainpoolP256r1ApplicationCertificateType, "BrainpoolP256r1"},
@@ -694,7 +698,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            foreach (var supportedCertificateType in m_supportedCertificateTypes)
+            foreach (KeyValuePair<uint, string> supportedCertificateType in m_supportedCertificateTypes)
             {
                 if (supportedCertificateType.Value == certificateType)
                 {
@@ -729,7 +733,7 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
-            CertificateIdentifierCollection collection = new CertificateIdentifierCollection();
+            var collection = new CertificateIdentifierCollection();
 
             for (int ii = 0; ii < this.Count; ii++)
             {
@@ -790,7 +794,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public async Task<X509Certificate2Collection> Enumerate()
         {
-            X509Certificate2Collection collection = new X509Certificate2Collection();
+            var collection = new X509Certificate2Collection();
 
             for (int ii = 0; ii < this.Count; ii++)
             {
@@ -808,7 +812,10 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public async Task Add(X509Certificate2 certificate, string password = null)
         {
-            if (certificate == null) throw new ArgumentNullException(nameof(certificate));
+            if (certificate == null)
+            {
+                throw new ArgumentNullException(nameof(certificate));
+            }
 
             for (int ii = 0; ii < this.Count; ii++)
             {

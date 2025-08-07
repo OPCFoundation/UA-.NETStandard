@@ -63,7 +63,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Mapping for all of the standard aggregates.
         /// </summary>
-        private static FactoryMapping[] s_Mappings = new FactoryMapping[]
+        private static readonly FactoryMapping[] s_Mappings = new FactoryMapping[]
         {
             new FactoryMapping() { AggregateId = ObjectIds.AggregateFunction_Interpolative, AggregateName = BrowseNames.AggregateFunction_Interpolative, Calculator = typeof(AggregateCalculator) },        
             new FactoryMapping() { AggregateId = ObjectIds.AggregateFunction_Average, AggregateName = BrowseNames.AggregateFunction_Average, Calculator = typeof(AverageAggregateCalculator) },

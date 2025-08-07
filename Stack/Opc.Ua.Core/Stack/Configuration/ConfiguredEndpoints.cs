@@ -98,8 +98,8 @@ namespace Opc.Ua
             endpoints.m_filepath = filePath;
 
             // remove invalid endpoints and ensure server descriptions are consistent.
-            List<ConfiguredEndpoint> endpointsToRemove = new List<ConfiguredEndpoint>();
-            Dictionary<string, ApplicationDescription> servers = new Dictionary<string, ApplicationDescription>();
+            var endpointsToRemove = new List<ConfiguredEndpoint>();
+            var servers = new Dictionary<string, ApplicationDescription>();
 
             foreach (ConfiguredEndpoint endpoint in endpoints.m_endpoints)
             {
@@ -181,8 +181,8 @@ namespace Opc.Ua
         {
             try
             {
-                DataContractSerializer serializer = new DataContractSerializer(typeof(ConfiguredEndpointCollection));
-                ConfiguredEndpointCollection endpoints = serializer.ReadObject(istrm) as ConfiguredEndpointCollection;
+                var serializer = new DataContractSerializer(typeof(ConfiguredEndpointCollection));
+                var endpoints = serializer.ReadObject(istrm) as ConfiguredEndpointCollection;
 
                 if (endpoints != null)
                 {
@@ -229,7 +229,7 @@ namespace Opc.Ua
         /// </summary>
         public void Save(Stream ostrm)
         {
-            DataContractSerializer serializer = new DataContractSerializer(typeof(ConfiguredEndpointCollection));
+            var serializer = new DataContractSerializer(typeof(ConfiguredEndpointCollection));
             serializer.WriteObject(ostrm, this);
         }
         #endregion
@@ -246,7 +246,7 @@ namespace Opc.Ua
         /// </summary>
         public new object MemberwiseClone()
         {
-            ConfiguredEndpointCollection clone = new ConfiguredEndpointCollection();
+            var clone = new ConfiguredEndpointCollection();
 
             clone.m_filepath = m_filepath;
             clone.m_knownHosts = new StringCollection(m_knownHosts);
@@ -254,7 +254,7 @@ namespace Opc.Ua
 
             foreach (ConfiguredEndpoint endpoint in m_endpoints)
             {
-                ConfiguredEndpoint clonedEndpoint = (ConfiguredEndpoint)endpoint.MemberwiseClone();
+                var clonedEndpoint = (ConfiguredEndpoint)endpoint.MemberwiseClone();
                 clonedEndpoint.Collection = clone;
                 clone.m_endpoints.Add(clonedEndpoint);
             }
@@ -306,7 +306,11 @@ namespace Opc.Ua
         /// <exception cref="System.NotSupportedException">The <see cref="System.Collections.IList"/> is read-only.</exception>
         public void RemoveAt(int index)
         {
-            if (index < 0 || index >= m_endpoints.Count) throw new ArgumentOutOfRangeException(nameof(index));
+            if (index < 0 || index >= m_endpoints.Count)
+            {
+                throw new ArgumentOutOfRangeException(nameof(index));
+            }
+
             Remove(m_endpoints[index]);
         }
 
@@ -425,7 +429,7 @@ namespace Opc.Ua
                 }
             }
 
-            ConfiguredEndpoint configuredEndpoint = new ConfiguredEndpoint(this, endpoint, configuration);
+            var configuredEndpoint = new ConfiguredEndpoint(this, endpoint, configuration);
             m_endpoints.Add(configuredEndpoint);
             return configuredEndpoint;
         }
@@ -443,7 +447,10 @@ namespace Opc.Ua
         /// </summary>
         private void Insert(ConfiguredEndpoint endpoint, int index)
         {
-            if (endpoint == null) throw new ArgumentNullException(nameof(endpoint));
+            if (endpoint == null)
+            {
+                throw new ArgumentNullException(nameof(endpoint));
+            }
 
             ValidateEndpoint(endpoint.Description);
 
@@ -480,7 +487,11 @@ namespace Opc.Ua
         /// </summary>
         public bool Remove(ConfiguredEndpoint item)
         {
-            if (item == null) throw new ArgumentNullException(nameof(item));
+            if (item == null)
+            {
+                throw new ArgumentNullException(nameof(item));
+            }
+
             return m_endpoints.Remove(item);
         }
 
@@ -489,7 +500,10 @@ namespace Opc.Ua
         /// </summary>
         public void RemoveServer(string serverUri)
         {
-            if (serverUri == null) throw new ArgumentNullException(nameof(serverUri));
+            if (serverUri == null)
+            {
+                throw new ArgumentNullException(nameof(serverUri));
+            }
 
             foreach (ConfiguredEndpoint endpointToRemove in GetEndpoints(serverUri))
             {
@@ -502,7 +516,10 @@ namespace Opc.Ua
         /// </summary>
         public void SetApplicationDescription(string serverUri, ApplicationDescription server)
         {
-            if (server == null) throw new ArgumentNullException(nameof(server));
+            if (server == null)
+            {
+                throw new ArgumentNullException(nameof(server));
+            }
 
             if (string.IsNullOrEmpty(server.ApplicationUri))
             {
@@ -635,9 +652,9 @@ namespace Opc.Ua
                 }
             }
 
-            Uri uri = new Uri(url);
+            var uri = new Uri(url);
 
-            EndpointDescription description = new EndpointDescription();
+            var description = new EndpointDescription();
 
             description.EndpointUrl = uri.ToString();
             description.SecurityMode = securityMode;
@@ -661,7 +678,7 @@ namespace Opc.Ua
                 description.Server.DiscoveryUrls.Add(description.EndpointUrl);
             }
 
-            ConfiguredEndpoint endpoint = new ConfiguredEndpoint(this, description, null);
+            var endpoint = new ConfiguredEndpoint(this, description, null);
             endpoint.Configuration.UseBinaryEncoding = useBinaryEncoding;
             endpoint.UpdateBeforeConnect = true;
             return endpoint;
@@ -672,7 +689,7 @@ namespace Opc.Ua
         /// </summary>
         public List<ConfiguredEndpoint> GetEndpoints(string serverUri)
         {
-            List<ConfiguredEndpoint> endpoints = new List<ConfiguredEndpoint>();
+            var endpoints = new List<ConfiguredEndpoint>();
 
             foreach (ConfiguredEndpoint endpoint in m_endpoints)
             {
@@ -690,7 +707,7 @@ namespace Opc.Ua
         /// </summary>
         public ApplicationDescriptionCollection GetServers()
         {
-            Dictionary<string, ApplicationDescription> servers = new Dictionary<string, ApplicationDescription>();
+            var servers = new Dictionary<string, ApplicationDescription>();
 
             foreach (ConfiguredEndpoint endpoint in m_endpoints)
             {
@@ -792,7 +809,10 @@ namespace Opc.Ua
             ApplicationDescription server,
             EndpointConfiguration configuration)
         {
-            if (server == null) throw new ArgumentNullException(nameof(server));
+            if (server == null)
+            {
+                throw new ArgumentNullException(nameof(server));
+            }
 
             m_description = new EndpointDescription();
             m_updateBeforeConnect = true;
@@ -866,7 +886,10 @@ namespace Opc.Ua
             EndpointDescription description,
             EndpointConfiguration configuration)
         {
-            if (description == null) throw new ArgumentNullException(nameof(description));
+            if (description == null)
+            {
+                throw new ArgumentNullException(nameof(description));
+            }
 
             m_collection = collection;
             m_description = description;
@@ -901,7 +924,7 @@ namespace Opc.Ua
         /// </summary>
         public new object MemberwiseClone()
         {
-            ConfiguredEndpoint clone = new ConfiguredEndpoint();
+            var clone = new ConfiguredEndpoint();
             clone.Collection = this.Collection;
             clone.Update(this);
             return clone;
@@ -960,7 +983,10 @@ namespace Opc.Ua
         /// </summary>
         public void Update(ConfiguredEndpoint endpoint)
         {
-            if (endpoint == null) throw new ArgumentNullException(nameof(endpoint));
+            if (endpoint == null)
+            {
+                throw new ArgumentNullException(nameof(endpoint));
+            }
 
             m_description = (EndpointDescription)endpoint.Description.MemberwiseClone();
             m_configuration = (EndpointConfiguration)endpoint.Configuration.MemberwiseClone();
@@ -986,7 +1012,10 @@ namespace Opc.Ua
         /// </summary>
         public void Update(EndpointDescription description)
         {
-            if (description == null) throw new ArgumentNullException(nameof(description));
+            if (description == null)
+            {
+                throw new ArgumentNullException(nameof(description));
+            }
 
             m_description = (EndpointDescription)description.MemberwiseClone();
 
@@ -1011,7 +1040,10 @@ namespace Opc.Ua
         /// </summary>
         public void Update(EndpointConfiguration configuration)
         {
-            if (configuration == null) throw new ArgumentNullException(nameof(configuration));
+            if (configuration == null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
 
             m_configuration = (EndpointConfiguration)configuration.MemberwiseClone();
 
@@ -1082,7 +1114,7 @@ namespace Opc.Ua
                 EndpointDescriptionCollection collection = client.GetEndpoints(null);
 
                 // find list of matching endpoints.
-                var matches = MatchEndpoints(
+                EndpointDescriptionCollection matches = MatchEndpoints(
                     collection,
                     endpointUrl,
                     securityMode,
@@ -1090,7 +1122,7 @@ namespace Opc.Ua
                     );
 
                 // select best match
-                var match = SelectBestMatch(matches, discoveryUrl);
+                EndpointDescription match = SelectBestMatch(matches, discoveryUrl);
 
                 // update the endpoint.                        
                 Update(match);
@@ -1152,7 +1184,7 @@ namespace Opc.Ua
                 EndpointDescriptionCollection collection = await client.GetEndpointsAsync(null, ct).ConfigureAwait(false);
 
                 // find list of matching endpoints.
-                var matches = MatchEndpoints(
+                EndpointDescriptionCollection matches = MatchEndpoints(
                     collection,
                     endpointUrl,
                     securityMode,
@@ -1160,7 +1192,7 @@ namespace Opc.Ua
                     );
 
                 // select best match
-                var match = SelectBestMatch(matches, discoveryUrl);
+                EndpointDescription match = SelectBestMatch(matches, discoveryUrl);
 
                 // update the endpoint.                        
                 Update(match);
@@ -1257,7 +1289,11 @@ namespace Opc.Ua
 
             internal set
             {
-                if (value == null) throw new ArgumentNullException(nameof(value));
+                if (value == null)
+                {
+                    throw new ArgumentNullException(nameof(value));
+                }
+
                 m_collection = value;
             }
         }
@@ -1344,7 +1380,7 @@ namespace Opc.Ua
             }
 
             // find list of matching endpoints.
-            EndpointDescriptionCollection matches = new EndpointDescriptionCollection();
+            var matches = new EndpointDescriptionCollection();
 
             // first pass - match on the requested security parameters.
             foreach (EndpointDescription description in collection)
@@ -1458,7 +1494,7 @@ namespace Opc.Ua
                 Uri matchUrl = Utils.ParseUri(match.EndpointUrl);
                 if (matchUrl == null || !string.Equals(discoveryUrl.DnsSafeHost, matchUrl.DnsSafeHost, StringComparison.OrdinalIgnoreCase))
                 {
-                    UriBuilder uri = new UriBuilder(matchUrl);
+                    var uri = new UriBuilder(matchUrl);
                     uri.Host = discoveryUrl.DnsSafeHost;
                     uri.Port = discoveryUrl.Port;
                     match.EndpointUrl = uri.ToString();

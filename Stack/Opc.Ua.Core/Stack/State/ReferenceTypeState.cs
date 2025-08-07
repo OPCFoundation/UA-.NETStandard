@@ -83,7 +83,7 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
-            ReferenceTypeState clone = (ReferenceTypeState)Activator.CreateInstance(this.GetType());
+            var clone = (ReferenceTypeState)Activator.CreateInstance(this.GetType());
             return CloneChildren(clone);
         }
         #endregion
@@ -363,7 +363,7 @@ namespace Opc.Ua
             {
                 case Attributes.InverseName:
                 {
-                    LocalizedText inverseName = value as LocalizedText;
+                    var inverseName = value as LocalizedText;
 
                     if (inverseName == null && value != null)
                     {

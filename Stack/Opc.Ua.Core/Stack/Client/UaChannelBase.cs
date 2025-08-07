@@ -387,7 +387,7 @@ namespace Opc.Ua
                 return m_uaBypassChannel.BeginClose(callback, callbackData);
             }
 
-            AsyncResultBase result = new AsyncResultBase(callback, callbackData, 0);
+            var result = new AsyncResultBase(callback, callbackData, 0);
             result.OperationCompleted();
             return result;
         }
@@ -831,7 +831,7 @@ namespace Opc.Ua
             }
 
             // create a UA-TCP channel.
-            TransportChannelSettings settings = new TransportChannelSettings {
+            var settings = new TransportChannelSettings {
                 Description = description,
                 Configuration = endpointConfiguration,
                 ClientCertificate = clientCertificate,
@@ -910,7 +910,7 @@ namespace Opc.Ua
         /// </summary>
         public override IAsyncResult BeginInvokeService(InvokeServiceMessage request, AsyncCallback callback, object asyncState)
         {
-            UaChannelAsyncResult asyncResult = new UaChannelAsyncResult(m_channel, callback, asyncState);
+            var asyncResult = new UaChannelAsyncResult(m_channel, callback, asyncState);
 
             lock (asyncResult.Lock)
             {
@@ -925,7 +925,7 @@ namespace Opc.Ua
         /// </summary>
         public override InvokeServiceResponseMessage EndInvokeService(IAsyncResult result)
         {
-            UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
+            var asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndInvokeService(asyncResult.InnerResult);
         }
         #endregion
@@ -1025,7 +1025,7 @@ namespace Opc.Ua
                 return asyncResult;
             }
 
-            private TChannel m_channel;
+            private readonly TChannel m_channel;
         }
         #endregion
 

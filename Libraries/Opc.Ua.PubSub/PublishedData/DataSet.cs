@@ -91,7 +91,7 @@ namespace Opc.Ua.PubSub.PublishedData
         /// </summary>
         public new object MemberwiseClone()
         {
-            DataSet copy = base.MemberwiseClone() as DataSet;
+            var copy = base.MemberwiseClone() as DataSet;
             if (DataSetMetaData != null)
             {
                 if (copy != null)

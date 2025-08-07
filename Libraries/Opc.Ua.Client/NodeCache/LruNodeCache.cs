@@ -67,19 +67,19 @@ namespace Opc.Ua.Client
             cacheExpiry ??= TimeSpan.FromMinutes(5);
 
             m_session = session;
-            var nodesBuilder = new ConcurrentLruBuilder<NodeId, INode>()
+            BitFaster.Caching.Lru.Builder.AtomicAsyncConcurrentLruBuilder<NodeId, INode> nodesBuilder = new ConcurrentLruBuilder<NodeId, INode>()
                    .WithAtomicGetOrAdd()
                    .AsAsyncCache()
                    .WithCapacity(capacity)
                    .WithKeyComparer(Comparers.Instance)
                    .WithExpireAfterAccess(cacheExpiry.Value);
-            var refsBuilder = new ConcurrentLruBuilder<NodeId, List<ReferenceDescription>>()
+            BitFaster.Caching.Lru.Builder.AtomicAsyncConcurrentLruBuilder<NodeId, List<ReferenceDescription>> refsBuilder = new ConcurrentLruBuilder<NodeId, List<ReferenceDescription>>()
                    .WithAtomicGetOrAdd()
                    .AsAsyncCache()
                    .WithCapacity(capacity)
                    .WithKeyComparer(Comparers.Instance)
                    .WithExpireAfterAccess(cacheExpiry.Value);
-            var valuesBuilder = new ConcurrentLruBuilder<NodeId, DataValue>()
+            BitFaster.Caching.Lru.Builder.AtomicAsyncConcurrentLruBuilder<NodeId, DataValue> valuesBuilder = new ConcurrentLruBuilder<NodeId, DataValue>()
                    .WithAtomicGetOrAdd()
                    .AsAsyncCache()
                    .WithCapacity(capacity)

@@ -81,14 +81,45 @@ namespace Opc.Ua
                 case NodeClass.View: return new ViewNode(source);
             }
 
-            if (source is IObject) return new ObjectNode(source);
-            if (source is IVariable) return new VariableNode(source);
-            if (source is IObjectType) return new ObjectTypeNode(source);
-            if (source is IVariableType) return new VariableTypeNode(source);
-            if (source is IDataType) return new DataTypeNode(source);
-            if (source is IReferenceType) return new ReferenceTypeNode(source);
-            if (source is IMethod) return new MethodNode(source);
-            if (source is IView) return new ViewNode(source);
+            if (source is IObject)
+            {
+                return new ObjectNode(source);
+            }
+
+            if (source is IVariable)
+            {
+                return new VariableNode(source);
+            }
+
+            if (source is IObjectType)
+            {
+                return new ObjectTypeNode(source);
+            }
+
+            if (source is IVariableType)
+            {
+                return new VariableTypeNode(source);
+            }
+
+            if (source is IDataType)
+            {
+                return new DataTypeNode(source);
+            }
+
+            if (source is IReferenceType)
+            {
+                return new ReferenceTypeNode(source);
+            }
+
+            if (source is IMethod)
+            {
+                return new MethodNode(source);
+            }
+
+            if (source is IView)
+            {
+                return new ViewNode(source);
+            }
 
             return new Node(source);
         }
@@ -231,7 +262,7 @@ namespace Opc.Ua
         /// <returns>Copy of the node</returns>
         public ILocalNode CreateCopy(NodeId nodeId)
         {
-            Node node = Node.Copy(this);
+            var node = Node.Copy(this);
             node.NodeId = nodeId;
             return node;
         }
@@ -406,7 +437,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override int GetHashCode()
         {
-            HashCode hash = new HashCode();
+            var hash = new HashCode();
             hash.Add(m_nodeId);
             hash.Add(m_nodeClass);
             hash.Add(m_browseName);
@@ -568,7 +599,7 @@ namespace Opc.Ua
         /// </returns>
         public override int GetHashCode()
         {
-            HashCode hash = new HashCode();
+            var hash = new HashCode();
             hash.Add(m_referenceTypeId);
             hash.Add(m_isInverse);
             hash.Add(m_targetId);
@@ -639,7 +670,7 @@ namespace Opc.Ua
                 return 0;
             }
 
-            ReferenceNode reference = obj as ReferenceNode;
+            var reference = obj as ReferenceNode;
 
             if (reference == null)
             {
@@ -894,7 +925,7 @@ namespace Opc.Ua
 
                 case Attributes.DataType:
                 {
-                    NodeId dataType = (NodeId)value;
+                    var dataType = (NodeId)value;
 
                     // must ensure the value is of the correct datatype.
                     if (dataType != m_dataType)
@@ -1257,7 +1288,7 @@ namespace Opc.Ua
 
                 case Attributes.DataType:
                 {
-                    NodeId dataType = (NodeId)value;
+                    var dataType = (NodeId)value;
 
                     // must ensure the value is of the correct datatype.
                     if (dataType != m_dataType)

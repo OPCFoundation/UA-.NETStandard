@@ -84,7 +84,11 @@ namespace Opc.Ua.Security.Certificates
             byte[] subjectKeyIdentifier
             )
         {
-            if (subjectKeyIdentifier == null) throw new ArgumentNullException(nameof(subjectKeyIdentifier));
+            if (subjectKeyIdentifier == null)
+            {
+                throw new ArgumentNullException(nameof(subjectKeyIdentifier));
+            }
+
             m_keyIdentifier = subjectKeyIdentifier;
             base.Oid = new Oid(AuthorityKeyIdentifier2Oid, kFriendlyName);
             base.Critical = false;
@@ -191,7 +195,11 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         public override void CopyFrom(AsnEncodedData asnEncodedData)
         {
-            if (asnEncodedData == null) throw new ArgumentNullException(nameof(asnEncodedData));
+            if (asnEncodedData == null)
+            {
+                throw new ArgumentNullException(nameof(asnEncodedData));
+            }
+
             base.Oid = asnEncodedData.Oid;
             base.RawData = asnEncodedData.RawData;
             Decode(asnEncodedData.RawData);

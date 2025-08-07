@@ -98,7 +98,7 @@ namespace Opc.Ua.Server
             //Discard oldest
             if (m_events.Count == QueueSize)
             {
-                Dequeue(out var _);
+                Dequeue(out EventFieldList _);
             }
 
             m_events.Add(value);

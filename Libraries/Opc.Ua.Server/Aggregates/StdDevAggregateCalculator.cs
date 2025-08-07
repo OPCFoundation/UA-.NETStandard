@@ -123,8 +123,8 @@ namespace Opc.Ua.Server
             // get the regions.
             List<SubRegion> regions = GetRegionsInValueSet(values, false, true);
 
-            List<double> xData = new List<double>();
-            List<double> yData = new List<double>();
+            var xData = new List<double>();
+            var yData = new List<double>();
 
             double duration = 0;
             bool nonGoodDataExists = false;
@@ -179,7 +179,7 @@ namespace Opc.Ua.Server
                 regSlope = (xyAvg - xAvg * yAvg) / (xxAgv - xAvg * xAvg);
                 regConst = yAvg - regSlope * xAvg;
                 
-                List<double> errors = new List<double>();
+                var errors = new List<double>();
 
                 double eAvg = 0;
 
@@ -215,7 +215,7 @@ namespace Opc.Ua.Server
             }
             
             // set the timestamp and status.
-            DataValue value = new DataValue();
+            var value = new DataValue();
             value.WrappedValue = new Variant(result, TypeInfo.Scalars.Double);
             value.SourceTimestamp = GetTimestamp(slice);
             value.ServerTimestamp = GetTimestamp(slice);
@@ -257,7 +257,7 @@ namespace Opc.Ua.Server
             // get the regions.
             List<SubRegion> regions = GetRegionsInValueSet(values, false, true);
 
-            List<double> xData = new List<double>();
+            var xData = new List<double>();
             double average = 0;
             bool nonGoodDataExists = false;
 
@@ -321,7 +321,7 @@ namespace Opc.Ua.Server
             }
 
             // set the timestamp and status.
-            DataValue value = new DataValue();
+            var value = new DataValue();
             value.WrappedValue = new Variant(result, TypeInfo.Scalars.Double);
             value.SourceTimestamp = GetTimestamp(slice);
             value.ServerTimestamp = GetTimestamp(slice);

@@ -185,7 +185,7 @@ namespace Opc.Ua.Server
             int length = (int)queueSize;
 
             // create new queue.
-            DataValue[] values = new DataValue[length];
+            var values = new DataValue[length];
             ServiceResult[] errors = null;
 
             if (queueErrors)

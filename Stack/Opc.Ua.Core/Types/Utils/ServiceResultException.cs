@@ -148,7 +148,7 @@ namespace Opc.Ua
         /// </summary>
         public string ToLongString()
         {
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
 
             buffer.AppendLine(Message);
             buffer.Append(m_status.ToLongString());
@@ -214,7 +214,7 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private ServiceResult m_status;
+        private readonly ServiceResult m_status;
         #endregion
 
         #region Private Constants

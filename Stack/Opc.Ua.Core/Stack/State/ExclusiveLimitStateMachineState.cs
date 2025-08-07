@@ -43,7 +43,7 @@ namespace Opc.Ua
         /// <summary>
         /// A table of valid states.
         /// </summary>
-        private ElementInfo[] s_StateTable = new ElementInfo[]
+        private readonly ElementInfo[] s_StateTable = new ElementInfo[]
         {
             new ElementInfo(Objects.ExclusiveLimitStateMachineType_HighHigh, BrowseNames.HighHigh, 1),
             new ElementInfo(Objects.ExclusiveLimitStateMachineType_High, BrowseNames.High, 2),
@@ -62,7 +62,7 @@ namespace Opc.Ua
         /// <summary>
         /// A table of valid transitions.
         /// </summary>
-        private ElementInfo[] s_TransitionTable = new ElementInfo[]
+        private readonly ElementInfo[] s_TransitionTable = new ElementInfo[]
         {
             new ElementInfo(Objects.ExclusiveLimitStateMachineType_HighHighToHigh, BrowseNames.HighHighToHigh, 1),
             new ElementInfo(Objects.ExclusiveLimitStateMachineType_HighToHighHigh, BrowseNames.HighToHighHigh, 2),
@@ -81,7 +81,7 @@ namespace Opc.Ua
         /// <summary>
         /// A table of the to and from states for the transitions.
         /// </summary>
-        private uint[,] s_TransitionMappings = new uint[,]
+        private readonly uint[,] s_TransitionMappings = new uint[,]
         {
             { Objects.ExclusiveLimitStateMachineType_HighHighToHigh, Objects.ExclusiveLimitStateMachineType_HighHigh, Objects.ExclusiveLimitStateMachineType_High, 0 },
             { Objects.ExclusiveLimitStateMachineType_HighToHighHigh, Objects.ExclusiveLimitStateMachineType_High, Objects.ExclusiveLimitStateMachineType_HighHigh, 0 },

@@ -202,7 +202,7 @@ namespace Opc.Ua.Bindings
         {
             int currentTicks = HiResClock.TickCount;
 
-            foreach (var entry in m_activeClients)
+            foreach (KeyValuePair<IPAddress, ActiveClient> entry in m_activeClients)
             {
                 IPAddress clientIp = entry.Key;
                 ActiveClient rClient = entry.Value;
@@ -254,7 +254,7 @@ namespace Opc.Ua.Bindings
 
         #endregion
         #region Private members
-        private ConcurrentDictionary<IPAddress, ActiveClient> m_activeClients = new ConcurrentDictionary<IPAddress, ActiveClient>();
+        private readonly ConcurrentDictionary<IPAddress, ActiveClient> m_activeClients = new ConcurrentDictionary<IPAddress, ActiveClient>();
 
         private const int m_kActionsIntervalMs = 10_000;
         private const int m_kNrActionsTillBlock = 3;
@@ -263,7 +263,7 @@ namespace Opc.Ua.Bindings
         private const int m_kCleanupIntervalMs = 15_000;
         private const int m_kEntryExpirationMs = 600_000; // 10 minutes
 
-        private Timer m_cleanupTimer;
+        private readonly Timer m_cleanupTimer;
         #endregion
     }
 
@@ -314,10 +314,10 @@ namespace Opc.Ua.Bindings
 
                     if (m_channels != null)
                     {
-                        var channels = m_channels.ToArray();
+                        KeyValuePair<uint, TcpListenerChannel>[] channels = m_channels.ToArray();
                         m_channels.Clear();
                         m_channels = null;
-                        foreach (var channelKeyValue in channels)
+                        foreach (KeyValuePair<uint, TcpListenerChannel> channelKeyValue in channels)
                         {
                             Utils.SilentDispose(channelKeyValue.Value);
                         }
@@ -413,8 +413,8 @@ namespace Opc.Ua.Bindings
         {
             try
             {
-                var channelIdString = globalChannelId.Substring(ListenerId.Length + 1);
-                var channelId = Convert.ToUInt32(channelIdString, CultureInfo.InvariantCulture);
+                string channelIdString = globalChannelId.Substring(ListenerId.Length + 1);
+                uint channelId = Convert.ToUInt32(channelIdString, CultureInfo.InvariantCulture);
 
                 TcpListenerChannel channel = null;
                 if (channelId > 0 &&
@@ -495,7 +495,7 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public void CreateReverseConnection(Uri url, int timeout)
         {
-            TcpServerChannel channel = new TcpServerChannel(
+            var channel = new TcpServerChannel(
                 m_listenerId,
                 this,
                 m_bufferManager,
@@ -581,12 +581,12 @@ namespace Opc.Ua.Bindings
                 // create IPv4 or IPv6 socket.
                 try
                 {
-                    IPEndPoint endpoint = new IPEndPoint(ipAddress, port);
+                    var endpoint = new IPEndPoint(ipAddress, port);
                     m_listeningSocket = new Socket(endpoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp) {
                         NoDelay = true,
                         LingerState = new LingerOption(true, 5),
                     };
-                    SocketAsyncEventArgs args = new SocketAsyncEventArgs();
+                    var args = new SocketAsyncEventArgs();
                     args.Completed += OnAccept;
                     args.UserToken = m_listeningSocket;
                     m_listeningSocket.Bind(endpoint);
@@ -618,12 +618,12 @@ namespace Opc.Ua.Bindings
                     // create IPv6 socket
                     try
                     {
-                        IPEndPoint endpointIPv6 = new IPEndPoint(IPAddress.IPv6Any, port);
+                        var endpointIPv6 = new IPEndPoint(IPAddress.IPv6Any, port);
                         m_listeningSocketIPv6 = new Socket(endpointIPv6.AddressFamily, SocketType.Stream, ProtocolType.Tcp) {
                             NoDelay = true,
                             LingerState = new LingerOption(true, 5),
                         };
-                        SocketAsyncEventArgs args = new SocketAsyncEventArgs() {
+                        var args = new SocketAsyncEventArgs() {
                             UserToken = m_listeningSocketIPv6
                         };
                         args.Completed += OnAccept;
@@ -724,7 +724,7 @@ namespace Opc.Ua.Bindings
         {
             m_quotas.CertificateValidator = validator;
             m_serverCertificateTypesProvider = certificateTypesProvider;
-            foreach (var description in m_descriptions)
+            foreach (EndpointDescription description in m_descriptions)
             {
                 // TODO: why only if SERVERCERT != null
                 if (description.ServerCertificate != null)
@@ -792,7 +792,7 @@ namespace Opc.Ua.Bindings
                         return;
                     }
 
-                    var channels = m_channels;
+                    ConcurrentDictionary<uint, TcpListenerChannel> channels = m_channels;
                     if (channels != null && !isBlocked)
                     {
                         // TODO: .Count is flagged as hotpath, implement separate counter
@@ -802,14 +802,14 @@ namespace Opc.Ua.Bindings
                         // before reaching m_maxChannelCount
                         if (m_maxChannelCount > 0 && m_maxChannelCount == channelCount)
                         {
-                            var snapshot = channels.ToArray();
+                            KeyValuePair<uint, TcpListenerChannel>[] snapshot = channels.ToArray();
 
                             // Identify channels without established sessions
-                            var nonSessionChannels = snapshot.Where(ch => !ch.Value.UsedBySession).ToArray();
+                            KeyValuePair<uint, TcpListenerChannel>[] nonSessionChannels = snapshot.Where(ch => !ch.Value.UsedBySession).ToArray();
 
                             if (nonSessionChannels.Any())
                             {
-                                var oldestIdChannel = nonSessionChannels.Aggregate((max, current) =>
+                                KeyValuePair<uint, TcpListenerChannel> oldestIdChannel = nonSessionChannels.Aggregate((max, current) =>
                                     current.Value.ElapsedSinceLastActiveTime > max.Value.ElapsedSinceLastActiveTime ? current : max);
 
                                 Utils.LogInfo("TCPLISTENER: Channel Id {0} scheduled for IdleCleanup - Oldest without established session.",
@@ -925,7 +925,7 @@ namespace Opc.Ua.Bindings
             var channels = new List<TcpListenerChannel>();
 
             bool cleanup = false;
-            foreach (var chEntry in m_channels)
+            foreach (KeyValuePair<uint, TcpListenerChannel> chEntry in m_channels)
             {
                 if (chEntry.Value.ElapsedSinceLastActiveTime > m_quotas.ChannelLifetime)
                 {
@@ -937,7 +937,7 @@ namespace Opc.Ua.Bindings
             if (cleanup)
             {
                 Utils.LogInfo("TCPLISTENER: {0} channels scheduled for IdleCleanup.", channels.Count);
-                foreach (var channel in channels)
+                foreach (TcpListenerChannel channel in channels)
                 {
                     channel.IdleCleanup();
                 }
@@ -1039,7 +1039,7 @@ namespace Opc.Ua.Bindings
 
                 if (m_callback != null)
                 {
-                    TcpServerChannel channel = (TcpServerChannel)args[0];
+                    var channel = (TcpServerChannel)args[0];
                     IServiceResponse response = m_callback.EndProcessRequest(result);
 
                     try
@@ -1054,7 +1054,7 @@ namespace Opc.Ua.Bindings
                             throw;
                         }
                         //try to find the new channel id for the authentication token to send response over new channel
-                        IServiceRequest request = (IServiceRequest)args[2];
+                        var request = (IServiceRequest)args[2];
                         NodeId AuthenticationToken = request.RequestHeader.AuthenticationToken;
 
                         if (m_callback?.TryGetSecureChannelIdForAuthenticationToken(AuthenticationToken, out uint channelId) == true)
@@ -1096,7 +1096,10 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private void SetUri(Uri baseAddress, string relativeAddress)
         {
-            if (baseAddress == null) throw new ArgumentNullException(nameof(baseAddress));
+            if (baseAddress == null)
+            {
+                throw new ArgumentNullException(nameof(baseAddress));
+            }
 
             // validate uri.
             if (!baseAddress.IsAbsoluteUri)
@@ -1116,7 +1119,7 @@ namespace Opc.Ua.Bindings
             {
                 if (!baseAddress.AbsolutePath.EndsWith("/", StringComparison.Ordinal))
                 {
-                    UriBuilder uriBuilder = new UriBuilder(baseAddress);
+                    var uriBuilder = new UriBuilder(baseAddress);
                     uriBuilder.Path = uriBuilder.Path + "/";
                     baseAddress = uriBuilder.Uri;
                 }

@@ -88,7 +88,7 @@ namespace Quickstarts.ReferenceServer
         /// </summary>
         public override NodeId New(ISystemContext context, NodeState node)
         {
-            BaseInstanceState instance = node as BaseInstanceState;
+            var instance = node as BaseInstanceState;
 
             if (instance != null && instance.Parent != null)
             {
@@ -192,7 +192,7 @@ namespace Quickstarts.ReferenceServer
                 root.EventNotifier = EventNotifiers.SubscribeToEvents;
                 AddRootNotifier(root);
 
-                List<BaseDataVariableState> variables = new List<BaseDataVariableState>();
+                var variables = new List<BaseDataVariableState>();
 
                 try
                 {
@@ -234,8 +234,8 @@ namespace Quickstarts.ReferenceServer
 
                     BaseDataVariableState decimalVariable = CreateVariable(staticFolder, scalarStatic + "Decimal", "Decimal", DataTypeIds.DecimalDataType, ValueRanks.Scalar);
                     // Set an arbitrary precision decimal value.
-                    BigInteger largeInteger = BigInteger.Parse("1234567890123546789012345678901234567890123456789012345", CultureInfo.InvariantCulture);
-                    DecimalDataType decimalValue = new DecimalDataType {
+                    var largeInteger = BigInteger.Parse("1234567890123546789012345678901234567890123456789012345", CultureInfo.InvariantCulture);
+                    var decimalValue = new DecimalDataType {
                         Scale = 100,
                         Value = largeInteger.ToByteArray()
                     };
@@ -536,7 +536,7 @@ namespace Quickstarts.ReferenceServer
 
                     foreach (string name in Enum.GetNames(typeof(BuiltInType)))
                     {
-                        BuiltInType builtInType = (BuiltInType)Enum.Parse(typeof(BuiltInType), name);
+                        var builtInType = (BuiltInType)Enum.Parse(typeof(BuiltInType), name);
                         if (IsAnalogType(builtInType))
                         {
                             AnalogItemState item = CreateAnalogItemVariable(analogItemFolder, daAnalogItem + name, name, builtInType, ValueRanks.Scalar);
@@ -593,7 +593,7 @@ namespace Quickstarts.ReferenceServer
                     CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "UInteger", "UInteger", BuiltInType.UInteger, ValueRanks.OneDimension, new ulong[] { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 });
                     CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "UtcTime", "UtcTime", DataTypeIds.UtcTime, ValueRanks.OneDimension, new DateTime[] { DateTime.MinValue.ToUniversalTime(), DateTime.MaxValue.ToUniversalTime(), DateTime.MinValue.ToUniversalTime(), DateTime.MaxValue.ToUniversalTime(), DateTime.MinValue.ToUniversalTime(), DateTime.MaxValue.ToUniversalTime(), DateTime.MinValue.ToUniversalTime(), DateTime.MaxValue.ToUniversalTime(), DateTime.MinValue.ToUniversalTime() }, null);
                     CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "Variant", "Variant", BuiltInType.Variant, ValueRanks.OneDimension, new Variant[] { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 });
-                    XmlDocument doc1 = new XmlDocument();
+                    var doc1 = new XmlDocument();
                     CreateAnalogItemVariable(analogArrayFolder, daAnalogArray + "XmlElement", "XmlElement", BuiltInType.XmlElement, ValueRanks.OneDimension, new XmlElement[] { doc1.CreateElement("tag1"), doc1.CreateElement("tag2"), doc1.CreateElement("tag3"), doc1.CreateElement("tag4"), doc1.CreateElement("tag5"), doc1.CreateElement("tag6"), doc1.CreateElement("tag7"), doc1.CreateElement("tag8"), doc1.CreateElement("tag9"), doc1.CreateElement("tag10") });
                     #endregion
 
@@ -1525,7 +1525,7 @@ namespace Quickstarts.ReferenceServer
         /// </summary>
         private FolderState CreateFolder(NodeState parent, string path, string name)
         {
-            FolderState folder = new FolderState(parent);
+            var folder = new FolderState(parent);
 
             folder.SymbolicName = name;
             folder.ReferenceTypeId = ReferenceTypes.Organizes;
@@ -1550,7 +1550,7 @@ namespace Quickstarts.ReferenceServer
         /// </summary>
         private BaseObjectState CreateObject(NodeState parent, string path, string name)
         {
-            BaseObjectState folder = new BaseObjectState(parent);
+            var folder = new BaseObjectState(parent);
 
             folder.SymbolicName = name;
             folder.ReferenceTypeId = ReferenceTypes.Organizes;
@@ -1575,7 +1575,7 @@ namespace Quickstarts.ReferenceServer
         /// </summary>
         private BaseObjectTypeState CreateObjectType(NodeState parent, IDictionary<NodeId, IList<IReference>> externalReferences, string path, string name)
         {
-            BaseObjectTypeState type = new BaseObjectTypeState();
+            var type = new BaseObjectTypeState();
 
             type.SymbolicName = name;
             type.SuperTypeId = ObjectTypeIds.BaseObjectType;
@@ -1631,7 +1631,7 @@ namespace Quickstarts.ReferenceServer
         /// </summary>
         private DataItemState CreateDataItemVariable(NodeState parent, string path, string name, BuiltInType dataType, int valueRank)
         {
-            DataItemState variable = new DataItemState(parent);
+            var variable = new DataItemState(parent);
             variable.ValuePrecision = new PropertyState<double>(variable);
             variable.Definition = new PropertyState<string>(variable);
 
@@ -1684,7 +1684,7 @@ namespace Quickstarts.ReferenceServer
 
         private DataItemState[] CreateDataItemVariables(NodeState parent, string path, string name, BuiltInType dataType, int valueRank, ushort numVariables)
         {
-            List<DataItemState> itemsCreated = new List<DataItemState>();
+            var itemsCreated = new List<DataItemState>();
             // create the default name first:
             itemsCreated.Add(CreateDataItemVariable(parent, path, name, dataType, valueRank));
             // now to create the remaining NUMBERED items
@@ -1706,10 +1706,10 @@ namespace Quickstarts.ReferenceServer
             ref StatusCode statusCode,
             ref DateTime timestamp)
         {
-            DataItemState variable = node as DataItemState;
+            var variable = node as DataItemState;
 
             // verify data type.
-            Opc.Ua.TypeInfo typeInfo = Opc.Ua.TypeInfo.IsInstanceOfDataType(
+            var typeInfo = Opc.Ua.TypeInfo.IsInstanceOfDataType(
                 value,
                 variable.DataType,
                 variable.ValueRank,
@@ -1751,7 +1751,7 @@ namespace Quickstarts.ReferenceServer
 
         private AnalogItemState CreateAnalogItemVariable(NodeState parent, string path, string name, NodeId dataType, int valueRank, object initialValues, Opc.Ua.Range customRange)
         {
-            AnalogItemState variable = new AnalogItemState(parent);
+            var variable = new AnalogItemState(parent);
             variable.BrowseName = new QualifiedName(path, NamespaceIndex);
             variable.EngineeringUnits = new PropertyState<EUInformation>(variable);
             variable.InstrumentRange = new PropertyState<Range>(variable);
@@ -1889,7 +1889,7 @@ namespace Quickstarts.ReferenceServer
         /// </summary>
         private MultiStateDiscreteState CreateMultiStateDiscreteItemVariable(NodeState parent, string path, string name, params string[] values)
         {
-            MultiStateDiscreteState variable = new MultiStateDiscreteState(parent);
+            var variable = new MultiStateDiscreteState(parent);
 
             variable.NodeId = new NodeId(path, NamespaceIndex);
             variable.BrowseName = new QualifiedName(path, NamespaceIndex);
@@ -1916,7 +1916,7 @@ namespace Quickstarts.ReferenceServer
             variable.Timestamp = DateTime.UtcNow;
             variable.OnWriteValue = OnWriteDiscrete;
 
-            LocalizedText[] strings = new LocalizedText[values.Length];
+            var strings = new LocalizedText[values.Length];
 
             for (int ii = 0; ii < strings.Length; ii++)
             {
@@ -1948,7 +1948,7 @@ namespace Quickstarts.ReferenceServer
         /// </summary>
         private DataItemState CreateMultiStateValueDiscreteItemVariable(NodeState parent, string path, string name, NodeId nodeId, params string[] enumNames)
         {
-            MultiStateValueDiscreteState variable = new MultiStateValueDiscreteState(parent);
+            var variable = new MultiStateValueDiscreteState(parent);
 
             variable.NodeId = new NodeId(path, NamespaceIndex);
             variable.BrowseName = new QualifiedName(path, NamespaceIndex);
@@ -1980,14 +1980,14 @@ namespace Quickstarts.ReferenceServer
             // ValueAsText = the actual enumerated value
 
             // set the enumerated strings
-            LocalizedText[] strings = new LocalizedText[enumNames.Length];
+            var strings = new LocalizedText[enumNames.Length];
             for (int ii = 0; ii < strings.Length; ii++)
             {
                 strings[ii] = enumNames[ii];
             }
 
             // set the enumerated values
-            EnumValueType[] values = new EnumValueType[enumNames.Length];
+            var values = new EnumValueType[enumNames.Length];
             for (int ii = 0; ii < values.Length; ii++)
             {
                 values[ii] = new EnumValueType();
@@ -2017,10 +2017,10 @@ namespace Quickstarts.ReferenceServer
             ref StatusCode statusCode,
             ref DateTime timestamp)
         {
-            MultiStateDiscreteState variable = node as MultiStateDiscreteState;
+            var variable = node as MultiStateDiscreteState;
 
             // verify data type.
-            Opc.Ua.TypeInfo typeInfo = Opc.Ua.TypeInfo.IsInstanceOfDataType(
+            var typeInfo = Opc.Ua.TypeInfo.IsInstanceOfDataType(
                 value,
                 variable.DataType,
                 variable.ValueRank,
@@ -2056,9 +2056,9 @@ namespace Quickstarts.ReferenceServer
             ref StatusCode statusCode,
             ref DateTime timestamp)
         {
-            MultiStateValueDiscreteState variable = node as MultiStateValueDiscreteState;
+            var variable = node as MultiStateValueDiscreteState;
 
-            TypeInfo typeInfo = TypeInfo.Construct(value);
+            var typeInfo = TypeInfo.Construct(value);
 
             if (variable == null ||
                 typeInfo == null ||
@@ -2098,10 +2098,10 @@ namespace Quickstarts.ReferenceServer
             ref StatusCode statusCode,
             ref DateTime timestamp)
         {
-            AnalogItemState variable = node as AnalogItemState;
+            var variable = node as AnalogItemState;
 
             // verify data type.
-            Opc.Ua.TypeInfo typeInfo = Opc.Ua.TypeInfo.IsInstanceOfDataType(
+            var typeInfo = Opc.Ua.TypeInfo.IsInstanceOfDataType(
                 value,
                 variable.DataType,
                 variable.ValueRank,
@@ -2158,9 +2158,9 @@ namespace Quickstarts.ReferenceServer
             ref StatusCode statusCode,
             ref DateTime timestamp)
         {
-            PropertyState<Range> variable = node as PropertyState<Range>;
-            ExtensionObject extensionObject = value as ExtensionObject;
-            TypeInfo typeInfo = TypeInfo.Construct(value);
+            var variable = node as PropertyState<Range>;
+            var extensionObject = value as ExtensionObject;
+            var typeInfo = TypeInfo.Construct(value);
 
             if (variable == null ||
                 extensionObject == null ||
@@ -2170,8 +2170,8 @@ namespace Quickstarts.ReferenceServer
                 return StatusCodes.BadTypeMismatch;
             }
 
-            Range newRange = extensionObject.Body as Range;
-            AnalogItemState parent = variable.Parent as AnalogItemState;
+            var newRange = extensionObject.Body as Range;
+            var parent = variable.Parent as AnalogItemState;
             if (newRange == null ||
                 parent == null)
             {
@@ -2183,7 +2183,7 @@ namespace Quickstarts.ReferenceServer
                 return StatusCodes.BadIndexRangeInvalid;
             }
 
-            TypeInfo parentTypeInfo = TypeInfo.Construct(parent.Value);
+            var parentTypeInfo = TypeInfo.Construct(parent.Value);
             Range parentRange = GetAnalogRange(parentTypeInfo.BuiltInType);
             if (parentRange.High < newRange.High ||
                 parentRange.Low > newRange.Low)
@@ -2209,7 +2209,7 @@ namespace Quickstarts.ReferenceServer
         /// </summary>
         private BaseDataVariableState CreateVariable(NodeState parent, string path, string name, NodeId dataType, int valueRank)
         {
-            BaseDataVariableState variable = new BaseDataVariableState(parent);
+            var variable = new BaseDataVariableState(parent);
             variable.SymbolicName = name;
             variable.ReferenceTypeId = ReferenceTypes.Organizes;
             variable.TypeDefinitionId = VariableTypeIds.BaseDataVariableType;
@@ -2254,7 +2254,7 @@ namespace Quickstarts.ReferenceServer
             // first, create a new Parent folder for this data-type
             FolderState newParentFolder = CreateFolder(parent, path, name);
 
-            List<BaseDataVariableState> itemsCreated = new List<BaseDataVariableState>();
+            var itemsCreated = new List<BaseDataVariableState>();
             // now to create the remaining NUMBERED items
             for (uint i = 0; i < numVariables; i++)
             {
@@ -2294,7 +2294,7 @@ namespace Quickstarts.ReferenceServer
             // first, create a new Parent folder for this data-type
             FolderState newParentFolder = CreateFolder(parent, path, name);
 
-            List<BaseDataVariableState> itemsCreated = new List<BaseDataVariableState>();
+            var itemsCreated = new List<BaseDataVariableState>();
             // now to create the remaining NUMBERED items
             for (uint i = 0; i < numVariables; i++)
             {
@@ -2310,7 +2310,7 @@ namespace Quickstarts.ReferenceServer
         /// </summary>
         private BaseDataVariableTypeState CreateVariableType(NodeState parent, IDictionary<NodeId, IList<IReference>> externalReferences, string path, string name, BuiltInType dataType, int valueRank)
         {
-            BaseDataVariableTypeState type = new BaseDataVariableTypeState();
+            var type = new BaseDataVariableTypeState();
 
             type.SymbolicName = name;
             type.SuperTypeId = VariableTypeIds.BaseDataVariableType;
@@ -2348,7 +2348,7 @@ namespace Quickstarts.ReferenceServer
         /// </summary>
         private DataTypeState CreateDataType(NodeState parent, IDictionary<NodeId, IList<IReference>> externalReferences, string path, string name)
         {
-            DataTypeState type = new DataTypeState();
+            var type = new DataTypeState();
 
             type.SymbolicName = name;
             type.SuperTypeId = DataTypeIds.Structure;
@@ -2383,7 +2383,7 @@ namespace Quickstarts.ReferenceServer
         /// </summary>
         private ReferenceTypeState CreateReferenceType(NodeState parent, IDictionary<NodeId, IList<IReference>> externalReferences, string path, string name)
         {
-            ReferenceTypeState type = new ReferenceTypeState();
+            var type = new ReferenceTypeState();
 
             type.SymbolicName = name;
             type.SuperTypeId = ReferenceTypeIds.NonHierarchicalReferences;
@@ -2420,7 +2420,7 @@ namespace Quickstarts.ReferenceServer
         /// </summary>
         private ViewState CreateView(NodeState parent, IDictionary<NodeId, IList<IReference>> externalReferences, string path, string name)
         {
-            ViewState type = new ViewState();
+            var type = new ViewState();
 
             type.SymbolicName = name;
             type.NodeId = new NodeId(path, NamespaceIndex);
@@ -2455,7 +2455,7 @@ namespace Quickstarts.ReferenceServer
         /// </summary>
         private MethodState CreateMethod(NodeState parent, string path, string name)
         {
-            MethodState method = new MethodState(parent);
+            var method = new MethodState(parent);
 
             method.SymbolicName = name;
             method.ReferenceTypeId = ReferenceTypeIds.HasComponent;
@@ -2695,7 +2695,7 @@ namespace Quickstarts.ReferenceServer
             {
                 lock (Lock)
                 {
-                    var timeStamp = DateTime.UtcNow;
+                    DateTime timeStamp = DateTime.UtcNow;
                     foreach (BaseDataVariableState variable in m_dynamicNodes)
                     {
                         variable.Value = GetNewValue(variable);
@@ -2741,7 +2741,7 @@ namespace Quickstarts.ReferenceServer
                     return null;
                 }
 
-                NodeHandle handle = new NodeHandle();
+                var handle = new NodeHandle();
 
                 handle.NodeId = nodeId;
                 handle.Node = node;
@@ -2781,13 +2781,13 @@ namespace Quickstarts.ReferenceServer
         #endregion
 
         #region Private Fields
-        private ReferenceServerConfiguration m_configuration;
+        private readonly ReferenceServerConfiguration m_configuration;
         private RandomSource m_randomSource;
         private DataGenerator m_generator;
         private Timer m_simulationTimer;
         private ushort m_simulationInterval = 1000;
         private bool m_simulationEnabled = true;
-        private List<BaseDataVariableState> m_dynamicNodes;
+        private readonly List<BaseDataVariableState> m_dynamicNodes;
         #endregion
     }
 

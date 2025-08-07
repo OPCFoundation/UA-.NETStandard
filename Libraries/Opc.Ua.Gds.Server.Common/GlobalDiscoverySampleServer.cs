@@ -99,7 +99,7 @@ namespace Opc.Ua.Gds.Server
         {
             Utils.LogInfo("Creating the Node Managers.");
 
-            List<INodeManager> nodeManagers = new List<INodeManager>
+            var nodeManagers = new List<INodeManager>
             {
                 // create the custom node managers.
                 new ApplicationsNodeManager(server, configuration, m_database, m_request, m_certificateGroup, m_autoApprove)
@@ -117,7 +117,7 @@ namespace Opc.Ua.Gds.Server
         /// </remarks>
         protected override ServerProperties LoadServerProperties()
         {
-            ServerProperties properties = new ServerProperties {
+            var properties = new ServerProperties {
                 ManufacturerName = "Some Company Inc",
                 ProductName = "Global Discovery Server",
                 ProductUri = "http://somecompany.com/GlobalDiscoveryServer",
@@ -142,7 +142,7 @@ namespace Opc.Ua.Gds.Server
                 if (context.UserIdentity.TokenType == UserTokenType.Anonymous)
                 {
                     // construct translation object with default text.
-                    TranslationInfo info = new TranslationInfo(
+                    var info = new TranslationInfo(
                         "NoWriteAllowed",
                         "en-US",
                         "Must provide a valid user before calling write.");
@@ -158,7 +158,7 @@ namespace Opc.Ua.Gds.Server
                 UserIdentityToken securityToken = context.UserIdentity.GetIdentityToken();
 
                 // check for a user name token.
-                UserNameIdentityToken userNameToken = securityToken as UserNameIdentityToken;
+                var userNameToken = securityToken as UserNameIdentityToken;
                 if (userNameToken != null)
                 {
                     lock (Lock)
@@ -195,7 +195,7 @@ namespace Opc.Ua.Gds.Server
         private void SessionManager_ImpersonateUser(ISession session, ImpersonateEventArgs args)
         {
             // check for a user name token
-            UserNameIdentityToken userNameToken = args.NewIdentity as UserNameIdentityToken;
+            var userNameToken = args.NewIdentity as UserNameIdentityToken;
             if (userNameToken != null)
             {
                 if (VerifyPassword(userNameToken))
@@ -208,7 +208,7 @@ namespace Opc.Ua.Gds.Server
             }
 
             // check for x509 user token.
-            X509IdentityToken x509Token = args.NewIdentity as X509IdentityToken;
+            var x509Token = args.NewIdentity as X509IdentityToken;
             if (x509Token != null)
             {
                 VerifyUserTokenCertificate(x509Token.Certificate);
@@ -254,7 +254,7 @@ namespace Opc.Ua.Gds.Server
             var certificateStoreIdentifier = new CertificateStoreIdentifier(configuration.ApplicationCertificatesStorePath);
             using (ICertificateStore ApplicationsStore = certificateStoreIdentifier.OpenStore())
             {
-                var matchingCerts = ApplicationsStore.FindByThumbprint(applicationInstanceCertificate.Thumbprint).Result;
+                X509Certificate2Collection matchingCerts = ApplicationsStore.FindByThumbprint(applicationInstanceCertificate.Thumbprint).Result;
 
                 if (matchingCerts.Contains(applicationInstanceCertificate))
                 {
@@ -270,7 +270,7 @@ namespace Opc.Ua.Gds.Server
             certificateStoreIdentifier = new CertificateStoreIdentifier(configuration.AuthoritiesStorePath);
             using (ICertificateStore AuthoritiesStore = certificateStoreIdentifier.OpenStore())
             {
-                var crls = AuthoritiesStore.EnumerateCRLs().Result;
+                X509CRLCollection crls = AuthoritiesStore.EnumerateCRLs().Result;
                 foreach (X509CRL crl in crls)
                 {
                     if (crl.IsRevoked(applicationInstanceCertificate))
@@ -295,7 +295,7 @@ namespace Opc.Ua.Gds.Server
             {
                 TranslationInfo info;
                 StatusCode result = StatusCodes.BadIdentityTokenRejected;
-                ServiceResultException se = e as ServiceResultException;
+                var se = e as ServiceResultException;
                 if (se != null && se.StatusCode == StatusCodes.BadCertificateUseNotAllowed)
                 {
                     info = new TranslationInfo(
@@ -368,13 +368,13 @@ namespace Opc.Ua.Gds.Server
         #endregion
 
         #region Private Fields
-        private Dictionary<uint, ImpersonationContext> m_contexts = new Dictionary<uint, ImpersonationContext>();
-        private IApplicationsDatabase m_database = null;
-        private ICertificateRequest m_request = null;
-        private ICertificateGroup m_certificateGroup = null;
-        private IUserDatabase m_userDatabase = null;
-        private bool m_autoApprove;
-        private bool m_createStandardUsers;
+        private readonly Dictionary<uint, ImpersonationContext> m_contexts = new Dictionary<uint, ImpersonationContext>();
+        private readonly IApplicationsDatabase m_database = null;
+        private readonly ICertificateRequest m_request = null;
+        private readonly ICertificateGroup m_certificateGroup = null;
+        private readonly IUserDatabase m_userDatabase = null;
+        private readonly bool m_autoApprove;
+        private readonly bool m_createStandardUsers;
         #endregion 
     }
 }

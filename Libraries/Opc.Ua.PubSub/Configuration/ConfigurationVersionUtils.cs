@@ -142,13 +142,35 @@ namespace Opc.Ua.PubSub.Configuration
         /// <returns></returns>
         public static bool IsUsable(DataSetMetaDataType dataSetMetaData)
         {
-            if (dataSetMetaData == null) return false;
-            if (dataSetMetaData.Fields == null) return false;
-            if (dataSetMetaData.Fields.Count == 0) return false;
+            if (dataSetMetaData == null)
+            {
+                return false;
+            }
 
-            if (dataSetMetaData.ConfigurationVersion == null) return false;
-            if (dataSetMetaData.ConfigurationVersion.MajorVersion == 0) return false;
-            if (dataSetMetaData.ConfigurationVersion.MinorVersion == 0) return false;
+            if (dataSetMetaData.Fields == null)
+            {
+                return false;
+            }
+
+            if (dataSetMetaData.Fields.Count == 0)
+            {
+                return false;
+            }
+
+            if (dataSetMetaData.ConfigurationVersion == null)
+            {
+                return false;
+            }
+
+            if (dataSetMetaData.ConfigurationVersion.MajorVersion == 0)
+            {
+                return false;
+            }
+
+            if (dataSetMetaData.ConfigurationVersion.MinorVersion == 0)
+            {
+                return false;
+            }
 
             return true;
         }

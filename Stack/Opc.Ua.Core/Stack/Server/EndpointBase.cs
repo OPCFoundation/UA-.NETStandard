@@ -55,7 +55,10 @@ namespace Opc.Ua
         /// <param name="host">The host.</param>
         protected EndpointBase(IServiceHostBase host)
         {
-            if (host == null) throw new ArgumentNullException(nameof(host));
+            if (host == null)
+            {
+                throw new ArgumentNullException(nameof(host));
+            }
 
             m_host = host;
             m_server = host.Server;
@@ -68,7 +71,10 @@ namespace Opc.Ua
         /// </summary>
         protected EndpointBase(ServerBase server)
         {
-            if (server == null) throw new ArgumentNullException(nameof(server));
+            if (server == null)
+            {
+                throw new ArgumentNullException(nameof(server));
+            }
 
             m_host = null;
             m_server = server;
@@ -98,13 +104,20 @@ namespace Opc.Ua
             AsyncCallback callback,
             object callbackData)
         {
-            if (channeId == null) throw new ArgumentNullException(nameof(channeId));
-            if (request == null) throw new ArgumentNullException(nameof(request));
+            if (channeId == null)
+            {
+                throw new ArgumentNullException(nameof(channeId));
+            }
+
+            if (request == null)
+            {
+                throw new ArgumentNullException(nameof(request));
+            }
 
             // create operation.
-            ProcessRequestAsyncResult result = new ProcessRequestAsyncResult(this, callback, callbackData, 0);
+            var result = new ProcessRequestAsyncResult(this, callback, callbackData, 0);
 
-            SecureChannelContext context = new SecureChannelContext(
+            var context = new SecureChannelContext(
                 channeId,
                 endpointDescription,
                 RequestEncoding.Binary);
@@ -198,11 +211,11 @@ namespace Opc.Ua
             ActivitySpanId spanId = default;
             ActivityTraceFlags traceFlags = ActivityTraceFlags.None;
 
-            foreach (var item in parameters.Parameters)
+            foreach (KeyValuePair item in parameters.Parameters)
             {
                 if (item.Key == "traceparent")
                 {
-                    var traceparent = item.Value.ToString();
+                    string traceparent = item.Value.ToString();
                     int firstDash = traceparent.IndexOf('-', StringComparison.Ordinal);
                     int secondDash = traceparent.IndexOf('-', firstDash + 1);
                     int thirdDash = traceparent.IndexOf('-', secondDash + 1);
@@ -329,7 +342,7 @@ namespace Opc.Ua
                 SetRequestContext(RequestEncoding.Binary);
 
                 // create handler.
-                ProcessRequestAsyncResult result = new ProcessRequestAsyncResult(this, callback, asyncState, 0);
+                var result = new ProcessRequestAsyncResult(this, callback, asyncState, 0);
                 return result.BeginProcessRequest(SecureChannelContext.Current, request.InvokeServiceRequest);
             }
             catch (Exception e)
@@ -350,7 +363,7 @@ namespace Opc.Ua
                 IServiceResponse response = ProcessRequestAsyncResult.WaitForComplete(result, false);
 
                 // encode the response.
-                InvokeServiceResponseMessage outgoing = new InvokeServiceResponseMessage();
+                var outgoing = new InvokeServiceResponseMessage();
                 outgoing.InvokeServiceResponse = BinaryEncoder.EncodeMessage(response, MessageContext);
                 return outgoing;
             }
@@ -360,7 +373,7 @@ namespace Opc.Ua
                 ServiceFault fault = CreateFault(ProcessRequestAsyncResult.GetRequest(result), e);
 
                 // encode the fault as a response.
-                InvokeServiceResponseMessage outgoing = new InvokeServiceResponseMessage();
+                var outgoing = new InvokeServiceResponseMessage();
                 outgoing.InvokeServiceResponse = BinaryEncoder.EncodeMessage(fault, MessageContext);
                 return outgoing;
             }
@@ -474,7 +487,7 @@ namespace Opc.Ua
         {
             DiagnosticsMasks diagnosticsMask = DiagnosticsMasks.ServiceNoInnerStatus;
 
-            ServiceFault fault = new ServiceFault();
+            var fault = new ServiceFault();
 
             if (request != null)
             {
@@ -507,7 +520,7 @@ namespace Opc.Ua
 
             fault.ResponseHeader.ServiceResult = result.Code;
 
-            StringTable stringTable = new StringTable();
+            var stringTable = new StringTable();
 
             fault.ResponseHeader.ServiceDiagnostics = new DiagnosticInfo(
                 result,
@@ -664,8 +677,8 @@ namespace Opc.Ua
             }
 
             #region Private Fields
-            private Type m_requestType;
-            private InvokeServiceEventHandler m_InvokeService;
+            private readonly Type m_requestType;
+            private readonly InvokeServiceEventHandler m_InvokeService;
             #endregion
         }
 
@@ -922,9 +935,9 @@ namespace Opc.Ua
                     {
                         // extract trace information from the request header if available
                         if (m_request.RequestHeader?.AdditionalHeader?.Body is AdditionalParametersType parameters &&
-                            TryExtractActivityContextFromParameters(parameters, out var activityContext))
+                            TryExtractActivityContextFromParameters(parameters, out ActivityContext activityContext))
                         {
-                            using (var activity = ActivitySource.StartActivity(m_request.GetType().Name, ActivityKind.Server, activityContext))
+                            using (Activity activity = ActivitySource.StartActivity(m_request.GetType().Name, ActivityKind.Server, activityContext))
                             {
                                 // call the service.
                                 m_response = m_service.Invoke(m_request);
@@ -955,7 +968,7 @@ namespace Opc.Ua
             #endregion     
 
             #region Private Fields
-            private EndpointBase m_endpoint;
+            private readonly EndpointBase m_endpoint;
             private SecureChannelContext m_context;
             private IServiceRequest m_request;
             private IServiceResponse m_response;
@@ -973,7 +986,7 @@ namespace Opc.Ua
         private Dictionary<ExpandedNodeId, ServiceDefinition> m_supportedServices;
         private IServiceHostBase m_host;
         private IServerBase m_server;
-        private string g_ImplementationString = "Opc.Ua.EndpointBase UA Service " + Utils.GetAssemblySoftwareVersion();
+        private readonly string g_ImplementationString = "Opc.Ua.EndpointBase UA Service " + Utils.GetAssemblySoftwareVersion();
         #endregion
     }
 }

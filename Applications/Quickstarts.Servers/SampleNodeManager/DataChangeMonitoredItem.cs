@@ -351,7 +351,7 @@ namespace Opc.Ua.Sample
         /// </summary>
         public void ValueChanged(ISystemContext context)
         {
-            DataValue value = new DataValue();
+            var value = new DataValue();
 
             ServiceResult error = m_source.Node.ReadAttribute(context, m_attributeId, NumericRange.Empty, null, value);
 
@@ -657,7 +657,7 @@ namespace Opc.Ua.Sample
                 // make a shallow copy of the value.
                 if (value != null)
                 {
-                    DataValue copy = new DataValue();
+                    var copy = new DataValue();
 
                     copy.WrappedValue = value.WrappedValue;
                     copy.StatusCode = value.StatusCode;
@@ -898,7 +898,7 @@ namespace Opc.Ua.Sample
             }
 
             // copy data value.
-            MonitoredItemNotification item = new MonitoredItemNotification();
+            var item = new MonitoredItemNotification();
 
             item.ClientHandle = m_clientHandle;
             item.Value = value;
@@ -938,15 +938,15 @@ namespace Opc.Ua.Sample
 
         #region Private Fields
         private readonly object m_lock = new object();
-        private IMonitoredItemQueueFactory m_monitoredItemQueueFactory;
-        private MonitoredNode m_source;
+        private readonly IMonitoredItemQueueFactory m_monitoredItemQueueFactory;
+        private readonly MonitoredNode m_source;
         private ISubscription m_subscription;
-        private uint m_id;
+        private readonly uint m_id;
         private DataValue m_lastValue;
         private ServiceResult m_lastError;
-        private uint m_attributeId;
+        private readonly uint m_attributeId;
         private NumericRange m_indexRange;
-        private QualifiedName m_dataEncoding;
+        private readonly QualifiedName m_dataEncoding;
         private TimestampsToReturn m_timestampsToReturn;
         private DiagnosticsMasks m_diagnosticsMasks;
         private uint m_clientHandle;

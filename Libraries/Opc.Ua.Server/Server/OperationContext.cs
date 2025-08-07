@@ -47,8 +47,11 @@ namespace Opc.Ua.Server
         /// <param name="identity">The identity used in the request.</param>
         public OperationContext(RequestHeader requestHeader, RequestType requestType, IUserIdentity identity = null)
         {
-            if (requestHeader == null) throw new ArgumentNullException(nameof(requestHeader));
-            
+            if (requestHeader == null)
+            {
+                throw new ArgumentNullException(nameof(requestHeader));
+            }
+
             m_channelContext    = SecureChannelContext.Current;
             m_session           = null;
             m_identity          = identity;
@@ -75,9 +78,16 @@ namespace Opc.Ua.Server
         /// <param name="session">The session.</param>
         public OperationContext(RequestHeader requestHeader, RequestType requestType, ISession session)
         {
-            if (requestHeader == null) throw new ArgumentNullException(nameof(requestHeader));
-            if (session == null)       throw new ArgumentNullException(nameof(session));
-            
+            if (requestHeader == null)
+            {
+                throw new ArgumentNullException(nameof(requestHeader));
+            }
+
+            if (session == null)
+            {
+                throw new ArgumentNullException(nameof(session));
+            }
+
             m_channelContext     = SecureChannelContext.Current;
             m_session            = session;
             m_identity           = session.EffectiveIdentity;
@@ -103,8 +113,11 @@ namespace Opc.Ua.Server
         /// <param name="diagnosticsMasks">The diagnostics masks.</param>
         public OperationContext(ISession session, DiagnosticsMasks diagnosticsMasks)
         {
-            if (session == null) throw new ArgumentNullException(nameof(session));
-            
+            if (session == null)
+            {
+                throw new ArgumentNullException(nameof(session));
+            }
+
             m_channelContext    = null;
             m_session           = session;
             m_identity          = session.EffectiveIdentity;
@@ -124,8 +137,11 @@ namespace Opc.Ua.Server
         /// <param name="monitoredItem">The monitored item.</param>
         public OperationContext(IMonitoredItem monitoredItem)
         {
-            if (monitoredItem == null) throw new ArgumentNullException(nameof(monitoredItem));
-            
+            if (monitoredItem == null)
+            {
+                throw new ArgumentNullException(nameof(monitoredItem));
+            }
+
             m_channelContext = null;
             m_identity = monitoredItem.EffectiveIdentity;
             m_session = monitoredItem.Session;
@@ -305,17 +321,17 @@ namespace Opc.Ua.Server
         #endregion
 
         #region Private Fields
-        private SecureChannelContext m_channelContext;
-        private ISession m_session;
-        private IUserIdentity m_identity;
-        private IList<string> m_preferredLocales;
-        private DiagnosticsMasks m_diagnosticsMask;
-        private StringTable m_stringTable;
-        private string m_auditLogEntryId;
-        private uint m_requestId;        
-        private RequestType m_requestType;
-        private uint m_clientHandle;
-        private DateTime m_operationDeadline;
+        private readonly SecureChannelContext m_channelContext;
+        private readonly ISession m_session;
+        private readonly IUserIdentity m_identity;
+        private readonly IList<string> m_preferredLocales;
+        private readonly DiagnosticsMasks m_diagnosticsMask;
+        private readonly StringTable m_stringTable;
+        private readonly string m_auditLogEntryId;
+        private readonly uint m_requestId;        
+        private readonly RequestType m_requestType;
+        private readonly uint m_clientHandle;
+        private readonly DateTime m_operationDeadline;
         private long m_operationStatus;
         private static long s_lastRequestId;
         #endregion

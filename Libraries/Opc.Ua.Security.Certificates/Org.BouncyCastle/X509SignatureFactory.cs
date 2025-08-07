@@ -93,7 +93,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         /// </summary>
         class X509StreamCalculator : IStreamCalculator<IBlockResult>
         {
-            private X509SignatureGenerator _generator;
+            private readonly X509SignatureGenerator _generator;
             private readonly HashAlgorithmName _hashAlgorithm;
 
             /// <summary>
@@ -120,7 +120,11 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             /// </summary>
             public IBlockResult GetResult()
             {
-                if (!(Stream is MemoryStream memStream)) throw new ArgumentNullException(nameof(Stream));
+                if (!(Stream is MemoryStream memStream))
+                {
+                    throw new ArgumentNullException(nameof(Stream));
+                }
+
                 byte[] digest = memStream.ToArray();
                 byte[] signature = _generator.SignData(digest, _hashAlgorithm);
                 return new Org.BouncyCastle.Crypto.SimpleBlockResult(signature);

@@ -229,7 +229,11 @@ namespace Opc.Ua.Security.Certificates
         /// <inheritdoc/>
         public virtual ICertificateBuilder AddExtension(X509Extension extension)
         {
-            if (extension == null) throw new ArgumentNullException(nameof(extension));
+            if (extension == null)
+            {
+                throw new ArgumentNullException(nameof(extension));
+            }
+
             m_extensions.Add(extension);
             return this;
         }
@@ -255,7 +259,11 @@ namespace Opc.Ua.Security.Certificates
         /// <inheritdoc/>
         public virtual ICertificateBuilderCreateForECDsaAny SetECDsaPublicKey(ECDsa publicKey)
         {
-            if (publicKey == null) throw new ArgumentNullException(nameof(publicKey));
+            if (publicKey == null)
+            {
+                throw new ArgumentNullException(nameof(publicKey));
+            }
+
             m_ecdsaPublicKey = publicKey;
             return this;
         }
@@ -267,7 +275,11 @@ namespace Opc.Ua.Security.Certificates
         /// <inheritdoc/>
         public virtual ICertificateBuilderCreateForRSAAny SetRSAPublicKey(RSA publicKey)
         {
-            if (publicKey == null) throw new ArgumentNullException(nameof(publicKey));
+            if (publicKey == null)
+            {
+                throw new ArgumentNullException(nameof(publicKey));
+            }
+
             m_rsaPublicKey = publicKey;
             return this;
         }
@@ -275,7 +287,11 @@ namespace Opc.Ua.Security.Certificates
         /// <inheritdoc/>
         public virtual ICertificateBuilderIssuer SetIssuer(X509Certificate2 issuerCertificate)
         {
-            if (issuerCertificate == null) throw new ArgumentNullException(nameof(issuerCertificate));
+            if (issuerCertificate == null)
+            {
+                throw new ArgumentNullException(nameof(issuerCertificate));
+            }
+
             m_issuerCAKeyCert = issuerCertificate;
             m_issuerName = issuerCertificate.SubjectName;
             return this;
@@ -397,7 +413,7 @@ namespace Opc.Ua.Security.Certificates
         private DateTime m_notBefore;
         private DateTime m_notAfter;
         private HashAlgorithmName m_hashAlgorithmName;
-        private X500DistinguishedName m_subjectName;
+        private readonly X500DistinguishedName m_subjectName;
         private X500DistinguishedName m_issuerName;
         #endregion
     }

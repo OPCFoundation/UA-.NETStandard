@@ -446,7 +446,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="messageContext">The context.</param>
         public override byte[] Encode(IServiceMessageContext messageContext)
         {
-            using (MemoryStream stream = new MemoryStream())
+            using (var stream = new MemoryStream())
             {
                 Encode(messageContext, stream);
                 return stream.ToArray();
@@ -460,7 +460,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="stream">The stream to use.</param>
         public override void Encode(IServiceMessageContext messageContext, Stream stream)
         {
-            using (BinaryEncoder binaryEncoder = new BinaryEncoder(stream, messageContext, true))
+            using (var binaryEncoder = new BinaryEncoder(stream, messageContext, true))
             {
                 if (m_uadpNetworkMessageType == UADPNetworkMessageType.DataSetMessage)
                 {
@@ -490,7 +490,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="dataSetReaders"></param>
         public override void Decode(IServiceMessageContext context, byte[] message, IList<DataSetReaderDataType> dataSetReaders)
         {
-            using (BinaryDecoder binaryDecoder = new BinaryDecoder(message, context))
+            using (var binaryDecoder = new BinaryDecoder(message, context))
             {
                 // 1. decode network message header (PublisherId & DataSetClassId)
                 DecodeNetworkMessageHeader(binaryDecoder);
@@ -785,7 +785,7 @@ namespace Opc.Ua.PubSub.Encoding
 
             try
             {
-                List<DataSetReaderDataType> dataSetReadersFiltered = new List<DataSetReaderDataType>();
+                var dataSetReadersFiltered = new List<DataSetReaderDataType>();
 
                 /* 6.2.8.1 PublisherId
                  The parameter PublisherId defines the Publisher to receive NetworkMessages from.
@@ -838,14 +838,14 @@ namespace Opc.Ua.PubSub.Encoding
                 DecodePayloadSize(binaryDecoder);
 
                 // the list of decode dataset messages for this network message
-                List<UaDataSetMessage> dataSetMessages = new List<UaDataSetMessage>();
+                var dataSetMessages = new List<UaDataSetMessage>();
 
                 /* 6.2.8.3 DataSetWriterId
                 The parameter DataSetWriterId with DataType UInt16 defines the DataSet selected in the Publisher for the DataSetReader.
                 If the value is 0 (null), the parameter shall be ignored and all received DataSetMessages pass the DataSetWriterId filter.*/
                 foreach (DataSetReaderDataType dataSetReader in dataSetReaders)
                 {
-                    List<UaDataSetMessage> uadpDataSetMessages = new List<UaDataSetMessage>(DataSetMessages);
+                    var uadpDataSetMessages = new List<UaDataSetMessage>(DataSetMessages);
                     //if there is no information regarding dataSet in network message, add dummy datasetMessage to try decoding
                     if (uadpDataSetMessages.Count == 0)
                     {
@@ -886,7 +886,7 @@ namespace Opc.Ua.PubSub.Encoding
                 {
                     dataSetMessages = new List<UaDataSetMessage>();
                     // check if DataSets are decoded into the existing dataSetMessages
-                    foreach (var dataSetMessage in m_uaDataSetMessages)
+                    foreach (UaDataSetMessage dataSetMessage in m_uaDataSetMessages)
                     {
                         if (dataSetMessage.DataSet != null)
                         {
@@ -980,7 +980,7 @@ namespace Opc.Ua.PubSub.Encoding
                 }
                 else
                 {
-                    PublisherIdTypeEncodingMask publisherIdType = (PublisherIdTypeEncodingMask)((byte)ExtendedFlags1 & kPublishedIdTypeUsedBits);
+                    var publisherIdType = (PublisherIdTypeEncodingMask)((byte)ExtendedFlags1 & kPublishedIdTypeUsedBits);
                     switch (publisherIdType)
                     {
                         case PublisherIdTypeEncodingMask.Byte:
@@ -1056,7 +1056,7 @@ namespace Opc.Ua.PubSub.Encoding
                 // Collect DataSetSetMessages headers
                 for (int index = 0; index < DataSetMessages.Count; index++)
                 {
-                    UadpDataSetMessage uadpDataSetMessage = DataSetMessages[index] as UadpDataSetMessage;
+                    var uadpDataSetMessage = DataSetMessages[index] as UadpDataSetMessage;
                     if (uadpDataSetMessage != null && uadpDataSetMessage.DataSet != null)
                     {
                         encoder.WriteUInt16("DataSetWriterId", uadpDataSetMessage.DataSetWriterId);
@@ -1232,7 +1232,7 @@ namespace Opc.Ua.PubSub.Encoding
             // Decode PublisherId
             if ((UADPFlags & UADPFlagsEncodingMask.PublisherId) != 0)
             {
-                PublisherIdTypeEncodingMask publishedIdTypeType = (PublisherIdTypeEncodingMask)((byte)ExtendedFlags1 & kPublishedIdTypeUsedBits);
+                var publishedIdTypeType = (PublisherIdTypeEncodingMask)((byte)ExtendedFlags1 & kPublishedIdTypeUsedBits);
 
                 switch (publishedIdTypeType)
                 {

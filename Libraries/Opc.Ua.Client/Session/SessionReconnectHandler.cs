@@ -382,7 +382,7 @@ namespace Opc.Ua.Client
                 {
                     if (m_reverseConnectManager != null)
                     {
-                        var connection = await m_reverseConnectManager.WaitForConnection(
+                        ITransportWaitingConnection connection = await m_reverseConnectManager.WaitForConnection(
                                 new Uri(m_session.Endpoint.EndpointUrl),
                                 m_session.Endpoint.Server.ApplicationUri
                             ).ConfigureAwait(false);
@@ -459,9 +459,12 @@ namespace Opc.Ua.Client
                     ITransportWaitingConnection connection;
                     do
                     {
-                        var endpointDescription = m_session.Endpoint;
+                        EndpointDescription endpointDescription = m_session.Endpoint;
                         if(endpointDescription == null)
-                             endpointDescription = transportChannel.EndpointDescription;
+                        {
+                            endpointDescription = transportChannel.EndpointDescription;
+                        }
+
                         connection = await m_reverseConnectManager.WaitForConnection(
                                 new Uri(endpointDescription.EndpointUrl),
                                 endpointDescription.Server.ApplicationUri
@@ -469,7 +472,7 @@ namespace Opc.Ua.Client
 
                         if (m_updateFromServer)
                         {
-                            var endpoint = m_session.ConfiguredEndpoint;
+                            ConfiguredEndpoint endpoint = m_session.ConfiguredEndpoint;
                             await endpoint.UpdateFromServerAsync(
                                 endpoint.EndpointUrl, connection,
                                 endpoint.Description.SecurityMode,
@@ -485,7 +488,7 @@ namespace Opc.Ua.Client
                 {
                     if (m_updateFromServer)
                     {
-                        var endpoint = m_session.ConfiguredEndpoint;
+                        ConfiguredEndpoint endpoint = m_session.ConfiguredEndpoint;
                         await endpoint.UpdateFromServerAsync(
                             endpoint.EndpointUrl,
                             endpoint.Description.SecurityMode,
@@ -544,14 +547,14 @@ namespace Opc.Ua.Client
         private readonly object m_lock = new object();
         private ISession m_session;
         private ReconnectState m_state;
-        private Random m_random;
+        private readonly Random m_random;
         private bool m_reconnectFailed;
-        private bool m_reconnectAbort;
+        private readonly bool m_reconnectAbort;
         private bool m_cancelReconnect;
         private bool m_updateFromServer;
         private int m_reconnectPeriod;
         private int m_baseReconnectPeriod;
-        private int m_maxReconnectPeriod;
+        private readonly int m_maxReconnectPeriod;
         private Timer m_reconnectTimer;
         private EventHandler m_callback;
         private ReverseConnectManager m_reverseConnectManager;

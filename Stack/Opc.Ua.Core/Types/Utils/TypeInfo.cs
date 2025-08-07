@@ -244,7 +244,7 @@ namespace Opc.Ua
         /// <returns>An data type identifier for a node in a server's address space.</returns>
         public static NodeId GetDataTypeId(Type type)
         {
-            TypeInfo typeInfo = TypeInfo.Construct(type);
+            var typeInfo = TypeInfo.Construct(type);
 
             NodeId dataTypeId = GetDataTypeId(typeInfo);
 
@@ -314,7 +314,7 @@ namespace Opc.Ua
                 return ValueRanks.Any;
             }
 
-            TypeInfo typeInfo = TypeInfo.Construct(value);
+            var typeInfo = TypeInfo.Construct(value);
 
             if (typeInfo.BuiltInType == BuiltInType.Null)
             {
@@ -334,7 +334,7 @@ namespace Opc.Ua
         /// <returns>The array rank of the <paramref name="type"/> </returns>
         public static int GetValueRank(Type type)
         {
-            TypeInfo typeInfo = TypeInfo.Construct(type);
+            var typeInfo = TypeInfo.Construct(type);
 
             if (typeInfo.BuiltInType == BuiltInType.Null)
             {
@@ -399,7 +399,7 @@ namespace Opc.Ua
                 case DataTypes.TimeString: return BuiltInType.String;
             }
 
-            BuiltInType builtInType = (BuiltInType)Enum.ToObject(typeof(BuiltInType), datatypeId.Identifier);
+            var builtInType = (BuiltInType)Enum.ToObject(typeof(BuiltInType), datatypeId.Identifier);
 
             if (builtInType > BuiltInType.DiagnosticInfo && builtInType != BuiltInType.Enumeration)
             {
@@ -492,7 +492,7 @@ namespace Opc.Ua
             {
                 if (typeId != null && typeId.NamespaceIndex == 0 && typeId.IdType == Opc.Ua.IdType.Numeric)
                 {
-                    BuiltInType id = (BuiltInType)(int)(uint)typeId.Identifier;
+                    var id = (BuiltInType)(int)(uint)typeId.Identifier;
 
                     if (id > BuiltInType.Null && id <= BuiltInType.Enumeration && id != BuiltInType.DiagnosticInfo)
                     {
@@ -529,7 +529,7 @@ namespace Opc.Ua
             {
                 if (typeId != null && typeId.NamespaceIndex == 0 && typeId.IdType == Opc.Ua.IdType.Numeric)
                 {
-                    BuiltInType id = (BuiltInType)(int)(uint)typeId.Identifier;
+                    var id = (BuiltInType)(int)(uint)typeId.Identifier;
 
                     if (id > BuiltInType.Null && id <= BuiltInType.Enumeration && id != BuiltInType.DiagnosticInfo)
                     {
@@ -924,7 +924,7 @@ namespace Opc.Ua
             }
 
             // check every element in the array or matrix.
-            Array array = value as Array;
+            var array = value as Array;
             if (array == null)
             {
                 if (value is Matrix matrix)
@@ -976,7 +976,7 @@ namespace Opc.Ua
                         element = ((Variant)element).Value;
                     }
 
-                    TypeInfo elementInfo = TypeInfo.IsInstanceOfDataType(
+                    var elementInfo = TypeInfo.IsInstanceOfDataType(
                         element,
                         expectedDataTypeId,
                         ValueRanks.Scalar,
@@ -1958,7 +1958,7 @@ namespace Opc.Ua
 
                 case BuiltInType.StatusCode:
                 {
-                    StatusCode code = (StatusCode)value;
+                    var code = (StatusCode)value;
                     return (ushort)(code.CodeBits >> 16);
                 }
             }
@@ -2357,7 +2357,7 @@ namespace Opc.Ua
 
                 case BuiltInType.Guid:
                 {
-                    Guid? guid = value as Guid?;
+                    var guid = value as Guid?;
 
                     if (guid != null)
                     {
@@ -2399,7 +2399,7 @@ namespace Opc.Ua
                         return Array.Empty<byte>();
                     }
 
-                    using (System.IO.MemoryStream ostrm = new System.IO.MemoryStream())
+                    using (var ostrm = new System.IO.MemoryStream())
                     {
                         byte buffer = 0;
                         bool firstByte = false;
@@ -2473,7 +2473,7 @@ namespace Opc.Ua
 
                 case BuiltInType.String:
                 {
-                    XmlDocument document = new XmlDocument();
+                    var document = new XmlDocument();
                     document.LoadInnerXml((string)value);
                     return document.DocumentElement;
                 }
@@ -2697,11 +2697,11 @@ namespace Opc.Ua
                 return null;
             }
 
-            TypeInfo elementType = new TypeInfo(sourceType.BuiltInType, ValueRanks.Scalar);
+            var elementType = new TypeInfo(sourceType.BuiltInType, ValueRanks.Scalar);
 
             if (input.Rank == 1)
             {
-                T[] copy = new T[input.Length];
+                var copy = new T[input.Length];
 
                 for (int ii = 0; ii < input.Length; ii++)
                 {
@@ -2727,7 +2727,7 @@ namespace Opc.Ua
                 int x = input.GetLength(0);
                 int y = input.GetLength(1);
 
-                T[,] copy = new T[x, y];
+                var copy = new T[x, y];
 
                 for (int ii = 0; ii < x; ii++)
                 {
@@ -2758,7 +2758,7 @@ namespace Opc.Ua
                 dimensions[ii] = input.GetLength(ii);
             }
 
-            Array output = Array.CreateInstance(typeof(T), dimensions);
+            var output = Array.CreateInstance(typeof(T), dimensions);
 
             int length = output.Length;
             int[] indexes = new int[dimensions.Length];
@@ -2792,8 +2792,8 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private BuiltInType m_builtInType;
-        private int m_valueRank;
+        private readonly BuiltInType m_builtInType;
+        private readonly int m_valueRank;
         private static readonly TypeInfo s_Unknown = new TypeInfo();
         #endregion
 
@@ -3081,7 +3081,7 @@ namespace Opc.Ua
         {
             if (format == null)
             {
-                System.Text.StringBuilder buffer = new System.Text.StringBuilder();
+                var buffer = new System.Text.StringBuilder();
                 buffer.Append(m_builtInType);
 
                 if (m_valueRank >= 0)

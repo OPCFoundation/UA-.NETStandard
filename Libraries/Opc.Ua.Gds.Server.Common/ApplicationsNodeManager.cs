@@ -46,9 +46,9 @@ namespace Opc.Ua.Gds.Server
     /// </summary>
     public class ApplicationsNodeManager : CustomNodeManager2
     {
-        private NodeId m_defaultApplicationGroupId;
-        private NodeId m_defaultHttpsGroupId;
-        private NodeId m_defaultUserTokenGroupId;
+        private readonly NodeId m_defaultApplicationGroupId;
+        private readonly NodeId m_defaultHttpsGroupId;
+        private readonly NodeId m_defaultUserTokenGroupId;
 
         #region Constructors
         /// <summary>
@@ -64,7 +64,7 @@ namespace Opc.Ua.Gds.Server
             )
             : base(server, configuration)
         {
-            List<string> namespaceUris = new List<string>
+            var namespaceUris = new List<string>
             {
                 "http://opcfoundation.org/UA/GDS/applications/",
                 Opc.Ua.Gds.Namespaces.OpcUaGds
@@ -104,10 +104,10 @@ namespace Opc.Ua.Gds.Server
             try
             {
                 DateTime lastResetTime;
-                var results = m_database.QueryServers(0, 5, null, null, null, null, out lastResetTime);
+                ServerOnNetwork[] results = m_database.QueryServers(0, 5, null, null, null, null, out lastResetTime);
                 Utils.LogInfo("QueryServers Returned: {0} records", results.Length);
 
-                foreach (var result in results)
+                foreach (ServerOnNetwork result in results)
                 {
                     Utils.LogInfo("Server Found at {0}", result.DiscoveryUrl);
                 }
@@ -116,7 +116,7 @@ namespace Opc.Ua.Gds.Server
             {
                 Utils.LogError(e, "Could not connect to the Database!");
 
-                var ie = e.InnerException;
+                Exception ie = e.InnerException;
 
                 while (ie != null)
                 {
@@ -154,7 +154,7 @@ namespace Opc.Ua.Gds.Server
         public override NodeId New(ISystemContext context, NodeState node)
         {
             // generate a numeric node id if the node has a parent and no node id assigned.
-            BaseInstanceState instance = node as BaseInstanceState;
+            var instance = node as BaseInstanceState;
             if (instance != null && instance.Parent != null)
             {
                 return GenerateNodeId();
@@ -203,7 +203,7 @@ namespace Opc.Ua.Gds.Server
 
         private ICertificateGroup GetCertificateGroup(NodeId certificateGroupId)
         {
-            foreach (var certificateGroup in m_certificateGroups.Values)
+            foreach (ICertificateGroup certificateGroup in m_certificateGroups.Values)
             {
                 if (certificateGroupId == certificateGroup.Id)
                 {
@@ -216,7 +216,7 @@ namespace Opc.Ua.Gds.Server
 
         private ICertificateGroup GetCertificateGroup(string id)
         {
-            foreach (var certificateGroup in m_certificateGroups.Values)
+            foreach (ICertificateGroup certificateGroup in m_certificateGroups.Values)
             {
                 if (id == certificateGroup.Configuration.Id)
                 {
@@ -232,7 +232,7 @@ namespace Opc.Ua.Gds.Server
         {
             if (certificate != null && certificate.Length > 0)
             {
-                using (var x509 = X509CertificateLoader.LoadCertificate(certificate))
+                using (X509Certificate2 x509 = X509CertificateLoader.LoadCertificate(certificate))
                 {
                     NodeId certificateType = CertificateIdentifier.GetCertificateType(x509);
                     foreach (ICertificateGroup certificateGroup in m_certificateGroups.Values)
@@ -345,7 +345,7 @@ namespace Opc.Ua.Gds.Server
                 m_database.NamespaceIndex = this.NamespaceIndexes[0];
                 m_request.NamespaceIndex = this.NamespaceIndexes[0];
 
-                foreach (var certificateGroupConfiguration in m_globalDiscoveryServerConfiguration.CertificateGroups)
+                foreach (CertificateGroupConfiguration certificateGroupConfiguration in m_globalDiscoveryServerConfiguration.CertificateGroups)
                 {
                     try
                     {
@@ -372,7 +372,7 @@ namespace Opc.Ua.Gds.Server
         /// </summary>
         protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
         {
-            NodeStateCollection predefinedNodes = new NodeStateCollection();
+            var predefinedNodes = new NodeStateCollection();
             predefinedNodes.LoadFromBinaryResource(context, "Opc.Ua.Gds.Server.Model.Opc.Ua.Gds.PredefinedNodes.uanodes", typeof(ApplicationsNodeManager).GetTypeInfo().Assembly, true);
             return predefinedNodes;
         }
@@ -382,7 +382,7 @@ namespace Opc.Ua.Gds.Server
         /// </summary>
         protected override NodeState AddBehaviourToPredefinedNode(ISystemContext context, NodeState predefinedNode)
         {
-            BaseObjectState passiveNode = predefinedNode as BaseObjectState;
+            var passiveNode = predefinedNode as BaseObjectState;
 
             if (passiveNode == null)
             {
@@ -405,7 +405,7 @@ namespace Opc.Ua.Gds.Server
                         break;
                     }
 
-                    Opc.Ua.Gds.CertificateDirectoryState activeNode = new Opc.Ua.Gds.CertificateDirectoryState(passiveNode.Parent);
+                    var activeNode = new Opc.Ua.Gds.CertificateDirectoryState(passiveNode.Parent);
 
                     activeNode.RevokeCertificate = new RevokeCertificateMethodState(passiveNode);
                     activeNode.CheckRevocationStatus = new CheckRevocationStatusMethodState(passiveNode);
@@ -428,7 +428,7 @@ namespace Opc.Ua.Gds.Server
                     activeNode.RevokeCertificate.OnCall = new RevokeCertificateMethodStateMethodCallHandler(OnRevokeCertificate);
                     activeNode.CheckRevocationStatus.OnCall = new CheckRevocationStatusMethodStateMethodCallHandler(OnCheckRevocationStatus);
                     activeNode.GetCertificates.OnCall = new GetCertificatesMethodStateMethodCallHandler(OnGetCertificates);
-                    if (m_certificateGroups.TryGetValue(m_defaultApplicationGroupId, out var applicationCertificateGroup))
+                    if (m_certificateGroups.TryGetValue(m_defaultApplicationGroupId, out ICertificateGroup applicationCertificateGroup))
                     {
                         activeNode.CertificateGroups.DefaultApplicationGroup.CertificateTypes.Value = applicationCertificateGroup.CertificateTypes.ToArray();
                     }
@@ -440,7 +440,7 @@ namespace Opc.Ua.Gds.Server
                     activeNode.CertificateGroups.DefaultApplicationGroup.TrustList.Writable.Value = false;
                     activeNode.CertificateGroups.DefaultApplicationGroup.TrustList.UserWritable.Value = false;
 
-                    if (m_certificateGroups.TryGetValue(m_defaultHttpsGroupId, out var httpsCertificateGroup))
+                    if (m_certificateGroups.TryGetValue(m_defaultHttpsGroupId, out ICertificateGroup httpsCertificateGroup))
                     {
                         activeNode.CertificateGroups.DefaultHttpsGroup.CertificateTypes.Value = httpsCertificateGroup.CertificateTypes.ToArray();
                     }
@@ -451,7 +451,7 @@ namespace Opc.Ua.Gds.Server
                     activeNode.CertificateGroups.DefaultHttpsGroup.TrustList.LastUpdateTime.Value = DateTime.UtcNow;
                     activeNode.CertificateGroups.DefaultHttpsGroup.TrustList.Writable.Value = false;
                     activeNode.CertificateGroups.DefaultHttpsGroup.TrustList.UserWritable.Value = false;
-                    if (m_certificateGroups.TryGetValue(m_defaultUserTokenGroupId, out var userTokenCertificateGroup))
+                    if (m_certificateGroups.TryGetValue(m_defaultUserTokenGroupId, out ICertificateGroup userTokenCertificateGroup))
                     {
                         activeNode.CertificateGroups.DefaultUserTokenGroup.CertificateTypes.Value = userTokenCertificateGroup.CertificateTypes.ToArray();
                     }
@@ -568,7 +568,7 @@ namespace Opc.Ua.Gds.Server
 
             Utils.LogInfo("OnUpdateApplication: {0}", application.ApplicationUri);
 
-            var record = m_database.GetApplication(application.ApplicationId);
+            ApplicationRecordDataType record = m_database.GetApplication(application.ApplicationId);
 
             if (record == null)
             {
@@ -593,7 +593,7 @@ namespace Opc.Ua.Gds.Server
 
             Utils.LogInfo("OnUnregisterApplication: {0}", applicationId.ToString());
 
-            foreach (var certType in m_certTypeMap)
+            foreach (KeyValuePair<NodeId, string> certType in m_certTypeMap)
             {
                 try
                 {
@@ -639,7 +639,7 @@ namespace Opc.Ua.Gds.Server
             }
 
             bool revoked = false;
-            foreach (var certType in m_certTypeMap)
+            foreach (KeyValuePair<NodeId, string> certType in m_certTypeMap)
             {
                 byte[] applicationCertificate;
 
@@ -723,7 +723,7 @@ namespace Opc.Ua.Gds.Server
                     }
                 }
 
-                using (var x509 = X509CertificateLoader.LoadCertificate(certificate))
+                using (X509Certificate2 x509 = X509CertificateLoader.LoadCertificate(certificate))
                 {
                     if (chain.Build(x509))
                     {
@@ -858,11 +858,11 @@ namespace Opc.Ua.Gds.Server
 
             if (application.DiscoveryUrls != null)
             {
-                foreach (var discoveryUrl in application.DiscoveryUrls)
+                foreach (string discoveryUrl in application.DiscoveryUrls)
                 {
                     if (Uri.IsWellFormedUriString(discoveryUrl, UriKind.Absolute))
                     {
-                        Uri url = new Uri(discoveryUrl);
+                        var url = new Uri(discoveryUrl);
 
                         if (url.Scheme == Utils.UriSchemeHttps)
                         {
@@ -888,11 +888,11 @@ namespace Opc.Ua.Gds.Server
         {
             if (application.DiscoveryUrls != null)
             {
-                foreach (var discoveryUrl in application.DiscoveryUrls)
+                foreach (string discoveryUrl in application.DiscoveryUrls)
                 {
                     if (Uri.IsWellFormedUriString(discoveryUrl, UriKind.Absolute))
                     {
-                        Uri url = new Uri(discoveryUrl);
+                        var url = new Uri(discoveryUrl);
 
                         if (url.Scheme == Utils.UriSchemeHttps)
                         {
@@ -914,11 +914,11 @@ namespace Opc.Ua.Gds.Server
         {
             bool contextFound = false;
 
-            var fields = X509Utils.ParseDistinguishedName(subjectName);
+            List<string> fields = X509Utils.ParseDistinguishedName(subjectName);
 
-            StringBuilder builder = new StringBuilder();
+            var builder = new StringBuilder();
 
-            foreach (var field in fields)
+            foreach (string field in fields)
             {
                 if (builder.Length > 0)
                 {
@@ -929,7 +929,7 @@ namespace Opc.Ua.Gds.Server
                 {
                     if (certificateGroup.Id == m_defaultHttpsGroupId)
                     {
-                        var error = CheckHttpsDomain(application, field.Substring(3));
+                        ServiceResult error = CheckHttpsDomain(application, field.Substring(3));
 
                         if (StatusCode.IsBad(error.StatusCode))
                         {
@@ -958,17 +958,17 @@ namespace Opc.Ua.Gds.Server
 
         private string[] GetDefaultDomainNames(ApplicationRecordDataType application)
         {
-            List<string> names = new List<string>();
+            var names = new List<string>();
 
             if (application.DiscoveryUrls != null && application.DiscoveryUrls.Count > 0)
             {
-                foreach (var discoveryUrl in application.DiscoveryUrls)
+                foreach (string discoveryUrl in application.DiscoveryUrls)
                 {
                     if (Uri.IsWellFormedUriString(discoveryUrl, UriKind.Absolute))
                     {
-                        Uri url = new Uri(discoveryUrl);
+                        var url = new Uri(discoveryUrl);
 
-                        foreach (var name in names)
+                        foreach (string name in names)
                         {
                             if (Utils.AreDomainsEqual(name, url.DnsSafeHost))
                             {
@@ -1006,7 +1006,7 @@ namespace Opc.Ua.Gds.Server
 
             AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.CertificateAuthorityAdminOrSelfAdmin, applicationId);
 
-            var application = m_database.GetApplication(applicationId);
+            ApplicationRecordDataType application = m_database.GetApplication(applicationId);
 
             if (application == null)
             {
@@ -1048,7 +1048,7 @@ namespace Opc.Ua.Gds.Server
             }
             else
             {
-                StringBuilder buffer = new StringBuilder();
+                var buffer = new StringBuilder();
 
                 buffer.Append("CN=");
 
@@ -1075,7 +1075,7 @@ namespace Opc.Ua.Gds.Server
 
             if (domainNames != null && domainNames.Length > 0)
             {
-                foreach (var domainName in domainNames)
+                foreach (string domainName in domainNames)
                 {
                     if (Uri.CheckHostName(domainName) == UriHostNameType.Unknown)
                     {
@@ -1125,7 +1125,7 @@ namespace Opc.Ua.Gds.Server
         {
             AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.CertificateAuthorityAdminOrSelfAdmin, applicationId);
 
-            var application = m_database.GetApplication(applicationId);
+            ApplicationRecordDataType application = m_database.GetApplication(applicationId);
 
             if (application == null)
             {
@@ -1206,7 +1206,7 @@ namespace Opc.Ua.Gds.Server
             privateKey = null;
             AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.CertificateAuthorityAdminOrSelfAdmin, applicationId);
 
-            var application = m_database.GetApplication(applicationId);
+            ApplicationRecordDataType application = m_database.GetApplication(applicationId);
             if (application == null)
             {
                 return new ServiceResult(StatusCodes.BadNotFound, "The ApplicationId does not refer to a valid application.");
@@ -1215,7 +1215,7 @@ namespace Opc.Ua.Gds.Server
             string certificateGroupId;
             string certificateTypeId;
 
-            var state = m_request.FinishRequest(
+            CertificateRequestState state = m_request.FinishRequest(
                 applicationId,
                 requestId,
                 out certificateGroupId,
@@ -1223,7 +1223,7 @@ namespace Opc.Ua.Gds.Server
                 out signedCertificate,
                 out privateKey);
 
-            var approvalState = VerifyApprovedState(state);
+            ServiceResult approvalState = VerifyApprovedState(state);
             if (approvalState != null)
             {
                 return approvalState;
@@ -1232,7 +1232,7 @@ namespace Opc.Ua.Gds.Server
             ICertificateGroup certificateGroup = null;
             if (!string.IsNullOrWhiteSpace(certificateGroupId))
             {
-                foreach (var group in m_certificateGroups)
+                foreach (KeyValuePair<NodeId, ICertificateGroup> group in m_certificateGroups)
                 {
                     if (string.Equals(group.Value.Configuration.Id, certificateGroupId, StringComparison.OrdinalIgnoreCase))
                     {
@@ -1302,7 +1302,7 @@ namespace Opc.Ua.Gds.Server
                     }
                     catch (Exception e)
                     {
-                        StringBuilder error = new StringBuilder();
+                        var error = new StringBuilder();
                         error.AppendLine("Error Generating Certificate={0}");
                         error.AppendLine("ApplicationId={1}");
                         error.AppendLine("ApplicationUri={2}");
@@ -1328,7 +1328,7 @@ namespace Opc.Ua.Gds.Server
                     }
                     catch (Exception e)
                     {
-                        StringBuilder error = new StringBuilder();
+                        var error = new StringBuilder();
                         error.AppendLine("Error Generating New Key Pair Certificate={0}");
                         error.AppendLine("ApplicationId={1}");
                         error.AppendLine("ApplicationUri={2}");
@@ -1380,7 +1380,7 @@ namespace Opc.Ua.Gds.Server
         {
             AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.CertificateAuthorityAdminOrSelfAdmin, applicationId);
 
-            var application = m_database.GetApplication(applicationId);
+            ApplicationRecordDataType application = m_database.GetApplication(applicationId);
 
             if (application == null)
             {
@@ -1388,7 +1388,7 @@ namespace Opc.Ua.Gds.Server
             }
 
             var certificateGroupIdList = new List<NodeId>();
-            foreach (var certificateGroup in m_certificateGroups)
+            foreach (KeyValuePair<NodeId, ICertificateGroup> certificateGroup in m_certificateGroups)
             {
                 NodeId key = certificateGroup.Key;
                 certificateGroupIdList.Add(key);
@@ -1408,7 +1408,7 @@ namespace Opc.Ua.Gds.Server
         {
             AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.CertificateAuthorityAdminOrSelfAdmin, applicationId);
 
-            var application = m_database.GetApplication(applicationId);
+            ApplicationRecordDataType application = m_database.GetApplication(applicationId);
 
             if (application == null)
             {
@@ -1441,7 +1441,7 @@ namespace Opc.Ua.Gds.Server
         {
             AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.AuthenticatedUserOrSelfAdmin, applicationId);
 
-            var application = m_database.GetApplication(applicationId);
+            ApplicationRecordDataType application = m_database.GetApplication(applicationId);
 
             if (application == null)
             {
@@ -1502,7 +1502,7 @@ namespace Opc.Ua.Gds.Server
                 // look up predefined node.
                 if (PredefinedNodes.TryGetValue(nodeId, out node))
                 {
-                    NodeHandle handle = new NodeHandle(nodeId, node);
+                    var handle = new NodeHandle(nodeId, node);
 
                     if (cache != null)
                     {
@@ -1646,14 +1646,14 @@ namespace Opc.Ua.Gds.Server
         #endregion
 
         #region Private Fields
-        private bool m_autoApprove;
+        private readonly bool m_autoApprove;
         private uint m_nextNodeId;
-        private ApplicationConfiguration m_configuration;
-        private GlobalDiscoveryServerConfiguration m_globalDiscoveryServerConfiguration;
-        private IApplicationsDatabase m_database;
-        private ICertificateRequest m_request;
-        private ICertificateGroup m_certificateGroupFactory;
-        private Dictionary<NodeId, ICertificateGroup> m_certificateGroups;
+        private readonly ApplicationConfiguration m_configuration;
+        private readonly GlobalDiscoveryServerConfiguration m_globalDiscoveryServerConfiguration;
+        private readonly IApplicationsDatabase m_database;
+        private readonly ICertificateRequest m_request;
+        private readonly ICertificateGroup m_certificateGroupFactory;
+        private readonly Dictionary<NodeId, ICertificateGroup> m_certificateGroups;
         private Dictionary<NodeId, string> m_certTypeMap;
         #endregion
     }

@@ -256,7 +256,7 @@ namespace Opc.Ua
         /// </returns>
         public IEnumerator<INode> GetEnumerator()
         {
-            List<INode> list = new List<INode>(Count);
+            var list = new List<INode>(Count);
 
             foreach (INode node in m_localNodes.Values)
             {
@@ -306,7 +306,7 @@ namespace Opc.Ua
         /// <returns></returns>
         public List<Node> Import(NodeSet nodeSet, IDictionary<NodeId, IList<IReference>> externalReferences)
         {
-            List<Node> importedNodes = new List<Node>();
+            var importedNodes = new List<Node>();
 
             if (nodeSet == null)
             {
@@ -399,7 +399,7 @@ namespace Opc.Ua
                         // return the reverse reference to a node outside the table.
                         if (externalReferences != null)
                         {
-                            NodeId targetId = ExpandedNodeId.ToNodeId(reference.TargetId, m_namespaceUris);
+                            var targetId = ExpandedNodeId.ToNodeId(reference.TargetId, m_namespaceUris);
 
                             if (targetId == null)
                             {
@@ -413,7 +413,7 @@ namespace Opc.Ua
                                 externalReferences[targetId] = referenceList = new List<IReference>();
                             }
 
-                            ReferenceNode reverseReference = new ReferenceNode();
+                            var reverseReference = new ReferenceNode();
 
                             reverseReference.ReferenceTypeId = reference.ReferenceTypeId;
                             reverseReference.IsInverse = !reference.IsInverse;
@@ -457,13 +457,13 @@ namespace Opc.Ua
             {
                 if (reference.NodeId.ServerIndex != 0)
                 {
-                    RemoteNode node = new RemoteNode(this, reference.NodeId);
+                    var node = new RemoteNode(this, reference.NodeId);
                     InternalAdd(node);
                     target = node;
                 }
                 else
                 {
-                    Node node = new Node();
+                    var node = new Node();
 
                     node.NodeId = ExpandedNodeId.ToNodeId(reference.NodeId, m_namespaceUris);
 
@@ -727,7 +727,7 @@ namespace Opc.Ua
 
 
             // convert to locale node id.
-            NodeId localId = ExpandedNodeId.ToNodeId(nodeId, m_namespaceUris);
+            var localId = ExpandedNodeId.ToNodeId(nodeId, m_namespaceUris);
 
             if (localId == null)
             {
@@ -844,7 +844,7 @@ namespace Opc.Ua
             #endregion
 
             #region Private Fields
-            private ExpandedNodeId m_nodeId;
+            private readonly ExpandedNodeId m_nodeId;
             private NodeClass m_nodeClass;
             private QualifiedName m_browseName;
             private LocalizedText m_displayName;
@@ -855,11 +855,11 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private NodeIdDictionary<ILocalNode> m_localNodes;
-        private SortedDictionary<ExpandedNodeId, RemoteNode> m_remoteNodes;
-        private NamespaceTable m_namespaceUris;
-        private StringTable m_serverUris;
-        private TypeTable m_typeTree;
+        private readonly NodeIdDictionary<ILocalNode> m_localNodes;
+        private readonly SortedDictionary<ExpandedNodeId, RemoteNode> m_remoteNodes;
+        private readonly NamespaceTable m_namespaceUris;
+        private readonly StringTable m_serverUris;
+        private readonly TypeTable m_typeTree;
         #endregion
     }
 }

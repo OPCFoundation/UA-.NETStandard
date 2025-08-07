@@ -49,7 +49,7 @@ namespace Opc.Ua
             return m_password;
         }
 
-        private string m_password;
+        private readonly string m_password;
     }
     #endregion
 }

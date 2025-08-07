@@ -98,7 +98,7 @@ namespace TestData
         {
             lock (m_lock)
             {
-                HistoryRecord record = new HistoryRecord();
+                var record = new HistoryRecord();
 
                 record.RawData = new List<HistoryEntry>();
                 record.Historizing = true;
@@ -108,7 +108,7 @@ namespace TestData
 
                 for (int ii = 1000; ii >= 0; ii--)
                 {
-                    HistoryEntry entry = new HistoryEntry();
+                    var entry = new HistoryEntry();
 
                     entry.Value = new DataValue();
                     entry.Value.ServerTimestamp = now.AddSeconds(-(ii * 10));
@@ -161,7 +161,7 @@ namespace TestData
                             continue;
                         }
 
-                        HistoryEntry entry = new HistoryEntry();
+                        var entry = new HistoryEntry();
 
                         entry.Value = new DataValue();
                         entry.Value.ServerTimestamp = now;

@@ -46,7 +46,10 @@ namespace Opc.Ua.Server
         /// </summary>
         public EventManager(IServerInternal server, uint maxQueueSize, uint maxDurableQueueSize)
         {
-            if (server == null) throw new ArgumentNullException(nameof(server));
+            if (server == null)
+            {
+                throw new ArgumentNullException(nameof(server));
+            }
 
             m_server = server;
             m_monitoredItems = new Dictionary<uint, IEventMonitoredItem>();
@@ -75,7 +78,7 @@ namespace Opc.Ua.Server
 
                 lock (m_lock)
                 {
-                    monitoredItems = new List<IEventMonitoredItem>(m_monitoredItems.Values);
+                    monitoredItems = [.. m_monitoredItems.Values];
                     m_monitoredItems.Clear();
                 }
 
@@ -93,7 +96,10 @@ namespace Opc.Ua.Server
         /// </summary>
         public static void ReportEvent(IFilterTarget e, IList<IEventMonitoredItem> monitoredItems)
         {
-            if (e == null) throw new ArgumentNullException(nameof(e));
+            if (e == null)
+            {
+                throw new ArgumentNullException(nameof(e));
+            }
 
             foreach (IEventMonitoredItem monitoredItem in monitoredItems)
             {
@@ -130,7 +136,7 @@ namespace Opc.Ua.Server
                 uint revisedQueueSize = CalculateRevisedQueueSize(createDurable, itemToCreate.RequestedParameters.QueueSize);
 
                 // create the monitored item.
-                MonitoredItem monitoredItem = new MonitoredItem(
+                var monitoredItem = new MonitoredItem(
                     m_server,
                     nodeManager,
                     handle,
@@ -170,7 +176,7 @@ namespace Opc.Ua.Server
                 storedMonitoredItem.QueueSize = CalculateRevisedQueueSize(storedMonitoredItem.IsDurable, storedMonitoredItem.QueueSize);
 
                 // create the monitored item.
-                MonitoredItem monitoredItem = new MonitoredItem(
+                var monitoredItem = new MonitoredItem(
                     m_server,
                     nodeManager,
                     handle,
@@ -253,17 +259,17 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                return new List<IEventMonitoredItem>(m_monitoredItems.Values);
+                return [.. m_monitoredItems.Values];
             }
         }
         #endregion
 
         #region Private Fields
         private readonly object m_lock = new object();
-        private IServerInternal m_server;
-        private Dictionary<uint, IEventMonitoredItem> m_monitoredItems;
-        private uint m_maxEventQueueSize;
-        private uint m_maxDurableEventQueueSize;
+        private readonly IServerInternal m_server;
+        private readonly Dictionary<uint, IEventMonitoredItem> m_monitoredItems;
+        private readonly uint m_maxEventQueueSize;
+        private readonly uint m_maxDurableEventQueueSize;
         #endregion
     }
 }

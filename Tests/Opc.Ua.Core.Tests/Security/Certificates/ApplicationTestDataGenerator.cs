@@ -38,9 +38,9 @@ namespace Opc.Ua.Core.Tests
 {
     public class ApplicationTestDataGenerator
     {
-        private int m_randomStart = 1;
-        private RandomSource m_randomSource;
-        private DataGenerator m_dataGenerator;
+        private readonly int m_randomStart = 1;
+        private readonly RandomSource m_randomSource;
+        private readonly DataGenerator m_dataGenerator;
 
         public ApplicationTestDataGenerator(int randomStart)
         {
@@ -66,7 +66,7 @@ namespace Opc.Ua.Core.Tests
         private ApplicationTestData RandomApplicationTestData()
         {
             // TODO: set to discoveryserver
-            ApplicationType appType = (ApplicationType)m_randomSource.NextInt32((int)ApplicationType.ClientAndServer);
+            var appType = (ApplicationType)m_randomSource.NextInt32((int)ApplicationType.ClientAndServer);
             string pureAppName = m_dataGenerator.GetRandomString("en");
             pureAppName = Regex.Replace(pureAppName, @"[^\w\d\s]", "");
             string pureAppUri = Regex.Replace(pureAppName, @"[^\w\d]", "");
@@ -76,7 +76,7 @@ namespace Opc.Ua.Core.Tests
             string privateKeyFormat = m_randomSource.NextInt32(1) == 0 ? "PEM" : "PFX";
             string appUri = ("urn:localhost:opcfoundation.org:" + pureAppUri.ToLower()).Replace("localhost", localhost, StringComparison.Ordinal);
             string prodUri = "http://opcfoundation.org/UA/" + pureAppUri;
-            StringCollection discoveryUrls = new StringCollection();
+            var discoveryUrls = new StringCollection();
             int port = (m_dataGenerator.GetRandomInt16() & 0x1fff) + 50000;
             switch (appType)
             {
@@ -95,7 +95,7 @@ namespace Opc.Ua.Core.Tests
                     discoveryUrls = RandomDiscoveryUrl(domainNames, port, pureAppUri);
                     break;
             }
-            ApplicationTestData testData = new ApplicationTestData {
+            var testData = new ApplicationTestData {
                 ApplicationName = appName,
                 ApplicationUri = appUri,
                 DomainNames = domainNames,
@@ -119,7 +119,7 @@ namespace Opc.Ua.Core.Tests
         private string[] RandomDomainNames()
         {
             int count = m_randomSource.NextInt32(8) + 1;
-            var result = new string[count];
+            string[] result = new string[count];
             for (int i = 0; i < count; i++)
             {
                 result[i] = RandomLocalHost();
@@ -130,7 +130,7 @@ namespace Opc.Ua.Core.Tests
         private StringCollection RandomDiscoveryUrl(StringCollection domainNames, int port, string appUri)
         {
             var result = new StringCollection();
-            foreach (var name in domainNames)
+            foreach (string name in domainNames)
             {
                 int random = m_randomSource.NextInt32(7);
                 if ((result.Count == 0) || (random & 1) == 0)

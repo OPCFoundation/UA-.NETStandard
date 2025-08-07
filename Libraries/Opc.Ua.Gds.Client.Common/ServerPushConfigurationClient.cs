@@ -207,8 +207,8 @@ namespace Opc.Ua.Gds.Client
             }
 
             EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(m_configuration, endpointUrl, true);
-            EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(m_configuration);
-            ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
+            var endpointConfiguration = EndpointConfiguration.Create(m_configuration);
+            var endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
 
             await Connect(endpoint).ConfigureAwait(false);
         }
@@ -286,7 +286,7 @@ namespace Opc.Ua.Gds.Client
 
         private void RaiseConnectionStatusChangedEvent()
         {
-            var Callback = ConnectionStatusChanged;
+            EventHandler Callback = ConnectionStatusChanged;
 
             if (Callback != null)
             {
@@ -321,7 +321,7 @@ namespace Opc.Ua.Gds.Client
 
             try
             {
-                ReadValueIdCollection nodesToRead = new ReadValueIdCollection
+                var nodesToRead = new ReadValueIdCollection
                 {
                     new ReadValueId()
                     {
@@ -365,13 +365,13 @@ namespace Opc.Ua.Gds.Client
 
             try
             {
-                var outputArguments = m_session.Call(
+                System.Collections.Generic.IList<object> outputArguments = m_session.Call(
                     ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, m_session.NamespaceUris),
                     ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_OpenWithMasks, m_session.NamespaceUris),
                     (uint)masks);
 
                 uint fileHandle = (uint)outputArguments[0];
-                using (MemoryStream ostrm = new MemoryStream())
+                using (var ostrm = new MemoryStream())
                 {
                     try
                     {
@@ -414,8 +414,8 @@ namespace Opc.Ua.Gds.Client
 
                     ostrm.Position = 0;
 
-                    TrustListDataType trustList = new TrustListDataType();
-                    using (BinaryDecoder decoder = new BinaryDecoder(ostrm, m_session.MessageContext))
+                    var trustList = new TrustListDataType();
+                    using (var decoder = new BinaryDecoder(ostrm, m_session.MessageContext))
                     {
                         trustList.Decode(decoder);
                     }
@@ -443,15 +443,15 @@ namespace Opc.Ua.Gds.Client
 
             try
             {
-                using (MemoryStream strm = new MemoryStream())
+                using (var strm = new MemoryStream())
                 {
-                    using (BinaryEncoder encoder = new BinaryEncoder(strm, m_session.MessageContext, true))
+                    using (var encoder = new BinaryEncoder(strm, m_session.MessageContext, true))
                     {
                         encoder.WriteEncodeable(null, trustList, null);
                     }
                     strm.Position = 0;
 
-                    var outputArguments = m_session.Call(
+                    System.Collections.Generic.IList<object> outputArguments = m_session.Call(
                         ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, m_session.NamespaceUris),
                         ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Open, m_session.NamespaceUris),
                         (byte)(OpenFileMode.Write | OpenFileMode.EraseExisting));
@@ -585,7 +585,7 @@ namespace Opc.Ua.Gds.Client
             IUserIdentity oldUser = ElevatePermissions();
             try
             {
-                var outputArguments = m_session.Call(
+                System.Collections.Generic.IList<object> outputArguments = m_session.Call(
                     ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration, m_session.NamespaceUris),
                     ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfigurationType_GetCertificates, m_session.NamespaceUris),
                 certificateGroupId
@@ -627,7 +627,7 @@ namespace Opc.Ua.Gds.Client
 
             try
             {
-                var outputArguments = m_session.Call(
+                System.Collections.Generic.IList<object> outputArguments = m_session.Call(
                     ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration, m_session.NamespaceUris),
                     ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_CreateSigningRequest, m_session.NamespaceUris),
                     certificateGroupId,
@@ -675,7 +675,7 @@ namespace Opc.Ua.Gds.Client
 
             try
             {
-                var outputArguments = m_session.Call(
+                System.Collections.Generic.IList<object> outputArguments = m_session.Call(
                     ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration, m_session.NamespaceUris),
                     ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_UpdateCertificate, m_session.NamespaceUris),
                     certificateGroupId,
@@ -712,14 +712,14 @@ namespace Opc.Ua.Gds.Client
 
             try
             {
-                var outputArguments = m_session.Call(
+                System.Collections.Generic.IList<object> outputArguments = m_session.Call(
                     ExpandedNodeId.ToNodeId(Opc.Ua.ObjectIds.ServerConfiguration, m_session.NamespaceUris),
                     ExpandedNodeId.ToNodeId(Opc.Ua.MethodIds.ServerConfiguration_GetRejectedList, m_session.NamespaceUris)
                     );
 
                 byte[][] rawCertificates = (byte[][])outputArguments[0];
-                X509Certificate2Collection collection = new X509Certificate2Collection();
-                foreach (var rawCertificate in rawCertificates)
+                var collection = new X509Certificate2Collection();
+                foreach (byte[] rawCertificate in rawCertificates)
                 {
                     collection.Add(X509CertificateLoader.LoadCertificate(rawCertificate));
                 }
@@ -761,7 +761,7 @@ namespace Opc.Ua.Gds.Client
 
                 if (m_adminCredentials == null)
                 {
-                    var handle = AdminCredentialsRequired;
+                    AdminCredentialsRequiredEventHandler handle = AdminCredentialsRequired;
 
                     if (handle == null)
                     {
@@ -818,7 +818,7 @@ namespace Opc.Ua.Gds.Client
                 return;
             }
 
-            var Callback = KeepAlive;
+            KeepAliveEventHandler Callback = KeepAlive;
 
             if (Callback != null)
             {
@@ -840,7 +840,7 @@ namespace Opc.Ua.Gds.Client
                 return;
             }
 
-            var Callback = ServerStatusChanged;
+            MonitoredItemNotificationEventHandler Callback = ServerStatusChanged;
 
             if (Callback != null)
             {
@@ -857,7 +857,7 @@ namespace Opc.Ua.Gds.Client
         #endregion
 
         #region Private Fields
-        private ApplicationConfiguration m_configuration;
+        private readonly ApplicationConfiguration m_configuration;
         private readonly ISessionFactory m_sessionFactory;
         private ConfiguredEndpoint m_endpoint;
         private string m_endpointUrl;

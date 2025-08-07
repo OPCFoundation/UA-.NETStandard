@@ -107,9 +107,9 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private ServerBase m_server;
-        private Type m_endpointType;
-        private Uri[] m_addresses;
+        private readonly ServerBase m_server;
+        private readonly Type m_endpointType;
+        private readonly Uri[] m_addresses;
         #endregion
     }
 }

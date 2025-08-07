@@ -186,7 +186,7 @@ namespace Opc.Ua.Client.Tests
             uint expectedHours,
             uint expectedLifetime)
         {
-            TestableSubscription subscription = new TestableSubscription(Session.DefaultSubscription);
+            var subscription = new TestableSubscription(Session.DefaultSubscription);
 
             subscription.KeepAliveCount = keepAliveCount;
             subscription.LifetimeCount = lifetimeCount;
@@ -205,7 +205,7 @@ namespace Opc.Ua.Client.Tests
 
             Dictionary<string, object> modifiedValues = GetValues(desiredNodeIds);
 
-            DataValue maxLifetimeCountValue = modifiedValues["MaxLifetimeCount"] as DataValue;
+            var maxLifetimeCountValue = modifiedValues["MaxLifetimeCount"] as DataValue;
             Assert.IsNotNull(maxLifetimeCountValue);
             Assert.IsNotNull(maxLifetimeCountValue.Value);
             Assert.AreEqual(expectedLifetime,
@@ -227,7 +227,7 @@ namespace Opc.Ua.Client.Tests
             uint expectedModifiedQueueSize,
             bool useEventMI)
         {
-            var subscription = await CreateDurableSubscriptionAsync().ConfigureAwait(false);
+            TestableSubscription subscription = await CreateDurableSubscriptionAsync().ConfigureAwait(false);
 
             MonitoredItem mi;
             if (useEventMI)
@@ -251,13 +251,13 @@ namespace Opc.Ua.Client.Tests
 
             subscription.AddItem(mi);
 
-            var result = await subscription.CreateItemsAsync().ConfigureAwait(false);
+            IList<MonitoredItem> result = await subscription.CreateItemsAsync().ConfigureAwait(false);
             Assert.That(ServiceResult.IsGood(result.First().Status.Error), Is.True);
             Assert.That(result.First().Status.QueueSize, Is.EqualTo(expectedRevisedQueueSize));
 
             mi.QueueSize = queueSize + 1;
 
-            var resultModify = await subscription.ModifyItemsAsync().ConfigureAwait(false);
+            IList<MonitoredItem> resultModify = await subscription.ModifyItemsAsync().ConfigureAwait(false);
             Assert.That(ServiceResult.IsGood(resultModify.First().Status.Error), Is.True);
             Assert.That(resultModify.First().Status.QueueSize, Is.EqualTo(expectedModifiedQueueSize));
 
@@ -294,7 +294,7 @@ namespace Opc.Ua.Client.Tests
 
             subscription.AddItem(mi);
 
-            var result = subscription.CreateItems();
+            IList<MonitoredItem> result = subscription.CreateItems();
             Assert.That(ServiceResult.IsGood(result.First().Status.Error), Is.True);
 
             Assert.Throws<ServiceResultException>(() => Session.Call(ObjectIds.Server,
@@ -343,7 +343,7 @@ namespace Opc.Ua.Client.Tests
             uint expectedHours = 1;
             uint expectedLifetime = 36000;
 
-            TestableSubscription subscription = new TestableSubscription(Session.DefaultSubscription);
+            var subscription = new TestableSubscription(Session.DefaultSubscription);
 
             subscription.KeepAliveCount = keepAliveCount;
             subscription.LifetimeCount = lifetimeCount;
@@ -377,18 +377,18 @@ namespace Opc.Ua.Client.Tests
                 ValidateDataValue(desiredNodeIds, "MaxLifetimeCount", lifetimeCount);
             }
 
-            List<NodeId> testSet = new List<NodeId>();
+            var testSet = new List<NodeId>();
             testSet.AddRange(GetTestSetFullSimulation(Session.NamespaceUris));
-            Dictionary<NodeId, List<DateTime>> valueTimeStamps = new Dictionary<NodeId, List<DateTime>>();
+            var valueTimeStamps = new Dictionary<NodeId, List<DateTime>>();
 
 
-            List<MonitoredItem> monitoredItemsList = new List<MonitoredItem>();
+            var monitoredItemsList = new List<MonitoredItem>();
             foreach (NodeId nodeId in testSet)
             {
                 if (nodeId.IdType == IdType.String)
                 {
                     valueTimeStamps.Add(nodeId, new List<DateTime>());
-                    MonitoredItem monitoredItem = new MonitoredItem(subscription.DefaultItem) {
+                    var monitoredItem = new MonitoredItem(subscription.DefaultItem) {
                         StartNodeId = nodeId,
                         SamplingInterval = 1000,
                         QueueSize = 100,
@@ -396,7 +396,7 @@ namespace Opc.Ua.Client.Tests
                     monitoredItem.Notification += (MonitoredItem item, MonitoredItemNotificationEventArgs e) => {
                         List<DateTime> list = valueTimeStamps[nodeId];
 
-                        foreach (var value in item.DequeueValues())
+                        foreach (DataValue value in item.DequeueValues())
                         {
                             list.Add(value.SourceTimestamp);
                         }
@@ -417,7 +417,7 @@ namespace Opc.Ua.Client.Tests
 
             Dictionary<string, object> closeValues = GetValues(desiredNodeIds);
 
-            SubscriptionCollection subscriptions = new SubscriptionCollection(Session.Subscriptions);
+            var subscriptions = new SubscriptionCollection(Session.Subscriptions);
             DateTime closeTime = DateTime.UtcNow;
             TestContext.Out.WriteLine("Session Id {0} Closed at {1}", Session.SessionId, closeTime);
 
@@ -440,7 +440,7 @@ namespace Opc.Ua.Client.Tests
                 SecurityPolicies.Basic256Sha256, null,
                 new UserIdentity("sysadmin", "demo")).ConfigureAwait(false);
 
-            var result = await transferSession.TransferSubscriptionsAsync(subscriptions, true).ConfigureAwait(false);
+            bool result = await transferSession.TransferSubscriptionsAsync(subscriptions, true).ConfigureAwait(false);
 
             Assert.AreEqual(setSubscriptionDurable, result,
                 "SetSubscriptionDurable = " + setSubscriptionDurable.ToString() +
@@ -502,7 +502,7 @@ namespace Opc.Ua.Client.Tests
         {
             Dictionary<string, object> modifiedValues = GetValues(nodeIds);
 
-            DataValue dataValue = modifiedValues[desiredValue] as DataValue;
+            var dataValue = modifiedValues[desiredValue] as DataValue;
             Assert.IsNotNull(dataValue);
             Assert.IsNotNull(dataValue.Value);
             Assert.AreEqual(expectedValue, Convert.ToUInt32(dataValue.Value, CultureInfo.InvariantCulture));
@@ -515,7 +515,7 @@ namespace Opc.Ua.Client.Tests
             try
             {
                 // Log MonitoredItem Notification event
-                MonitoredItemNotification notification = e.NotificationValue as MonitoredItemNotification;
+                var notification = e.NotificationValue as MonitoredItemNotification;
                 DateTime localTime = notification.Value.SourceTimestamp.ToLocalTime();
                 Debug.WriteLine("Notification: {0} \"{1}\" and Value = {2} at [{3}].",
                     notification.Message.SequenceNumber,
@@ -551,9 +551,9 @@ namespace Opc.Ua.Client.Tests
 
         private Dictionary<string, NodeId> GetDesiredNodeIds(uint subscriptionId)
         {
-            Dictionary<string, NodeId> desiredNodeIds = new Dictionary<string, NodeId>();
+            var desiredNodeIds = new Dictionary<string, NodeId>();
 
-            NodeId serverDiags = new NodeId(Variables.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
+            var serverDiags = new NodeId(Variables.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
             ReferenceDescriptionCollection references;
 
             NodeId monitoredItemCountNodeId = null;
@@ -567,7 +567,7 @@ namespace Opc.Ua.Client.Tests
                 0u, BrowseDirection.Forward,
                 ReferenceTypeIds.HierarchicalReferences,
                 true, 0,
-                out var continuationPoint,
+                out byte[] continuationPoint,
                 out references);
 
             Assert.NotNull(references, "Initial Browse has no references");
@@ -590,7 +590,7 @@ namespace Opc.Ua.Client.Tests
                         0u, BrowseDirection.Forward,
                         ReferenceTypeIds.HierarchicalReferences,
                         true, 0,
-                        out var anotherContinuationPoint,
+                        out byte[] anotherContinuationPoint,
                         out desiredReferences);
 
                     Assert.NotNull(desiredReferences, "Secondary Browse has no references");
@@ -682,7 +682,7 @@ namespace Opc.Ua.Client.Tests
 
         private Dictionary<string, object> GetValues(Dictionary<string, NodeId> ids)
         {
-            Dictionary<string, object> values = new Dictionary<string, object>();
+            var values = new Dictionary<string, object>();
 
             foreach (KeyValuePair<string, NodeId> id in ids)
             {

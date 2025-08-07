@@ -188,12 +188,12 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         internal static ECPrivateKeyParameters GetECDsaPrivateKeyParameter(ECDsa ec)
         {
             ECParameters ecParams = ec.ExportParameters(true);
-            BigInteger d = new BigInteger(1, ecParams.D);
+            var d = new BigInteger(1, ecParams.D);
 
             X9ECParameters curve = GetX9ECParameters(ecParams);
 
             string friendlyName = ecParams.Curve.Oid.FriendlyName;
-            if (!FriendlyNameToOidMap.TryGetValue(friendlyName, out var oidValue))
+            if (!FriendlyNameToOidMap.TryGetValue(friendlyName, out string oidValue))
             {
                 throw new NotSupportedException($"Unknown friendly name: {friendlyName}");
             }
@@ -306,13 +306,16 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
 
             X9ECParameters curve = GetX9ECParameters(ecParams);
 
-            if (curve == null) throw new ArgumentException("Curve OID is not recognized ", ecParams.Curve.Oid.ToString());
+            if (curve == null)
+            {
+                throw new ArgumentException("Curve OID is not recognized ", ecParams.Curve.Oid.ToString());
+            }
 
-            var q = curve.Curve.CreatePoint(
+            Org.BouncyCastle.Math.EC.ECPoint q = curve.Curve.CreatePoint(
                 new BigInteger(1, ecParams.Q.X),
                 new BigInteger(1, ecParams.Q.Y));
 
-            ECDomainParameters domainParameters = new ECDomainParameters(curve.Curve, curve.G, curve.N, curve.H, curve.GetSeed());
+            var domainParameters = new ECDomainParameters(curve.Curve, curve.G, curve.N, curve.H, curve.GetSeed());
 
             return new ECPublicKeyParameters(q, domainParameters);
 
@@ -391,7 +394,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
                 throw new ArgumentException($"Input byte array is larger than the desired size {desiredSize} bytes.");
             }
 
-            var paddedArray = new byte[desiredSize];
+            byte[] paddedArray = new byte[desiredSize];
 
             // Right-align the arrayToPad into paddedArray
             Buffer.BlockCopy(arrayToPad, 0, paddedArray, paddingLength, arrayToPad.Length);

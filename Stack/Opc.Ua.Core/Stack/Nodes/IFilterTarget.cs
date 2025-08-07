@@ -129,8 +129,15 @@ namespace Opc.Ua
         /// <param name="context">The context.</param>
         public FilterContext(NamespaceTable namespaceUris, ITypeTable typeTree, IOperationContext context)
         {
-            if (namespaceUris == null) throw new ArgumentNullException(nameof(namespaceUris));
-            if (typeTree == null) throw new ArgumentNullException(nameof(typeTree));
+            if (namespaceUris == null)
+            {
+                throw new ArgumentNullException(nameof(namespaceUris));
+            }
+
+            if (typeTree == null)
+            {
+                throw new ArgumentNullException(nameof(typeTree));
+            }
 
             m_namespaceUris = namespaceUris;
             m_typeTree = typeTree;
@@ -156,8 +163,15 @@ namespace Opc.Ua
         /// <param name="preferredLocales">The preferred locales.</param>
         public FilterContext(NamespaceTable namespaceUris, ITypeTable typeTree, IList<string> preferredLocales)
         {
-            if (namespaceUris == null) throw new ArgumentNullException(nameof(namespaceUris));
-            if (typeTree == null) throw new ArgumentNullException(nameof(typeTree));
+            if (namespaceUris == null)
+            {
+                throw new ArgumentNullException(nameof(namespaceUris));
+            }
+
+            if (typeTree == null)
+            {
+                throw new ArgumentNullException(nameof(typeTree));
+            }
 
             m_namespaceUris = namespaceUris;
             m_typeTree = typeTree;
@@ -325,10 +339,10 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private NamespaceTable m_namespaceUris;
-        private ITypeTable m_typeTree;
-        private IOperationContext m_context;
-        private IList<string> m_preferredLocales;
+        private readonly NamespaceTable m_namespaceUris;
+        private readonly ITypeTable m_typeTree;
+        private readonly IOperationContext m_context;
+        private readonly IList<string> m_preferredLocales;
         #endregion
     }
 }

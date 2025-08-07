@@ -67,7 +67,7 @@ namespace Opc.Ua
         /// </summary>
         public IList<MonitoredItemNotification> GetDataChanges(bool reverse)
         {
-            List<MonitoredItemNotification> datachanges = new List<MonitoredItemNotification>();
+            var datachanges = new List<MonitoredItemNotification>();
 
             for (int jj = 0; jj < m_notificationData.Count; jj++)
             {
@@ -120,7 +120,7 @@ namespace Opc.Ua
         /// </summary>
         public IList<EventFieldList> GetEvents(bool reverse)
         {
-            List<EventFieldList> events = new List<EventFieldList>();
+            var events = new List<EventFieldList>();
 
             foreach (ExtensionObject extension in m_notificationData)
             {

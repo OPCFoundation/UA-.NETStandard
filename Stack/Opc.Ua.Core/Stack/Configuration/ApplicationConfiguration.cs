@@ -48,10 +48,10 @@ namespace Opc.Ua
                 element = element.NextSibling;
             }
 
-            using (XmlReader reader = XmlReader.Create(new StringReader(element.OuterXml), Utils.DefaultXmlReaderSettings()))
+            using (var reader = XmlReader.Create(new StringReader(element.OuterXml), Utils.DefaultXmlReaderSettings()))
             {
-                DataContractSerializer serializer = new DataContractSerializer(typeof(ConfigurationLocation));
-                ConfigurationLocation configuration = serializer.ReadObject(reader) as ConfigurationLocation;
+                var serializer = new DataContractSerializer(typeof(ConfigurationLocation));
+                var configuration = serializer.ReadObject(reader) as ConfigurationLocation;
                 return configuration;
             }
         }
@@ -109,7 +109,7 @@ namespace Opc.Ua
         /// <returns>A list of domain names.</returns>
         public IList<string> GetServerDomainNames()
         {
-            StringCollection baseAddresses = new StringCollection();
+            var baseAddresses = new StringCollection();
 
             if (this.ServerConfiguration != null)
             {
@@ -173,7 +173,7 @@ namespace Opc.Ua
         /// <returns>A new instance of a ServiceMessageContext object.</returns>
         public ServiceMessageContext CreateMessageContext(bool clonedFactory = false)
         {
-            ServiceMessageContext messageContext = new ServiceMessageContext();
+            var messageContext = new ServiceMessageContext();
 
             if (m_transportQuotas != null)
             {
@@ -216,7 +216,7 @@ namespace Opc.Ua
         {
             string filePath = GetFilePathFromAppConfig(sectionName);
 
-            FileInfo file = new FileInfo(filePath);
+            var file = new FileInfo(filePath);
 
             if (!file.Exists)
             {
@@ -244,9 +244,9 @@ namespace Opc.Ua
             {
                 try
                 {
-                    DataContractSerializer serializer = new DataContractSerializer(systemType);
+                    var serializer = new DataContractSerializer(systemType);
 
-                    ApplicationConfiguration configuration = serializer.ReadObject(stream) as ApplicationConfiguration;
+                    var configuration = serializer.ReadObject(stream) as ApplicationConfiguration;
 
                     if (configuration != null)
                     {
@@ -299,7 +299,7 @@ namespace Opc.Ua
 
             try
             {
-                using (FileStream stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read))
+                using (var stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read))
                 {
                     configuration = await Load(stream, applicationType, systemType, applyTraceSettings, certificatePasswordProvider).ConfigureAwait(false);
                 }
@@ -343,7 +343,7 @@ namespace Opc.Ua
 
             try
             {
-                DataContractSerializer serializer = new DataContractSerializer(systemType);
+                var serializer = new DataContractSerializer(systemType);
                 configuration = (ApplicationConfiguration)serializer.ReadObject(stream);
             }
             catch (Exception e)
@@ -398,7 +398,7 @@ namespace Opc.Ua
             using (Stream ostrm = File.Open(filePath, FileMode.Create, FileAccess.ReadWrite))
             using (XmlWriter writer = XmlDictionaryWriter.Create(ostrm, settings))
             {
-                DataContractSerializer serializer = new DataContractSerializer(GetType());
+                var serializer = new DataContractSerializer(GetType());
                 serializer.WriteObject(writer, this);
             }
         }
@@ -422,7 +422,7 @@ namespace Opc.Ua
             SecurityConfiguration.Validate();
 
             // load private keys
-            foreach (var applicationCertificate in SecurityConfiguration.ApplicationCertificates)
+            foreach (CertificateIdentifier applicationCertificate in SecurityConfiguration.ApplicationCertificates)
             {
                 await applicationCertificate.LoadPrivateKeyEx(SecurityConfiguration.CertificatePasswordProvider, ApplicationUri).ConfigureAwait(false);
             }
@@ -436,7 +436,10 @@ namespace Opc.Ua
                 return sb.ToString();
             };
 
-            if (string.IsNullOrEmpty(ApplicationUri)) m_applicationUri = generateDefaultUri();
+            if (string.IsNullOrEmpty(ApplicationUri))
+            {
+                m_applicationUri = generateDefaultUri();
+            }
 
             if (applicationType == ApplicationType.Client || applicationType == ApplicationType.ClientAndServer)
             {
@@ -507,7 +510,10 @@ namespace Opc.Ua
         /// </returns>
         public ConfiguredEndpointCollection LoadCachedEndpoints(bool createAlways, bool overrideConfiguration)
         {
-            if (m_clientConfiguration == null) throw new InvalidOperationException("Only valid for client configurations.");
+            if (m_clientConfiguration == null)
+            {
+                throw new InvalidOperationException("Only valid for client configurations.");
+            }
 
             string filePath = Utils.GetAbsoluteFilePath(m_clientConfiguration.EndpointCacheFilePath, true, false, false, false);
 
@@ -517,7 +523,7 @@ namespace Opc.Ua
 
                 if (!Utils.IsPathRooted(filePath))
                 {
-                    FileInfo sourceFile = new FileInfo(this.SourceFilePath);
+                    var sourceFile = new FileInfo(this.SourceFilePath);
                     filePath = Utils.Format("{0}{1}{2}", sourceFile.DirectoryName, Path.DirectorySeparatorChar, filePath);
                 }
             }
@@ -527,7 +533,7 @@ namespace Opc.Ua
                 return ConfiguredEndpointCollection.Load(this, filePath, overrideConfiguration);
             }
 
-            ConfiguredEndpointCollection endpoints = new ConfiguredEndpointCollection(this);
+            var endpoints = new ConfiguredEndpointCollection(this);
             try
             {
                 endpoints = ConfiguredEndpointCollection.Load(this, filePath, overrideConfiguration);

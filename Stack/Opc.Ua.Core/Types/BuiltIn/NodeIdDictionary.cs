@@ -96,7 +96,7 @@ namespace Opc.Ua
         #endregion
 
         #region IDictionary<NodeId,T> Members
-        /// <summary cref="IDictionary.Add" />
+        /// <inheritdoc/>
         public void Add(NodeId key, T value)
         {
             if (key == null)
@@ -141,7 +141,7 @@ namespace Opc.Ua
             throw new ArgumentOutOfRangeException(nameof(key), "key.IdType");
         }
 
-        /// <summary cref="IDictionary{TKey,TValue}.ContainsKey" />
+        /// <inheritdoc/>
         public bool ContainsKey(NodeId key)
         {
             if (key == null)
@@ -198,7 +198,7 @@ namespace Opc.Ua
             return false;
         }
 
-        /// <summary cref="IDictionary{TKey,TValue}.Keys" />
+        /// <inheritdoc/>
         public ICollection<NodeId> Keys
         {
             get
@@ -253,7 +253,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary cref="IDictionary.Remove" />
+        /// <inheritdoc/>
         public bool Remove(NodeId key)
         {
             if (key == null)
@@ -312,7 +312,7 @@ namespace Opc.Ua
             return false;
         }
 
-        /// <summary cref="IDictionary{TKey,TValue}.TryGetValue" />
+        /// <inheritdoc/>
         public bool TryGetValue(NodeId key, out T value)
         {
             value = default;
@@ -371,7 +371,7 @@ namespace Opc.Ua
             return false;
         }
 
-        /// <summary cref="IDictionary{TKey,TValue}.Values" />
+        /// <inheritdoc/>
         public ICollection<T> Values
         {
             get
@@ -522,13 +522,13 @@ namespace Opc.Ua
         #endregion
 
         #region ICollection<KeyValuePair<NodeId,T>> Members
-        /// <summary cref="ICollection{T}.Add" />
+        /// <inheritdoc/>
         public void Add(KeyValuePair<NodeId, T> item)
         {
             Add(item.Key, item.Value);
         }
 
-        /// <summary cref="ICollection{T}.Clear" />
+        /// <inheritdoc/>
         public void Clear()
         {
             m_version++;
@@ -536,7 +536,7 @@ namespace Opc.Ua
             m_dictionarySets = null;
         }
 
-        /// <summary cref="ICollection{T}.Contains" />
+        /// <inheritdoc/>
         public bool Contains(KeyValuePair<NodeId, T> item)
         {
             T value;
@@ -549,7 +549,7 @@ namespace Opc.Ua
             return Object.Equals(value, item.Value);
         }
 
-        /// <summary cref="ICollection{T}.CopyTo" />
+        /// <inheritdoc/>
         public void CopyTo(KeyValuePair<NodeId, T>[] array, int arrayIndex)
         {
             if (array == null)
@@ -625,7 +625,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary cref="ICollection{T}.Count" />
+        /// <inheritdoc/>
         public int Count
         {
             get
@@ -666,10 +666,10 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary cref="ICollection{T}.IsReadOnly" />
+        /// <inheritdoc/>
         public bool IsReadOnly => false;
 
-        /// <summary cref="ICollection{T}.Remove" />
+        /// <inheritdoc/>
         public bool Remove(KeyValuePair<NodeId, T> item)
         {
             return Remove(item.Key);
@@ -677,7 +677,7 @@ namespace Opc.Ua
         #endregion
 
         #region IEnumerable<KeyValuePair<NodeId,T>> Members
-        /// <summary cref="System.Collections.IEnumerable.GetEnumerator()" />
+        /// <inheritdoc/>
         public IEnumerator<KeyValuePair<NodeId, T>> GetEnumerator()
         {
             return new Enumerator(this);
@@ -685,7 +685,7 @@ namespace Opc.Ua
         #endregion
 
         #region IEnumerable Members
-        /// <summary cref="System.Collections.IEnumerable.GetEnumerator()" />
+        /// <inheritdoc/>
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
         {
             return GetEnumerator();
@@ -919,7 +919,7 @@ namespace Opc.Ua
             #endregion
 
             #region IEnumerator<KeyValuePair<NodeId,T>> Members
-            /// <summary cref="IEnumerator{T}.Current" />
+            /// <inheritdoc/>
             public KeyValuePair<NodeId, T> Current
             {
                 get
@@ -988,10 +988,10 @@ namespace Opc.Ua
             #endregion
 
             #region IEnumerator Members
-            /// <summary cref="IEnumerator.Current" />
+            /// <inheritdoc/>
             object System.Collections.IEnumerator.Current => this.Current;
 
-            /// <summary cref="IEnumerator.MoveNext" />
+            /// <inheritdoc/>
             public bool MoveNext()
             {
                 CheckVersion();
@@ -1074,7 +1074,7 @@ namespace Opc.Ua
                 return false;
             }
 
-            /// <summary cref="IEnumerator.Reset" />
+            /// <inheritdoc/>
             public void Reset()
             {
                 CheckVersion();

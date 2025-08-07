@@ -68,7 +68,7 @@ namespace Opc.Ua
         /// <returns></returns>
         public static IDisposable SetScopedContext(IServiceMessageContext messageContext)
         {
-            var previousContext = Current;
+            MessageContextExtension previousContext = Current;
             Current = new MessageContextExtension(messageContext);
 
             return new DisposableAction (() => Current = previousContext);

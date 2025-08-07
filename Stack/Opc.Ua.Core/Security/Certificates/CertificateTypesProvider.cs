@@ -91,10 +91,10 @@ namespace Opc.Ua.Security.Certificates
                 // return the default certificate for None
                 return m_securityConfiguration.ApplicationCertificates.FirstOrDefault().Certificate;
             }
-            var certificateTypes = Opc.Ua.CertificateIdentifier.MapSecurityPolicyToCertificateTypes(securityPolicyUri);
-            foreach (var certType in certificateTypes)
+            IList<NodeId> certificateTypes = Opc.Ua.CertificateIdentifier.MapSecurityPolicyToCertificateTypes(securityPolicyUri);
+            foreach (NodeId certType in certificateTypes)
             {
-                var instanceCertificate = m_securityConfiguration.ApplicationCertificates.FirstOrDefault(id => id.CertificateType == certType);
+                Ua.CertificateIdentifier instanceCertificate = m_securityConfiguration.ApplicationCertificates.FirstOrDefault(id => id.CertificateType == certType);
                 if (instanceCertificate == null &&
                     certType == ObjectTypeIds.RsaSha256ApplicationCertificateType)
                 {
@@ -129,7 +129,7 @@ namespace Opc.Ua.Security.Certificates
                 return null;
             }
 
-            if (m_certificateChain.TryGetValue(certificate.Thumbprint, out var result) && result.Item2 != null)
+            if (m_certificateChain.TryGetValue(certificate.Thumbprint, out Tuple<X509Certificate2Collection, byte[]> result) && result.Item2 != null)
             {
                 return result.Item2;
             }
@@ -148,7 +148,7 @@ namespace Opc.Ua.Security.Certificates
                 return null;
             }
 
-            if (m_certificateChain.TryGetValue(certificate.Thumbprint, out var certificateChainTuple))
+            if (m_certificateChain.TryGetValue(certificate.Thumbprint, out Tuple<X509Certificate2Collection, byte[]> certificateChainTuple))
             {
                 return certificateChainTuple.Item1;
             }
@@ -184,7 +184,7 @@ namespace Opc.Ua.Security.Certificates
                 return null;
             }
 
-            if (m_certificateChain.TryGetValue(certificate.Thumbprint, out var certificateChainTuple))
+            if (m_certificateChain.TryGetValue(certificate.Thumbprint, out Tuple<X509Certificate2Collection, byte[]> certificateChainTuple))
             {
                 return certificateChainTuple.Item1;
             }
@@ -203,8 +203,8 @@ namespace Opc.Ua.Security.Certificates
             //ToDo intialize internal CertificateValidator after Certificate Update to clear cache of old application certificates
         }
 
-        CertificateValidator m_certificateValidator;
+        readonly CertificateValidator m_certificateValidator;
         SecurityConfiguration m_securityConfiguration;
-        ConcurrentDictionary<string, Tuple<X509Certificate2Collection, byte[]>> m_certificateChain;
+        readonly ConcurrentDictionary<string, Tuple<X509Certificate2Collection, byte[]>> m_certificateChain;
     }
 }

@@ -135,7 +135,7 @@ namespace Opc.Ua
         {
             get
             {
-                var stream = BaseStream;
+                Stream stream = BaseStream;
                 if (stream?.CanSeek != true)
                 {
                     throw new ServiceResultException(StatusCodes.BadDecodingError, "Stream does not support seeking.");
@@ -159,8 +159,15 @@ namespace Opc.Ua
         /// </summary>
         public static IEncodeable DecodeMessage(Stream stream, System.Type expectedType, IServiceMessageContext context)
         {
-            if (stream == null) throw new ArgumentNullException(nameof(stream));
-            if (context == null) throw new ArgumentNullException(nameof(context));
+            if (stream == null)
+            {
+                throw new ArgumentNullException(nameof(stream));
+            }
+
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
 
             using (var decoder = new BinaryDecoder(stream, context))
             {
@@ -173,8 +180,15 @@ namespace Opc.Ua
         /// </summary>
         public static IEncodeable DecodeSessionLessMessage(byte[] buffer, IServiceMessageContext context)
         {
-            if (buffer == null) throw new ArgumentNullException(nameof(buffer));
-            if (context == null) throw new ArgumentNullException(nameof(context));
+            if (buffer == null)
+            {
+                throw new ArgumentNullException(nameof(buffer));
+            }
+
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
 
             using (var decoder = new BinaryDecoder(buffer, context))
             {
@@ -182,7 +196,7 @@ namespace Opc.Ua
                 NodeId typeId = decoder.ReadNodeId(null);
 
                 // convert to absolute node id.
-                ExpandedNodeId absoluteId = NodeId.ToExpandedNodeId(typeId, context.NamespaceUris);
+                var absoluteId = NodeId.ToExpandedNodeId(typeId, context.NamespaceUris);
 
                 // lookup message session-less envelope type.
                 Type actualType = context.Factory.GetSystemType(absoluteId);
@@ -194,7 +208,7 @@ namespace Opc.Ua
                 }
 
                 // decode the actual message.
-                SessionLessServiceMessage message = new SessionLessServiceMessage();
+                var message = new SessionLessServiceMessage();
 
                 message.Decode(decoder);
 
@@ -209,8 +223,15 @@ namespace Opc.Ua
         /// </summary>
         public static IEncodeable DecodeMessage(byte[] buffer, Type expectedType, IServiceMessageContext context)
         {
-            if (buffer == null) throw new ArgumentNullException(nameof(buffer));
-            if (context == null) throw new ArgumentNullException(nameof(context));
+            if (buffer == null)
+            {
+                throw new ArgumentNullException(nameof(buffer));
+            }
+
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
 
             using (var decoder = new BinaryDecoder(buffer, context))
             {
@@ -229,7 +250,7 @@ namespace Opc.Ua
             NodeId typeId = ReadNodeId(null);
 
             // convert to absolute node id.
-            ExpandedNodeId absoluteId = NodeId.ToExpandedNodeId(typeId, m_context.NamespaceUris);
+            var absoluteId = NodeId.ToExpandedNodeId(typeId, m_context.NamespaceUris);
 
             // lookup message type.
             Type actualType = m_context.Factory.GetSystemType(absoluteId);
@@ -441,7 +462,7 @@ namespace Opc.Ua
                 {
                     utf8StringLength--;
                 }
-                return Encoding.UTF8.GetString(bytes.Slice(0, utf8StringLength));
+                return Encoding.UTF8.GetString(bytes[..utf8StringLength]);
             }
             finally
             {
@@ -541,7 +562,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            XmlDocument document = new XmlDocument();
+            var document = new XmlDocument();
 
             try
             {
@@ -552,8 +573,8 @@ namespace Opc.Ua
                     utf8StringLength--;
                 }
                 string xmlString = Encoding.UTF8.GetString(bytes, 0, utf8StringLength);
-                using (StringReader stream = new StringReader(xmlString))
-                using (XmlReader reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings()))
+                using (var stream = new StringReader(xmlString))
+                using (var reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings()))
                 {
                     document.Load(reader);
                 }
@@ -573,7 +594,7 @@ namespace Opc.Ua
         {
             byte encodingByte = SafeReadByte();
 
-            NodeId value = new NodeId();
+            var value = new NodeId();
 
             ReadNodeIdBody(encodingByte, value);
 
@@ -592,9 +613,9 @@ namespace Opc.Ua
         {
             byte encodingByte = SafeReadByte();
 
-            ExpandedNodeId value = new ExpandedNodeId();
+            var value = new ExpandedNodeId();
 
-            NodeId body = new NodeId();
+            var body = new NodeId();
             ReadNodeIdBody(encodingByte, body);
             value.InnerNodeId = body;
 
@@ -710,7 +731,7 @@ namespace Opc.Ua
             // read the encoding byte.
             byte encodingByte = SafeReadByte();
 
-            DataValue value = new DataValue();
+            var value = new DataValue();
 
             // read the fields of the DataValue structure.
             if ((encodingByte & (byte)DataValueEncodingBits.Value) != 0)
@@ -775,8 +796,10 @@ namespace Opc.Ua
         /// <returns>An <see cref="IEncodeable"/> object that was read from the stream.</returns>
         public IEncodeable ReadEncodeable(string fieldName, System.Type systemType, ExpandedNodeId encodeableTypeId = null)
         {
-            if (systemType == null) throw new ArgumentNullException(nameof(systemType));
-
+            if (systemType == null)
+            {
+                throw new ArgumentNullException(nameof(systemType));
+            }
 
             if (!(Activator.CreateInstance(systemType) is IEncodeable encodeable))
             {
@@ -828,7 +851,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            BooleanCollection values = new BooleanCollection(length);
+            var values = new BooleanCollection(length);
 
             for (int ii = 0; ii < length; ii++)
             {
@@ -850,7 +873,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            SByteCollection values = new SByteCollection(length);
+            var values = new SByteCollection(length);
 
             for (int ii = 0; ii < length; ii++)
             {
@@ -872,7 +895,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            ByteCollection values = new ByteCollection(length);
+            var values = new ByteCollection(length);
 
             for (int ii = 0; ii < length; ii++)
             {
@@ -894,7 +917,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            Int16Collection values = new Int16Collection(length);
+            var values = new Int16Collection(length);
 
             for (int ii = 0; ii < length; ii++)
             {
@@ -916,7 +939,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            UInt16Collection values = new UInt16Collection(length);
+            var values = new UInt16Collection(length);
 
             for (int ii = 0; ii < length; ii++)
             {
@@ -938,7 +961,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            Int32Collection values = new Int32Collection(length);
+            var values = new Int32Collection(length);
 
             for (int ii = 0; ii < length; ii++)
             {
@@ -960,7 +983,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            UInt32Collection values = new UInt32Collection(length);
+            var values = new UInt32Collection(length);
 
             for (int ii = 0; ii < length; ii++)
             {
@@ -982,7 +1005,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            Int64Collection values = new Int64Collection(length);
+            var values = new Int64Collection(length);
 
             for (int ii = 0; ii < length; ii++)
             {
@@ -1004,7 +1027,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            UInt64Collection values = new UInt64Collection(length);
+            var values = new UInt64Collection(length);
 
             for (int ii = 0; ii < length; ii++)
             {
@@ -1026,7 +1049,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            FloatCollection values = new FloatCollection(length);
+            var values = new FloatCollection(length);
 
             for (int ii = 0; ii < length; ii++)
             {
@@ -1048,7 +1071,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            DoubleCollection values = new DoubleCollection(length);
+            var values = new DoubleCollection(length);
 
             for (int ii = 0; ii < length; ii++)
             {
@@ -1070,7 +1093,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            StringCollection values = new StringCollection(length);
+            var values = new StringCollection(length);
 
             for (int ii = 0; ii < length; ii++)
             {
@@ -1092,7 +1115,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            DateTimeCollection values = new DateTimeCollection(length);
+            var values = new DateTimeCollection(length);
 
             for (int ii = 0; ii < length; ii++)
             {
@@ -1114,7 +1137,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            UuidCollection values = new UuidCollection(length);
+            var values = new UuidCollection(length);
 
             for (int ii = 0; ii < length; ii++)
             {
@@ -1136,7 +1159,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            ByteStringCollection values = new ByteStringCollection(length);
+            var values = new ByteStringCollection(length);
 
             for (int ii = 0; ii < length; ii++)
             {
@@ -1158,7 +1181,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            XmlElementCollection values = new XmlElementCollection(length);
+            var values = new XmlElementCollection(length);
 
             for (int ii = 0; ii < length; ii++)
             {
@@ -1180,7 +1203,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            NodeIdCollection values = new NodeIdCollection(length);
+            var values = new NodeIdCollection(length);
 
             for (int ii = 0; ii < length; ii++)
             {
@@ -1202,7 +1225,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            ExpandedNodeIdCollection values = new ExpandedNodeIdCollection(length);
+            var values = new ExpandedNodeIdCollection(length);
 
             for (int ii = 0; ii < length; ii++)
             {
@@ -1224,7 +1247,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            StatusCodeCollection values = new StatusCodeCollection(length);
+            var values = new StatusCodeCollection(length);
 
             for (int ii = 0; ii < length; ii++)
             {
@@ -1246,7 +1269,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            DiagnosticInfoCollection values = new DiagnosticInfoCollection(length);
+            var values = new DiagnosticInfoCollection(length);
 
             for (int ii = 0; ii < length; ii++)
             {
@@ -1268,7 +1291,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            QualifiedNameCollection values = new QualifiedNameCollection(length);
+            var values = new QualifiedNameCollection(length);
 
             for (int ii = 0; ii < length; ii++)
             {
@@ -1290,7 +1313,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            LocalizedTextCollection values = new LocalizedTextCollection(length);
+            var values = new LocalizedTextCollection(length);
 
             for (int ii = 0; ii < length; ii++)
             {
@@ -1312,7 +1335,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            VariantCollection values = new VariantCollection(length);
+            var values = new VariantCollection(length);
 
             for (int ii = 0; ii < length; ii++)
             {
@@ -1334,7 +1357,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            DataValueCollection values = new DataValueCollection(length);
+            var values = new DataValueCollection(length);
 
             for (int ii = 0; ii < length; ii++)
             {
@@ -1356,7 +1379,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            ExtensionObjectCollection values = new ExtensionObjectCollection(length);
+            var values = new ExtensionObjectCollection(length);
 
             for (int ii = 0; ii < length; ii++)
             {
@@ -1382,7 +1405,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            Array values = Array.CreateInstance(systemType, length);
+            var values = Array.CreateInstance(systemType, length);
 
             for (int ii = 0; ii < length; ii++)
             {
@@ -1404,7 +1427,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            Array values = Array.CreateInstance(enumType, length);
+            var values = Array.CreateInstance(enumType, length);
 
             for (int ii = 0; ii < length; ii++)
             {
@@ -1541,7 +1564,7 @@ namespace Opc.Ua
                     {
                         var newElements = Array.CreateInstance(systemType, elements.Length);
                         int ii = 0;
-                        foreach (var element in elements)
+                        foreach (object element in elements)
                         {
                             newElements.SetValue(Enum.ToObject(systemType, element), ii++);
                         }
@@ -1593,7 +1616,7 @@ namespace Opc.Ua
                     return null;
                 }
 
-                DiagnosticInfo value = new DiagnosticInfo();
+                var value = new DiagnosticInfo();
 
                 // read the fields of the diagnostic info structure.
                 if ((encodingByte & (byte)DiagnosticInfoEncodingBits.SymbolicId) != 0)
@@ -1820,7 +1843,7 @@ namespace Opc.Ua
 
                 case BuiltInType.DateTime:
                 {
-                    DateTime[] values = new DateTime[length];
+                    var values = new DateTime[length];
 
                     for (int ii = 0; ii < values.Length; ii++)
                     {
@@ -1833,7 +1856,7 @@ namespace Opc.Ua
 
                 case BuiltInType.Guid:
                 {
-                    Uuid[] values = new Uuid[length];
+                    var values = new Uuid[length];
 
                     for (int ii = 0; ii < values.Length; ii++)
                     {
@@ -1859,7 +1882,7 @@ namespace Opc.Ua
 
                 case BuiltInType.XmlElement:
                 {
-                    XmlElement[] values = new XmlElement[length];
+                    var values = new XmlElement[length];
 
                     for (int ii = 0; ii < values.Length; ii++)
                     {
@@ -1885,7 +1908,7 @@ namespace Opc.Ua
 
                 case BuiltInType.NodeId:
                 {
-                    NodeId[] values = new NodeId[length];
+                    var values = new NodeId[length];
 
                     for (int ii = 0; ii < values.Length; ii++)
                     {
@@ -1898,7 +1921,7 @@ namespace Opc.Ua
 
                 case BuiltInType.ExpandedNodeId:
                 {
-                    ExpandedNodeId[] values = new ExpandedNodeId[length];
+                    var values = new ExpandedNodeId[length];
 
                     for (int ii = 0; ii < values.Length; ii++)
                     {
@@ -1911,7 +1934,7 @@ namespace Opc.Ua
 
                 case BuiltInType.StatusCode:
                 {
-                    StatusCode[] values = new StatusCode[length];
+                    var values = new StatusCode[length];
 
                     for (int ii = 0; ii < values.Length; ii++)
                     {
@@ -1924,7 +1947,7 @@ namespace Opc.Ua
 
                 case BuiltInType.QualifiedName:
                 {
-                    QualifiedName[] values = new QualifiedName[length];
+                    var values = new QualifiedName[length];
 
                     for (int ii = 0; ii < values.Length; ii++)
                     {
@@ -1937,7 +1960,7 @@ namespace Opc.Ua
 
                 case BuiltInType.LocalizedText:
                 {
-                    LocalizedText[] values = new LocalizedText[length];
+                    var values = new LocalizedText[length];
 
                     for (int ii = 0; ii < values.Length; ii++)
                     {
@@ -1950,7 +1973,7 @@ namespace Opc.Ua
 
                 case BuiltInType.ExtensionObject:
                 {
-                    ExtensionObject[] values = new ExtensionObject[length];
+                    var values = new ExtensionObject[length];
 
                     for (int ii = 0; ii < values.Length; ii++)
                     {
@@ -1963,7 +1986,7 @@ namespace Opc.Ua
 
                 case BuiltInType.DataValue:
                 {
-                    DataValue[] values = new DataValue[length];
+                    var values = new DataValue[length];
 
                     for (int ii = 0; ii < values.Length; ii++)
                     {
@@ -1976,7 +1999,7 @@ namespace Opc.Ua
 
                 case BuiltInType.Variant:
                 {
-                    Variant[] values = new Variant[length];
+                    var values = new Variant[length];
 
                     for (int ii = 0; ii < values.Length; ii++)
                     {
@@ -1989,7 +2012,7 @@ namespace Opc.Ua
 
                 case BuiltInType.DiagnosticInfo:
                 {
-                    DiagnosticInfo[] values = new DiagnosticInfo[length];
+                    var values = new DiagnosticInfo[length];
 
                     for (int ii = 0; ii < values.Length; ii++)
                     {
@@ -2093,7 +2116,7 @@ namespace Opc.Ua
         /// </summary>
         private ExtensionObject ReadExtensionObject()
         {
-            ExtensionObject extension = new ExtensionObject();
+            var extension = new ExtensionObject();
 
             // read type id.
             NodeId typeId = ReadNodeId(null);
@@ -2134,8 +2157,8 @@ namespace Opc.Ua
                 // attempt to decode a known type.
                 if (systemType != null && extension.Body != null)
                 {
-                    XmlElement element = extension.Body as XmlElement;
-                    using (XmlDecoder xmlDecoder = new XmlDecoder(element, this.Context))
+                    var element = extension.Body as XmlElement;
+                    using (var xmlDecoder = new XmlDecoder(element, this.Context))
                     {
                         try
                         {
@@ -2315,7 +2338,7 @@ namespace Opc.Ua
                     return value;
                 }
 
-                BuiltInType builtInType = (BuiltInType)(encodingByte & (byte)VariantArrayEncodingBits.TypeMask);
+                var builtInType = (BuiltInType)(encodingByte & (byte)VariantArrayEncodingBits.TypeMask);
 
                 Array array = ReadArrayElements(length, builtInType);
 
@@ -2799,7 +2822,11 @@ namespace Opc.Ua
         /// <param name="stream">The stream used for decoding.</param>
         private void ValidateStreamRequirements(Stream stream)
         {
-            if (stream == null) throw new ArgumentNullException(nameof(stream));
+            if (stream == null)
+            {
+                throw new ArgumentNullException(nameof(stream));
+            }
+
             if (stream?.CanSeek != true || stream?.CanRead != true)
             {
                 throw new ArgumentException("Stream must be seekable and readable.");

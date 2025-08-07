@@ -90,7 +90,7 @@ namespace Opc.Ua.Client
             bool closeChannel,
             CancellationToken ct)
         {
-            OpenValidateIdentity(ref identity, out var identityToken, out var identityPolicy, out string securityPolicyUri, out bool requireEncryption);
+            OpenValidateIdentity(ref identity, out UserIdentityToken identityToken, out UserTokenPolicy identityPolicy, out string securityPolicyUri, out bool requireEncryption);
 
             // validate the server certificate /certificate chain.
             X509Certificate2 serverCertificate = null;
@@ -129,7 +129,7 @@ namespace Opc.Ua.Client
             // send the application instance certificate for the client.
             BuildCertificateData(out byte[] clientCertificateData, out byte[] clientCertificateChainData);
 
-            ApplicationDescription clientDescription = new ApplicationDescription {
+            var clientDescription = new ApplicationDescription {
                 ApplicationUri = m_configuration.ApplicationUri,
                 ApplicationName = m_configuration.ApplicationName,
                 ApplicationType = ApplicationType.Client,
@@ -359,7 +359,10 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<bool> RemoveSubscriptionAsync(Subscription subscription, CancellationToken ct = default)
         {
-            if (subscription == null) throw new ArgumentNullException(nameof(subscription));
+            if (subscription == null)
+            {
+                throw new ArgumentNullException(nameof(subscription));
+            }
 
             if (subscription.Created)
             {
@@ -384,9 +387,12 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<bool> RemoveSubscriptionsAsync(IEnumerable<Subscription> subscriptions, CancellationToken ct = default)
         {
-            if (subscriptions == null) throw new ArgumentNullException(nameof(subscriptions));
+            if (subscriptions == null)
+            {
+                throw new ArgumentNullException(nameof(subscriptions));
+            }
 
-            List<Subscription> subscriptionsToDelete = new List<Subscription>();
+            var subscriptionsToDelete = new List<Subscription>();
 
             bool removed = PrepareSubscriptionsToDelete(subscriptions, subscriptionsToDelete);
 
@@ -617,7 +623,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task FetchTypeTreeAsync(ExpandedNodeId typeId, CancellationToken ct = default)
         {
-            Node node = await NodeCache.FindAsync(typeId, ct).ConfigureAwait(false) as Node;
+            var node = await NodeCache.FindAsync(typeId, ct).ConfigureAwait(false) as Node;
 
             if (node != null)
             {
@@ -775,7 +781,7 @@ namespace Opc.Ua.Client
             ClientBase.ValidateResponse(values, attributesToRead);
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, attributesToRead);
 
-            var serviceResults = new ServiceResult[nodeIds.Count].ToList();
+            List<ServiceResult> serviceResults = new ServiceResult[nodeIds.Count].ToList();
             ProcessAttributesReadNodesResponse(
                 readResponse.ResponseHeader,
                 attributesToRead, attributesPerNodeId,
@@ -874,10 +880,10 @@ namespace Opc.Ua.Client
             IDictionary<uint, DataValue> attributes = CreateAttributes(nodeClass, optionalAttributes);
 
             // build list of values to read.
-            ReadValueIdCollection itemsToRead = new ReadValueIdCollection();
+            var itemsToRead = new ReadValueIdCollection();
             foreach (uint attributeId in attributes.Keys)
             {
-                ReadValueId itemToRead = new ReadValueId {
+                var itemToRead = new ReadValueId {
                     NodeId = nodeId,
                     AttributeId = attributeId
                 };
@@ -905,12 +911,12 @@ namespace Opc.Ua.Client
             NodeId nodeId,
             CancellationToken ct = default)
         {
-            ReadValueId itemToRead = new ReadValueId {
+            var itemToRead = new ReadValueId {
                 NodeId = nodeId,
                 AttributeId = Attributes.Value
             };
 
-            ReadValueIdCollection itemsToRead = new ReadValueIdCollection {
+            var itemsToRead = new ReadValueIdCollection {
                 itemToRead
             };
 
@@ -1084,10 +1090,10 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
 
-            BrowseDescriptionCollection browseDescriptions = new BrowseDescriptionCollection();
+            var browseDescriptions = new BrowseDescriptionCollection();
             foreach (NodeId nodeToBrowse in nodesToBrowse)
             {
-                BrowseDescription description = new BrowseDescription {
+                var description = new BrowseDescription {
                     NodeId = nodeToBrowse,
                     BrowseDirection = browseDirection,
                     ReferenceTypeId = referenceTypeId,
@@ -1221,13 +1227,13 @@ namespace Opc.Ua.Client
             {
                 // in the first pass, we browse all nodes from the input.
                 // Some nodes may need to be browsed again, these are then fed into the next pass.
-                List<NodeId> nodesToBrowseForPass = new List<NodeId>(count);
+                var nodesToBrowseForPass = new List<NodeId>(count);
                 nodesToBrowseForPass.AddRange(nodesToBrowse);
 
-                List<ReferenceDescriptionCollection> resultForPass = new List<ReferenceDescriptionCollection>(count);
+                var resultForPass = new List<ReferenceDescriptionCollection>(count);
                 resultForPass.AddRange(result);
 
-                List<ServiceResult> errorsForPass = new List<ServiceResult>(count);
+                var errorsForPass = new List<ServiceResult>(count);
                 errorsForPass.AddRange(errors);
 
                 int passCount = 0;
@@ -1247,12 +1253,12 @@ namespace Opc.Ua.Client
                     // split input into batches
                     int batchOffset = 0;
 
-                    List<NodeId> nodesToBrowseForNextPass = new List<NodeId>();
-                    List<ReferenceDescriptionCollection> referenceDescriptionsForNextPass = new List<ReferenceDescriptionCollection>();
-                    List<ServiceResult> errorsForNextPass = new List<ServiceResult>();
+                    var nodesToBrowseForNextPass = new List<NodeId>();
+                    var referenceDescriptionsForNextPass = new List<ReferenceDescriptionCollection>();
+                    var errorsForNextPass = new List<ServiceResult>();
 
                     // loop over the batches
-                    foreach (var nodesToBrowseBatch in nodesToBrowseForPass.Batch<NodeId, List<NodeId>>(maxNodesPerBrowse))
+                    foreach (List<NodeId> nodesToBrowseBatch in nodesToBrowseForPass.Batch<NodeId, List<NodeId>>(maxNodesPerBrowse))
                     {
                         int nodesToBrowseBatchCount = nodesToBrowseBatch.Count;
 
@@ -1276,7 +1282,7 @@ namespace Opc.Ua.Client
                         int resultOffset = batchOffset;
                         for (int ii = 0; ii < nodesToBrowseBatchCount; ii++)
                         {
-                            var statusCode = errorsForBatch[ii].StatusCode;
+                            StatusCode statusCode = errorsForBatch[ii].StatusCode;
                             if (StatusCode.IsBad(statusCode))
                             {
                                 bool addToNextPass = false;
@@ -1412,10 +1418,10 @@ namespace Opc.Ua.Client
             result.AddRange(referenceDescriptions);
 
             // process any continuation point.
-            var previousResults = result;
+            List<ReferenceDescriptionCollection> previousResults = result;
             var errorAnchors = new List<ReferenceWrapper<ServiceResult>>();
             var previousErrors = new List<ReferenceWrapper<ServiceResult>>();
-            foreach (var error in errors)
+            foreach (ServiceResult error in errors)
             {
                 previousErrors.Add(new ReferenceWrapper<ServiceResult> { reference = error });
                 errorAnchors.Add(previousErrors.Last());
@@ -1484,7 +1490,7 @@ namespace Opc.Ua.Client
 
             }
             var finalErrors = new List<ServiceResult>(errorAnchors.Count);
-            foreach (var errorReference in errorAnchors)
+            foreach (ReferenceWrapper<ServiceResult> errorReference in errorAnchors)
             {
                 finalErrors.Add(errorReference.reference);
             }
@@ -1498,7 +1504,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task<IList<object>> CallAsync(NodeId objectId, NodeId methodId, CancellationToken ct = default, params object[] args)
         {
-            VariantCollection inputArguments = new VariantCollection();
+            var inputArguments = new VariantCollection();
 
             if (args != null)
             {
@@ -1508,13 +1514,13 @@ namespace Opc.Ua.Client
                 }
             }
 
-            CallMethodRequest request = new CallMethodRequest();
+            var request = new CallMethodRequest {
+                ObjectId = objectId,
+                MethodId = methodId,
+                InputArguments = inputArguments
+            };
 
-            request.ObjectId = objectId;
-            request.MethodId = methodId;
-            request.InputArguments = inputArguments;
-
-            CallMethodRequestCollection requests = new CallMethodRequestCollection();
+            var requests = new CallMethodRequestCollection();
             requests.Add(request);
 
             CallMethodResultCollection results;
@@ -1533,7 +1539,7 @@ namespace Opc.Ua.Client
                 throw ServiceResultException.Create(results[0].StatusCode, 0, diagnosticInfos, response.ResponseHeader.StringTable);
             }
 
-            List<object> outputArguments = new List<object>();
+            var outputArguments = new List<object>();
 
             foreach (Variant arg in results[0].OutputArguments)
             {
@@ -1946,7 +1952,7 @@ namespace Opc.Ua.Client
         public async Task<(bool, ServiceResult)> RepublishAsync(uint subscriptionId, uint sequenceNumber, CancellationToken ct)
         {
             // send republish request.
-            RequestHeader requestHeader = new RequestHeader {
+            var requestHeader = new RequestHeader {
                 TimeoutHint = (uint)OperationTimeout,
                 ReturnDiagnostics = (uint)(int)ReturnDiagnostics,
                 RequestHandle = Utils.IncrementIdentifier(ref m_publishCounter)

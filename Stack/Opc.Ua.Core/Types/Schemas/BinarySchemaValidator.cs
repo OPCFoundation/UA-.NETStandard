@@ -95,14 +95,14 @@ namespace Opc.Ua.Schema.Binary
         {
             XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
 
-            MemoryStream ostrm = new MemoryStream();
-            XmlWriter writer = XmlWriter.Create(ostrm, settings);
+            var ostrm = new MemoryStream();
+            var writer = XmlWriter.Create(ostrm, settings);
 
             try
             {
                 if (typeName == null)
                 {
-                    XmlSerializer serializer = new XmlSerializer(typeof(TypeDictionary));
+                    var serializer = new XmlSerializer(typeof(TypeDictionary));
                     serializer.Serialize(writer, Dictionary);
                 }
                 else
@@ -111,12 +111,12 @@ namespace Opc.Ua.Schema.Binary
 
                     if (!m_descriptions.TryGetValue(new XmlQualifiedName(typeName, Dictionary.TargetNamespace), out description))
                     {
-                        XmlSerializer serializer = new XmlSerializer(typeof(TypeDictionary));
+                        var serializer = new XmlSerializer(typeof(TypeDictionary));
                         serializer.Serialize(writer, Dictionary);
                     }
                     else
                     {
-                        XmlSerializer serializer = new XmlSerializer(typeof(TypeDescription));
+                        var serializer = new XmlSerializer(typeof(TypeDescription));
                         serializer.Serialize(writer, description);
                     }
                 }
@@ -154,7 +154,7 @@ namespace Opc.Ua.Schema.Binary
                 // always import builtin types, unless wellknown library
                 if (!WellKnownDictionaries.Any(n => string.Equals(n[0], Dictionary.TargetNamespace, StringComparison.Ordinal)))
                 {
-                    ImportDirective directive = new ImportDirective { Namespace = Namespaces.OpcUa };
+                    var directive = new ImportDirective { Namespace = Namespaces.OpcUa };
                     Import(directive);
                 }
             }
@@ -194,7 +194,7 @@ namespace Opc.Ua.Schema.Binary
                 return;
             }
 
-            TypeDictionary dictionary = (TypeDictionary)Load(typeof(TypeDictionary), directive.Namespace, directive.Location);
+            var dictionary = (TypeDictionary)Load(typeof(TypeDictionary), directive.Namespace, directive.Location);
 
             // verify namespace.
             if (!string.IsNullOrEmpty(dictionary.TargetNamespace) && directive.Namespace != dictionary.TargetNamespace)
@@ -436,7 +436,7 @@ namespace Opc.Ua.Schema.Binary
 
                 int bitCount = 0;
 
-                Dictionary<string, FieldType> fields = new Dictionary<string, FieldType>();
+                var fields = new Dictionary<string, FieldType>();
 
                 for (int ii = 0; ii < structure.Field.Length; ii++)
                 {

@@ -319,7 +319,7 @@ namespace Opc.Ua.Bindings
         #endregion
 
         #region IAsyncResult Members
-        /// <summary cref="IAsyncResult.AsyncState" />
+        /// <inheritdoc/>
         public object AsyncState
         {
             get
@@ -331,7 +331,7 @@ namespace Opc.Ua.Bindings
             }
         }
 
-        /// <summary cref="IAsyncResult.AsyncWaitHandle" />
+        /// <inheritdoc/>
         public WaitHandle AsyncWaitHandle
         {
             get
@@ -348,7 +348,7 @@ namespace Opc.Ua.Bindings
             }
         }
 
-        /// <summary cref="IAsyncResult.CompletedSynchronously" />
+        /// <inheritdoc/>
         public bool CompletedSynchronously
         {
             get
@@ -360,7 +360,7 @@ namespace Opc.Ua.Bindings
             }
         }
 
-        /// <summary cref="IAsyncResult.IsCompleted" />
+        /// <inheritdoc/>
         public bool IsCompleted
         {
             get
@@ -454,9 +454,9 @@ namespace Opc.Ua.Bindings
 
         #region Private Fields
         private readonly object m_lock = new object();
-        private AsyncCallback m_callback;
-        private object m_asyncState;
-        private bool m_synchronous;
+        private readonly AsyncCallback m_callback;
+        private readonly object m_asyncState;
+        private readonly bool m_synchronous;
         private bool m_completed;
         private ManualResetEvent m_event;
         private TaskCompletionSource<bool> m_tcs;

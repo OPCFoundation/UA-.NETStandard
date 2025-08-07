@@ -32,7 +32,7 @@
 
 namespace Alarms
 {
-    public class AlarmDefines
+    public static class AlarmDefines
     {
         public const int MAX_VALUE = 100;
         public const int MIN_VALUE = 0;

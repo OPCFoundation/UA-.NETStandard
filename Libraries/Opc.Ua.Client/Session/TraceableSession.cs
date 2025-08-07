@@ -295,10 +295,17 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public override bool Equals(object obj)
         {
-            if (ReferenceEquals(this, obj)) return true;
+            if (ReferenceEquals(this, obj))
+            {
+                return true;
+            }
             // Presume that the wrapper is being compared to the
             // wrapped object, e.g. in a keep alive callback.
-            if (ReferenceEquals(m_session, obj)) return true;
+            if (ReferenceEquals(m_session, obj))
+            {
+                return true;
+            }
+
             return m_session?.Equals(obj) ?? false;
         }
 

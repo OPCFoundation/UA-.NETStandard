@@ -495,11 +495,15 @@ namespace Opc.Ua.Server
                 lock (m_serverStatus.Lock)
                 {
                     if (m_serverStatus.Value.State == ServerState.Running)
+                    {
                         return true;
+                    }
 
                     if (m_serverStatus.Value.State == ServerState.Shutdown &&
                         m_serverStatus.Value.SecondsTillShutdown > 0)
+                    {
                         return true;
+                    }
 
                     return false;
                 }
@@ -597,7 +601,10 @@ namespace Opc.Ua.Server
         /// <param name="action">Action to perform on the server status object.</param>
         public void UpdateServerStatus(Action<ServerStatusValue> action)
         {
-            if (action == null) throw new ArgumentNullException(nameof(action));
+            if (action == null)
+            {
+                throw new ArgumentNullException(nameof(action));
+            }
 
             lock (m_dataLock)
             {
@@ -653,8 +660,8 @@ namespace Opc.Ua.Server
                 serverObject.ServerCapabilities.MaxByteStringLength.Value = (uint)m_configuration.TransportQuotas.MaxByteStringLength;
 
                 // Any operational limits Property that is provided shall have a non zero value.
-                var operationLimits = serverObject.ServerCapabilities.OperationLimits;
-                var configOperationLimits = m_configuration.ServerConfiguration.OperationLimits;
+                OperationLimitsState operationLimits = serverObject.ServerCapabilities.OperationLimits;
+                OperationLimits configOperationLimits = m_configuration.ServerConfiguration.OperationLimits;
                 if (configOperationLimits != null)
                 {
                     operationLimits.MaxNodesPerRead = SetPropertyValue(operationLimits.MaxNodesPerRead, configOperationLimits.MaxNodesPerRead);
@@ -715,7 +722,7 @@ namespace Opc.Ua.Server
                 serverObject.ServerDiagnostics.EnabledFlag.MinimumSamplingInterval = 1000;
 
                 // initialize status.
-                ServerStatusDataType serverStatus = new ServerStatusDataType {
+                var serverStatus = new ServerStatusDataType {
                     StartTime = DateTime.UtcNow,
                     CurrentTime = DateTime.UtcNow,
                     State = ServerState.Shutdown
@@ -770,7 +777,7 @@ namespace Opc.Ua.Server
                     m_defaultSystemContext,
                     m_configuration.ServerConfiguration.DiagnosticsEnabled);
 
-                ConfigurationNodeManager configurationNodeManager = m_diagnosticsNodeManager as ConfigurationNodeManager;
+                var configurationNodeManager = m_diagnosticsNodeManager as ConfigurationNodeManager;
                 configurationNodeManager?.CreateServerConfiguration(
                     m_defaultSystemContext,
                     m_configuration);
@@ -929,15 +936,15 @@ namespace Opc.Ua.Server
         #endregion
 
         #region Private Fields
-        private ServerProperties m_serverDescription;
-        private ApplicationConfiguration m_configuration;
-        private List<Uri> m_endpointAddresses;
-        private IServiceMessageContext m_messageContext;
-        private ServerSystemContext m_defaultSystemContext;
-        private NamespaceTable m_namespaceUris;
-        private StringTable m_serverUris;
-        private IEncodeableFactory m_factory;
-        private TypeTable m_typeTree;
+        private readonly ServerProperties m_serverDescription;
+        private readonly ApplicationConfiguration m_configuration;
+        private readonly List<Uri> m_endpointAddresses;
+        private readonly IServiceMessageContext m_messageContext;
+        private readonly ServerSystemContext m_defaultSystemContext;
+        private readonly NamespaceTable m_namespaceUris;
+        private readonly StringTable m_serverUris;
+        private readonly IEncodeableFactory m_factory;
+        private readonly TypeTable m_typeTree;
         private ResourceManager m_resourceManager;
         private RequestManager m_requestManager;
         private AggregateManager m_aggregateManager;

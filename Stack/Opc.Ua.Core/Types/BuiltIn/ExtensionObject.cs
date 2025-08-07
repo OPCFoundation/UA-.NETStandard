@@ -537,7 +537,7 @@ namespace Opc.Ua
 
                 if (m_body is IEncodeable)
                 {
-                    StringBuilder body = new StringBuilder();
+                    var body = new StringBuilder();
 
                     PropertyInfo[] properties = m_body.GetType().GetProperties(BindingFlags.Public | BindingFlags.FlattenHierarchy | BindingFlags.Instance);
 
@@ -657,7 +657,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            Array output = Array.CreateInstance(elementType, extensions.Length);
+            var output = Array.CreateInstance(elementType, extensions.Length);
 
             for (int ii = 0; ii < output.Length; ii++)
             {
@@ -687,7 +687,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            List<T> list = new List<T>();
+            var list = new List<T>();
 
             for (int ii = 0; ii < extensions.Length; ii++)
             {
@@ -753,13 +753,13 @@ namespace Opc.Ua
                 }
 
                 // create encoder.
-                using (XmlEncoder encoder = new XmlEncoder(m_context))
+                using (var encoder = new XmlEncoder(m_context))
                 {
                     // write body.
                     encoder.WriteExtensionObjectBody(m_body);
 
                     // create document from encoder.
-                    XmlDocument document = new XmlDocument();
+                    var document = new XmlDocument();
                     document.LoadInnerXml(encoder.CloseAndReturnText());
 
                     // return root element.
@@ -777,7 +777,7 @@ namespace Opc.Ua
                 }
 
                 // create decoder.
-                using (XmlDecoder decoder = new XmlDecoder(value, m_context))
+                using (var decoder = new XmlDecoder(value, m_context))
                 {
                     // read body.
                     Body = decoder.ReadExtensionObjectBody(m_typeId);
@@ -918,7 +918,7 @@ namespace Opc.Ua
             }
 
             // convert each encodeable to an extension object.
-            ExtensionObjectCollection extensibles = new ExtensionObjectCollection();
+            var extensibles = new ExtensionObjectCollection();
 
             if (encodeables != null)
             {
@@ -958,7 +958,7 @@ namespace Opc.Ua
         /// </remarks>
         public new object MemberwiseClone()
         {
-            ExtensionObjectCollection clone = new ExtensionObjectCollection(this.Count);
+            var clone = new ExtensionObjectCollection(this.Count);
 
             foreach (ExtensionObject element in this)
             {

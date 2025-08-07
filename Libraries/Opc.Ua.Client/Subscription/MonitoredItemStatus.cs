@@ -161,8 +161,15 @@ namespace Opc.Ua.Client
             MonitoredItemCreateResult result,
             ServiceResult error)
         {
-            if (request == null) throw new ArgumentNullException(nameof(request));
-            if (result == null) throw new ArgumentNullException(nameof(result));
+            if (request == null)
+            {
+                throw new ArgumentNullException(nameof(request));
+            }
+
+            if (result == null)
+            {
+                throw new ArgumentNullException(nameof(result));
+            }
 
             m_nodeId = request.ItemToMonitor.NodeId;
             m_attributeId = request.ItemToMonitor.AttributeId;
@@ -200,7 +207,10 @@ namespace Opc.Ua.Client
         /// </summary>
         internal void SetTransferResult(MonitoredItem monitoredItem)
         {
-            if (monitoredItem == null) throw new ArgumentNullException(nameof(monitoredItem));
+            if (monitoredItem == null)
+            {
+                throw new ArgumentNullException(nameof(monitoredItem));
+            }
 
             m_nodeId = monitoredItem.ResolvedNodeId;
             m_attributeId = monitoredItem.AttributeId;
@@ -228,8 +238,15 @@ namespace Opc.Ua.Client
             MonitoredItemModifyResult result,
             ServiceResult error)
         {
-            if (request == null) throw new ArgumentNullException(nameof(request));
-            if (result == null) throw new ArgumentNullException(nameof(result));
+            if (request == null)
+            {
+                throw new ArgumentNullException(nameof(request));
+            }
+
+            if (result == null)
+            {
+                throw new ArgumentNullException(nameof(result));
+            }
 
             m_error = error;
 

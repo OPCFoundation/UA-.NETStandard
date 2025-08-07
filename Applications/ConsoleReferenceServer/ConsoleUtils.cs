@@ -233,14 +233,14 @@ namespace Quickstarts
             // Convert environment settings to command line flags
             // because in some environments (e.g. docker cloud) it is
             // the only supported way to pass arguments.
-            var config = new ConfigurationBuilder()
+            IConfigurationRoot config = new ConfigurationBuilder()
                 .AddEnvironmentVariables(environmentPrefix + "_")
                 .Build();
 
-            var argslist = args.ToList();
-            foreach (var option in options)
+            List<string> argslist = args.ToList();
+            foreach (Option option in options)
             {
-                var names = option.GetNames();
+                string[] names = option.GetNames();
                 string longest = names.MaxBy(s => s.Length);
                 if (longest != null && longest.Length >= 3)
                 {
@@ -314,7 +314,7 @@ namespace Quickstarts
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
             TaskScheduler.UnobservedTaskException += Unobserved_TaskException;
 
-            var loggerConfiguration = new LoggerConfiguration()
+            LoggerConfiguration loggerConfiguration = new LoggerConfiguration()
                     .Enrich.FromLogContext();
 
             if (logConsole)
@@ -337,7 +337,7 @@ namespace Quickstarts
             LogLevel fileLevel = LogLevel.Information;
 
             // switch for Trace/Verbose output
-            var traceMasks = configuration.TraceConfiguration.TraceMasks;
+            int traceMasks = configuration.TraceConfiguration.TraceMasks;
             if ((traceMasks & ~(TraceMasks.Information | TraceMasks.Error |
                 TraceMasks.Security | TraceMasks.StartStop | TraceMasks.StackTrace)) != 0)
             {
@@ -345,7 +345,7 @@ namespace Quickstarts
             }
 
             // add file logging if configured
-            var outputFilePath = configuration.TraceConfiguration.OutputFilePath;
+            string outputFilePath = configuration.TraceConfiguration.OutputFilePath;
             if (!string.IsNullOrWhiteSpace(outputFilePath))
             {
                 loggerConfiguration.WriteTo.File(
@@ -362,11 +362,11 @@ namespace Quickstarts
             }
 
             // create the serilog logger
-            var serilogger = loggerConfiguration
+            Serilog.Core.Logger serilogger = loggerConfiguration
                 .CreateLogger();
 
             // create the ILogger for Opc.Ua.Core
-            var logger = LoggerFactory.Create(builder => builder.SetMinimumLevel(LogLevel.Trace))
+            Microsoft.Extensions.Logging.ILogger logger = LoggerFactory.Create(builder => builder.SetMinimumLevel(LogLevel.Trace))
                 .AddSerilog(serilogger)
                 .CreateLogger(context);
 

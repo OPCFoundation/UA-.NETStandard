@@ -42,7 +42,7 @@ namespace Opc.Ua
         {
             if (list != null && makeCopy)
             {
-                T[] values = new T[list.Count];
+                var values = new T[list.Count];
 
                 for (int ii = 0; ii < values.Length; ii++)
                 {
@@ -305,7 +305,7 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private IList<T> m_list;
+        private readonly IList<T> m_list;
         #endregion
     }
 }

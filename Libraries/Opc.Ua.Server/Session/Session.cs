@@ -78,8 +78,15 @@ namespace Opc.Ua.Server
             int maxBrowseContinuationPoints,
             int maxHistoryContinuationPoints)
         {
-            if (context == null) throw new ArgumentNullException(nameof(context));
-            if (server == null) throw new ArgumentNullException(nameof(server));
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            if (server == null)
+            {
+                throw new ArgumentNullException(nameof(server));
+            }
 
             // verify that a secure channel was specified.
             if (context.ChannelContext == null)
@@ -356,7 +363,7 @@ namespace Opc.Ua.Server
 
                 m_eccUserTokenNonce = Nonce.CreateNonce(m_eccUserTokenSecurityPolicyUri);
 
-                EphemeralKeyType key = new EphemeralKeyType() {
+                var key = new EphemeralKeyType() {
                     PublicKey = m_eccUserTokenNonce.Data
                 };
 
@@ -400,7 +407,10 @@ namespace Opc.Ua.Server
         /// </summary>
         public virtual void ValidateRequest(RequestHeader requestHeader, RequestType requestType)
         {
-            if (requestHeader == null) throw new ArgumentNullException(nameof(requestHeader));
+            if (requestHeader == null)
+            {
+                throw new ArgumentNullException(nameof(requestHeader));
+            }
 
             lock (m_lock)
             {
@@ -436,7 +446,7 @@ namespace Opc.Ua.Server
             const uint additionalInfoDiagnosticsMask = (uint)(DiagnosticsMasks.ServiceAdditionalInfo | DiagnosticsMasks.OperationAdditionalInfo);
             if ((requestHeader.ReturnDiagnostics & additionalInfoDiagnosticsMask) != 0)
             {
-                var currentRoleIds = m_effectiveIdentity?.GrantedRoleIds;
+                NodeIdCollection currentRoleIds = m_effectiveIdentity?.GrantedRoleIds;
                 if ((currentRoleIds?.Contains(ObjectIds.WellKnownRole_SecurityAdmin)) == true ||
                     (currentRoleIds?.Contains(ObjectIds.WellKnownRole_ConfigureAdmin)) == true)
                 {
@@ -462,7 +472,10 @@ namespace Opc.Ua.Server
         /// <returns>true if the new locale ids are different from the old locale ids.</returns>
         public bool UpdateLocaleIds(StringCollection localeIds)
         {
-            if (localeIds == null) throw new ArgumentNullException(nameof(localeIds));
+            if (localeIds == null)
+            {
+                throw new ArgumentNullException(nameof(localeIds));
+            }
 
             lock (m_lock)
             {
@@ -531,7 +544,7 @@ namespace Opc.Ua.Server
 
                         if (serverCertificateChain.Count > 1)
                         {
-                            List<byte> serverCertificateChainList = new List<byte>();
+                            var serverCertificateChainList = new List<byte>();
 
                             for (int i = 0; i < serverCertificateChain.Count; i++)
                             {
@@ -631,13 +644,13 @@ namespace Opc.Ua.Server
                 m_serverNonce = serverNonce;
 
                 // build list of signed certificates for audit event.
-                List<SignedSoftwareCertificate> signedSoftwareCertificates = new List<SignedSoftwareCertificate>();
+                var signedSoftwareCertificates = new List<SignedSoftwareCertificate>();
 
                 if (clientSoftwareCertificates != null)
                 {
                     foreach (SoftwareCertificate softwareCertificate in clientSoftwareCertificates)
                     {
-                        SignedSoftwareCertificate item = new SignedSoftwareCertificate();
+                        var item = new SignedSoftwareCertificate();
                         item.CertificateData = softwareCertificate.SignedCertificate.RawData;
                         signedSoftwareCertificates.Add(item);
                     }
@@ -674,7 +687,10 @@ namespace Opc.Ua.Server
         /// </remarks>
         public void SaveContinuationPoint(ContinuationPoint continuationPoint)
         {
-            if (continuationPoint == null) throw new ArgumentNullException(nameof(continuationPoint));
+            if (continuationPoint == null)
+            {
+                throw new ArgumentNullException(nameof(continuationPoint));
+            }
 
             lock (m_lock)
             {
@@ -716,7 +732,7 @@ namespace Opc.Ua.Server
                     return null;
                 }
 
-                Guid id = new Guid(continuationPoint);
+                var id = new Guid(continuationPoint);
 
                 for (int ii = 0; ii < m_browseContinuationPoints.Count; ii++)
                 {
@@ -743,7 +759,10 @@ namespace Opc.Ua.Server
         /// </remarks>
         public void SaveHistoryContinuationPoint(Guid id, object continuationPoint)
         {
-            if (continuationPoint == null) throw new ArgumentNullException(nameof(continuationPoint));
+            if (continuationPoint == null)
+            {
+                throw new ArgumentNullException(nameof(continuationPoint));
+            }
 
             lock (m_lock)
             {
@@ -761,7 +780,7 @@ namespace Opc.Ua.Server
                 }
 
                 // create the cp.
-                HistoryContinuationPoint cp = new HistoryContinuationPoint();
+                var cp = new HistoryContinuationPoint();
 
                 cp.Id = id;
                 cp.Value = continuationPoint;
@@ -790,7 +809,7 @@ namespace Opc.Ua.Server
                     return null;
                 }
 
-                Guid id = new Guid(continuationPoint);
+                var id = new Guid(continuationPoint);
 
                 for (int ii = 0; ii < m_historyContinuationPoints.Count; ii++)
                 {
@@ -896,7 +915,7 @@ namespace Opc.Ua.Server
                 }
 
                 // create an anonymous token to use for subsequent validation.
-                AnonymousIdentityToken anonymousToken = new AnonymousIdentityToken();
+                var anonymousToken = new AnonymousIdentityToken();
                 anonymousToken.PolicyId = policy.PolicyId;
                 return anonymousToken;
             }
@@ -908,7 +927,7 @@ namespace Opc.Ua.Server
                 //handle the use case when the UserIdentityToken is binary encoded over xml message encoding
                 if (identityToken.Encoding == ExtensionObjectEncoding.Binary && typeof(byte[]).IsInstanceOfType(identityToken.Body))
                 {
-                    UserIdentityToken newToken = BaseVariableState.DecodeExtensionObject(null, typeof(UserIdentityToken), identityToken, false) as UserIdentityToken;
+                    var newToken = BaseVariableState.DecodeExtensionObject(null, typeof(UserIdentityToken), identityToken, false) as UserIdentityToken;
                     if (newToken == null)
                     {
                         throw ServiceResultException.Create(StatusCodes.BadUserAccessDenied, "Invalid user identity token provided.");
@@ -1019,7 +1038,7 @@ namespace Opc.Ua.Server
 
                         if (serverCertificateChain.Count > 1)
                         {
-                            List<byte> serverCertificateChainList = new List<byte>();
+                            var serverCertificateChainList = new List<byte>();
 
                             for (int i = 0; i < serverCertificateChain.Count; i++)
                             {
@@ -1056,7 +1075,10 @@ namespace Opc.Ua.Server
             IUserIdentity identity,
             IUserIdentity effectiveIdentity)
         {
-            if (identityToken == null) throw new ArgumentNullException(nameof(identityToken));
+            if (identityToken == null)
+            {
+                throw new ArgumentNullException(nameof(identityToken));
+            }
 
             lock (m_lock)
             {
@@ -1159,40 +1181,40 @@ namespace Opc.Ua.Server
 
         #region Private Fields
         private readonly object m_lock = new object();
-        private NodeId m_sessionId;
+        private readonly NodeId m_sessionId;
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
-        private NodeId m_authenticationToken;
-        private IServerInternal m_server;
+        private readonly NodeId m_authenticationToken;
+        private readonly IServerInternal m_server;
 
         private UserIdentityToken m_identityToken;
         private IUserIdentity m_identity;
         private IUserIdentity m_effectiveIdentity;
         private bool m_activated;
 
-        private X509Certificate2 m_clientCertificate;
+        private readonly X509Certificate2 m_clientCertificate;
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
         private List<SoftwareCertificate> m_softwareCertificates;
-        private byte[] m_clientNonce;
-        private string m_sessionName;
+        private readonly byte[] m_clientNonce;
+        private readonly string m_sessionName;
         private string m_secureChannelId;
-        private EndpointDescription m_endpoint;
+        private readonly EndpointDescription m_endpoint;
         private X509Certificate2 m_serverCertificate;
 
         private Nonce m_serverNonce;
         private string m_eccUserTokenSecurityPolicyUri;
         private Nonce m_eccUserTokenNonce;
-        private X509Certificate2Collection m_clientIssuerCertificates;
+        private readonly X509Certificate2Collection m_clientIssuerCertificates;
 
         private string[] m_localeIds;
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
-        private uint m_maxResponseMessageSize;
-        private double m_maxRequestAge;
+        private readonly uint m_maxResponseMessageSize;
+        private readonly double m_maxRequestAge;
         private int m_maxBrowseContinuationPoints;
-        private int m_maxHistoryContinuationPoints;
+        private readonly int m_maxHistoryContinuationPoints;
 
-        private SessionDiagnosticsDataType m_diagnostics;
-        private SessionSecurityDiagnosticsDataType m_securityDiagnostics;
+        private readonly SessionDiagnosticsDataType m_diagnostics;
+        private readonly SessionSecurityDiagnosticsDataType m_securityDiagnostics;
         private List<ContinuationPoint> m_browseContinuationPoints;
         private List<HistoryContinuationPoint> m_historyContinuationPoints;
         #endregion

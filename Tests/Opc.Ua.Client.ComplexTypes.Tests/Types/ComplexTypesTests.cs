@@ -54,10 +54,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         {
             // EncoderCommon.BuiltInTypes subtracted by the number of unused types.
             int propertyBuiltInTypes = EncoderCommon.BuiltInTypes.Length - 3;
-            var complexType = BuildComplexTypeWithAllBuiltInTypes(
+            Type complexType = BuildComplexTypeWithAllBuiltInTypes(
                 structureType, nameof(CreateComplexType));
             Assert.NotNull(complexType);
-            var emittedType = Activator.CreateInstance(complexType);
+            object emittedType = Activator.CreateInstance(complexType);
             var structType = emittedType as BaseComplexType;
             switch (structureType)
             {
@@ -85,14 +85,14 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             var encodeable = emittedType as IEncodeable;
             Assert.NotNull(encodeable);
             // try the accessor by name
-            foreach (var accessorname in structType.GetPropertyNames())
+            foreach (string accessorname in structType.GetPropertyNames())
             {
-                var obj = structType[accessorname];
+                object obj = structType[accessorname];
             }
             // try the accessor by index
             for (int i = 0; i < structType.GetPropertyCount(); i++)
             {
-                var obj = structType[i];
+                object obj = structType[i];
             }
         }
 
@@ -104,10 +104,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         {
             // BuiltInTypes - Null type.
             int propertyBuiltInTypes = EncoderCommon.BuiltInTypes.Length - 1;
-            var complexType = BuildComplexTypeWithAllBuiltInTypes(
+            Type complexType = BuildComplexTypeWithAllBuiltInTypes(
                 structureType, nameof(CreateComplexTypeWithData) + "." + randomValue.ToString());
             Assert.NotNull(complexType);
-            var emittedType = Activator.CreateInstance(complexType);
+            object emittedType = Activator.CreateInstance(complexType);
             var baseType = emittedType as BaseComplexType;
 
             // fill struct with default values
@@ -115,7 +115,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             for (int i = 0; i < baseType.GetPropertyCount(); i++)
             {
-                var obj = baseType[i];
+                object obj = baseType[i];
                 if (structureType == StructureType.Union ||
                     structureType == StructureType.UnionWithSubtypedValues)
                 {

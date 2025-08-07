@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -36,7 +36,7 @@ using Opc.Ua;
 namespace Alarms
 {
     /// <summary>
-    /// 
+    /// Alarm controller
     /// </summary>
     public class AlarmController
     {
@@ -83,7 +83,7 @@ namespace Alarms
 
             m_validLastMaxValue = false;
 
-            m_nextTime = 
+            m_nextTime =
             m_stopTime = DateTime.Now;
             m_stopTime = m_stopTime.AddSeconds(seconds == 0 ? kDefaultCycleTime : seconds);
 
@@ -281,7 +281,7 @@ namespace Alarms
              * B - relates to period - This should extend the time period
              * C - Phase Shift
              * D - Vertical Shift
-             * 
+             *
              */
 
             double twoPi = Math.PI * 2;

@@ -60,7 +60,7 @@ namespace Opc.Ua.Gds.Server
     /// </summary>
     public class GdsRoleBasedIdentity : RoleBasedIdentity
     {
-        private NodeId m_applicationId;
+        private readonly NodeId m_applicationId;
 
         public GdsRoleBasedIdentity(IUserIdentity identity, IEnumerable<Role> roles, NodeId applicationId)
      : base(identity, roles)

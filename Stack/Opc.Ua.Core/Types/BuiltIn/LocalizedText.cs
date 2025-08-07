@@ -95,7 +95,10 @@ namespace Opc.Ua
         /// </summary>
         public LocalizedText(TranslationInfo translationInfo)
         {
-            if (translationInfo == null) throw new ArgumentNullException(nameof(translationInfo));
+            if (translationInfo == null)
+            {
+                throw new ArgumentNullException(nameof(translationInfo));
+            }
 
             m_locale = translationInfo.Locale;
             m_text = translationInfo.Text;
@@ -141,7 +144,10 @@ namespace Opc.Ua
         /// <exception cref="ArgumentNullException">Thrown when the value is null</exception>
         public LocalizedText(LocalizedText value)
         {
-            if (value == null) throw new ArgumentNullException(nameof(value));
+            if (value == null)
+            {
+                throw new ArgumentNullException(nameof(value));
+            }
 
             m_locale = value.m_locale;
             m_text = value.m_text;
@@ -232,7 +238,7 @@ namespace Opc.Ua
         /// </remarks>
         public string Locale => m_locale;
 
-        /// <summary cref="LocalizedText.Locale" />
+        /// <inheritdoc/>
         [DataMember(Name = "Locale", Order = 1)]
         internal string XmlEncodedLocale
         {
@@ -275,7 +281,7 @@ namespace Opc.Ua
                 // if the dictionary contains only one entry, use the first entry as the locale and text.
                 if (value.Count == 1)
                 {
-                    foreach (var kvp in value)
+                    foreach (KeyValuePair<string, string> kvp in value)
                     {
                         m_locale = kvp.Key;
                         m_text = kvp.Value;
@@ -290,7 +296,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary cref="LocalizedText.Text" />
+        /// <inheritdoc/>
         [DataMember(Name = "Text", Order = 2)]
         internal string XmlEncodedText
         {
@@ -358,7 +364,7 @@ namespace Opc.Ua
                 return true;
             }
 
-            LocalizedText ltext = obj as LocalizedText;
+            var ltext = obj as LocalizedText;
 
             if (ltext == null)
             {
@@ -558,9 +564,9 @@ namespace Opc.Ua
                 }
 
                 // Try to find the first matching locale
-                foreach (var locale in preferredLocales)
+                foreach (string locale in preferredLocales)
                 {
-                    if (Translations.TryGetValue(locale, out var text))
+                    if (Translations.TryGetValue(locale, out string text))
                     {
                         return new LocalizedText(locale, text);
                     }
@@ -609,11 +615,18 @@ namespace Opc.Ua
         /// </summary>
         private string EncodeMulLocale(IReadOnlyDictionary<string, string> translations)
         {
-            if (translations == null) throw new ArgumentNullException(nameof(translations));
-            if (translations.Count == 0) throw new ArgumentException("The translations dictionary must not be empty.", nameof(translations));
+            if (translations == null)
+            {
+                throw new ArgumentNullException(nameof(translations));
+            }
+
+            if (translations.Count == 0)
+            {
+                throw new ArgumentException("The translations dictionary must not be empty.", nameof(translations));
+            }
 
             var t = new List<object[]>();
-            foreach (var kvp in translations)
+            foreach (KeyValuePair<string, string> kvp in translations)
             {
                 t.Add(new object[] { kvp.Key, kvp.Value });
             }
@@ -628,21 +641,23 @@ namespace Opc.Ua
         private IReadOnlyDictionary<string, string> DecodeMulLocale()
         {
             if (!IsMultiLanguage || string.IsNullOrWhiteSpace(m_text))
+            {
                 return null;
+            }
 
             var result = new Dictionary<string, string>();
             try
             {
                 // The expected JSON structure is defined in https://reference.opcfoundation.org/Core/Part3/v105/docs/8.5
-                var json = JsonConvert.DeserializeObject<Dictionary<string, object>>(m_text);
-                if (json != null && json.TryGetValue(kMulLocaleDictionaryKey, out var tValue) && tValue is Newtonsoft.Json.Linq.JArray tArray)
+                Dictionary<string, object> json = JsonConvert.DeserializeObject<Dictionary<string, object>>(m_text);
+                if (json != null && json.TryGetValue(kMulLocaleDictionaryKey, out object tValue) && tValue is Newtonsoft.Json.Linq.JArray tArray)
                 {
-                    foreach (var pairToken in tArray)
+                    foreach (Newtonsoft.Json.Linq.JToken pairToken in tArray)
                     {
                         if (pairToken is Newtonsoft.Json.Linq.JArray pair && pair.Count == 2)
                         {
-                            var locale = pair[0]?.ToString();
-                            var text = pair[1]?.ToString();
+                            string locale = pair[0]?.ToString();
+                            string text = pair[1]?.ToString();
                             if (!string.IsNullOrEmpty(locale) && text != null)
                             {
                                 result[locale] = text;
@@ -749,7 +764,7 @@ namespace Opc.Ua
         /// </remarks>
         public new object MemberwiseClone()
         {
-            LocalizedTextCollection clone = new LocalizedTextCollection(this.Count);
+            var clone = new LocalizedTextCollection(this.Count);
 
             foreach (LocalizedText element in this)
             {

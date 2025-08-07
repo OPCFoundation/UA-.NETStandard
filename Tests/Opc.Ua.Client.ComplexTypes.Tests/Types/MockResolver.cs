@@ -95,18 +95,18 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             string[] supportedEncodings,
             CancellationToken ct = default)
         {
-            var binaryEncodingId = ExpandedNodeId.Null;
-            var xmlEncodingId = ExpandedNodeId.Null;
+            ExpandedNodeId binaryEncodingId = ExpandedNodeId.Null;
+            ExpandedNodeId xmlEncodingId = ExpandedNodeId.Null;
             IList<NodeId> encodings = null;
 
-            var node = m_dataTypeNodes[ExpandedNodeId.ToNodeId(nodeId, NamespaceUris)];
+            INode node = m_dataTypeNodes[ExpandedNodeId.ToNodeId(nodeId, NamespaceUris)];
             if (node is DataTypeNode dataTypeNode)
             {
                 var result = new List<NodeId>();
-                var references = dataTypeNode.References.Where(r => r.ReferenceTypeId.Equals(ReferenceTypeIds.HasEncoding));
-                foreach (var reference in references)
+                IEnumerable<ReferenceNode> references = dataTypeNode.References.Where(r => r.ReferenceTypeId.Equals(ReferenceTypeIds.HasEncoding));
+                foreach (ReferenceNode reference in references)
                 {
-                    var encodingNode = m_dataTypeNodes[ExpandedNodeId.ToNodeId(reference.TargetId, NamespaceUris)];
+                    INode encodingNode = m_dataTypeNodes[ExpandedNodeId.ToNodeId(reference.TargetId, NamespaceUris)];
                     if (encodingNode == null)
                     {
                         continue;
@@ -153,7 +153,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             if (addRootNode)
             {
-                var rootNode = await FindAsync(dataType, ct).ConfigureAwait(false);
+                INode rootNode = await FindAsync(dataType, ct).ConfigureAwait(false);
                 if (!(rootNode is DataTypeNode))
                 {
                     throw new ServiceResultException("Root Node is not a DataType node.");
@@ -164,10 +164,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             while (nodesToBrowse.Count > 0)
             {
                 var nextNodesToBrowse = new ExpandedNodeIdCollection();
-                foreach (var node in nodesToBrowse)
+                foreach (ExpandedNodeId node in nodesToBrowse)
                 {
 
-                    var response = m_dataTypeNodes.Values.Where(n => {
+                    IEnumerable<DataTypeNode> response = m_dataTypeNodes.Values.Where(n => {
                         if (n.NodeClass == NodeClass.DataType)
                         {
                             if (((DataTypeNode)n).DataTypeDefinition.Body is StructureDefinition structureDefinition)
@@ -214,7 +214,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// <inheritdoc/>
         public Task<NodeId> FindSuperTypeAsync(NodeId typeId, CancellationToken ct = default)
         {
-            var node = m_dataTypeNodes[typeId];
+            INode node = m_dataTypeNodes[typeId];
             if (node is DataTypeNode dataTypeNode)
             {
                 if (dataTypeNode.DataTypeDefinition.Body is EnumDefinition enumDefinition)

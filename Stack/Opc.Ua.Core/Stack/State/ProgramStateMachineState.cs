@@ -46,7 +46,7 @@ namespace Opc.Ua
         /// <summary>
         /// A table of valid states.
         /// </summary>
-        private ElementInfo[] s_StateTable = new ElementInfo[]
+        private readonly ElementInfo[] s_StateTable = new ElementInfo[]
         {
             new ElementInfo(Objects.ProgramStateMachineType_Ready, BrowseNames.Ready, 1),
             new ElementInfo(Objects.ProgramStateMachineType_Running, BrowseNames.Running, 2),
@@ -65,7 +65,7 @@ namespace Opc.Ua
         /// <summary>
         /// A table of valid transitions.
         /// </summary>
-        private ElementInfo[] s_TransitionTable = new ElementInfo[]
+        private readonly ElementInfo[] s_TransitionTable = new ElementInfo[]
         {
             new ElementInfo(Objects.ProgramStateMachineType_HaltedToReady, BrowseNames.HaltedToReady, 1),
             new ElementInfo(Objects.ProgramStateMachineType_ReadyToRunning, BrowseNames.ReadyToRunning, 2),
@@ -89,7 +89,7 @@ namespace Opc.Ua
         /// <summary>
         /// A table of the to and from states for the transitions.
         /// </summary>
-        private uint[,] s_TransitionMappings = new uint[,]
+        private readonly uint[,] s_TransitionMappings = new uint[,]
         {
             { Objects.ProgramStateMachineType_HaltedToReady, Objects.ProgramStateMachineType_Halted, Objects.ProgramStateMachineType_Ready, 1 },
             { Objects.ProgramStateMachineType_ReadyToRunning, Objects.ProgramStateMachineType_Ready, Objects.ProgramStateMachineType_Running, 1 },
@@ -113,7 +113,7 @@ namespace Opc.Ua
         /// <summary>
         /// A table of transitions for the available causes.
         /// </summary>
-        private uint[,] s_CauseMappings = new uint[,]
+        private readonly uint[,] s_CauseMappings = new uint[,]
         {
             { Methods.ProgramStateMachineType_Reset, Objects.ProgramStateMachineType_Halted, Objects.ProgramStateMachineType_HaltedToReady },
             { Methods.ProgramStateMachineType_Start, Objects.ProgramStateMachineType_Ready, Objects.ProgramStateMachineType_ReadyToRunning },

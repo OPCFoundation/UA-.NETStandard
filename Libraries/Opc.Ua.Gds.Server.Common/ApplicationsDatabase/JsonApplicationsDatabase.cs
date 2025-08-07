@@ -55,7 +55,11 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         /// </summary>
         static public JsonApplicationsDatabase Load(string fileName)
         {
-            if (fileName == null) throw new ArgumentNullException(nameof(fileName));
+            if (fileName == null)
+            {
+                throw new ArgumentNullException(nameof(fileName));
+            }
+
             try
             {
                 if (File.Exists(fileName))

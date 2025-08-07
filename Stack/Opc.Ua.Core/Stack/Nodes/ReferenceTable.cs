@@ -235,7 +235,7 @@ namespace Opc.Ua
             bool includeSubtypes,
             ITypeTable typeTree)
         {
-            ReferenceNode reference = new ReferenceNode(referenceTypeId, isInverse, targetId);
+            var reference = new ReferenceNode(referenceTypeId, isInverse, targetId);
 
             // check for trivial case.
             if (m_references.ContainsKey(reference))
@@ -249,7 +249,7 @@ namespace Opc.Ua
                 return false;
             }
 
-            // check for subtypes. 
+            // check for subtypes.
             return m_references.ContainsKey(reference, typeTree);
         }
 
@@ -273,7 +273,7 @@ namespace Opc.Ua
                 return m_references.Find(referenceTypeId, isInverse);
             }
 
-            // check for subtypes. 
+            // check for subtypes.
             return m_references.Find(referenceTypeId, isInverse, typeTree);
         }
 
@@ -327,7 +327,7 @@ namespace Opc.Ua
         #endregion
 
         #region ICollection<IReference> Members
-        /// <summary cref="ICollection{T}.Count" />
+        /// <inheritdoc/>
         public int Count
         {
             get
@@ -336,46 +336,50 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary cref="ICollection{T}.IsReadOnly" />
+        /// <inheritdoc/>
         public bool IsReadOnly
         {
             get { return false; }
         }
 
-        /// <summary cref="ICollection{T}.Add" />
+        /// <inheritdoc/>
         public void Add(IReference item)
         {
             m_references.Add(item, null);
         }
 
-        /// <summary cref="ICollection{T}.Remove" />
+        /// <inheritdoc/>
         public bool Remove(IReference item)
         {
             return m_references.Remove(item);
         }
 
-        /// <summary cref="ICollection{T}.Clear" />
+        /// <inheritdoc/>
         public void Clear()
         {
             m_references.Clear();
         }
 
-        /// <summary cref="ICollection{T}.Contains" />
+        /// <inheritdoc/>
         public bool Contains(IReference item)
         {
             return m_references.ContainsKey(item);
         }
 
-        /// <summary cref="ICollection{T}.CopyTo" />
+        /// <inheritdoc/>
         public void CopyTo(IReference[] array, int arrayIndex)
         {
             if (array == null)
+            {
                 throw new ArgumentNullException(nameof(array));
+            }
 
             if (arrayIndex < 0 || arrayIndex >= array.Length)
+            {
                 throw new ArgumentOutOfRangeException(nameof(arrayIndex), "arrayIndex < 0 || arrayIndex >= array.Length");
+            }
 
-            KeyValuePair<IReference, object>[] elements = new KeyValuePair<IReference, object>[array.Length - arrayIndex];
+            var elements = new KeyValuePair<IReference, object>[array.Length - arrayIndex];
             m_references.CopyTo(elements, 0);
 
             for (int ii = 0; ii < elements.Length; ii++)
@@ -386,7 +390,7 @@ namespace Opc.Ua
         #endregion
 
         #region IEnumerable<IReference> Members
-        /// <summary cref="IEnumerable{T}.GetEnumerator" />
+        /// <inheritdoc/>
         public IEnumerator<IReference> GetEnumerator()
         {
             return m_references.Keys.GetEnumerator();
@@ -394,7 +398,7 @@ namespace Opc.Ua
         #endregion
 
         #region IEnumerable Members
-        /// <summary cref="System.Collections.IEnumerable.GetEnumerator" />
+        /// <inheritdoc/>
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
         {
             return GetEnumerator();
@@ -402,7 +406,7 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private IReferenceDictionary<object> m_references;
+        private readonly IReferenceDictionary<object> m_references;
         #endregion
     }
 
@@ -436,7 +440,10 @@ namespace Opc.Ua
             IReference reference,
             ITypeTable typeTree)
         {
-            if (typeTree == null) throw new ArgumentNullException(nameof(typeTree));
+            if (typeTree == null)
+            {
+                throw new ArgumentNullException(nameof(typeTree));
+            }
 
             if (!ValidateReference(reference, false))
             {
@@ -467,7 +474,7 @@ namespace Opc.Ua
             NodeId referenceTypeId,
             bool isInverse)
         {
-            List<IReference> hits = new List<IReference>();
+            var hits = new List<IReference>();
 
             // check for null.
             if (NodeId.IsNull(referenceTypeId))
@@ -501,9 +508,12 @@ namespace Opc.Ua
             bool isInverse,
             ITypeTable typeTree)
         {
-            if (typeTree == null) throw new ArgumentNullException(nameof(typeTree));
+            if (typeTree == null)
+            {
+                throw new ArgumentNullException(nameof(typeTree));
+            }
 
-            List<IReference> hits = new List<IReference>();
+            var hits = new List<IReference>();
 
             // check for null.
             if (NodeId.IsNull(referenceTypeId))
@@ -529,7 +539,7 @@ namespace Opc.Ua
         /// <returns>A list of references to the specified target.</returns>
         public IList<IReference> FindReferencesToTarget(ExpandedNodeId targetId)
         {
-            List<IReference> hits = new List<IReference>();
+            var hits = new List<IReference>();
 
             // check for null.
             if (NodeId.IsNull(targetId))
@@ -639,13 +649,13 @@ namespace Opc.Ua
         #endregion
 
         #region IDictionary<IReference,T> Members
-        /// <summary cref="IDictionary.Add" />
+        /// <inheritdoc/>
         public void Add(IReference key, T value)
         {
             Add(key, value, false);
         }
 
-        /// <summary cref="IDictionary{TKey,TValue}.ContainsKey" />
+        /// <inheritdoc/>
         public bool ContainsKey(IReference key)
         {
             KeyValuePair<IReference, T> target;
@@ -658,12 +668,12 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="IDictionary{TKey,TValue}.Keys" />
+        /// <inheritdoc/>
         public ICollection<IReference> Keys
         {
             get
             {
-                List<IReference> keys = new List<IReference>();
+                var keys = new List<IReference>();
 
                 for (LinkedListNode<KeyValuePair<IReference, T>> node = m_list.First; node != null; node = node.Next)
                 {
@@ -674,7 +684,7 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary cref="IDictionary.Remove" />
+        /// <inheritdoc/>
         public bool Remove(IReference key)
         {
             // validate key.
@@ -693,7 +703,7 @@ namespace Opc.Ua
                 return false;
             }
 
-            // handle reference to external targets.            
+            // handle reference to external targets.
             if (key.TargetId.IsAbsolute)
             {
                 Dictionary<ExpandedNodeId, LinkedListNode<KeyValuePair<IReference, T>>> targets = null;
@@ -762,7 +772,7 @@ namespace Opc.Ua
             return true;
         }
 
-        /// <summary cref="IDictionary{TKey,TValue}.TryGetValue" />
+        /// <inheritdoc/>
         public bool TryGetValue(IReference key, out T value)
         {
             value = default;
@@ -779,12 +789,12 @@ namespace Opc.Ua
         }
 
 
-        /// <summary cref="IDictionary{TKey,TValue}.Values" />
+        /// <inheritdoc/>
         public ICollection<T> Values
         {
             get
             {
-                List<T> values = new List<T>();
+                var values = new List<T>();
 
                 for (LinkedListNode<KeyValuePair<IReference, T>> node = m_list.First; node != null; node = node.Next)
                 {
@@ -824,13 +834,13 @@ namespace Opc.Ua
         #endregion
 
         #region ICollection<KeyValuePair<IReference,T>> Members
-        /// <summary cref="ICollection{T}.Add" />
+        /// <inheritdoc/>
         public void Add(KeyValuePair<IReference, T> item)
         {
             Add(item.Key, item.Value);
         }
 
-        /// <summary cref="ICollection{T}.Clear" />
+        /// <inheritdoc/>
         public void Clear()
         {
             m_version++;
@@ -838,7 +848,7 @@ namespace Opc.Ua
             m_list.Clear();
         }
 
-        /// <summary cref="ICollection{T}.Contains" />
+        /// <inheritdoc/>
         public bool Contains(KeyValuePair<IReference, T> item)
         {
             KeyValuePair<IReference, T> target;
@@ -851,13 +861,13 @@ namespace Opc.Ua
             return Object.Equals(target.Value, item.Value);
         }
 
-        /// <summary cref="ICollection{T}.CopyTo" />
+        /// <inheritdoc/>
         public void CopyTo(KeyValuePair<IReference, T>[] array, int arrayIndex)
         {
             m_list.CopyTo(array, arrayIndex);
         }
 
-        /// <summary cref="ICollection{T}.Count" />
+        /// <inheritdoc/>
         public int Count
         {
             get
@@ -866,13 +876,13 @@ namespace Opc.Ua
             }
         }
 
-        /// <summary cref="ICollection{T}.IsReadOnly" />
+        /// <inheritdoc/>
         public bool IsReadOnly
         {
             get { return false; }
         }
 
-        /// <summary cref="ICollection{T}.Remove" />
+        /// <inheritdoc/>
         public bool Remove(KeyValuePair<IReference, T> item)
         {
             return Remove(item.Key);
@@ -880,7 +890,7 @@ namespace Opc.Ua
         #endregion
 
         #region IEnumerable<KeyValuePair<IReference,T>> Members
-        /// <summary cref="System.Collections.IEnumerable.GetEnumerator()" />
+        /// <inheritdoc/>
         public IEnumerator<KeyValuePair<IReference, T>> GetEnumerator()
         {
             return m_list.GetEnumerator();
@@ -888,7 +898,7 @@ namespace Opc.Ua
         #endregion
 
         #region IEnumerable Members
-        /// <summary cref="System.Collections.IEnumerable.GetEnumerator()" />
+        /// <inheritdoc/>
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
         {
             return GetEnumerator();
@@ -1006,7 +1016,7 @@ namespace Opc.Ua
                 return false;
             }
 
-            // handle reference to external targets.            
+            // handle reference to external targets.
             if (key.TargetId.IsAbsolute)
             {
                 Dictionary<ExpandedNodeId, LinkedListNode<KeyValuePair<IReference, T>>> targets = null;
@@ -1087,7 +1097,7 @@ namespace Opc.Ua
                 m_references.Add(key.ReferenceTypeId, entry);
             }
 
-            // handle reference to external targets.            
+            // handle reference to external targets.
             if (key.TargetId.IsAbsolute)
             {
                 Dictionary<ExpandedNodeId, LinkedListNode<KeyValuePair<IReference, T>>> targets = null;
@@ -1112,7 +1122,7 @@ namespace Opc.Ua
                 }
 
                 // create a new target.
-                LinkedListNode<KeyValuePair<IReference, T>> node = new LinkedListNode<KeyValuePair<IReference, T>>(new KeyValuePair<IReference, T>(key, value));
+                var node = new LinkedListNode<KeyValuePair<IReference, T>>(new KeyValuePair<IReference, T>(key, value));
 
                 // check if target already exists.
                 LinkedListNode<KeyValuePair<IReference, T>> existingNode = null;
@@ -1162,10 +1172,10 @@ namespace Opc.Ua
                     targets = entry.ForwardTargets;
                 }
 
-                NodeId targetId = (NodeId)key.TargetId;
+                var targetId = (NodeId)key.TargetId;
 
                 // create a new target.
-                LinkedListNode<KeyValuePair<IReference, T>> node = new LinkedListNode<KeyValuePair<IReference, T>>(new KeyValuePair<IReference, T>(key, value));
+                var node = new LinkedListNode<KeyValuePair<IReference, T>>(new KeyValuePair<IReference, T>(key, value));
 
                 // check if target already exists.
                 LinkedListNode<KeyValuePair<IReference, T>> existingNode = null;
@@ -1202,7 +1212,7 @@ namespace Opc.Ua
         /// </returns>
         private static bool ContainsKey(ReferenceTypeEntry entry, IReference reference)
         {
-            // handle reference to external targets.            
+            // handle reference to external targets.
             if (reference.TargetId.IsAbsolute)
             {
                 Dictionary<ExpandedNodeId, LinkedListNode<KeyValuePair<IReference, T>>> targets = null;
@@ -1298,8 +1308,8 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private NodeIdDictionary<ReferenceTypeEntry> m_references;
-        private LinkedList<KeyValuePair<IReference, T>> m_list;
+        private readonly NodeIdDictionary<ReferenceTypeEntry> m_references;
+        private readonly LinkedList<KeyValuePair<IReference, T>> m_list;
         private ulong m_version;
         #endregion
     }

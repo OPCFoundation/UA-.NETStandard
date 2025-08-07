@@ -159,7 +159,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
 
-            var nameSpaceIndex = mockResolver.NamespaceUris.GetIndexOrAppend(Namespaces.MockResolverUrl);
+            ushort nameSpaceIndex = mockResolver.NamespaceUris.GetIndexOrAppend(Namespaces.MockResolverUrl);
             uint nodeId = 100;
 
             var structure = new StructureDefinition() {
@@ -215,7 +215,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 DataTypeDefinition = new ExtensionObject(structure)
             };
 
-            foreach (var encodingName in DefaultEncodings)
+            foreach (string encodingName in DefaultEncodings)
             {
                 // binary encoding
                 var description = new ReferenceDescription() {
@@ -242,10 +242,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             mockResolver.DataTypeNodes[dataTypeNode.NodeId] = dataTypeNode;
 
             var cts = new ComplexTypeSystem(mockResolver);
-            var carType = await cts.LoadTypeAsync(dataTypeNode.NodeId, false, true).ConfigureAwait(false);
+            Type carType = await cts.LoadTypeAsync(dataTypeNode.NodeId, false, true).ConfigureAwait(false);
             Assert.NotNull(carType);
 
-            BaseComplexType car = (BaseComplexType)Activator.CreateInstance(carType);
+            var car = (BaseComplexType)Activator.CreateInstance(carType);
 
             TestContext.Out.WriteLine(car.ToString());
 
@@ -256,13 +256,13 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             TestContext.Out.WriteLine(car.ToString());
 
-            ServiceMessageContext encoderContext = new ServiceMessageContext {
+            var encoderContext = new ServiceMessageContext {
                 Factory = mockResolver.Factory,
                 NamespaceUris = mockResolver.NamespaceUris,
             };
 
             byte[] buffer;
-            using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
+            using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
                 using (IEncoder encoder = CreateEncoder(EncodingType.Json, encoderContext, encoderStream, carType))
                 {
@@ -278,7 +278,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             // Test extracting type definition
 
-            var definitions = cts.GetDataTypeDefinitionsForDataType(dataTypeNode.NodeId);
+            NodeIdDictionary<DataTypeDefinition> definitions = cts.GetDataTypeDefinitionsForDataType(dataTypeNode.NodeId);
             Assert.IsNotEmpty(definitions);
             Assert.AreEqual(1, definitions.Count);
             Assert.AreEqual(structure, definitions[dataTypeNode.NodeId]);
@@ -300,7 +300,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             // only enumerable types in the encodeable factory are stored as Enum in a structure.
             AddEncodeableType(mockResolver.Factory, mockResolver.NamespaceUris, DataTypeIds.NamingRuleType, typeof(NamingRuleType));
 
-            var nameSpaceIndex = mockResolver.NamespaceUris.GetIndexOrAppend("http://opcfoundation.org/MockResolver");
+            ushort nameSpaceIndex = mockResolver.NamespaceUris.GetIndexOrAppend("http://opcfoundation.org/MockResolver");
             uint nodeId = 100;
 
             var structure = new StructureDefinition() {
@@ -381,7 +381,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 DataTypeDefinition = new ExtensionObject(structure)
             };
 
-            foreach (var encodingName in DefaultEncodings)
+            foreach (string encodingName in DefaultEncodings)
             {
                 // encoding
                 var description = new ReferenceDescription() {
@@ -408,10 +408,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             mockResolver.DataTypeNodes[dataTypeNode.NodeId] = dataTypeNode;
 
             var cts = new ComplexTypeSystem(mockResolver);
-            var arraysTypes = await cts.LoadTypeAsync(dataTypeNode.NodeId, false, true).ConfigureAwait(false);
+            Type arraysTypes = await cts.LoadTypeAsync(dataTypeNode.NodeId, false, true).ConfigureAwait(false);
             Assert.NotNull(arraysTypes);
 
-            BaseComplexType arrays = (BaseComplexType)Activator.CreateInstance(arraysTypes);
+            var arrays = (BaseComplexType)Activator.CreateInstance(arraysTypes);
 
             TestContext.Out.WriteLine(arrays.ToString());
 
@@ -436,13 +436,13 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             TestContext.Out.WriteLine(arrays.ToString());
 
-            ServiceMessageContext encoderContext = new ServiceMessageContext {
+            var encoderContext = new ServiceMessageContext {
                 Factory = mockResolver.Factory,
                 NamespaceUris = mockResolver.NamespaceUris,
             };
 
             byte[] buffer;
-            using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
+            using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
                 using (IEncoder encoder = CreateEncoder(EncodingType.Json, encoderContext, encoderStream, arraysTypes))
                 {
@@ -458,7 +458,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             // Test extracting type definition
 
-            var definitions = cts.GetDataTypeDefinitionsForDataType(dataTypeNode.NodeId);
+            NodeIdDictionary<DataTypeDefinition> definitions = cts.GetDataTypeDefinitionsForDataType(dataTypeNode.NodeId);
             Assert.IsNotEmpty(definitions);
             Assert.AreEqual(1, definitions.Count);
             Assert.AreEqual(structure, definitions[dataTypeNode.NodeId]);
@@ -482,17 +482,17 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             // only enumerable types in the encodeable factory are stored as Enum in a structure.
             AddEncodeableType(mockResolver.Factory, mockResolver.NamespaceUris, DataTypeIds.NamingRuleType, typeof(NamingRuleType));
 
-            var nameSpaceIndex = mockResolver.NamespaceUris.GetIndexOrAppend("http://opcfoundation.org/MockResolver");
+            ushort nameSpaceIndex = mockResolver.NamespaceUris.GetIndexOrAppend("http://opcfoundation.org/MockResolver");
             uint nodeId = 100;
 
             var structure = new StructureDefinition() {
                 BaseDataType = DataTypeIds.Structure
             };
 
-            var valueRank = (int)testRank;
-            var typeName = typeDescription.Name;
-            var arrayPrefix = Enum.GetName(typeof(TestRanks), valueRank);
-            var seperator = valueRank > 0 ? "Of" : string.Empty;
+            int valueRank = (int)testRank;
+            string typeName = typeDescription.Name;
+            string arrayPrefix = Enum.GetName(typeof(TestRanks), valueRank);
+            string seperator = valueRank > 0 ? "Of" : string.Empty;
             var field = new StructureField() {
                 Name = arrayPrefix + seperator + typeName,
                 Description = new LocalizedText(arrayPrefix + " " + seperator + " " + typeName),
@@ -513,7 +513,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 DataTypeDefinition = new ExtensionObject(structure)
             };
 
-            foreach (var encodingName in DefaultEncodings)
+            foreach (string encodingName in DefaultEncodings)
             {
                 // encoding
                 var description = new ReferenceDescription() {
@@ -540,10 +540,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             mockResolver.DataTypeNodes[dataTypeNode.NodeId] = dataTypeNode;
 
             var cts = new ComplexTypeSystem(mockResolver);
-            var arraysTypes = await cts.LoadTypeAsync(dataTypeNode.NodeId, false, true).ConfigureAwait(false);
+            Type arraysTypes = await cts.LoadTypeAsync(dataTypeNode.NodeId, false, true).ConfigureAwait(false);
             Assert.NotNull(arraysTypes);
 
-            BaseComplexType testType = (BaseComplexType)Activator.CreateInstance(arraysTypes);
+            var testType = (BaseComplexType)Activator.CreateInstance(arraysTypes);
             Assert.NotNull(testType);
 
             TestContext.Out.WriteLine(testType.ToString());
@@ -603,7 +603,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 }
                 else
                 {
-                    Array array = Array.CreateInstance(valueType, dimensions);
+                    var array = Array.CreateInstance(valueType, dimensions);
 
                     if (randomValues)
                     {
@@ -622,13 +622,13 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             TestContext.Out.WriteLine(testType.ToString());
 
-            ServiceMessageContext encoderContext = new ServiceMessageContext {
+            var encoderContext = new ServiceMessageContext {
                 Factory = mockResolver.Factory,
                 NamespaceUris = mockResolver.NamespaceUris,
             };
 
             byte [] buffer;
-            using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
+            using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
                 using (IEncoder encoder = CreateEncoder(EncodingType.Json, encoderContext, encoderStream, arraysTypes))
                 {
@@ -644,7 +644,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             // Test extracting type definition
 
-            var definitions = cts.GetDataTypeDefinitionsForDataType(dataTypeNode.NodeId);
+            NodeIdDictionary<DataTypeDefinition> definitions = cts.GetDataTypeDefinitionsForDataType(dataTypeNode.NodeId);
             Assert.IsNotEmpty(definitions);
             Assert.AreEqual(1, definitions.Count);
             Assert.AreEqual(structure, definitions[dataTypeNode.NodeId]);
@@ -723,7 +723,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             {
                 return;
             }
-            var internalNodeId = NormalizeExpandedNodeId(typeId, namespaceUris);
+            ExpandedNodeId internalNodeId = NormalizeExpandedNodeId(typeId, namespaceUris);
             TestContext.Out.WriteLine("Adding Type {0} as: {1}", enumType.FullName, internalNodeId);
             factory.AddEncodeableType(internalNodeId, enumType);
         }

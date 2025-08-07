@@ -43,7 +43,7 @@ public static partial class FuzzableCode
     /// <param name="stream">The stdin stream from the afl-fuzz process.</param>
     public static void AflfuzzBinaryDecoder(Stream stream)
     {
-        using (var memoryStream = PrepareArraySegmentStream(stream))
+        using (MemoryStream memoryStream = PrepareArraySegmentStream(stream))
         {
             FuzzBinaryDecoderCore(memoryStream);
         }
@@ -56,7 +56,7 @@ public static partial class FuzzableCode
     public static void AflfuzzBinaryEncoder(Stream stream)
     {
         IEncodeable encodeable = null;
-        using (var memoryStream = PrepareArraySegmentStream(stream))
+        using (MemoryStream memoryStream = PrepareArraySegmentStream(stream))
         {
             try
             {
@@ -83,7 +83,7 @@ public static partial class FuzzableCode
     {
         IEncodeable encodeable = null;
         byte[] serialized = null;
-        using (var memoryStream = PrepareArraySegmentStream(stream))
+        using (MemoryStream memoryStream = PrepareArraySegmentStream(stream))
         {
             try
             {
@@ -202,7 +202,10 @@ public static partial class FuzzableCode
     /// <exception cref="Exception"></exception>
     internal static void FuzzBinaryEncoderIndempotentCore(byte[] serialized, IEncodeable encodeable)
     {
-        if (serialized == null || encodeable == null) return;
+        if (serialized == null || encodeable == null)
+        {
+            return;
+        }
 
         using (var memoryStream = new MemoryStream(serialized))
         {

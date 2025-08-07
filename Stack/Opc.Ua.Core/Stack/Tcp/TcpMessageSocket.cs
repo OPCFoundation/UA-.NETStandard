@@ -135,7 +135,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public SocketAsyncEventArgs Args => m_args;
 
-        private SocketAsyncEventArgs m_args;
+        private readonly SocketAsyncEventArgs m_args;
         private event EventHandler<IMessageSocketAsyncEventArgs> m_InternalComplete;
     }
 
@@ -208,7 +208,7 @@ namespace Opc.Ua.Bindings
             }
         }
 
-        private SocketError m_socketError;
+        private readonly SocketError m_socketError;
     }
 
     /// <summary>
@@ -250,7 +250,10 @@ namespace Opc.Ua.Bindings
             BufferManager bufferManager,
             int receiveBufferSize)
         {
-            if (bufferManager == null) throw new ArgumentNullException(nameof(bufferManager));
+            if (bufferManager == null)
+            {
+                throw new ArgumentNullException(nameof(bufferManager));
+            }
 
             m_sink = sink;
             m_socket = null;
@@ -270,8 +273,15 @@ namespace Opc.Ua.Bindings
             BufferManager bufferManager,
             int receiveBufferSize)
         {
-            if (socket == null) throw new ArgumentNullException(nameof(socket));
-            if (bufferManager == null) throw new ArgumentNullException(nameof(bufferManager));
+            if (socket == null)
+            {
+                throw new ArgumentNullException(nameof(socket));
+            }
+
+            if (bufferManager == null)
+            {
+                throw new ArgumentNullException(nameof(bufferManager));
+            }
 
             m_sink = sink;
             m_socket = socket;
@@ -343,8 +353,15 @@ namespace Opc.Ua.Bindings
             EventHandler<IMessageSocketAsyncEventArgs> callback,
             object state)
         {
-            if (endpointUrl == null) throw new ArgumentNullException(nameof(endpointUrl));
-            if (m_socket != null) throw new InvalidOperationException("The socket is already connected.");
+            if (endpointUrl == null)
+            {
+                throw new ArgumentNullException(nameof(endpointUrl));
+            }
+
+            if (m_socket != null)
+            {
+                throw new InvalidOperationException("The socket is already connected.");
+            }
 
             SocketError error = SocketError.NotInitialized;
             CallbackAction doCallback = (SocketError socketError) => callback(this, new TcpMessageSocketConnectAsyncEventArgs(socketError) { UserToken = state });
@@ -356,7 +373,7 @@ namespace Opc.Ua.Bindings
                 port = Utils.UaTcpDefaultPort;
             }
 
-            DnsEndPoint endpoint = new DnsEndPoint(endpointUrl.DnsSafeHost, port);
+            var endpoint = new DnsEndPoint(endpointUrl.DnsSafeHost, port);
             error = BeginConnect(endpoint, doCallback);
             if (error == SocketError.InProgress || error == SocketError.Success)
             {
@@ -457,7 +474,10 @@ namespace Opc.Ua.Bindings
                     // after processing the ReadComplete and let the outer call handle it
                     if (!innerCall && !ServiceResult.IsBad(error))
                     {
-                        while (ReadNext()) ;
+                        while (ReadNext())
+                        {
+                            ;
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -567,7 +587,7 @@ namespace Opc.Ua.Bindings
                 try
                 {
                     // send notification (implementor responsible for freeing buffer) on success.
-                    ArraySegment<byte> messageChunk = new ArraySegment<byte>(m_receiveBuffer, 0, m_incomingMessageSize);
+                    var messageChunk = new ArraySegment<byte>(m_receiveBuffer, 0, m_incomingMessageSize);
 
                     // must allocate a new buffer for the next message.
                     m_receiveBuffer = null;
@@ -770,7 +790,7 @@ namespace Opc.Ua.Bindings
 
         #region Private Fields
         private IMessageSink m_sink;
-        private BufferManager m_bufferManager;
+        private readonly BufferManager m_bufferManager;
         private readonly int m_receiveBufferSize;
         private readonly EventHandler<SocketAsyncEventArgs> m_readComplete;
 

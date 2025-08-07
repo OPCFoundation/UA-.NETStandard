@@ -195,7 +195,7 @@ namespace Opc.Ua
         /// <returns>A snapshot of a node.</returns>
         private ChildNode CreateChildNode(ISystemContext context, BaseInstanceState state)
         {
-            ChildNode node = new ChildNode();
+            var node = new ChildNode();
 
             node.NodeClass = state.NodeClass;
             node.BrowseName = state.BrowseName;
@@ -228,10 +228,10 @@ namespace Opc.Ua
         /// <returns>The list of the nodes.</returns>
         private List<ChildNode> CreateChildNodes(ISystemContext context, BaseInstanceState state)
         {
-            List<BaseInstanceState> children = new List<BaseInstanceState>();
+            var children = new List<BaseInstanceState>();
             state.GetChildren(context, children);
 
-            List<ChildNode> nodes = new List<ChildNode>();
+            var nodes = new List<ChildNode>();
 
             for (int ii = 0; ii < children.Count; ii++)
             {

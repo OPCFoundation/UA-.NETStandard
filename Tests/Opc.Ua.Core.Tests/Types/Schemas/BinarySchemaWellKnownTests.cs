@@ -57,8 +57,8 @@ namespace Opc.Ua.Core.Tests.Types.Schemas
         public void LoadResources(string[] schemaData)
         {
             Assert.That(schemaData.Length == 2);
-            var assembly = typeof(BinarySchemaValidator).GetTypeInfo().Assembly;
-            var resource = LoadResource(typeof(TypeDictionary), schemaData[1], assembly);
+            Assembly assembly = typeof(BinarySchemaValidator).GetTypeInfo().Assembly;
+            object resource = LoadResource(typeof(TypeDictionary), schemaData[1], assembly);
             Assert.IsNotNull(resource);
             Assert.AreEqual(resource.GetType(), typeof(TypeDictionary));
         }
@@ -69,8 +69,8 @@ namespace Opc.Ua.Core.Tests.Types.Schemas
         [Theory]
         public void ValidateResources(string[] schemaData)
         {
-            var assembly = typeof(BinarySchemaValidator).GetTypeInfo().Assembly;
-            var stream = assembly.GetManifestResourceStream(schemaData[1]);
+            Assembly assembly = typeof(BinarySchemaValidator).GetTypeInfo().Assembly;
+            System.IO.Stream stream = assembly.GetManifestResourceStream(schemaData[1]);
             Assert.IsNotNull(stream);
             var schema = new BinarySchemaValidator();
             Assert.IsNotNull(schema);

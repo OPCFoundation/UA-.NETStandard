@@ -171,7 +171,7 @@ namespace Opc.Ua
         /// <param name="ct">The cancellation token.</param>
         public virtual async Task<EndpointDescriptionCollection> GetEndpointsAsync(StringCollection profileUris, CancellationToken ct = default)
         {
-            var response = await GetEndpointsAsync(null, this.Endpoint.EndpointUrl, null, profileUris, ct).ConfigureAwait(false);
+            GetEndpointsResponse response = await GetEndpointsAsync(null, this.Endpoint.EndpointUrl, null, profileUris, ct).ConfigureAwait(false);
             return PatchEndpointUrls(response.Endpoints);
         }
 #endif
@@ -204,7 +204,7 @@ namespace Opc.Ua
         /// <returns></returns>
         public virtual async Task<ApplicationDescriptionCollection> FindServersAsync(StringCollection serverUris, CancellationToken ct = default)
         {
-            var response = await FindServersAsync(
+            FindServersResponse response = await FindServersAsync(
                 null,
                 this.Endpoint.EndpointUrl,
                 null,
@@ -268,7 +268,7 @@ namespace Opc.Ua
                     if ((endpointUrl.Scheme == discoveryEndPointUri.Scheme) &&
                         (endpointUrl.Port == discoveryEndPointUri.Port))
                     {
-                        UriBuilder builder = new UriBuilder(discoveryEndPointUri);
+                        var builder = new UriBuilder(discoveryEndPointUri);
                         builder.Host = endpointUrl.DnsSafeHost;
                         discoveryEndPoint.EndpointUrl = builder.Uri.OriginalString;
                     }
@@ -307,7 +307,7 @@ namespace Opc.Ua
             X509Certificate2 clientCertificate = null)
         {
             // create a default description.
-            EndpointDescription endpoint = new EndpointDescription {
+            var endpoint = new EndpointDescription {
                 EndpointUrl = discoveryUrl.OriginalString,
                 SecurityMode = MessageSecurityMode.None,
                 SecurityPolicyUri = SecurityPolicies.None

@@ -571,8 +571,8 @@ namespace Opc.Ua.Server
         #endregion
 
         #region Private Fields
-        private object m_handle;
-        private NodeId m_nodeId;
+        private readonly object m_handle;
+        private readonly NodeId m_nodeId;
         private NodeClass m_nodeClass;
         private QualifiedName m_browseName;
         private LocalizedText m_displayName;

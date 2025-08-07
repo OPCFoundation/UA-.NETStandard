@@ -115,8 +115,8 @@ namespace Opc.Ua
         private string m_softwareVersion;
         private string m_buildNumber;
         private DateTime m_buildDate;
-        private StringCollection m_datatypeAssemblies;
-        private SignedSoftwareCertificateCollection m_softwareCertificates;
+        private readonly StringCollection m_datatypeAssemblies;
+        private readonly SignedSoftwareCertificateCollection m_softwareCertificates;
         #endregion
     }
 }

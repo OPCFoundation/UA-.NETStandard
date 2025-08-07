@@ -153,23 +153,23 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(200)]
         public void TestBoundaryCaseForReadingChunks()
         {
-            Session theSession = ((Session)(((TraceableSession)Session).Session));
+            var theSession = ((Session)(((TraceableSession)Session).Session));
 
             int NamespaceIndex = theSession.NamespaceUris.GetIndex("http://opcfoundation.org/Quickstarts/ReferenceServer");
-            NodeId NodeId = new NodeId($"ns={NamespaceIndex};s=Scalar_Static_ByteString");
+            var NodeId = new NodeId($"ns={NamespaceIndex};s=Scalar_Static_ByteString");
 
-            Random random = new Random();
+            var random = new Random();
 
             byte[] chunk = new byte[MaxByteStringLengthForTest];
             random.NextBytes(chunk);
 
-            WriteValue WriteValue = new WriteValue {
+            var WriteValue = new WriteValue {
                 NodeId = NodeId,
                 AttributeId = Attributes.Value,
                 Value = new DataValue() { WrappedValue = new Variant(chunk) },
                 IndexRange = null
             };
-            WriteValueCollection writeValues = new WriteValueCollection {
+            var writeValues = new WriteValueCollection {
                 WriteValue
             };
             theSession.Write(null, writeValues, out StatusCodeCollection results, out DiagnosticInfoCollection diagnosticInfos);
@@ -187,27 +187,27 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(210)]
         public async Task TestBoundaryCaseForReadingChunksAsync()
         {
-            Session theSession = ((Session)(((TraceableSession)Session).Session));
+            var theSession = ((Session)(((TraceableSession)Session).Session));
 
             int NamespaceIndex = theSession.NamespaceUris.GetIndex("http://opcfoundation.org/Quickstarts/ReferenceServer");
-            NodeId NodeId = new NodeId($"ns={NamespaceIndex};s=Scalar_Static_ByteString");
+            var NodeId = new NodeId($"ns={NamespaceIndex};s=Scalar_Static_ByteString");
 
-            Random random = new Random();
+            var random = new Random();
 
             byte[] chunk = new byte[MaxByteStringLengthForTest];
             random.NextBytes(chunk);
 
-            WriteValue WriteValue = new WriteValue {
+            var WriteValue = new WriteValue {
                 NodeId = NodeId,
                 AttributeId = Attributes.Value,
                 Value = new DataValue() { WrappedValue = new Variant(chunk) },
                 IndexRange = null
             };
-            WriteValueCollection writeValues = new WriteValueCollection {
+            var writeValues = new WriteValueCollection {
                 WriteValue
             };
 
-            var result = await theSession.WriteAsync(null, writeValues, default).ConfigureAwait(false);
+            WriteResponse result = await theSession.WriteAsync(null, writeValues, default).ConfigureAwait(false);
             StatusCodeCollection results = result.Results;
             DiagnosticInfoCollection diagnosticInfos = result.DiagnosticInfos;
             if (results[0] != StatusCodes.Good)

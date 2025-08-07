@@ -51,8 +51,15 @@ namespace Opc.Ua.Server
             uint                           maxDurableQueueSize,
             IEnumerable<SamplingRateGroup> samplingRates)
         {
-            if (server == null)      throw new ArgumentNullException(nameof(server));
-            if (nodeManager == null) throw new ArgumentNullException(nameof(nodeManager));
+            if (server == null)
+            {
+                throw new ArgumentNullException(nameof(server));
+            }
+
+            if (nodeManager == null)
+            {
+                throw new ArgumentNullException(nameof(nodeManager));
+            }
 
             m_server          = server;
             m_nodeManager     = nodeManager;
@@ -63,17 +70,17 @@ namespace Opc.Ua.Server
 
             if (samplingRates != null)
             {
-                m_samplingRates = new List<SamplingRateGroup>(samplingRates);
+                m_samplingRates = [.. samplingRates];
 
                 if (m_samplingRates.Count == 0)
                 {
-                    m_samplingRates = new List<SamplingRateGroup>(s_DefaultSamplingRates);
+                    m_samplingRates = [.. s_DefaultSamplingRates];
                 }
             }
 
             if (m_samplingRates == null)
             {
-                m_samplingRates = new List<SamplingRateGroup>(s_DefaultSamplingRates);
+                m_samplingRates = [.. s_DefaultSamplingRates];
             }
         }
         #endregion
@@ -99,10 +106,10 @@ namespace Opc.Ua.Server
 
                 lock (m_lock)
                 {
-                    samplingGroups = new List<SamplingGroup>(m_samplingGroups);
+                    samplingGroups = [.. m_samplingGroups];
                     m_samplingGroups.Clear();
 
-                    monitoredItems = new List<ISampledDataChangeMonitoredItem>(m_sampledItems.Keys);
+                    monitoredItems = [.. m_sampledItems.Keys];
                     m_sampledItems.Clear();
                 }
 
@@ -299,7 +306,7 @@ namespace Opc.Ua.Server
             IUserIdentity savedOwnerIdentity)
         {
             // create monitored item.
-            MonitoredItem monitoredItem = new MonitoredItem(m_server, m_nodeManager, managerHandle, storedMonitoredItem);
+            var monitoredItem = new MonitoredItem(m_server, m_nodeManager, managerHandle, storedMonitoredItem);
 
             // start sampling.
             StartMonitoring(new OperationContext(monitoredItem), monitoredItem, savedOwnerIdentity);
@@ -411,7 +418,7 @@ namespace Opc.Ua.Server
                 }
 
                 // create a new sampling group.
-                SamplingGroup samplingGroup2 = new SamplingGroup(
+                var samplingGroup2 = new SamplingGroup(
                     m_server,
                     m_nodeManager,
                     m_samplingRates,
@@ -493,7 +500,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                List<SamplingGroup> unusedGroups = new List<SamplingGroup>();
+                var unusedGroups = new List<SamplingGroup>();
 
                 // apply changes to groups.
                 foreach (SamplingGroup samplingGroup in m_samplingGroups)
@@ -516,13 +523,13 @@ namespace Opc.Ua.Server
 
         #region Private Fields
         private readonly object m_lock = new object();
-        private IServerInternal m_server;
-        private INodeManager m_nodeManager;
-        private List<SamplingGroup> m_samplingGroups;
-        private Dictionary<ISampledDataChangeMonitoredItem,SamplingGroup> m_sampledItems;
-        private List<SamplingRateGroup> m_samplingRates;
-        private uint m_maxQueueSize;
-        private uint m_maxDurableQueueSize;
+        private readonly IServerInternal m_server;
+        private readonly INodeManager m_nodeManager;
+        private readonly List<SamplingGroup> m_samplingGroups;
+        private readonly Dictionary<ISampledDataChangeMonitoredItem,SamplingGroup> m_sampledItems;
+        private readonly List<SamplingRateGroup> m_samplingRates;
+        private readonly uint m_maxQueueSize;
+        private readonly uint m_maxDurableQueueSize;
 
         /// <summary>
         /// The default sampling rates.

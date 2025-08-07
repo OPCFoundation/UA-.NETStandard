@@ -154,7 +154,7 @@ namespace Opc.Ua
             else
             {
 #if ECC_SUPPORT
-                EncryptedSecret secret = new EncryptedSecret();
+                var secret = new EncryptedSecret();
 
                 secret.ReceiverCertificate = receiverCertificate;
                 secret.SecurityPolicyUri = securityPolicyUri;
@@ -218,7 +218,7 @@ namespace Opc.Ua
             // handle RSA encryption.
             if (!EccUtils.IsEccPolicy(securityPolicyUri))
             {
-                EncryptedData encryptedData = new EncryptedData();
+                var encryptedData = new EncryptedData();
                 encryptedData.Data = m_password;
                 encryptedData.Algorithm = m_encryptionAlgorithm;
 
@@ -259,7 +259,7 @@ namespace Opc.Ua
             else
             {
 #if ECC_SUPPORT
-                EncryptedSecret secret = new EncryptedSecret();
+                var secret = new EncryptedSecret();
 
                 secret.SenderCertificate = senderCertificate;
                 secret.SenderIssuerCertificates = senderIssuerCertificates;
@@ -463,7 +463,7 @@ namespace Opc.Ua
                 return;
             }
 
-            EncryptedData encryptedData = new EncryptedData();
+            var encryptedData = new EncryptedData();
 
             encryptedData.Data = m_tokenData;
             encryptedData.Algorithm = m_encryptionAlgorithm;

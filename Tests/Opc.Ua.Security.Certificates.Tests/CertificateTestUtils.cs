@@ -124,7 +124,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         {
             try
             {
-                var friendlyName = Curve.Oid?.FriendlyName ?? "Unknown";
+                string friendlyName = Curve.Oid?.FriendlyName ?? "Unknown";
                 return $"{friendlyName}-{HashAlgorithmName}";
             }
             catch
@@ -171,7 +171,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
         public string ToString(string format, IFormatProvider formatProvider)
         {
-            var file = System.IO.Path.GetFileName(Path);
+            string file = System.IO.Path.GetFileName(Path);
             return $"{file}";
         }
     }
@@ -201,7 +201,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
         public string ToString(string format, IFormatProvider formatProvider)
         {
-            var file = System.IO.Path.GetFileName(Path);
+            string file = System.IO.Path.GetFileName(Path);
             return $"{file}";
         }
     }
@@ -220,17 +220,17 @@ namespace Opc.Ua.Security.Certificates.Tests
             stringBuilder.Append("ThisUpdate: ").Append(x509Crl.ThisUpdate).AppendLine();
             stringBuilder.Append("NextUpdate: ").Append(x509Crl.NextUpdate).AppendLine();
             stringBuilder.AppendLine("RevokedCertificates:");
-            foreach (var revokedCert in x509Crl.RevokedCertificates)
+            foreach (RevokedCertificate revokedCert in x509Crl.RevokedCertificates)
             {
                 stringBuilder.AppendFormat(CultureInfo.InvariantCulture, "{0:20}", revokedCert.SerialNumber).Append(", ").Append(revokedCert.RevocationDate).Append(", ");
-                foreach (var entryExt in revokedCert.CrlEntryExtensions)
+                foreach (X509Extension entryExt in revokedCert.CrlEntryExtensions)
                 {
                     stringBuilder.Append(entryExt.Format(false)).Append(' ');
                 }
                 stringBuilder.AppendLine("");
             }
             stringBuilder.AppendLine("Extensions:");
-            foreach (var extension in x509Crl.CrlExtensions)
+            foreach (X509Extension extension in x509Crl.CrlExtensions)
             {
                 stringBuilder.AppendLine(extension.Format(false));
             }

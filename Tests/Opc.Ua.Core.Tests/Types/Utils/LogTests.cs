@@ -51,9 +51,9 @@ namespace Opc.Ua.Core.Tests.Types.LogTests
         public class StringArrayTraceLogger : IDisposable
         {
             private bool m_disposed;
-            private TextWriter m_writer;
-            private int m_traceMasks;
-            private List<string> m_traceList;
+            private readonly TextWriter m_writer;
+            private readonly int m_traceMasks;
+            private readonly List<string> m_traceList;
             public List<string> TraceList => m_traceList;
             public TraceEventArgs LastTraceEventArgs { get; set; }
 

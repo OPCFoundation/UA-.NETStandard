@@ -55,7 +55,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 m_list.Add(m_random.Next());
             }
             m_values = new List<DataValue>();
-            DateTime now = new DateTime(2024, 03, 01, 06, 05, 59, DateTimeKind.Utc);
+            var now = new DateTime(2024, 03, 01, 06, 05, 59, DateTimeKind.Utc);
             now += TimeSpan.FromTicks(456789);
             for (int i = 0; i < DataValueCount; i++)
             {
@@ -69,7 +69,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         #region Private Methods
         protected void TestEncoding(IEncoder encoder)
         {
-            var now = DateTime.UtcNow;
+            DateTime now = DateTime.UtcNow;
             int payLoadSize = PayLoadSize;
             encoder.WriteInt32("PayloadSize", payLoadSize);
             while (payLoadSize-- > 0)
@@ -96,7 +96,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         protected void TestDecoding(IDecoder decoder)
         {
-            var payLoadSize = decoder.ReadInt32("PayloadSize");
+            int payLoadSize = decoder.ReadInt32("PayloadSize");
             while (payLoadSize-- > 0)
             {
                 _ = decoder.ReadBoolean("Boolean");

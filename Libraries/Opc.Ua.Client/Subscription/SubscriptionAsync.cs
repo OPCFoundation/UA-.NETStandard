@@ -56,7 +56,7 @@ namespace Opc.Ua.Client
 
             AdjustCounts(ref revisedMaxKeepAliveCount, ref revisedLifetimeCount);
 
-            var response = await m_session.CreateSubscriptionAsync(
+            CreateSubscriptionResponse response = await m_session.CreateSubscriptionAsync(
                 null,
                 m_publishingInterval,
                 revisedLifetimeCount,
@@ -107,7 +107,7 @@ namespace Opc.Ua.Client
                 // delete the subscription.
                 UInt32Collection subscriptionIds = new uint[] { m_id };
 
-                var response = await m_session.DeleteSubscriptionsAsync(
+                DeleteSubscriptionsResponse response = await m_session.DeleteSubscriptionsAsync(
                     null,
                     subscriptionIds,
                     ct).ConfigureAwait(false);
@@ -153,7 +153,7 @@ namespace Opc.Ua.Client
 
             AdjustCounts(ref revisedKeepAliveCount, ref revisedLifetimeCounter);
 
-            var response = await m_session.ModifySubscriptionAsync(
+            ModifySubscriptionResponse response = await m_session.ModifySubscriptionAsync(
                 null,
                 m_id,
                 m_publishingInterval,
@@ -182,7 +182,7 @@ namespace Opc.Ua.Client
             // modify the subscription.
             UInt32Collection subscriptionIds = new uint[] { m_id };
 
-            var response = await m_session.SetPublishingModeAsync(
+            SetPublishingModeResponse response = await m_session.SetPublishingModeAsync(
                 null,
                 enabled,
                 new uint[] { m_id },
@@ -212,7 +212,7 @@ namespace Opc.Ua.Client
         {
             VerifySubscriptionState(true);
 
-            var response = await m_session.RepublishAsync(
+            RepublishResponse response = await m_session.RepublishAsync(
                 null,
                 m_id,
                 sequenceNumber,
@@ -239,8 +239,8 @@ namespace Opc.Ua.Client
             VerifySubscriptionState(true);
 
             // collect list of browse paths.
-            BrowsePathCollection browsePaths = new BrowsePathCollection();
-            List<MonitoredItem> itemsToBrowse = new List<MonitoredItem>();
+            var browsePaths = new BrowsePathCollection();
+            var itemsToBrowse = new List<MonitoredItem>();
 
             PrepareResolveItemNodeIds(browsePaths, itemsToBrowse);
 
@@ -251,7 +251,7 @@ namespace Opc.Ua.Client
             }
 
             // translate browse paths.
-            var response = await m_session.TranslateBrowsePathsToNodeIdsAsync(
+            TranslateBrowsePathsToNodeIdsResponse response = await m_session.TranslateBrowsePathsToNodeIdsAsync(
                 null,
                 browsePaths,
                 ct).ConfigureAwait(false);
@@ -283,7 +283,7 @@ namespace Opc.Ua.Client
             }
 
             // create monitored items.
-            var response = await m_session.CreateMonitoredItemsAsync(
+            CreateMonitoredItemsResponse response = await m_session.CreateMonitoredItemsAsync(
                 null,
                 m_id,
                 m_timestampsToReturn,
@@ -314,8 +314,8 @@ namespace Opc.Ua.Client
         {
             VerifySubscriptionState(true);
 
-            MonitoredItemModifyRequestCollection requestItems = new MonitoredItemModifyRequestCollection();
-            List<MonitoredItem> itemsToModify = new List<MonitoredItem>();
+            var requestItems = new MonitoredItemModifyRequestCollection();
+            var itemsToModify = new List<MonitoredItem>();
 
             PrepareItemsToModify(requestItems, itemsToModify);
 
@@ -325,7 +325,7 @@ namespace Opc.Ua.Client
             }
 
             // modify the subscription.
-            var response = await m_session.ModifyMonitoredItemsAsync(
+            ModifyMonitoredItemsResponse response = await m_session.ModifyMonitoredItemsAsync(
                 null,
                 m_id,
                 m_timestampsToReturn,
@@ -364,14 +364,14 @@ namespace Opc.Ua.Client
             List<MonitoredItem> itemsToDelete = m_deletedItems;
             m_deletedItems = new List<MonitoredItem>();
 
-            UInt32Collection monitoredItemIds = new UInt32Collection();
+            var monitoredItemIds = new UInt32Collection();
 
             foreach (MonitoredItem monitoredItem in itemsToDelete)
             {
                 monitoredItemIds.Add(monitoredItem.Status.Id);
             }
 
-            var response = await m_session.DeleteMonitoredItemsAsync(
+            DeleteMonitoredItemsResponse response = await m_session.DeleteMonitoredItemsAsync(
                 null,
                 m_id,
                 monitoredItemIds,
@@ -402,7 +402,10 @@ namespace Opc.Ua.Client
             IList<MonitoredItem> monitoredItems,
             CancellationToken ct = default)
         {
-            if (monitoredItems == null) throw new ArgumentNullException(nameof(monitoredItems));
+            if (monitoredItems == null)
+            {
+                throw new ArgumentNullException(nameof(monitoredItems));
+            }
 
             VerifySubscriptionState(true);
 
@@ -412,13 +415,13 @@ namespace Opc.Ua.Client
             }
 
             // get list of items to update.
-            UInt32Collection monitoredItemIds = new UInt32Collection();
+            var monitoredItemIds = new UInt32Collection();
             foreach (MonitoredItem monitoredItem in monitoredItems)
             {
                 monitoredItemIds.Add(monitoredItem.Status.Id);
             }
 
-            var response = await m_session.SetMonitoringModeAsync(
+            SetMonitoringModeResponse response = await m_session.SetMonitoringModeAsync(
                 null,
                 m_id,
                 monitoringMode,
@@ -430,7 +433,7 @@ namespace Opc.Ua.Client
             ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, monitoredItemIds);
 
             // update results.
-            List<ServiceResult> errors = new List<ServiceResult>();
+            var errors = new List<ServiceResult>();
             bool noErrors = UpdateMonitoringMode(
                 monitoredItems, errors, results,
                 response.DiagnosticInfos, response.ResponseHeader,
@@ -463,7 +466,7 @@ namespace Opc.Ua.Client
                 InputArguments = new VariantCollection() { new Variant(m_id) }
             });
 
-            var response = await m_session.CallAsync(
+            CallResponse response = await m_session.CallAsync(
                 null,
                 methodsToCall,
                 ct).ConfigureAwait(false);
@@ -486,7 +489,7 @@ namespace Opc.Ua.Client
                     new Variant( monitoredItemId ) }
             });
 
-            var response = await m_session.CallAsync(
+            CallResponse response = await m_session.CallAsync(
                 null,
                 methodsToCall,
                 ct).ConfigureAwait(false);

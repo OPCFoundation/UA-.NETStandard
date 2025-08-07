@@ -60,11 +60,11 @@ namespace Opc.Ua.Bindings
             }
 
             // build list of uris.
-            List<Uri> uris = new List<Uri>();
-            EndpointDescriptionCollection endpoints = new EndpointDescriptionCollection();
+            var uris = new List<Uri>();
+            var endpoints = new EndpointDescriptionCollection();
 
             // create the endpoint configuration to use.
-            EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(configuration);
+            var endpointConfiguration = EndpointConfiguration.Create(configuration);
             string computerName = Utils.GetHostName();
 
             for (int ii = 0; ii < baseAddresses.Count; ii++)
@@ -79,7 +79,7 @@ namespace Opc.Ua.Bindings
                     continue;
                 }
 
-                UriBuilder uri = new UriBuilder(baseAddresses[ii]);
+                var uri = new UriBuilder(baseAddresses[ii]);
 
                 if (uri.Path[uri.Path.Length - 1] != '/')
                 {
@@ -134,7 +134,7 @@ namespace Opc.Ua.Bindings
 
                 if (certificateTypesProvider != null)
                 {
-                    var instanceCertificate = certificateTypesProvider.GetInstanceCertificate(bestPolicy.SecurityPolicyUri);
+                    X509Certificate2 instanceCertificate = certificateTypesProvider.GetInstanceCertificate(bestPolicy.SecurityPolicyUri);
                     description.ServerCertificate = instanceCertificate.RawData;
 
                     // check if complete chain should be sent.

@@ -89,11 +89,14 @@ namespace Opc.Ua
         /// </summary>
         public void Update(IEnumerable<string> strings)
         {
-            if (strings == null) throw new ArgumentNullException(nameof(strings));
+            if (strings == null)
+            {
+                throw new ArgumentNullException(nameof(strings));
+            }
 
             lock (m_lock)
             {
-                m_strings = new List<string>(strings);
+                m_strings = [.. strings];
 
 #if DEBUG
                 if (m_shared)
@@ -311,7 +314,10 @@ namespace Opc.Ua
         /// </summary>
         public new void Update(IEnumerable<string> namespaceUris)
         {
-            if (namespaceUris == null) throw new ArgumentNullException(nameof(namespaceUris));
+            if (namespaceUris == null)
+            {
+                throw new ArgumentNullException(nameof(namespaceUris));
+            }
 
             // check that first entry is the UA namespace.
             int ii = 0;

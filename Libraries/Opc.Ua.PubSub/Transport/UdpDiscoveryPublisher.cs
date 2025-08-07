@@ -99,7 +99,7 @@ namespace Opc.Ua.PubSub.Transport
         private void OnUadpDiscoveryReceive(IAsyncResult result)
         {
             // this is what had been passed into BeginReceive as the second parameter:
-            UdpClient socket = result.AsyncState as UdpClient;
+            var socket = result.AsyncState as UdpClient;
 
             if (socket == null)
             {
@@ -107,7 +107,7 @@ namespace Opc.Ua.PubSub.Transport
             }
 
             // points towards whoever had sent the message:
-            IPEndPoint source = new IPEndPoint(0, 0);
+            var source = new IPEndPoint(0, 0);
             // get the actual message and fill out the source:
             try
             {
@@ -154,7 +154,7 @@ namespace Opc.Ua.PubSub.Transport
         {
             Utils.Trace(Utils.TraceMasks.Information, "UdpDiscoveryPublisher.ProcessReceivedMessageDiscovery from source={0}", source);
 
-            UadpNetworkMessage networkMessage = new UadpNetworkMessage();
+            var networkMessage = new UadpNetworkMessage();
             // decode the received message
             networkMessage.Decode(MessageContext, messageBytes, null);
 
@@ -237,7 +237,7 @@ namespace Opc.Ua.PubSub.Transport
                     IList<UaNetworkMessage> responsesMessages = m_udpConnection.CreateDataSetWriterCofigurationMessage(
                         dataSetWriterIdsToSend.ToArray());
 
-                    foreach (var responsesMessage in responsesMessages)
+                    foreach (UaNetworkMessage responsesMessage in responsesMessages)
                     {
                         Utils.Trace("UdpDiscoveryPublisher.SendResponseDataSetWriterConfiguration Before sending message for DataSetWriterId:{0}", responsesMessage.DataSetWriterId);
 

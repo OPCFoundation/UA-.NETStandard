@@ -146,7 +146,7 @@ namespace Opc.Ua.Bindings
                 ar.Socket.ReadNextMessage();
 
                 // send reverse hello message.
-                using (BinaryEncoder encoder = new BinaryEncoder(buffer, 0, SendBufferSize, Quotas.MessageContext))
+                using (var encoder = new BinaryEncoder(buffer, 0, SendBufferSize, Quotas.MessageContext))
                 {
                     encoder.WriteUInt32(null, TcpMessageType.ReverseHello);
                     encoder.WriteUInt32(null, 0);
@@ -188,7 +188,10 @@ namespace Opc.Ua.Bindings
             ChannelToken token,
             OpenSecureChannelRequest request)
         {
-            if (socket == null) throw new ArgumentNullException(nameof(socket));
+            if (socket == null)
+            {
+                throw new ArgumentNullException(nameof(socket));
+            }
 
             lock (DataLock)
             {
@@ -415,8 +418,8 @@ namespace Opc.Ua.Bindings
 
                 try
                 {
-                    using (MemoryStream ostrm = new MemoryStream(buffer, 0, kResponseBufferSize))
-                    using (BinaryEncoder encoder = new BinaryEncoder(ostrm, Quotas.MessageContext, false))
+                    using (var ostrm = new MemoryStream(buffer, 0, kResponseBufferSize))
+                    using (var encoder = new BinaryEncoder(ostrm, Quotas.MessageContext, false))
                     {
                         encoder.WriteUInt32(null, TcpMessageType.Acknowledge);
                         encoder.WriteUInt32(null, 0);
@@ -740,7 +743,7 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         protected override void CompleteReverseHello(Exception e)
         {
-            var ar = m_pendingReverseHello;
+            ReverseConnectAsyncResult ar = m_pendingReverseHello;
             if (ar != null && ar == Interlocked.CompareExchange(ref m_pendingReverseHello, null, ar))
             {
                 ar.Exception = e;
@@ -755,7 +758,7 @@ namespace Opc.Ua.Bindings
         {
             Utils.LogTrace("ChannelId {0}: SendOpenSecureChannelResponse()", ChannelId);
 
-            OpenSecureChannelResponse response = new OpenSecureChannelResponse();
+            var response = new OpenSecureChannelResponse();
 
             response.ResponseHeader.RequestHandle = request.RequestHeader.RequestHandle;
             response.ResponseHeader.Timestamp = DateTime.UtcNow;
@@ -1036,7 +1039,10 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void SendResponse(uint requestId, IServiceResponse response)
         {
-            if (response == null) throw new ArgumentNullException(nameof(response));
+            if (response == null)
+            {
+                throw new ArgumentNullException(nameof(response));
+            }
 
             lock (DataLock)
             {

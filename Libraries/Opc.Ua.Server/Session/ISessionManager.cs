@@ -252,12 +252,12 @@ namespace Opc.Ua.Server
         #endregion
 
         #region Private Fields
-        private UserIdentityToken m_newIdentity;
-        private UserTokenPolicy m_userTokenPolicy;
+        private readonly UserIdentityToken m_newIdentity;
+        private readonly UserTokenPolicy m_userTokenPolicy;
         private ServiceResult m_identityValidationError;
         private IUserIdentity m_identity;
         private IUserIdentity m_effectiveIdentity;
-        private EndpointDescription m_endpointDescription;
+        private readonly EndpointDescription m_endpointDescription;
         #endregion
     }
 

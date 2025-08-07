@@ -422,8 +422,12 @@ namespace Opc.Ua.Configuration
         public async Task DeleteApplicationInstanceCertificate(string[] profileIds = null, CancellationToken ct = default)
         {
             // TODO: delete only selected profiles
-            if (m_applicationConfiguration == null) throw new ArgumentException("Missing configuration.");
-            foreach (var id in m_applicationConfiguration.SecurityConfiguration.ApplicationCertificates)
+            if (m_applicationConfiguration == null)
+            {
+                throw new ArgumentException("Missing configuration.");
+            }
+
+            foreach (CertificateIdentifier id in m_applicationConfiguration.SecurityConfiguration.ApplicationCertificates)
             {
                 await DeleteApplicationInstanceCertificateAsync(m_applicationConfiguration, id, ct).ConfigureAwait(false);
             }
@@ -456,7 +460,7 @@ namespace Opc.Ua.Configuration
             }
 
             bool result = true;
-            foreach (var certId in securityConfiguration.ApplicationCertificates)
+            foreach (CertificateIdentifier certId in securityConfiguration.ApplicationCertificates)
             {
                 ushort minimumKeySize = certId.GetMinKeySize(securityConfiguration);
                 bool nextResult = await CheckCertificateTypeAsync(certId, silent, minimumKeySize, lifeTimeInMonths, ct).ConfigureAwait(false);
@@ -469,7 +473,7 @@ namespace Opc.Ua.Configuration
 
         #region Private Methods
         /// <summary>
-        ///
+        /// Check certificate type
         /// </summary>
         /// <param name="id"></param>
         /// <param name="silent"></param>
@@ -494,7 +498,7 @@ namespace Opc.Ua.Configuration
             }
 
             // reload the certificate from disk in the cache.
-            var passwordProvider = configuration.SecurityConfiguration.CertificatePasswordProvider;
+            ICertificatePasswordProvider passwordProvider = configuration.SecurityConfiguration.CertificatePasswordProvider;
             await id.LoadPrivateKeyEx(passwordProvider, configuration.ApplicationUri).ConfigureAwait(false);
 
             // load the certificate
@@ -533,7 +537,7 @@ namespace Opc.Ua.Configuration
                 {
                     if (!string.IsNullOrEmpty(id.SubjectName))
                     {
-                        CertificateIdentifier id2 = new CertificateIdentifier {
+                        var id2 = new CertificateIdentifier {
                             StoreType = id.StoreType,
                             StorePath = id.StorePath,
                             SubjectName = id.SubjectName
@@ -750,13 +754,13 @@ namespace Opc.Ua.Configuration
             IList<string> certificateDomainNames = X509Utils.GetDomainsFromCertificate(certificate);
 
             Utils.LogInfo("Server Domain names:");
-            foreach (var name in serverDomainNames)
+            foreach (string name in serverDomainNames)
             {
                 Utils.LogInfo(" {0}", name);
             }
 
             Utils.LogInfo("Certificate Domain names:");
-            foreach (var name in certificateDomainNames)
+            foreach (string name in certificateDomainNames)
             {
                 Utils.LogInfo(" {0}", name);
             }
@@ -857,7 +861,7 @@ namespace Opc.Ua.Configuration
                 Utils.GetAbsoluteDirectoryPath(id.StorePath, true, true, true);
             }
 
-            var builder = CertificateFactory.CreateCertificate(
+            Security.Certificates.ICertificateBuilder builder = CertificateFactory.CreateCertificate(
                    configuration.ApplicationUri,
                    configuration.ApplicationName,
                    id.SubjectName,
@@ -895,7 +899,7 @@ namespace Opc.Ua.Configuration
 #endif
             }
 
-            var passwordProvider = configuration.SecurityConfiguration.CertificatePasswordProvider;
+            ICertificatePasswordProvider passwordProvider = configuration.SecurityConfiguration.CertificatePasswordProvider;
             await id.Certificate.AddToStoreAsync(
                 id.StoreType,
                 id.StorePath,
@@ -997,7 +1001,10 @@ namespace Opc.Ua.Configuration
         /// <param name="ct">The cancellation token.</param>
         private static async Task AddToTrustedStoreAsync(ApplicationConfiguration configuration, X509Certificate2 certificate, CancellationToken ct)
         {
-            if (certificate == null) throw new ArgumentNullException(nameof(certificate));
+            if (certificate == null)
+            {
+                throw new ArgumentNullException(nameof(certificate));
+            }
 
             string storePath = null;
 

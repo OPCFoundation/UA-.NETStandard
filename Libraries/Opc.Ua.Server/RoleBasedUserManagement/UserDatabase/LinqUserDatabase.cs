@@ -98,7 +98,7 @@ namespace Opc.Ua.Server.UserDatabase
                 throw new ArgumentException("UserName cannot be empty.", nameof(userName));
             }
 
-            var user = Users.SingleOrDefault(x => x.UserName == userName);
+            User user = Users.SingleOrDefault(x => x.UserName == userName);
 
             if (user == null)
             {
@@ -119,7 +119,7 @@ namespace Opc.Ua.Server.UserDatabase
                 throw new ArgumentException("Password cannot be empty.", nameof(password));
             }
 
-            var user = Users.SingleOrDefault(x => x.UserName == userName);
+            User user = Users.SingleOrDefault(x => x.UserName == userName);
 
             if (user == null)
             {
@@ -135,7 +135,7 @@ namespace Opc.Ua.Server.UserDatabase
             {
                 throw new ArgumentException("UserName cannot be empty.", nameof(userName));
             }
-            var user = Users.SingleOrDefault(x => x.UserName == userName);
+            User user = Users.SingleOrDefault(x => x.UserName == userName);
 
             if (user == null)
             {
@@ -160,7 +160,7 @@ namespace Opc.Ua.Server.UserDatabase
                 throw new ArgumentException("New Password cannot be empty.", nameof(newPassword));
             }
 
-            var user = Users.SingleOrDefault(x => x.UserName == userName);
+            User user = Users.SingleOrDefault(x => x.UserName == userName);
 
             if (user == null)
             {
@@ -169,7 +169,7 @@ namespace Opc.Ua.Server.UserDatabase
 
             if (Check(user.Hash, oldPassword))
             {
-                var newHash = Hash(newPassword);
+                string newHash = Hash(newPassword);
                 user.Hash = newHash;
                 return true;
             }
@@ -193,12 +193,12 @@ namespace Opc.Ua.Server.UserDatabase
             {
                 queryCounterResetTime = DateTime.UtcNow;
                 // assign IDs to new users
-                var queryNewUsers = from x in Users
+                IEnumerable<User> queryNewUsers = from x in Users
                                     where x.ID == Guid.Empty
                                     select x;
                 if (Users.Count > 0)
                 {
-                    foreach (var user in queryNewUsers)
+                    foreach (User user in queryNewUsers)
                     {
                         user.ID = Guid.NewGuid();
                     }
@@ -227,8 +227,8 @@ namespace Opc.Ua.Server.UserDatabase
                 HashAlgorithmName.SHA512))
             {
 #endif
-                var key = Convert.ToBase64String(algorithm.GetBytes(kKeySize));
-                var salt = Convert.ToBase64String(algorithm.Salt);
+                string key = Convert.ToBase64String(algorithm.GetBytes(kKeySize));
+                string salt = Convert.ToBase64String(algorithm.Salt);
 
                 return $"{kIterations}.{salt}.{key}";
             }
@@ -236,8 +236,8 @@ namespace Opc.Ua.Server.UserDatabase
 
         private bool Check(string hash, string password)
         {
-            var separator = new char[] { '.' };
-            var parts = hash.Split(separator, 3);
+            char[] separator = new char[] { '.' };
+            string[] parts = hash.Split(separator, 3);
 
             if (parts.Length != 3)
             {
@@ -245,9 +245,9 @@ namespace Opc.Ua.Server.UserDatabase
                   "Should be formatted as `{iterations}.{salt}.{hash}`");
             }
 
-            var iterations = Convert.ToInt32(parts[0], CultureInfo.InvariantCulture.NumberFormat);
-            var salt = Convert.FromBase64String(parts[1]);
-            var key = Convert.FromBase64String(parts[2]);
+            int iterations = Convert.ToInt32(parts[0], CultureInfo.InvariantCulture.NumberFormat);
+            byte[] salt = Convert.FromBase64String(parts[1]);
+            byte[] key = Convert.FromBase64String(parts[2]);
 
 #if NETSTANDARD2_0 || NET462
 #pragma warning disable CA5379 // Ensure Key Derivation Function algorithm is sufficiently strong
@@ -265,9 +265,9 @@ namespace Opc.Ua.Server.UserDatabase
                 HashAlgorithmName.SHA512))
             {
 #endif
-                var keyToCheck = algorithm.GetBytes(kKeySize);
+                byte[] keyToCheck = algorithm.GetBytes(kKeySize);
 
-                var verified = keyToCheck.SequenceEqual(key);
+                bool verified = keyToCheck.SequenceEqual(key);
 
                 return verified;
             }

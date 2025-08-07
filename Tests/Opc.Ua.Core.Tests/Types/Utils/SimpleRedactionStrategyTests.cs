@@ -95,7 +95,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void RedactString()
         {
-            var redacted = Redact.Create("my long test string");
+            RedactionWrapper<string> redacted = Redact.Create("my long test string");
 
             Assert.That(redacted.ToString(), Is.EqualTo("****************"));
         }
@@ -113,7 +113,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void RedactUri()
         {
-            var redacted = Redact.Create(new Uri("http://example.com:8080"));
+            RedactionWrapper<Uri> redacted = Redact.Create(new Uri("http://example.com:8080"));
 
             Assert.That(redacted.ToString(), Is.EqualTo("http://***********:8080"));
         }
@@ -121,7 +121,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void RedactUriBuilder()
         {
-            var redacted = Redact.Create(new UriBuilder("test.com/index.html"));
+            RedactionWrapper<UriBuilder> redacted = Redact.Create(new UriBuilder("test.com/index.html"));
 
             Assert.That(redacted.ToString(), Is.EqualTo("http://********/index.html"));
         }

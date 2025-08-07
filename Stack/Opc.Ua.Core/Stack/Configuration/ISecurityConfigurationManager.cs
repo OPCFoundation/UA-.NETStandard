@@ -53,7 +53,7 @@ namespace Opc.Ua.Security
                 return new SecurityConfigurationManager();
             }
 
-            Type type = Type.GetType(typeName);
+            var type = Type.GetType(typeName);
 
             if (type == null)
             {

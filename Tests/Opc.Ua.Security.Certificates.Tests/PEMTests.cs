@@ -26,11 +26,11 @@ namespace Opc.Ua.Security.Certificates.Tests
             }
 #endif
             // Arrange
-            var file = File.ReadAllBytes(TestUtils.EnumerateTestAssets("Test_chain.pem").First());
+            byte[] file = File.ReadAllBytes(TestUtils.EnumerateTestAssets("Test_chain.pem").First());
 
 
             // Act
-            var certs = PEMReader.ImportPublicKeysFromPEM(file);
+            X509Certificate2Collection certs = PEMReader.ImportPublicKeysFromPEM(file);
 
             // Assert
             Assert.IsNotNull(certs, "Certificates collection should not be null.");
@@ -38,17 +38,17 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.AreEqual(3, certs.Count, "Expected 3 certificates in the collection.");
             Assert.NotNull(certs.Find(System.Security.Cryptography.X509Certificates.X509FindType.FindBySerialNumber, "029D603370C20AE2", false)[0]);
             Assert.NotNull(certs.Find(System.Security.Cryptography.X509Certificates.X509FindType.FindBySerialNumber, "6E4385A67BDE4505", false)[0]);
-            var leaf = certs.Find(System.Security.Cryptography.X509Certificates.X509FindType.FindBySerialNumber, "51BB4F74500125AD", false)[0];
+            X509Certificate2 leaf = certs.Find(System.Security.Cryptography.X509Certificates.X509FindType.FindBySerialNumber, "51BB4F74500125AD", false)[0];
             Assert.NotNull(leaf);
 
             //Act
             Assert.False(PEMReader.ContainsPrivateKey(file), "PEM file should not contain a private key.");
 
             // Remove leaf certificate from the collection
-            Assert.True(PEMWriter.TryRemovePublicKeyFromPEM(leaf.Thumbprint, file, out var updatedFile));
+            Assert.True(PEMWriter.TryRemovePublicKeyFromPEM(leaf.Thumbprint, file, out byte[] updatedFile));
 
             Assert.IsNotNull(updatedFile, "Updated PEM file should not be null.");
-            var updatedCerts = PEMReader.ImportPublicKeysFromPEM(updatedFile);
+            X509Certificate2Collection updatedCerts = PEMReader.ImportPublicKeysFromPEM(updatedFile);
             Assert.IsNotNull(updatedCerts, "Certificates collection should not be null.");
             Assert.IsNotEmpty(updatedCerts, "Certificates collection should not be empty.");
             Assert.AreEqual(2, updatedCerts.Count, "Expected 2 certificates in the collection.");
@@ -70,16 +70,16 @@ namespace Opc.Ua.Security.Certificates.Tests
             }
 #endif
             // Arrange
-            var file = DecryptKeyPairPemBase64();
+            byte[] file = DecryptKeyPairPemBase64();
 
             // Act
-            var certs = PEMReader.ImportPublicKeysFromPEM(file);
+            X509Certificate2Collection certs = PEMReader.ImportPublicKeysFromPEM(file);
 
             // Assert
             Assert.IsNotNull(certs, "Certificates collection should not be null.");
             Assert.IsNotEmpty(certs, "Certificates collection should not be empty.");
             Assert.AreEqual(1, certs.Count, "Expected 1 certificate in the collection.");
-            var leaf = certs.Find(System.Security.Cryptography.X509Certificates.X509FindType.FindBySerialNumber, "51BB4F74500125AD", false)[0];
+            X509Certificate2 leaf = certs.Find(System.Security.Cryptography.X509Certificates.X509FindType.FindBySerialNumber, "51BB4F74500125AD", false)[0];
             Assert.NotNull(leaf);
 
 
@@ -107,11 +107,11 @@ namespace Opc.Ua.Security.Certificates.Tests
 
         private static byte[] DecryptKeyPairPemBase64()
         {
-            var encryptedBytes = Convert.FromBase64String(s_keyPairPemBase64Encrypted);
+            byte[] encryptedBytes = Convert.FromBase64String(s_keyPairPemBase64Encrypted);
             using var aes = Aes.Create();
             aes.Key = s_aesKey;
             aes.IV = s_aesIV;
-            using var decryptor = aes.CreateDecryptor();
+            using ICryptoTransform decryptor = aes.CreateDecryptor();
             using var ms = new MemoryStream(encryptedBytes);
             using var cs = new CryptoStream(ms, decryptor, CryptoStreamMode.Read);
             using var output = new MemoryStream();

@@ -20,7 +20,7 @@ namespace Opc.Ua
 {
     #region StructureDefinition Class
     /// <summary>
-    /// 
+    /// StructureDefinition is used to define the structure of a DataType.
     /// </summary>
     /// <exclude />
     public partial class StructureDefinition : DataTypeDefinition
@@ -33,7 +33,11 @@ namespace Opc.Ua
         /// <param name="dataEncoding">The data encoding to apply to the default encoding id.</param>
         public void SetDefaultEncodingId(ISystemContext context, NodeId typeId, QualifiedName dataEncoding)
         {
-            if (context == null) throw new ArgumentNullException(nameof(context));
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
             if (dataEncoding?.Name == BrowseNames.DefaultJson)
             {
                 DefaultEncodingId = ExpandedNodeId.ToNodeId(typeId, context.NamespaceUris);
@@ -41,7 +45,7 @@ namespace Opc.Ua
             }
 
             // note: custom types must be added to the encodeable factory by the node manager to be found
-            var systemType = context.EncodeableFactory?.GetSystemType(NodeId.ToExpandedNodeId(typeId, context.NamespaceUris));
+            Type systemType = context.EncodeableFactory?.GetSystemType(NodeId.ToExpandedNodeId(typeId, context.NamespaceUris));
             if (systemType != null && Activator.CreateInstance(systemType) is IEncodeable encodeable)
             {
                 if (dataEncoding == null || dataEncoding.Name == BrowseNames.DefaultBinary)

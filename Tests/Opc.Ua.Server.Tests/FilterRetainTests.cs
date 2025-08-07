@@ -31,14 +31,14 @@ namespace Opc.Ua.Server.Tests
         private SystemContext m_systemContext = null;
         private FilterContext m_filterContext = null;
 
-        private LocalizedText InService = new LocalizedText("en", "In Service");
-        private LocalizedText OutOfService = new LocalizedText("en", "Out of Service");
+        private readonly LocalizedText InService = new LocalizedText("en", "In Service");
+        private readonly LocalizedText OutOfService = new LocalizedText("en", "Out of Service");
 
-        private LocalizedText Suppressed = new LocalizedText("en-US", "Suppressed");
-        private LocalizedText Unsuppressed = new LocalizedText("en-US", "Unsuppressed");
+        private readonly LocalizedText Suppressed = new LocalizedText("en-US", "Suppressed");
+        private readonly LocalizedText Unsuppressed = new LocalizedText("en-US", "Unsuppressed");
 
-        private LocalizedText Active = new LocalizedText("en-US", "Active");
-        private LocalizedText Inactive = new LocalizedText("en-US", "Inactive");
+        private readonly LocalizedText Active = new LocalizedText("en-US", "Active");
+        private readonly LocalizedText Inactive = new LocalizedText("en-US", "Inactive");
 
         [Test]
         [TestCase(false, Description = "Should not pass filter")]
@@ -65,7 +65,7 @@ namespace Opc.Ua.Server.Tests
         public void TestNonConditionState(bool pass)
         {
             SystemContext systemContext = GetSystemContext();
-            DeviceFailureEventState alarm = new DeviceFailureEventState(null);
+            var alarm = new DeviceFailureEventState(null);
             alarm.Create(
                systemContext,
                new NodeId(12345, 1),
@@ -89,7 +89,7 @@ namespace Opc.Ua.Server.Tests
         public void TestNonEvent(bool pass)
         {
             SystemContext systemContext = GetSystemContext();
-            ApplicationCertificateState certificateType = new ApplicationCertificateState(null);
+            var certificateType = new ApplicationCertificateState(null);
 
             FilterContext context = GetFilterContext();
 
@@ -226,7 +226,7 @@ namespace Opc.Ua.Server.Tests
         
 
             FilterContext filterContext = GetFilterContext();
-            EventFilter filter = new EventFilter();
+            var filter = new EventFilter();
             filter.SelectClauses = GetSelectFields();
             filter.WhereClause = GetStateFilter();
             filter.Validate(filterContext);
@@ -345,7 +345,7 @@ namespace Opc.Ua.Server.Tests
         {
             SystemContext systemContext = GetSystemContext();
 
-            InstanceStateSnapshot eventSnapshot = new InstanceStateSnapshot();
+            var eventSnapshot = new InstanceStateSnapshot();
             eventSnapshot.Initialize(systemContext, alarm);
 
             BindingFlags eFlags = BindingFlags.Instance | BindingFlags.NonPublic;
@@ -361,7 +361,7 @@ namespace Opc.Ua.Server.Tests
         private ExclusiveLevelAlarmState GetExclusiveLevelAlarm(
             bool addFilterRetain, bool filterRetainValue = false)
         {
-            ExclusiveLevelAlarmState alarm = new ExclusiveLevelAlarmState(null);
+            var alarm = new ExclusiveLevelAlarmState(null);
             alarm.Create(
                GetSystemContext(),
                new NodeId(12345, 1),
@@ -382,9 +382,9 @@ namespace Opc.Ua.Server.Tests
 
         private SimpleAttributeOperandCollection GetSelectFields()
         {
-            SimpleAttributeOperandCollection simpleAttributeOperands = new SimpleAttributeOperandCollection();
+            var simpleAttributeOperands = new SimpleAttributeOperandCollection();
 
-            Dictionary<int, QualifiedNameCollection> desiredEventFields = new Dictionary<int, QualifiedNameCollection>();
+            var desiredEventFields = new Dictionary<int, QualifiedNameCollection>();
             int eventIndexCounter = 0;
             desiredEventFields.Add(eventIndexCounter++, new QualifiedNameCollection(new QualifiedName[] { BrowseNames.EventId }));
             desiredEventFields.Add(eventIndexCounter++, new QualifiedNameCollection(new QualifiedName[] { BrowseNames.EventType }));
@@ -415,9 +415,9 @@ namespace Opc.Ua.Server.Tests
 
         private ContentFilter GetRealisticFilter()
         {
-            ContentFilter whereClause = new ContentFilter();
+            var whereClause = new ContentFilter();
 
-            SimpleAttributeOperand eventLevel = new SimpleAttributeOperand() {
+            var eventLevel = new SimpleAttributeOperand() {
                 AttributeId = Attributes.Value,
                 TypeDefinitionId = ObjectTypeIds.ExclusiveLevelAlarmType,
                 BrowsePath = new QualifiedNameCollection(new QualifiedName[] {
@@ -426,7 +426,7 @@ namespace Opc.Ua.Server.Tests
                     BrowseNames.Id })
             };
 
-            LiteralOperand desiredEventLevel = new LiteralOperand();
+            var desiredEventLevel = new LiteralOperand();
             desiredEventLevel.Value = new Variant(new NodeId(Opc.Ua.Objects.ExclusiveLimitStateMachineType_High));
 
             whereClause.Push(FilterOperator.Equals, new FilterOperand[] { eventLevel, desiredEventLevel });
@@ -436,7 +436,7 @@ namespace Opc.Ua.Server.Tests
 
         private EventFilter GetHighOnlyEventFilter(bool addClauses)
         {
-            EventFilter filter = new EventFilter();
+            var filter = new EventFilter();
             if (addClauses)
             {
                 filter.SelectClauses = GetSelectFields();
@@ -448,9 +448,9 @@ namespace Opc.Ua.Server.Tests
 
         private ContentFilter GetHighOnlyFilter()
         {
-            ContentFilter whereClause = new ContentFilter();
+            var whereClause = new ContentFilter();
 
-            SimpleAttributeOperand eventLevel = new SimpleAttributeOperand() {
+            var eventLevel = new SimpleAttributeOperand() {
                 AttributeId = Attributes.Value,
                 TypeDefinitionId = ObjectTypeIds.ExclusiveLevelAlarmType,
                 BrowsePath = new QualifiedNameCollection(new QualifiedName[] {
@@ -459,7 +459,7 @@ namespace Opc.Ua.Server.Tests
                     BrowseNames.Id })
             };
 
-            LiteralOperand desiredEventLevel = new LiteralOperand();
+            var desiredEventLevel = new LiteralOperand();
             desiredEventLevel.Value = new Variant(new NodeId(Opc.Ua.Objects.ExclusiveLimitStateMachineType_High));
 
             whereClause.Push(FilterOperator.Equals, new FilterOperand[] { eventLevel, desiredEventLevel });
@@ -469,18 +469,18 @@ namespace Opc.Ua.Server.Tests
 
         private ContentFilter GetStateFilter()
         {
-            ContentFilter whereClause = new ContentFilter();
+            var whereClause = new ContentFilter();
 
             #region OutofServerState Index 2
 
-            SimpleAttributeOperand notOutOfServiceState = new SimpleAttributeOperand() {
+            var notOutOfServiceState = new SimpleAttributeOperand() {
                 AttributeId = Attributes.Value,
                 TypeDefinitionId = null,
                 BrowsePath = new QualifiedNameCollection(new QualifiedName[] {
                     BrowseNames.OutOfServiceState })
             };
 
-            LiteralOperand desiredOutOfServiceValue = new LiteralOperand();
+            var desiredOutOfServiceValue = new LiteralOperand();
             desiredOutOfServiceValue.Value = new Variant(InService);
 
             whereClause.Push(FilterOperator.Equals, new FilterOperand[] {
@@ -491,14 +491,14 @@ namespace Opc.Ua.Server.Tests
 
             #region SuppressedState Index 1
 
-            SimpleAttributeOperand notSuppressed = new SimpleAttributeOperand() {
+            var notSuppressed = new SimpleAttributeOperand() {
                 AttributeId = Attributes.Value,
                 TypeDefinitionId = null,
                 BrowsePath = new QualifiedNameCollection(new QualifiedName[] {
                     BrowseNames.SuppressedState })
             };
 
-            LiteralOperand desiredSuppressedValue = new LiteralOperand();
+            var desiredSuppressedValue = new LiteralOperand();
             desiredSuppressedValue.Value = new Variant(Unsuppressed);
 
             whereClause.Push(FilterOperator.Equals, new FilterOperand[] {
@@ -513,14 +513,14 @@ namespace Opc.Ua.Server.Tests
 
             #region Active Index 0
 
-            SimpleAttributeOperand activeState = new SimpleAttributeOperand() {
+            var activeState = new SimpleAttributeOperand() {
                 AttributeId = Attributes.Value,
                 TypeDefinitionId = null,
                 BrowsePath = new QualifiedNameCollection(new QualifiedName[] {
                     BrowseNames.ActiveState })
             };
 
-            LiteralOperand activeValue = new LiteralOperand();
+            var activeValue = new LiteralOperand();
             activeValue.Value = new Variant(Active);
 
             whereClause.Push(FilterOperator.Equals, new FilterOperand[] {
@@ -546,19 +546,19 @@ namespace Opc.Ua.Server.Tests
 
         private ContentFilter GetComplexFilter()
         {
-            ContentFilter whereClause = new ContentFilter();
+            var whereClause = new ContentFilter();
 
-            SimpleAttributeOperand existingEventType = new SimpleAttributeOperand() {
+            var existingEventType = new SimpleAttributeOperand() {
                 AttributeId = Attributes.Value,
                 TypeDefinitionId = ObjectTypeIds.ExclusiveLevelAlarmType,
                 BrowsePath = new QualifiedNameCollection(new QualifiedName[] { "EventType" })
             };
-            LiteralOperand desiredEventType = new LiteralOperand();
+            var desiredEventType = new LiteralOperand();
             desiredEventType.Value = new Variant(Opc.Ua.ObjectTypeIds.ExclusiveLevelAlarmType);
 
             whereClause.Push(FilterOperator.Equals, new FilterOperand[] { existingEventType, desiredEventType });
 
-            SimpleAttributeOperand eventLevel = new SimpleAttributeOperand() {
+            var eventLevel = new SimpleAttributeOperand() {
                 AttributeId = Attributes.Value,
                 TypeDefinitionId = null,
                 BrowsePath = new QualifiedNameCollection(new QualifiedName[] {
@@ -567,7 +567,7 @@ namespace Opc.Ua.Server.Tests
                     BrowseNames.Id })
             };
 
-            LiteralOperand desiredEventLevel = new LiteralOperand();
+            var desiredEventLevel = new LiteralOperand();
             desiredEventLevel.Value = new Variant(new NodeId(Opc.Ua.Objects.ExclusiveLimitStateMachineType_High));
 
             whereClause.Push(FilterOperator.Equals, new FilterOperand[] { eventLevel, desiredEventLevel });
@@ -588,7 +588,7 @@ namespace Opc.Ua.Server.Tests
                 m_systemContext = new SystemContext();
                 m_systemContext.NamespaceUris = new NamespaceTable();
                 m_systemContext.NamespaceUris.Append(Opc.Ua.Namespaces.OpcUa);
-                TypeTable typeTable = new TypeTable(m_systemContext.NamespaceUris);
+                var typeTable = new TypeTable(m_systemContext.NamespaceUris);
                 typeTable.AddSubtype(ObjectTypeIds.BaseObjectType, null);
                 typeTable.AddSubtype(ObjectTypeIds.BaseEventType, ObjectTypeIds.BaseObjectType);
                 typeTable.AddSubtype(ObjectTypeIds.ConditionType, ObjectTypeIds.BaseEventType);

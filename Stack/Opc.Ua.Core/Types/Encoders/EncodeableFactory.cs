@@ -108,8 +108,8 @@ namespace Opc.Ua
         {
             try
             {
-                AssemblyName an = new AssemblyName(assemblyName);
-                Assembly assembly = Assembly.Load(an);
+                var an = new AssemblyName(assemblyName);
+                var assembly = Assembly.Load(an);
                 AddEncodeableTypes(assembly);
             }
             catch (Exception)
@@ -220,7 +220,7 @@ namespace Opc.Ua
                 }
             }
             else if (unboundTypeIds != null &&
-                unboundTypeIds.TryGetValue(systemType.Name, out var jsonEncodingId))
+                unboundTypeIds.TryGetValue(systemType.Name, out ExpandedNodeId jsonEncodingId))
             {
                 m_encodeableTypes[jsonEncodingId] = systemType;
             }
@@ -309,7 +309,7 @@ namespace Opc.Ua
         {
             if (value is IDynamicComplexTypeInstance xmlEncodeable)
             {
-                var xmlName = xmlEncodeable.GetXmlName(context);
+                XmlQualifiedName xmlName = xmlEncodeable.GetXmlName(context);
                 if (xmlName != null)
                 {
                     return xmlName;
@@ -417,14 +417,14 @@ namespace Opc.Ua
                             continue;
                         }
 
-                        foreach (var field in systemTypes[ii].GetFields(BindingFlags.Static | BindingFlags.Public))
+                        foreach (FieldInfo field in systemTypes[ii].GetFields(BindingFlags.Static | BindingFlags.Public))
                         {
                             if (field.Name.EndsWith(jsonEncodingSuffix, StringComparison.Ordinal))
                             {
                                 try
                                 {
-                                    var name = field.Name.Substring(0, field.Name.Length - jsonEncodingSuffix.Length);
-                                    var value = field.GetValue(null);
+                                    string name = field.Name.Substring(0, field.Name.Length - jsonEncodingSuffix.Length);
+                                    object value = field.GetValue(null);
 
                                     if (value is NodeId)
                                     {
@@ -435,7 +435,7 @@ namespace Opc.Ua
                                         unboundTypeIds[name] = (ExpandedNodeId)value;
                                     }
                                 }
-                                catch (Exception)
+                                catch
                                 {
                                     // ignore errors.
                                 }
@@ -472,7 +472,7 @@ namespace Opc.Ua
             m_readerWriterLockSlim.EnterWriteLock();
             try
             {
-                foreach (var type in systemTypes)
+                foreach (Type type in systemTypes)
                 {
                     if (type.GetTypeInfo().IsAbstract)
                     {
@@ -522,16 +522,16 @@ namespace Opc.Ua
         #endregion
 
         #region ICloneable Methods
-        /// <remarks />
+        /// <inheritdoc/>
         public object Clone()
         {
             return MemberwiseClone();
         }
 
-        /// <summary cref="object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
-            EncodeableFactory clone = new EncodeableFactory(null);
+            var clone = new EncodeableFactory(null);
 
             m_readerWriterLockSlim.EnterReadLock();
             try
@@ -552,12 +552,12 @@ namespace Opc.Ua
 
         #region Private Fields
         private readonly ReaderWriterLockSlim m_readerWriterLockSlim = new ReaderWriterLockSlim();
-        private Dictionary<ExpandedNodeId, Type> m_encodeableTypes;
-        private static EncodeableFactory s_globalFactory = new EncodeableFactory();
+        private readonly Dictionary<ExpandedNodeId, Type> m_encodeableTypes;
+        private static readonly EncodeableFactory s_globalFactory = new EncodeableFactory();
 
 #if DEBUG
-        private bool m_shared;
-        private int m_instanceId;
+        private readonly bool m_shared;
+        private readonly int m_instanceId;
         private static int m_globalInstanceCount;
 #endif
         #endregion

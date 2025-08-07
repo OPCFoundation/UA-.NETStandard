@@ -52,9 +52,20 @@ namespace Opc.Ua.Server
             double samplingInterval,
             IUserIdentity savedOwnerIdentity = null)
         {
-            if (server == null) throw new ArgumentNullException(nameof(server));
-            if (nodeManager == null) throw new ArgumentNullException(nameof(nodeManager));
-            if (samplingRates == null) throw new ArgumentNullException(nameof(samplingRates));
+            if (server == null)
+            {
+                throw new ArgumentNullException(nameof(server));
+            }
+
+            if (nodeManager == null)
+            {
+                throw new ArgumentNullException(nameof(nodeManager));
+            }
+
+            if (samplingRates == null)
+            {
+                throw new ArgumentNullException(nameof(samplingRates));
+            }
 
             m_server = server;
             m_nodeManager = nodeManager;
@@ -229,7 +240,7 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 // add items.
-                List<ISampledDataChangeMonitoredItem> itemsToSample = new List<ISampledDataChangeMonitoredItem>();
+                var itemsToSample = new List<ISampledDataChangeMonitoredItem>();
 
                 for (int ii = 0; ii < m_itemsToAdd.Count; ii++)
                 {
@@ -400,7 +411,7 @@ namespace Opc.Ua.Server
                     }
 
                     // get current list of items to sample.
-                    List<ISampledDataChangeMonitoredItem> items = new List<ISampledDataChangeMonitoredItem>();
+                    var items = new List<ISampledDataChangeMonitoredItem>();
 
                     lock (m_lock)
                     {
@@ -460,14 +471,14 @@ namespace Opc.Ua.Server
         {
             try
             {
-                List<ISampledDataChangeMonitoredItem> items = state as List<ISampledDataChangeMonitoredItem>;
+                var items = state as List<ISampledDataChangeMonitoredItem>;
 
                 // read values for all enabled items.
                 if (items != null && items.Count > 0)
                 {
-                    ReadValueIdCollection itemsToRead = new ReadValueIdCollection(items.Count);
-                    DataValueCollection values = new DataValueCollection(items.Count);
-                    List<ServiceResult> errors = new List<ServiceResult>(items.Count);
+                    var itemsToRead = new ReadValueIdCollection(items.Count);
+                    var values = new DataValueCollection(items.Count);
+                    var errors = new List<ServiceResult>(items.Count);
 
                     // allocate space for results.
                     for (int ii = 0; ii < items.Count; ii++)
@@ -523,17 +534,17 @@ namespace Opc.Ua.Server
 
         #region Private Fields
         private readonly object m_lock = new object();
-        private IServerInternal m_server;
-        private INodeManager m_nodeManager;
+        private readonly IServerInternal m_server;
+        private readonly INodeManager m_nodeManager;
         private ISession m_session;
-        private IUserIdentity m_effectiveIdentity;
-        private DiagnosticsMasks m_diagnosticsMask;
-        private double m_samplingInterval;
-        private List<ISampledDataChangeMonitoredItem> m_itemsToAdd;
-        private List<ISampledDataChangeMonitoredItem> m_itemsToRemove;
-        private Dictionary<uint, ISampledDataChangeMonitoredItem> m_items;
-        private ManualResetEvent m_shutdownEvent;
-        private List<SamplingRateGroup> m_samplingRates;
+        private readonly IUserIdentity m_effectiveIdentity;
+        private readonly DiagnosticsMasks m_diagnosticsMask;
+        private readonly double m_samplingInterval;
+        private readonly List<ISampledDataChangeMonitoredItem> m_itemsToAdd;
+        private readonly List<ISampledDataChangeMonitoredItem> m_itemsToRemove;
+        private readonly Dictionary<uint, ISampledDataChangeMonitoredItem> m_items;
+        private readonly ManualResetEvent m_shutdownEvent;
+        private readonly List<SamplingRateGroup> m_samplingRates;
         private Task m_samplingTask;
         #endregion
     }

@@ -66,7 +66,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
-            IEncodeable testObject = CreateDefaultEncodeableType(systemType) as IEncodeable;
+            var testObject = CreateDefaultEncodeableType(systemType) as IEncodeable;
             Assert.NotNull(testObject);
 
             if (testObject.BinaryEncodingId.IsNull)
@@ -95,11 +95,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
             int arrayLength = DataGenerator.GetRandomByte();
-            Array array = Array.CreateInstance(systemType, arrayLength);
+            var array = Array.CreateInstance(systemType, arrayLength);
             ExpandedNodeId dataTypeId = NodeId.Null;
             for (int i = 0; i < array.Length; i++)
             {
-                IEncodeable testObject = CreateDefaultEncodeableType(systemType) as IEncodeable;
+                var testObject = CreateDefaultEncodeableType(systemType) as IEncodeable;
                 array.SetValue(testObject, i);
                 if (dataTypeId == NodeId.Null)
                 {
@@ -111,7 +111,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             BuiltInType builtInType = BuiltInType.Variant;
 
             byte[] buffer;
-            using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
+            using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
                 using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, systemType, jsonEncodingType))
                 {
@@ -128,7 +128,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     PrettifyAndValidateJson(Encoding.UTF8.GetString(buffer));
                     break;
                 case EncodingType.Xml:
-                    var xml = Encoding.UTF8.GetString(buffer);
+                    string xml = Encoding.UTF8.GetString(buffer);
                     Assert.IsTrue(xml.Contains("<Array xmlns=\"urn:This:is:another:namespace\">", StringComparison.Ordinal));
                     break;
             }
@@ -168,12 +168,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             int[] dimensions = new int[matrixDimension];
             SetMatrixDimensions(dimensions);
             int elementsCount = ElementsFromDimension(dimensions);
-            Array array = Array.CreateInstance(systemType, elementsCount);
+            var array = Array.CreateInstance(systemType, elementsCount);
 
             ExpandedNodeId dataTypeId = NodeId.Null;
             for (int i = 0; i < array.Length; i++)
             {
-                IEncodeable testObject = CreateDefaultEncodeableType(systemType) as IEncodeable;
+                var testObject = CreateDefaultEncodeableType(systemType) as IEncodeable;
                 array.SetValue(testObject, i);
                 if (dataTypeId == NodeId.Null)
                 {
@@ -184,10 +184,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string objectName = "Matrix";
             BuiltInType builtInType = BuiltInType.Variant;
 
-            Matrix matrix = new Matrix(array, builtInType, dimensions);
+            var matrix = new Matrix(array, builtInType, dimensions);
 
             byte[] buffer;
-            using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
+            using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
                 using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, systemType, jsonEncodingType))
                 {
@@ -249,7 +249,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         private void SetDefaultEncodeableType(Type systemType, object typeInstance)
         {
-            foreach (var property in typeInstance.GetType().GetProperties())
+            foreach (System.Reflection.PropertyInfo property in typeInstance.GetType().GetProperties())
             {
                 if (property.CanWrite)
                 {
@@ -305,7 +305,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                         case BuiltInType.Enumeration:
                             if (typeInfo.ValueRank == ValueRanks.Scalar)
                             {
-                                foreach (var ii in Enum.GetValues(property.PropertyType))
+                                foreach (object ii in Enum.GetValues(property.PropertyType))
                                 {
                                     property.SetValue(typeInstance, ii);
                                     break;
@@ -315,7 +315,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                         default:
                             if (typeInfo.ValueRank == ValueRanks.Scalar)
                             {
-                                var value = TypeInfo.GetDefaultValue(typeInfo.BuiltInType);
+                                object value = TypeInfo.GetDefaultValue(typeInfo.BuiltInType);
                                 property.SetValue(typeInstance, value);
                             }
                             break;

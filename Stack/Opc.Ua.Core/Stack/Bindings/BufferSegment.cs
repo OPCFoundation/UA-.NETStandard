@@ -64,7 +64,7 @@ namespace Opc.Ua.Bindings
         }
 
         #region Private Fields
-        private byte[] m_array;
+        private readonly byte[] m_array;
         #endregion
     }
 }

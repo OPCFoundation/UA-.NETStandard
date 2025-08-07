@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -61,18 +61,18 @@ namespace Opc.Ua.Gds.Tests
             // verify the public cert matches the private key
             Assert.IsTrue(X509Utils.VerifyKeyPair(newCert, newPrivateKeyCert, true));
             Assert.IsTrue(X509Utils.VerifyKeyPair(newPrivateKeyCert, newPrivateKeyCert, true));
-            CertificateIdentifierCollection issuerCertIdCollection = new CertificateIdentifierCollection();
-            foreach (var issuer in issuerCertificates)
+            var issuerCertIdCollection = new CertificateIdentifierCollection();
+            foreach (byte[] issuer in issuerCertificates)
             {
-                var issuerCert = X509CertificateLoader.LoadCertificate(issuer);
+                X509Certificate2 issuerCert = X509CertificateLoader.LoadCertificate(issuer);
                 Assert.IsNotNull(issuerCert);
                 issuerCertIdCollection.Add(new CertificateIdentifier(issuerCert));
             }
 
             // verify cert with issuer chain
-            CertificateValidator certValidator = new CertificateValidator();
-            CertificateTrustList issuerStore = new CertificateTrustList();
-            CertificateTrustList trustedStore = new CertificateTrustList();
+            var certValidator = new CertificateValidator();
+            var issuerStore = new CertificateTrustList();
+            var trustedStore = new CertificateTrustList();
             trustedStore.TrustedCertificates = issuerCertIdCollection;
             certValidator.Update(trustedStore, issuerStore, null);
             Assert.That(() => {
@@ -143,7 +143,8 @@ namespace Opc.Ua.Gds.Tests
             }
 
             // test for authority key
-            var authority = X509Extensions.FindExtension<Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension>(signedCert);
+
+            Security.Certificates.X509AuthorityKeyIdentifierExtension authority = X509Extensions.FindExtension<Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension>(signedCert);
             Assert.NotNull(authority);
             TestContext.Out.WriteLine($"Authority Key Identifier: {authority.Format(true)}");
             Assert.NotNull(authority.SerialNumber);
@@ -162,13 +163,13 @@ namespace Opc.Ua.Gds.Tests
             Assert.NotNull(subjectAlternateName);
             TestContext.Out.WriteLine($"Issuer Subject Alternate Name: {subjectAlternateName}");
             Assert.False(subjectAlternateName.Critical);
-            var domainNames = X509Utils.GetDomainsFromCertificate(signedCert);
-            foreach (var domainName in testApp.DomainNames)
+            System.Collections.Generic.IList<string> domainNames = X509Utils.GetDomainsFromCertificate(signedCert);
+            foreach (string domainName in testApp.DomainNames)
             {
                 Assert.True(domainNames.Contains(domainName, StringComparer.OrdinalIgnoreCase));
             }
             Assert.True(subjectAlternateName.Uris.Count == 1);
-            var applicationUri = X509Utils.GetApplicationUriFromCertificate(signedCert);
+            string applicationUri = X509Utils.GetApplicationUriFromCertificate(signedCert);
             Assert.True(testApp.ApplicationRecord.ApplicationUri == applicationUri);
         }
     }

@@ -128,7 +128,7 @@ namespace Boiler
         /// <param name="unitNumber">The unit number for the boiler.</param>
         private void CreateBoiler(SystemContext context, int unitNumber)
         {
-            BoilerState boiler = new BoilerState(null);
+            var boiler = new BoilerState(null);
 
             string name = Utils.Format("Boiler #{0}", unitNumber);
 
@@ -163,7 +163,7 @@ namespace Boiler
             MethodState start = boiler.Simulation.Start;
             IList<Variant> inputArguments = new List<Variant>();
             IList<Variant> outputArguments = new List<Variant>();
-            List<ServiceResult> errors = new List<ServiceResult>();
+            var errors = new List<ServiceResult>();
             start.Call(context, boiler.NodeId, inputArguments, errors, outputArguments);
         }
 
@@ -197,7 +197,7 @@ namespace Boiler
         /// </summary>
         protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
         {
-            NodeStateCollection predefinedNodes = new NodeStateCollection();
+            var predefinedNodes = new NodeStateCollection();
             predefinedNodes.LoadFromBinaryResource(context, "Quickstarts.Servers.Boiler.Boiler.PredefinedNodes.uanodes", this.GetType().GetTypeInfo().Assembly, true);
             return predefinedNodes;
         }
@@ -207,7 +207,7 @@ namespace Boiler
         /// </summary>
         protected override NodeState AddBehaviourToPredefinedNode(ISystemContext context, NodeState predefinedNode)
         {
-            BaseObjectState passiveNode = predefinedNode as BaseObjectState;
+            var passiveNode = predefinedNode as BaseObjectState;
 
             if (passiveNode == null)
             {
@@ -230,7 +230,7 @@ namespace Boiler
                         break;
                     }
 
-                    BoilerState activeNode = new BoilerState(passiveNode.Parent);
+                    var activeNode = new BoilerState(passiveNode.Parent);
                     activeNode.Create(context, passiveNode);
 
                     // replace the node in the parent.
@@ -243,7 +243,7 @@ namespace Boiler
                     MethodState start = activeNode.Simulation.Start;
                     IList<Variant> inputArguments = new List<Variant>();
                     IList<Variant> outputArguments = new List<Variant>();
-                    List<ServiceResult> errors = new List<ServiceResult>();
+                    var errors = new List<ServiceResult>();
                     start.Call(context, activeNode.NodeId, inputArguments, errors, outputArguments);
 
                     return activeNode;
@@ -304,10 +304,10 @@ namespace Boiler
         #endregion
 
         #region Private Fields
-        private ushort m_namespaceIndex;
-        private ushort m_typeNamespaceIndex;
+        private readonly ushort m_namespaceIndex;
+        private readonly ushort m_typeNamespaceIndex;
         private long m_lastUsedId;
-        private List<BoilerState> m_boilers;
+        private readonly List<BoilerState> m_boilers;
         #endregion
     }
 }

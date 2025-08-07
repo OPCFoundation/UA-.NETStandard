@@ -308,19 +308,19 @@ namespace TestData
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.ScalarStructureDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ScalarStructureDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ScalarStructureDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ScalarStructureDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(TestData.Namespaces.TestData);
@@ -356,7 +356,7 @@ namespace TestData
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(TestData.Namespaces.TestData);
@@ -392,7 +392,7 @@ namespace TestData
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -438,13 +438,13 @@ namespace TestData
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (ScalarStructureDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ScalarStructureDataType clone = (ScalarStructureDataType)base.MemberwiseClone();
@@ -562,7 +562,7 @@ namespace TestData
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ScalarStructureDataTypeCollection clone = new ScalarStructureDataTypeCollection(this.Count);
@@ -1175,19 +1175,19 @@ namespace TestData
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.ArrayValueDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ArrayValueDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ArrayValueDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ArrayValueDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(TestData.Namespaces.TestData);
@@ -1223,7 +1223,7 @@ namespace TestData
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(TestData.Namespaces.TestData);
@@ -1259,7 +1259,7 @@ namespace TestData
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -1305,13 +1305,13 @@ namespace TestData
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (ArrayValueDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ArrayValueDataType clone = (ArrayValueDataType)base.MemberwiseClone();
@@ -1429,7 +1429,7 @@ namespace TestData
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             ArrayValueDataTypeCollection clone = new ArrayValueDataTypeCollection(this.Count);
@@ -1673,19 +1673,19 @@ namespace TestData
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.UserScalarValueDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.UserScalarValueDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.UserScalarValueDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.UserScalarValueDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(TestData.Namespaces.TestData);
@@ -1716,7 +1716,7 @@ namespace TestData
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(TestData.Namespaces.TestData);
@@ -1747,7 +1747,7 @@ namespace TestData
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -1788,13 +1788,13 @@ namespace TestData
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (UserScalarValueDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             UserScalarValueDataType clone = (UserScalarValueDataType)base.MemberwiseClone();
@@ -1902,7 +1902,7 @@ namespace TestData
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             UserScalarValueDataTypeCollection clone = new UserScalarValueDataTypeCollection(this.Count);
@@ -2410,19 +2410,19 @@ namespace TestData
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.UserArrayValueDataType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.UserArrayValueDataType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.UserArrayValueDataType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.UserArrayValueDataType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(TestData.Namespaces.TestData);
@@ -2453,7 +2453,7 @@ namespace TestData
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(TestData.Namespaces.TestData);
@@ -2484,7 +2484,7 @@ namespace TestData
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -2525,13 +2525,13 @@ namespace TestData
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (UserArrayValueDataType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             UserArrayValueDataType clone = (UserArrayValueDataType)base.MemberwiseClone();
@@ -2639,7 +2639,7 @@ namespace TestData
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             UserArrayValueDataTypeCollection clone = new UserArrayValueDataTypeCollection(this.Count);
@@ -2712,19 +2712,19 @@ namespace TestData
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.Vector; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.Vector_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.Vector_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.Vector_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(TestData.Namespaces.TestData);
@@ -2736,7 +2736,7 @@ namespace TestData
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(TestData.Namespaces.TestData);
@@ -2748,7 +2748,7 @@ namespace TestData
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -2770,13 +2770,13 @@ namespace TestData
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (Vector)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             Vector clone = (Vector)base.MemberwiseClone();
@@ -2846,7 +2846,7 @@ namespace TestData
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             VectorCollection clone = new VectorCollection(this.Count);
@@ -2938,19 +2938,19 @@ namespace TestData
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.VectorUnion; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.VectorUnion_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.VectorUnion_Encoding_DefaultXml;
 
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.VectorUnion_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(TestData.Namespaces.TestData);
@@ -2967,7 +2967,7 @@ namespace TestData
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(TestData.Namespaces.TestData);
@@ -2985,7 +2985,7 @@ namespace TestData
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -3013,13 +3013,13 @@ namespace TestData
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (VectorUnion)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             VectorUnion clone = (VectorUnion)base.MemberwiseClone();
@@ -3095,7 +3095,7 @@ namespace TestData
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             VectorUnionCollection clone = new VectorUnionCollection(this.Count);
@@ -3187,19 +3187,19 @@ namespace TestData
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.VectorWithOptionalFields; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.VectorWithOptionalFields_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.VectorWithOptionalFields_Encoding_DefaultXml;
             
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.VectorWithOptionalFields_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(TestData.Namespaces.TestData);
@@ -3212,7 +3212,7 @@ namespace TestData
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(TestData.Namespaces.TestData);
@@ -3226,7 +3226,7 @@ namespace TestData
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -3250,13 +3250,13 @@ namespace TestData
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (VectorWithOptionalFields)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             VectorWithOptionalFields clone = (VectorWithOptionalFields)base.MemberwiseClone();
@@ -3328,7 +3328,7 @@ namespace TestData
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             VectorWithOptionalFieldsCollection clone = new VectorWithOptionalFieldsCollection(this.Count);
@@ -3500,19 +3500,19 @@ namespace TestData
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.MultipleVectors; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.MultipleVectors_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.MultipleVectors_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.MultipleVectors_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(TestData.Namespaces.TestData);
@@ -3527,7 +3527,7 @@ namespace TestData
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(TestData.Namespaces.TestData);
@@ -3542,7 +3542,7 @@ namespace TestData
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -3567,13 +3567,13 @@ namespace TestData
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (MultipleVectors)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             MultipleVectors clone = (MultipleVectors)base.MemberwiseClone();
@@ -3649,7 +3649,7 @@ namespace TestData
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             MultipleVectorsCollection clone = new MultipleVectorsCollection(this.Count);
@@ -3722,19 +3722,19 @@ namespace TestData
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.WorkOrderStatusType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.WorkOrderStatusType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.WorkOrderStatusType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.WorkOrderStatusType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(TestData.Namespaces.TestData);
@@ -3746,7 +3746,7 @@ namespace TestData
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(TestData.Namespaces.TestData);
@@ -3758,7 +3758,7 @@ namespace TestData
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -3780,13 +3780,13 @@ namespace TestData
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (WorkOrderStatusType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             WorkOrderStatusType clone = (WorkOrderStatusType)base.MemberwiseClone();
@@ -3856,7 +3856,7 @@ namespace TestData
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             WorkOrderStatusTypeCollection clone = new WorkOrderStatusTypeCollection(this.Count);
@@ -3950,19 +3950,19 @@ namespace TestData
         #endregion
 
         #region IEncodeable Members
-        /// <summary cref="IEncodeable.TypeId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId TypeId => DataTypeIds.WorkOrderType; 
 
-        /// <summary cref="IEncodeable.BinaryEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.WorkOrderType_Encoding_DefaultBinary;
 
-        /// <summary cref="IEncodeable.XmlEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.WorkOrderType_Encoding_DefaultXml;
                     
-        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
+        /// <inheritdoc/>
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.WorkOrderType_Encoding_DefaultJson; 
 
-        /// <summary cref="IEncodeable.Encode(IEncoder)" />
+        /// <inheritdoc/>
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(TestData.Namespaces.TestData);
@@ -3975,7 +3975,7 @@ namespace TestData
             encoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.Decode(IDecoder)" />
+        /// <inheritdoc/>
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(TestData.Namespaces.TestData);
@@ -3988,7 +3988,7 @@ namespace TestData
             decoder.PopNamespace();
         }
 
-        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
+        /// <inheritdoc/>
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -4011,13 +4011,13 @@ namespace TestData
             return true;
         }
 
-        /// <summary cref="ICloneable.Clone" />
+        /// <inheritdoc/>
         public virtual object Clone()
         {
             return (WorkOrderType)this.MemberwiseClone();
         }
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             WorkOrderType clone = (WorkOrderType)base.MemberwiseClone();
@@ -4089,7 +4089,7 @@ namespace TestData
         }
         #endregion
 
-        /// <summary cref="Object.MemberwiseClone" />
+        /// <inheritdoc/>
         public new object MemberwiseClone()
         {
             WorkOrderTypeCollection clone = new WorkOrderTypeCollection(this.Count);

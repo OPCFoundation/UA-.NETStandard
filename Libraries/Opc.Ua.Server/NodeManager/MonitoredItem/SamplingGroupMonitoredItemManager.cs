@@ -177,7 +177,7 @@ namespace Opc.Ua.Server
         public (ServiceResult, MonitoringMode?) SetMonitoringMode(ServerSystemContext context, IMonitoredItem monitoredItem, MonitoringMode monitoringMode, NodeHandle handle)
         {
             // check for valid monitored item.
-            MonitoredItem datachangeItem = monitoredItem as MonitoredItem;
+            var datachangeItem = monitoredItem as MonitoredItem;
             IMonitoredItem existingMonitoredItem;
 
             if (!m_monitoredItems.TryGetValue(monitoredItem.Id, out existingMonitoredItem))
@@ -196,13 +196,13 @@ namespace Opc.Ua.Server
             // need to provide an immediate update after enabling.
             if (previousMode == MonitoringMode.Disabled && monitoringMode != MonitoringMode.Disabled)
             {
-                DataValue initialValue = new DataValue();
+                var initialValue = new DataValue();
 
                 initialValue.ServerTimestamp = DateTime.UtcNow;
                 initialValue.StatusCode = StatusCodes.BadWaitingForInitialData;
 
                 // read the initial value.
-                Node node = monitoredItem.ManagerHandle as Node;
+                var node = monitoredItem.ManagerHandle as Node;
 
                 if (node != null)
                 {
@@ -302,7 +302,7 @@ namespace Opc.Ua.Server
         private readonly CustomNodeManager2 m_nodeManager;
         private readonly NodeIdDictionary<MonitoredNode2> m_monitoredNodes;
         private readonly ConcurrentDictionary<uint, IMonitoredItem> m_monitoredItems;
-        private SamplingGroupManager m_samplingGroupManager;
+        private readonly SamplingGroupManager m_samplingGroupManager;
     }
 
 }

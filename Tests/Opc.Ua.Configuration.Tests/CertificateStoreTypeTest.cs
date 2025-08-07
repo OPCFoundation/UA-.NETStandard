@@ -68,7 +68,7 @@ namespace Opc.Ua.Configuration.Tests
         [Test]
         public async Task CertificateStoreTypeNoConfigTest()
         {
-            ApplicationInstance application = new ApplicationInstance() {
+            var application = new ApplicationInstance() {
                 ApplicationName = "Application",
             };
 
@@ -78,7 +78,7 @@ namespace Opc.Ua.Configuration.Tests
             string trustedUserStorePath = m_tempPath + Path.DirectorySeparatorChar + "trustedUser";
             string issuerUserStorePath = m_tempPath + Path.DirectorySeparatorChar + "userIssuer";
 
-            var appConfigBuilder = application.Build(
+            IApplicationConfigurationBuilderSecurityOptionStores appConfigBuilder = application.Build(
                 applicationUri: "urn:localhost:CertStoreTypeTest",
                 productUri: "uri:opcfoundation.org:Tests:CertStoreTypeTest")
                 .AsClient()
@@ -110,7 +110,7 @@ namespace Opc.Ua.Configuration.Tests
             int instancesCreatedWhileOpeningAuthRootStore = TestCertStore.InstancesCreated;
             Assert.IsTrue(instancesCreatedWhileLoadingConfig < instancesCreatedWhileOpeningAuthRootStore);
             var certificateStoreIdentifier = new CertificateStoreIdentifier(TestCertStore.StoreTypePrefix + trustedUserStorePath);
-            using (var store = certificateStoreIdentifier.OpenStore())
+            using (ICertificateStore store = certificateStoreIdentifier.OpenStore())
             {
                 Assert.IsTrue(instancesCreatedWhileOpeningAuthRootStore < TestCertStore.InstancesCreated);
             }
@@ -122,8 +122,8 @@ namespace Opc.Ua.Configuration.Tests
         {
             using (ICertificateStore trustListStore = trustList.OpenStore())
             {
-                var certs = trustListStore.Enumerate();
-                var crls = trustListStore.EnumerateCRLs();
+                Task<X509Certificate2Collection> certs = trustListStore.Enumerate();
+                Task<X509CRLCollection> crls = trustListStore.EnumerateCRLs();
                 trustListStore.Close();
             }
         }

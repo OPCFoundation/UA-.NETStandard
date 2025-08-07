@@ -58,14 +58,14 @@ namespace Opc.Ua
         /// </summary>
         public void SaveAsNodeSet(ISystemContext context, Stream ostrm)
         {
-            NodeTable nodeTable = new NodeTable(context.NamespaceUris, context.ServerUris, null);
+            var nodeTable = new NodeTable(context.NamespaceUris, context.ServerUris, null);
 
             for (int ii = 0; ii < this.Count; ii++)
             {
                 this[ii].Export(context, nodeTable);
             }
 
-            NodeSet nodeSet = new NodeSet();
+            var nodeSet = new NodeSet();
 
             foreach (ILocalNode node in nodeTable)
             {
@@ -74,9 +74,9 @@ namespace Opc.Ua
 
             XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
             settings.CloseOutput = true;
-            using (XmlWriter writer = XmlWriter.Create(ostrm, settings))
+            using (var writer = XmlWriter.Create(ostrm, settings))
             {
-                DataContractSerializer serializer = new DataContractSerializer(typeof(NodeSet));
+                var serializer = new DataContractSerializer(typeof(NodeSet));
                 serializer.WriteObject(writer, nodeSet);
             }
         }
@@ -100,7 +100,7 @@ namespace Opc.Ua
         /// <summary>
         /// The list of aliases to use.
         /// </summary>
-        private AliasToUse[] s_AliasesToUse = new AliasToUse[]
+        private readonly AliasToUse[] s_AliasesToUse = new AliasToUse[]
         {
             new AliasToUse(BrowseNames.Boolean, DataTypeIds.Boolean),
             new AliasToUse(BrowseNames.SByte, DataTypeIds.SByte),
@@ -170,7 +170,7 @@ namespace Opc.Ua
         /// </summary>
         public void SaveAsNodeSet2(ISystemContext context, Stream ostrm, string version)
         {
-            Opc.Ua.Export.UANodeSet nodeSet = new Opc.Ua.Export.UANodeSet();
+            var nodeSet = new Opc.Ua.Export.UANodeSet();
             nodeSet.LastModified = DateTime.UtcNow;
             nodeSet.LastModifiedSpecified = true;
 
@@ -203,16 +203,16 @@ namespace Opc.Ua
             XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
             settings.CloseOutput = !keepStreamOpen;
 
-            ServiceMessageContext messageContext = new ServiceMessageContext {
+            var messageContext = new ServiceMessageContext {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
                 Factory = context.EncodeableFactory
             };
 
-            using (XmlWriter writer = XmlWriter.Create(ostrm, settings))
+            using (var writer = XmlWriter.Create(ostrm, settings))
             {
-                XmlQualifiedName root = new XmlQualifiedName("ListOfNodeState", Namespaces.OpcUaXsd);
-                using (XmlEncoder encoder = new XmlEncoder(root, writer, messageContext))
+                var root = new XmlQualifiedName("ListOfNodeState", Namespaces.OpcUaXsd);
+                using (var encoder = new XmlEncoder(root, writer, messageContext))
                 {
                     encoder.SaveStringTable("NamespaceUris", "NamespaceUri", context.NamespaceUris);
                     encoder.SaveStringTable("ServerUris", "ServerUri", context.ServerUris);
@@ -237,13 +237,13 @@ namespace Opc.Ua
         /// </summary>
         public void SaveAsBinary(ISystemContext context, Stream ostrm)
         {
-            ServiceMessageContext messageContext = new ServiceMessageContext();
+            var messageContext = new ServiceMessageContext();
 
             messageContext.NamespaceUris = context.NamespaceUris;
             messageContext.ServerUris = context.ServerUris;
             messageContext.Factory = context.EncodeableFactory;
 
-            using (BinaryEncoder encoder = new BinaryEncoder(ostrm, messageContext, true))
+            using (var encoder = new BinaryEncoder(ostrm, messageContext, true))
             {
                 encoder.SaveStringTable(context.NamespaceUris);
                 encoder.SaveStringTable(context.ServerUris);
@@ -265,7 +265,7 @@ namespace Opc.Ua
         /// </summary>
         public void LoadFromBinary(ISystemContext context, Stream istrm, bool updateTables)
         {
-            ServiceMessageContext messageContext = new ServiceMessageContext {
+            var messageContext = new ServiceMessageContext {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
                 Factory = context.EncodeableFactory
@@ -274,7 +274,7 @@ namespace Opc.Ua
             using (var decoder = new BinaryDecoder(istrm, messageContext))
             {
                 // check if a namespace table was provided.
-                NamespaceTable namespaceUris = new NamespaceTable();
+                var namespaceUris = new NamespaceTable();
 
                 if (!decoder.LoadStringTable(namespaceUris))
                 {
@@ -294,7 +294,7 @@ namespace Opc.Ua
                 }
 
                 // check if a server uri table was provided.
-                StringTable serverUris = new StringTable();
+                var serverUris = new StringTable();
 
                 if (namespaceUris != null && namespaceUris.Count > 1)
                 {
@@ -325,7 +325,7 @@ namespace Opc.Ua
 
                 for (int ii = 0; ii < count; ii++)
                 {
-                    NodeState state = NodeState.LoadNode(context, decoder);
+                    var state = NodeState.LoadNode(context, decoder);
                     this.Add(state);
                 }
             }
@@ -336,17 +336,17 @@ namespace Opc.Ua
         /// </summary>
         public void LoadFromXml(ISystemContext context, Stream istrm, bool updateTables)
         {
-            ServiceMessageContext messageContext = new ServiceMessageContext();
+            var messageContext = new ServiceMessageContext();
 
             messageContext.NamespaceUris = context.NamespaceUris;
             messageContext.ServerUris = context.ServerUris;
             messageContext.Factory = context.EncodeableFactory;
 
-            using (XmlReader reader = XmlReader.Create(istrm, Utils.DefaultXmlReaderSettings()))
+            using (var reader = XmlReader.Create(istrm, Utils.DefaultXmlReaderSettings()))
             {
-                using (XmlDecoder decoder = new XmlDecoder(null, reader, messageContext))
+                using (var decoder = new XmlDecoder(null, reader, messageContext))
                 {
-                    NamespaceTable namespaceUris = new NamespaceTable();
+                    var namespaceUris = new NamespaceTable();
 
                     if (!decoder.LoadStringTable("NamespaceUris", "NamespaceUri", namespaceUris))
                     {
@@ -365,7 +365,7 @@ namespace Opc.Ua
                         }
                     }
 
-                    StringTable serverUris = new StringTable();
+                    var serverUris = new StringTable();
 
                     if (!decoder.LoadStringTable("ServerUris", "ServerUri", context.ServerUris))
                     {
@@ -389,7 +389,7 @@ namespace Opc.Ua
 
                     decoder.PushNamespace(Namespaces.OpcUaXsd);
 
-                    NodeState state = NodeState.LoadNode(context, decoder);
+                    var state = NodeState.LoadNode(context, decoder);
 
                     while (state != null)
                     {
@@ -412,15 +412,21 @@ namespace Opc.Ua
         /// <param name="updateTables">if set to <c>true</c> the namespace and server tables are updated with any new URIs.</param>
         public void LoadFromResource(ISystemContext context, string resourcePath, Assembly assembly, bool updateTables)
         {
-            if (resourcePath == null) throw new ArgumentNullException(nameof(resourcePath));
+            if (resourcePath == null)
+            {
+                throw new ArgumentNullException(nameof(resourcePath));
+            }
 
-            if (assembly == null) throw new ArgumentNullException(nameof(assembly));
+            if (assembly == null)
+            {
+                throw new ArgumentNullException(nameof(assembly));
+            }
 
             Stream istrm = assembly.GetManifestResourceStream(resourcePath);
             if (istrm == null)
             {
                 // try to load from app directory
-                FileInfo file = new FileInfo(resourcePath);
+                var file = new FileInfo(resourcePath);
                 istrm = file.OpenRead();
                 if (istrm == null)
                 {
@@ -440,15 +446,21 @@ namespace Opc.Ua
         /// <param name="updateTables">if set to <c>true</c> the namespace and server tables are updated with any new URIs.</param>
         public void LoadFromBinaryResource(ISystemContext context, string resourcePath, Assembly assembly, bool updateTables)
         {
-            if (resourcePath == null) throw new ArgumentNullException(nameof(resourcePath));
+            if (resourcePath == null)
+            {
+                throw new ArgumentNullException(nameof(resourcePath));
+            }
 
-            if (assembly == null) throw new ArgumentNullException(nameof(assembly));
+            if (assembly == null)
+            {
+                throw new ArgumentNullException(nameof(assembly));
+            }
 
             Stream istrm = assembly.GetManifestResourceStream(resourcePath);
             if (istrm == null)
             {
                 // try to load from app directory
-                FileInfo file = new FileInfo(resourcePath);
+                var file = new FileInfo(resourcePath);
                 istrm = file.OpenRead();
                 if (istrm == null)
                 {
@@ -569,8 +581,15 @@ namespace Opc.Ua
         /// <param name="type">The system type.</param>
         public void RegisterType(NodeId typeDefinitionId, Type type)
         {
-            if (NodeId.IsNull(typeDefinitionId)) throw new ArgumentNullException(nameof(typeDefinitionId));
-            if (type == null) throw new ArgumentNullException(nameof(type));
+            if (NodeId.IsNull(typeDefinitionId))
+            {
+                throw new ArgumentNullException(nameof(typeDefinitionId));
+            }
+
+            if (type == null)
+            {
+                throw new ArgumentNullException(nameof(type));
+            }
 
             if (m_types == null)
             {
@@ -586,7 +605,10 @@ namespace Opc.Ua
         /// <param name="typeDefinitionId">The type definition.</param>
         public void UnRegisterType(NodeId typeDefinitionId)
         {
-            if (NodeId.IsNull(typeDefinitionId)) throw new ArgumentNullException(nameof(typeDefinitionId));
+            if (NodeId.IsNull(typeDefinitionId))
+            {
+                throw new ArgumentNullException(nameof(typeDefinitionId));
+            }
 
             if (m_types != null)
             {

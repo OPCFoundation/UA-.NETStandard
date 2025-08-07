@@ -46,8 +46,15 @@ namespace Opc.Ua.Server
         /// </summary>
         public ResourceManager(IServerInternal server, ApplicationConfiguration configuration)
         {
-            if (server == null) throw new ArgumentNullException(nameof(server));
-            if (configuration == null) throw new ArgumentNullException(nameof(configuration));
+            if (server == null)
+            {
+                throw new ArgumentNullException(nameof(server));
+            }
+
+            if (configuration == null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
 
             m_server = server;
             m_translationTables = new List<TranslationTable>();
@@ -76,7 +83,7 @@ namespace Opc.Ua.Server
         #endregion
 
         #region ITranslationManager Members
-        /// <summary cref="ITranslationManager.Translate(IList{string}, string, string, object[])" />
+        /// <inheritdoc/>
         public virtual LocalizedText Translate(IList<string> preferredLocales, string key, string text, params object[] args)
         {
             return Translate(preferredLocales, null, new TranslationInfo(key, string.Empty, text, args));
@@ -135,7 +142,7 @@ namespace Opc.Ua.Server
             }
 
             // construct new service result.
-            ServiceResult translatedResult = new ServiceResult(
+            var translatedResult = new ServiceResult(
                 result.StatusCode,
                 result.SymbolicId,
                 result.NamespaceUri,
@@ -171,11 +178,22 @@ namespace Opc.Ua.Server
         /// </summary>
         public void Add(string key, string locale, string text)
         {
-            if (key == null) throw new ArgumentNullException(nameof(key));
-            if (locale == null) throw new ArgumentNullException(nameof(locale));
-            if (text == null) throw new ArgumentNullException(nameof(text));
+            if (key == null)
+            {
+                throw new ArgumentNullException(nameof(key));
+            }
 
-            CultureInfo culture = new CultureInfo(locale);
+            if (locale == null)
+            {
+                throw new ArgumentNullException(nameof(locale));
+            }
+
+            if (text == null)
+            {
+                throw new ArgumentNullException(nameof(text));
+            }
+
+            var culture = new CultureInfo(locale);
 
             if (culture.IsNeutralCulture)
             {
@@ -194,10 +212,17 @@ namespace Opc.Ua.Server
         /// </summary>
         public void Add(string locale, IDictionary<string, string> translations)
         {
-            if (locale == null) throw new ArgumentNullException(nameof(locale));
-            if (translations == null) throw new ArgumentNullException(nameof(translations));
+            if (locale == null)
+            {
+                throw new ArgumentNullException(nameof(locale));
+            }
 
-            CultureInfo culture = new CultureInfo(locale);
+            if (translations == null)
+            {
+                throw new ArgumentNullException(nameof(translations));
+            }
+
+            var culture = new CultureInfo(locale);
 
             if (culture.IsNeutralCulture)
             {
@@ -324,16 +349,16 @@ namespace Opc.Ua.Server
             if (isMultilanguageRequested)
             {
 #if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
-                var translations = defaultText?.Translations != null ? new Dictionary<string, string>(defaultText.Translations) : new Dictionary<string, string>();
+                Dictionary<string, string> translations = defaultText?.Translations != null ? new Dictionary<string, string>(defaultText.Translations) : new Dictionary<string, string>();
 #else
-                var translations = defaultText?.Translations != null ? new Dictionary<string, string>(defaultText.Translations.ToDictionary(s => s.Key, s => s.Value)) : new Dictionary<string, string>();
+                Dictionary<string, string> translations = defaultText?.Translations != null ? new Dictionary<string, string>(defaultText.Translations.ToDictionary(s => s.Key, s => s.Value)) : new Dictionary<string, string>();
 #endif
                 // If only mul/qst is requested, return all available translations for the key.
                 if (preferredLocales.Count == 1)
                 {
                     lock (m_lock)
                     {
-                        foreach (var table in m_translationTables)
+                        foreach (TranslationTable table in m_translationTables)
                         {
                             if (table.Translations.TryGetValue(info.Key ?? info.Text, out string translation))
                             {
@@ -432,7 +457,7 @@ namespace Opc.Ua.Server
                 }
 
                 // construct translated localized text.
-                Opc.Ua.LocalizedText finalText = new LocalizedText(culture.Name, formattedText);
+                var finalText = new LocalizedText(culture.Name, formattedText);
                 finalText.TranslationInfo = info;
                 return finalText;
             }
@@ -468,7 +493,7 @@ namespace Opc.Ua.Server
                 }
 
                 // add table.
-                TranslationTable table = new TranslationTable();
+                var table = new TranslationTable();
                 table.Locale = new CultureInfo(locale);
                 m_translationTables.Add(table);
 
@@ -610,8 +635,8 @@ namespace Opc.Ua.Server
         #region Private Fields
         private readonly object m_lock = new object();
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
-        private IServerInternal m_server;
-        private List<TranslationTable> m_translationTables;
+        private readonly IServerInternal m_server;
+        private readonly List<TranslationTable> m_translationTables;
         private Dictionary<uint, TranslationInfo> m_statusCodeMapping;
         private Dictionary<XmlQualifiedName, TranslationInfo> m_symbolicIdMapping;
         #endregion

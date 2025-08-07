@@ -288,7 +288,7 @@ namespace Opc.Ua
         private List<object> m_extensionObjects;
         private string m_sourceFilePath;
 
-        private IServiceMessageContext m_messageContext;
+        private readonly IServiceMessageContext m_messageContext;
         private CertificateValidator m_certificateValidator;
         private Dictionary<string, object> m_properties;
         #endregion
@@ -1373,14 +1373,14 @@ namespace Opc.Ua
         [OnDeserialized()]
         private void ValidateSecurityPolicyCollection(StreamingContext context)
         {
-            var supportedPolicies = Opc.Ua.SecurityPolicies.GetDisplayNames();
+            string[] supportedPolicies = Opc.Ua.SecurityPolicies.GetDisplayNames();
             var newPolicies = new ServerSecurityPolicyCollection();
-            foreach (var securityPolicy in m_securityPolicies)
+            foreach (ServerSecurityPolicy securityPolicy in m_securityPolicies)
             {
                 if (string.IsNullOrWhiteSpace(securityPolicy.SecurityPolicyUri))
                 {
                     // add wild card policies
-                    foreach (var policyUri in Opc.Ua.SecurityPolicies.GetDefaultUris())
+                    foreach (string policyUri in Opc.Ua.SecurityPolicies.GetDefaultUris())
                     {
                         var newPolicy = new ServerSecurityPolicy() {
                             SecurityMode = securityPolicy.SecurityMode,

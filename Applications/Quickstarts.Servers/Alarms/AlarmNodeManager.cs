@@ -52,8 +52,8 @@ namespace Alarms
         {
             get
             {
-                var uri = Namespaces.Alarms;
-                var instanceUri = uri + "Instance";
+                string uri = Namespaces.Alarms;
+                string instanceUri = uri + "Instance";
                 return new StringCollection { uri, instanceUri };
             }
         }
@@ -95,7 +95,7 @@ namespace Alarms
         /// </summary>
         public override NodeId New(ISystemContext context, NodeState node)
         {
-            BaseInstanceState instance = node as BaseInstanceState;
+            var instance = node as BaseInstanceState;
 
             if (instance != null && instance.Parent != null)
             {
@@ -142,7 +142,7 @@ namespace Alarms
                     string alarmsName = "Alarms";
                     string alarmsNodeName = alarmsName;
 
-                    Type alarmControllerType = Type.GetType("Alarms.AlarmController");
+                    var alarmControllerType = Type.GetType("Alarms.AlarmController");
                     int interval = 1000;
                     string intervalString = interval.ToString(CultureInfo.InvariantCulture);
 
@@ -185,8 +185,8 @@ namespace Alarms
                     BaseDataVariableState analogTrigger = AlarmHelpers.CreateVariable(alarmsFolder,
                         NamespaceIndex, analogTriggerNodeName, analogTriggerName);
                     analogTrigger.OnWriteValue = OnWriteAlarmTrigger;
-                    AlarmController analogAlarmController = (AlarmController)Activator.CreateInstance(alarmControllerType, analogTrigger, interval, false);
-                    SourceController analogSourceController = new SourceController(analogTrigger, analogAlarmController);
+                    var analogAlarmController = (AlarmController)Activator.CreateInstance(alarmControllerType, analogTrigger, interval, false);
+                    var analogSourceController = new SourceController(analogTrigger, analogAlarmController);
                     m_triggerMap.Add("Analog", analogSourceController);
 
                     string booleanTriggerName = "BooleanSource";
@@ -194,8 +194,8 @@ namespace Alarms
                     BaseDataVariableState booleanTrigger = AlarmHelpers.CreateVariable(alarmsFolder,
                         NamespaceIndex, booleanTriggerNodeName, booleanTriggerName, boolValue: true);
                     booleanTrigger.OnWriteValue = OnWriteAlarmTrigger;
-                    AlarmController booleanAlarmController = (AlarmController)Activator.CreateInstance(alarmControllerType, booleanTrigger, interval, true);
-                    SourceController booleanSourceController = new SourceController(booleanTrigger, booleanAlarmController);
+                    var booleanAlarmController = (AlarmController)Activator.CreateInstance(alarmControllerType, booleanTrigger, interval, true);
+                    var booleanSourceController = new SourceController(booleanTrigger, booleanAlarmController);
                     m_triggerMap.Add("Boolean", booleanSourceController);
 
                     #endregion
@@ -259,7 +259,7 @@ namespace Alarms
         /// </summary>
         private FolderState CreateFolder(NodeState parent, string path, string name)
         {
-            FolderState folder = new FolderState(parent) {
+            var folder = new FolderState(parent) {
                 SymbolicName = name,
                 ReferenceTypeId = ReferenceTypes.Organizes,
                 TypeDefinitionId = ObjectTypeIds.FolderType,
@@ -284,7 +284,7 @@ namespace Alarms
         /// </summary>
         private MethodState CreateMethod(NodeState parent, string path, string name)
         {
-            MethodState method = new MethodState(parent) {
+            var method = new MethodState(parent) {
                 SymbolicName = name,
                 ReferenceTypeId = ReferenceTypeIds.HasComponent,
                 NodeId = new NodeId(path, NamespaceIndex),
@@ -837,15 +837,15 @@ namespace Alarms
             for (int ii = 0; ii < monitoredItems.Count; ii++)
             {
                 // the IEventMonitoredItem should always be MonitoredItems since they are created by the MasterNodeManager.
-                MonitoredItem monitoredItem = monitoredItems[ii] as MonitoredItem;
+                var monitoredItem = monitoredItems[ii] as MonitoredItem;
 
                 if (monitoredItem == null)
                 {
                     continue;
                 }
 
-                List<IFilterTarget> events = new List<IFilterTarget>();
-                List<NodeState> nodesToRefresh = new List<NodeState>();
+                var events = new List<IFilterTarget>();
+                var nodesToRefresh = new List<NodeState>();
 
                 lock (Lock)
                 {
@@ -988,14 +988,14 @@ namespace Alarms
         #endregion
 
         #region Private Fields
-        private Dictionary<string, AlarmHolder> m_alarms = new Dictionary<string, AlarmHolder>();
-        private Dictionary<string, SourceController> m_triggerMap =
+        private readonly Dictionary<string, AlarmHolder> m_alarms = new Dictionary<string, AlarmHolder>();
+        private readonly Dictionary<string, SourceController> m_triggerMap =
             new Dictionary<string, SourceController>();
         private bool m_allowEntry = false;
         private uint m_success = 0;
         private uint m_missed = 0;
 
-        private SupportedAlarmConditionType[] m_ConditionTypes = {
+        private readonly SupportedAlarmConditionType[] m_ConditionTypes = {
                     new SupportedAlarmConditionType( "Process", "ProcessConditionClassType",  ObjectTypeIds.ProcessConditionClassType ),
                     new SupportedAlarmConditionType( "Maintenance", "MaintenanceConditionClassType",  ObjectTypeIds.MaintenanceConditionClassType ),
                     new SupportedAlarmConditionType( "System", "SystemConditionClassType",  ObjectTypeIds.SystemConditionClassType ) };

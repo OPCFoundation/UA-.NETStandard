@@ -65,7 +65,7 @@ namespace Opc.Ua
             DateTime lastModified,
             bool outputRedundantNames)
         {
-            Opc.Ua.Export.UANodeSet nodeSet = new Opc.Ua.Export.UANodeSet();
+            var nodeSet = new Opc.Ua.Export.UANodeSet();
 
             if (lastModified != DateTime.MinValue)
             {
@@ -76,8 +76,15 @@ namespace Opc.Ua
             nodeSet.NamespaceUris = (context.NamespaceUris != null) ? context.NamespaceUris.ToArray().Where(x => x != Namespaces.OpcUa).ToArray() : null;
             nodeSet.ServerUris = (context.ServerUris != null) ? context.ServerUris.ToArray() : null;
 
-            if (nodeSet.NamespaceUris != null && nodeSet.NamespaceUris.Length == 0) nodeSet.NamespaceUris = null;
-            if (nodeSet.ServerUris != null && nodeSet.ServerUris.Length == 0) nodeSet.ServerUris = null;
+            if (nodeSet.NamespaceUris != null && nodeSet.NamespaceUris.Length == 0)
+            {
+                nodeSet.NamespaceUris = null;
+            }
+
+            if (nodeSet.ServerUris != null && nodeSet.ServerUris.Length == 0)
+            {
+                nodeSet.ServerUris = null;
+            }
 
             if (model != null)
             {

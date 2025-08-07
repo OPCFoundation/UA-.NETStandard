@@ -54,7 +54,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Params(32, 128, 1024, 4096, 65536)]
         public int PayLoadSize { get; set; } = 1024;
 
-        private bool m_windows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+        private readonly bool m_windows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
 
         /// <summary>
         /// Test IsEqual using the generic IsEqual from previous versions.
@@ -116,7 +116,11 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Benchmark]
         public bool ForLoopBinaryCompare()
         {
-            if (m_bufferA.Length != m_bufferB.Length) return false;
+            if (m_bufferA.Length != m_bufferB.Length)
+            {
+                return false;
+            }
+
             int payloadsize = m_bufferA.Length;
             for (int ii = 0; ii < payloadsize; ii++)
             {

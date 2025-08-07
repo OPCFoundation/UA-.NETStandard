@@ -43,7 +43,7 @@ namespace Opc.Ua.Client.Tests
 
     public class ClientTestNoSecurity
     {
-        private ClientTest _clientTest { get; set; }
+        private ClientTest m_clientTest { get; set; }
 
         public static readonly object[] FixtureArgs = {
             new object [] { Utils.UriSchemeOpcTcp},
@@ -54,12 +54,12 @@ namespace Opc.Ua.Client.Tests
 
         public ClientTestNoSecurity()
         {
-            _clientTest = new ClientTest(Utils.UriSchemeOpcTcp);
+            m_clientTest = new ClientTest(Utils.UriSchemeOpcTcp);
         }
 
         public ClientTestNoSecurity(string uriScheme)
         {
-            _clientTest = new ClientTest(uriScheme);
+            m_clientTest = new ClientTest(uriScheme);
         }
 
         #region Test Setup
@@ -69,8 +69,8 @@ namespace Opc.Ua.Client.Tests
         [OneTimeSetUp]
         public Task OneTimeSetUp()
         {
-            _clientTest.SupportsExternalServerUrl = true;
-            return _clientTest.OneTimeSetUpAsync(null, true);
+            m_clientTest.SupportsExternalServerUrl = true;
+            return m_clientTest.OneTimeSetUpAsync(null, true);
         }
 
         /// <summary>
@@ -79,7 +79,7 @@ namespace Opc.Ua.Client.Tests
         [OneTimeTearDown]
         public Task OneTimeTearDownAsync()
         {
-            return _clientTest.OneTimeTearDownAsync();
+            return m_clientTest.OneTimeTearDownAsync();
         }
 
         /// <summary>
@@ -88,7 +88,7 @@ namespace Opc.Ua.Client.Tests
         [SetUp]
         public Task SetUp()
         {
-            return _clientTest.SetUp();
+            return m_clientTest.SetUp();
         }
 
         /// <summary>
@@ -97,7 +97,7 @@ namespace Opc.Ua.Client.Tests
         [TearDown]
         public Task TearDown()
         {
-            return _clientTest.TearDown();
+            return m_clientTest.TearDown();
         }
         #endregion
 
@@ -108,19 +108,19 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(105)]
         public void GetEndpointsOnDiscoveryChannel()
         {
-            _clientTest.GetEndpointsOnDiscoveryChannel(true);
+            m_clientTest.GetEndpointsOnDiscoveryChannel(true);
         }
 
         [Test, Order(230)]
         public Task ReconnectJWTSecurityNone()
         {
-            return _clientTest.ReconnectJWT(SecurityPolicies.None);
+            return m_clientTest.ReconnectJWT(SecurityPolicies.None);
         }
 
         [Test, Order(220)]
         public Task ConnectJWT()
         {
-            return _clientTest.ConnectJWT(SecurityPolicies.None);
+            return m_clientTest.ConnectJWT(SecurityPolicies.None);
         }
 
         /// <summary>
@@ -133,19 +133,19 @@ namespace Opc.Ua.Client.Tests
         [TestCase(false, true)]
         public Task ReconnectSessionOnAlternateChannelWithSavedSessionSecretsSecurityNone(bool anonymous, bool asyncReconnect)
         {
-            return _clientTest.ReconnectSessionOnAlternateChannelWithSavedSessionSecrets(SecurityPolicies.None, anonymous, asyncReconnect);
+            return m_clientTest.ReconnectSessionOnAlternateChannelWithSavedSessionSecrets(SecurityPolicies.None, anonymous, asyncReconnect);
         }
 
         [Theory, Order(400)]
         public Task BrowseFullAddressSpaceSecurityNone(bool operationLimits)
         {
-            return _clientTest.BrowseFullAddressSpace(SecurityPolicies.None, operationLimits);
+            return m_clientTest.BrowseFullAddressSpace(SecurityPolicies.None, operationLimits);
         }
 
         [Test, Order(201)]
         public Task ConnectAndCloseAsyncNoSecurity()
         {
-            return _clientTest.ConnectAndCloseAsync(SecurityPolicies.None);
+            return m_clientTest.ConnectAndCloseAsync(SecurityPolicies.None);
         }
     }
 }

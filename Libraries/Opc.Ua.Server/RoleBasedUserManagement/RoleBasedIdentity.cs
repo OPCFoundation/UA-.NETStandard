@@ -161,8 +161,8 @@ namespace Opc.Ua.Server
     /// </summary>
     public class RoleBasedIdentity : IUserIdentity
     {
-        private IUserIdentity m_identity;
-        private IEnumerable<Role> m_roles;
+        private readonly IUserIdentity m_identity;
+        private readonly IEnumerable<Role> m_roles;
 
         /// <summary>
         /// Initialize the role based identity.

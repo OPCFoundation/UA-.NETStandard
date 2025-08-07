@@ -56,7 +56,7 @@ namespace Opc.Ua.PubSub.Transport
         private string m_brokerHostName = "localhost";
         private string m_urlScheme;
         private int m_brokerPort = Utils.MqttDefaultPort;
-        private int m_reconnectIntervalSeconds = 5;
+        private readonly int m_reconnectIntervalSeconds = 5;
 
         private IMqttClient m_publisherMqttClient;
         private IMqttClient m_subscriberMqttClient;
@@ -865,7 +865,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <param name="context">The context of the validation</param>
         private bool ValidateBrokerCertificate(MqttClientCertificateValidationEventArgs context)
         {
-            var brokerCertificate = X509CertificateLoader.LoadCertificate(context.Certificate.GetRawCertData());
+            X509Certificate2 brokerCertificate = X509CertificateLoader.LoadCertificate(context.Certificate.GetRawCertData());
 
             try
             {

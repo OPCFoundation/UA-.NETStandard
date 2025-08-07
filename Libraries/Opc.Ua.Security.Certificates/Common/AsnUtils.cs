@@ -58,7 +58,7 @@ namespace Opc.Ua.Security.Certificates
             else
 #endif
             {
-                StringBuilder builder = new StringBuilder(buffer.Length * 2);
+                var builder = new StringBuilder(buffer.Length * 2);
 
 #if !NET6_0_OR_GREATER
                 if (!invertEndian)
@@ -107,7 +107,7 @@ namespace Opc.Ua.Security.Certificates
 
             while (ii < bytes.Length * 2)
             {
-                int index = digits.IndexOf(buffer[ii]);
+                int index = digits.IndexOf(buffer[ii], StringComparison.Ordinal);
 
                 if (index == -1)
                 {
@@ -119,7 +119,7 @@ namespace Opc.Ua.Security.Certificates
 
                 if (ii < buffer.Length - 1)
                 {
-                    index = digits.IndexOf(buffer[ii + 1]);
+                    index = digits.IndexOf(buffer[ii + 1], StringComparison.Ordinal);
 
                     if (index == -1)
                     {

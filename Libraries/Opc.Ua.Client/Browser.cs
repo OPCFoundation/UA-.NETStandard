@@ -256,16 +256,16 @@ namespace Opc.Ua.Client
                 m_browseInProgress = true;
 
                 // construct request.
-                BrowseDescription nodeToBrowse = new BrowseDescription();
+                var nodeToBrowse = new BrowseDescription {
+                    NodeId = nodeId,
+                    BrowseDirection = m_browseDirection,
+                    ReferenceTypeId = m_referenceTypeId,
+                    IncludeSubtypes = m_includeSubtypes,
+                    NodeClassMask = m_nodeClassMask,
+                    ResultMask = m_resultMask
+                };
 
-                nodeToBrowse.NodeId = nodeId;
-                nodeToBrowse.BrowseDirection = m_browseDirection;
-                nodeToBrowse.ReferenceTypeId = m_referenceTypeId;
-                nodeToBrowse.IncludeSubtypes = m_includeSubtypes;
-                nodeToBrowse.NodeClassMask = m_nodeClassMask;
-                nodeToBrowse.ResultMask = m_resultMask;
-
-                BrowseDescriptionCollection nodesToBrowse = new BrowseDescriptionCollection();
+                var nodesToBrowse = new BrowseDescriptionCollection();
                 nodesToBrowse.Add(nodeToBrowse);
 
                 // make the call to the server.
@@ -301,7 +301,7 @@ namespace Opc.Ua.Client
 
                     if (!m_continueUntilDone && m_MoreReferences != null)
                     {
-                        BrowserEventArgs args = new BrowserEventArgs(references);
+                        var args = new BrowserEventArgs(references);
                         m_MoreReferences(this, args);
 
                         // cancel browser and return the references fetched so far.
@@ -356,7 +356,7 @@ namespace Opc.Ua.Client
         /// <returns>The next batch of references</returns>
         private ReferenceDescriptionCollection BrowseNext(ref byte[] continuationPoint, bool cancel)
         {
-            ByteStringCollection continuationPoints = new ByteStringCollection();
+            var continuationPoints = new ByteStringCollection();
             continuationPoints.Add(continuationPoint);
 
             // make the call to the server.
@@ -447,7 +447,7 @@ namespace Opc.Ua.Client
         #region Private Fields
         private bool m_cancel;
         private bool m_continueUntilDone;
-        private ReferenceDescriptionCollection m_references;
+        private readonly ReferenceDescriptionCollection m_references;
         #endregion
     }
 

@@ -169,7 +169,7 @@ namespace Opc.Ua
             string additionalInfo,
             Exception innerException)
         {
-            ServiceResult innerResult = new ServiceResult(innerException);
+            var innerResult = new ServiceResult(innerException);
 
             // check if no new information provided.
             if (code.Code == innerResult.Code && symbolicId == null && localizedText == null && additionalInfo == null)
@@ -618,7 +618,7 @@ namespace Opc.Ua
         /// </summary>
         public static string BuildExceptionTrace(Exception exception)
         {
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
 
             while (exception != null)
             {
@@ -727,7 +727,7 @@ namespace Opc.Ua
         /// </summary>
         public override string ToString()
         {
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
 
             buffer.Append(LookupSymbolicId(m_code));
 
@@ -761,7 +761,7 @@ namespace Opc.Ua
         /// </summary>
         public string ToLongString()
         {
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
 
             buffer.Append("Id: ");
             buffer.Append(StatusCodes.GetBrowseName(m_code));

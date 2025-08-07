@@ -110,7 +110,7 @@ namespace Opc.Ua.Bindings
                 Array.Copy(headerToCopy.Array, headerToCopy.Offset, encryptedBuffer, 0, headerToCopy.Count);
                 RSAEncryptionPadding rsaPadding = RsaUtils.GetRSAEncryptionPadding(padding);
 
-                using (MemoryStream ostrm = new MemoryStream(
+                using (var ostrm = new MemoryStream(
                     encryptedBuffer,
                     headerToCopy.Count,
                     encryptedBuffer.Length - headerToCopy.Count))
@@ -160,7 +160,7 @@ namespace Opc.Ua.Bindings
                 Array.Copy(headerToCopy.Array, headerToCopy.Offset, decryptedBuffer, 0, headerToCopy.Count);
                 RSAEncryptionPadding rsaPadding = RsaUtils.GetRSAEncryptionPadding(padding);
 
-                using (MemoryStream ostrm = new MemoryStream(
+                using (var ostrm = new MemoryStream(
                     decryptedBuffer,
                     headerToCopy.Count,
                     decryptedBuffer.Length - headerToCopy.Count))

@@ -113,11 +113,11 @@ namespace Opc.Ua
             UriVersion = decoder.ReadUInt32("UriVersion");
 
             NamespaceUris = new NamespaceTable();
-            var uris = decoder.ReadStringArray("NamespaceUris");
+            StringCollection uris = decoder.ReadStringArray("NamespaceUris");
 
             if (uris != null && uris.Count > 0)
             {
-                foreach (var uri in uris)
+                foreach (string uri in uris)
                 {
                     NamespaceUris.Append(uri);
                 }
@@ -128,7 +128,7 @@ namespace Opc.Ua
 
             if (uris != null && uris.Count > 0)
             {
-                foreach (var uri in uris)
+                foreach (string uri in uris)
                 {
                     ServerUris.Append(uri);
                 }
@@ -138,7 +138,7 @@ namespace Opc.Ua
             uris = decoder.ReadStringArray("LocaleIds");
             if (uris != null && uris.Count > 0)
             {
-                foreach (var uri in uris)
+                foreach (string uri in uris)
                 {
                     LocaleIds.Append(uri);
                 }
@@ -150,7 +150,7 @@ namespace Opc.Ua
 
             if (typeId > 0)
             {
-                var systemType = decoder.Context.Factory.GetSystemType(new ExpandedNodeId(typeId, 0));
+                Type systemType = decoder.Context.Factory.GetSystemType(new ExpandedNodeId(typeId, 0));
 
                 if (systemType == null)
                 {

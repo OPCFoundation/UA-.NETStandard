@@ -132,7 +132,7 @@ namespace Opc.Ua.PubSub.PublishedData
 
                 if (publishedDataSet.DataSetSource != null)
                 {
-                    DataSet dataSet = new DataSet(dataSetName);
+                    var dataSet = new DataSet(dataSetName);
                     dataSet.DataSetMetaData = publishedDataSet.DataSetMetaData;
 
 
@@ -163,7 +163,7 @@ namespace Opc.Ua.PubSub.PublishedData
                                     /*If an entry of the PublishedData references one of the ExtensionFields, the substituteValue shall contain the 
                                     * QualifiedName of the ExtensionFields entry. 
                                     * All other fields of this PublishedVariableDataType array element shall be null*/
-                                    QualifiedName extensionFieldName = publishedVariable.SubstituteValue.Value as QualifiedName;
+                                    var extensionFieldName = publishedVariable.SubstituteValue.Value as QualifiedName;
                                     if (extensionFieldName != null)
                                     {
                                         KeyValuePair extensionField = publishedDataSet.ExtensionFields.Find(x => x.Key == extensionFieldName);

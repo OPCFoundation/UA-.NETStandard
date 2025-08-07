@@ -101,7 +101,7 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
                 m_bufferArray[i] = m_arrayPoolTooSmall.Rent(BufferSize + 1);
                 m_bufferArray[i][i] = (byte)i;
             }
-            foreach (var buffer in m_bufferArray)
+            foreach (byte[] buffer in m_bufferArray)
             {
                 m_arrayPoolTooSmall.Return(buffer);
             }
@@ -119,7 +119,7 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
                 m_bufferArray[i] = (m_arrayPool.Rent(BufferSize + 1));
                 m_bufferArray[i][i] = (byte)i;
             }
-            foreach (var buffer in m_bufferArray)
+            foreach (byte[] buffer in m_bufferArray)
             {
                 m_arrayPool.Return(buffer);
             }
@@ -136,7 +136,7 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
                 m_bufferArray[i] = m_arrayPoolShared.Rent(BufferSize + 1);
                 m_bufferArray[i][i] = (byte)i;
             }
-            foreach (var buffer in m_bufferArray)
+            foreach (byte[] buffer in m_bufferArray)
             {
                 m_arrayPoolShared.Return(buffer);
             }
@@ -154,7 +154,7 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
                 m_bufferArray[i] = m_bufferManager.TakeBuffer(BufferSize, nameof(BufferManager));
                 m_bufferArray[i][i] = (byte)i;
             }
-            foreach (var buffer in m_bufferArray)
+            foreach (byte[] buffer in m_bufferArray)
             {
                 m_bufferManager.ReturnBuffer(buffer, nameof(BufferManager));
             }
@@ -244,8 +244,8 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
         ArrayPool<byte> m_arrayPool;
         ArrayPool<byte> m_arrayPoolShared;
         BufferManager m_bufferManager;
-        int maxBufferSize = 1234;
-        ReaderWriterLockSlim m_readerWriterLockSlim = new ReaderWriterLockSlim();
+        readonly int maxBufferSize = 1234;
+        readonly ReaderWriterLockSlim m_readerWriterLockSlim = new ReaderWriterLockSlim();
         readonly object m_lock = new object();
         #endregion
     }

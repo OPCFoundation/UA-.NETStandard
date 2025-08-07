@@ -128,8 +128,8 @@ namespace Opc.Ua.Server.Tests
             requestHeader.Timestamp = DateTime.UtcNow;
 
             // Browse template
-            var startingNode = Objects.RootFolder;
-            var browseTemplate = browseDescription ?? new BrowseDescription {
+            uint startingNode = Objects.RootFolder;
+            BrowseDescription browseTemplate = browseDescription ?? new BrowseDescription {
                 NodeId = startingNode,
                 BrowseDirection = BrowseDirection.Forward,
                 ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
@@ -137,7 +137,7 @@ namespace Opc.Ua.Server.Tests
                 NodeClassMask = 0,
                 ResultMask = (uint)BrowseResultMask.All
             };
-            var browseDescriptionCollection = ServerFixtureUtils.CreateBrowseDescriptionCollectionFromNodeId(
+            BrowseDescriptionCollection browseDescriptionCollection = ServerFixtureUtils.CreateBrowseDescriptionCollectionFromNodeId(
                 new NodeIdCollection(new NodeId[] { Objects.RootFolder }),
                 browseTemplate);
 
@@ -149,43 +149,43 @@ namespace Opc.Ua.Server.Tests
 
             // Test if server responds with BadNothingToDo
             {
-                var sre = Assert.Throws<ServiceResultException>(() =>
+                ServiceResultException sre = Assert.Throws<ServiceResultException>(() =>
                     _ = services.Browse(requestHeader, null,
                         0, browseDescriptionCollection.Take(0).ToArray(),
-                        out var results, out var infos));
+                        out BrowseResultCollection results, out DiagnosticInfoCollection infos));
                 Assert.AreEqual((StatusCode)StatusCodes.BadNothingToDo, (StatusCode)sre.StatusCode);
             }
 
             while (browseDescriptionCollection.Any())
             {
-                BrowseResultCollection allResults = new BrowseResultCollection();
+                var allResults = new BrowseResultCollection();
                 if (verifyMaxNodesPerBrowse &&
                     browseDescriptionCollection.Count > operationLimits.MaxNodesPerBrowse)
                 {
                     verifyMaxNodesPerBrowse = false;
                     // Test if server responds with BadTooManyOperations
-                    var sre = Assert.Throws<ServiceResultException>(() =>
+                    ServiceResultException sre = Assert.Throws<ServiceResultException>(() =>
                         _ = services.Browse(requestHeader, null,
                             0, browseDescriptionCollection,
-                            out var results, out var infos));
+                            out BrowseResultCollection results, out DiagnosticInfoCollection infos));
                     Assert.AreEqual((StatusCode)StatusCodes.BadTooManyOperations, (StatusCode)sre.StatusCode);
 
                     // Test if server responds with BadTooManyOperations
-                    var tempBrowsePath = browseDescriptionCollection.Take((int)operationLimits.MaxNodesPerBrowse + 1).ToArray();
+                    BrowseDescription[] tempBrowsePath = browseDescriptionCollection.Take((int)operationLimits.MaxNodesPerBrowse + 1).ToArray();
                     sre = Assert.Throws<ServiceResultException>(() =>
                         _ = services.Browse(requestHeader, null,
                             0, tempBrowsePath,
-                            out var results, out var infos));
+                            out BrowseResultCollection results, out DiagnosticInfoCollection infos));
                     Assert.AreEqual((StatusCode)StatusCodes.BadTooManyOperations, (StatusCode)sre.StatusCode);
                 }
 
                 bool repeatBrowse;
-                var maxNodesPerBrowse = operationLimits.MaxNodesPerBrowse;
-                BrowseResultCollection browseResultCollection = new BrowseResultCollection();
+                uint maxNodesPerBrowse = operationLimits.MaxNodesPerBrowse;
+                var browseResultCollection = new BrowseResultCollection();
                 DiagnosticInfoCollection diagnosticsInfoCollection;
                 do
                 {
-                    var browseCollection = (maxNodesPerBrowse == 0) ?
+                    BrowseDescriptionCollection browseCollection = (maxNodesPerBrowse == 0) ?
                         browseDescriptionCollection :
                         browseDescriptionCollection.Take((int)maxNodesPerBrowse).ToArray();
                     repeatBrowse = false;
@@ -227,12 +227,12 @@ namespace Opc.Ua.Server.Tests
                 }
 
                 // Browse next
-                var continuationPoints = ServerFixtureUtils.PrepareBrowseNext(browseResultCollection);
+                ByteStringCollection continuationPoints = ServerFixtureUtils.PrepareBrowseNext(browseResultCollection);
                 while (continuationPoints.Any())
                 {
                     requestHeader.Timestamp = DateTime.UtcNow;
                     response = services.BrowseNext(requestHeader, false, continuationPoints,
-                        out var browseNextResultCollection, out diagnosticsInfoCollection);
+                        out BrowseResultCollection browseNextResultCollection, out diagnosticsInfoCollection);
                     ServerFixtureUtils.ValidateResponse(response, browseNextResultCollection, continuationPoints);
                     ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticsInfoCollection, continuationPoints, response.StringTable);
                     allResults.AddRange(browseNextResultCollection);
@@ -241,10 +241,10 @@ namespace Opc.Ua.Server.Tests
 
                 // Build browse request for next level
                 var browseTable = new NodeIdCollection();
-                foreach (var result in allResults)
+                foreach (BrowseResult result in allResults)
                 {
                     referenceDescriptions.AddRange(result.References);
-                    foreach (var reference in result.References)
+                    foreach (ReferenceDescription reference in result.References)
                     {
                         browseTable.Add(ExpandedNodeId.ToNodeId(reference.NodeId, null));
                     }
@@ -257,7 +257,7 @@ namespace Opc.Ua.Server.Tests
             TestContext.Out.WriteLine("Found {0} references on server.", referenceDescriptions.Count);
             if (outputResult)
             {
-                foreach (var reference in referenceDescriptions)
+                foreach (ReferenceDescription reference in referenceDescriptions)
                 {
                     TestContext.Out.WriteLine("NodeId {0} {1} {2}", reference.NodeId, reference.NodeClass, reference.BrowseName);
                 }
@@ -275,7 +275,7 @@ namespace Opc.Ua.Server.Tests
             OperationLimits operationLimits)
         {
             // Browse template
-            var startingNode = Objects.RootFolder;
+            uint startingNode = Objects.RootFolder;
             requestHeader.Timestamp = DateTime.UtcNow;
 
             // TranslateBrowsePath
@@ -283,7 +283,7 @@ namespace Opc.Ua.Server.Tests
             var browsePaths = new BrowsePathCollection(
                 referenceDescriptions.Select(r => new BrowsePath() { RelativePath = new RelativePath(r.BrowseName), StartingNode = startingNode })
                 );
-            BrowsePathResultCollection allBrowsePaths = new BrowsePathResultCollection();
+            var allBrowsePaths = new BrowsePathResultCollection();
             while (browsePaths.Any())
             {
                 if (verifyMaxNodesPerBrowse &&
@@ -291,18 +291,18 @@ namespace Opc.Ua.Server.Tests
                 {
                     verifyMaxNodesPerBrowse = false;
                     // Test if server responds with BadTooManyOperations
-                    var sre = Assert.Throws<ServiceResultException>(() =>
-                        _ = services.TranslateBrowsePathsToNodeIds(requestHeader, browsePaths, out var results, out var infos));
+                    ServiceResultException sre = Assert.Throws<ServiceResultException>(() =>
+                        _ = services.TranslateBrowsePathsToNodeIds(requestHeader, browsePaths, out BrowsePathResultCollection results, out DiagnosticInfoCollection infos));
                     Assert.AreEqual((StatusCode)StatusCodes.BadTooManyOperations, (StatusCode)sre.StatusCode);
                 }
-                var browsePathSnippet = (operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds > 0) ?
+                BrowsePathCollection browsePathSnippet = (operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds > 0) ?
                     browsePaths.Take((int)operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds).ToArray() :
                     browsePaths;
-                ResponseHeader response = services.TranslateBrowsePathsToNodeIds(requestHeader, browsePathSnippet, out var browsePathResults, out var diagnosticInfos);
+                ResponseHeader response = services.TranslateBrowsePathsToNodeIds(requestHeader, browsePathSnippet, out BrowsePathResultCollection browsePathResults, out DiagnosticInfoCollection diagnosticInfos);
                 ServerFixtureUtils.ValidateResponse(response, browsePathResults, browsePathSnippet);
                 ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, browsePathSnippet, response.StringTable);
                 allBrowsePaths.AddRange(browsePathResults);
-                foreach (var result in browsePathResults)
+                foreach (BrowsePathResult result in browsePathResults)
                 {
                     if (result.Targets?.Count > 0)
                     {
@@ -343,7 +343,7 @@ namespace Opc.Ua.Server.Tests
             bool enabled = false;
             uint queueSize = 5;
 
-            var response = services.CreateSubscription(requestHeader,
+            ResponseHeader response = services.CreateSubscription(requestHeader,
                 publishingInterval, lifetimeCount, maxKeepAliveCount,
                 maxNotificationPerPublish, enabled, priority,
                 out uint id, out double revisedPublishingInterval, out uint revisedLifetimeCount, out uint revisedMaxKeepAliveCount);
@@ -352,9 +352,9 @@ namespace Opc.Ua.Server.Tests
             Assert.AreEqual(maxKeepAliveCount, revisedMaxKeepAliveCount);
             ServerFixtureUtils.ValidateResponse(response);
 
-            MonitoredItemCreateRequestCollection itemsToCreate = new MonitoredItemCreateRequestCollection();
+            var itemsToCreate = new MonitoredItemCreateRequestCollection();
             // check badnothingtodo
-            var sre = Assert.Throws<ServiceResultException>(() =>
+            ServiceResultException sre = Assert.Throws<ServiceResultException>(() =>
                 services.CreateMonitoredItems(requestHeader, id, TimestampsToReturn.Neither, itemsToCreate,
                     out MonitoredItemCreateResultCollection mockResults, out DiagnosticInfoCollection mockInfos));
             Assert.AreEqual((StatusCode)StatusCodes.BadNothingToDo, (StatusCode)sre.StatusCode);
@@ -396,7 +396,7 @@ namespace Opc.Ua.Server.Tests
 
             // modify monitored item, just timestamps to return
             var itemsToModify = new MonitoredItemModifyRequestCollection();
-            foreach (var itemCreated in itemCreateResults)
+            foreach (MonitoredItemCreateResult itemCreated in itemCreateResults)
             {
                 itemsToModify.Add(
                     new MonitoredItemModifyRequest() {
@@ -513,8 +513,8 @@ namespace Opc.Ua.Server.Tests
             subscriptionIds.Add(subscriptionId);
 
             // enable publishing
-            var response = services.SetPublishingMode(requestHeader, true, subscriptionIds,
-                        out var statuses, out var diagnosticInfos);
+            ResponseHeader response = services.SetPublishingMode(requestHeader, true, subscriptionIds,
+                        out StatusCodeCollection statuses, out DiagnosticInfoCollection diagnosticInfos);
             ServerFixtureUtils.ValidateResponse(response, statuses, subscriptionIds);
             ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds, response.StringTable);
 
@@ -553,14 +553,14 @@ namespace Opc.Ua.Server.Tests
             Assert.AreEqual(1, subscriptionIds.Count);
 
             requestHeader.Timestamp = DateTime.UtcNow;
-            var response = services.TransferSubscriptions(requestHeader, subscriptionIds, sendInitialData,
+            ResponseHeader response = services.TransferSubscriptions(requestHeader, subscriptionIds, sendInitialData,
                 out TransferResultCollection transferResults, out DiagnosticInfoCollection diagnosticInfos);
             Assert.AreEqual((StatusCode)StatusCodes.Good, response.ServiceResult);
             Assert.AreEqual(subscriptionIds.Count, transferResults.Count);
             ServerFixtureUtils.ValidateResponse(response, transferResults, subscriptionIds);
             ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds, response.StringTable);
 
-            foreach (var transferResult in transferResults)
+            foreach (TransferResult transferResult in transferResults)
             {
                 TestContext.Out.WriteLine("TransferResult: {0}", transferResult.StatusCode);
                 if (expectAccessDenied)
@@ -592,9 +592,9 @@ namespace Opc.Ua.Server.Tests
             Assert.AreEqual(sendInitialData ? 1 : 0, notificationMessage.NotificationData.Count);
             if (sendInitialData)
             {
-                var items = notificationMessage.NotificationData.FirstOrDefault();
+                ExtensionObject items = notificationMessage.NotificationData.FirstOrDefault();
                 Assert.IsTrue(items.Body is Opc.Ua.DataChangeNotification);
-                var monitoredItemsCollection = ((Opc.Ua.DataChangeNotification)items.Body).MonitoredItems;
+                MonitoredItemNotificationCollection monitoredItemsCollection = ((Opc.Ua.DataChangeNotification)items.Body).MonitoredItems;
                 Assert.IsNotEmpty(monitoredItemsCollection);
             }
             //Assert.AreEqual(0, availableSequenceNumbers.Count);
@@ -621,16 +621,16 @@ namespace Opc.Ua.Server.Tests
 
             // publish request
             var acknowledgements = new SubscriptionAcknowledgementCollection();
-            var response = services.Publish(requestHeader, acknowledgements,
+            ResponseHeader response = services.Publish(requestHeader, acknowledgements,
                 out uint publishedId, out UInt32Collection availableSequenceNumbers,
                 out bool moreNotifications, out NotificationMessage notificationMessage,
-                out StatusCodeCollection _, out var diagnosticInfos);
+                out StatusCodeCollection _, out DiagnosticInfoCollection diagnosticInfos);
             ServerFixtureUtils.ValidateResponse(response);
             ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknowledgements, response.StringTable);
             Assert.IsFalse(moreNotifications);
             Assert.IsTrue(subscriptionIds.Contains(publishedId));
             Assert.AreEqual(1, notificationMessage.NotificationData.Count);
-            var statusMessage = notificationMessage.NotificationData[0].ToString();
+            string statusMessage = notificationMessage.NotificationData[0].ToString();
             Assert.IsTrue(statusMessage.Contains("GoodSubscriptionTransferred", StringComparison.Ordinal));
 
             // static node, do not acknowledge
@@ -641,7 +641,7 @@ namespace Opc.Ua.Server.Tests
 
             if (deleteSubscriptions)
             {
-                response = services.DeleteSubscriptions(requestHeader, subscriptionIds, out var statuses, out diagnosticInfos);
+                response = services.DeleteSubscriptions(requestHeader, subscriptionIds, out StatusCodeCollection statuses, out diagnosticInfos);
                 ServerFixtureUtils.ValidateResponse(response, statuses, subscriptionIds);
                 ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds, response.StringTable);
             }
@@ -662,7 +662,7 @@ namespace Opc.Ua.Server.Tests
             byte priority = 128;
             bool enabled = false;
 
-            var response = services.CreateSubscription(requestHeader,
+            ResponseHeader response = services.CreateSubscription(requestHeader,
                 publishingInterval, lifetimeCount, maxKeepAliveCount,
                 maxNotificationPerPublish, enabled, priority,
                 out uint id, out double revisedPublishingInterval, out uint revisedLifetimeCount, out uint revisedMaxKeepAliveCount);
@@ -696,7 +696,7 @@ namespace Opc.Ua.Server.Tests
                     }
                 }
             };
-            var response = services.CreateMonitoredItems(requestHeader, subscriptionId, TimestampsToReturn.Neither, itemsToCreate,
+            ResponseHeader response = services.CreateMonitoredItems(requestHeader, subscriptionId, TimestampsToReturn.Neither, itemsToCreate,
                 out MonitoredItemCreateResultCollection itemCreateResults, out DiagnosticInfoCollection diagnosticInfos);
             ServerFixtureUtils.ValidateResponse(response, itemCreateResults, itemsToCreate);
             ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, itemsToCreate, response.StringTable);

@@ -105,9 +105,9 @@ namespace Opc.Ua.Configuration
             pkiRoot = DefaultPKIRoot(pkiRoot);
             appRoot = appRoot == null ? pkiRoot : DefaultPKIRoot(appRoot);
             rejectedRoot = rejectedRoot == null ? pkiRoot : DefaultPKIRoot(rejectedRoot);
-            var appStoreType = CertificateStoreIdentifier.DetermineStoreType(appRoot);
-            var pkiRootType = CertificateStoreIdentifier.DetermineStoreType(pkiRoot);
-            var rejectedRootType = CertificateStoreIdentifier.DetermineStoreType(rejectedRoot);
+            string appStoreType = CertificateStoreIdentifier.DetermineStoreType(appRoot);
+            string pkiRootType = CertificateStoreIdentifier.DetermineStoreType(pkiRoot);
+            string rejectedRootType = CertificateStoreIdentifier.DetermineStoreType(rejectedRoot);
             ApplicationConfiguration.SecurityConfiguration = new SecurityConfiguration {
                 // app cert store
 #pragma warning disable CS0618 // Type or member is obsolete
@@ -164,8 +164,8 @@ namespace Opc.Ua.Configuration
         {
             pkiRoot = DefaultPKIRoot(pkiRoot);
             rejectedRoot = rejectedRoot == null ? pkiRoot : DefaultPKIRoot(rejectedRoot);
-            var pkiRootType = CertificateStoreIdentifier.DetermineStoreType(pkiRoot);
-            var rejectedRootType = CertificateStoreIdentifier.DetermineStoreType(rejectedRoot);
+            string pkiRootType = CertificateStoreIdentifier.DetermineStoreType(pkiRoot);
+            string rejectedRootType = CertificateStoreIdentifier.DetermineStoreType(rejectedRoot);
             ApplicationConfiguration.SecurityConfiguration = new SecurityConfiguration {
                 // app cert store
                 ApplicationCertificates = applicationCertificates,
@@ -298,12 +298,18 @@ namespace Opc.Ua.Configuration
             if (ApplicationInstance.ApplicationType == ApplicationType.Server ||
                 ApplicationInstance.ApplicationType == ApplicationType.ClientAndServer)
             {
-                if (ApplicationConfiguration.ServerConfiguration == null) throw new ArgumentException("ApplicationType Server is not configured.");
+                if (ApplicationConfiguration.ServerConfiguration == null)
+                {
+                    throw new ArgumentException("ApplicationType Server is not configured.");
+                }
             }
             if (ApplicationInstance.ApplicationType == ApplicationType.Client ||
                 ApplicationInstance.ApplicationType == ApplicationType.ClientAndServer)
             {
-                if (ApplicationConfiguration.ClientConfiguration == null) throw new ArgumentException("ApplicationType Client is not configured.");
+                if (ApplicationConfiguration.ClientConfiguration == null)
+                {
+                    throw new ArgumentException("ApplicationType Client is not configured.");
+                }
             }
 
             // ensure for a user token policy
@@ -427,8 +433,16 @@ namespace Opc.Ua.Configuration
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderServerSelected AddPolicy(MessageSecurityMode securityMode, string securityPolicy)
         {
-            if (!SecurityPolicies.IsValidSecurityPolicyUri(securityPolicy)) throw new ArgumentException("Unknown security policy", nameof(securityPolicy));
-            if (securityMode == MessageSecurityMode.None || securityPolicy.Equals(SecurityPolicies.None, StringComparison.Ordinal)) throw new ArgumentException("Use AddUnsecurePolicyNone to add no security policy.");
+            if (!SecurityPolicies.IsValidSecurityPolicyUri(securityPolicy))
+            {
+                throw new ArgumentException("Unknown security policy", nameof(securityPolicy));
+            }
+
+            if (securityMode == MessageSecurityMode.None || securityPolicy.Equals(SecurityPolicies.None, StringComparison.Ordinal))
+            {
+                throw new ArgumentException("Use AddUnsecurePolicyNone to add no security policy.");
+            }
+
             InternalAddPolicy(ApplicationConfiguration.ServerConfiguration.SecurityPolicies, securityMode, securityPolicy);
             return this;
         }
@@ -443,7 +457,11 @@ namespace Opc.Ua.Configuration
         /// <inheritdoc/>
         public IApplicationConfigurationBuilderServerSelected AddUserTokenPolicy(UserTokenPolicy userTokenPolicy)
         {
-            if (userTokenPolicy == null) throw new ArgumentNullException(nameof(userTokenPolicy));
+            if (userTokenPolicy == null)
+            {
+                throw new ArgumentNullException(nameof(userTokenPolicy));
+            }
+
             ApplicationConfiguration.ServerConfiguration.UserTokenPolicies.Add(userTokenPolicy);
             return this;
         }
@@ -989,7 +1007,7 @@ namespace Opc.Ua.Configuration
             string storeType = null,
             string storePath = null)
         {
-            CertificateIdentifierCollection certificateIdentifiers = new CertificateIdentifierCollection{
+            var certificateIdentifiers = new CertificateIdentifierCollection{
                 new CertificateIdentifier {
                     StoreType = storeType,
                     StorePath = storePath,
@@ -1162,7 +1180,7 @@ namespace Opc.Ua.Configuration
         private void AddSecurityPolicies(bool includeSign = false, bool deprecated = false, bool policyNone = false)
         {
             // create list of supported policies
-            var defaultPolicyUris = SecurityPolicies.GetDefaultUris().ToList();
+            System.Collections.Generic.List<string> defaultPolicyUris = SecurityPolicies.GetDefaultUris().ToList();
             if (deprecated)
             {
                 defaultPolicyUris.AddRange(SecurityPolicies.GetDefaultDeprecatedUris());
@@ -1192,11 +1210,11 @@ namespace Opc.Ua.Configuration
         private void AddEccSecurityPolicies(bool sign = false)
         {
             // create list of supported policies
-            var defaultPolicyUris = SecurityPolicies.GetDefaultEccUris();
+            string[] defaultPolicyUris = SecurityPolicies.GetDefaultEccUris();
             MessageSecurityMode securityMode = sign ? MessageSecurityMode.Sign : MessageSecurityMode.SignAndEncrypt;
             {
-                var policies = ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
-                foreach (var policyUri in defaultPolicyUris)
+                ServerSecurityPolicyCollection policies = ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+                foreach (string policyUri in defaultPolicyUris)
                 {
                     InternalAddPolicy(policies, securityMode, policyUri);
                 }
@@ -1227,7 +1245,11 @@ namespace Opc.Ua.Configuration
         /// <param name="policyUri">The security policy Uri.</param>
         private bool InternalAddPolicy(ServerSecurityPolicyCollection policies, MessageSecurityMode securityMode, string policyUri)
         {
-            if (securityMode == MessageSecurityMode.Invalid) throw new ArgumentException("Invalid security mode selected", nameof(securityMode));
+            if (securityMode == MessageSecurityMode.Invalid)
+            {
+                throw new ArgumentException("Invalid security mode selected", nameof(securityMode));
+            }
+
             var newPolicy = new ServerSecurityPolicy() {
                 SecurityMode = securityMode,
                 SecurityPolicyUri = policyUri

@@ -87,7 +87,7 @@ namespace MemoryBuffer
         #endregion
 
         #region Private Fields
-        private uint m_offset;
+        private readonly uint m_offset;
         #endregion
     }
 }

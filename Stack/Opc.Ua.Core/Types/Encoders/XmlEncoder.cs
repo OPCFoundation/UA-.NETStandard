@@ -299,7 +299,10 @@ namespace Opc.Ua
         /// </summary>
         public void EncodeMessage(IEncodeable message)
         {
-            if (message == null) throw new ArgumentNullException(nameof(message));
+            if (message == null)
+            {
+                throw new ArgumentNullException(nameof(message));
+            }
 
             PushNamespace(Namespaces.OpcUaXsd);
 
@@ -599,7 +602,7 @@ namespace Opc.Ua
                         namespaceIndex = m_namespaceMappings[namespaceIndex];
                     }
 
-                    StringBuilder buffer = new StringBuilder();
+                    var buffer = new StringBuilder();
                     NodeId.Format(CultureInfo.InvariantCulture, buffer, value.Identifier, value.IdType, namespaceIndex);
                     WriteString("Identifier", buffer.ToString());
                 }
@@ -635,7 +638,7 @@ namespace Opc.Ua
                         serverIndex = m_serverMappings[serverIndex];
                     }
 
-                    StringBuilder buffer = new StringBuilder();
+                    var buffer = new StringBuilder();
                     ExpandedNodeId.Format(CultureInfo.InvariantCulture, buffer, value.Identifier, value.IdType, namespaceIndex, value.NamespaceUri, serverIndex);
                     WriteString("Identifier", buffer.ToString());
                 }
@@ -835,7 +838,7 @@ namespace Opc.Ua
                     return;
                 }
 
-                IEncodeable encodeable = value.Body as IEncodeable;
+                var encodeable = value.Body as IEncodeable;
 
                 // write the type id.
                 ExpandedNodeId typeId = value.TypeId;
@@ -852,7 +855,7 @@ namespace Opc.Ua
                     }
                 }
 
-                NodeId localTypeId = ExpandedNodeId.ToNodeId(typeId, m_context.NamespaceUris);
+                var localTypeId = ExpandedNodeId.ToNodeId(typeId, m_context.NamespaceUris);
 
                 if (NodeId.IsNull(localTypeId) && !NodeId.IsNull(typeId))
                 {
@@ -921,8 +924,8 @@ namespace Opc.Ua
             {
                 if (value != null)
                 {
-                    var valueSymbol = value.ToString();
-                    var valueInt32 = Convert.ToInt32(value, CultureInfo.InvariantCulture).ToString(CultureInfo.InvariantCulture);
+                    string valueSymbol = value.ToString();
+                    string valueInt32 = Convert.ToInt32(value, CultureInfo.InvariantCulture).ToString(CultureInfo.InvariantCulture);
                     if (valueSymbol != valueInt32)
                     {
                         m_writer.WriteString(Utils.Format("{0}_{1}", valueSymbol, valueInt32));
@@ -1951,7 +1954,7 @@ namespace Opc.Ua
             // encode xml body.
             if (body is XmlElement xml)
             {
-                using (XmlReader reader = XmlReader.Create(new StringReader(xml.OuterXml), Utils.DefaultXmlReaderSettings()))
+                using (var reader = XmlReader.Create(new StringReader(xml.OuterXml), Utils.DefaultXmlReaderSettings()))
                 {
                     m_writer.WriteNode(reader, false);
                     return;
@@ -2244,7 +2247,7 @@ namespace Opc.Ua
         private XmlWriter m_writer;
         private Stack<string> m_namespaces;
         private XmlQualifiedName m_root;
-        private IServiceMessageContext m_context;
+        private readonly IServiceMessageContext m_context;
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;
         private uint m_nestingLevel;

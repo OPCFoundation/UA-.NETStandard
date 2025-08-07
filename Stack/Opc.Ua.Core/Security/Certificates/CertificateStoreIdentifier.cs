@@ -88,7 +88,11 @@ namespace Opc.Ua
         /// </returns>
         public string ToString(string format, IFormatProvider formatProvider)
         {
-            if (format != null) throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
+            if (format != null)
+            {
+                throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
+            }
+
             return ToString();
         }
         #endregion
@@ -232,7 +236,7 @@ namespace Opc.Ua
                  store.StorePath != this.StorePath ||
                  store.NoPrivateKeys != this.m_noPrivateKeys))
             {
-                var previousStore = Interlocked.CompareExchange(ref m_store, null, store);
+                ICertificateStore previousStore = Interlocked.CompareExchange(ref m_store, null, store);
                 previousStore?.Dispose();
                 store = null;
             }
@@ -241,7 +245,7 @@ namespace Opc.Ua
             if (store == null && !string.IsNullOrEmpty(this.StoreType) && !string.IsNullOrEmpty(this.StorePath))
             {
                 store = CreateStore(this.StoreType);
-                var currentStore = Interlocked.CompareExchange(ref m_store, store, null);
+                ICertificateStore currentStore = Interlocked.CompareExchange(ref m_store, store, null);
                 if (currentStore != null)
                 {
                     Utils.SilentDispose(store);
@@ -257,7 +261,7 @@ namespace Opc.Ua
 
         #region Private Variables
         private ICertificateStore m_store;
-        private bool m_noPrivateKeys;
+        private readonly bool m_noPrivateKeys;
         #endregion
     }
 

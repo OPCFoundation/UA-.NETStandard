@@ -40,7 +40,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
     [TestFixture(Description = "Tests for DataCollector class")]
     public class DataCollectorTests
     {
-        private string m_configurationFileName = Path.Combine("Configuration", "PublisherConfiguration.xml");
+        private readonly string m_configurationFileName = Path.Combine("Configuration", "PublisherConfiguration.xml");
 
         public const int NamespaceIndex = 2;
 
@@ -48,7 +48,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
         public void ValidateAddPublishedDataSetWithNullParameter()
         {
             //Arrange
-            DataCollector dataCollector = new DataCollector(new UaPubSubDataStore());
+            var dataCollector = new DataCollector(new UaPubSubDataStore());
 
             //Assert
             Assert.Throws<ArgumentException>(() => dataCollector.AddPublishedDataSet(null));
@@ -59,9 +59,9 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
         {
             //Arrange
             string configurationFile = Utils.GetAbsoluteFilePath(m_configurationFileName, true, true, false);
-            var pubSubConfiguration = UaPubSubConfigurationHelper.LoadConfiguration(configurationFile);
+            PubSubConfigurationDataType pubSubConfiguration = UaPubSubConfigurationHelper.LoadConfiguration(configurationFile);
 
-            DataCollector dataCollector = new DataCollector(new UaPubSubDataStore());
+            var dataCollector = new DataCollector(new UaPubSubDataStore());
             //Act  
             dataCollector.AddPublishedDataSet(pubSubConfiguration.PublishedDataSets.First());
             DataSet collectedDataSet = dataCollector.CollectData(pubSubConfiguration.PublishedDataSets.First().Name);
@@ -74,8 +74,8 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
         public void ValidateRemovePublishedDataSet()
         {
             //Arrange
-            DataCollector dataCollector = new DataCollector(new UaPubSubDataStore());
-            PublishedDataSetDataType publishedDataSet = new PublishedDataSetDataType();
+            var dataCollector = new DataCollector(new UaPubSubDataStore());
+            var publishedDataSet = new PublishedDataSetDataType();
             publishedDataSet.Name = "Name";
             //Act  
             dataCollector.AddPublishedDataSet(publishedDataSet);
@@ -89,7 +89,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
         public void ValidateRemovePublishedDataSetWithNullParameter()
         {
             //Arrange
-            DataCollector dataCollector = new DataCollector(new UaPubSubDataStore());
+            var dataCollector = new DataCollector(new UaPubSubDataStore());
             //Assert
             Assert.Throws<ArgumentException>(() => dataCollector.RemovePublishedDataSet(null));
         }
@@ -98,15 +98,15 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
         public void ValidateCollectDataFromDataStore()
         {
             //Arrange
-            UaPubSubDataStore dataStore = new UaPubSubDataStore();
+            var dataStore = new UaPubSubDataStore();
             dataStore.WritePublishedDataItem(new NodeId("BoolToggle", NamespaceIndex), 0, new DataValue(new Variant(false)));
             dataStore.WritePublishedDataItem(new NodeId("Int32", NamespaceIndex), 0, new DataValue(new Variant(1)));
             dataStore.WritePublishedDataItem(new NodeId("Int32Fast", NamespaceIndex), 0, new DataValue(new Variant(2)));
             dataStore.WritePublishedDataItem(new NodeId("DateTime", NamespaceIndex), 0, new DataValue(new Variant(DateTime.MaxValue)));
 
-            DataCollector dataCollector = new DataCollector(dataStore);
+            var dataCollector = new DataCollector(dataStore);
             #region set up published data set that collects data from extension fields
-            PublishedDataSetDataType publishedDataSetSimple = new PublishedDataSetDataType();
+            var publishedDataSetSimple = new PublishedDataSetDataType();
             publishedDataSetSimple.Name = "Simple";
             // Define  publishedDataSetSimple.DataSetMetaData
             publishedDataSetSimple.DataSetMetaData = new DataSetMetaDataType();
@@ -144,10 +144,10 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                     }
                 };
 
-            PublishedDataItemsDataType publishedDataItems = new PublishedDataItemsDataType();
+            var publishedDataItems = new PublishedDataItemsDataType();
             publishedDataItems.PublishedData = new PublishedVariableDataTypeCollection();
             //create PublishedData based on metadata names
-            foreach (var field in publishedDataSetSimple.DataSetMetaData.Fields)
+            foreach (FieldMetaData field in publishedDataSetSimple.DataSetMetaData.Fields)
             {
                 publishedDataItems.PublishedData.Add(
                     new PublishedVariableDataType() {
@@ -181,10 +181,10 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
         public void ValidateCollectDataFromExtensionFields()
         {
             //Arrange
-            UaPubSubDataStore dataStore = new UaPubSubDataStore();
-            DataCollector dataCollector = new DataCollector(dataStore);
+            var dataStore = new UaPubSubDataStore();
+            var dataCollector = new DataCollector(dataStore);
             #region set up published data set that collects data from extension fields
-            PublishedDataSetDataType publishedDataSetSimple = new PublishedDataSetDataType();
+            var publishedDataSetSimple = new PublishedDataSetDataType();
             publishedDataSetSimple.Name = "Simple";
             // Define  publishedDataSetSimple.DataSetMetaData
             publishedDataSetSimple.DataSetMetaData = new DataSetMetaDataType();
@@ -247,10 +247,10 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                     }
                 };
 
-            PublishedDataItemsDataType publishedDataItems = new PublishedDataItemsDataType();
+            var publishedDataItems = new PublishedDataItemsDataType();
             publishedDataItems.PublishedData = new PublishedVariableDataTypeCollection();
             //create PublishedData based on metadata names
-            foreach (var field in publishedDataSetSimple.DataSetMetaData.Fields)
+            foreach (FieldMetaData field in publishedDataSetSimple.DataSetMetaData.Fields)
             {
                 publishedDataItems.PublishedData.Add(
                     new PublishedVariableDataType() {
@@ -280,7 +280,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
         public void ValidateCollectDataUnknownDataSetName()
         {
             //Arrange
-            DataCollector dataCollector = new DataCollector(new UaPubSubDataStore());
+            var dataCollector = new DataCollector(new UaPubSubDataStore());
             //Act              
             DataSet collectedDataSet = dataCollector.CollectData("");
             //Assert
@@ -291,7 +291,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
         public void ValidateCollectDataNullDataSetName()
         {
             //Arrange
-            DataCollector dataCollector = new DataCollector(new UaPubSubDataStore());
+            var dataCollector = new DataCollector(new UaPubSubDataStore());
 
             //Assert
             Assert.Throws<ArgumentException>(() => dataCollector.CollectData(null), "The data collect does not throw exception when null parameter.");

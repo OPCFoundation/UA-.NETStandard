@@ -116,7 +116,10 @@ namespace Opc.Ua
         /// <param name="view">The view.</param>
         public void Add(ViewNode view)
         {
-            if (view == null) throw new ArgumentNullException(nameof(view));
+            if (view == null)
+            {
+                throw new ArgumentNullException(nameof(view));
+            }
 
             if (NodeId.IsNull(view.NodeId))
             {
@@ -146,7 +149,10 @@ namespace Opc.Ua
         /// <param name="viewId">The view identifier.</param>
         public void Remove(NodeId viewId)
         {
-            if (NodeId.IsNull(viewId)) throw new ArgumentNullException(nameof(viewId));
+            if (NodeId.IsNull(viewId))
+            {
+                throw new ArgumentNullException(nameof(viewId));
+            }
 
             lock (m_lock)
             {
@@ -168,7 +174,7 @@ namespace Opc.Ua
 
         #region Private Fields
         private readonly object m_lock = new object();
-        private Dictionary<NodeId, ViewNode> m_views;
+        private readonly Dictionary<NodeId, ViewNode> m_views;
         #endregion
     }
 }

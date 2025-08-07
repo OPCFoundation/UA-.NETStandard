@@ -69,8 +69,15 @@ namespace Opc.Ua.Bindings
             string securityPolicyUri)
         {
 
-            if (bufferManager == null) throw new ArgumentNullException(nameof(bufferManager));
-            if (quotas == null) throw new ArgumentNullException(nameof(quotas));
+            if (bufferManager == null)
+            {
+                throw new ArgumentNullException(nameof(bufferManager));
+            }
+
+            if (quotas == null)
+            {
+                throw new ArgumentNullException(nameof(quotas));
+            }
 
             // create a unique contex if none provided.
             m_contextId = contextId;
@@ -92,7 +99,10 @@ namespace Opc.Ua.Bindings
             {
                 serverCertificate = serverCertificateTypesProvider.GetInstanceCertificate(securityPolicyUri);
 
-                if (serverCertificate == null) throw new ArgumentNullException(nameof(serverCertificate));
+                if (serverCertificate == null)
+                {
+                    throw new ArgumentNullException(nameof(serverCertificate));
+                }
 
                 if (serverCertificate.RawData.Length > TcpMessageLimits.MaxCertificateSize)
                 {
@@ -238,7 +248,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void ChannelStateChanged(TcpChannelState state, ServiceResult reason)
         {
-            var stateChanged = m_StateChanged;
+            TcpChannelStateEventHandler stateChanged = m_StateChanged;
             if (stateChanged != null)
             {
                 Task.Run(() => {
@@ -576,7 +586,7 @@ namespace Opc.Ua.Bindings
                 args.BufferList = buffers;
                 args.Completed += OnWriteComplete;
                 args.UserToken = state;
-                var socket = m_socket;
+                IMessageSocket socket = m_socket;
                 if (socket == null || !socket.SendAsync(args))
                 {
                     // I/O completed synchronously
@@ -941,8 +951,8 @@ namespace Opc.Ua.Bindings
         #region Private Fields
         private readonly object m_lock = new object();
         private IMessageSocket m_socket;
-        private BufferManager m_bufferManager;
-        private ChannelQuotas m_quotas;
+        private readonly BufferManager m_bufferManager;
+        private readonly ChannelQuotas m_quotas;
         private int m_receiveBufferSize;
         private int m_sendBufferSize;
         private int m_activeWriteRequests;
@@ -950,7 +960,7 @@ namespace Opc.Ua.Bindings
         private int m_maxResponseMessageSize;
         private int m_maxRequestChunkCount;
         private int m_maxResponseChunkCount;
-        private string m_contextId;
+        private readonly string m_contextId;
 
         // treat TcpChannelState as int to use Interlocked
         private int m_state;

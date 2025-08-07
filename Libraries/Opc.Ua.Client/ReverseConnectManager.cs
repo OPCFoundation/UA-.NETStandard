@@ -288,9 +288,9 @@ namespace Opc.Ua.Client
 
                 if (configuration?.ClientEndpoints != null)
                 {
-                    foreach (var endpoint in configuration.ClientEndpoints)
+                    foreach (ReverseConnectClientEndpoint endpoint in configuration.ClientEndpoints)
                     {
-                        var uri = Utils.ParseUri(endpoint.EndpointUrl);
+                        Uri uri = Utils.ParseUri(endpoint.EndpointUrl);
                         if (uri != null)
                         {
                             AddEndpointInternal(uri, true);
@@ -312,9 +312,9 @@ namespace Opc.Ua.Client
         {
             lock (m_lock)
             {
-                foreach (var host in m_endpointUrls)
+                foreach (KeyValuePair<Uri, ReverseConnectInfo> host in m_endpointUrls)
                 {
-                    var value = host.Value;
+                    ReverseConnectInfo value = host.Value;
                     try
                     {
                         if (host.Value.State < ReverseConnectHostState.Open)
@@ -339,9 +339,9 @@ namespace Opc.Ua.Client
         {
             lock (m_lock)
             {
-                foreach (var host in m_endpointUrls)
+                foreach (KeyValuePair<Uri, ReverseConnectInfo> host in m_endpointUrls)
                 {
-                    var value = host.Value;
+                    ReverseConnectInfo value = host.Value;
                     try
                     {
                         if (value.State == ReverseConnectHostState.Open)
@@ -377,10 +377,18 @@ namespace Opc.Ua.Client
         /// <param name="endpointUrl"></param>
         public void AddEndpoint(Uri endpointUrl)
         {
-            if (endpointUrl == null) throw new ArgumentNullException(nameof(endpointUrl));
+            if (endpointUrl == null)
+            {
+                throw new ArgumentNullException(nameof(endpointUrl));
+            }
+
             lock (m_lock)
             {
-                if (m_state == ReverseConnectManagerState.Started) throw new ServiceResultException(StatusCodes.BadInvalidState);
+                if (m_state == ReverseConnectManagerState.Started)
+                {
+                    throw new ServiceResultException(StatusCodes.BadInvalidState);
+                }
+
                 AddEndpointInternal(endpointUrl, false);
             }
         }
@@ -391,10 +399,18 @@ namespace Opc.Ua.Client
         /// <param name="configuration">The configuration.</param>
         public void StartService(ApplicationConfiguration configuration)
         {
-            if (configuration == null) throw new ArgumentNullException(nameof(configuration));
+            if (configuration == null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
+
             lock (m_lock)
             {
-                if (m_state == ReverseConnectManagerState.Started) throw new ServiceResultException(StatusCodes.BadInvalidState);
+                if (m_state == ReverseConnectManagerState.Started)
+                {
+                    throw new ServiceResultException(StatusCodes.BadInvalidState);
+                }
+
                 try
                 {
                     OnUpdateConfiguration(configuration);
@@ -411,7 +427,7 @@ namespace Opc.Ua.Client
                 {
                     Utils.LogError(e, "Unexpected error starting reverse connect manager.");
                     m_state = ReverseConnectManagerState.Errored;
-                    ServiceResult error = ServiceResult.Create(e, StatusCodes.BadInternalError, "Unexpected error starting application");
+                    var error = ServiceResult.Create(e, StatusCodes.BadInternalError, "Unexpected error starting application");
                     throw new ServiceResultException(error);
                 }
             }
@@ -423,10 +439,18 @@ namespace Opc.Ua.Client
         /// <param name="configuration">The configuration.</param>
         public void StartService(ReverseConnectClientConfiguration configuration)
         {
-            if (configuration == null) throw new ArgumentNullException(nameof(configuration));
+            if (configuration == null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
+
             lock (m_lock)
             {
-                if (m_state == ReverseConnectManagerState.Started) throw new ServiceResultException(StatusCodes.BadInvalidState);
+                if (m_state == ReverseConnectManagerState.Started)
+                {
+                    throw new ServiceResultException(StatusCodes.BadInvalidState);
+                }
+
                 try
                 {
                     m_configurationWatcher = null;
@@ -438,7 +462,7 @@ namespace Opc.Ua.Client
                 {
                     Utils.LogError(e, "Unexpected error starting reverse connect manager.");
                     m_state = ReverseConnectManagerState.Errored;
-                    ServiceResult error = ServiceResult.Create(e, StatusCodes.BadInternalError, "Unexpected error starting reverse connect manager");
+                    var error = ServiceResult.Create(e, StatusCodes.BadInternalError, "Unexpected error starting reverse connect manager");
                     throw new ServiceResultException(error);
                 }
             }
@@ -475,7 +499,7 @@ namespace Opc.Ua.Client
             Func<Task> listenForCancelTaskFnc = async () => {
                 if (ct == default)
                 {
-                    var waitTimeout = m_configuration.WaitTimeout > 0 ? m_configuration.WaitTimeout : DefaultWaitTimeout;
+                    int waitTimeout = m_configuration.WaitTimeout > 0 ? m_configuration.WaitTimeout : DefaultWaitTimeout;
                     await Task.Delay(waitTimeout).ConfigureAwait(false);
                 }
                 else
@@ -513,7 +537,11 @@ namespace Opc.Ua.Client
             ReverseConnectStrategy reverseConnectStrategy
             )
         {
-            if (endpointUrl == null) throw new ArgumentNullException(nameof(endpointUrl));
+            if (endpointUrl == null)
+            {
+                throw new ArgumentNullException(nameof(endpointUrl));
+            }
+
             var registration = new Registration(serverUri, endpointUrl, onConnectionWaiting) {
                 ReverseConnectStrategy = reverseConnectStrategy
             };
@@ -534,7 +562,7 @@ namespace Opc.Ua.Client
             lock (m_registrationsLock)
             {
                 Registration toRemove = null;
-                foreach (var registration in m_registrations)
+                foreach (Registration registration in m_registrations)
                 {
                     if (registration.GetHashCode() == hashCode)
                     {
@@ -581,7 +609,7 @@ namespace Opc.Ua.Client
         private void ClearEndpoints(bool configEntry)
         {
             var newEndpointUrls = new Dictionary<Uri, ReverseConnectInfo>();
-            foreach (var endpoint in m_endpointUrls)
+            foreach (KeyValuePair<Uri, ReverseConnectInfo> endpoint in m_endpointUrls)
             {
                 if (endpoint.Value.ConfigEntry != configEntry)
                 {
@@ -670,7 +698,7 @@ namespace Opc.Ua.Client
             lock (m_registrationsLock)
             {
                 // first try to match single registrations
-                foreach (var registration in m_registrations.Where(r => (r.ReverseConnectStrategy & ReverseConnectStrategy.Any) == 0))
+                foreach (Registration registration in m_registrations.Where(r => (r.ReverseConnectStrategy & ReverseConnectStrategy.Any) == 0))
                 {
                     if (registration.EndpointUrl.Scheme.Equals(e.EndpointUrl.Scheme, StringComparison.Ordinal) &&
                            (registration.ServerUri?.Equals(e.ServerUri, StringComparison.Ordinal) == true ||
@@ -687,7 +715,7 @@ namespace Opc.Ua.Client
                 // now try any registrations.
                 if (callbackRegistration == null)
                 {
-                    foreach (var registration in m_registrations.Where(r => (r.ReverseConnectStrategy & ReverseConnectStrategy.Any) != 0))
+                    foreach (Registration registration in m_registrations.Where(r => (r.ReverseConnectStrategy & ReverseConnectStrategy.Any) != 0))
                     {
                         if (registration.EndpointUrl.Scheme.Equals(e.EndpointUrl.Scheme, StringComparison.Ordinal))
                         {
@@ -742,7 +770,7 @@ namespace Opc.Ua.Client
         private ReverseConnectClientConfiguration m_configuration;
         private Dictionary<Uri, ReverseConnectInfo> m_endpointUrls;
         private ReverseConnectManagerState m_state;
-        private List<Registration> m_registrations;
+        private readonly List<Registration> m_registrations;
         private readonly object m_registrationsLock = new object();
         private CancellationTokenSource m_cts;
         #endregion

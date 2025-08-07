@@ -84,7 +84,7 @@ namespace Opc.Ua.Gds.Client
 
             if (istrm == null)
             {
-                foreach (var resourceName in typeof(Opc.Ua.ObjectIds).Assembly.GetManifestResourceNames())
+                foreach (string resourceName in typeof(Opc.Ua.ObjectIds).Assembly.GetManifestResourceNames())
                 {
                     if (resourceName.EndsWith("ServerCapabilities.csv", StringComparison.OrdinalIgnoreCase))
                     {
@@ -96,7 +96,7 @@ namespace Opc.Ua.Gds.Client
 
             if (istrm != null)
             {
-                using (StreamReader reader = new StreamReader(istrm))
+                using (var reader = new StreamReader(istrm))
                 {
                     string line = reader.ReadLine();
 
@@ -130,7 +130,7 @@ namespace Opc.Ua.Gds.Client
             {
                 if (m_capabilities != null)
                 {
-                    foreach (var capability in m_capabilities)
+                    foreach (ServerCapability capability in m_capabilities)
                     {
                         if (capability.Id == id)
                         {
@@ -191,7 +191,11 @@ namespace Opc.Ua.Gds.Client
         /// </returns>
         public string ToString(string format, IFormatProvider formatProvider)
         {
-            if (format != null) throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
+            if (format != null)
+            {
+                throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
+            }
+
             return string.Format(formatProvider, "[{0}] {1}", Id, Description);
         }
 

@@ -85,7 +85,7 @@ namespace Quickstarts.ReferenceServer
             // create the custom node manager.
             nodeManagers.Add(new ReferenceNodeManager(server, configuration, UseSamplingGroupsInReferenceNodeManager));
 
-            foreach (var nodeManagerFactory in NodeManagerFactories)
+            foreach (INodeManagerFactory nodeManagerFactory in NodeManagerFactories)
             {
                 nodeManagers.Add(nodeManagerFactory.Create(server, configuration));
             }
@@ -126,7 +126,7 @@ namespace Quickstarts.ReferenceServer
         /// </remarks>
         protected override ServerProperties LoadServerProperties()
         {
-            ServerProperties properties = new ServerProperties {
+            var properties = new ServerProperties {
                 ManufacturerName = "OPC Foundation",
                 ProductName = "Quickstart Reference Server",
                 ProductUri = "http://opcfoundation.org/Quickstart/ReferenceServer/v1.04",
@@ -143,7 +143,7 @@ namespace Quickstarts.ReferenceServer
         /// </summary>
         protected override ResourceManager CreateResourceManager(IServerInternal server, ApplicationConfiguration configuration)
         {
-            ResourceManager resourceManager = new ResourceManager(server, configuration);
+            var resourceManager = new ResourceManager(server, configuration);
 
             System.Reflection.FieldInfo[] fields = typeof(StatusCodes).GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
 
@@ -208,7 +208,7 @@ namespace Quickstarts.ReferenceServer
         /// </remarks>
         public override UserTokenPolicyCollection GetUserTokenPolicies(ApplicationConfiguration configuration, EndpointDescription description)
         {
-            var policies = base.GetUserTokenPolicies(configuration, description);
+            UserTokenPolicyCollection policies = base.GetUserTokenPolicies(configuration, description);
 
             // sample how to modify default user token policies
             if (description.SecurityPolicyUri == SecurityPolicies.Aes256_Sha256_RsaPss &&
@@ -247,7 +247,7 @@ namespace Quickstarts.ReferenceServer
                     if (configuration.SecurityConfiguration.TrustedUserCertificates != null &&
                         configuration.SecurityConfiguration.UserIssuerCertificates != null)
                     {
-                        CertificateValidator certificateValidator = new CertificateValidator();
+                        var certificateValidator = new CertificateValidator();
                         certificateValidator.UpdateAsync(configuration.SecurityConfiguration).Wait();
                         certificateValidator.Update(configuration.SecurityConfiguration.UserIssuerCertificates,
                             configuration.SecurityConfiguration.TrustedUserCertificates,
@@ -266,7 +266,7 @@ namespace Quickstarts.ReferenceServer
         private void SessionManager_ImpersonateUser(ISession session, ImpersonateEventArgs args)
         {
             // check for a user name token.
-            UserNameIdentityToken userNameToken = args.NewIdentity as UserNameIdentityToken;
+            var userNameToken = args.NewIdentity as UserNameIdentityToken;
 
             if (userNameToken != null)
             {
@@ -278,7 +278,7 @@ namespace Quickstarts.ReferenceServer
             }
 
             // check for x509 user token.
-            X509IdentityToken x509Token = args.NewIdentity as X509IdentityToken;
+            var x509Token = args.NewIdentity as X509IdentityToken;
 
             if (x509Token != null)
             {
@@ -321,8 +321,8 @@ namespace Quickstarts.ReferenceServer
         /// </summary>
         private IUserIdentity VerifyPassword(UserNameIdentityToken userNameToken)
         {
-            var userName = userNameToken.UserName;
-            var password = userNameToken.DecryptedPassword;
+            string userName = userNameToken.UserName;
+            string password = userNameToken.DecryptedPassword;
             if (string.IsNullOrEmpty(userName))
             {
                 // an empty username is not accepted.
@@ -348,7 +348,7 @@ namespace Quickstarts.ReferenceServer
                 (userName == "user2" && password == "password1")))
             {
                 // construct translation object with default text.
-                TranslationInfo info = new TranslationInfo(
+                var info = new TranslationInfo(
                     "InvalidPassword",
                     "en-US",
                     "Invalid username or password.",
@@ -385,7 +385,7 @@ namespace Quickstarts.ReferenceServer
             {
                 TranslationInfo info;
                 StatusCode result = StatusCodes.BadIdentityTokenRejected;
-                ServiceResultException se = e as ServiceResultException;
+                var se = e as ServiceResultException;
                 if (se != null && se.StatusCode == StatusCodes.BadCertificateUseNotAllowed)
                 {
                     info = new TranslationInfo(

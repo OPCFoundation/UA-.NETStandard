@@ -359,7 +359,7 @@ namespace Opc.Ua
                 {
                     try
                     {
-                        FileInfo file = new FileInfo(traceFileName);
+                        var file = new FileInfo(traceFileName);
 
                         // limit the file size
                         bool truncated = false;
@@ -370,7 +370,7 @@ namespace Opc.Ua
                             truncated = true;
                         }
 
-                        using (StreamWriter writer = new StreamWriter(File.Open(file.FullName, FileMode.Append, FileAccess.Write, FileShare.Read)))
+                        using (var writer = new StreamWriter(File.Open(file.FullName, FileMode.Append, FileAccess.Write, FileShare.Read)))
                         {
                             if (truncated)
                             {
@@ -414,7 +414,7 @@ namespace Opc.Ua
 
                 try
                 {
-                    FileInfo file = new FileInfo(s_traceFileName);
+                    var file = new FileInfo(s_traceFileName);
 
                     if (deleteExisting && file.Exists)
                     {
@@ -481,7 +481,7 @@ namespace Opc.Ua
         /// </summary>
         internal static StringBuilder TraceExceptionMessage(Exception e, string format, params object[] args)
         {
-            StringBuilder message = new StringBuilder();
+            var message = new StringBuilder();
 
             // format message.
             if (args != null && args.Length > 0)
@@ -519,7 +519,7 @@ namespace Opc.Ua
                 {
                     message.AppendLine();
                     message.AppendLine();
-                    var separator = new string('=', 40);
+                    string separator = new string('=', 40);
                     message.AppendLine(separator);
                     message.AppendLine(new ServiceResult(e).ToLongString());
                     message.AppendLine(separator);
@@ -582,7 +582,7 @@ namespace Opc.Ua
                 return;
             }
 
-            StringBuilder message = new StringBuilder();
+            var message = new StringBuilder();
             try
             {
                 // append process and timestamp.
@@ -598,7 +598,7 @@ namespace Opc.Ua
                 return;
             }
 
-            var output = message.ToString();
+            string output = message.ToString();
             if (tracingEnabled)
             {
                 Tracing.Instance.RaiseTraceEvent(new TraceEventArgs(traceMask, output, string.Empty, exception, Array.Empty<object>()));
@@ -625,7 +625,7 @@ namespace Opc.Ua
                 return;
             }
 
-            StringBuilder message = new StringBuilder();
+            var message = new StringBuilder();
 
             // append process and timestamp.
             message.AppendFormat(CultureInfo.InvariantCulture, "{0:d} {0:HH:mm:ss.fff} ", DateTime.UtcNow.ToLocalTime());
@@ -714,7 +714,7 @@ namespace Opc.Ua
                 path = input.Substring(index + 1);
             }
 
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
 #if !NETSTANDARD1_4 && !NETSTANDARD1_3
             // check for special folder.
             Environment.SpecialFolder specialFolder;
@@ -761,11 +761,11 @@ namespace Opc.Ua
             string path = null;
 
             // check source tree.
-            DirectoryInfo directory = new DirectoryInfo(Directory.GetCurrentDirectory());
+            var directory = new DirectoryInfo(Directory.GetCurrentDirectory());
 
             while (directory != null)
             {
-                StringBuilder buffer = new StringBuilder();
+                var buffer = new StringBuilder();
                 buffer.Append(directory.FullName);
                 buffer.Append(Path.DirectorySeparatorChar).Append("Bin").Append(Path.DirectorySeparatorChar);
                 buffer.Append(fileName);
@@ -801,7 +801,7 @@ namespace Opc.Ua
 
             if (!string.IsNullOrEmpty(filePath))
             {
-                FileInfo file = new FileInfo(filePath);
+                var file = new FileInfo(filePath);
 
                 // check for absolute path.
                 bool isAbsolute = Utils.IsPathRooted(filePath);
@@ -931,7 +931,7 @@ namespace Opc.Ua
 
             if (!string.IsNullOrEmpty(dirPath))
             {
-                DirectoryInfo directory = new DirectoryInfo(dirPath);
+                var directory = new DirectoryInfo(dirPath);
 
                 // check for absolute path.
                 bool isAbsolute = Utils.IsPathRooted(dirPath);
@@ -1048,7 +1048,7 @@ namespace Opc.Ua
         /// </remarks>
         public static void SilentDispose(object objectToDispose)
         {
-            IDisposable disposable = objectToDispose as IDisposable;
+            var disposable = objectToDispose as IDisposable;
             SilentDispose(disposable);
         }
 
@@ -1183,7 +1183,7 @@ namespace Opc.Ua
         {
             try
             {
-                IPAddress normalizedAddress = IPAddress.Parse(ipAddress);
+                var normalizedAddress = IPAddress.Parse(ipAddress);
                 return normalizedAddress.ToString();
             }
             catch
@@ -1210,7 +1210,7 @@ namespace Opc.Ua
             }
 
             // check if the string localhost is specified.
-            var localhost = "localhost";
+            string localhost = "localhost";
             int index = uri.IndexOf(localhost, StringComparison.OrdinalIgnoreCase);
 
             if (index == -1)
@@ -1250,7 +1250,7 @@ namespace Opc.Ua
             }
 
             // check if the string DC=localhost is specified.
-            var dclocalhost = "DC=localhost";
+            string dclocalhost = "DC=localhost";
             int index = subjectName.IndexOf(dclocalhost, StringComparison.OrdinalIgnoreCase);
 
             if (index == -1)
@@ -1425,7 +1425,7 @@ namespace Opc.Ua
             // check for null.
             if (string.IsNullOrEmpty(instanceUri))
             {
-                UriBuilder builder = new UriBuilder();
+                var builder = new UriBuilder();
 
                 builder.Scheme = Utils.UriSchemeHttps;
                 builder.Host = GetHostName();
@@ -1438,7 +1438,7 @@ namespace Opc.Ua
             // prefix non-urls with the hostname.
             if (!instanceUri.StartsWith(Utils.UriSchemeHttps, StringComparison.Ordinal))
             {
-                UriBuilder builder = new UriBuilder();
+                var builder = new UriBuilder();
 
                 builder.Scheme = Utils.UriSchemeHttps;
                 builder.Host = GetHostName();
@@ -1453,7 +1453,7 @@ namespace Opc.Ua
 
             if (parsedUri != null && parsedUri.DnsSafeHost == "localhost")
             {
-                UriBuilder builder = new UriBuilder(parsedUri);
+                var builder = new UriBuilder(parsedUri);
                 builder.Host = GetHostName();
                 return builder.Uri.ToString();
             }
@@ -1536,7 +1536,7 @@ namespace Opc.Ua
         /// </remarks>
         public static Array FlattenArray(Array array)
         {
-            Array flatArray = Array.CreateInstance(array.GetType().GetElementType(), array.Length);
+            var flatArray = Array.CreateInstance(array.GetType().GetElementType(), array.Length);
 
             int[] indexes = new int[array.Rank];
             int[] dimensions = new int[array.Rank];
@@ -1608,7 +1608,7 @@ namespace Opc.Ua
             else
 #endif
             {
-                StringBuilder builder = new StringBuilder(buffer.Length * 2);
+                var builder = new StringBuilder(buffer.Length * 2);
 
 #if !NET6_0_OR_GREATER
                 if (!invertEndian)
@@ -1721,14 +1721,14 @@ namespace Opc.Ua
 
             try
             {
-                CultureInfo culture = new CultureInfo(localeId);
+                var culture = new CultureInfo(localeId);
 
                 if (culture != null)
                 {
                     return true;
                 }
             }
-            catch (Exception)
+            catch
             {
                 // do nothing.
             }
@@ -1858,7 +1858,7 @@ namespace Opc.Ua
             {
                 if (array.Rank == 1)
                 {
-                    Array clone = Array.CreateInstance(type.GetElementType(), array.Length);
+                    var clone = Array.CreateInstance(type.GetElementType(), array.Length);
                     for (int ii = 0; ii < array.Length; ii++)
                     {
                         clone.SetValue(Utils.Clone(array.GetValue(ii)), ii);
@@ -1874,7 +1874,7 @@ namespace Opc.Ua
                         arrayRanks[ii] = array.GetLength(ii);
                         arrayIndex[ii] = 0;
                     }
-                    Array clone = Array.CreateInstance(type.GetElementType(), arrayRanks);
+                    var clone = Array.CreateInstance(type.GetElementType(), arrayRanks);
                     for (int ii = 0; ii < array.Length; ii++)
                     {
                         clone.SetValue(Utils.Clone(array.GetValue(arrayIndex)), arrayIndex);
@@ -1990,8 +1990,8 @@ namespace Opc.Ua
         /// </summary>
         public static bool IsEqual(DateTime time1, DateTime time2)
         {
-            var utcTime1 = Utils.ToOpcUaUniversalTime(time1);
-            var utcTime2 = Utils.ToOpcUaUniversalTime(time2);
+            DateTime utcTime1 = Utils.ToOpcUaUniversalTime(time1);
+            DateTime utcTime2 = Utils.ToOpcUaUniversalTime(time2);
 
             // values smaller than Timebase can not be binary encoded and are considered equal
             if (utcTime1 <= TimeBase && utcTime2 <= TimeBase)
@@ -2510,7 +2510,7 @@ namespace Opc.Ua
         /// <returns>The TimeZone information for the current local time.</returns>
         public static TimeZoneDataType GetTimeZoneInfo()
         {
-            TimeZoneDataType info = new TimeZoneDataType();
+            var info = new TimeZoneDataType();
 
             info.Offset = (short)TimeZoneInfo.Local.GetUtcOffset(DateTime.Now).TotalMinutes;
             info.DaylightSavingInOffset = true;
@@ -2560,11 +2560,11 @@ namespace Opc.Ua
                 }
 
                 // type found.
-                XmlReader reader = XmlReader.Create(new StringReader(element.OuterXml), Utils.DefaultXmlReaderSettings());
+                var reader = XmlReader.Create(new StringReader(element.OuterXml), Utils.DefaultXmlReaderSettings());
 
                 try
                 {
-                    DataContractSerializer serializer = new DataContractSerializer(typeof(T));
+                    var serializer = new DataContractSerializer(typeof(T));
                     return (T)serializer.ReadObject(reader);
                 }
                 catch (Exception ex)
@@ -2595,17 +2595,17 @@ namespace Opc.Ua
         /// </remarks>
         public static void UpdateExtension<T>(ref XmlElementCollection extensions, XmlQualifiedName elementName, object value)
         {
-            XmlDocument document = new XmlDocument();
+            var document = new XmlDocument();
 
             // serialize value.
-            StringBuilder buffer = new StringBuilder();
-            using (XmlWriter writer = XmlWriter.Create(buffer, DefaultXmlWriterSettings()))
+            var buffer = new StringBuilder();
+            using (var writer = XmlWriter.Create(buffer, DefaultXmlWriterSettings()))
             {
                 if (value != null)
                 {
                     try
                     {
-                        DataContractSerializer serializer = new DataContractSerializer(typeof(T));
+                        var serializer = new DataContractSerializer(typeof(T));
                         serializer.WriteObject(writer, value);
                     }
                     finally
@@ -2736,7 +2736,7 @@ namespace Opc.Ua
         /// <returns>The current time in milliseconds since 1/1/2000.</returns>
         public static uint GetVersionTime()
         {
-            var ticks = (DateTime.UtcNow - kBaseDateTime).TotalMilliseconds;
+            double ticks = (DateTime.UtcNow - kBaseDateTime).TotalMilliseconds;
             return (uint)ticks;
         }
 
@@ -2869,7 +2869,7 @@ namespace Opc.Ua
 #if !NETFRAMEWORK
                 if (useAsnParser)
                 {
-                    var certBlob = AsnUtils.ParseX509Blob(certificateData);
+                    ReadOnlyMemory<byte> certBlob = AsnUtils.ParseX509Blob(certificateData);
                     return CertificateFactory.Create(certBlob, true);
                 }
                 else
@@ -2895,7 +2895,7 @@ namespace Opc.Ua
         /// <returns></returns>
         public static X509Certificate2Collection ParseCertificateChainBlob(ReadOnlyMemory<byte> certificateData, bool useAsnParser = false)
         {
-            X509Certificate2Collection certificateChain = new X509Certificate2Collection();
+            var certificateChain = new X509Certificate2Collection();
 
             // macOS X509Certificate2 constructor throws exception if a certchain is encoded
             // use AsnParser on macOS to parse for byteblobs,
@@ -2912,7 +2912,7 @@ namespace Opc.Ua
 #if !NETFRAMEWORK
                     if (useAsnParser)
                     {
-                        var certBlob = AsnUtils.ParseX509Blob(certificateData.Slice(offset));
+                        ReadOnlyMemory<byte> certBlob = AsnUtils.ParseX509Blob(certificateData.Slice(offset));
                         certificate = CertificateFactory.Create(certBlob, true);
                     }
                     else
@@ -2978,9 +2978,12 @@ namespace Opc.Ua
             Justification = "SHA1 is needed for deprecated security profiles.")]
         public static byte[] PSHA1(byte[] secret, string label, byte[] data, int offset, int length)
         {
-            if (secret == null) throw new ArgumentNullException(nameof(secret));
+            if (secret == null)
+            {
+                throw new ArgumentNullException(nameof(secret));
+            }
             // create the hmac.
-            using (HMACSHA1 hmac = new HMACSHA1(secret))
+            using (var hmac = new HMACSHA1(secret))
             {
                 return PSHA(hmac, label, data, offset, length);
             }
@@ -2991,9 +2994,12 @@ namespace Opc.Ua
         /// </summary>
         public static byte[] PSHA256(byte[] secret, string label, byte[] data, int offset, int length)
         {
-            if (secret == null) throw new ArgumentNullException(nameof(secret));
+            if (secret == null)
+            {
+                throw new ArgumentNullException(nameof(secret));
+            }
             // create the hmac.
-            using (HMACSHA256 hmac = new HMACSHA256(secret))
+            using (var hmac = new HMACSHA256(secret))
             {
                 return PSHA(hmac, label, data, offset, length);
             }
@@ -3024,9 +3030,20 @@ namespace Opc.Ua
         /// </summary>
         public static byte[] PSHA(HMAC hmac, string label, byte[] data, int offset, int length)
         {
-            if (hmac == null) throw new ArgumentNullException(nameof(hmac));
-            if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset));
-            if (length < 0) throw new ArgumentOutOfRangeException(nameof(length));
+            if (hmac == null)
+            {
+                throw new ArgumentNullException(nameof(hmac));
+            }
+
+            if (offset < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(offset));
+            }
+
+            if (length < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(length));
+            }
 
             byte[] seed = null;
 
@@ -3188,7 +3205,7 @@ namespace Opc.Ua
             try
             {
                 // Create a ECDsa object and generate a new keypair on the given curve
-                using (ECDsa eCDsa = ECDsa.Create(eCCurve))
+                using (var eCDsa = ECDsa.Create(eCCurve))
                 {
                     ECParameters parameters = eCDsa.ExportParameters(false);
                     return parameters.Q.X != null && parameters.Q.Y != null;

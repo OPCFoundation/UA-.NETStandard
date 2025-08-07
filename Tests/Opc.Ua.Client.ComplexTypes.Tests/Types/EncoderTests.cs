@@ -124,7 +124,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             (nodeId, complexType) = TypeDictionary[StructureType.StructureWithOptionalFields];
             object emittedType = Activator.CreateInstance(complexType);
             var baseType = emittedType as BaseComplexType;
-            var builtInType = structureFieldParameter.BuiltInType;
+            BuiltInType builtInType = structureFieldParameter.BuiltInType;
             TestContext.Out.WriteLine($"Optional Field: {structureFieldParameter.BuiltInType} is the only value.");
             baseType[structureFieldParameter.Name] = DataGenerator.GetRandom(builtInType);
             EncodeDecodeComplexType(EncoderContext, memoryStreamType, encoderType, jsonEncodingType, StructureType.StructureWithOptionalFields, nodeId, emittedType);
@@ -160,7 +160,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             (nodeId, complexType) = TypeDictionary[StructureType.Union];
             object emittedType = Activator.CreateInstance(complexType);
             var baseType = emittedType as BaseComplexType;
-            var builtInType = structureFieldParameter.BuiltInType;
+            BuiltInType builtInType = structureFieldParameter.BuiltInType;
             TestContext.Out.WriteLine($"Union Field: {structureFieldParameter.BuiltInType} is random.");
             baseType[structureFieldParameter.Name] = DataGenerator.GetRandom(builtInType);
             EncodeDecodeComplexType(EncoderContext, memoryStreamType, encoderType, jsonEncodingType, StructureType.Union, nodeId, emittedType);
@@ -186,13 +186,13 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             var baseType = emittedType as BaseComplexType;
             FillStructWithValues(baseType, true);
 
-            ExtensionObject extensionObject = new ExtensionObject(emittedType);
+            var extensionObject = new ExtensionObject(emittedType);
 
-            Opc.Ua.KeyValuePair keyValuePair = new Opc.Ua.KeyValuePair();
+            var keyValuePair = new Opc.Ua.KeyValuePair();
             keyValuePair.Key = "AKEY";
             keyValuePair.Value = extensionObject;
 
-            ServiceMessageContext localCtxt = (ServiceMessageContext)EncoderContext;
+            var localCtxt = (ServiceMessageContext)EncoderContext;
 
             // Serialize/Encode a Variant fails without a context available
             Assert.Throws<Newtonsoft.Json.JsonSerializationException>(

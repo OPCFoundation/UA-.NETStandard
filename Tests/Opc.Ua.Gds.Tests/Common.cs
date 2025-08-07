@@ -44,10 +44,10 @@ namespace Opc.Ua.Gds.Tests
 {
     public class ApplicationTestDataGenerator
     {
-        private int m_randomStart = 1;
-        private RandomSource m_randomSource;
-        private DataGenerator m_dataGenerator;
-        private ServerCapabilities m_serverCapabilities;
+        private readonly int m_randomStart = 1;
+        private readonly RandomSource m_randomSource;
+        private readonly DataGenerator m_dataGenerator;
+        private readonly ServerCapabilities m_serverCapabilities;
 
         public ApplicationTestDataGenerator(int randomStart)
         {
@@ -65,7 +65,7 @@ namespace Opc.Ua.Gds.Tests
             var testDataSet = new List<ApplicationTestData>();
             for (int i = 0; i < count; i++)
             {
-                var testData = RandomApplicationTestData();
+                ApplicationTestData testData = RandomApplicationTestData();
                 if (invalidateSet)
                 {
                     ApplicationRecordDataType appRecord = testData.ApplicationRecord;
@@ -103,7 +103,7 @@ namespace Opc.Ua.Gds.Tests
         private ApplicationTestData RandomApplicationTestData()
         {
             // TODO: set to discoveryserver
-            ApplicationType appType = (ApplicationType)m_randomSource.NextInt32((int)ApplicationType.ClientAndServer);
+            var appType = (ApplicationType)m_randomSource.NextInt32((int)ApplicationType.ClientAndServer);
             string pureAppName = m_dataGenerator.GetRandomString("en");
             pureAppName = Regex.Replace(pureAppName, @"[^\w\d\s]", "");
             string pureAppUri = Regex.Replace(pureAppName, @"[^\w\d]", "");
@@ -114,8 +114,8 @@ namespace Opc.Ua.Gds.Tests
             string privateKeyFormat = m_randomSource.NextInt32(1) == 0 ? "PEM" : "PFX";
             string appUri = ("urn:localhost:opcfoundation.org:" + pureAppUri.ToLower()).Replace("localhost", localhost, StringComparison.Ordinal);
             string prodUri = "http://opcfoundation.org/UA/" + pureAppUri;
-            StringCollection discoveryUrls = new StringCollection();
-            StringCollection serverCapabilities = new StringCollection();
+            var discoveryUrls = new StringCollection();
+            var serverCapabilities = new StringCollection();
             int port = (m_dataGenerator.GetRandomInt16() & 0x1fff) + 50000;
             switch (appType)
             {
@@ -136,7 +136,7 @@ namespace Opc.Ua.Gds.Tests
                     serverCapabilities = RandomServerCapabilities();
                     break;
             }
-            ApplicationTestData testData = new ApplicationTestData {
+            var testData = new ApplicationTestData {
                 ApplicationRecord = new ApplicationRecordDataType {
                     ApplicationNames = new LocalizedTextCollection { new LocalizedText(locale, appName) },
                     ApplicationUri = appUri,
@@ -156,7 +156,7 @@ namespace Opc.Ua.Gds.Tests
         {
             var serverCapabilities = new StringCollection();
             int capabilities = m_randomSource.NextInt32(8);
-            foreach (var cap in m_serverCapabilities)
+            foreach (ServerCapability cap in m_serverCapabilities)
             {
                 if (m_randomSource.NextInt32(100) > 50)
                 {
@@ -184,7 +184,7 @@ namespace Opc.Ua.Gds.Tests
         private string[] RandomDomainNames()
         {
             int count = m_randomSource.NextInt32(8) + 1;
-            var result = new string[count];
+            string[] result = new string[count];
             for (int i = 0; i < count; i++)
             {
                 result[i] = RandomLocalHost();
@@ -195,7 +195,7 @@ namespace Opc.Ua.Gds.Tests
         private StringCollection RandomDiscoveryUrl(StringCollection domainNames, int port, string appUri)
         {
             var result = new StringCollection();
-            foreach (var name in domainNames)
+            foreach (string name in domainNames)
             {
                 int random = m_randomSource.NextInt32(7);
                 if ((result.Count == 0) || (random & 1) == 0)
@@ -292,19 +292,19 @@ namespace Opc.Ua.Gds.Tests
 
     public static class TestUtils
     {
-        private static Random s_random = new Random();
+        private static readonly Random s_random = new Random();
 
         public static async Task CleanupTrustList(ICertificateStore store, bool dispose = true)
         {
-            var certs = await store.Enumerate().ConfigureAwait(false);
-            foreach (var cert in certs)
+            System.Security.Cryptography.X509Certificates.X509Certificate2Collection certs = await store.Enumerate().ConfigureAwait(false);
+            foreach (System.Security.Cryptography.X509Certificates.X509Certificate2 cert in certs)
             {
                 await store.Delete(cert.Thumbprint).ConfigureAwait(false);
             }
             if (store.SupportsCRLs)
             {
-                var crls = await store.EnumerateCRLs().ConfigureAwait(false);
-                foreach (var crl in crls)
+                Security.Certificates.X509CRLCollection crls = await store.EnumerateCRLs().ConfigureAwait(false);
+                foreach (Security.Certificates.X509CRL crl in crls)
                 {
                     await store.DeleteCRL(crl).ConfigureAwait(false);
                 }
@@ -329,10 +329,10 @@ namespace Opc.Ua.Gds.Tests
         {
             if (basePort >= kMinPort && basePort <= ServerFixtureUtils.MaxTestPort)
             {
-                StringCollection newBaseAddresses = new StringCollection();
-                foreach (var baseAddress in config.ServerConfiguration.BaseAddresses)
+                var newBaseAddresses = new StringCollection();
+                foreach (string baseAddress in config.ServerConfiguration.BaseAddresses)
                 {
-                    UriBuilder baseAddressUri = new UriBuilder(baseAddress);
+                    var baseAddressUri = new UriBuilder(baseAddress);
                     baseAddressUri.Port = basePort++;
                     newBaseAddresses.Add(baseAddressUri.Uri.AbsoluteUri);
                 }
@@ -344,7 +344,7 @@ namespace Opc.Ua.Gds.Tests
         {
             if (port >= kMinPort && port <= ServerFixtureUtils.MaxTestPort)
             {
-                UriBuilder newUrl = new UriBuilder(url);
+                var newUrl = new UriBuilder(url);
                 if (newUrl.Path.Contains("GlobalDiscoveryTestServer", StringComparison.Ordinal))
                 {
                     newUrl.Port = port;

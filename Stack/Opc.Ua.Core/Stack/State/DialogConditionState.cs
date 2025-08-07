@@ -45,7 +45,7 @@ namespace Opc.Ua
         /// <param name="context">The system context.</param>
         public void Activate(ISystemContext context)
         {
-            TranslationInfo state = new TranslationInfo(
+            var state = new TranslationInfo(
                 "ConditionStateDialogActive",
                 "en-US",
                 ConditionStateNames.Active);
@@ -70,7 +70,7 @@ namespace Opc.Ua
         {
             this.LastResponse.Value = response;
 
-            TranslationInfo state = new TranslationInfo(
+            var state = new TranslationInfo(
                 "ConditionStateDialogInactive",
                 "en-US",
                 ConditionStateNames.Inactive);
@@ -110,7 +110,7 @@ namespace Opc.Ua
                 return;
             }
 
-            StringBuilder builder = new StringBuilder();
+            var builder = new StringBuilder();
 
             string locale = null;
 
@@ -120,7 +120,7 @@ namespace Opc.Ua
                 builder.Append(this.DialogState.Value);
             }
 
-            LocalizedText effectiveState = new LocalizedText(locale, builder.ToString());
+            var effectiveState = new LocalizedText(locale, builder.ToString());
 
             SetEffectiveSubState(context, effectiveState, DateTime.MinValue);
         }
@@ -175,9 +175,9 @@ namespace Opc.Ua
             {
                 if (this.AreEventsMonitored)
                 {
-                    AuditConditionRespondEventState e = new AuditConditionRespondEventState(null);
+                    var e = new AuditConditionRespondEventState(null);
 
-                    TranslationInfo info = new TranslationInfo(
+                    var info = new TranslationInfo(
                         "AuditConditionDialogResponse",
                         "en-US",
                         "The Respond method was called.");

@@ -129,7 +129,7 @@ namespace Quickstarts.Servers
             //Discard oldest
             if (m_itemsInQueue == QueueSize)
             {
-                Dequeue(out var _);
+                Dequeue(out EventFieldList _);
             }
 
             m_enqueueBatch.Events.Add(value);
@@ -259,7 +259,7 @@ namespace Quickstarts.Servers
                     // Remove from stored batches if needed
                     while (itemsToRemove > 0 && m_eventBatches.Count > 0)
                     {
-                        var batch = m_eventBatches.First();
+                        EventBatch batch = m_eventBatches.First();
                         m_batchPersistor.RestoreSynchronously(batch);
                         int batchCount = batch.Events.Count;
 
@@ -302,7 +302,7 @@ namespace Quickstarts.Servers
                     // Remove from stored batches if needed
                     while (itemsToRemove > 0 && m_eventBatches.Count > 0)
                     {
-                        var batch = m_eventBatches.Last();
+                        EventBatch batch = m_eventBatches.Last();
                         m_batchPersistor.RestoreSynchronously(batch);
                         int batchCount = batch.Events.Count;
 
@@ -360,7 +360,7 @@ namespace Quickstarts.Servers
         /// the contained in the queue
         /// </summary>
         private EventBatch m_enqueueBatch;
-        private List<EventBatch> m_eventBatches = new List<EventBatch>();
+        private readonly List<EventBatch> m_eventBatches = new List<EventBatch>();
         private EventBatch m_dequeueBatch;
         private readonly uint m_monitoredItemId;
         private int m_itemsInQueue;

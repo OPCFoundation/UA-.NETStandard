@@ -105,7 +105,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             HiResClock.Disabled = disabled;
             Assert.AreEqual(disabled, HiResClock.Disabled);
-            Stopwatch stopWatch = new Stopwatch();
+            var stopWatch = new Stopwatch();
             long lastTickCount = HiResClock.TickCount64;
             long firstTickCount = lastTickCount;
             stopWatch.Start();
@@ -148,7 +148,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             HiResClock.Disabled = disabled;
             Assert.AreEqual(disabled, HiResClock.Disabled);
-            Stopwatch stopWatch = new Stopwatch();
+            var stopWatch = new Stopwatch();
             stopWatch.Start();
             long lastTickCount = HiResClock.UtcNow.Ticks;
             long firstTickCount = lastTickCount;

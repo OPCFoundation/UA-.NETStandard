@@ -58,7 +58,11 @@ namespace Opc.Ua.Security.Certificates
             // check if certificate is valid for use as app/sw or user cert
             if (!isECDsaSignature)
             {
-                if (!string.IsNullOrEmpty(password)) throw new ArgumentException("Export with password not supported on this platform.", nameof(password));
+                if (!string.IsNullOrEmpty(password))
+                {
+                    throw new ArgumentException("Export with password not supported on this platform.", nameof(password));
+                }
+
                 RsaPrivateCrtKeyParameters privateKeyParameter = X509Utils.GetRsaPrivateKeyParameter(certificate);
                 // write private key as PKCS#8
                 PrivateKeyInfo privateKeyInfo = PrivateKeyInfoFactory.CreatePrivateKeyInfo(privateKeyParameter);
@@ -68,7 +72,11 @@ namespace Opc.Ua.Security.Certificates
 #if ECC_SUPPORT
             else
             {
-                if (!string.IsNullOrEmpty(password)) throw new ArgumentException("Export with password not supported on this platform.", nameof(password));
+                if (!string.IsNullOrEmpty(password))
+                {
+                    throw new ArgumentException("Export with password not supported on this platform.", nameof(password));
+                }
+
                 ECPrivateKeyParameters privateKeyParameter = X509Utils.GetECDsaPrivateKeyParameter(certificate.GetECDsaPrivateKey());
                 // write private key as PKCS#8
                 PrivateKeyInfo privateKeyInfo = PrivateKeyInfoFactory.CreatePrivateKeyInfo(privateKeyParameter);
@@ -113,10 +121,10 @@ namespace Opc.Ua.Security.Certificates
                     {
                         return false;
                     }
-                    var pemCertificateContent = pemText.Substring(beginIndex, endIndex - beginIndex);
-                    var pemCertificateDecoded = Convert.FromBase64CharArray(pemCertificateContent.ToCharArray(), 0, pemCertificateContent.Length);
+                    string pemCertificateContent = pemText.Substring(beginIndex, endIndex - beginIndex);
+                    byte[] pemCertificateDecoded = Convert.FromBase64CharArray(pemCertificateContent.ToCharArray(), 0, pemCertificateContent.Length);
 
-                    var certificate = X509CertificateLoader.LoadCertificate(pemCertificateDecoded);
+                    X509Certificate2 certificate = X509CertificateLoader.LoadCertificate(pemCertificateDecoded);
                     if (thumbprint.Equals(certificate.Thumbprint, StringComparison.OrdinalIgnoreCase))
                     {
                         modifiedPemDataBlob = Encoding.ASCII.GetBytes(pemText.Replace(pemText.Substring(beginIndex -= beginlabel.Length, endIndex + endlabel.Length), string.Empty));

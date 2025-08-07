@@ -79,9 +79,9 @@ namespace Opc.Ua
                 get { return m_number; }
             }
 
-            private uint m_id;
-            private string m_name;
-            private uint m_number;
+            private readonly uint m_id;
+            private readonly string m_name;
+            private readonly uint m_number;
         }
         #endregion
 
@@ -581,7 +581,7 @@ namespace Opc.Ua
             AuditUpdateStateEventState e,
             ServiceResult result)
         {
-            TranslationInfo info = new TranslationInfo(
+            var info = new TranslationInfo(
                 "StateTransition",
                 "en-US",
                 "The {0} method called was on the {1} state machine.",
@@ -625,7 +625,7 @@ namespace Opc.Ua
         {
             try
             {
-                AuditProgramTransitionEventState e = new AuditProgramTransitionEventState(null);
+                var e = new AuditProgramTransitionEventState(null);
 
                 UpdateAuditEvent(context, causeMethod, inputArguments, causeId, e, result);
 
@@ -780,7 +780,7 @@ namespace Opc.Ua
             uint causeId,
             TransitionEventState e)
         {
-            TranslationInfo info = new TranslationInfo(
+            var info = new TranslationInfo(
                 "StateTransition",
                 "en-US",
                 "The {0} state machine moved to the {1} state.",

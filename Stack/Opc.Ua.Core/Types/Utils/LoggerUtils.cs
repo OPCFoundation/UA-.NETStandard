@@ -147,7 +147,7 @@ namespace Opc.Ua
         {
             if (Logger.IsEnabled(logLevel))
             {
-                var builder = new StringBuilder()
+                StringBuilder builder = new StringBuilder()
                     .Append(message);
                 if (certificate != null)
                 {

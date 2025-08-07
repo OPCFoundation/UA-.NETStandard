@@ -632,7 +632,7 @@ namespace Opc.Ua.Client
                         {
                             if (validateTimestamp)
                             {
-                                var now = DateTime.UtcNow.Add(s_time_epsilon);
+                                DateTime now = DateTime.UtcNow.Add(s_time_epsilon);
 
                                 // validate the ServerTimestamp of the notification.
                                 if (datachange.Value.ServerTimestamp > now)
@@ -814,7 +814,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public string GetFieldName(int index)
         {
-            EventFilter filter = m_filter as EventFilter;
+            var filter = m_filter as EventFilter;
 
             if (filter == null)
             {
@@ -850,7 +850,7 @@ namespace Opc.Ua.Client
             NodeId eventTypeId,
             QualifiedName browseName)
         {
-            QualifiedNameCollection browsePath = new QualifiedNameCollection();
+            var browsePath = new QualifiedNameCollection();
             browsePath.Add(browseName);
             return GetFieldValue(eventFields, eventTypeId, browsePath, Attributes.Value);
         }
@@ -869,7 +869,7 @@ namespace Opc.Ua.Client
                 return null;
             }
 
-            EventFilter filter = m_filter as EventFilter;
+            var filter = m_filter as EventFilter;
 
             if (filter == null)
             {
@@ -950,7 +950,7 @@ namespace Opc.Ua.Client
         public INode GetEventType(EventFieldList eventFields)
         {
             // get event type.
-            NodeId eventTypeId = GetFieldValue(eventFields, ObjectTypes.BaseEventType, Opc.Ua.BrowseNames.EventType) as NodeId;
+            var eventTypeId = GetFieldValue(eventFields, ObjectTypes.BaseEventType, Opc.Ua.BrowseNames.EventType) as NodeId;
 
             if (eventTypeId != null && m_subscription != null && m_subscription.Session != null)
             {
@@ -967,7 +967,7 @@ namespace Opc.Ua.Client
         public DateTime GetEventTime(EventFieldList eventFields)
         {
             // get event time.
-            DateTime? eventTime = GetFieldValue(eventFields, ObjectTypes.BaseEventType, Opc.Ua.BrowseNames.Time) as DateTime?;
+            var eventTime = GetFieldValue(eventFields, ObjectTypes.BaseEventType, Opc.Ua.BrowseNames.Time) as DateTime?;
 
             if (eventTime != null)
             {
@@ -983,7 +983,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public static ServiceResult GetServiceResult(IEncodeable notification)
         {
-            MonitoredItemNotification datachange = notification as MonitoredItemNotification;
+            var datachange = notification as MonitoredItemNotification;
 
             if (datachange == null)
             {
@@ -1005,7 +1005,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public static ServiceResult GetServiceResult(IEncodeable notification, int index)
         {
-            EventFieldList eventFields = notification as EventFieldList;
+            var eventFields = notification as EventFieldList;
 
             if (eventFields == null)
             {
@@ -1024,7 +1024,7 @@ namespace Opc.Ua.Client
                 return null;
             }
 
-            StatusResult status = ExtensionObject.ToEncodeable(eventFields.EventFields[index].Value as ExtensionObject) as StatusResult;
+            var status = ExtensionObject.ToEncodeable(eventFields.EventFields[index].Value as ExtensionObject) as StatusResult;
 
             if (status == null)
             {
@@ -1326,7 +1326,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public IList<EventFieldList> Publish()
         {
-            EventFieldList[] events = new EventFieldList[m_events.Count];
+            var events = new EventFieldList[m_events.Count];
 
             for (int ii = 0; ii < events.Length; ii++)
             {

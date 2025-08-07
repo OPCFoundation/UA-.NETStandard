@@ -60,7 +60,7 @@ namespace Opc.Ua.Bindings
         /// <param name="uriScheme">The uri scheme of the transport.</param>
         public ITransportChannel GetChannel(string uriScheme)
         {
-            var binding = GetBinding(uriScheme);
+            ITransportChannelFactory binding = GetBinding(uriScheme);
             return binding?.Create();
         }
     }
@@ -85,7 +85,7 @@ namespace Opc.Ua.Bindings
         /// <param name="uriScheme">The uri scheme of the transport.</param>
         public ITransportListener GetListener(string uriScheme)
         {
-            var binding = GetBinding(uriScheme);
+            ITransportListenerFactory binding = GetBinding(uriScheme);
             return binding?.Create();
         }
     }

@@ -43,8 +43,8 @@ namespace Opc.Ua.PubSub.Transport
     {
         #region Private menbers
 
-        private X509Certificate2 m_caCertificate;
-        private X509Certificate2 m_clientCertificate;
+        private readonly X509Certificate2 m_caCertificate;
+        private readonly X509Certificate2 m_clientCertificate;
 
         #endregion Private menbers
 

@@ -29,7 +29,10 @@ namespace Opc.Ua
         /// </summary>
         public Matrix(Array value, BuiltInType builtInType)
         {
-            if (value == null) throw new ArgumentNullException(nameof(value));
+            if (value == null)
+            {
+                throw new ArgumentNullException(nameof(value));
+            }
 
             m_elements = value;
             m_dimensions = new int[value.Rank];
@@ -48,7 +51,10 @@ namespace Opc.Ua
         /// </summary>
         public Matrix(Array elements, BuiltInType builtInType, params int[] dimensions)
         {
-            if (elements == null) throw new ArgumentNullException(nameof(elements));
+            if (elements == null)
+            {
+                throw new ArgumentNullException(nameof(elements));
+            }
 
             m_elements = elements;
             m_dimensions = dimensions;
@@ -100,7 +106,7 @@ namespace Opc.Ua
         {
             try
             {
-                Array array = Array.CreateInstance(m_elements.GetType().GetElementType(), m_dimensions);
+                var array = Array.CreateInstance(m_elements.GetType().GetElementType(), m_dimensions);
 
                 int[] indexes = new int[m_dimensions.Length];
 
@@ -201,7 +207,7 @@ namespace Opc.Ua
         {
             if (format == null)
             {
-                StringBuilder buffer = new StringBuilder();
+                var buffer = new StringBuilder();
 
                 buffer.AppendFormat(formatProvider, "{0}[", m_elements.GetType().GetElementType().Name);
 
@@ -253,7 +259,7 @@ namespace Opc.Ua
         private static void SanityCheckArrayElements(Array elements, BuiltInType builtInType)
         {
 #if DEBUG
-            TypeInfo sanityCheck = TypeInfo.Construct(elements);
+            var sanityCheck = TypeInfo.Construct(elements);
             Debug.Assert(sanityCheck.BuiltInType == builtInType || builtInType == BuiltInType.Enumeration ||
                 (sanityCheck.BuiltInType == BuiltInType.ExtensionObject && builtInType == BuiltInType.Null) ||
                 (sanityCheck.BuiltInType == BuiltInType.Int32 && builtInType == BuiltInType.Enumeration) ||
@@ -264,9 +270,9 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private Array m_elements;
-        private int[] m_dimensions;
-        private TypeInfo m_typeInfo;
+        private readonly Array m_elements;
+        private readonly int[] m_dimensions;
+        private readonly TypeInfo m_typeInfo;
         #endregion
 
         #region Validation Methods

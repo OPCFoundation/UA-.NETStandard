@@ -281,7 +281,7 @@ namespace Opc.Ua
         /// <param name="set"></param>
         private void DisposeWaitHandle(bool set)
         {
-            var waitHandle = Interlocked.Exchange(ref m_waitHandle, null);
+            ManualResetEvent waitHandle = Interlocked.Exchange(ref m_waitHandle, null);
             if (waitHandle != null)
             {
                 try
@@ -359,9 +359,9 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private AsyncCallback m_callback;
+        private readonly AsyncCallback m_callback;
         private ManualResetEvent m_waitHandle;
-        private DateTime m_deadline;
+        private readonly DateTime m_deadline;
         private Timer m_timer;
         private CancellationTokenSource m_cts;
         #endregion

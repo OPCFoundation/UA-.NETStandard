@@ -120,7 +120,7 @@ namespace Opc.Ua
         /// </summary>
         public void AddSelectClause(NodeId eventTypeId, QualifiedName propertyName)
         {
-            SimpleAttributeOperand clause = new SimpleAttributeOperand();
+            var clause = new SimpleAttributeOperand();
 
             clause.TypeDefinitionId = eventTypeId;
             clause.AttributeId = Attributes.Value;
@@ -135,7 +135,7 @@ namespace Opc.Ua
         /// </summary>
         public void AddSelectClause(NodeId eventTypeId, string browsePath, uint attributeId)
         {
-            SimpleAttributeOperand clause = new SimpleAttributeOperand();
+            var clause = new SimpleAttributeOperand();
 
             clause.TypeDefinitionId = eventTypeId;
             clause.AttributeId = attributeId;
@@ -166,7 +166,7 @@ namespace Opc.Ua
             /// </summary>
             public static implicit operator Result(ServiceResult status)
             {
-                Result result = new Result();
+                var result = new Result();
                 result.Status = status;
                 return result;
             }
@@ -185,7 +185,7 @@ namespace Opc.Ua
             /// </summary>
             public string GetLongString()
             {
-                StringBuilder buffer = new StringBuilder();
+                var buffer = new StringBuilder();
 
                 foreach (ServiceResult selectResult in SelectClauseResults)
                 {
@@ -260,7 +260,7 @@ namespace Opc.Ua
             /// </summary>
             public EventFilterResult ToEventFilterResult(DiagnosticsMasks diagnosticsMasks, StringTable stringTable)
             {
-                EventFilterResult result = new EventFilterResult();
+                var result = new EventFilterResult();
 
                 if (m_selectClauseResults != null && m_selectClauseResults.Count > 0)
                 {
@@ -300,7 +300,7 @@ namespace Opc.Ua
         /// </summary>
         public Result Validate(FilterContext context)
         {
-            Result result = new Result();
+            var result = new Result();
 
             // check for top level error.
             if (m_selectClauses == null || m_selectClauses.Count == 0)
@@ -459,7 +459,7 @@ namespace Opc.Ua
         {
             if (format == null)
             {
-                StringBuilder buffer = new StringBuilder();
+                var buffer = new StringBuilder();
 
                 for (int ii = 0; ii < m_browsePath.Count; ii++)
                 {
@@ -565,7 +565,7 @@ namespace Opc.Ua
         /// </summary>
         public override string ToString(INodeTable nodeTable)
         {
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
 
             INode node = nodeTable.Find(TypeDefinitionId);
 
@@ -604,7 +604,7 @@ namespace Opc.Ua
                 return string.Empty;
             }
 
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
 
             for (int ii = 0; ii < browsePath.Count; ii++)
             {
@@ -643,14 +643,14 @@ namespace Opc.Ua
         /// </summary>
         public static QualifiedNameCollection Parse(string browsePath)
         {
-            QualifiedNameCollection browseNames = new QualifiedNameCollection();
+            var browseNames = new QualifiedNameCollection();
 
             if (string.IsNullOrEmpty(browsePath))
             {
                 return browseNames;
             }
 
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
 
             bool escaped = false;
 
@@ -675,7 +675,7 @@ namespace Opc.Ua
                 {
                     if (buffer.Length > 0)
                     {
-                        QualifiedName browseName = QualifiedName.Parse(buffer.ToString());
+                        var browseName = QualifiedName.Parse(buffer.ToString());
                         browseNames.Add(browseName);
                     }
 
@@ -688,7 +688,7 @@ namespace Opc.Ua
 
             if (buffer.Length > 0)
             {
-                QualifiedName browseName = QualifiedName.Parse(buffer.ToString());
+                var browseName = QualifiedName.Parse(buffer.ToString());
                 browseNames.Add(browseName);
             }
 

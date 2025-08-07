@@ -206,10 +206,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             string encodeInfo = $"Encoder: Json Type:{builtInType} Encoding: {jsonEncoding}";
 
             expected = BuildExpectedResponse(data, builtInType, expected, jsonEncoding);
-            var formattedExpected = PrettifyAndValidateJson(expected);
+            string formattedExpected = PrettifyAndValidateJson(expected);
 
             byte[] buffer;
-            using (var encoderStream = CreateEncoderMemoryStream(memoryStreamType))
+            using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
                 using (IEncoder encoder = CreateEncoder(
                     EncodingType.Json, EncoderContext, encoderStream,
@@ -232,7 +232,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 };
                 var resultParsed = JObject.Parse(result, jsonLoadSettings);
                 var expectedParsed = JObject.Parse(expected, jsonLoadSettings);
-                var areEqual = JToken.DeepEquals(expectedParsed, resultParsed);
+                bool areEqual = JToken.DeepEquals(expectedParsed, resultParsed);
                 Assert.IsTrue(areEqual, encodeInfo);
             }
             catch
@@ -294,7 +294,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     if (jsonEncoding == JsonEncodingType.Reversible)
                     {
                         var union = data.Body as UnionComplexType;
-                        var json = $"{{\"{builtInType}\" :{{";
+                        string json = $"{{\"{builtInType}\" :{{";
                         if (!data.TypeId.IsNull)
                         {
                             json += typeId;
@@ -314,7 +314,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     else
                     {
                         var union = data.Body as UnionComplexType;
-                        var json = $"{{\"{builtInType}\" :{{";
+                        string json = $"{{\"{builtInType}\" :{{";
 
                         if (!data.TypeId.IsNull)
                         {
@@ -344,13 +344,13 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 {
                     if (jsonEncoding == JsonEncodingType.NonReversible)
                     {
-                        var json = $"{{\"{builtInType}\" :";
+                        string json = $"{{\"{builtInType}\" :";
                         expected = json + $"{{\"{builtInType}\" :" + expected + "}}";
                     }
                     else
                     {
                         var optional = data.Body as OptionalFieldsComplexType;
-                        var json = $"{{\"{builtInType}\" :{{";
+                        string json = $"{{\"{builtInType}\" :{{";
 
                         if (!data.TypeId.IsNull)
                         {
@@ -390,15 +390,19 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 else if (data.Body is BaseComplexType)
                 {
                     var structure = data.Body as BaseComplexType;
-                    var body = "";
+                    string body = "";
                     bool commaNeeded = false;
-                    foreach (var property in structure.GetPropertyEnumerator())
+                    foreach (ComplexTypePropertyInfo property in structure.GetPropertyEnumerator())
                     {
                         if (builtInType.ToString() == property.Name)
                         {
                             if (!expectedIsEmpty)
                             {
-                                if (commaNeeded) body += ",";
+                                if (commaNeeded)
+                                {
+                                    body += ",";
+                                }
+
                                 commaNeeded = true;
                                 body += $"\"{builtInType}\":" + expected;
                             }
@@ -485,7 +489,11 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
                             if (oText != null)
                             {
-                                if (commaNeeded) body += ",";
+                                if (commaNeeded)
+                                {
+                                    body += ",";
+                                }
+
                                 commaNeeded = true;
                                 body += $"\"{property.Name}\":" + oText;
                             }
@@ -494,12 +502,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
                     if (jsonEncoding == JsonEncodingType.NonReversible)
                     {
-                        var json = $"{{\"{builtInType}\" :{{";
+                        string json = $"{{\"{builtInType}\" :{{";
                         expected = json + body + "}";
                     }
                     else
                     {
-                        var json = $"{{\"{builtInType}\" :{{";
+                        string json = $"{{\"{builtInType}\" :{{";
 
                         if (!data.TypeId.IsNull)
                         {

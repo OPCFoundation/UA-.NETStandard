@@ -211,7 +211,7 @@ namespace MemoryBuffer
         #region Private Fields
         private Stage m_stage;
         private uint m_position;
-        private MemoryBufferState m_buffer;
+        private readonly MemoryBufferState m_buffer;
         #endregion
     }
 }

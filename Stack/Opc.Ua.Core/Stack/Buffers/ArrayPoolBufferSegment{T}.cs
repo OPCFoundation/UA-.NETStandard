@@ -56,7 +56,7 @@ namespace Opc.Ua.Buffers
         /// </summary>
         public void Return(bool clearArray = false)
         {
-            var array = Interlocked.Exchange(ref _array, null);
+            T[] array = Interlocked.Exchange(ref _array, null);
             if (array != null)
             {
                 ArrayPool<T>.Shared.Return(array, clearArray);

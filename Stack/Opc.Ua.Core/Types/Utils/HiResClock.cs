@@ -170,13 +170,13 @@ namespace Opc.Ua
         /// Defines a global instance.
         /// </summary>
         private static HiResClock s_Default = new HiResClock(false);
-        private TicksDelegate m_ticksDelegate;
-        private long m_frequency;
-        private long m_baseline;
-        private long m_offset;
-        private double m_ticksPerMillisecond;
-        private decimal m_ratio;
-        private bool m_disabled;
+        private readonly TicksDelegate m_ticksDelegate;
+        private readonly long m_frequency;
+        private readonly long m_baseline;
+        private readonly long m_offset;
+        private readonly double m_ticksPerMillisecond;
+        private readonly decimal m_ratio;
+        private readonly bool m_disabled;
         private bool m_initialized;
     }
 

@@ -190,10 +190,10 @@ namespace Quickstarts.Servers
                     var directory = new DirectoryInfo(s_storage_path);
 
                     // Create a single regex pattern that matches any of the batches to keep
-                    var pattern = string.Join("|", batchesToKeep.Select(batch => $@"{batch}_.*{s_baseFilename}$"));
+                    string pattern = string.Join("|", batchesToKeep.Select(batch => $@"{batch}_.*{s_baseFilename}$"));
                     var regex = new Regex(pattern, RegexOptions.Compiled);
 
-                    foreach (var file in directory.GetFiles())
+                    foreach (FileInfo file in directory.GetFiles())
                     {
                         if (!regex.IsMatch(file.Name))
                         {
@@ -218,7 +218,7 @@ namespace Quickstarts.Servers
                     var directory = new DirectoryInfo(s_storage_path);
                     var regex = new Regex($@"{batchToRemove.MonitoredItemId}_.{batchToRemove.Id}._{s_baseFilename}$", RegexOptions.Compiled);
 
-                    foreach (var file in directory.GetFiles())
+                    foreach (FileInfo file in directory.GetFiles())
                     {
                         if (!regex.IsMatch(file.Name))
                         {

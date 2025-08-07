@@ -73,7 +73,7 @@ namespace Opc.Ua.Security.Certificates
             m_hashAlgorithmName = crl.HashAlgorithmName;
             m_thisUpdate = crl.ThisUpdate;
             m_nextUpdate = crl.NextUpdate;
-            m_revokedCertificates = new List<RevokedCertificate>(crl.RevokedCertificates);
+            m_revokedCertificates = [.. crl.RevokedCertificates];
             m_crlExtensions = new X509ExtensionCollection();
             foreach (X509Extension extension in crl.CrlExtensions)
             {

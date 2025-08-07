@@ -216,7 +216,7 @@ namespace Opc.Ua
 
                 if (value is IList<ExtensionObject> extensions && typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(elementType.GetTypeInfo()))
                 {
-                    Array encodeables = Array.CreateInstance(elementType, extensions.Count);
+                    var encodeables = Array.CreateInstance(elementType, extensions.Count);
 
                     for (int ii = 0; ii < extensions.Count; ii++)
                     {
@@ -278,7 +278,7 @@ namespace Opc.Ua
                 {
                     if (value is IList<Uuid> uuids)
                     {
-                        Guid[] guids = new Guid[uuids.Count];
+                        var guids = new Guid[uuids.Count];
 
                         for (int ii = 0; ii < uuids.Count; ii++)
                         {
@@ -294,7 +294,7 @@ namespace Opc.Ua
                 {
                     if (value is IList<int> values)
                     {
-                        Array enums = Array.CreateInstance(elementType, values.Count);
+                        var enums = Array.CreateInstance(elementType, values.Count);
 
                         for (int ii = 0; ii < values.Count; ii++)
                         {
@@ -308,7 +308,7 @@ namespace Opc.Ua
 
             if (typeof(Guid).GetTypeInfo().IsAssignableFrom(typeof(T).GetTypeInfo()))
             {
-                Uuid? uuid = value as Uuid?;
+                var uuid = value as Uuid?;
 
                 if (uuid != null)
                 {
@@ -442,7 +442,7 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
-            BaseInstanceState clone = (BaseInstanceState)Activator.CreateInstance(this.GetType(), this.Parent);
+            var clone = (BaseInstanceState)Activator.CreateInstance(this.GetType(), this.Parent);
             return CloneChildren(clone);
         }
         #endregion
@@ -1239,7 +1239,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            StringBuilder buffer = new StringBuilder();
+            var buffer = new StringBuilder();
 
             for (int ii = 0; ii < arrayDimensions.Count; ii++)
             {
@@ -1631,7 +1631,7 @@ namespace Opc.Ua
             // apply data encoding.
             if (!QualifiedName.IsNull(dataEncoding))
             {
-                ServiceMessageContext messageContext = new ServiceMessageContext();
+                var messageContext = new ServiceMessageContext();
 
                 messageContext.NamespaceUris = context.NamespaceUris;
                 messageContext.ServerUris = context.ServerUris;
@@ -1672,7 +1672,7 @@ namespace Opc.Ua
             {
                 case Attributes.DataType:
                 {
-                    NodeId dataType = value as NodeId;
+                    var dataType = value as NodeId;
 
                     if (dataType == null)
                     {
@@ -1732,7 +1732,7 @@ namespace Opc.Ua
 
                 case Attributes.ArrayDimensions:
                 {
-                    IList<uint> arrayDimensions = value as IList<uint>;
+                    var arrayDimensions = value as IList<uint>;
 
                     if ((WriteMask & AttributeWriteMask.ArrayDimensions) == 0)
                     {
@@ -1966,7 +1966,7 @@ namespace Opc.Ua
             }
 
             // verify data type.
-            TypeInfo typeInfo = TypeInfo.IsInstanceOfDataType(
+            var typeInfo = TypeInfo.IsInstanceOfDataType(
                 value,
                 m_dataType,
                 m_valueRank,
@@ -1978,7 +1978,7 @@ namespace Opc.Ua
                 //if xml element data decoding error appeared : a value of type status code is received with the error code
                 if (DataTypeIds.XmlElement == m_dataType)
                 {
-                    TypeInfo statusCodeTypeInfo = TypeInfo.IsInstanceOfDataType(value, DataTypeIds.UInt32, -1, context.NamespaceUris, context.TypeTable);
+                    var statusCodeTypeInfo = TypeInfo.IsInstanceOfDataType(value, DataTypeIds.UInt32, -1, context.NamespaceUris, context.TypeTable);
                     if (statusCodeTypeInfo != null)
                     {
                         //the error code
@@ -2647,7 +2647,7 @@ namespace Opc.Ua
         #endregion
 
         #region Private Fields
-        private object m_lock;
+        private readonly object m_lock;
         private VariableCopyPolicy m_copyPolicy;
         private BaseInstanceState[] m_updateList;
         private ServiceResult m_error;

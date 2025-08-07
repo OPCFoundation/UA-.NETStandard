@@ -146,7 +146,7 @@ namespace Opc.Ua.Server.Tests
     /// </summary>
     public class ServerTestServices : IServerTestServices
     {
-        ISessionServer m_server;
+        readonly ISessionServer m_server;
 
         public ServerTestServices(ISessionServer server)
         {

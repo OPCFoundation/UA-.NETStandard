@@ -69,7 +69,7 @@ namespace Alarms
         {
             bool hasBranches = false;
 
-            ConditionState alarm = m_alarm as ConditionState;
+            var alarm = m_alarm as ConditionState;
             if (alarm != null)
             {
                 hasBranches = alarm.GetBranchCount() > 0;
@@ -82,7 +82,7 @@ namespace Alarms
         {
             BaseEventState state = null;
 
-            ConditionState alarm = m_alarm as ConditionState;
+            var alarm = m_alarm as ConditionState;
             if (alarm != null)
             {
                 state = alarm.GetBranch(eventId);
@@ -93,7 +93,7 @@ namespace Alarms
 
         public void ClearBranches()
         {
-            ConditionState alarm = m_alarm as ConditionState;
+            var alarm = m_alarm as ConditionState;
             if (alarm != null)
             {
                 alarm.ClearBranches();
@@ -103,7 +103,7 @@ namespace Alarms
 
         public void GetBranchesForConditionRefresh(List<IFilterTarget> events)
         {
-            ConditionState alarm = m_alarm as ConditionState;
+            var alarm = m_alarm as ConditionState;
             if (alarm != null)
             {
                 Dictionary<string, ConditionState> branches = alarm.GetBranches();
@@ -127,7 +127,7 @@ namespace Alarms
             alarm.SymbolicName = alarmName;
 
             NodeId createNodeId = null;
-            QualifiedName createQualifiedName = new QualifiedName(alarmName, NamespaceIndex);
+            var createQualifiedName = new QualifiedName(alarmName, NamespaceIndex);
             LocalizedText createLocalizedText = null;
 
 

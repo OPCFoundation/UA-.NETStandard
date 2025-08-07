@@ -821,7 +821,7 @@ namespace TestData
         private T[] GetRandomArray<T>(Func<T> methodForSingleObject)
         {
             int size = m_generator.GetRandomByte() % 8 + 1;
-            T[] result = new T[size];
+            var result = new T[size];
             for (int ii = 0; ii < size; ii++)
             {
                 result[ii] = methodForSingleObject();
@@ -854,9 +854,21 @@ namespace TestData
         public VectorWithOptionalFields GetRandomVectorWithOptionalFields()
         {
             VectorWithOptionalFieldsFields encodingMask = VectorWithOptionalFieldsFields.None;
-            if (m_generator.GetRandomBoolean()) encodingMask |= VectorWithOptionalFieldsFields.X;
-            if (m_generator.GetRandomBoolean()) encodingMask |= VectorWithOptionalFieldsFields.Y;
-            if (m_generator.GetRandomBoolean()) encodingMask |= VectorWithOptionalFieldsFields.Z;
+            if (m_generator.GetRandomBoolean())
+            {
+                encodingMask |= VectorWithOptionalFieldsFields.X;
+            }
+
+            if (m_generator.GetRandomBoolean())
+            {
+                encodingMask |= VectorWithOptionalFieldsFields.Y;
+            }
+
+            if (m_generator.GetRandomBoolean())
+            {
+                encodingMask |= VectorWithOptionalFieldsFields.Z;
+            }
+
             return new VectorWithOptionalFields() {
                 EncodingMask = encodingMask,
                 X = (double)m_generator.GetRandom(BuiltInType.Double),
@@ -896,7 +908,7 @@ namespace TestData
 
         public ScalarStructureDataType GetRandomScalarStructureDataType()
         {
-            ScalarStructureDataType value = new ScalarStructureDataType {
+            var value = new ScalarStructureDataType {
                 BooleanValue = m_generator.GetRandom<bool>(false),
                 SByteValue = m_generator.GetRandom<sbyte>(false),
                 ByteValue = m_generator.GetRandom<byte>(false),
@@ -929,7 +941,7 @@ namespace TestData
 
         public ArrayValueDataType GetRandomArrayValueDataType()
         {
-            ArrayValueDataType value = new ArrayValueDataType {
+            var value = new ArrayValueDataType {
                 BooleanValue = m_generator.GetRandomArray<bool>(false, 10, false),
                 SByteValue = m_generator.GetRandomArray<sbyte>(false, 10, false),
                 ByteValue = m_generator.GetRandomArray<byte>(false, 10, false),
@@ -1051,7 +1063,7 @@ namespace TestData
                         object value = ReadValue(variable);
                         if (value != null)
                         {
-                            Sample sample = new Sample {
+                            var sample = new Sample {
                                 Variable = variable,
                                 Value = value,
                                 StatusCode = StatusCodes.Good,
@@ -1074,7 +1086,7 @@ namespace TestData
                     sample.Timestamp);
             }
 
-            foreach (var generateValue in generateValues)
+            foreach (BaseVariableState generateValue in generateValues)
             {
                 m_callback.OnGenerateValues(generateValue);
             }
@@ -1109,14 +1121,14 @@ namespace TestData
 
         #region Private Fields
         private readonly object m_lock = new object();
-        private ITestDataSystemCallback m_callback;
-        private Opc.Ua.Test.DataGenerator m_generator;
+        private readonly ITestDataSystemCallback m_callback;
+        private readonly Opc.Ua.Test.DataGenerator m_generator;
         private int m_minimumSamplingInterval;
         private Dictionary<uint, BaseVariableState> m_monitoredNodes;
         private IList<BaseVariableState> m_samplingNodes;
         private Timer m_timer;
         private StatusCode m_systemStatus;
-        private HistoryArchive m_historyArchive;
+        private readonly HistoryArchive m_historyArchive;
         #endregion
     }
 }

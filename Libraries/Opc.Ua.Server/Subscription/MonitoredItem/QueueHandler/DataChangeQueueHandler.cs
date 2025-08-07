@@ -322,7 +322,7 @@ namespace Opc.Ua.Server
                 status.Overflow = true;
 
                 // have to copy before updating because the ServiceResult is invariant.
-                ServiceResult copy = new ServiceResult(
+                var copy = new ServiceResult(
                     status,
                     error.SymbolicId,
                     error.NamespaceUri,

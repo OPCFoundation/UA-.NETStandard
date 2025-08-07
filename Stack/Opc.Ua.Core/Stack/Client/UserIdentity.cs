@@ -30,7 +30,7 @@ namespace Opc.Ua
         /// </summary>
         public UserIdentity()
         {
-            AnonymousIdentityToken token = new AnonymousIdentityToken();
+            var token = new AnonymousIdentityToken();
             Initialize(token);
         }
 
@@ -41,7 +41,7 @@ namespace Opc.Ua
         /// <param name="password">The password.</param>
         public UserIdentity(string username, string password)
         {
-            UserNameIdentityToken token = new UserNameIdentityToken();
+            var token = new UserNameIdentityToken();
             token.UserName = username;
             token.DecryptedPassword = password;
             Initialize(token);
@@ -69,7 +69,10 @@ namespace Opc.Ua
         /// </summary>
         public UserIdentity(CertificateIdentifier certificateId, CertificatePasswordProvider certificatePasswordProvider)
         {
-            if (certificateId == null) throw new ArgumentNullException(nameof(certificateId));
+            if (certificateId == null)
+            {
+                throw new ArgumentNullException(nameof(certificateId));
+            }
 
             X509Certificate2 certificate = certificateId.LoadPrivateKeyEx(certificatePasswordProvider).Result;
 
@@ -86,8 +89,16 @@ namespace Opc.Ua
         /// </summary>
         public UserIdentity(X509Certificate2 certificate)
         {
-            if (certificate == null) throw new ArgumentNullException(nameof(certificate));
-            if (!certificate.HasPrivateKey) throw new ServiceResultException("Cannot create User Identity with Certificate that does not have a private key");
+            if (certificate == null)
+            {
+                throw new ArgumentNullException(nameof(certificate));
+            }
+
+            if (!certificate.HasPrivateKey)
+            {
+                throw new ServiceResultException("Cannot create User Identity with Certificate that does not have a private key");
+            }
+
             Initialize(certificate);
         }
 
@@ -130,14 +141,14 @@ namespace Opc.Ua
             set { m_token.PolicyId = value; }
         }
 
-        /// <summary cref="IUserIdentity.DisplayName" />
+        /// <inheritdoc/>
         public string DisplayName
         {
             get { return m_displayName; }
             set { m_displayName = value; }
         }
 
-        /// <summary cref="IUserIdentity.TokenType" />
+        /// <inheritdoc/>
         [DataMember(Name = "TokenType", IsRequired = true, Order = 20)]
         public UserTokenType TokenType
         {
@@ -145,7 +156,7 @@ namespace Opc.Ua
             private set { m_tokenType = value; }
         }
 
-        /// <summary cref="IUserIdentity.IssuedTokenType" />
+        /// <inheritdoc/>
         [DataMember(Name = "IssuedTokenType", IsRequired = false, Order = 30)]
         public XmlQualifiedName IssuedTokenType
         {
@@ -153,7 +164,7 @@ namespace Opc.Ua
             private set { m_issuedTokenType = value; }
         }
 
-        /// <summary cref="IUserIdentity.SupportsSignatures" />
+        /// <inheritdoc/>
         public bool SupportsSignatures
         {
             get
@@ -170,18 +181,11 @@ namespace Opc.Ua
             get { return m_grantedRoleIds; }
         }
 
-        /// <summary cref="IUserIdentity.GetIdentityToken" />
+        /// <inheritdoc/>
         public UserIdentityToken GetIdentityToken()
         {
             // check for null and return anonymous.
-            if (m_token == null)
-            {
-                return new AnonymousIdentityToken();
-            }
-            else
-            {
-                return m_token;
-            }
+            return m_token ?? new AnonymousIdentityToken();
         }
         #endregion
 
@@ -191,7 +195,11 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize(UserIdentityToken token)
         {
-            if (token == null) throw new ArgumentNullException(nameof(token));
+            if (token == null)
+            {
+                throw new ArgumentNullException(nameof(token));
+            }
+
             m_grantedRoleIds = new NodeIdCollection();
             m_token = token;
 
@@ -255,7 +263,7 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize(X509Certificate2 certificate)
         {
-            X509IdentityToken token = new X509IdentityToken();
+            var token = new X509IdentityToken();
             token.CertificateData = certificate.RawData;
             token.Certificate = certificate;
             Initialize(token);

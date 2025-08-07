@@ -68,7 +68,7 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
-            BaseTypeState clone = new BaseTypeState(this.NodeClass);
+            var clone = new BaseTypeState(this.NodeClass);
             return CloneChildren(clone);
         }
         #endregion

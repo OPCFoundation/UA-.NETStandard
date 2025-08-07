@@ -183,7 +183,7 @@ namespace Opc.Ua
             object branchedAlarm = Activator.CreateInstance(alarmType, this);
             if (branchedAlarm != null)
             {
-                ConditionState branchedNodeState = (ConditionState)branchedAlarm;
+                var branchedNodeState = (ConditionState)branchedAlarm;
                 branchedNodeState.Initialize(context, this);
                 branchedNodeState.BranchId.Value = branchId;
                 branchedNodeState.AutoReportStateChanges = AutoReportStateChanges;
@@ -438,7 +438,7 @@ namespace Opc.Ua
                 // report a state change event.
                 if (EventsMonitored())
                 {
-                    InstanceStateSnapshot snapshot = new InstanceStateSnapshot();
+                    var snapshot = new InstanceStateSnapshot();
                     snapshot.Initialize(context, this);
                     ReportEvent(context, snapshot);
                 }
@@ -493,9 +493,9 @@ namespace Opc.Ua
                 }
 
                 // raise the audit event.
-                AuditConditionCommentEventState e = new AuditConditionCommentEventState(null);
+                var e = new AuditConditionCommentEventState(null);
 
-                TranslationInfo info = new TranslationInfo(
+                var info = new TranslationInfo(
                     "AuditConditionComment",
                     "en-US",
                     "The AddComment method was called.");
@@ -607,9 +607,9 @@ namespace Opc.Ua
                 }
 
                 // raise the audit event.
-                AuditConditionEnableEventState e = new AuditConditionEnableEventState(null);
+                var e = new AuditConditionEnableEventState(null);
 
-                TranslationInfo info = new TranslationInfo(
+                var info = new TranslationInfo(
                     "AuditConditionEnable",
                     "en-US",
                     "The Enable method was called.");
@@ -666,9 +666,9 @@ namespace Opc.Ua
                 }
 
                 // raise the audit event.
-                AuditConditionEnableEventState e = new AuditConditionEnableEventState(null);
+                var e = new AuditConditionEnableEventState(null);
 
-                TranslationInfo info = new TranslationInfo(
+                var info = new TranslationInfo(
                     "AuditConditionEnable",
                     "en-US",
                     "The Disable method was called.");
@@ -729,7 +729,7 @@ namespace Opc.Ua
         /// <param name="context">The system context.</param>
         protected virtual void UpdateStateAfterEnable(ISystemContext context)
         {
-            TranslationInfo state = new TranslationInfo(
+            var state = new TranslationInfo(
                 "ConditionStateEnabled",
                 "en-US",
                 ConditionStateNames.Enabled);
@@ -752,7 +752,7 @@ namespace Opc.Ua
         /// <param name="context">The system context.</param>
         protected virtual void UpdateStateAfterDisable(ISystemContext context)
         {
-            TranslationInfo state = new TranslationInfo(
+            var state = new TranslationInfo(
                 "ConditionStateDisabled",
                 "en-US",
                 ConditionStateNames.Disabled);
@@ -782,7 +782,7 @@ namespace Opc.Ua
         #region Private Fields
         private bool m_autoReportStateChanges;
         /// <summary>
-        /// 
+        /// Branches
         /// </summary>
         protected Dictionary<string, ConditionState> m_branches = null;
         private PropertyState<bool> m_supportsFilteredRetain = null;
