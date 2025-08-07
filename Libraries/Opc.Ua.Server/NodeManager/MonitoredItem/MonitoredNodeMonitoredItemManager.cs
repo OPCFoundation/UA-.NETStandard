@@ -154,16 +154,13 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public (ServiceResult, MonitoringMode?) SetMonitoringMode(ServerSystemContext context, ISampledDataChangeMonitoredItem monitoredItem, MonitoringMode monitoringMode, NodeHandle handle)
         {
-            // check for valid monitored item.
-            MonitoredItem datachangeItem = monitoredItem as MonitoredItem;
-
             // update monitoring mode.
-            MonitoringMode previousMode = datachangeItem.SetMonitoringMode(monitoringMode);
+            MonitoringMode previousMode = monitoredItem.SetMonitoringMode(monitoringMode);
 
             // must send the latest value after enabling a disabled item.
             if (monitoringMode == MonitoringMode.Reporting && previousMode == MonitoringMode.Disabled)
             {
-                handle.MonitoredNode.QueueValue(context, handle.Node, datachangeItem);
+                handle.MonitoredNode.QueueValue(context, handle.Node, monitoredItem);
             }
 
             return (StatusCodes.Good, previousMode);

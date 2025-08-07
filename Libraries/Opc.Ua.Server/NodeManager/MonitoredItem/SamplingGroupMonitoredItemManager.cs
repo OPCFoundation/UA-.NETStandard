@@ -133,7 +133,7 @@ namespace Opc.Ua.Server
             }
 
             // remove item.
-            m_samplingGroupManager.StopMonitoring((MonitoredItem)monitoredItem);
+            m_samplingGroupManager.StopMonitoring(monitoredItem);
 
             // remove association with the group.
             m_monitoredItems.TryRemove(monitoredItem.Id, out _);

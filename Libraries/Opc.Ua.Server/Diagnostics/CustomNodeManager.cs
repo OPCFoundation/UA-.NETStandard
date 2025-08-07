@@ -2016,7 +2016,7 @@ namespace Opc.Ua.Server
 
             foreach (var kvp in MonitoredItems)
             {
-                var monitoredItem = kvp.Value as MonitoredItem;
+                var monitoredItem = kvp.Value as ISampledDataChangeMonitoredItem;
                 if (monitoredItem == null || monitoredItem.AttributeId != Attributes.Value)
                 {
                     continue;
@@ -3760,7 +3760,7 @@ namespace Opc.Ua.Server
             }
 
             // report change.
-            OnMonitoredItemCreated(context, handle, (MonitoredItem)monitoredItem);
+            OnMonitoredItemCreated(context, handle, dataChangeMonitoredItem);
 
             return error;
         }
