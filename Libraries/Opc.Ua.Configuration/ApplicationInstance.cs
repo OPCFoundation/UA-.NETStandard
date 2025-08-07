@@ -168,12 +168,21 @@ namespace Opc.Ua.Configuration
         {
             throw new NotImplementedException(".NetStandard Opc.Ua libraries do not support to start as a windows service");
         }
+        /// <summary>
+        /// Starts the UA server.
+        /// </summary>
+        /// <param name="server">The server.</param>
+        [Obsolete("Use StartAsync(ServerBase server) instead.")]
+        public Task Start(ServerBase server)
+        {
+            return StartAsync(server);
+        }
 
         /// <summary>
         /// Starts the UA server.
         /// </summary>
         /// <param name="server">The server.</param>
-        public async Task Start(ServerBase server)
+        public async Task StartAsync(ServerBase server)
         {
             m_server = server;
 
@@ -247,7 +256,23 @@ namespace Opc.Ua.Configuration
         /// <summary>
         /// Loads the configuration.
         /// </summary>
-        public async Task<ApplicationConfiguration> LoadAppConfig(
+        [Obsolete("Use LoadAppConfigAsync instead.")]
+        public Task<ApplicationConfiguration> LoadAppConfig(
+            bool silent,
+            Stream stream,
+            ApplicationType applicationType,
+            Type configurationType,
+            bool applyTraceSettings,
+            ICertificatePasswordProvider certificatePasswordProvider = null)
+        {
+            return LoadAppConfigAsync(
+                silent, stream, applicationType, configurationType, applyTraceSettings, certificatePasswordProvider);
+        }
+
+        /// <summary>
+        /// Loads the configuration.
+        /// </summary>
+        public async Task<ApplicationConfiguration> LoadAppConfigAsync(
             bool silent,
             Stream stream,
             ApplicationType applicationType,
@@ -260,7 +285,7 @@ namespace Opc.Ua.Configuration
             try
             {
                 // load the configuration file.
-                ApplicationConfiguration configuration = await ApplicationConfiguration.Load(
+                ApplicationConfiguration configuration = await ApplicationConfiguration.LoadAsync(
                     stream,
                     applicationType,
                     configurationType,
@@ -298,13 +323,22 @@ namespace Opc.Ua.Configuration
         /// <summary>
         /// Loads the application configuration.
         /// </summary>
-        public async Task<ApplicationConfiguration> LoadApplicationConfiguration(Stream stream, bool silent)
+        [Obsolete("Use LoadApplicationConfigurationAsync instead.")]
+        public Task<ApplicationConfiguration> LoadApplicationConfiguration(Stream stream, bool silent)
+        {
+            return LoadApplicationConfigurationAsync(stream, silent);
+        }
+
+        /// <summary>
+        /// Loads the application configuration.
+        /// </summary>
+        public async Task<ApplicationConfiguration> LoadApplicationConfigurationAsync(Stream stream, bool silent)
         {
             ApplicationConfiguration configuration = null;
 
             try
             {
-                configuration = await LoadAppConfig(
+                configuration = await LoadAppConfigAsync(
                     silent, stream, ApplicationType, ConfigurationType, true, CertificatePasswordProvider)
                     .ConfigureAwait(false);
             }
@@ -525,10 +559,10 @@ namespace Opc.Ua.Configuration
 
             // reload the certificate from disk in the cache.
             var passwordProvider = configuration.SecurityConfiguration.CertificatePasswordProvider;
-            await id.LoadPrivateKeyEx(passwordProvider, configuration.ApplicationUri).ConfigureAwait(false);
+            await id.LoadPrivateKeyExAsync(passwordProvider, configuration.ApplicationUri).ConfigureAwait(false);
 
             // load the certificate
-            X509Certificate2 certificate = await id.Find(true, configuration.ApplicationUri).ConfigureAwait(false);
+            X509Certificate2 certificate = await id.FindAsync(true, configuration.ApplicationUri).ConfigureAwait(false);
 
             // check that it is ok.
             if (certificate != null)
@@ -550,7 +584,7 @@ namespace Opc.Ua.Configuration
             else
             {
                 // check for missing private key.
-                certificate = await id.Find(false, configuration.ApplicationUri).ConfigureAwait(false);
+                certificate = await id.FindAsync(false, configuration.ApplicationUri).ConfigureAwait(false);
 
                 if (certificate != null)
                 {
@@ -568,7 +602,7 @@ namespace Opc.Ua.Configuration
                             StorePath = id.StorePath,
                             SubjectName = id.SubjectName
                         };
-                        certificate = await id2.Find(true, configuration.ApplicationUri).ConfigureAwait(false);
+                        certificate = await id2.FindAsync(true, configuration.ApplicationUri).ConfigureAwait(false);
                     }
 
                     if (certificate != null)
@@ -939,7 +973,7 @@ namespace Opc.Ua.Configuration
             }
 
             // reload the certificate from disk.
-            id.Certificate = await id.LoadPrivateKeyEx(passwordProvider, configuration.ApplicationUri).ConfigureAwait(false);
+            id.Certificate = await id.LoadPrivateKeyExAsync(passwordProvider, configuration.ApplicationUri).ConfigureAwait(false);
 
             await configuration.CertificateValidator.UpdateAsync(configuration.SecurityConfiguration).ConfigureAwait(false);
 
@@ -964,7 +998,7 @@ namespace Opc.Ua.Configuration
             }
 
             // delete certificate and private key.
-            X509Certificate2 certificate = await id.Find(configuration.ApplicationUri).ConfigureAwait(false);
+            X509Certificate2 certificate = await id.FindAsync(configuration.ApplicationUri).ConfigureAwait(false);
             if (certificate != null)
             {
                 Utils.LogCertificate(TraceMasks.Security, "Deleting application instance certificate and private key.", certificate);

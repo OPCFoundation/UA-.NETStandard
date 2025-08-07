@@ -813,7 +813,7 @@ namespace Opc.Ua
             foreach (var certificateIdentifier in Configuration.SecurityConfiguration.ApplicationCertificates)
             {
                 // preload chain
-                X509Certificate2 certificate = certificateIdentifier.Find(false).GetAwaiter().GetResult();
+                X509Certificate2 certificate = certificateIdentifier.FindAsync(false).GetAwaiter().GetResult();
                 InstanceCertificateTypesProvider.LoadCertificateChainAsync(certificate).GetAwaiter().GetResult();
             }
 

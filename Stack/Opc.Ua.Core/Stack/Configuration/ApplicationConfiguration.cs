@@ -218,9 +218,21 @@ namespace Opc.Ua
         /// <param name="sectionName">Name of configuration section for the current application's default configuration containing <see cref="ConfigurationLocation"/>.</param>
         /// <param name="applicationType">Type of the application.</param>
         /// <returns>Application configuration</returns>
+        [Obsolete("Use LoadAsync instead.")]
         public static Task<ApplicationConfiguration> Load(string sectionName, ApplicationType applicationType)
         {
-            return Load(sectionName, applicationType, typeof(ApplicationConfiguration));
+            return LoadAsync(sectionName, applicationType);
+        }
+
+        /// <summary>
+        /// Loads and validates the application configuration from a configuration section.
+        /// </summary>
+        /// <param name="sectionName">Name of configuration section for the current application's default configuration containing <see cref="ConfigurationLocation"/>.</param>
+        /// <param name="applicationType">Type of the application.</param>
+        /// <returns>Application configuration</returns>
+        public static Task<ApplicationConfiguration> LoadAsync(string sectionName, ApplicationType applicationType)
+        {
+            return LoadAsync(sectionName, applicationType, typeof(ApplicationConfiguration));
         }
 
         /// <summary>
@@ -230,7 +242,20 @@ namespace Opc.Ua
         /// <param name="applicationType">A description for the ApplicationType DataType.</param>
         /// <param name="systemType">A user type of the configuration instance.</param>
         /// <returns>Application configuration</returns>
+        [Obsolete("Use LoadAsync instead.")]
         public static Task<ApplicationConfiguration> Load(string sectionName, ApplicationType applicationType, Type systemType)
+        {
+            return LoadAsync(sectionName, applicationType, systemType);
+        }
+
+        /// <summary>
+        /// Loads and validates the application configuration from a configuration section.
+        /// </summary>
+        /// <param name="sectionName">Name of configuration section for the current application's default configuration containing <see cref="ConfigurationLocation"/>.</param>
+        /// <param name="applicationType">A description for the ApplicationType DataType.</param>
+        /// <param name="systemType">A user type of the configuration instance.</param>
+        /// <returns>Application configuration</returns>
+        public static Task<ApplicationConfiguration> LoadAsync(string sectionName, ApplicationType applicationType, Type systemType)
         {
             string filePath = GetFilePathFromAppConfig(sectionName);
 
@@ -246,7 +271,7 @@ namespace Opc.Ua
                     StatusCodes.BadConfigurationError, message.ToString());
             }
 
-            return Load(file, applicationType, systemType);
+            return LoadAsync(file, applicationType, systemType);
         }
 
         /// <summary>
@@ -292,9 +317,22 @@ namespace Opc.Ua
         /// <param name="applicationType">Type of the application.</param>
         /// <param name="systemType">Type of the system.</param>
         /// <returns>Application configuration</returns>
+        [Obsolete("Use LoadAsync instead.")]
         public static Task<ApplicationConfiguration> Load(FileInfo file, ApplicationType applicationType, Type systemType)
         {
-            return ApplicationConfiguration.Load(file, applicationType, systemType, true);
+            return LoadAsync(file, applicationType, systemType);
+        }
+
+        /// <summary>
+        /// Loads and validates the application configuration from a configuration section.
+        /// </summary>
+        /// <param name="file">The file.</param>
+        /// <param name="applicationType">Type of the application.</param>
+        /// <param name="systemType">Type of the system.</param>
+        /// <returns>Application configuration</returns>
+        public static Task<ApplicationConfiguration> LoadAsync(FileInfo file, ApplicationType applicationType, Type systemType)
+        {
+            return ApplicationConfiguration.LoadAsync(file, applicationType, systemType, true);
         }
 
         /// <summary>
@@ -306,7 +344,27 @@ namespace Opc.Ua
         /// <param name="applyTraceSettings">if set to <c>true</c> apply trace settings after validation.</param>
         /// <param name="certificatePasswordProvider">The certificate password provider.</param>
         /// <returns>Application configuration</returns>
-        public static async Task<ApplicationConfiguration> Load(
+        [Obsolete("Use LoadAsync instead.")]
+        public static Task<ApplicationConfiguration> Load(
+            FileInfo file,
+            ApplicationType applicationType,
+            Type systemType,
+            bool applyTraceSettings,
+            ICertificatePasswordProvider certificatePasswordProvider = null)
+        {
+            return LoadAsync(file, applicationType, systemType, applyTraceSettings, certificatePasswordProvider);
+        }
+
+        /// <summary>
+        /// Loads and validates the application configuration from a configuration section.
+        /// </summary>
+        /// <param name="file">The file.</param>
+        /// <param name="applicationType">Type of the application.</param>
+        /// <param name="systemType">Type of the system.</param>
+        /// <param name="applyTraceSettings">if set to <c>true</c> apply trace settings after validation.</param>
+        /// <param name="certificatePasswordProvider">The certificate password provider.</param>
+        /// <returns>Application configuration</returns>
+        public static async Task<ApplicationConfiguration> LoadAsync(
             FileInfo file,
             ApplicationType applicationType,
             Type systemType,
@@ -319,7 +377,7 @@ namespace Opc.Ua
             {
                 using (FileStream stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read))
                 {
-                    configuration = await Load(stream, applicationType, systemType, applyTraceSettings, certificatePasswordProvider).ConfigureAwait(false);
+                    configuration = await LoadAsync(stream, applicationType, systemType, applyTraceSettings, certificatePasswordProvider).ConfigureAwait(false);
                 }
             }
             catch (Exception e)
@@ -349,7 +407,27 @@ namespace Opc.Ua
         /// <param name="applyTraceSettings">if set to <c>true</c> apply trace settings after validation.</param>
         /// <param name="certificatePasswordProvider">The certificate password provider.</param>
         /// <returns>Application configuration</returns>
-        public static async Task<ApplicationConfiguration> Load(
+        [Obsolete("Use LoadAsync instead.")]
+        public static Task<ApplicationConfiguration> Load(
+            Stream stream,
+            ApplicationType applicationType,
+            Type systemType,
+            bool applyTraceSettings,
+            ICertificatePasswordProvider certificatePasswordProvider = null)
+        {
+            return LoadAsync(stream, applicationType, systemType, applyTraceSettings, certificatePasswordProvider);
+        }
+
+        /// <summary>
+        /// Loads and validates the application configuration from a configuration section.
+        /// </summary>
+        /// <param name="stream">The stream.</param>
+        /// <param name="applicationType">Type of the application.</param>
+        /// <param name="systemType">Type of the system.</param>
+        /// <param name="applyTraceSettings">if set to <c>true</c> apply trace settings after validation.</param>
+        /// <param name="certificatePasswordProvider">The certificate password provider.</param>
+        /// <returns>Application configuration</returns>
+        public static async Task<ApplicationConfiguration> LoadAsync(
             Stream stream,
             ApplicationType applicationType,
             Type systemType,
@@ -384,7 +462,7 @@ namespace Opc.Ua
 
                 configuration.SecurityConfiguration.CertificatePasswordProvider = certificatePasswordProvider;
 
-                await configuration.Validate(applicationType).ConfigureAwait(false);
+                await configuration.ValidateAsync(applicationType).ConfigureAwait(false);
             }
 
             return configuration;
@@ -425,7 +503,17 @@ namespace Opc.Ua
         /// Ensures that the application configuration is valid.
         /// </summary>
         /// <param name="applicationType">Type of the application.</param>
-        public virtual async Task Validate(ApplicationType applicationType)
+        [Obsolete("Use ValidateAsync instead.")]
+        public virtual Task Validate(ApplicationType applicationType)
+        {
+            return ValidateAsync(applicationType);
+        }
+
+        /// <summary>
+        /// Ensures that the application configuration is valid.
+        /// </summary>
+        /// <param name="applicationType">Type of the application.</param>
+        public virtual async Task ValidateAsync(ApplicationType applicationType)
         {
             if (String.IsNullOrEmpty(ApplicationName))
             {
@@ -442,7 +530,7 @@ namespace Opc.Ua
             // load private keys
             foreach (var applicationCertificate in SecurityConfiguration.ApplicationCertificates)
             {
-                await applicationCertificate.LoadPrivateKeyEx(SecurityConfiguration.CertificatePasswordProvider, ApplicationUri).ConfigureAwait(false);
+                await applicationCertificate.LoadPrivateKeyExAsync(SecurityConfiguration.CertificatePasswordProvider, ApplicationUri).ConfigureAwait(false);
             }
 
             Func<string> generateDefaultUri = () => {

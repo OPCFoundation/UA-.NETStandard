@@ -183,9 +183,18 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Connects using the default endpoint.
         /// </summary>
+        [Obsolete("Use ConnectAsync instead.")]
         public void Connect()
         {
-            Connect(m_endpoint).Wait();
+            ConnectAsync(m_endpoint).Wait();
+        }
+
+        /// <summary>
+        /// Connects using the default endpoint.
+        /// </summary>
+        public Task ConnectAsync()
+        {
+            return ConnectAsync(m_endpoint);
         }
 
         /// <summary>
@@ -194,7 +203,19 @@ namespace Opc.Ua.Gds.Client
         /// <param name="endpointUrl">The endpoint URL.</param>
         /// <exception cref="System.ArgumentNullException">endpointUrl</exception>
         /// <exception cref="System.ArgumentException">endpointUrl</exception>
-        public async Task Connect(string endpointUrl)
+        [Obsolete("Use ConnectAsync instead.")]
+        public Task Connect(string endpointUrl)
+        {
+            return ConnectAsync(endpointUrl);
+        }
+
+        /// <summary>
+        /// Connects the specified endpoint URL.
+        /// </summary>
+        /// <param name="endpointUrl">The endpoint URL.</param>
+        /// <exception cref="System.ArgumentNullException">endpointUrl</exception>
+        /// <exception cref="System.ArgumentException">endpointUrl</exception>
+        public async Task ConnectAsync(string endpointUrl)
         {
             if (String.IsNullOrEmpty(endpointUrl))
             {
@@ -210,14 +231,24 @@ namespace Opc.Ua.Gds.Client
             EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(m_configuration);
             ConfiguredEndpoint endpoint = new ConfiguredEndpoint(null, endpointDescription, endpointConfiguration);
 
-            await Connect(endpoint).ConfigureAwait(false);
+            await ConnectAsync(endpoint).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Connects the specified endpoint.
         /// </summary>
         /// <param name="endpoint">The endpoint.</param>
-        public async Task Connect(ConfiguredEndpoint endpoint)
+        [Obsolete("Use ConnectAsync instead.")]
+        public Task Connect(ConfiguredEndpoint endpoint)
+        {
+            return ConnectAsync(endpoint);
+        }
+
+        /// <summary>
+        /// Connects the specified endpoint.
+        /// </summary>
+        /// <param name="endpoint">The endpoint.</param>
+        public async Task ConnectAsync(ConfiguredEndpoint endpoint)
         {
             if (endpoint != null && m_endpoint != null && endpoint.EndpointUrl != m_endpoint.EndpointUrl)
             {
@@ -314,7 +345,7 @@ namespace Opc.Ua.Gds.Client
 
             if (!IsConnected)
             {
-                Connect();
+                ConnectAsync().GetAwaiter().GetResult();
             }
 
             IUserIdentity oldUser = ElevatePermissions();
@@ -358,7 +389,7 @@ namespace Opc.Ua.Gds.Client
         {
             if (!IsConnected)
             {
-                Connect();
+                ConnectAsync().GetAwaiter().GetResult();
             }
 
             IUserIdentity oldUser = ElevatePermissions();
@@ -436,7 +467,7 @@ namespace Opc.Ua.Gds.Client
         {
             if (!IsConnected)
             {
-                Connect();
+                ConnectAsync().GetAwaiter().GetResult();
             }
 
             IUserIdentity oldUser = ElevatePermissions();
@@ -516,7 +547,7 @@ namespace Opc.Ua.Gds.Client
         {
             if (!IsConnected)
             {
-                Connect();
+                ConnectAsync().GetAwaiter().GetResult();
             }
 
             IUserIdentity oldUser = ElevatePermissions();
@@ -542,7 +573,7 @@ namespace Opc.Ua.Gds.Client
         {
             if (!IsConnected)
             {
-                Connect();
+                ConnectAsync().GetAwaiter().GetResult();
             }
 
             IUserIdentity oldUser = ElevatePermissions();
@@ -579,7 +610,7 @@ namespace Opc.Ua.Gds.Client
             certificates = Array.Empty<byte[]>();
             if (!IsConnected)
             {
-                Connect();
+                ConnectAsync().GetAwaiter().GetResult();
             }
 
             IUserIdentity oldUser = ElevatePermissions();
@@ -620,7 +651,7 @@ namespace Opc.Ua.Gds.Client
         {
             if (!IsConnected)
             {
-                Connect();
+                ConnectAsync().GetAwaiter().GetResult();
             }
 
             IUserIdentity oldUser = ElevatePermissions();
@@ -668,7 +699,7 @@ namespace Opc.Ua.Gds.Client
         {
             if (!IsConnected)
             {
-                Connect();
+                ConnectAsync().GetAwaiter().GetResult();
             }
 
             IUserIdentity oldUser = ElevatePermissions();
@@ -705,7 +736,7 @@ namespace Opc.Ua.Gds.Client
         {
             if (!IsConnected)
             {
-                Connect();
+                ConnectAsync().GetAwaiter().GetResult();
             }
 
             IUserIdentity oldUser = ElevatePermissions();
@@ -739,7 +770,7 @@ namespace Opc.Ua.Gds.Client
         {
             if (!IsConnected)
             {
-                Connect();
+                ConnectAsync().GetAwaiter().GetResult();
             }
 
             ElevatePermissions();

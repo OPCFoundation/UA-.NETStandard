@@ -1203,7 +1203,7 @@ namespace Opc.Ua.Client
             ITransportWaitingConnection connection = null;
             do
             {
-                connection = await reverseConnectManager.WaitForConnection(
+                connection = await reverseConnectManager.WaitForConnectionAsync(
                     endpoint.EndpointUrl,
                     endpoint.ReverseConnect?.ServerUri,
                     ct).ConfigureAwait(false);
@@ -6142,7 +6142,7 @@ namespace Opc.Ua.Client
             {
                 clientCertificateChain = new X509Certificate2Collection(clientCertificate);
                 List<CertificateIdentifier> issuers = new List<CertificateIdentifier>();
-                await configuration.CertificateValidator.GetIssuers(clientCertificate, issuers).ConfigureAwait(false);
+                await configuration.CertificateValidator.GetIssuersAsync(clientCertificate, issuers).ConfigureAwait(false);
 
                 for (int i = 0; i < issuers.Count; i++)
                 {

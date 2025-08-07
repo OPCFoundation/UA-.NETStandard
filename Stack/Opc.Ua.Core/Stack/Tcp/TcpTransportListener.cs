@@ -683,7 +683,20 @@ namespace Opc.Ua.Bindings
         /// Transfers the channel to a waiting connection.
         /// </summary>
         /// <returns>TRUE if the channel should be kept open; FALSE otherwise.</returns>
-        public async Task<bool> TransferListenerChannel(
+        [Obsolete("Use TransferListenerChannelAsync instead.")]
+        public Task<bool> TransferListenerChannel(
+            uint channelId,
+            string serverUri,
+            Uri endpointUrl)
+        {
+            return TransferListenerChannelAsync(channelId, serverUri, endpointUrl);
+        }
+
+        /// <summary>
+        /// Transfers the channel to a waiting connection.
+        /// </summary>
+        /// <returns>TRUE if the channel should be kept open; FALSE otherwise.</returns>
+        public async Task<bool> TransferListenerChannelAsync(
             uint channelId,
             string serverUri,
             Uri endpointUrl)

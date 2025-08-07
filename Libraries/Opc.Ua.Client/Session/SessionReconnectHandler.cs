@@ -382,7 +382,7 @@ namespace Opc.Ua.Client
                 {
                     if (m_reverseConnectManager != null)
                     {
-                        var connection = await m_reverseConnectManager.WaitForConnection(
+                        var connection = await m_reverseConnectManager.WaitForConnectionAsync(
                                 new Uri(m_session.Endpoint.EndpointUrl),
                                 m_session.Endpoint.Server.ApplicationUri
                             ).ConfigureAwait(false);
@@ -462,7 +462,7 @@ namespace Opc.Ua.Client
                         var endpointDescription = m_session.Endpoint;
                         if(endpointDescription == null)
                              endpointDescription = transportChannel.EndpointDescription;
-                        connection = await m_reverseConnectManager.WaitForConnection(
+                        connection = await m_reverseConnectManager.WaitForConnectionAsync(
                                 new Uri(endpointDescription.EndpointUrl),
                                 endpointDescription.Server.ApplicationUri
                             ).ConfigureAwait(false);

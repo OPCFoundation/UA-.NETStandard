@@ -131,7 +131,7 @@ namespace Opc.Ua
             try
             {
                 // Will always use the first certificate
-                clientCertificate = applicationConfiguration?.SecurityConfiguration?.ApplicationCertificate?.Find(true).Result;
+                clientCertificate = applicationConfiguration?.SecurityConfiguration?.ApplicationCertificate?.FindAsync(true).GetAwaiter().GetResult();
             }
             catch
             {
