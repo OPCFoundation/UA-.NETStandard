@@ -411,7 +411,7 @@ namespace Opc.Ua.Configuration
     /// Add the security configuration (mandatory).
     /// </summary>
     public interface IApplicationConfigurationBuilderSecurity
-    {
+    {        
         /// <summary>
         /// Add the security configuration.
         /// </summary>

@@ -99,17 +99,6 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="thumbprint">The thumbprint.</param>
         /// <param name="subjectName">The certificate subject.</param>
-        /// <param name="password">The certificate password.</param>
-        /// <remarks>Returns always null if SupportsLoadPrivateKey returns false.</remarks>
-        /// <returns>The matching certificate with private key</returns>
-        [Obsolete("Method is deprecated. Use only for RSA certificates, the replacing LoadPrivateKey with certificateType parameter should be used.")]
-        Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string password);
-
-        /// <summary>
-        /// Finds the certificate with the specified thumbprint.
-        /// </summary>
-        /// <param name="thumbprint">The thumbprint.</param>
-        /// <param name="subjectName">The certificate subject.</param>
         /// <param name="applicationUri">The application uri in the cert extension.</param>
         /// <param name="certificateType">The certificate type to load.</param>
         /// <param name="password">The certificate password.</param>

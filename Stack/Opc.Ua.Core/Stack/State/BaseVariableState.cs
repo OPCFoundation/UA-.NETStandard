@@ -116,15 +116,6 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a values contained in a variant to the value defined for the variable.
         /// </summary>
-        [Obsolete("Should use the version that takes a ISystemContext (pass null if ISystemContext is not available).")]
-        protected virtual object ExtractValueFromVariant(object value, bool throwOnError)
-        {
-            return ExtractValueFromVariant(null, value, throwOnError);
-        }
-
-        /// <summary>
-        /// Converts a values contained in a variant to the value defined for the variable.
-        /// </summary>
         /// <param name="context">The system context.</param>
         /// <param name="value">The value.</param>
         /// <param name="throwOnError">if set to <c>true</c> throw an exception on error.</param>
@@ -168,15 +159,6 @@ namespace Opc.Ua
             }
 
             return property.Value;
-        }
-
-        /// <summary>
-        /// Converts a values contained in a variant to the value defined for the variable.
-        /// </summary>
-        [Obsolete("Should use the version that takes a ISystemContext (pass null if ISystemContext is not available).")]
-        public static object ExtractValueFromVariant<T>(object value, bool throwOnError)
-        {
-            return ExtractValueFromVariant<T>(null, value, throwOnError);
         }
 
         /// <summary>
@@ -2394,15 +2376,6 @@ namespace Opc.Ua
             Value = default;
             DataType = TypeInfo.GetDataTypeId(typeof(T));
             ValueRank = TypeInfo.GetValueRank(typeof(T));
-        }
-
-        /// <summary>
-        /// Extracts a value of the specified type from a value stored in a variant.
-        /// </summary>
-        [Obsolete("Should use the version that takes a ISystemContext (pass null if ISystemContext is not available).")]
-        protected override object ExtractValueFromVariant(object value, bool throwOnError)
-        {
-            return ExtractValueFromVariant<T>(null, value, throwOnError);
         }
 
         /// <summary>

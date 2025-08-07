@@ -108,7 +108,7 @@ namespace Opc.Ua.Client.Tests
             return this.MasterNodeManagerReference;
         }
 
-        protected override SessionManager CreateSessionManager(IServerInternal server, ApplicationConfiguration configuration)
+        protected override ISessionManager CreateSessionManager(IServerInternal server, ApplicationConfiguration configuration)
         {
             this.SessionManagerForTest = new SessionManagerWithLimits(server, configuration);
             return this.SessionManagerForTest;
@@ -183,7 +183,7 @@ namespace Opc.Ua.Client.Tests
             m_4TestMaxHistoryContinuationPoints = configuration.ServerConfiguration.MaxHistoryContinuationPoints;
         }
 
-        protected override Opc.Ua.Server.ISession CreateSession(
+        protected override Ua.Server.ISession CreateSession(
             OperationContext context,
             IServerInternal server,
             X509Certificate2 serverCertificate,
@@ -218,7 +218,7 @@ namespace Opc.Ua.Client.Tests
                 m_4TestMaxBrowseContinuationPoints,
                 m_4TestMaxHistoryContinuationPoints);
 
-            return (Opc.Ua.Server.Session)session;
+            return session;
         }
     }
 
