@@ -235,7 +235,7 @@ namespace Opc.Ua.Client
         {
             try
             {
-                ApplicationConfiguration configuration = await ApplicationConfiguration.Load(
+                ApplicationConfiguration configuration = await ApplicationConfiguration.LoadAsync(
                     new FileInfo(args.FilePath),
                     m_applicationType,
                     m_configType).ConfigureAwait(false);
@@ -462,7 +462,22 @@ namespace Opc.Ua.Client
         /// <param name="endpointUrl"></param>
         /// <param name="serverUri"></param>
         /// <param name="ct"></param>
-        public async Task<ITransportWaitingConnection> WaitForConnection(
+        [Obsolete("Use WaitForConnectionAsync instead.")]
+        public Task<ITransportWaitingConnection> WaitForConnection(
+            Uri endpointUrl,
+            string serverUri,
+            CancellationToken ct = default)
+        {
+            return WaitForConnectionAsync(endpointUrl, serverUri, ct);
+        }
+
+        /// <summary>
+        /// Helper to wait for a reverse connection.
+        /// </summary>
+        /// <param name="endpointUrl"></param>
+        /// <param name="serverUri"></param>
+        /// <param name="ct"></param>
+        public async Task<ITransportWaitingConnection> WaitForConnectionAsync(
             Uri endpointUrl,
             string serverUri,
             CancellationToken ct = default)
@@ -472,7 +487,8 @@ namespace Opc.Ua.Client
                 (object sender, ConnectionWaitingEventArgs e) => tcs.TrySetResult(e),
                 ReverseConnectStrategy.Once);
 
-            Func<Task> listenForCancelTaskFnc = async () => {
+            Func<Task> listenForCancelTaskFnc = async () =>
+            {
                 if (ct == default)
                 {
                     var waitTimeout = m_configuration.WaitTimeout > 0 ? m_configuration.WaitTimeout : DefaultWaitTimeout;
@@ -514,7 +530,8 @@ namespace Opc.Ua.Client
             )
         {
             if (endpointUrl == null) throw new ArgumentNullException(nameof(endpointUrl));
-            var registration = new Registration(serverUri, endpointUrl, onConnectionWaiting) {
+            var registration = new Registration(serverUri, endpointUrl, onConnectionWaiting)
+            {
                 ReverseConnectStrategy = reverseConnectStrategy
             };
             lock (m_registrationsLock)
@@ -605,7 +622,7 @@ namespace Opc.Ua.Client
                 m_endpointUrls[endpointUrl] = info;
                 reverseConnectHost.CreateListener(
                     endpointUrl,
-                    new ConnectionWaitingHandlerAsync(OnConnectionWaiting),
+                    new ConnectionWaitingHandlerAsync(OnConnectionWaitingAsync),
                     new EventHandler<ConnectionStatusEventArgs>(OnConnectionStatusChanged));
             }
             catch (ArgumentException ae)
@@ -619,7 +636,7 @@ namespace Opc.Ua.Client
         /// Raised when a reverse connection is waiting,
         /// finds and calls a waiting connection.
         /// </summary>
-        private async Task OnConnectionWaiting(object sender, ConnectionWaitingEventArgs e)
+        private async Task OnConnectionWaitingAsync(object sender, ConnectionWaitingEventArgs e)
         {
             int startTime = HiResClock.TickCount;
             int endTime = startTime + m_configuration.HoldTime;
@@ -636,7 +653,8 @@ namespace Opc.Ua.Client
                 int delay = endTime - HiResClock.TickCount;
                 if (delay > 0)
                 {
-                    await Task.Delay(delay, ct).ContinueWith(tsk => {
+                    await Task.Delay(delay, ct).ContinueWith(tsk =>
+                    {
                         if (tsk.IsCanceled)
                         {
                             matched = MatchRegistration(sender, e);

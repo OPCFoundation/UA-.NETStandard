@@ -97,8 +97,8 @@ namespace Opc.Ua.Gds.Tests
             await m_pushClient.LoadClientConfiguration(m_server.BasePort).ConfigureAwait(false);
 
             // connect once
-            await m_gdsClient.GDSClient.Connect(m_gdsClient.GDSClient.EndpointUrl).ConfigureAwait(false);
-            await m_pushClient.PushClient.Connect(m_pushClient.PushClient.EndpointUrl).ConfigureAwait(false);
+            await m_gdsClient.GDSClient.ConnectAsync(m_gdsClient.GDSClient.EndpointUrl).ConfigureAwait(false);
+            await m_pushClient.PushClient.ConnectAsync(m_pushClient.PushClient.EndpointUrl).ConfigureAwait(false);
 
             ConnectGDSClient(true);
             RegisterPushServerApplication(m_pushClient.PushClient.EndpointUrl);
@@ -700,7 +700,7 @@ namespace Opc.Ua.Gds.Tests
             )
         {
             m_pushClient.PushClient.AdminCredentials = sysAdmin ? m_pushClient.SysAdminUser : m_pushClient.AppUser;
-            m_pushClient.PushClient.Connect(m_pushClient.PushClient.EndpointUrl).GetAwaiter().GetResult();
+            m_pushClient.PushClient.ConnectAsync(m_pushClient.PushClient.EndpointUrl).GetAwaiter().GetResult();
             TestContext.Progress.WriteLine($"GDS Push({sysAdmin}) Connected -- {memberName}");
         }
 
@@ -714,7 +714,7 @@ namespace Opc.Ua.Gds.Tests
             )
         {
             m_gdsClient.GDSClient.AdminCredentials = admin ? m_gdsClient.AdminUser : m_gdsClient.AppUser;
-            m_gdsClient.GDSClient.Connect(m_gdsClient.GDSClient.EndpointUrl).Wait();
+            m_gdsClient.GDSClient.ConnectAsync(m_gdsClient.GDSClient.EndpointUrl).Wait();
             TestContext.Progress.WriteLine($"GDS Client({admin}) connected -- {memberName}");
         }
 
@@ -763,8 +763,8 @@ namespace Opc.Ua.Gds.Tests
         {
             DisconnectPushClient();
             Thread.Sleep(10000);
-            m_gdsClient.GDSClient.Connect(m_gdsClient.GDSClient.EndpointUrl).GetAwaiter().GetResult();
-            m_pushClient.PushClient.Connect(m_pushClient.PushClient.EndpointUrl).GetAwaiter().GetResult();
+            m_gdsClient.GDSClient.ConnectAsync(m_gdsClient.GDSClient.EndpointUrl).GetAwaiter().GetResult();
+            m_pushClient.PushClient.ConnectAsync(m_pushClient.PushClient.EndpointUrl).GetAwaiter().GetResult();
             // compare leaf certificates, ServerCertificate might be a chain if sendCertChain is sets
             var serverCertificate = Utils.ParseCertificateBlob(m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate);
             //validation currently only works for RSA certificates

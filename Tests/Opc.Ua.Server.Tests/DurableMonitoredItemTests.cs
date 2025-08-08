@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -1012,7 +1013,7 @@ namespace Opc.Ua.Server.Tests
             var statuscode2 = new ServiceResult(StatusCodes.Good);
             var dataValue2 = new DataValue(new Variant(false));
 
-            await Task.Delay(5);
+            await Task.Delay(5).ConfigureAwait(false);
 
             queueHandler.QueueValue(dataValue2, statuscode2);
 
@@ -1333,7 +1334,7 @@ namespace Opc.Ua.Server.Tests
 
             for (uint i = 0; i < 3000; i++)
             {
-                Assert.That(queue.Dequeue(out var value), string.Format("Dequeue operation failed for the {0}st item", i));
+                Assert.That(queue.Dequeue(out var value), string.Format(CultureInfo.InvariantCulture, "Dequeue operation failed for the {0}st item", i));
                 Assert.That(i, Is.EqualTo(value.ClientHandle));
 
                 //simulate publishing operation
@@ -1366,7 +1367,7 @@ namespace Opc.Ua.Server.Tests
 
             for (uint i = 0; i < 3000; i++)
             {
-                Assert.That(queue.Dequeue(out var value, out var _), string.Format("Dequeue operation failed for the {0}st item", i));
+                Assert.That(queue.Dequeue(out var value, out var _), string.Format(CultureInfo.InvariantCulture, "Dequeue operation failed for the {0}st item", i));
                 Assert.That(i, Is.EqualTo((uint)value.Value));
 
                 //simulate publishing operation

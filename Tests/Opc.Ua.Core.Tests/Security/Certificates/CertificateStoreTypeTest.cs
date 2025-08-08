@@ -27,7 +27,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public async Task CertificateStoreTypeConfigTest()
         {
             var fileInfo = new FileInfo(Path.Combine(TestContext.CurrentContext.TestDirectory, "Security", "Certificates", "CertificateStoreTypeTestConfig.xml"));
-            var appConfig = await ApplicationConfiguration.Load(fileInfo, ApplicationType.Client, null).ConfigureAwait(false);
+            var appConfig = await ApplicationConfiguration.LoadAsync(fileInfo, ApplicationType.Client, null).ConfigureAwait(false);
             int instancesCreatedWhileLoadingConfig = TestCertStore.InstancesCreated;
             Assert.IsTrue(instancesCreatedWhileLoadingConfig > 0);
             var trustedIssuers = appConfig.SecurityConfiguration.TrustedIssuerCertificates;
@@ -154,11 +154,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
         /// <inheritdoc/>
         public bool SupportsLoadPrivateKey => m_innerStore.SupportsLoadPrivateKey;
-
-        /// <inheritdoc/>
-        [Obsolete("Method is deprecated. Use only for RSA certificates, the replacing LoadPrivateKey with certificateType parameter should be used.")]
-        public Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string password)
-            => m_innerStore.LoadPrivateKey(thumbprint, subjectName, password);
 
         /// <inheritdoc/>
         public Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string applicationUri, NodeId certificateType, string password)

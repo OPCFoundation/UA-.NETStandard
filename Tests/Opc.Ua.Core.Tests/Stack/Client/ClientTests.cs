@@ -108,7 +108,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
 
                 }
             };
-            Assert.DoesNotThrow(() => appConfig.Validate(ApplicationType.Client).GetAwaiter().GetResult());
+            Assert.DoesNotThrow(() => appConfig.ValidateAsync(ApplicationType.Client).GetAwaiter().GetResult());
         }
         #endregion
     }

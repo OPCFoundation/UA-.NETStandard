@@ -131,6 +131,7 @@ namespace Opc.Ua.Server
                 foreach (SamplingGroup samplingGroup in m_samplingGroups)
                 {
                     samplingGroup.Shutdown();
+                    Utils.SilentDispose(samplingGroup);
                 }
 
                 m_samplingGroups.Clear();
@@ -253,7 +254,7 @@ namespace Opc.Ua.Server
             object              managerHandle,
             uint                subscriptionId,
             uint                id,
-            Session             session,
+            ISession             session,
             ReadValueId         itemToMonitor,
             DiagnosticsMasks    diagnosticsMasks,
             TimestampsToReturn  timestampsToReturn,
@@ -507,6 +508,7 @@ namespace Opc.Ua.Server
                 foreach (SamplingGroup samplingGroup in unusedGroups)
                 {
                     m_samplingGroups.Remove(samplingGroup);
+                    Utils.SilentDispose(samplingGroup);
                 }
             }
         }

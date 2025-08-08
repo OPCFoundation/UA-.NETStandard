@@ -92,16 +92,6 @@ namespace Opc.Ua
                 return true;
             }
 
-            if (m_storeLocation != id.m_storeLocation)
-            {
-                return false;
-            }
-
-            if (m_storeName != id.m_storeName)
-            {
-                return false;
-            }
-
             if (SubjectName != id.SubjectName)
             {
                 return false;
@@ -121,7 +111,7 @@ namespace Opc.Ua
         /// <returns></returns>
         public override int GetHashCode()
         {
-            return HashCode.Combine(Thumbprint, m_storeLocation, m_storeName, SubjectName, CertificateType);
+            return HashCode.Combine(Thumbprint, m_storePath, m_storeType, SubjectName, CertificateType);
         }
         #endregion
 
@@ -157,24 +147,50 @@ namespace Opc.Ua
         #endregion
 
         #region Public Methods
+
         /// <summary>
         /// Finds a certificate in a store.
         /// </summary>
+        [Obsolete("Use FindAsync instead")]
         public Task<X509Certificate2> Find(string applicationUri = null)
         {
-            return Find(false, applicationUri);
+            return FindAsync(applicationUri);
         }
+        /// <summary>
+        /// Finds a certificate in a store.
+        /// </summary>
+        public Task<X509Certificate2> FindAsync(string applicationUri = null)
+        {
+            return FindAsync(false, applicationUri);
+        }
+
 
         /// <summary>
         /// Loads the private key for the certificate with an optional password.
         /// </summary>
+        [Obsolete("Use LoadPrivateKeyAsync instead")]
         public Task<X509Certificate2> LoadPrivateKey(string password, string applicationUri = null)
-            => LoadPrivateKeyEx(password != null ? new CertificatePasswordProvider(password) : null, applicationUri);
+            => LoadPrivateKeyExAsync(password != null ? new CertificatePasswordProvider(password) : null, applicationUri);
+
+        /// <summary>
+        /// Loads the private key for the certificate with an optional password.
+        /// </summary>
+        public Task<X509Certificate2> LoadPrivateKeyAsync(string password, string applicationUri = null)
+            => LoadPrivateKeyExAsync(password != null ? new CertificatePasswordProvider(password) : null, applicationUri);
 
         /// <summary>
         /// Loads the private key for the certificate with an optional password provider.
         /// </summary>
-        public async Task<X509Certificate2> LoadPrivateKeyEx(ICertificatePasswordProvider passwordProvider, string applicationUri = null)
+        [Obsolete("Use LoadPrivateKeyExAsync instead")]
+        public Task<X509Certificate2> LoadPrivateKeyEx(ICertificatePasswordProvider passwordProvider, string applicationUri = null)
+        {
+            return LoadPrivateKeyExAsync(passwordProvider, applicationUri);
+        }
+
+        /// <summary>
+        /// Loads the private key for the certificate with an optional password provider.
+        /// </summary>
+        public async Task<X509Certificate2> LoadPrivateKeyExAsync(ICertificatePasswordProvider passwordProvider, string applicationUri = null)
         {
             if (this.StoreType != CertificateStoreType.X509Store)
             {
@@ -197,7 +213,7 @@ namespace Opc.Ua
                 }
                 return null;
             }
-            return await Find(true).ConfigureAwait(false);
+            return await FindAsync(true).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -208,7 +224,21 @@ namespace Opc.Ua
         /// <param name="applicationUri">the application uri in the extensions of the certificate.</param>
         /// <returns>An instance of the <see cref="X509Certificate2"/> that is embedded by this instance or find it in 
         /// the selected store pointed out by the <see cref="StorePath"/> using selected <see cref="SubjectName"/> or if specified applicationUri.</returns>
-        public async Task<X509Certificate2> Find(bool needPrivateKey, string applicationUri = null)
+        [Obsolete("Use FindAsync instead")]
+        public Task<X509Certificate2> Find(bool needPrivateKey, string applicationUri = null)
+        {
+            return FindAsync(needPrivateKey, applicationUri);
+        }
+
+        /// <summary>
+        /// Finds a certificate in a store.
+        /// </summary>
+        /// <remarks>The certificate type is used to match the signature and public key type.</remarks>
+        /// <param name="needPrivateKey">if set to <c>true</c> the returned certificate must contain the private key.</param>
+        /// <param name="applicationUri">the application uri in the extensions of the certificate.</param>
+        /// <returns>An instance of the <see cref="X509Certificate2"/> that is embedded by this instance or find it in 
+        /// the selected store pointed out by the <see cref="StorePath"/> using selected <see cref="SubjectName"/> or if specified applicationUri.</returns>
+        public async Task<X509Certificate2> FindAsync(bool needPrivateKey, string applicationUri = null)
         {
             X509Certificate2 certificate = null;
 
@@ -405,110 +435,6 @@ namespace Opc.Ua
 
             // certificate not found.
             return null;
-        }
-
-        /// <summary>
-        /// Creates a DER blob from a certificate with zero or more supporting certificates.
-        /// </summary>
-        /// <param name="certificates">The certificates list to be returned as raw data.</param>
-        /// <returns>
-        /// A DER blob containing zero or more certificates.
-        /// </returns>
-        /// <exception cref="CryptographicException">If the <paramref name="certificates"/> is null or empty.</exception>
-        [Obsolete("Use Utils.CreateCertificateChainBlob instead")]
-        public static byte[] CreateBlob(IList<X509Certificate2> certificates)
-        {
-            if (certificates == null || certificates.Count == 0)
-            {
-                throw new CryptographicException("Primary certificate has not been provided.");
-            }
-
-            // copy the primary certificate.
-            X509Certificate2 certificate = certificates[0];
-            byte[] blobData = certificate.RawData;
-
-            // check for any supporting certificates.
-            if (certificates.Count > 1)
-            {
-                List<byte[]> additionalData = new List<byte[]>(certificates.Count - 1);
-                int length = blobData.Length;
-
-                for (int ii = 1; ii < certificates.Count; ii++)
-                {
-                    byte[] bytes = certificates[ii].RawData;
-                    length += bytes.Length;
-                    additionalData.Add(bytes);
-                }
-
-                // append the supporting certificates to the raw data.
-                byte[] rawData = new byte[length];
-                Array.Copy(blobData, rawData, blobData.Length);
-
-                length = blobData.Length;
-
-                for (int ii = 0; ii < additionalData.Count; ii++)
-                {
-                    byte[] bytes = additionalData[ii];
-                    Array.Copy(bytes, 0, rawData, length, bytes.Length);
-                    length += bytes.Length;
-                }
-
-                blobData = rawData;
-            }
-
-            return blobData;
-        }
-
-        /// <summary>
-        /// Parses a blob with a list of DER encoded certificates.
-        /// </summary>
-        /// <param name="encodedData">The encoded data.</param>
-        /// <returns>
-        /// An object of <see cref="X509Certificate2Collection"/> containing <see cref="X509Certificate2"/>
-        /// certificates created from a buffer with DER encoded certificate
-        /// </returns>
-        /// <remarks>
-        /// Any supporting certificates found in the buffer are processed as well.
-        /// </remarks>
-        [Obsolete("Use Utils.ParseCertificateChainBlob instead")]
-        public static X509Certificate2Collection ParseBlob(byte[] encodedData)
-        {
-            if (!IsValidCertificateBlob(encodedData))
-            {
-                throw new CryptographicException("Primary certificate in blob is not valid.");
-            }
-
-            X509Certificate2Collection collection = new X509Certificate2Collection();
-            X509Certificate2 certificate = CertificateFactory.Create(encodedData, true);
-            collection.Add(certificate);
-
-            byte[] rawData = encodedData;
-            byte[] data = certificate.RawData;
-
-            int processedBytes = data.Length;
-
-            if (encodedData.Length < processedBytes)
-            {
-                byte[] buffer = new byte[encodedData.Length - processedBytes];
-
-                do
-                {
-                    Array.Copy(encodedData, processedBytes, buffer, 0, encodedData.Length - processedBytes);
-
-                    if (!IsValidCertificateBlob(buffer))
-                    {
-                        throw new CryptographicException("Supporting certificate in blob is not valid.");
-                    }
-
-                    X509Certificate2 issuerCertificate = CertificateFactory.Create(buffer, true);
-                    collection.Add(issuerCertificate);
-                    data = issuerCertificate.RawData;
-                    processedBytes += data.Length;
-                }
-                while (processedBytes < encodedData.Length);
-            }
-
-            return collection;
         }
 
         /// <summary>
@@ -908,7 +834,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < this.Count; ii++)
             {
-                X509Certificate2 certificate = await this[ii].Find(false).ConfigureAwait(false);
+                X509Certificate2 certificate = await this[ii].FindAsync(false).ConfigureAwait(false);
 
                 if (certificate != null)
                 {
@@ -926,7 +852,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < this.Count; ii++)
             {
-                X509Certificate2 current = await this[ii].Find(false).ConfigureAwait(false);
+                X509Certificate2 current = await this[ii].FindAsync(false).ConfigureAwait(false);
 
                 if (current != null && current.Thumbprint == certificate.Thumbprint)
                 {
@@ -951,7 +877,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < this.Count; ii++)
             {
-                X509Certificate2 certificate = await this[ii].Find(false).ConfigureAwait(false);
+                X509Certificate2 certificate = await this[ii].FindAsync(false).ConfigureAwait(false);
 
                 if (certificate != null && certificate.Thumbprint == thumbprint)
                 {
@@ -973,7 +899,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < this.Count; ii++)
             {
-                X509Certificate2 certificate = await this[ii].Find(false).ConfigureAwait(false);
+                X509Certificate2 certificate = await this[ii].FindAsync(false).ConfigureAwait(false);
 
                 if (certificate != null && certificate.Thumbprint == thumbprint)
                 {

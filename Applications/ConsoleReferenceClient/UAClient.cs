@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections;
+using System.Globalization;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -137,11 +138,11 @@ namespace Quickstarts
             bool success = false;
             SubscriptionCollection subscriptions = new SubscriptionCollection(m_session.Subscriptions);
             m_session = null;
-            if (await ConnectAsync(serverUrl, useSecurity, ct))
+            if (await ConnectAsync(serverUrl, useSecurity, ct).ConfigureAwait(false))
             {
                 if (subscriptions != null && m_session != null)
                 {
-                    m_output.WriteLine("Transferring " + subscriptions.Count.ToString() +
+                    m_output.WriteLine("Transferring " + subscriptions.Count.ToString(CultureInfo.InvariantCulture) +
                         " subscriptions from old session to new session...");
                     success = m_session.TransferSubscriptions(subscriptions, true);
                     if (success)
@@ -180,7 +181,7 @@ namespace Quickstarts
                             using (var cts = new CancellationTokenSource(30_000))
                             using (var linkedCTS = CancellationTokenSource.CreateLinkedTokenSource(ct, cts.Token))
                             {
-                                connection = await m_reverseConnectManager.WaitForConnection(new Uri(serverUrl), null, linkedCTS.Token).ConfigureAwait(false);
+                                connection = await m_reverseConnectManager.WaitForConnectionAsync(new Uri(serverUrl), null, linkedCTS.Token).ConfigureAwait(false);
                                 if (connection == null)
                                 {
                                     throw new ServiceResultException(StatusCodes.BadTimeout, "Waiting for a reverse connection timed out.");

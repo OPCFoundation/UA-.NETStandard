@@ -23,66 +23,6 @@ namespace Opc.Ua.Security
     public partial class SecuredApplication
     {
         /// <summary>
-        /// The name of the application.
-        /// </summary>
-        [Obsolete("Replaced by ApplicationName")]
-        public string Name
-        {
-            get { return this.ApplicationName; }
-            set { this.ApplicationName = value; }
-        }
-
-        /// <summary>
-        /// The uri of the application.
-        /// </summary>
-        [Obsolete("Replaced by ApplicationUri")]
-        public string Uri
-        {
-            get { return this.ApplicationUri; }
-            set { this.ApplicationUri = value; }
-        }
-
-        /// <summary>
-        /// A store of certificates trusted by the application.
-        /// </summary>
-        [Obsolete("Replaced by TrustedCertificateStore")]
-        public CertificateStoreIdentifier TrustedPeerStore
-        {
-            get { return this.TrustedCertificateStore; }
-            set { this.TrustedCertificateStore = value; }
-        }
-
-        /// <summary>
-        /// A list of certificates trusted by the application.
-        /// </summary>
-        [Obsolete("Replaced by TrustedCertificates")]
-        public CertificateList TrustedPeerCertificates
-        {
-            get { return this.TrustedCertificates; }
-            set { this.TrustedCertificates = value; }
-        }
-
-        /// <summary>
-        /// A store of certificate issuers used by the application.
-        /// </summary>
-        [Obsolete("Replaced by TrustedIssuerStore")]
-        public CertificateStoreIdentifier TrustedIssuerStore
-        {
-            get { return this.IssuerCertificateStore; }
-            set { this.IssuerCertificateStore = value; }
-        }
-
-        /// <summary>
-        /// A list of certificate issuers used by the application.
-        /// </summary>
-        [Obsolete("Replaced by IssuerCertificates")]
-        public CertificateList TrustedIssuerCertificates
-        {
-            get { return this.IssuerCertificates; }
-            set { this.IssuerCertificates = value; }
-        }
-
-        /// <summary>
         /// Casts a ApplicationType value. 
         /// </summary>
         public static Opc.Ua.ApplicationType FromApplicationType(Opc.Ua.Security.ApplicationType input)
@@ -494,19 +434,38 @@ namespace Opc.Ua.Security
         /// <summary>
         /// Gets the certificate associated with the identifier.
         /// </summary>
-        public async Task<X509Certificate2> Find()
+        [Obsolete("Use FindAsync()")]
+        public Task<X509Certificate2> Find()
+        {
+            return FindAsync();
+        }
+
+
+        /// <summary>
+        /// Gets the certificate associated with the identifier.
+        /// </summary>
+        public async Task<X509Certificate2> FindAsync()
         {
             Opc.Ua.CertificateIdentifier output = SecuredApplication.FromCertificateIdentifier(this);
-            return await output.Find(false).ConfigureAwait(false);
+            return await output.FindAsync(false).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Gets the certificate associated with the identifier.
         /// </summary>
-        public async Task<X509Certificate2> Find(bool needPrivateKey)
+        [Obsolete("Use FindAsync(needPrivateKey)")]
+        public Task<X509Certificate2> Find(bool needPrivateKey)
+        {
+            return FindAsync(needPrivateKey);
+        }
+
+        /// <summary>
+        /// Gets the certificate associated with the identifier.
+        /// </summary>
+        public async Task<X509Certificate2> FindAsync(bool needPrivateKey)
         {
             Opc.Ua.CertificateIdentifier output = SecuredApplication.FromCertificateIdentifier(this);
-            return await output.Find(needPrivateKey).ConfigureAwait(false);
+            return await output.FindAsync(needPrivateKey).ConfigureAwait(false);
         }
 
         /// <summary>

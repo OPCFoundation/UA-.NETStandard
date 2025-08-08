@@ -49,7 +49,16 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Used to transfer a reverse connection socket to the client.
         /// </summary>
+        [Obsolete("Use TransferListenerChannelAsync instead.")]
         Task<bool> TransferListenerChannel(
+            uint channelId,
+            string serverUri,
+            Uri endpointUrl);
+
+        /// <summary>
+        /// Used to transfer a reverse connection socket to the client.
+        /// </summary>
+        Task<bool> TransferListenerChannelAsync(
             uint channelId,
             string serverUri,
             Uri endpointUrl);

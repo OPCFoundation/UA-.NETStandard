@@ -125,7 +125,7 @@ namespace Opc.Ua.Client.Tests
             ITransportWaitingConnection connection;
             do
             {
-                connection = await reverseConnectManager.WaitForConnection(
+                connection = await reverseConnectManager.WaitForConnectionAsync(
                     endpoint.EndpointUrl,
                     endpoint.ReverseConnect?.ServerUri,
                     ct).ConfigureAwait(false);

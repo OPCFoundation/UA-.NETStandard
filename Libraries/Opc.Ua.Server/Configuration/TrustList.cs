@@ -393,28 +393,28 @@ namespace Opc.Ua.Server
                     TrustListMasks updateMasks = TrustListMasks.None;
                     if ((masks & TrustListMasks.IssuerCertificates) != 0)
                     {
-                        if (UpdateStoreCertificates(m_issuerStore, issuerCertificates).GetAwaiter().GetResult())
+                        if (UpdateStoreCertificatesAsync(m_issuerStore, issuerCertificates).GetAwaiter().GetResult())
                         {
                             updateMasks |= TrustListMasks.IssuerCertificates;
                         }
                     }
                     if ((masks & TrustListMasks.IssuerCrls) != 0)
                     {
-                        if (UpdateStoreCrls(m_issuerStore, issuerCrls).GetAwaiter().GetResult())
+                        if (UpdateStoreCrlsAsync(m_issuerStore, issuerCrls).GetAwaiter().GetResult())
                         {
                             updateMasks |= TrustListMasks.IssuerCrls;
                         }
                     }
                     if ((masks & TrustListMasks.TrustedCertificates) != 0)
                     {
-                        if (UpdateStoreCertificates(m_trustedStore, trustedCertificates).GetAwaiter().GetResult())
+                        if (UpdateStoreCertificatesAsync(m_trustedStore, trustedCertificates).GetAwaiter().GetResult())
                         {
                             updateMasks |= TrustListMasks.TrustedCertificates;
                         }
                     }
                     if ((masks & TrustListMasks.TrustedCrls) != 0)
                     {
-                        if (UpdateStoreCrls(m_trustedStore, trustedCrls).GetAwaiter().GetResult())
+                        if (UpdateStoreCrlsAsync(m_trustedStore, trustedCrls).GetAwaiter().GetResult())
                         {
                             updateMasks |= TrustListMasks.TrustedCrls;
                         }
@@ -631,7 +631,7 @@ namespace Opc.Ua.Server
             return trustList;
         }
 
-        private async Task<bool> UpdateStoreCrls(
+        private async Task<bool> UpdateStoreCrlsAsync(
             CertificateStoreIdentifier storeIdentifier,
             X509CRLCollection updatedCrls)
         {
@@ -678,7 +678,7 @@ namespace Opc.Ua.Server
             return result;
         }
 
-        private async Task<bool> UpdateStoreCertificates(
+        private async Task<bool> UpdateStoreCertificatesAsync(
             CertificateStoreIdentifier storeIdentifier,
             X509Certificate2Collection updatedCerts)
         {

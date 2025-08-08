@@ -44,7 +44,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates a new queue.
         /// </summary>
-        public SessionPublishQueue(IServerInternal server, Session session, int maxPublishRequests)
+        public SessionPublishQueue(IServerInternal server, ISession session, int maxPublishRequests)
         {
             if (server == null) throw new ArgumentNullException(nameof(server));
             if (session == null) throw new ArgumentNullException(nameof(session));
@@ -107,7 +107,7 @@ namespace Opc.Ua.Server
         /// Clears the queues because the session is closing.
         /// </summary>
         /// <returns>The list of subscriptions in the queue.</returns>
-        public IList<Subscription> Close()
+        public IList<ISubscription> Close()
         {
             lock (m_lock)
             {
@@ -125,7 +125,7 @@ namespace Opc.Ua.Server
                 }
 
                 // tell the subscriptions that the session is closed.
-                Subscription[] subscriptions = new Subscription[m_queuedSubscriptions.Count];
+                ISubscription[] subscriptions = new ISubscription[m_queuedSubscriptions.Count];
 
                 for (int ii = 0; ii < m_queuedSubscriptions.Count; ii++)
                 {
@@ -143,7 +143,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Adds a subscription from the publish queue.
         /// </summary>
-        public void Add(Subscription subscription)
+        public void Add(ISubscription subscription)
         {
             if (subscription == null) throw new ArgumentNullException(nameof(subscription));
 
@@ -164,7 +164,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Removes a subscription from the publish queue.
         /// </summary>
-        public void Remove(Subscription subscription, bool removeQueuedRequests)
+        public void Remove(ISubscription subscription, bool removeQueuedRequests)
         {
             if (subscription == null) throw new ArgumentNullException(nameof(subscription));
 
@@ -313,7 +313,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns a subscription that is ready to publish.
         /// </summary>
-        public Subscription Publish(uint clientHandle, DateTime deadline, bool requeue, AsyncPublishOperation operation)
+        public ISubscription Publish(uint clientHandle, DateTime deadline, bool requeue, AsyncPublishOperation operation)
         {
             QueuedRequest request = null;
 
@@ -521,7 +521,7 @@ namespace Opc.Ua.Server
         /// <param name="operation">The asynchronous operation.</param>
         /// <param name="calldata">The calldata.</param>
         /// <returns></returns>
-        public Subscription CompletePublish(
+        public ISubscription CompletePublish(
             bool requeue,
             AsyncPublishOperation operation,
             object calldata)
@@ -573,7 +573,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Adds a subscription back into the queue because it has more notifications to publish.
         /// </summary>
-        public void PublishCompleted(Subscription subscription, bool moreNotifications)
+        public void PublishCompleted(ISubscription subscription, bool moreNotifications)
         {
             lock (m_lock)
             {
@@ -604,7 +604,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public void PublishTimerExpired()
         {
-            List<Subscription> subscriptionsToDelete = new List<Subscription>();
+            List<ISubscription> subscriptionsToDelete = new List<ISubscription>();
 
             lock (m_lock)
             {
@@ -845,7 +845,7 @@ namespace Opc.Ua.Server
         /// </summary>
         private class QueuedSubscription
         {
-            public Subscription Subscription;
+            public ISubscription Subscription;
             public DateTime Timestamp;
             public bool ReadyToPublish;
             public bool Publishing;
@@ -911,7 +911,7 @@ namespace Opc.Ua.Server
         #region Private Fields
         private readonly object m_lock = new object();
         private IServerInternal m_server;
-        private Session m_session;
+        private ISession m_session;
         private ManualResetEvent m_publishEvent;
         private LinkedList<QueuedRequest> m_queuedRequests;
         private List<QueuedSubscription> m_queuedSubscriptions;

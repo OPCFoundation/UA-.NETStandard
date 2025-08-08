@@ -158,7 +158,7 @@ namespace Opc.Ua
 
                 if (id != null)
                 {
-                    return await id.Find(privateKey).ConfigureAwait(false);
+                    return await id.FindAsync(privateKey).ConfigureAwait(false);
                 }
             }
 

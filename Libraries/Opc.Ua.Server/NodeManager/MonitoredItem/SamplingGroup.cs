@@ -306,22 +306,23 @@ namespace Opc.Ua.Server
                 return false;
             }
 
-            if (m_session != null)
+            if (m_session == null && context?.SessionId == null)
             {
-                //compare session
-                if (context.SessionId != m_session.Id)
-                {
-                    return false;
-                }
-            }
-            //fallback to compare user Identity
-            else
-            {
+                //fallback to compare user Identity if session is not set.
                 if (savedOwnerIdentity?.GetIdentityToken() != m_effectiveIdentity.GetIdentityToken())
                 {
                     return false;
                 }
             }
+            else
+            {
+                //compare session
+                if (context?.SessionId != m_session?.Id)
+                {
+                    return false;
+                }
+            }
+
 
             // check the diagnostics marks.
             if (m_diagnosticsMask != (context.DiagnosticsMask & DiagnosticsMasks.OperationAll))
@@ -524,7 +525,7 @@ namespace Opc.Ua.Server
         private readonly object m_lock = new object();
         private IServerInternal m_server;
         private INodeManager m_nodeManager;
-        private Session m_session;
+        private ISession m_session;
         private IUserIdentity m_effectiveIdentity;
         private DiagnosticsMasks m_diagnosticsMask;
         private double m_samplingInterval;

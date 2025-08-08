@@ -527,7 +527,7 @@ namespace Opc.Ua.Server
                             }
                             else
                             {
-                                X509Certificate2 certWithPrivateKey = existingCertIdentifier.LoadPrivateKeyEx(passwordProvider, m_configuration.ApplicationUri).Result;
+                                X509Certificate2 certWithPrivateKey = existingCertIdentifier.LoadPrivateKeyExAsync(passwordProvider, m_configuration.ApplicationUri).GetAwaiter().GetResult();
                                 exportableKey = X509Utils.CreateCopyWithPrivateKey(certWithPrivateKey, false);
                             }
 
@@ -582,7 +582,7 @@ namespace Opc.Ua.Server
                             updateCertificate.CertificateWithPrivateKey.Dispose();
                             updateCertificate.CertificateWithPrivateKey = certOnly;
                             //update certificate identifier with new certificate
-                            await existingCertIdentifier.Find(m_configuration.ApplicationUri).ConfigureAwait(false);
+                            await existingCertIdentifier.FindAsync(m_configuration.ApplicationUri).ConfigureAwait(false);
                         }
 
                         ICertificateStore issuerStore = certificateGroup.IssuerStore.OpenStore();
@@ -668,7 +668,7 @@ namespace Opc.Ua.Server
             else
             {
                 ICertificatePasswordProvider passwordProvider = m_configuration.SecurityConfiguration.CertificatePasswordProvider;
-                certWithPrivateKey = existingCertIdentifier.LoadPrivateKeyEx(passwordProvider).Result;
+                certWithPrivateKey = existingCertIdentifier.LoadPrivateKeyExAsync(passwordProvider).GetAwaiter().GetResult();
             }
 
             Utils.LogCertificate(Utils.TraceMasks.Security, "Create signing request: ", certWithPrivateKey);

@@ -22,7 +22,7 @@ namespace Opc.Ua
     /// <summary>
     /// An interface to a service response message.
     /// </summary>
-    public interface IServerBase : IAuditEventCallback
+    public interface IServerBase : IAuditEventCallback, IDisposable
     {
         /// <summary>
         /// The message context to use with the service.
@@ -49,6 +49,28 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="request">The request.</param>
         void ScheduleIncomingRequest(IEndpointIncomingRequest request);
+
+        /// <summary>
+        /// Stops the server and releases all resources.
+        /// </summary>
+        void Stop();
+
+        /// <summary>
+        /// Starts the server.
+        /// </summary>
+        /// <param name="configuration">The object that stores the configurable configuration information
+        /// for a UA application</param>
+        /// <param name="baseAddresses">The array of Uri elements which contains base addresses.</param>
+        /// <returns>Returns a host for a UA service.</returns>
+        ServiceHost Start(ApplicationConfiguration configuration, params Uri[] baseAddresses);
+
+        /// <summary>
+        /// Starts the server (called from a dedicated host process).
+        /// </summary>
+        /// <param name="configuration">The object that stores the configurable configuration
+        /// information for a UA application.
+        /// </param>
+        void Start(ApplicationConfiguration configuration);
 
         /// <summary>
         /// Trys to get the secure channel id for an AuthenticationToken.

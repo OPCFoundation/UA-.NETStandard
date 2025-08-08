@@ -971,7 +971,6 @@ namespace Opc.Ua.Client.Tests
             TestContext.Out.WriteLine("TypeTree         : {0}", Session.TypeTree);
             TestContext.Out.WriteLine("FilterContext    : {0}", Session.FilterContext);
             TestContext.Out.WriteLine("PreferredLocales : {0}", Session.PreferredLocales);
-            TestContext.Out.WriteLine("DataTypeSystem   : {0}", Session.DataTypeSystem);
             TestContext.Out.WriteLine("Subscriptions    : {0}", Session.Subscriptions);
             TestContext.Out.WriteLine("SubscriptionCount: {0}", Session.SubscriptionCount);
             TestContext.Out.WriteLine("DefaultSubscription: {0}", Session.DefaultSubscription);
@@ -1410,68 +1409,6 @@ namespace Opc.Ua.Client.Tests
             Assert.AreEqual(0, encoding.Count);
         }
 
-        [Test, Order(700)]
-        public async Task LoadStandardDataTypeSystem()
-        {
-            var sre = Assert.ThrowsAsync<ServiceResultException>(async () => {
-                var t = await Session.LoadDataTypeSystem(ObjectIds.ObjectAttributes_Encoding_DefaultJson).ConfigureAwait(false);
-            });
-            Assert.AreEqual((StatusCode)StatusCodes.BadNodeIdInvalid, (StatusCode)sre.StatusCode);
-            var typeSystem = await Session.LoadDataTypeSystem().ConfigureAwait(false);
-            Assert.NotNull(typeSystem);
-            typeSystem = await Session.LoadDataTypeSystem(ObjectIds.OPCBinarySchema_TypeSystem).ConfigureAwait(false);
-            Assert.NotNull(typeSystem);
-            typeSystem = await Session.LoadDataTypeSystem(ObjectIds.XmlSchema_TypeSystem).ConfigureAwait(false);
-            Assert.NotNull(typeSystem);
-        }
-
-        [Test, Order(710)]
-        [TestCaseSource(nameof(TypeSystems))]
-        public void LoadAllServerDataTypeSystems(NodeId dataTypeSystem)
-        {
-            // find the dictionary for the description.
-            Browser browser = new Browser(Session) {
-                BrowseDirection = BrowseDirection.Forward,
-                ReferenceTypeId = ReferenceTypeIds.HasComponent,
-                IncludeSubtypes = false,
-                NodeClassMask = 0
-            };
-
-            ReferenceDescriptionCollection references = browser.Browse(dataTypeSystem);
-            Assert.NotNull(references);
-
-            TestContext.Out.WriteLine("  Found {0} references", references.Count);
-
-            // read all type dictionaries in the type system
-            foreach (var r in references)
-            {
-                NodeId dictionaryId = ExpandedNodeId.ToNodeId(r.NodeId, Session.NamespaceUris);
-                TestContext.Out.WriteLine("  ReadDictionary {0} {1}", r.BrowseName.Name, dictionaryId);
-                var dictionaryToLoad = new DataDictionary(Session);
-                dictionaryToLoad.Load(dictionaryId, r.BrowseName.Name);
-
-                // internal API for testing only
-                var dictionary = dictionaryToLoad.ReadDictionary(dictionaryId);
-                // TODO: workaround known issues in the Xml type system.
-                // https://mantis.opcfoundation.org/view.php?id=7393
-                if (dataTypeSystem.Equals(ObjectIds.XmlSchema_TypeSystem))
-                {
-                    try
-                    {
-                        dictionaryToLoad.Validate(dictionary, true);
-                    }
-                    catch (Exception ex)
-                    {
-                        Assert.Inconclusive(ex.Message);
-                    }
-                }
-                else
-                {
-                    dictionaryToLoad.Validate(dictionary, true);
-                }
-            }
-        }
-
         /// <summary>
         /// Transfer the subscription using the native service calls, not the client SDK layer.
         /// </summary>
@@ -1859,7 +1796,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
-        /// SetSubscriptionDurable Typical Failure 
+        /// SetSubscriptionDurable Typical Failure
         /// </summary>
         [Test, Order(11010)]
         public void SetSubscriptionDurable_Exception()

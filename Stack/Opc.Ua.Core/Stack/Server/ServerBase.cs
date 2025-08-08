@@ -33,7 +33,7 @@ namespace Opc.Ua
     /// <summary>
     /// A base class for a UA server implementation.
     /// </summary>
-    public partial class ServerBase : IServerBase, IDisposable
+    public partial class ServerBase : IServerBase
     {
         #region Constructors
         /// <summary>
@@ -815,7 +815,7 @@ namespace Opc.Ua
             foreach (var certificateIdentifier in Configuration.SecurityConfiguration.ApplicationCertificates)
             {
                 // preload chain
-                X509Certificate2 certificate = certificateIdentifier.Find(false).GetAwaiter().GetResult();
+                X509Certificate2 certificate = certificateIdentifier.FindAsync(false).GetAwaiter().GetResult();
                 InstanceCertificateTypesProvider.LoadCertificateChainAsync(certificate).GetAwaiter().GetResult();
             }
 

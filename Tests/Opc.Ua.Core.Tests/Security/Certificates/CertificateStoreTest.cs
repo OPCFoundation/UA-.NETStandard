@@ -128,7 +128,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     StorePath = storePath,
                     StoreType = CertificateStoreType.X509Store
                 };
-                var privateKey = await id.LoadPrivateKey(null).ConfigureAwait(false);
+                var privateKey = await id.LoadPrivateKeyAsync(null).ConfigureAwait(false);
                 Assert.NotNull(privateKey);
                 Assert.True(privateKey.HasPrivateKey);
 
@@ -176,23 +176,23 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                 {
                     // check no password fails to load
-                    var nullKey = await id.LoadPrivateKey(null).ConfigureAwait(false);
+                    var nullKey = await id.LoadPrivateKeyAsync(null).ConfigureAwait(false);
                     Assert.IsNull(nullKey);
                 }
 
                 {
                     // check invalid password fails to load
-                    var nullKey = await id.LoadPrivateKey("123").ConfigureAwait(false);
+                    var nullKey = await id.LoadPrivateKeyAsync("123").ConfigureAwait(false);
                     Assert.IsNull(nullKey);
                 }
 
                 {
                     // check invalid password fails to load
-                    var nullKey = await id.LoadPrivateKeyEx(new CertificatePasswordProvider("123")).ConfigureAwait(false);
+                    var nullKey = await id.LoadPrivateKeyExAsync(new CertificatePasswordProvider("123")).ConfigureAwait(false);
                     Assert.IsNull(nullKey);
                 }
 
-                var privateKey = await id.LoadPrivateKeyEx(new CertificatePasswordProvider(password)).ConfigureAwait(false);
+                var privateKey = await id.LoadPrivateKeyExAsync(new CertificatePasswordProvider(password)).ConfigureAwait(false);
 
                 Assert.NotNull(privateKey);
                 Assert.True(privateKey.HasPrivateKey);
@@ -236,7 +236,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 //Add Test PEM Chain
                 File.Copy(TestUtils.EnumerateTestAssets("Test_chain.pem").First(), certPath + Path.DirectorySeparatorChar + "Test_chain.pem");
 
-                var certificates = await store.Enumerate();
+                var certificates = await store.Enumerate().ConfigureAwait(false);
 
                 Assert.AreEqual(3, certificates.Count);
 
@@ -244,22 +244,22 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 File.WriteAllBytes(privatePath + Path.DirectorySeparatorChar + "Test_chain.pem", DecryptKeyPairPemBase64());
 
                 //refresh store to obtain private key
-                await store.Enumerate();
+                await store.Enumerate().ConfigureAwait(false);
 
 
                 //Load private key
-                var cert = await store.LoadPrivateKey("14A630438BF775E19169D3279069BBF20419EF84", null, null, null, null);
+                var cert = await store.LoadPrivateKey("14A630438BF775E19169D3279069BBF20419EF84", null, null, null, null).ConfigureAwait(false);
 
                 Assert.NotNull(cert);
                 Assert.True(cert.HasPrivateKey);
 
                 // remove leaf cert
-                await store.Delete("14A630438BF775E19169D3279069BBF20419EF84");
+                await store.Delete("14A630438BF775E19169D3279069BBF20419EF84").ConfigureAwait(false);
 
                 //remove private key
                 File.Delete(privatePath + Path.DirectorySeparatorChar + "Test_chain.pem");
 
-                certificates = await store.Enumerate();
+                certificates = await store.Enumerate().ConfigureAwait(false);
 
                 Assert.AreEqual(2, certificates.Count);
                 Assert.IsEmpty(certificates.Find(X509FindType.FindByThumbprint, "14A630438BF775E19169D3279069BBF20419EF84", false));
@@ -299,19 +299,19 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 // Add leaf cert with private key
                 File.WriteAllBytes(certPath + Path.DirectorySeparatorChar + "Test_keyPair.pem", DecryptKeyPairPemBase64());
 
-                var certificates = await store.Enumerate();
+                var certificates = await store.Enumerate().ConfigureAwait(false);
 
                 Assert.AreEqual(1, certificates.Count);
 
                 Assert.NotNull(certificates.Find(X509FindType.FindByThumbprint, "14A630438BF775E19169D3279069BBF20419EF84", false));
                 //Load private key
-                var cert = await store.LoadPrivateKey("14A630438BF775E19169D3279069BBF20419EF84", null, null, null, null);
+                var cert = await store.LoadPrivateKey("14A630438BF775E19169D3279069BBF20419EF84", null, null, null, null).ConfigureAwait(false);
 
                 Assert.NotNull(cert);
                 Assert.True(cert.HasPrivateKey);
 
                 // remove leaf cert
-                await store.Delete("14A630438BF775E19169D3279069BBF20419EF84");
+                await store.Delete("14A630438BF775E19169D3279069BBF20419EF84").ConfigureAwait(false);
 
                 //ensure private key is removed
                 Assert.False(File.Exists(certPath + Path.DirectorySeparatorChar + "Test_keyPair.pem"));

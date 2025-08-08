@@ -281,7 +281,7 @@ namespace Opc.Ua.Gds.Server
             return revoked;
         }
 
-        protected async Task<ICertificateGroup> InitializeCertificateGroup(CertificateGroupConfiguration certificateGroupConfiguration)
+        protected async Task<ICertificateGroup> InitializeCertificateGroupAsync(CertificateGroupConfiguration certificateGroupConfiguration)
         {
             if (String.IsNullOrEmpty(certificateGroupConfiguration.SubjectName))
             {
@@ -297,7 +297,7 @@ namespace Opc.Ua.Gds.Server
                 m_globalDiscoveryServerConfiguration.AuthoritiesStorePath,
                 certificateGroupConfiguration,
                 m_configuration.SecurityConfiguration.TrustedIssuerCertificates.StorePath);
-            await certificateGroup.Init().ConfigureAwait(false);
+            await certificateGroup.InitAsync().ConfigureAwait(false);
 
             SetCertificateGroupNodes(certificateGroup);
 
@@ -349,7 +349,7 @@ namespace Opc.Ua.Gds.Server
                 {
                     try
                     {
-                        ICertificateGroup certificateGroup = InitializeCertificateGroup(certificateGroupConfiguration).Result;
+                        ICertificateGroup certificateGroup = InitializeCertificateGroupAsync(certificateGroupConfiguration).GetAwaiter().GetResult();
                         m_certificateGroups[certificateGroup.Id] = certificateGroup;
                     }
                     catch (Exception e)
