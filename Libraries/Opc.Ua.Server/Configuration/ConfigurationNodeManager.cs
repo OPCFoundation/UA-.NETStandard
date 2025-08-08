@@ -571,10 +571,10 @@ namespace Opc.Ua.Server
                             }
 
                             Utils.LogCertificate(Utils.TraceMasks.Security, "Delete application certificate: ", existingCertIdentifier.Certificate);
-                            appStore.Delete(existingCertIdentifier.Thumbprint).Wait();
+                            appStore.DeleteAsync(existingCertIdentifier.Thumbprint).Wait();
                             Utils.LogCertificate(Utils.TraceMasks.Security, "Add new application certificate: ", updateCertificate.CertificateWithPrivateKey);
                             var passwordProvider = m_configuration.SecurityConfiguration.CertificatePasswordProvider;
-                            appStore.Add(updateCertificate.CertificateWithPrivateKey, passwordProvider?.GetPassword(existingCertIdentifier)).Wait();
+                            appStore.AddAsync(updateCertificate.CertificateWithPrivateKey, passwordProvider?.GetPassword(existingCertIdentifier)).Wait();
                             // keep only track of cert without private key
                             var certOnly = X509CertificateLoader.LoadCertificate(updateCertificate.CertificateWithPrivateKey.RawData);
                             updateCertificate.CertificateWithPrivateKey.Dispose();
@@ -596,7 +596,7 @@ namespace Opc.Ua.Server
                                 try
                                 {
                                     Utils.LogCertificate(Utils.TraceMasks.Security, "Add new issuer certificate: ", issuer);
-                                    issuerStore.Add(issuer).Wait();
+                                    issuerStore.AddAsync(issuer).Wait();
                                 }
                                 catch (ArgumentException)
                                 {
@@ -789,7 +789,7 @@ namespace Opc.Ua.Server
             {
                 if (store != null)
                 {
-                    X509Certificate2Collection collection = store.Enumerate().Result;
+                    X509Certificate2Collection collection = store.EnumerateAsync().Result;
                     List<byte[]> rawList = new List<byte[]>();
                     foreach (var cert in collection)
                     {

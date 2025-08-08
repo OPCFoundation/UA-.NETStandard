@@ -216,7 +216,7 @@ namespace Opc.Ua.Gds.Tests
                 var certWithPrivateKey = CertificateFactory.CreateCertificateWithPEMPrivateKey(x509, privateKey);
                 m_client.Configuration.SecurityConfiguration.ApplicationCertificate = new CertificateIdentifier(certWithPrivateKey);
                 var store = m_client.Configuration.SecurityConfiguration.ApplicationCertificate.OpenStore();
-                await store.Add(certWithPrivateKey).ConfigureAwait(false);
+                await store.AddAsync(certWithPrivateKey).ConfigureAwait(false);
             }
         }
 

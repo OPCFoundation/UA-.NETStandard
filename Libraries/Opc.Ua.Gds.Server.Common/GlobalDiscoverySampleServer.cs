@@ -254,7 +254,7 @@ namespace Opc.Ua.Gds.Server
             var certificateStoreIdentifier = new CertificateStoreIdentifier(configuration.ApplicationCertificatesStorePath);
             using (ICertificateStore ApplicationsStore = certificateStoreIdentifier.OpenStore())
             {
-                var matchingCerts = ApplicationsStore.FindByThumbprint(applicationInstanceCertificate.Thumbprint).Result;
+                var matchingCerts = ApplicationsStore.FindByThumbprintAsync(applicationInstanceCertificate.Thumbprint).Result;
 
                 if (matchingCerts.Contains(applicationInstanceCertificate))
                 {
@@ -270,7 +270,7 @@ namespace Opc.Ua.Gds.Server
             certificateStoreIdentifier = new CertificateStoreIdentifier(configuration.AuthoritiesStorePath);
             using (ICertificateStore AuthoritiesStore = certificateStoreIdentifier.OpenStore())
             {
-                var crls = AuthoritiesStore.EnumerateCRLs().Result;
+                var crls = AuthoritiesStore.EnumerateCRLsAsync().Result;
                 foreach (X509CRL crl in crls)
                 {
                     if (crl.IsRevoked(applicationInstanceCertificate))
