@@ -12,13 +12,12 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.Serialization;
 using System.Text;
 using System.Xml;
-using System.Runtime.Serialization;
 
 namespace Opc.Ua
 {
-    #region StructureDefinition Class
     /// <summary>
     /// StructureDefinition is used to define the structure of a DataType.
     /// </summary>
@@ -59,5 +58,4 @@ namespace Opc.Ua
             }
         }
     }
-    #endregion
 }

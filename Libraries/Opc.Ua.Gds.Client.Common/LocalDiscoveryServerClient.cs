@@ -34,7 +34,6 @@ namespace Opc.Ua.Gds.Client
 {
     public class LocalDiscoveryServerClient
     {
-        #region Constructors
         public LocalDiscoveryServerClient(ApplicationConfiguration configuration)
         {
             ApplicationConfiguration = configuration;
@@ -60,21 +59,17 @@ namespace Opc.Ua.Gds.Client
                 locales.Add("en-US");
             }
 
-            PreferredLocales = locales.ToArray();
+            PreferredLocales = [.. locales];
         }
-        #endregion
 
-        #region Public Properties
-        public ApplicationConfiguration ApplicationConfiguration { get; private set; }
+        public ApplicationConfiguration ApplicationConfiguration { get; }
 
-        public IServiceMessageContext MessageContext { get; private set; }
+        public IServiceMessageContext MessageContext { get; }
 
         public string[] PreferredLocales { get; set; }
 
         public int DefaultOperationTimeout { get; set; }
-        #endregion
 
-        #region FindServers
         public List<ApplicationDescription> FindServers()
         {
             IAsyncResult result = BeginFindServers(null, null, null, null, null, null, null);
@@ -112,8 +107,8 @@ namespace Opc.Ua.Gds.Client
             data.InnerResult = client.BeginFindServers(
                 null,
                 (actualEndpointUrl) ?? endpointUrl,
-                new StringCollection((preferredLocales) ?? PreferredLocales),
-                (serverUris != null) ? new StringCollection(serverUris) : null,
+                [.. (preferredLocales) ?? PreferredLocales],
+                (serverUris != null) ? [.. serverUris] : null,
                 OnFindServersComplete,
                 data);
 
@@ -122,9 +117,7 @@ namespace Opc.Ua.Gds.Client
 
         public List<ApplicationDescription> EndFindServers(IAsyncResult result)
         {
-            var data = result as FindServersData;
-
-            if (data == null)
+            if (!(result is FindServersData data))
             {
                 throw new ArgumentException("Did not pass the correct IAsyncResult to end method.", nameof(result));
             }
@@ -177,9 +170,7 @@ namespace Opc.Ua.Gds.Client
                 data.OperationCompleted();
             }
         }
-        #endregion
 
-        #region GetEndpoints
         public List<EndpointDescription> GetEndpoints(string endpointUrl)
         {
             IAsyncResult result = BeginGetEndpoints(endpointUrl, null, null, null);
@@ -207,7 +198,7 @@ namespace Opc.Ua.Gds.Client
             data.InnerResult = client.BeginGetEndpoints(
                 null,
                 endpointUrl,
-                new StringCollection(PreferredLocales),
+                [.. PreferredLocales],
                 null,
                 OnGetEndpointsComplete,
                 data);
@@ -217,9 +208,7 @@ namespace Opc.Ua.Gds.Client
 
         public List<EndpointDescription> EndGetEndpoints(IAsyncResult result)
         {
-            var data = result as GetEndpointsData;
-
-            if (data == null)
+            if (!(result is GetEndpointsData data))
             {
                 throw new ArgumentException("Did not pass the correct IAsyncResult to end method.", nameof(result));
             }
@@ -272,9 +261,7 @@ namespace Opc.Ua.Gds.Client
                 data.OperationCompleted();
             }
         }
-        #endregion
 
-        #region FindServersOnNetwork
         public List<ServerOnNetwork> FindServersOnNetwork(
             uint startingRecordId,
             uint maxRecordsToReturn,
@@ -324,7 +311,7 @@ namespace Opc.Ua.Gds.Client
                 null,
                 startingRecordId,
                 maxRecordsToReturn,
-                (serverCapabilityFilters != null) ? new StringCollection(serverCapabilityFilters) : new StringCollection(),
+                (serverCapabilityFilters != null) ? [.. serverCapabilityFilters] : [],
                 OnFindServersOnNetworkComplete,
                 data);
 
@@ -333,9 +320,7 @@ namespace Opc.Ua.Gds.Client
 
         public List<ServerOnNetwork> EndFindServersOnNetwork(IAsyncResult result, out DateTime lastCounterResetTime)
         {
-            var data = result as FindServersOnNetworkData;
-
-            if (data == null)
+            if (!(result is FindServersOnNetworkData data))
             {
                 throw new ArgumentException("Did not pass the correct IAsyncResult to end method.", nameof(result));
             }
@@ -392,9 +377,7 @@ namespace Opc.Ua.Gds.Client
                 data.OperationCompleted();
             }
         }
-        #endregion
 
-        #region Protected Methods
         protected virtual DiscoveryClient CreateClient(
             string endpointUrl,
             string endpointTransportProfileUri)
@@ -420,17 +403,9 @@ namespace Opc.Ua.Gds.Client
 
             ITransportChannel channel = DiscoveryChannel.Create(new Uri(endpointUrl), configuration, context);
 
-            var client = new DiscoveryClient(channel);
-            return client;
+            return new DiscoveryClient(channel);
         }
 
-        #region Private Methods
-        #endregion
-
-        #endregion
-
-        #region Private Fields
         private const string kDefaultUrl = "opc.tcp://localhost:4840";
-        #endregion
     }
 }

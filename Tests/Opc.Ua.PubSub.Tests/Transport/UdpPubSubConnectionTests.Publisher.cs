@@ -27,20 +27,19 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using NUnit.Framework;
-using Opc.Ua.PubSub.Configuration;
-using Opc.Ua.PubSub.Transport;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
+using NUnit.Framework;
+using Opc.Ua.PubSub.Configuration;
+using Opc.Ua.PubSub.Transport;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.PubSub.Tests.Transport
 {
-
     [TestFixture(Description = "Tests for UdpPubSubConnection class - Publisher ")]
     public partial class UdpPubSubConnectionTests
     {
@@ -66,13 +65,13 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             var publisherAddress = new NetworkAddressUrlDataType();
             publisherAddress.Url = Utils.Format(kUdpUrlFormat, Utils.UriSchemeOpcUdp, unicastIPAddress.ToString());
-            publisherConfiguration.Connections.First().Address = new ExtensionObject(publisherAddress);
+            publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
 
             //create publisher UaPubSubApplication with changed configuration settings
             var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
             Assert.IsNotNull(publisherApplication, "publisherApplication is null");
 
-            var publisherConnection = publisherApplication.PubSubConnections.First() as UdpPubSubConnection;
+            var publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
             Assert.IsNotNull(publisherConnection, "publisherConnection is null");
 
             // will signal that the uadp message was received from local ip
@@ -84,14 +83,14 @@ namespace Opc.Ua.PubSub.Tests.Transport
             udpUnicastClient.BeginReceive(new AsyncCallback(OnReceive), udpUnicastClient);
 
             // prepare a network message
-            WriterGroupDataType writerGroup0 = publisherConnection.PubSubConnectionConfiguration.WriterGroups.First();
+            WriterGroupDataType writerGroup0 = publisherConnection.PubSubConnectionConfiguration.WriterGroups[0];
             Assert.IsNotNull(writerGroup0, "writerGroup0 is null");
 
-            System.Collections.Generic.IList<UaNetworkMessage> networkMessages = publisherConnection.CreateNetworkMessages(writerGroup0, new WriterGroupPublishState());
+            IList<UaNetworkMessage> networkMessages = publisherConnection.CreateNetworkMessages(writerGroup0, new WriterGroupPublishState());
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
 
             //Act
-           publisherConnection.Start();
+            publisherConnection.Start();
 
             if (networkMessages != null)
             {
@@ -115,9 +114,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
             udpUnicastClient.Close();
             udpUnicastClient.Dispose();
 
-            if (noMessageReceived == true)
+            if (noMessageReceived)
             {
-                Assert.Fail("The UDP message was not received");
+                NUnit.Framework.Assert.Fail("The UDP message was not received");
             }
         }
 
@@ -143,13 +142,13 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             var publisherAddress = new NetworkAddressUrlDataType();
             publisherAddress.Url = Utils.Format(kUdpUrlFormat, Utils.UriSchemeOpcUdp, broadcastIPAddress.ToString());
-            publisherConfiguration.Connections.First().Address = new ExtensionObject(publisherAddress);
+            publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
 
             //create publisher UaPubSubApplication with changed configuration settings
             var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
             Assert.IsNotNull(publisherApplication, "publisherApplication is null");
 
-            var publisherConnection = publisherApplication.PubSubConnections.First() as UdpPubSubConnection;
+            var publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
             Assert.IsNotNull(publisherConnection, "publisherConnection is null");
 
             // will signal that the uadp message was received from local ip
@@ -160,7 +159,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             udpBroadcastClient.BeginReceive(new AsyncCallback(OnReceive), udpBroadcastClient);
 
             // prepare a network message
-            WriterGroupDataType writerGroup0 = publisherConnection.PubSubConnectionConfiguration.WriterGroups.First();
+            WriterGroupDataType writerGroup0 = publisherConnection.PubSubConnectionConfiguration.WriterGroups[0];
             IList<UaNetworkMessage> networkMessages = publisherConnection.CreateNetworkMessages(writerGroup0, new WriterGroupPublishState());
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
 
@@ -191,7 +190,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             if (noMessageReceived)
             {
-                Assert.Fail("The UDP message was not received");
+                NUnit.Framework.Assert.Fail("The UDP message was not received");
             }
         }
 
@@ -213,18 +212,18 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.Greater(publisherConfiguration.Connections.Count, 1, "publisherConfiguration.Connection should be > 0");
 
             IPAddress[] multicastIPAddresses = Dns.GetHostAddresses(kUdpMulticastIp);
-            IPAddress multicastIPAddress = multicastIPAddresses.First();
+            IPAddress multicastIPAddress = multicastIPAddresses[0];
             Assert.IsNotNull(multicastIPAddress, "multicastIPAddress is null");
 
             var publisherAddress = new NetworkAddressUrlDataType();
             publisherAddress.Url = Utils.Format(kUdpUrlFormat, Utils.UriSchemeOpcUdp, multicastIPAddress.ToString());
-            publisherConfiguration.Connections.First().Address = new ExtensionObject(publisherAddress);
+            publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
 
             //create publisher UaPubSubApplication with changed configuration settings
             var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
             Assert.IsNotNull(publisherApplication, "publisherApplication is null");
 
-            var publisherConnection = publisherApplication.PubSubConnections.First() as UdpPubSubConnection;
+            var publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
             Assert.IsNotNull(publisherConnection, "publisherConnection is null");
 
             // will signal that the uadp message was received from local ip
@@ -235,7 +234,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             udpMulticastClient.BeginReceive(new AsyncCallback(OnReceive), udpMulticastClient);
 
             // prepare a network message
-            WriterGroupDataType writerGroup0 = publisherConnection.PubSubConnectionConfiguration.WriterGroups.First();
+            WriterGroupDataType writerGroup0 = publisherConnection.PubSubConnectionConfiguration.WriterGroups[0];
             IList<UaNetworkMessage> networkMessages = publisherConnection.CreateNetworkMessages(writerGroup0, new WriterGroupPublishState());
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
 
@@ -266,7 +265,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             if (noMessageReceived)
             {
-                Assert.Fail("The UDP message was not received");
+                NUnit.Framework.Assert.Fail("The UDP message was not received");
             }
         }
 
@@ -288,8 +287,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.Greater(publisherConfiguration.Connections.Count, 1, "publisherConfiguration.Connection should be > 0");
 
             //discovery IP address 224.0.2.14
-            IPAddress[] multicastIPAddresses =  Dns.GetHostAddresses(kUdpDiscoveryIp);
-            IPAddress multicastIPAddress = multicastIPAddresses.First();
+            IPAddress[] multicastIPAddresses = Dns.GetHostAddresses(kUdpDiscoveryIp);
+            IPAddress multicastIPAddress = multicastIPAddresses[0];
             Assert.IsNotNull(multicastIPAddress, "multicastIPAddress is null");
 
             var publisherAddress = new NetworkAddressUrlDataType();
@@ -299,8 +298,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
             //create publisher UaPubSubApplication with changed configuration settings
             var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
             Assert.IsNotNull(publisherApplication, "publisherApplication is null");
-                        
-            var publisherConnection = publisherApplication.PubSubConnections.First() as UdpPubSubConnection;
+
+            var publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
             Assert.IsNotNull(publisherConnection, "publisherConnection is null");
 
             // will signal that the uadp message was received from local ip
@@ -311,13 +310,13 @@ namespace Opc.Ua.PubSub.Tests.Transport
             udpMulticastClient.BeginReceive(new AsyncCallback(OnReceive), udpMulticastClient);
 
             // prepare a network message
-            WriterGroupDataType writerGroup0 = publisherConnection.PubSubConnectionConfiguration.WriterGroups.First();
+            WriterGroupDataType writerGroup0 = publisherConnection.PubSubConnectionConfiguration.WriterGroups[0];
             var dataSetWriterIds = new List<ushort>();
             foreach (DataSetWriterDataType dataSetWriterDataType in writerGroup0.DataSetWriters)
             {
                 dataSetWriterIds.Add(dataSetWriterDataType.DataSetWriterId);
             }
-            IList<UaNetworkMessage> networkMessages = publisherConnection.CreateDataSetMetaDataNetworkMessages(dataSetWriterIds.ToArray());
+            IList<UaNetworkMessage> networkMessages = publisherConnection.CreateDataSetMetaDataNetworkMessages([.. dataSetWriterIds]);
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
 
             //Act  
@@ -344,13 +343,12 @@ namespace Opc.Ua.PubSub.Tests.Transport
             publisherConnection.Stop();
             udpMulticastClient.Close();
             udpMulticastClient.Dispose();
-            
+
             if (noMessageReceived)
             {
-                Assert.Fail("The UDP message was not received");
+                NUnit.Framework.Assert.Fail("The UDP message was not received");
             }
         }
-
 
         [Test(Description = "Validate discovery DataSetWriterConfigurationMessage response"), Order(4)]
 #if !CUSTOM_TESTS
@@ -371,7 +369,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             //discovery IP address 224.0.2.14
             IPAddress[] multicastIPAddresses = Dns.GetHostAddresses(kUdpDiscoveryIp);
-            IPAddress multicastIPAddress = multicastIPAddresses.First();
+            IPAddress multicastIPAddress = multicastIPAddresses[0];
             Assert.IsNotNull(multicastIPAddress, "multicastIPAddress is null");
 
             var publisherAddress = new NetworkAddressUrlDataType();
@@ -382,7 +380,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
             Assert.IsNotNull(publisherApplication, "publisherApplication is null");
 
-            var publisherConnection = publisherApplication.PubSubConnections.First() as UdpPubSubConnection;
+            var publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
             Assert.IsNotNull(publisherConnection, "publisherConnection is null");
 
             // will signal that the uadp message was received from local ip
@@ -393,13 +391,13 @@ namespace Opc.Ua.PubSub.Tests.Transport
             udpMulticastClient.BeginReceive(new AsyncCallback(OnReceive), udpMulticastClient);
 
             // prepare a network message
-            WriterGroupDataType writerGroup0 = publisherConnection.PubSubConnectionConfiguration.WriterGroups.First();
+            WriterGroupDataType writerGroup0 = publisherConnection.PubSubConnectionConfiguration.WriterGroups[0];
             var dataSetWriterIds = new List<ushort>();
             foreach (DataSetWriterDataType dataSetWriterDataType in writerGroup0.DataSetWriters)
             {
                 dataSetWriterIds.Add(dataSetWriterDataType.DataSetWriterId);
             }
-            UaNetworkMessage networkMessage = publisherConnection.CreateDataSetWriterCofigurationMessage(dataSetWriterIds.ToArray()).First();
+            UaNetworkMessage networkMessage = publisherConnection.CreateDataSetWriterCofigurationMessage([.. dataSetWriterIds]).First();
             Assert.IsNotNull(networkMessage, "connection.CreateDataSetWriterCofigurationMessages shall not return null");
 
             //Act  
@@ -423,7 +421,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             if (noMessageReceived)
             {
-                Assert.Fail("The UDP message was not received");
+                NUnit.Framework.Assert.Fail("The UDP message was not received");
             }
         }
 
@@ -446,7 +444,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             //discovery IP address 224.0.2.14
             IPAddress[] multicastIPAddresses = Dns.GetHostAddresses(kUdpDiscoveryIp);
-            IPAddress multicastIPAddress = multicastIPAddresses.First();
+            IPAddress multicastIPAddress = multicastIPAddresses[0];
             Assert.IsNotNull(multicastIPAddress, "multicastIPAddress is null");
 
             var publisherAddress = new NetworkAddressUrlDataType();
@@ -457,7 +455,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
             Assert.IsNotNull(publisherApplication, "publisherApplication is null");
 
-            var publisherConnection = publisherApplication.PubSubConnections.First() as UdpPubSubConnection;
+            var publisherConnection = publisherApplication.PubSubConnections[0] as UdpPubSubConnection;
             Assert.IsNotNull(publisherConnection, "publisherConnection is null");
 
             // will signal that the uadp message was received from local ip
@@ -469,20 +467,20 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             var endpointDescriptions = new List<EndpointDescription>()
             {
-                new EndpointDescription() {
+                new() {
                     EndpointUrl = "opc.tcp://server1:4840/Test",
                     SecurityMode = MessageSecurityMode.None,
                     SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#None",
                     Server = new ApplicationDescription() { ApplicationName = "Test security mode None", ApplicationUri = "urn:localhost:Server" }
                 },
-                new EndpointDescription()
+                new()
                 {
                     EndpointUrl = "opc.tcp://server1:4840/Test",
                     SecurityMode = MessageSecurityMode.Sign,
                     SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256",
                     Server = new ApplicationDescription() { ApplicationName = "Test security mode Sign", ApplicationUri = "urn:localhost:Server" }
                 },
-                new EndpointDescription()
+                new()
                 {
                     EndpointUrl = "opc.tcp://server1:4840/Test",
                     SecurityMode = MessageSecurityMode.SignAndEncrypt,
@@ -491,7 +489,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 }
             };
 
-            UaNetworkMessage uaNetworkMessage = publisherConnection.CreatePublisherEndpointsNetworkMessage(endpointDescriptions.ToArray(), 
+            UaNetworkMessage uaNetworkMessage = publisherConnection.CreatePublisherEndpointsNetworkMessage([.. endpointDescriptions],
                 StatusCodes.Good, publisherConnection.PubSubConnectionConfiguration.PublisherId.Value);
             Assert.IsNotNull(uaNetworkMessage, "uaNetworkMessage shall not return null");
 
@@ -506,14 +504,14 @@ namespace Opc.Ua.PubSub.Tests.Transport
             {
                 noMessageReceived = true;
             }
-           
+
             publisherConnection.Stop();
             udpMulticastClient.Close();
             udpMulticastClient.Dispose();
 
             if (noMessageReceived)
             {
-                Assert.Fail("The UDP message was not received");
+                NUnit.Framework.Assert.Fail("The UDP message was not received");
             }
         }
 
@@ -544,9 +542,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
             }
             catch (Exception ex)
             {
-                Assert.Warn(Utils.Format("OnReceive() failed due to the following reason: {0}", ex.Message));
+                NUnit.Framework.Assert.Warn(Utils.Format("OnReceive() failed due to the following reason: {0}", ex.Message));
             }
         }
-
     }
 }

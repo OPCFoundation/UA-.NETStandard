@@ -74,7 +74,6 @@ namespace Opc.Ua.Security.Certificates
     /// </remarks>
     public class X509SubjectAltNameExtension : X509Extension
     {
-        #region Constructors
         /// <summary>
         /// Creates an empty extension.
         /// </summary>
@@ -123,9 +122,7 @@ namespace Opc.Ua.Security.Certificates
             RawData = Encode();
             m_decoded = true;
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Returns a formatted version of the Abstract Syntax Notation One (ASN.1)-encoded data as a string.
         /// </summary>
@@ -207,9 +204,7 @@ namespace Opc.Ua.Security.Certificates
             RawData = asnEncodedData.RawData;
             m_decoded = false;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The OID for a Subject Alternate Name extension.
         /// </summary>
@@ -258,9 +253,7 @@ namespace Opc.Ua.Security.Certificates
                 return m_ipAddresses.AsReadOnly();
             }
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Create a normalized IPv4 or IPv6 address from a 4 byte or 16 byte array.
         /// </summary>
@@ -288,8 +281,8 @@ namespace Opc.Ua.Security.Certificates
             {
                 sanBuilder.AddUri(new Uri(uri));
             }
-            X509SubjectAltNameExtension.EncodeGeneralNames(sanBuilder, m_domainNames);
-            X509SubjectAltNameExtension.EncodeGeneralNames(sanBuilder, m_ipAddresses);
+            EncodeGeneralNames(sanBuilder, m_domainNames);
+            EncodeGeneralNames(sanBuilder, m_ipAddresses);
             X509Extension extension = sanBuilder.Build();
             return extension.RawData;
         }
@@ -347,8 +340,8 @@ namespace Opc.Ua.Security.Certificates
         /// </remarks>
         private void Decode(byte[] data)
         {
-            if (base.Oid.Value == SubjectAltNameOid ||
-                base.Oid.Value == SubjectAltName2Oid)
+            if (Oid.Value == SubjectAltNameOid ||
+                Oid.Value == SubjectAltName2Oid)
             {
                 try
                 {
@@ -380,7 +373,7 @@ namespace Opc.Ua.Security.Certificates
                             else if (peekTag == ipTag)
                             {
                                 byte[] ip = akiReader.ReadOctetString(ipTag);
-                                ipAddresses.Add(X509SubjectAltNameExtension.IPAddressToString(ip));
+                                ipAddresses.Add(IPAddressToString(ip));
                             }
                             else  // skip over
                             {
@@ -433,9 +426,7 @@ namespace Opc.Ua.Security.Certificates
             m_domainNames = domainNames;
             m_ipAddresses = ipAddresses;
         }
-        #endregion
 
-        #region Private Fields
         /// <summary>
         /// Subject Alternate Name extension string
         /// definitions see RFC 5280 4.2.1.7
@@ -448,6 +439,5 @@ namespace Opc.Ua.Security.Certificates
         private List<string> m_domainNames;
         private List<string> m_ipAddresses;
         private bool m_decoded;
-        #endregion
     }
 }

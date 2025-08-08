@@ -26,7 +26,6 @@ namespace Opc.Ua
     [DataContract(Name = "Guid", Namespace = Namespaces.OpcUaXsd)]
     public struct Uuid : IComparable, IFormattable, IEquatable<Uuid>
     {
-        #region Constructors
         /// <summary>
         /// Initializes the object with a string.
         /// </summary>
@@ -50,16 +49,12 @@ namespace Opc.Ua
         {
             m_guid = guid;
         }
-        #endregion
 
-        #region Static Fields
         /// <summary>
         /// A constant containing an empty GUID.
         /// </summary>
-        public static readonly Uuid Empty = new Uuid();
-        #endregion
+        public static readonly Uuid Empty = new();
 
-        #region Public Properties
         /// <summary>
         /// The GUID serialized as a string.
         /// </summary>
@@ -69,7 +64,7 @@ namespace Opc.Ua
         [DataMember(Name = "String", Order = 1)]
         public string GuidString
         {
-            get { return m_guid.ToString(); }
+            get => m_guid.ToString();
 
             set
             {
@@ -83,9 +78,7 @@ namespace Opc.Ua
                 }
             }
         }
-        #endregion
 
-        #region Static Members
         /// <summary>
         /// Converts Uuid to a Guid structure.
         /// </summary>
@@ -187,9 +180,7 @@ namespace Opc.Ua
         {
             return a.CompareTo(b) > 0;
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Returns true if the objects are equal.
         /// </summary>
@@ -235,9 +226,7 @@ namespace Opc.Ua
         {
             return m_guid.ToString();
         }
-        #endregion
 
-        #region IComparable Members
         /// <summary>
 		/// Compares the current instance to the object.
 		/// </summary>
@@ -249,22 +238,20 @@ namespace Opc.Ua
 		public int CompareTo(object obj)
         {
             // check for uuids.
-            if (obj is Uuid)
+            if (obj is Uuid uuidValue)
             {
-                return ((Uuid)obj).m_guid.CompareTo(m_guid);
+                return uuidValue.m_guid.CompareTo(m_guid);
             }
 
             // compare guids.
-            if (obj is Guid)
+            if (obj is Guid guidValue)
             {
-                return m_guid.CompareTo((Guid)obj);
+                return m_guid.CompareTo(guidValue);
             }
 
             return +1;
         }
-        #endregion
 
-        #region IFormattable Members
         /// <summary>
         /// Returns the string representation of the object.
         /// </summary>
@@ -275,16 +262,12 @@ namespace Opc.Ua
         /// <param name="formatProvider">The FormatProvider</param>
         public string ToString(string format, IFormatProvider formatProvider)
         {
-            return this.m_guid.ToString(format);
+            return m_guid.ToString(format);
         }
-        #endregion
 
-        #region Private Fields
         private Guid m_guid;
-        #endregion
     }
 
-    #region UuidCollection Class
     /// <summary>
     /// A collection of Uuids.
     /// </summary>
@@ -328,10 +311,10 @@ namespace Opc.Ua
         {
             if (values != null)
             {
-                return new UuidCollection(values);
+                return [.. values];
             }
 
-            return new UuidCollection();
+            return [];
         }
 
         /// <summary>
@@ -346,11 +329,10 @@ namespace Opc.Ua
             return ToUuidCollection(values);
         }
 
-        #region ICloneable
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -363,7 +345,5 @@ namespace Opc.Ua
         {
             return new UuidCollection(this);
         }
-        #endregion
     }
-    #endregion
 }//namespace

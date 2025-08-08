@@ -92,7 +92,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                     state.OnWriteRolePermissions = NodeAttributeEventHandler;
                     state.OnWriteRolePermissions = null;
                 };
-                yield return new TestCaseData(Attributes.RolePermissions, new Variant(value), action);
+                yield return new TestCaseData(Attributes.RolePermissions, new Variant(s_value), action);
 
                 // Test OnWriteAccessRestrictions
                 action = (BaseVariableState state) => {
@@ -290,7 +290,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             }
         }
 
-        private static readonly ExtensionObject[] value = new ExtensionObject[] { };
+        private static readonly ExtensionObject[] s_value = [];
 
         [TestCaseSource(nameof(VariableHandlerTestCases))]
         [Parallelizable]
@@ -454,7 +454,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 concurrentTaskAction);
         }
 
-        private void ExecuteNodeHandlerConcurrencyTest<T>(
+        private static void ExecuteNodeHandlerConcurrencyTest<T>(
             ISystemContext systemContext,
             uint attribute,
             Variant variant,
@@ -466,7 +466,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                             AttributeWriteMask.MinimumSamplingInterval | AttributeWriteMask.NodeClass | AttributeWriteMask.NodeId | AttributeWriteMask.Symmetric | AttributeWriteMask.UserAccessLevel | AttributeWriteMask.UserExecutable |
                             AttributeWriteMask.UserWriteMask | AttributeWriteMask.ValueForVariableType | AttributeWriteMask.ValueRank | AttributeWriteMask.WriteMask | AttributeWriteMask.RolePermissions | AttributeWriteMask.AccessRestrictions;
 
-            if(node is BaseVariableState baseVariableState)
+            if (node is BaseVariableState baseVariableState)
             {
                 // Make Value attribute writable so that it is possible to test Value attribute writing
                 ServiceResult result = baseVariableState.WriteAttribute(systemContext, Attributes.AccessLevel, NumericRange.Empty, new DataValue(new Variant(AccessLevels.CurrentReadOrWrite)));
@@ -474,7 +474,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 result = baseVariableState.WriteAttribute(systemContext, Attributes.UserAccessLevel, NumericRange.Empty, new DataValue(new Variant(AccessLevels.CurrentReadOrWrite)));
                 Assert.IsTrue(ServiceResult.IsGood(result));
             }
-            
+
             bool running = true;
 
             var thread = new Thread(() => {

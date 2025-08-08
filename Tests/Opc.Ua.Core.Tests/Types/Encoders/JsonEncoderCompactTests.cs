@@ -35,11 +35,11 @@ using System.Linq;
 using System.Text;
 using BenchmarkDotNet.Attributes;
 using Microsoft.IO;
-using NUnit.Framework;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
-using Opc.Ua.Bindings;
-using Newtonsoft.Json.Linq;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using NUnit.Framework;
+using Opc.Ua.Bindings;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Core.Tests.Types.Encoders
 {
@@ -53,43 +53,44 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     [DisassemblyDiagnoser]
     public class JsonEncoderCompactTests
     {
-        const string NamespaceUri1 = "http://test.org/UA/Data1/";
-        const string NamespaceUri2 = "tag:test.org,2024-07:schema:data:2";
-        const string NamespaceUri3 = "urn:test.org:2024-07:schema:data:3";
-        static readonly string[] NamespaceUris = new string[] { NamespaceUri1, NamespaceUri2, NamespaceUri3 };
+        internal const string NamespaceUri1 = "http://test.org/UA/Data1/";
+        internal const string NamespaceUri2 = "tag:test.org,2024-07:schema:data:2";
+        internal const string NamespaceUri3 = "urn:test.org:2024-07:schema:data:3";
+        internal static readonly string[] NamespaceUris = [NamespaceUri1, NamespaceUri2, NamespaceUri3];
 
-        const string ServerUri1 = "http://test.org/product/server1/";
-        const string ServerUri2 = "tag:test.org,2024-07:product:server:2";
-        const string ServerUri3 = "urn:test.org:2024-07:product:server:3";
-        static readonly string[] ServerUris = new string[] { ServerUri1, ServerUri2, ServerUri3 };
+        internal const string ServerUri1 = "http://test.org/product/server1/";
+        internal const string ServerUri2 = "tag:test.org,2024-07:product:server:2";
+        internal const string ServerUri3 = "urn:test.org:2024-07:product:server:3";
+        internal static readonly string[] ServerUris = [ServerUri1, ServerUri2, ServerUri3];
 
-        const uint NumericId1 = 1234;
-        const uint NumericId2 = 5678;
-        const uint NumericId3 = 9876;
-        static readonly uint[] NumericIds = new uint[] { NumericId1, NumericId2, NumericId3 };
+        internal const uint NumericId1 = 1234;
+        internal const uint NumericId2 = 5678;
+        internal const uint NumericId3 = 9876;
+        internal static readonly uint[] NumericIds = [NumericId1, NumericId2, NumericId3];
 
-        const string StringId1 = @"{""World"": ""Pandora""}";
-        const string StringId2 = @"<World>Pandora</World>";
-        const string StringId3 = @"http://world.org/Pandora/?alien=blue";
-        static readonly string[] StringIds = new string[] { StringId1, StringId2, StringId3 };
+        internal const string StringId1 = /*lang=json,strict*/ @"{""World"": ""Pandora""}";
+        internal const string StringId2 = "<World>Pandora</World>";
+        internal const string StringId3 = "http://world.org/Pandora/?alien=blue";
+        internal static readonly string[] StringIds = [StringId1, StringId2, StringId3];
 
-        static readonly Guid GuidId1 = new Guid("73861B2D-EA9A-4B97-ACE6-9A2943EF641E");
-        static readonly Guid GuidId2 = new Guid("BCFE58C8-CDC5-444F-B1F8-A12903008BE0");
-        static readonly Guid GuidId3 = new Guid("C141B9D1-F1FD-4D15-9918-E37FD697EA1D");
-        static readonly Guid[] GuidIds = new Guid[] { GuidId1, GuidId2, GuidId3 };
+        internal static readonly Guid GuidId1 = new("73861B2D-EA9A-4B97-ACE6-9A2943EF641E");
+        internal static readonly Guid GuidId2 = new("BCFE58C8-CDC5-444F-B1F8-A12903008BE0");
+        internal static readonly Guid GuidId3 = new("C141B9D1-F1FD-4D15-9918-E37FD697EA1D");
+        internal static readonly Guid[] GuidIds = [GuidId1, GuidId2, GuidId3];
 
-        static readonly byte[] OpaqueId1 = Utils.FromHexString("138DAA907373409AB6A4A36322063745");
-        static readonly byte[] OpaqueId2 = Utils.FromHexString("E41047609A9248318EB907991A66B7BEE6B60CB5114828");
-        static readonly byte[] OpaqueId3 = Utils.FromHexString("FBD8F0DE652A479B");
-        static readonly byte[][] OpaqueIds = new byte[][] { OpaqueId1, OpaqueId2, OpaqueId3 };
-        private static readonly string[] body = new string[] { "opc.tcp://localhost/" };
+        internal static readonly byte[] OpaqueId1 = Utils.FromHexString("138DAA907373409AB6A4A36322063745");
+        internal static readonly byte[] OpaqueId2 = Utils.FromHexString("E41047609A9248318EB907991A66B7BEE6B60CB5114828");
+        internal static readonly byte[] OpaqueId3 = Utils.FromHexString("FBD8F0DE652A479B");
+        internal static readonly byte[][] OpaqueIds = [OpaqueId1, OpaqueId2, OpaqueId3];
+        internal static readonly string[] Body = ["opc.tcp://localhost/"];
+        internal static readonly string[] BodyArray = ["opc.tcp://localhost/"];
 
-        private string Escape(string input)
+        private static string Escape(string input)
         {
             return input.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal);
         }
 
-        private string ToString(Array input, int index)
+        private static string ToString(Array input, int index)
         {
             object element = input.GetValue(index % input.Length);
 
@@ -106,12 +107,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             return (element != null) ? element.ToString() : string.Empty;
         }
 
-        private T Get<T>(IList<T> input, int index)
+        private static T Get<T>(IList<T> input, int index)
         {
             return input[index % input.Count];
         }
 
-        private void CheckDecodedNodeIds(ServiceMessageContext context, JsonDecoder decoder, int index)
+        private static void CheckDecodedNodeIds(ServiceMessageContext context, JsonDecoder decoder, int index)
         {
             NodeId n0 = decoder.ReadNodeId("D0");
             Assert.AreEqual((int)n0.NamespaceIndex, 0);
@@ -134,7 +135,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.AreEqual(Utils.ToHexString(Get(OpaqueIds, index)), Utils.ToHexString((byte[])n4.Identifier));
         }
 
-        private void CheckDecodedExpandedNodeIds(ServiceMessageContext context, JsonDecoder decoder, int index)
+        private static void CheckDecodedExpandedNodeIds(ServiceMessageContext context, JsonDecoder decoder, int index)
         {
             ExpandedNodeId n0 = decoder.ReadExpandedNodeId("D0");
             Assert.AreEqual((int)n0.ServerIndex, 0);
@@ -270,7 +271,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.AreEqual(Utils.ToHexString(Get(OpaqueIds, index)), Utils.ToHexString((byte[])n8.Identifier));
         }
 
-        private void CheckDecodedQualfiiedNames(ServiceMessageContext context, JsonDecoder decoder, int index)
+        private static void CheckDecodedQualfiiedNames(ServiceMessageContext context, JsonDecoder decoder, int index)
         {
             QualifiedName n0 = decoder.ReadQualifiedName("D0");
             Assert.AreEqual((int)n0.NamespaceIndex, 0);
@@ -1060,7 +1061,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void DecodeCompactAndVerboseMatrix()
         {
-            string data = $$"""
+            const string data = /*lang=json,strict*/ """
 
                 {
                     "D0": { "Dimensions": [ 2, 3 ], "Array": [ 1, 2, 3, 4, 5, 6 ] },
@@ -1093,7 +1094,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [TestCase(JsonEncodingType.Verbose)]
         public void EncodeCompactAndVerboseMatrix(JsonEncodingType jsonEncoding)
         {
-            string data = $$"""
+            const string data = /*lang=json,strict*/ """
 
                 {
                     "D0": { "Dimensions": [ 2, 3 ], "Array": [ 1, 2, 3, 4, 5, 6 ] },
@@ -1122,7 +1123,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void DecodeReversibleMatrix()
         {
-            string data = $$"""
+            const string data = /*lang=json,strict*/ """
 
                 {
                     "D0": [[1, 2, 3], [4, 5, 6]],
@@ -1155,7 +1156,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [TestCase(JsonEncodingType.NonReversible)]
         public void EncodeReversibleAndNonReversibleMatrix(JsonEncodingType jsonEncoding)
         {
-            string data = $$"""
+            const string data = /*lang=json,strict*/ """
 
                 {
                     "D0": [[1, 2, 3], [4, 5, 6]],
@@ -1184,7 +1185,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void DecodeCompactExtensionObject()
         {
-            string data = $$"""
+            const string data = /*lang=json,strict*/ """
 
                 {
                     "D0": {
@@ -1209,13 +1210,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             var context = new ServiceMessageContext();
             context.NamespaceUris.Append("urn:localhost:server");
-            context.NamespaceUris.Append(Opc.Ua.Gds.Namespaces.OpcUaGds);
+            context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
 
             using (var decoder = new JsonDecoder(data, context))
             {
                 ExtensionObject eo = decoder.ReadExtensionObject("D0");
-                Assert.AreEqual(Opc.Ua.DataTypeIds.Range.ToString(), eo.TypeId.ToString());
-                var range = eo.Body as Opc.Ua.Range;
+                Assert.AreEqual(DataTypeIds.Range.ToString(), eo.TypeId.ToString());
+                var range = eo.Body as Range;
                 Assert.IsNotNull(range);
                 Assert.AreEqual(0, range.Low);
                 Assert.AreEqual(9876.5432, range.High);
@@ -1225,11 +1226,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
                 eo = v1.Value as ExtensionObject;
                 Assert.IsNotNull(eo);
-                Assert.AreEqual(Opc.Ua.Gds.DataTypeIds.ApplicationRecordDataType.ToString(), eo.TypeId.ToString());
+                Assert.AreEqual(Gds.DataTypeIds.ApplicationRecordDataType.ToString(), eo.TypeId.ToString());
 
-                var record = eo.Body as Opc.Ua.Gds.ApplicationRecordDataType;
+                var record = eo.Body as Gds.ApplicationRecordDataType;
                 Assert.IsNotNull(record);
-                Assert.AreEqual(Opc.Ua.ApplicationType.Client, record.ApplicationType);
+                Assert.AreEqual(ApplicationType.Client, record.ApplicationType);
                 Assert.AreEqual("Test Client", record.ApplicationNames[0].Text);
             }
         }
@@ -1237,7 +1238,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void EncodeCompactExtensionObject()
         {
-            string data = $$"""
+            const string data = /*lang=json,strict*/ """
 
                 {
                     "D0": {
@@ -1267,27 +1268,27 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             var context = new ServiceMessageContext();
             context.NamespaceUris.Append("urn:localhost:server");
-            context.NamespaceUris.Append(Opc.Ua.Gds.Namespaces.OpcUaGds);
+            context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
 
             using (var encoder = new JsonEncoder(context, JsonEncodingType.Compact))
             {
                 encoder.WriteExtensionObject(
                     "D0",
                     new ExtensionObject(
-                        Opc.Ua.DataTypeIds.Range,
-                        new Opc.Ua.Range() { High = 9876.5432 })
+                        DataTypeIds.Range,
+                        new Range() { High = 9876.5432 })
                 );
 
                 encoder.WriteVariant(
                     "D1",
                     new Variant(new ExtensionObject(
-                        Opc.Ua.Gds.DataTypeIds.ApplicationRecordDataType,
-                        new Opc.Ua.Gds.ApplicationRecordDataType() {
+                        Gds.DataTypeIds.ApplicationRecordDataType,
+                        new Gds.ApplicationRecordDataType() {
                             ApplicationId = new NodeId("urn:123456789", 1),
                             ApplicationUri = "urn:localhost:test.org:client",
-                            ApplicationNames = new LocalizedText[] { new LocalizedText("en", "Test Client") },
+                            ApplicationNames = new LocalizedText[] { new("en", "Test Client") },
                             ProductUri = "http://test.org/client",
-                            DiscoveryUrls = body,
+                            DiscoveryUrls = Body,
                         }))
                 );
 
@@ -1300,7 +1301,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void DecodeVerboseExtensionObject()
         {
-            string data = $$"""
+            const string data = /*lang=json,strict*/ """
 
                 {
                     "D0": {
@@ -1328,13 +1329,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             var context = new ServiceMessageContext();
             context.NamespaceUris.Append("urn:localhost:server");
-            context.NamespaceUris.Append(Opc.Ua.Gds.Namespaces.OpcUaGds);
+            context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
 
             using (var decoder = new JsonDecoder(data, context))
             {
                 ExtensionObject eo = decoder.ReadExtensionObject("D0");
-                Assert.AreEqual(Opc.Ua.DataTypeIds.Range.ToString(), eo.TypeId.ToString());
-                var range = eo.Body as Opc.Ua.Range;
+                Assert.AreEqual(DataTypeIds.Range.ToString(), eo.TypeId.ToString());
+                var range = eo.Body as Range;
                 Assert.IsNotNull(range);
                 Assert.AreEqual(0, range.Low);
                 Assert.AreEqual(9876.5432, range.High);
@@ -1344,11 +1345,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
                 eo = v1.Value as ExtensionObject;
                 Assert.IsNotNull(eo);
-                Assert.AreEqual(Opc.Ua.Gds.DataTypeIds.ApplicationRecordDataType.ToString(), eo.TypeId.ToString());
+                Assert.AreEqual(Gds.DataTypeIds.ApplicationRecordDataType.ToString(), eo.TypeId.ToString());
 
-                var record = eo.Body as Opc.Ua.Gds.ApplicationRecordDataType;
+                var record = eo.Body as Gds.ApplicationRecordDataType;
                 Assert.IsNotNull(record);
-                Assert.AreEqual(Opc.Ua.ApplicationType.Client, record.ApplicationType);
+                Assert.AreEqual(ApplicationType.Client, record.ApplicationType);
                 Assert.AreEqual("Test Client", record.ApplicationNames[0].Text);
             }
         }
@@ -1356,7 +1357,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void EncodeVerboseExtensionObject()
         {
-            string data = $$"""
+            const string data = /*lang=json,strict*/ """
 
                 {
                     "D0": {
@@ -1387,28 +1388,28 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             var context = new ServiceMessageContext();
             context.NamespaceUris.Append("urn:localhost:server");
-            context.NamespaceUris.Append(Opc.Ua.Gds.Namespaces.OpcUaGds);
+            context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
 
             using (var encoder = new JsonEncoder(context, JsonEncodingType.Verbose))
             {
                 encoder.WriteExtensionObject(
                     "D0",
                     new ExtensionObject(
-                        Opc.Ua.DataTypeIds.Range,
-                        new Opc.Ua.Range() { Low = 0, High = 9876.5432 })
+                        DataTypeIds.Range,
+                        new Range() { Low = 0, High = 9876.5432 })
                 );
 
                 encoder.WriteVariant(
                     "D1",
                     new Variant(new ExtensionObject(
-                        Opc.Ua.Gds.DataTypeIds.ApplicationRecordDataType,
-                        new Opc.Ua.Gds.ApplicationRecordDataType() {
+                        Gds.DataTypeIds.ApplicationRecordDataType,
+                        new Gds.ApplicationRecordDataType() {
                             ApplicationId = new NodeId("urn:123456789", 1),
                             ApplicationUri = "urn:localhost:test.org:client",
-                            ApplicationType = Opc.Ua.ApplicationType.Client,
-                            ApplicationNames = new LocalizedText[] { new LocalizedText("en", "Test Client") },
+                            ApplicationType = ApplicationType.Client,
+                            ApplicationNames = new LocalizedText[] { new("en", "Test Client") },
                             ProductUri = "http://test.org/client",
-                            DiscoveryUrls = body,
+                            DiscoveryUrls = Body,
                         }))
                 );
 
@@ -1421,7 +1422,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void DecodeReversibleExtensionObject()
         {
-            string data = $$"""
+            const string data = /*lang=json,strict*/ """
 
                 {
                     "D0": {
@@ -1448,13 +1449,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             var context = new ServiceMessageContext();
             context.NamespaceUris.Append("urn:localhost:server");
-            context.NamespaceUris.Append(Opc.Ua.Gds.Namespaces.OpcUaGds);
+            context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
 
             using (var decoder = new JsonDecoder(data, context))
             {
                 ExtensionObject eo = decoder.ReadExtensionObject("D0");
-                Assert.AreEqual(Opc.Ua.DataTypeIds.Range.ToString(), eo.TypeId.ToString());
-                var range = eo.Body as Opc.Ua.Range;
+                Assert.AreEqual(DataTypeIds.Range.ToString(), eo.TypeId.ToString());
+                var range = eo.Body as Range;
                 Assert.IsNotNull(range);
                 Assert.AreEqual(0, range.Low);
                 Assert.AreEqual(9876.5432, range.High);
@@ -1464,11 +1465,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
                 eo = v1.Value as ExtensionObject;
                 Assert.IsNotNull(eo);
-                Assert.AreEqual(Opc.Ua.Gds.DataTypeIds.ApplicationRecordDataType.ToString(), eo.TypeId.ToString());
+                Assert.AreEqual(Gds.DataTypeIds.ApplicationRecordDataType.ToString(), eo.TypeId.ToString());
 
-                var record = eo.Body as Opc.Ua.Gds.ApplicationRecordDataType;
+                var record = eo.Body as Gds.ApplicationRecordDataType;
                 Assert.IsNotNull(record);
-                Assert.AreEqual(Opc.Ua.ApplicationType.Client, record.ApplicationType);
+                Assert.AreEqual(ApplicationType.Client, record.ApplicationType);
                 Assert.AreEqual("Test Client", record.ApplicationNames[0].Text);
             }
         }
@@ -1476,7 +1477,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void EncodeReversibleExtensionObject()
         {
-            string data = $$"""
+            const string data = /*lang=json,strict*/ """
 
                 {
                     "D0": {
@@ -1508,28 +1509,28 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             var context = new ServiceMessageContext();
             context.NamespaceUris.Append("urn:localhost:server");
-            context.NamespaceUris.Append(Opc.Ua.Gds.Namespaces.OpcUaGds);
+            context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
 
             using (var encoder = new JsonEncoder(context, JsonEncodingType.Reversible))
             {
                 encoder.WriteExtensionObject(
                     "D0",
                     new ExtensionObject(
-                        Opc.Ua.DataTypeIds.Range,
-                        new Opc.Ua.Range() { High = 9876.5432 })
+                        DataTypeIds.Range,
+                        new Range() { High = 9876.5432 })
                 );
 
                 encoder.WriteVariant(
                     "D1",
                     new Variant(new ExtensionObject(
-                        Opc.Ua.Gds.DataTypeIds.ApplicationRecordDataType,
-                        new Opc.Ua.Gds.ApplicationRecordDataType() {
+                        Gds.DataTypeIds.ApplicationRecordDataType,
+                        new Gds.ApplicationRecordDataType() {
                             ApplicationId = new NodeId("urn:123456789", 1),
                             ApplicationUri = "urn:localhost:test.org:client",
-                            ApplicationType = Opc.Ua.ApplicationType.Client,
-                            ApplicationNames = new LocalizedText[] { new LocalizedText("en", "Test Client") },
+                            ApplicationType = ApplicationType.Client,
+                            ApplicationNames = new LocalizedText[] { new("en", "Test Client") },
                             ProductUri = "http://test.org/client",
-                            DiscoveryUrls = new string[] { "opc.tcp://localhost/" },
+                            DiscoveryUrls = BodyArray,
                         }))
                 );
 
@@ -1542,7 +1543,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void DecodeNonReversibleExtensionObject()
         {
-            string data = $$"""
+            const string data = /*lang=json,strict*/ """
 
                 {
                     "D0": { "Low": 0, "High": 9876.5432 },
@@ -1561,18 +1562,18 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             var context = new ServiceMessageContext();
             context.NamespaceUris.Append("urn:localhost:server");
-            context.NamespaceUris.Append(Opc.Ua.Gds.Namespaces.OpcUaGds);
+            context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
 
             using (var decoder = new JsonDecoder(data, context))
             {
-                var range = decoder.ReadEncodeable("D0", typeof(Opc.Ua.Range)) as Opc.Ua.Range;
+                var range = decoder.ReadEncodeable("D0", typeof(Range)) as Range;
                 Assert.IsNotNull(range);
                 Assert.AreEqual(0, range.Low);
                 Assert.AreEqual(9876.5432, range.High);
 
-                var record = decoder.ReadEncodeable("D1", typeof(Opc.Ua.Gds.ApplicationRecordDataType)) as Opc.Ua.Gds.ApplicationRecordDataType;
+                var record = decoder.ReadEncodeable("D1", typeof(Gds.ApplicationRecordDataType)) as Gds.ApplicationRecordDataType;
                 Assert.IsNotNull(record);
-                Assert.AreEqual(Opc.Ua.ApplicationType.Client, record.ApplicationType);
+                Assert.AreEqual(ApplicationType.Client, record.ApplicationType);
                 Assert.AreEqual("Test Client", record.ApplicationNames[0].Text);
             }
         }
@@ -1580,7 +1581,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void EncodeNonReversibleExtensionObject()
         {
-            string data = $$"""
+            const string data = /*lang=json,strict*/ """
 
                 {
                     "D0": { "Low": 0, "High": 9876.5432 },
@@ -1609,21 +1610,21 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 encoder.WriteExtensionObject(
                     "D0",
                     new ExtensionObject(
-                        Opc.Ua.DataTypeIds.Range,
-                        new Opc.Ua.Range() { Low = 0, High = 9876.5432 })
+                        DataTypeIds.Range,
+                        new Range() { Low = 0, High = 9876.5432 })
                 );
 
                 encoder.WriteVariant(
                     "D1",
                     new Variant(new ExtensionObject(
-                        Opc.Ua.Gds.DataTypeIds.ApplicationRecordDataType,
-                        new Opc.Ua.Gds.ApplicationRecordDataType() {
+                        Gds.DataTypeIds.ApplicationRecordDataType,
+                        new Gds.ApplicationRecordDataType() {
                             ApplicationId = new NodeId("urn:123456789", 1),
                             ApplicationUri = "urn:localhost:test.org:client",
-                            ApplicationType = Opc.Ua.ApplicationType.Client,
-                            ApplicationNames = new LocalizedText[] { new LocalizedText("en", "Test Client") },
+                            ApplicationType = ApplicationType.Client,
+                            ApplicationNames = new LocalizedText[] { new("en", "Test Client") },
                             ProductUri = "http://test.org/client",
-                            DiscoveryUrls = new string[] { "opc.tcp://localhost/" },
+                            DiscoveryUrls = BodyArray,
                         }))
                 );
 

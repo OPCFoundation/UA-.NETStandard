@@ -33,7 +33,6 @@ namespace Opc.Ua
     [KnownType(typeof(ViewNode))]
     public class NodeSet : IEnumerable<Node>
     {
-        #region Constructors
         /// <summary>
         /// Creates an empty nodeset.
         /// </summary>
@@ -41,7 +40,7 @@ namespace Opc.Ua
         {
             m_namespaceUris = new NamespaceTable();
             m_serverUris = new StringTable();
-            m_nodes = new Dictionary<NodeId, Node>();
+            m_nodes = [];
         }
 
         /// <summary>
@@ -77,9 +76,7 @@ namespace Opc.Ua
                 writer.Dispose();
             }
         }
-        #endregion
 
-        #region IEnumerable<IReference> Members
         /// <summary>
         /// Returns an enumerator that iterates through the collection.
         /// </summary>
@@ -90,9 +87,7 @@ namespace Opc.Ua
         {
             return new List<Node>(m_nodes.Values).GetEnumerator();
         }
-        #endregion
 
-        #region IEnumerable Members
         /// <summary>
         /// Returns an enumerator that iterates through a collection.
         /// </summary>
@@ -103,9 +98,7 @@ namespace Opc.Ua
         {
             return GetEnumerator();
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Adds a node to the set.
         /// </summary>
@@ -556,19 +549,14 @@ namespace Opc.Ua
         {
             return Translate(nodeId, namespaceUris, serverUris, m_namespaceUris, m_serverUris);
         }
-        #endregion
 
-        #region Private Members
         /// <summary>
         /// The table of namespaces.
         /// </summary>
         [DataMember(Name = "NamespaceUris", Order = 1)]
         internal StringCollection NamespaceUris
         {
-            get
-            {
-                return new StringCollection(m_namespaceUris.ToArray());
-            }
+            get => [.. m_namespaceUris.ToArray()];
 
             set
             {
@@ -589,10 +577,7 @@ namespace Opc.Ua
         [DataMember(Name = "ServerUris", Order = 2)]
         internal StringCollection ServerUris
         {
-            get
-            {
-                return new StringCollection(m_serverUris.ToArray());
-            }
+            get => [.. m_serverUris.ToArray()];
 
             set
             {
@@ -613,14 +598,11 @@ namespace Opc.Ua
         [DataMember(Name = "Nodes", Order = 3)]
         internal NodeCollection Nodes
         {
-            get
-            {
-                return new NodeCollection(m_nodes.Values);
-            }
+            get => [.. m_nodes.Values];
 
             set
             {
-                m_nodes = new Dictionary<NodeId, Node>();
+                m_nodes = [];
 
                 if (value != null)
                 {
@@ -815,12 +797,9 @@ namespace Opc.Ua
 
             return new NodeId(nodeId.Identifier, namespaceIndex);
         }
-        #endregion
 
-        #region Private Fields
         private NamespaceTable m_namespaceUris;
         private StringTable m_serverUris;
         private Dictionary<NodeId, Node> m_nodes;
-        #endregion
     }
 }

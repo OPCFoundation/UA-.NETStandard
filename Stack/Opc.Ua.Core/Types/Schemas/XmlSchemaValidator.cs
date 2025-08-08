@@ -26,7 +26,6 @@ namespace Opc.Ua.Schema.Xml
     /// </summary>
     public class XmlSchemaValidator : SchemaValidator
     {
-        #region Constructors
         /// <summary>
         /// Intializes the object with default values.
         /// </summary>
@@ -50,9 +49,7 @@ namespace Opc.Ua.Schema.Xml
         {
             SetResourcePaths(WellKnownDictionaries);
         }
-        #endregion
 
-        #region Public Members
         /// <summary>
         /// The schema set that was validated.
         /// </summary>
@@ -157,29 +154,24 @@ namespace Opc.Ua.Schema.Xml
 
             return Encoding.UTF8.GetString(ostrm.ToArray());
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Handles a validation error.
         /// </summary>
-        static void OnValidate(object sender, ValidationEventArgs args)
+        private static void OnValidate(object sender, ValidationEventArgs args)
         {
             Utils.LogError("Error in XML schema validation: {0}", args.Message);
             throw new InvalidOperationException(args.Message, args.Exception);
         }
-        #endregion
 
-        #region Private Fields
         /// <summary>
         /// The well known schemas embedded in the assembly.
         /// </summary>
-        protected static readonly string[][] WellKnownDictionaries = new string[][]
-        {
-            new string[] { Namespaces.OpcUaXsd, "Opc.Ua.Schema.Opc.Ua.Types.xsd" }
-        };
+        protected static readonly string[][] WellKnownDictionaries =
+        [
+            [Namespaces.OpcUaXsd, "Opc.Ua.Schema.Opc.Ua.Types.xsd"]
+        ];
         private XmlSchema m_schema;
         private XmlSchemaSet m_schemaSet;
-        #endregion
     }
 }

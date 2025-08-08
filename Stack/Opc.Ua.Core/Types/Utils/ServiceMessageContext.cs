@@ -17,7 +17,6 @@ namespace Opc.Ua
 	/// </summary>
 	public class ServiceMessageContext : IServiceMessageContext
     {
-        #region Constructors
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
@@ -43,9 +42,7 @@ namespace Opc.Ua
             m_serverUris = new StringTable(shared);
             m_factory = EncodeableFactory.GlobalFactory;
         }
-        #endregion
 
-        #region Static Members
         /// <summary>
         /// The default context for the process (used only during XML serialization).
         /// </summary>
@@ -62,9 +59,7 @@ namespace Opc.Ua
             {
             }
         }
-        #endregion
 
-        #region Public Properties
         /// <inheritdoc/>
         public int MaxStringLength { get; set; }
 
@@ -92,7 +87,7 @@ namespace Opc.Ua
             {
                 if (value == null)
                 {
-                    m_namespaceUris = ServiceMessageContext.GlobalContext.NamespaceUris;
+                    m_namespaceUris = GlobalContext.NamespaceUris;
                     return;
                 }
                 m_namespaceUris = value;
@@ -108,7 +103,7 @@ namespace Opc.Ua
             {
                 if (value == null)
                 {
-                    m_serverUris = ServiceMessageContext.GlobalContext.ServerUris;
+                    m_serverUris = GlobalContext.ServerUris;
                     return;
                 }
 
@@ -125,7 +120,7 @@ namespace Opc.Ua
             {
                 if (value == null)
                 {
-                    m_factory = ServiceMessageContext.GlobalContext.Factory;
+                    m_factory = GlobalContext.Factory;
                     return;
                 }
 
@@ -133,11 +128,8 @@ namespace Opc.Ua
             }
         }
 
-#endregion
-#region Private Fields
         private NamespaceTable m_namespaceUris;
         private StringTable m_serverUris;
         private IEncodeableFactory m_factory;
-        #endregion
     }
 }

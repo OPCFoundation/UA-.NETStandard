@@ -42,7 +42,6 @@ namespace Opc.Ua.Client.ComplexTypes
     /// </summary>
     public class ComplexTypeBuilder : IComplexTypeBuilder
     {
-        #region Constructors
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
@@ -57,9 +56,7 @@ namespace Opc.Ua.Client.ComplexTypes
             m_moduleName = FindModuleName(moduleName, targetNamespace);
             m_moduleBuilder = moduleFactory.GetModuleBuilder();
         }
-        #endregion Constructors
 
-        #region Public Members
         /// <summary>
         /// The target namespace of the type builder.
         /// </summary>
@@ -147,9 +144,7 @@ namespace Opc.Ua.Client.ComplexTypes
             structureBuilder.StructureDefinitionAttribute(structureDefinition);
             return new ComplexTypeFieldBuilder(structureBuilder, structureDefinition.StructureType);
         }
-        #endregion Public Members
 
-        #region Private Members
         /// <summary>
         /// Create a unique namespace module name for the type.
         /// </summary>
@@ -164,7 +159,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
                 tempName = tempName.Replace("/", "", StringComparison.Ordinal);
                 string[] splitName = tempName.Split(':');
-                moduleName = splitName.Last();
+                moduleName = splitName[^1];
             }
             return moduleName;
         }
@@ -182,11 +177,8 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             return result + browseName.Name;
         }
-        #endregion Private Members
 
-        #region Private Fields
         private readonly ModuleBuilder m_moduleBuilder;
         private readonly string m_moduleName;
-        #endregion Private Fields
     }
 }//namespace

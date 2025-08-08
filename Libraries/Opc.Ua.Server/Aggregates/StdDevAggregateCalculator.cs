@@ -38,7 +38,6 @@ namespace Opc.Ua.Server
     /// </summary>
     public class StdDevAggregateCalculator : AggregateCalculator
     {
-        #region Constructors
         /// <summary>
         /// Initializes the aggregate calculator.
         /// </summary>
@@ -60,9 +59,7 @@ namespace Opc.Ua.Server
         {
             SetPartialBit = true;
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Computes the value for the timeslice.
         /// </summary>
@@ -95,9 +92,7 @@ namespace Opc.Ua.Server
 
             return base.ComputeValue(slice);
         }
-        #endregion
 
-        #region Protected Methods
         /// <summary>
         /// Calculates the RegSlope, RegConst and RegStdDev aggregates for the timeslice.
         /// </summary>
@@ -134,7 +129,7 @@ namespace Opc.Ua.Server
                 }
 
                 // normalize to seconds.
-                duration += regions[ii].Duration/1000.0;
+                duration += regions[ii].Duration / 1000.0;
             }
 
             // check if no good data.
@@ -282,7 +277,7 @@ namespace Opc.Ua.Server
             for (int ii = 0; ii < xData.Count; ii++)
             {
                 double error = xData[ii] - average;
-                variance += error*error;
+                variance += error * error;
             }
 
             // use the sample variance if bounds are included.
@@ -299,7 +294,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-           // use the population variance if bounds are not included.
+            // use the population variance if bounds are not included.
             else
             {
                 variance /= xData.Count;
@@ -331,6 +326,5 @@ namespace Opc.Ua.Server
             // return result.
             return value;
         }
-        #endregion
     }
 }

@@ -538,6 +538,6 @@ namespace Opc.Ua.Bindings
         private TransportChannelSettings m_settings;
         private ChannelQuotas m_quotas;
         private HttpClient m_client;
-        private static readonly MediaTypeHeaderValue s_mediaTypeHeaderValue = new MediaTypeHeaderValue("application/octet-stream");
+        private static readonly MediaTypeHeaderValue s_mediaTypeHeaderValue = new("application/octet-stream");
     }
 }

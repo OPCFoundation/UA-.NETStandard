@@ -18,6 +18,6 @@ namespace Opc.Ua.Bindings
     /// the UA TCP protocol.
     /// </summary>
     ///<exclude/>
-    [System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
+    [System.Runtime.CompilerServices.CompilerGenerated()]
     public class NamespaceDoc;
 }

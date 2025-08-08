@@ -21,19 +21,17 @@ namespace Opc.Ua
     /// </summary>
     public static partial class Attributes
     {
-        #region Static Helper Functions
-
         /// <summary>
         /// The maximum number of attributes defined and used by the stack.
         /// </summary>
-        public const int MaxAttributes = (int)Attributes.AccessLevelEx - (int)Attributes.NodeId + 1;
+        public const int MaxAttributes = (int)AccessLevelEx - (int)NodeId + 1;
 
         /// <summary>
         /// Returns true if the attribute id is valid.
         /// </summary>
         public static bool IsValid(uint attributeId)
         {
-            return attributeId is >= Attributes.NodeId and <= Attributes.AccessLevelEx;
+            return attributeId is >= NodeId and <= AccessLevelEx;
         }
 
         /// <summary>
@@ -286,12 +284,12 @@ namespace Opc.Ua
         /// </summary>
         public static int GetValueRank(uint attributeId)
         {
-            if (attributeId == Attributes.Value)
+            if (attributeId == Value)
             {
                 return ValueRanks.Any;
             }
 
-            if (attributeId == Attributes.ArrayDimensions)
+            if (attributeId == ArrayDimensions)
             {
                 return ValueRanks.OneDimension;
             }
@@ -302,8 +300,9 @@ namespace Opc.Ua
         /// <summary>
         /// Checks if the attribute is valid for at least one of node classes specified in the mask.
         /// </summary>
-        public static bool IsValid(NodeClass nodeClass, uint attributeId)
+        public static bool IsValid(NodeClass nodeClassMask, uint attributeId)
         {
+            var nodeClass = (int)nodeClassMask;
             switch (attributeId)
             {
                 case NodeId:
@@ -322,37 +321,38 @@ namespace Opc.Ua
                 case DataType:
                 case ValueRank:
                 case ArrayDimensions:
-                    return (nodeClass & (Opc.Ua.NodeClass.VariableType | Opc.Ua.NodeClass.Variable)) != 0;
+                    return (nodeClass & ((int)Ua.NodeClass.VariableType | (int)Ua.NodeClass.Variable)) != 0;
 
                 case IsAbstract:
-                    return (nodeClass & (Opc.Ua.NodeClass.VariableType | Opc.Ua.NodeClass.ObjectType | Opc.Ua.NodeClass.ReferenceType | Opc.Ua.NodeClass.DataType)) != 0;
+                    return (nodeClass & ((int)Ua.NodeClass.VariableType | (int)Ua.NodeClass.ObjectType | (int)Ua.NodeClass.ReferenceType | (int)Ua.NodeClass.DataType)) != 0;
 
                 case Symmetric:
                 case InverseName:
-                    return (nodeClass & Opc.Ua.NodeClass.ReferenceType) != 0;
+                    return (nodeClass & (int)Ua.NodeClass.ReferenceType) != 0;
 
                 case ContainsNoLoops:
-                    return (nodeClass & Opc.Ua.NodeClass.View) != 0;
+                    return (nodeClass & (int)Ua.NodeClass.View) != 0;
 
                 case EventNotifier:
-                    return (nodeClass & (Opc.Ua.NodeClass.Object | Opc.Ua.NodeClass.View)) != 0;
+                    return (nodeClass & ((int)Ua.NodeClass.Object | (int)Ua.NodeClass.View)) != 0;
 
                 case AccessLevel:
                 case UserAccessLevel:
                 case MinimumSamplingInterval:
                 case Historizing:
                 case AccessLevelEx:
-                    return (nodeClass & Opc.Ua.NodeClass.Variable) != 0;
+                    return (nodeClass & (int)Ua.NodeClass.Variable) != 0;
 
                 case Executable:
                 case UserExecutable:
-                    return (nodeClass & Opc.Ua.NodeClass.Method) != 0;
+                    return (nodeClass & (int)Ua.NodeClass.Method) != 0;
 
                 case DataTypeDefinition:
-                    return (nodeClass & Opc.Ua.NodeClass.DataType) != 0;
-            }
+                    return (nodeClass & (int)Ua.NodeClass.DataType) != 0;
 
-            return false;
+                default:
+                    return false;
+            }
         }
 
         /// <summary>
@@ -392,6 +392,5 @@ namespace Opc.Ua
 
             return 0;
         }
-        #endregion
     }
 }

@@ -11,8 +11,8 @@
 */
 
 using System;
-using System.Text;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 
 namespace Opc.Ua
 {
@@ -21,7 +21,6 @@ namespace Opc.Ua
     /// </summary>
     public partial class UserTokenPolicy : IFormattable
     {
-        #region Constructors
         /// <summary>
         /// Creates an empty token policy with the specified token type.
         /// </summary>
@@ -30,9 +29,7 @@ namespace Opc.Ua
             Initialize();
             m_tokenType = tokenType;
         }
-        #endregion
 
-        #region IFormattable Members
         /// <summary>
         /// Returns the object formatted as a string.
         /// </summary>
@@ -53,6 +50,5 @@ namespace Opc.Ua
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
         }
-        #endregion
     }
 }

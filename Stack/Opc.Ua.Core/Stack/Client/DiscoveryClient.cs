@@ -22,7 +22,6 @@ namespace Opc.Ua
     /// </summary>
     public partial class DiscoveryClient
     {
-        #region Constructors
         /// <summary>
         /// Creates a binding for to use for discovering servers.
         /// </summary>
@@ -76,7 +75,7 @@ namespace Opc.Ua
         /// <returns></returns>
         public static DiscoveryClient Create(Uri discoveryUrl)
         {
-            return DiscoveryClient.Create(discoveryUrl, null, null);
+            return Create(discoveryUrl, null, null);
         }
 
         /// <summary>
@@ -89,7 +88,7 @@ namespace Opc.Ua
             Uri discoveryUrl,
             EndpointConfiguration configuration)
         {
-            return DiscoveryClient.Create(discoveryUrl, configuration, null);
+            return Create(discoveryUrl, configuration, null);
         }
 
         /// <summary>
@@ -141,9 +140,7 @@ namespace Opc.Ua
             ITransportChannel channel = DiscoveryChannel.Create(applicationConfiguration, discoveryUrl, endpointConfiguration, new ServiceMessageContext(), clientCertificate);
             return new DiscoveryClient(channel);
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Invokes the GetEndpoints service.
         /// </summary>
@@ -155,7 +152,7 @@ namespace Opc.Ua
 
             GetEndpoints(
                 null,
-                this.Endpoint.EndpointUrl,
+                Endpoint.EndpointUrl,
                 null,
                 profileUris,
                 out endpoints);
@@ -171,7 +168,7 @@ namespace Opc.Ua
         /// <param name="ct">The cancellation token.</param>
         public virtual async Task<EndpointDescriptionCollection> GetEndpointsAsync(StringCollection profileUris, CancellationToken ct = default)
         {
-            GetEndpointsResponse response = await GetEndpointsAsync(null, this.Endpoint.EndpointUrl, null, profileUris, ct).ConfigureAwait(false);
+            GetEndpointsResponse response = await GetEndpointsAsync(null, Endpoint.EndpointUrl, null, profileUris, ct).ConfigureAwait(false);
             return PatchEndpointUrls(response.Endpoints);
         }
 #endif
@@ -187,7 +184,7 @@ namespace Opc.Ua
 
             FindServers(
                 null,
-                this.Endpoint.EndpointUrl,
+                Endpoint.EndpointUrl,
                 null,
                 serverUris,
                 out servers);
@@ -206,7 +203,7 @@ namespace Opc.Ua
         {
             FindServersResponse response = await FindServersAsync(
                 null,
-                this.Endpoint.EndpointUrl,
+                Endpoint.EndpointUrl,
                 null,
                 serverUris,
                 ct).ConfigureAwait(false);
@@ -240,9 +237,7 @@ namespace Opc.Ua
 
             return servers;
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Patch returned endpoints urls with url used to reached the endpoint.
         /// </summary>
@@ -252,7 +247,7 @@ namespace Opc.Ua
             // it may return URLs that are not accessible to the client. This problem can be avoided
             // by assuming that the domain in the URL used to call GetEndpoints can be used to
             // access any of the endpoints. This code patches the returned endpoints accordingly.
-            Uri endpointUrl = Utils.ParseUri(this.Endpoint.EndpointUrl);
+            Uri endpointUrl = Utils.ParseUri(Endpoint.EndpointUrl);
             if (endpointUrl != null)
             {
                 // patch discovery Url to endpoint Url used for service call
@@ -277,13 +272,12 @@ namespace Opc.Ua
                         discoveryEndPoint.Server.DiscoveryUrls != null)
                     {
                         discoveryEndPoint.Server.DiscoveryUrls.Clear();
-                        discoveryEndPoint.Server.DiscoveryUrls.Add(this.Endpoint.EndpointUrl);
+                        discoveryEndPoint.Server.DiscoveryUrls.Add(Endpoint.EndpointUrl);
                     }
                 }
             }
             return endpoints;
         }
-        #endregion
     }
 
     /// <summary>
@@ -291,7 +285,6 @@ namespace Opc.Ua
     /// </summary>
     public partial class DiscoveryChannel
     {
-        #region Constructors
         /// <summary>
         /// Creates a new transport channel that supports the ISessionChannel service contract.
         /// </summary>
@@ -379,7 +372,5 @@ namespace Opc.Ua
                 null,
                 messageContext);
         }
-
-        #endregion
     }
 }

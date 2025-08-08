@@ -29,9 +29,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Security.Principal;
 using System.Text;
 using System.Threading;
-using System.Security.Principal;
 
 namespace Opc.Ua.Server
 {
@@ -40,19 +40,16 @@ namespace Opc.Ua.Server
     /// </summary>
     public class AggregateManager : IDisposable
     {
-        #region Constructors
         /// <summary>
         /// Initilizes the manager.
         /// </summary>
         public AggregateManager(IServerInternal server)
         {
             m_server = server;
-            m_factories = new NodeIdDictionary<AggregatorFactory>();
+            m_factories = [];
             m_minimumProcessingInterval = 1000;
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -73,9 +70,7 @@ namespace Opc.Ua.Server
                 // TBD
             }
         }
-        #endregion
 
-        #region Public Members
         /// <summary>
         /// Checks if the aggregate is supported by the server.
         /// </summary>
@@ -223,14 +218,11 @@ namespace Opc.Ua.Server
                 m_factories.Remove(aggregateId);
             }
         }
-        #endregion
 
-        #region Private Fields
-        private readonly object m_lock = new object();
+        private readonly object m_lock = new();
         private readonly IServerInternal m_server;
         private AggregateConfiguration m_defaultConfiguration;
         private readonly NodeIdDictionary<AggregatorFactory> m_factories;
         private double m_minimumProcessingInterval;
-        #endregion
     }
 }

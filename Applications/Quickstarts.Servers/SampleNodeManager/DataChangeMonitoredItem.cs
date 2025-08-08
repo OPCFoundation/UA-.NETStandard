@@ -38,7 +38,6 @@ namespace Opc.Ua.Sample
     /// </summary>
     public class DataChangeMonitoredItem : IDataChangeMonitoredItem2
     {
-        #region Constructors
         /// <summary>
         /// Constructs a new instance.
         /// </summary>
@@ -70,7 +69,7 @@ namespace Opc.Ua.Sample
             m_readyToTrigger = false;
             m_resendData = false;
             AlwaysReportUpdates = alwaysReportUpdates;
-            m_nodeId = source.Node.NodeId;
+            NodeId = source.Node.NodeId;
         }
 
         /// <summary>
@@ -114,7 +113,7 @@ namespace Opc.Ua.Sample
             m_filter = filter;
             m_range = 0;
             AlwaysReportUpdates = alwaysReportUpdates;
-            m_nodeId = source.Node.NodeId;
+            NodeId = source.Node.NodeId;
 
             if (range != null)
             {
@@ -160,7 +159,7 @@ namespace Opc.Ua.Sample
             AlwaysReportUpdates = storedMonitoredItem.AlwaysReportUpdates;
             m_lastValue = storedMonitoredItem.LastValue;
             m_lastError = storedMonitoredItem.LastError;
-            m_nodeId = storedMonitoredItem.NodeId;
+            NodeId = storedMonitoredItem.NodeId;
 
             if (storedMonitoredItem.QueueSize > 1)
             {
@@ -178,9 +177,7 @@ namespace Opc.Ua.Sample
                 }
             }
         }
-        #endregion
 
-        #region Public Members
         /// <summary>
         /// Gets the id for the attribute being monitored.
         /// </summary>
@@ -189,10 +186,7 @@ namespace Opc.Ua.Sample
         /// <summary>
         /// Gets the index range used to selected a subset of the value.
         /// </summary>
-        public NumericRange IndexRange
-        {
-            get { return m_indexRange; }
-        }
+        public NumericRange IndexRange => m_indexRange;
 
         /// <summary>
         /// Gets the data encoding to use when returning the value.
@@ -233,13 +227,7 @@ namespace Opc.Ua.Sample
         /// <summary>
         /// The monitoring mode.
         /// </summary>
-        public MonitoringMode MonitoringMode
-        {
-            get
-            {
-                return m_monitoringMode;
-            }
-        }
+        public MonitoringMode MonitoringMode => m_monitoringMode;
 
         /// <summary>
         /// The sampling interval.
@@ -351,16 +339,11 @@ namespace Opc.Ua.Sample
 
             QueueValue(value, error, false);
         }
-        #endregion
 
-        #region IMonitoredItem Members
         /// <summary>
         /// The node manager for the monitored item.
         /// </summary>
-        public INodeManager NodeManager
-        {
-            get { return m_source.NodeManager; }
-        }
+        public INodeManager NodeManager => m_source.NodeManager;
 
         /// <summary>
         /// The session for the monitored item.
@@ -418,10 +401,7 @@ namespace Opc.Ua.Sample
         /// <summary>
         /// The client handle.
         /// </summary>
-        public uint ClientHandle
-        {
-            get { return m_clientHandle; }
-        }
+        public uint ClientHandle => m_clientHandle;
 
         /// <summary>
         /// The callback to use to notify the subscription when values are ready to publish.
@@ -431,18 +411,12 @@ namespace Opc.Ua.Sample
         /// <summary>
         /// The handle assigned to the monitored item by the node manager.
         /// </summary>
-        public object ManagerHandle
-        {
-            get { return m_source; }
-        }
+        public object ManagerHandle => m_source;
 
         /// <summary>
         /// The type of monitor item.
         /// </summary>
-        public int MonitoredItemType
-        {
-            get { return MonitoredItemTypeMask.DataChange; }
-        }
+        public int MonitoredItemType => MonitoredItemTypeMask.DataChange;
 
         /// <summary>
         /// Returns true if the item is ready to publish.
@@ -597,24 +571,20 @@ namespace Opc.Ua.Sample
                 ParsedIndexRange = m_indexRange
             };
         }
-        #endregion
 
-        #region IDataChangeMonitoredItem Members
         /// <inheritdoc/>
         public void QueueValue(DataValue value, ServiceResult error)
         {
             QueueValue(value, error, false);
         }
-        #endregion
 
-        #region IDataChangeMonitoredItem2 Members
         /// <inheritdoc/>
         public void QueueValue(DataValue value, ServiceResult error, bool ignoreFilters)
         {
             lock (m_lock)
             {
                 // check if value has changed.
-                if (!AlwaysReportUpdates && !ignoreFilters && !Opc.Ua.Server.MonitoredItem.ValueChanged(value, error, m_lastValue, m_lastError, m_filter, m_range))
+                if (!AlwaysReportUpdates && !ignoreFilters && !MonitoredItem.ValueChanged(value, error, m_lastValue, m_lastError, m_filter, m_range))
                 {
                     return;
                 }
@@ -719,14 +689,11 @@ namespace Opc.Ua.Sample
         /// <summary>
         /// No filters supported.
         /// </summary>
-        public DataChangeFilter DataChangeFilter
-        {
-            get { return m_filter; }
-        }
+        public DataChangeFilter DataChangeFilter => m_filter;
 
         public bool IsDurable => false;
 
-        public NodeId NodeId => m_nodeId;
+        public NodeId NodeId { get; }
 
         /// <summary>
         /// Increments the sample time to the next interval.
@@ -907,10 +874,8 @@ namespace Opc.Ua.Sample
         {
             //only durable queues need to be disposed
         }
-        #endregion
 
-        #region Private Fields
-        private readonly object m_lock = new object();
+        private readonly object m_lock = new();
         private readonly IMonitoredItemQueueFactory m_monitoredItemQueueFactory;
         private readonly MonitoredNode m_source;
         private DataValue m_lastValue;
@@ -931,7 +896,5 @@ namespace Opc.Ua.Sample
         private bool m_semanticsChanged;
         private bool m_structureChanged;
         private bool m_resendData;
-        private NodeId m_nodeId;
-        #endregion
     }
 }

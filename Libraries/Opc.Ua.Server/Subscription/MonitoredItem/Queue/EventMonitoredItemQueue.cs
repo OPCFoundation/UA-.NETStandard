@@ -50,12 +50,11 @@ namespace Opc.Ua.Server
                 Utils.LogError("EventMonitoredItemQueue does not support durable queues, please provide full implementation of IDurableMonitoredItemQueue using Server.CreateDurableMonitoredItemQueueFactory to supply own factory");
                 throw new ArgumentException("DataChangeMonitoredItemQueue does not support durable Queues", nameof(createDurable));
             }
-            m_events = new List<EventFieldList>();
+            m_events = [];
             MonitoredItemId = monitoredItemId;
             QueueSize = 0;
         }
 
-        #region Public Methods
         /// <inheritdoc/>
         public uint MonitoredItemId { get; }
 
@@ -144,13 +143,10 @@ namespace Opc.Ua.Server
                 }
             }
         }
-        #endregion
 
-        #region Private Fields
         /// <summary>
         /// the contained in the queue
         /// </summary>
         protected List<EventFieldList> m_events;
-        #endregion
     }
 }

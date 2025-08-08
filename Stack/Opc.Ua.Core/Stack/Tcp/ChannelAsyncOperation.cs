@@ -22,7 +22,6 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class ChannelAsyncOperation<T> : IAsyncResult, IDisposable
     {
-        #region Constructors
         /// <summary>
         /// Initializes the object with a callback
         /// </summary>
@@ -38,9 +37,7 @@ namespace Opc.Ua.Bindings
                 m_timer = new Timer(new TimerCallback(OnTimeout), null, timeout, Timeout.Infinite);
             }
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -80,9 +77,7 @@ namespace Opc.Ua.Bindings
                 }
             }
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Called when an asynchronous operation completes.
         /// </summary>
@@ -304,7 +299,7 @@ namespace Opc.Ua.Bindings
                 {
                     if (m_properties == null)
                     {
-                        m_properties = new Dictionary<string, object>();
+                        m_properties = [];
                     }
 
                     return m_properties;
@@ -316,9 +311,7 @@ namespace Opc.Ua.Bindings
         /// Return the result of the operation.
         /// </summary>
         public ServiceResult Error => m_error ?? ServiceResult.Good;
-        #endregion
 
-        #region IAsyncResult Members
         /// <inheritdoc/>
         public object AsyncState
         {
@@ -371,9 +364,7 @@ namespace Opc.Ua.Bindings
                 }
             }
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Called when the operation times out.
         /// </summary>
@@ -448,10 +439,8 @@ namespace Opc.Ua.Bindings
 
             return true;
         }
-        #endregion
 
-        #region Private Fields
-        private readonly object m_lock = new object();
+        private readonly object m_lock = new();
         private readonly AsyncCallback m_callback;
         private readonly object m_asyncState;
         private readonly bool m_synchronous;
@@ -462,6 +451,5 @@ namespace Opc.Ua.Bindings
         private ServiceResult m_error;
         private Timer m_timer;
         private Dictionary<string, object> m_properties;
-        #endregion
     }
 }

@@ -45,7 +45,6 @@ namespace Opc.Ua.Server
     /// </remarks>
     public class MonitoredNode2
     {
-        #region Public Interface
         /// <summary>
         /// Initializes a new instance of the <see cref="MonitoredNode2"/> class.
         /// </summary>
@@ -109,7 +108,7 @@ namespace Opc.Ua.Server
         {
             if (DataChangeMonitoredItems == null)
             {
-                DataChangeMonitoredItems = new List<IDataChangeMonitoredItem2>();
+                DataChangeMonitoredItems = [];
                 Node.OnStateChanged = OnMonitoredNodeChanged;
             }
 
@@ -124,7 +123,7 @@ namespace Opc.Ua.Server
         {
             for (int ii = 0; ii < DataChangeMonitoredItems.Count; ii++)
             {
-                if (Object.ReferenceEquals(DataChangeMonitoredItems[ii], datachangeItem))
+                if (ReferenceEquals(DataChangeMonitoredItems[ii], datachangeItem))
                 {
                     DataChangeMonitoredItems.RemoveAt(ii);
 
@@ -150,7 +149,7 @@ namespace Opc.Ua.Server
         {
             if (EventMonitoredItems == null)
             {
-                EventMonitoredItems = new List<IEventMonitoredItem>();
+                EventMonitoredItems = [];
                 Node.OnReportEvent = OnReportEvent;
             }
 
@@ -165,7 +164,7 @@ namespace Opc.Ua.Server
         {
             for (int ii = 0; ii < EventMonitoredItems.Count; ii++)
             {
-                if (Object.ReferenceEquals(EventMonitoredItems[ii], eventItem))
+                if (ReferenceEquals(EventMonitoredItems[ii], eventItem))
                 {
                     EventMonitoredItems.RemoveAt(ii);
                     break;
@@ -208,8 +207,6 @@ namespace Opc.Ua.Server
             {
                 IEventMonitoredItem monitoredItem = eventMonitoredItems[ii];
 
-                #region  Filter out audit events in case the Server_Auditing values is false or the channel is not encrypted
-
                 if (e is AuditEventState)
                 {
                     // check Server.Auditing flag and skip if false
@@ -227,7 +224,6 @@ namespace Opc.Ua.Server
                         }
                     }
                 }
-                #endregion
 
                 // validate if the monitored item has the required role permissions to receive the event
                 ServiceResult validationResult = NodeManager.ValidateEventRolePermissions(monitoredItem, e);
@@ -339,9 +335,7 @@ namespace Opc.Ua.Server
 
             monitoredItem.QueueValue(value, error);
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Gets or creates a cached context for the monitored item.
         /// </summary>
@@ -380,10 +374,7 @@ namespace Opc.Ua.Server
             return newContext;
         }
 
-#endregion
-#region Private Fields
         private readonly ConcurrentDictionary<uint, (ServerSystemContext Context, int CreatedAtTicks)> m_contextCache = new();
         private readonly int m_cacheLifetimeTicks = (int)TimeSpan.FromMinutes(5).TotalMilliseconds;
-        #endregion
     }
 }

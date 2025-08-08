@@ -50,7 +50,6 @@ namespace Opc.Ua.Security.Certificates
     /// </remarks>
     public class X509AuthorityKeyIdentifierExtension : X509Extension
     {
-        #region Constructors
         /// <summary>
         /// Creates an empty extension.
         /// </summary>
@@ -90,9 +89,9 @@ namespace Opc.Ua.Security.Certificates
             }
 
             m_keyIdentifier = subjectKeyIdentifier;
-            base.Oid = new Oid(AuthorityKeyIdentifier2Oid, kFriendlyName);
-            base.Critical = false;
-            base.RawData = Encode();
+            Oid = new Oid(AuthorityKeyIdentifier2Oid, kFriendlyName);
+            Critical = false;
+            RawData = Encode();
         }
 
         /// <summary>
@@ -114,9 +113,9 @@ namespace Opc.Ua.Security.Certificates
             m_issuer = authorityName;
             m_keyIdentifier = subjectKeyIdentifier;
             m_serialNumber = serialNumber;
-            base.Oid = new Oid(AuthorityKeyIdentifier2Oid, kFriendlyName);
-            base.Critical = false;
-            base.RawData = Encode();
+            Oid = new Oid(AuthorityKeyIdentifier2Oid, kFriendlyName);
+            Critical = false;
+            RawData = Encode();
         }
 
         /// <summary>
@@ -128,9 +127,7 @@ namespace Opc.Ua.Security.Certificates
         {
             Decode(rawData);
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Returns a formatted version of the Authority Key Identifier as a string.
         /// </summary>
@@ -197,13 +194,11 @@ namespace Opc.Ua.Security.Certificates
                 throw new ArgumentNullException(nameof(asnEncodedData));
             }
 
-            base.Oid = asnEncodedData.Oid;
-            base.RawData = asnEncodedData.RawData;
+            Oid = asnEncodedData.Oid;
+            RawData = asnEncodedData.RawData;
             Decode(asnEncodedData.RawData);
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The OID for a Authority Key Identifier extension.
         /// </summary>
@@ -238,9 +233,7 @@ namespace Opc.Ua.Security.Certificates
         /// The serial number of the authority key as a byte array in little endian order.
         /// </summary>
         public byte[] GetSerialNumber() => m_serialNumber;
-        #endregion
 
-        #region Private Methods
         private byte[] Encode()
         {
             var writer = new AsnWriter(AsnEncodingRules.DER);
@@ -282,8 +275,8 @@ namespace Opc.Ua.Security.Certificates
 
         private void Decode(byte[] data)
         {
-            if (base.Oid.Value == AuthorityKeyIdentifierOid ||
-                base.Oid.Value == AuthorityKeyIdentifier2Oid)
+            if (Oid.Value == AuthorityKeyIdentifierOid ||
+                Oid.Value == AuthorityKeyIdentifier2Oid)
             {
                 try
                 {
@@ -335,9 +328,7 @@ namespace Opc.Ua.Security.Certificates
             }
             throw new CryptographicException("Invalid AuthorityKeyIdentifierOid.");
         }
-        #endregion
 
-        #region Private Fields
         /// <summary>
         /// Authority Key Identifier extension string
         /// definitions see RFC 5280 4.2.1.1
@@ -349,6 +340,5 @@ namespace Opc.Ua.Security.Certificates
         private byte[] m_keyIdentifier;
         private X500DistinguishedName m_issuer;
         private byte[] m_serialNumber;
-        #endregion
     }
 }

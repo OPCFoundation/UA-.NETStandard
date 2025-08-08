@@ -12,8 +12,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Xml;
 using System.Runtime.Serialization;
+using System.Xml;
 
 namespace Opc.Ua
 {
@@ -22,7 +22,6 @@ namespace Opc.Ua
     /// </summary>
     public class EncryptedData
     {
-        #region Public Members
         /// <summary>
         /// The algorithm used to encrypt the data.
         /// </summary>
@@ -32,7 +31,5 @@ namespace Opc.Ua
         /// The encrypted data.
         /// </summary>
         public byte[] Data { get; set; }
-
-        #endregion
     }
 }

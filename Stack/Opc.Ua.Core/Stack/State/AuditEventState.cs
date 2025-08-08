@@ -12,16 +12,15 @@
 
 using System;
 using System.Collections.Generic;
-using System.Xml;
 using System.IO;
 using System.Reflection;
+using System.Xml;
 using Opc.Ua;
 
 namespace Opc.Ua
 {
     public partial class AuditEventState
     {
-        #region Initialization
         /// <summary>
         /// Initializes a new event.
         /// </summary>
@@ -68,6 +67,5 @@ namespace Opc.Ua
                 m_clientUserId.Value = context.UserIdentity.DisplayName;
             }
         }
-        #endregion
     }
 }

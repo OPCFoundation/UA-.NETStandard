@@ -51,7 +51,7 @@ namespace Opc.Ua.Gds.Server
             PrivateKeyFormat = privateKeyFormat;
             PrivateKey = privateKey;
         }
-    };
+    }
 
     /// <summary>
     /// An abstract interface to the certificate provider

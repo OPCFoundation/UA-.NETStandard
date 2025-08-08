@@ -17,7 +17,6 @@ namespace Opc.Ua
 	/// </summary>
     public partial class SessionClient : ISessionClient
     {
-        #region IDisposable Implementation
         /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
@@ -31,35 +30,19 @@ namespace Opc.Ua
 
             base.Dispose(disposing);
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The server assigned identifier for the current session.
         /// </summary>
         /// <value>The session id.</value>
-        public NodeId SessionId
-        {
-            get
-            {
-                return m_sessionId;
-            }
-        }
+        public NodeId SessionId => m_sessionId;
 
         /// <summary>
         /// Whether a session has beed created with the server.
         /// </summary>
         /// <value><c>true</c> if connected; otherwise, <c>false</c>.</value>
-        public bool Connected
-        {
-            get
-            {
-                return m_sessionId != null;
-            }
-        }
-        #endregion
+        public bool Connected => m_sessionId != null;
 
-        #region Protected Methods
         /// <summary>
         /// Called when a new session is created.
         /// </summary>
@@ -73,11 +56,8 @@ namespace Opc.Ua
                 AuthenticationToken = sessionCookie;
             }
         }
-        #endregion
 
-        #region Private Fields
-        private readonly object m_lock = new object();
+        private readonly object m_lock = new();
         private NodeId m_sessionId;
-        #endregion
     }
 }

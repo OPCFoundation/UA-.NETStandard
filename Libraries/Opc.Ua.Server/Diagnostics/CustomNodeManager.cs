@@ -49,7 +49,6 @@ namespace Opc.Ua.Server
     /// </remarks>
     public class CustomNodeManager2 : INodeManager2, INodeIdFactory, IDisposable
     {
-        #region Constructors
         /// <summary>
         /// Initializes the node manager.
         /// </summary>
@@ -103,7 +102,7 @@ namespace Opc.Ua.Server
             SystemContext.NodeIdFactory = this;
 
             // add the uris to the server's namespace table and cache the indexes.
-            ushort[] namespaceIndexes = Array.Empty<ushort>();
+            ushort[] namespaceIndexes = [];
             if (namespaceUris != null)
             {
                 namespaceIndexes = new ushort[namespaceUris.Length];
@@ -128,11 +127,9 @@ namespace Opc.Ua.Server
                 m_monitoredItemManager = new MonitoredNodeMonitoredItemManager(this);
             }
 
-            PredefinedNodes = new NodeIdDictionary<NodeState>();
+            PredefinedNodes = [];
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -161,9 +158,7 @@ namespace Opc.Ua.Server
                 }
             }
         }
-        #endregion
 
-        #region INodeIdFactory Members
         /// <summary>
         /// Creates the NodeId for the specified node.
         /// </summary>
@@ -174,9 +169,7 @@ namespace Opc.Ua.Server
         {
             return node.NodeId;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// Acquires the lock on the node manager.
         /// </summary>
@@ -195,19 +188,13 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets the default index for the node manager's namespace.
         /// </summary>
-        public ushort NamespaceIndex
-        {
-            get { return m_namespaceIndexes[0]; }
-        }
+        public ushort NamespaceIndex => m_namespaceIndexes[0];
 
         /// <summary>
         /// Gets the namespace indexes owned by the node manager.
         /// </summary>
         /// <value>The namespace indexes.</value>
-        public IReadOnlyList<ushort> NamespaceIndexes
-        {
-            get { return m_namespaceIndexes; }
-        }
+        public IReadOnlyList<ushort> NamespaceIndexes => m_namespaceIndexes;
 
         /// <summary>
         /// Gets or sets the maximum size of a monitored item queue.
@@ -225,9 +212,7 @@ namespace Opc.Ua.Server
         /// The root for the alias assigned to the node manager.
         /// </summary>
         public string AliasRoot { get; set; }
-        #endregion
 
-        #region Protected Members
         /// <summary>
         /// The predefined nodes managed by the node manager.
         /// </summary>
@@ -236,10 +221,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The root notifiers for the node manager.
         /// </summary>
-        protected List<NodeState> RootNotifiers
-        {
-            get { return m_rootNotifiers; }
-        }
+        protected List<NodeState> RootNotifiers => m_rootNotifiers;
 
         /// <summary>
         /// Gets the table of nodes being monitored.
@@ -438,9 +420,7 @@ namespace Opc.Ua.Server
             }
             return null;
         }
-        #endregion
 
-        #region INodeManager Members
         /// <summary>
         /// Returns the namespaces used by the node manager.
         /// </summary>
@@ -450,10 +430,7 @@ namespace Opc.Ua.Server
         /// </remarks>
         public virtual IEnumerable<string> NamespaceUris
         {
-            get
-            {
-                return m_namespaceUris;
-            }
+            get => m_namespaceUris;
 
             protected set
             {
@@ -463,7 +440,7 @@ namespace Opc.Ua.Server
                 }
 
                 var namespaceUris = new List<string>(value);
-                SetNamespaces(namespaceUris.ToArray());
+                SetNamespaces([.. namespaceUris]);
             }
         }
 
@@ -480,7 +457,6 @@ namespace Opc.Ua.Server
             LoadPredefinedNodes(SystemContext, externalReferences);
         }
 
-        #region CreateAddressSpace Support Functions
         /// <summary>
         /// Loads a node set from a file or resource and adds them to the set of predefined nodes.
         /// </summary>
@@ -509,7 +485,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual NodeStateCollection LoadPredefinedNodes(ISystemContext context)
         {
-            return new NodeStateCollection();
+            return [];
         }
 
         /// <summary>
@@ -687,7 +663,7 @@ namespace Opc.Ua.Server
         {
             foreach (NodeState source in PredefinedNodes.Values)
             {
-                IList<IReference> references = new List<IReference>();
+                var references = new List<IReference>();
                 source.GetReferences(SystemContext, references);
 
                 for (int ii = 0; ii < references.Count; ii++)
@@ -765,7 +741,7 @@ namespace Opc.Ua.Server
 
             if (!externalReferences.TryGetValue(sourceId, out referencesToAdd))
             {
-                externalReferences[sourceId] = referencesToAdd = new List<IReference>();
+                externalReferences[sourceId] = referencesToAdd = [];
             }
 
             // add reserve reference from external node.
@@ -839,14 +815,13 @@ namespace Opc.Ua.Server
 
             return node;
         }
-        #endregion
 
         /// <summary>
         /// Frees any resources allocated for the address space.
         /// </summary>
         public virtual void DeleteAddressSpace()
         {
-            NodeState[] nodes = PredefinedNodes.Values.ToArray();
+            NodeState[] nodes = [.. PredefinedNodes.Values];
             PredefinedNodes.Clear();
 
             foreach (NodeState node in nodes)
@@ -1064,12 +1039,12 @@ namespace Opc.Ua.Server
 
                 if (values[11] != null)
                 {
-                    metadata.RolePermissions = new RolePermissionTypeCollection(ExtensionObject.ToList<RolePermissionType>(values[11]));
+                    metadata.RolePermissions = [.. ExtensionObject.ToList<RolePermissionType>(values[11])];
                 }
 
                 if (values[12] != null)
                 {
-                    metadata.UserRolePermissions = new RolePermissionTypeCollection(ExtensionObject.ToList<RolePermissionType>(values[12]));
+                    metadata.UserRolePermissions = [.. ExtensionObject.ToList<RolePermissionType>(values[12])];
                 }
 
                 SetDefaultPermissions(systemContext, target, metadata);
@@ -1099,11 +1074,11 @@ namespace Opc.Ua.Server
             }
             if (values[1] != null)
             {
-                metadata.RolePermissions = new RolePermissionTypeCollection(ExtensionObject.ToList<RolePermissionType>(values[1]));
+                metadata.RolePermissions = [.. ExtensionObject.ToList<RolePermissionType>(values[1])];
             }
             if (values[2] != null)
             {
-                metadata.UserRolePermissions = new RolePermissionTypeCollection(ExtensionObject.ToList<RolePermissionType>(values[2]));
+                metadata.UserRolePermissions = [.. ExtensionObject.ToList<RolePermissionType>(values[2])];
             }
         }
 
@@ -1251,7 +1226,6 @@ namespace Opc.Ua.Server
             }
         }
 
-        #region Browse Support Functions
         /// <summary>
         /// Validates the view description passed to a browse request (throws on error).
         /// </summary>
@@ -1408,7 +1382,6 @@ namespace Opc.Ua.Server
 
             return description;
         }
-        #endregion
 
         /// <summary>
         /// Returns the target of the specified browse path fragment(s).
@@ -1609,7 +1582,6 @@ namespace Opc.Ua.Server
                 operationCache);
         }
 
-        #region Read Support Functions
         /// <summary>
         /// Finds a node in the dynamic cache.
         /// </summary>
@@ -1750,7 +1722,6 @@ namespace Opc.Ua.Server
                 }
             }
         }
-        #endregion
 
         /// <summary>
         /// Writes the value for the specified attributes.
@@ -1872,7 +1843,7 @@ namespace Opc.Ua.Server
 
                     if (Server?.Auditing == true)
                     {
-                        //current server supports auditing 
+                        //current server supports auditing
                         oldValue = new DataValue();
                         // read the old value for the purpose of auditing
                         handle.Node.ReadAttribute(systemContext, nodeToWrite.AttributeId, nodeToWrite.ParsedIndexRange, null, oldValue);
@@ -1885,7 +1856,7 @@ namespace Opc.Ua.Server
                         nodeToWrite.ParsedIndexRange,
                         nodeToWrite.Value);
 
-                    // report the write value audit event 
+                    // report the write value audit event
                     Server.ReportAuditWriteUpdateEvent(systemContext, nodeToWrite, oldValue?.Value, errors[ii]?.StatusCode ?? StatusCodes.Good);
 
                     if (!ServiceResult.IsGood(errors[ii]))
@@ -2003,7 +1974,6 @@ namespace Opc.Ua.Server
             }
         }
 
-        #region Write Support Functions
         /// <summary>
         /// Validates the nodes and writes the value to the underlying system.
         /// </summary>
@@ -2048,7 +2018,6 @@ namespace Opc.Ua.Server
                 }
             }
         }
-        #endregion
 
         /// <summary>
         /// Reads the history for the specified nodes.
@@ -2151,7 +2120,6 @@ namespace Opc.Ua.Server
                 operationCache);
         }
 
-        #region HistoryRead Support Functions
         /// <summary>
         /// Releases the continuation points.
         /// </summary>
@@ -2448,7 +2416,6 @@ namespace Opc.Ua.Server
                 return;
             }
         }
-        #endregion
 
         /// <summary>
         /// Updates the history for the specified nodes.
@@ -2543,7 +2510,6 @@ namespace Opc.Ua.Server
                 operationCache);
         }
 
-        #region HistoryUpdate Support Functions
         /// <summary>
         /// Validates the nodes and updates the history.
         /// </summary>
@@ -2844,7 +2810,6 @@ namespace Opc.Ua.Server
                 errors[handle.Index] = StatusCodes.BadHistoryOperationUnsupported;
             }
         }
-        #endregion
 
         /// <summary>
         /// Calls a method on the specified nodes.
@@ -3083,7 +3048,6 @@ namespace Opc.Ua.Server
             }
         }
 
-        #region SubscribeToEvents Support Functions
         /// <summary>
         /// Adds a root notifier.
         /// </summary>
@@ -3098,14 +3062,14 @@ namespace Opc.Ua.Server
             {
                 if (m_rootNotifiers == null)
                 {
-                    m_rootNotifiers = new List<NodeState>();
+                    m_rootNotifiers = [];
                 }
 
                 bool mustAdd = true;
 
                 for (int ii = 0; ii < m_rootNotifiers.Count; ii++)
                 {
-                    if (Object.ReferenceEquals(notifier, m_rootNotifiers[ii]))
+                    if (ReferenceEquals(notifier, m_rootNotifiers[ii]))
                     {
                         return;
                     }
@@ -3166,7 +3130,7 @@ namespace Opc.Ua.Server
                 {
                     for (int ii = 0; ii < m_rootNotifiers.Count; ii++)
                     {
-                        if (Object.ReferenceEquals(notifier, m_rootNotifiers[ii]))
+                        if (ReferenceEquals(notifier, m_rootNotifiers[ii]))
                         {
                             notifier.OnReportEvent = null;
                             notifier.RemoveReference(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server);
@@ -3230,7 +3194,6 @@ namespace Opc.Ua.Server
         {
             // defined by the sub-class
         }
-        #endregion
 
         /// <summary>
         /// Tells the node manager to refresh any conditions associated with the specified monitored items.
@@ -3567,7 +3530,6 @@ namespace Opc.Ua.Server
             OnCreateMonitoredItemsComplete(systemContext, createdItems);
         }
 
-        #region CreateMonitoredItem Support Functions
         /// <summary>
         /// Called when a batch of monitored items has been created.
         /// </summary>
@@ -3906,7 +3868,7 @@ namespace Opc.Ua.Server
             // need to look up the EU range if a percent filter is requested.
             if (deadbandFilter.DeadbandType == (uint)DeadbandType.Percent)
             {
-                if (!(handle.Node.FindChild(context, Opc.Ua.BrowseNames.EURange) is PropertyState property))
+                if (!(handle.Node.FindChild(context, BrowseNames.EURange) is PropertyState property))
                 {
                     return StatusCodes.BadMonitoredItemFilterUnsupported;
                 }
@@ -3967,7 +3929,6 @@ namespace Opc.Ua.Server
 
             return StatusCodes.Good;
         }
-        #endregion
 
         /// <summary>
         /// Modifies the parameters for a set of monitored items.
@@ -4054,7 +4015,6 @@ namespace Opc.Ua.Server
             OnModifyMonitoredItemsComplete(systemContext, modifiedItems);
         }
 
-        #region ModifyMonitoredItem Support Functions
         /// <summary>
         /// Called when a batch of monitored items has been modified.
         /// </summary>
@@ -4166,7 +4126,6 @@ namespace Opc.Ua.Server
         {
             // overridden by the sub-class.
         }
-        #endregion
 
         /// <summary>
         /// Deletes a set of monitored items.
@@ -4239,7 +4198,6 @@ namespace Opc.Ua.Server
             OnDeleteMonitoredItemsComplete(systemContext, deletedItems);
         }
 
-        #region DeleteMonitoredItems Support Functions
         /// <summary>
         /// Called when a batch of monitored items has been modified.
         /// </summary>
@@ -4282,9 +4240,7 @@ namespace Opc.Ua.Server
         {
             // overridden by the sub-class.
         }
-        #endregion
 
-        #region TransferMonitoredItems Support Functions
         /// <summary>
         /// Transfers a set of monitored items.
         /// </summary>
@@ -4301,7 +4257,7 @@ namespace Opc.Ua.Server
             IList<ServiceResult> errors)
         {
             ServerSystemContext systemContext = SystemContext.Copy(context);
-            IList<IMonitoredItem> transferredItems = new List<IMonitoredItem>();
+            var transferredItems = new List<IMonitoredItem>();
             lock (Lock)
             {
                 for (int ii = 0; ii < monitoredItems.Count; ii++)
@@ -4346,7 +4302,6 @@ namespace Opc.Ua.Server
         {
             // defined by the sub-class
         }
-        #endregion
 
         /// <summary>
         /// Changes the monitoring mode for a set of monitored items.
@@ -4426,7 +4381,6 @@ namespace Opc.Ua.Server
             OnSetMonitoringModeComplete(systemContext, changedItems);
         }
 
-        #region SetMonitoringMode Support Functions
         /// <summary>
         /// Called when a batch of monitored items has their monitoring mode changed.
         /// </summary>
@@ -4483,10 +4437,7 @@ namespace Opc.Ua.Server
         {
             // overridden by the sub-class.
         }
-        #endregion
-        #endregion
 
-        #region INodeManager2 Members
         /// <summary>
         /// Called when a session is closed.
         /// </summary>
@@ -4620,7 +4571,7 @@ namespace Opc.Ua.Server
 
                     if (namespaceMetadataValues[0] != null)
                     {
-                        metadata.DefaultRolePermissions = new RolePermissionTypeCollection(ExtensionObject.ToList<RolePermissionType>(namespaceMetadataValues[0]));
+                        metadata.DefaultRolePermissions = [.. ExtensionObject.ToList<RolePermissionType>(namespaceMetadataValues[0])];
                     }
                 }
 
@@ -4631,14 +4582,12 @@ namespace Opc.Ua.Server
 
                     if (namespaceMetadataValues[0] != null)
                     {
-                        metadata.DefaultUserRolePermissions = new RolePermissionTypeCollection(ExtensionObject.ToList<RolePermissionType>(namespaceMetadataValues[0]));
+                        metadata.DefaultUserRolePermissions = [.. ExtensionObject.ToList<RolePermissionType>(namespaceMetadataValues[0])];
                     }
                 }
             }
         }
-        #endregion
 
-        #region ComponentCache Functions
         /// <summary>
         /// Stores a reference count for entries in the component cache.
         /// </summary>
@@ -4728,7 +4677,7 @@ namespace Opc.Ua.Server
 
                 if (m_componentCache == null)
                 {
-                    m_componentCache = new NodeIdDictionary<CacheEntry>();
+                    m_componentCache = [];
                 }
 
                 // check if a component is actually specified.
@@ -4780,16 +4729,13 @@ namespace Opc.Ua.Server
             }
         }
 
-#endregion
-#region Private Fields
         private IReadOnlyList<string> m_namespaceUris;
-        private IReadOnlyList<ushort> m_namespaceIndexes;
+        private ushort[] m_namespaceIndexes;
         private NodeIdDictionary<CacheEntry> m_componentCache;
         private List<NodeState> m_rootNotifiers;
         /// <summary>
         /// the monitored item manager of the NodeManager
         /// </summary>
         protected IMonitoredItemManager m_monitoredItemManager;
-        #endregion
     }
 }

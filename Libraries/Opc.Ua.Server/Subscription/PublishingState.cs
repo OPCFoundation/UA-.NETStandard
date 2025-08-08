@@ -30,8 +30,8 @@
 using System;
 using System.Collections;
 using System.Diagnostics;
-using System.Xml;
 using System.Threading;
+using System.Xml;
 
 namespace Opc.Ua.Server
 {

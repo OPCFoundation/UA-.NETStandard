@@ -32,13 +32,11 @@ namespace Opc.Ua
         void Push(IReference reference);
     }
 
-    #region NodeBrowser Class
     /// <summary>
     /// A thread safe object which browses the references for an node.
     /// </summary>
     public class NodeBrowser : INodeBrowser
     {
-        #region Constructors
         /// <summary>
         /// Creates a new browser object with a set of filters.
         /// </summary>
@@ -59,7 +57,7 @@ namespace Opc.Ua
             BrowseDirection = browseDirection;
             BrowseName = browseName;
             InternalOnly = internalOnly;
-            m_references = new List<IReference>();
+            m_references = [];
             m_index = 0;
 
             // add any additional references if they meet the criteria.
@@ -74,9 +72,7 @@ namespace Opc.Ua
                 }
             }
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -93,9 +89,7 @@ namespace Opc.Ua
         {
             // nothing to do.
         }
-        #endregion
 
-        #region INodeBrowser Methods
         /// <summary>
         /// Returns the next reference. Null if no more references.
         /// </summary>
@@ -132,9 +126,7 @@ namespace Opc.Ua
                 m_pushBack = reference;
             }
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Returns true if the target node is required (used to apply view filters);
         /// </summary>
@@ -222,9 +214,7 @@ namespace Opc.Ua
                 m_references.Add(new NodeStateReference(referenceTypeId, isInverse, targetId));
             }
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// Thr synchronization lock used by the browser.
         /// </summary>
@@ -265,22 +255,16 @@ namespace Opc.Ua
         /// </summary>
         public bool InternalOnly { get; }
 
-#endregion
-#region Private Fields
         private IReference m_pushBack;
         private readonly List<IReference> m_references;
         private int m_index;
-        #endregion
     }
-    #endregion
 
-    #region NodeStateReference Class
     /// <summary>
     /// Stores the a reference for a node.
     /// </summary>
     public class NodeStateReference : IReference
     {
-        #region Constructors
         /// <summary>
         /// Constructs a reference to an internal target.
         /// </summary>
@@ -302,16 +286,12 @@ namespace Opc.Ua
             TargetId = targetId;
             Target = null;
         }
-        #endregion
 
-        #region Public Members
         /// <summary>
         /// The internal target of the reference.
         /// </summary>
         public NodeState Target { get; }
-        #endregion
 
-        #region IReference Members
         /// <inheritdoc/>
         public NodeId ReferenceTypeId { get; }
 
@@ -320,8 +300,5 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public ExpandedNodeId TargetId { get; }
-
-        #endregion
     }
-    #endregion
 }

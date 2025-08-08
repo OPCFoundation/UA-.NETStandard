@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -32,7 +32,7 @@ using Opc.Ua;
 
 namespace Alarms
 {
-    class ExclusiveLevelHolder : ExclusiveLimitHolder
+    internal class ExclusiveLevelHolder : ExclusiveLimitHolder
     {
         public ExclusiveLevelHolder(
             AlarmNodeManager alarmNodeManager,
@@ -49,7 +49,7 @@ namespace Alarms
         {
             if (create)
             {
-                Initialize(Opc.Ua.ObjectTypes.ExclusiveLevelAlarmType, name, maxShelveTime);
+                Initialize(ObjectTypes.ExclusiveLevelAlarmType, name, maxShelveTime);
             }
         }
 
@@ -66,7 +66,7 @@ namespace Alarms
             }
 
             // Call the base class to set parameters
-            base.Initialize(alarmTypeIdentifier, name, maxTimeShelved, isLimit: false);
+            Initialize(alarmTypeIdentifier, name, maxTimeShelved, isLimit: false);
         }
     }
 }

@@ -59,27 +59,27 @@ namespace Opc.Ua.Server
             public MonitoringMode MonitoringMode;
         }
 
-        private static readonly Queue<Event> m_events = new Queue<Event>();
-        private static bool m_eventsEnabled;
+        private static readonly Queue<Event> s_events = new();
+        private static bool s_eventsEnabled;
 
         /// <summary>
         /// Whether event queuing is enabled.
         /// </summary>
         public static bool EventsEnabled
         {
-            get { return m_eventsEnabled; }
+            get => s_eventsEnabled;
 
             set
             {
-                if (m_eventsEnabled != value && !value)
+                if (s_eventsEnabled != value && !value)
                 {
-                    lock (m_events)
+                    lock (s_events)
                     {
-                        m_events.Clear();
+                        s_events.Clear();
                     }
                 }
 
-                m_eventsEnabled = value;
+                s_eventsEnabled = value;
             }
         }
 
@@ -88,12 +88,12 @@ namespace Opc.Ua.Server
         /// </summary>
         public static void ReportWriteValue(NodeId nodeId, DataValue value, StatusCode error)
         {
-            if (!m_eventsEnabled)
+            if (!s_eventsEnabled)
             {
                 return;
             }
 
-            lock (m_events)
+            lock (s_events)
             {
                 var e = new Event();
                 e.EventType = EventType.WriteValue;
@@ -110,7 +110,7 @@ namespace Opc.Ua.Server
                     e.Value.WrappedValue = value.WrappedValue;
                 }
 
-                m_events.Enqueue(e);
+                s_events.Enqueue(e);
             }
         }
 
@@ -119,12 +119,12 @@ namespace Opc.Ua.Server
         /// </summary>
         public static void ReportQueuedValue(NodeId nodeId, uint serverHandle, DataValue value)
         {
-            if (!m_eventsEnabled)
+            if (!s_eventsEnabled)
             {
                 return;
             }
 
-            lock (m_events)
+            lock (s_events)
             {
                 var e = new Event();
                 e.EventType = EventType.QueueValue;
@@ -134,7 +134,7 @@ namespace Opc.Ua.Server
                 e.Value = value;
                 e.Parameters = null;
                 e.MonitoringMode = MonitoringMode.Disabled;
-                m_events.Enqueue(e);
+                s_events.Enqueue(e);
             }
         }
 
@@ -143,12 +143,12 @@ namespace Opc.Ua.Server
         /// </summary>
         public static void ReportFilteredValue(NodeId nodeId, uint serverHandle, DataValue value)
         {
-            if (!m_eventsEnabled)
+            if (!s_eventsEnabled)
             {
                 return;
             }
 
-            lock (m_events)
+            lock (s_events)
             {
                 var e = new Event();
                 e.EventType = EventType.FilterValue;
@@ -158,7 +158,7 @@ namespace Opc.Ua.Server
                 e.Value = value;
                 e.Parameters = null;
                 e.MonitoringMode = MonitoringMode.Disabled;
-                m_events.Enqueue(e);
+                s_events.Enqueue(e);
             }
         }
 
@@ -167,12 +167,12 @@ namespace Opc.Ua.Server
         /// </summary>
         public static void ReportDiscardedValue(NodeId nodeId, uint serverHandle, DataValue value)
         {
-            if (!m_eventsEnabled)
+            if (!s_eventsEnabled)
             {
                 return;
             }
 
-            lock (m_events)
+            lock (s_events)
             {
                 var e = new Event();
                 e.EventType = EventType.DiscardValue;
@@ -182,7 +182,7 @@ namespace Opc.Ua.Server
                 e.Value = value;
                 e.Parameters = null;
                 e.MonitoringMode = MonitoringMode.Disabled;
-                m_events.Enqueue(e);
+                s_events.Enqueue(e);
             }
         }
 
@@ -191,12 +191,12 @@ namespace Opc.Ua.Server
         /// </summary>
         public static void ReportPublishValue(NodeId nodeId, uint serverHandle, DataValue value)
         {
-            if (!m_eventsEnabled)
+            if (!s_eventsEnabled)
             {
                 return;
             }
 
-            lock (m_events)
+            lock (s_events)
             {
                 var e = new Event();
                 e.EventType = EventType.PublishValue;
@@ -206,7 +206,7 @@ namespace Opc.Ua.Server
                 e.Value = value;
                 e.Parameters = null;
                 e.MonitoringMode = MonitoringMode.Disabled;
-                m_events.Enqueue(e);
+                s_events.Enqueue(e);
             }
         }
 
@@ -222,12 +222,12 @@ namespace Opc.Ua.Server
             MonitoringFilter filter,
             MonitoringMode monitoringMode)
         {
-            if (!m_eventsEnabled)
+            if (!s_eventsEnabled)
             {
                 return;
             }
 
-            lock (m_events)
+            lock (s_events)
             {
                 var e = new Event();
                 e.EventType = EventType.CreateItem;
@@ -241,7 +241,7 @@ namespace Opc.Ua.Server
                 e.Parameters.DiscardOldest = discardOldest;
                 e.Parameters.Filter = new ExtensionObject(filter);
                 e.MonitoringMode = monitoringMode;
-                m_events.Enqueue(e);
+                s_events.Enqueue(e);
             }
         }
 
@@ -257,12 +257,12 @@ namespace Opc.Ua.Server
             MonitoringFilter filter,
             MonitoringMode monitoringMode)
         {
-            if (!m_eventsEnabled)
+            if (!s_eventsEnabled)
             {
                 return;
             }
 
-            lock (m_events)
+            lock (s_events)
             {
                 var e = new Event();
                 e.EventType = EventType.ModifyItem;
@@ -276,19 +276,18 @@ namespace Opc.Ua.Server
                 e.Parameters.DiscardOldest = discardOldest;
                 e.Parameters.Filter = new ExtensionObject(filter);
                 e.MonitoringMode = monitoringMode;
-                m_events.Enqueue(e);
+                s_events.Enqueue(e);
             }
         }
 
-        #region Error and Diagnostics
         /// <summary>
         /// Fills in the diagnostic information after an error.
         /// </summary>
         public static uint CreateError(
-            uint                     code,
-            OperationContext         context,
+            uint code,
+            OperationContext context,
             DiagnosticInfoCollection diagnosticInfos,
-            int                      index)
+            int index)
         {
             var error = new ServiceResult(code);
 
@@ -304,10 +303,10 @@ namespace Opc.Ua.Server
         /// Fills in the diagnostic information after an error.
         /// </summary>
         public static bool CreateError(
-            uint                      code,
-            StatusCodeCollection      results,
-            DiagnosticInfoCollection  diagnosticInfos,
-            OperationContext          context)
+            uint code,
+            StatusCodeCollection results,
+            DiagnosticInfoCollection diagnosticInfos,
+            OperationContext context)
         {
             var error = new ServiceResult(code);
             results.Add(error.Code);
@@ -325,11 +324,11 @@ namespace Opc.Ua.Server
         /// Fills in the diagnostic information after an error.
         /// </summary>
         public static bool CreateError(
-            uint                     code,
-            StatusCodeCollection     results,
+            uint code,
+            StatusCodeCollection results,
             DiagnosticInfoCollection diagnosticInfos,
-            int                      index,
-            OperationContext         context)
+            int index,
+            OperationContext context)
         {
             var error = new ServiceResult(code);
             results[index] = error.Code;
@@ -347,9 +346,9 @@ namespace Opc.Ua.Server
         /// Creates a place holder in the lists for the results.
         /// </summary>
         public static void CreateSuccess(
-            StatusCodeCollection     results,
+            StatusCodeCollection results,
             DiagnosticInfoCollection diagnosticInfos,
-            OperationContext         context)
+            OperationContext context)
         {
             results.Add(StatusCodes.Good);
 
@@ -363,7 +362,7 @@ namespace Opc.Ua.Server
         /// Creates a collection of diagnostics from a set of errors.
         /// </summary>
         public static DiagnosticInfoCollection CreateDiagnosticInfoCollection(
-            OperationContext     context,
+            OperationContext context,
             IList<ServiceResult> errors)
         {
             // all done if no diagnostics requested.
@@ -394,8 +393,8 @@ namespace Opc.Ua.Server
         /// Creates a collection of status codes and diagnostics from a set of errors.
         /// </summary>
         public static StatusCodeCollection CreateStatusCodeCollection(
-            OperationContext             context,
-            IList<ServiceResult>         errors,
+            OperationContext context,
+            IList<ServiceResult> errors,
             out DiagnosticInfoCollection diagnosticInfos)
         {
             diagnosticInfos = null;
@@ -433,9 +432,9 @@ namespace Opc.Ua.Server
         /// <param name="error">The error to translate.</param>
         /// <returns>The diagnostics with references to the strings in the context string table.</returns>
         public static DiagnosticInfo CreateDiagnosticInfo(
-            IServerInternal  server,
+            IServerInternal server,
             OperationContext context,
-            ServiceResult    error)
+            ServiceResult error)
         {
             if (error == null)
             {
@@ -455,6 +454,5 @@ namespace Opc.Ua.Server
                 false,
                 context.StringTable);
         }
-        #endregion
     }
 }

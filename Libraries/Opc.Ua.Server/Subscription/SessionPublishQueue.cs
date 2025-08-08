@@ -40,7 +40,6 @@ namespace Opc.Ua.Server
     /// </summary>
     public class SessionPublishQueue : IDisposable
     {
-        #region Constructors
         /// <summary>
         /// Creates a new queue.
         /// </summary>
@@ -60,12 +59,10 @@ namespace Opc.Ua.Server
             m_session = session;
             m_publishEvent = new ManualResetEvent(false);
             m_queuedRequests = new LinkedList<QueuedRequest>();
-            m_queuedSubscriptions = new List<QueuedSubscription>();
+            m_queuedSubscriptions = [];
             m_maxPublishRequests = maxPublishRequests;
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -107,9 +104,7 @@ namespace Opc.Ua.Server
                 }
             }
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Clears the queues because the session is closing.
         /// </summary>
@@ -186,7 +181,7 @@ namespace Opc.Ua.Server
                 // remove the subscription from the queue.
                 for (int ii = 0; ii < m_queuedSubscriptions.Count; ii++)
                 {
-                    if (Object.ReferenceEquals(m_queuedSubscriptions[ii].Subscription, subscription))
+                    if (ReferenceEquals(m_queuedSubscriptions[ii].Subscription, subscription))
                     {
                         m_queuedSubscriptions.RemoveAt(ii);
                         break;
@@ -596,7 +591,7 @@ namespace Opc.Ua.Server
             {
                 for (int ii = 0; ii < m_queuedSubscriptions.Count; ii++)
                 {
-                    if (Object.ReferenceEquals(m_queuedSubscriptions[ii].Subscription, subscription))
+                    if (ReferenceEquals(m_queuedSubscriptions[ii].Subscription, subscription))
                     {
                         m_queuedSubscriptions[ii].Publishing = false;
 
@@ -741,9 +736,7 @@ namespace Opc.Ua.Server
             subscription.ReadyToPublish = true;
             subscription.Timestamp = DateTime.UtcNow;
         }
-        #endregion
 
-        #region QueuedRequest Class
         /// <summary>
         /// A request queued while waiting for a subscription.
         /// </summary>
@@ -756,7 +749,6 @@ namespace Opc.Ua.Server
             public QueuedSubscription Subscription;
             public string SecureChannelId;
 
-            #region IDisposable Members
             /// <summary>
             /// Frees any unmanaged resources.
             /// </summary>
@@ -772,20 +764,20 @@ namespace Opc.Ua.Server
             {
                 if (disposing)
                 {
-                    this.Error = StatusCodes.BadServerHalted;
+                    Error = StatusCodes.BadServerHalted;
 
-                    if (this.Operation != null)
+                    if (Operation != null)
                     {
-                        this.Operation.Dispose();
-                        this.Operation = null;
+                        Operation.Dispose();
+                        Operation = null;
                     }
 
-                    if (this.Event != null)
+                    if (Event != null)
                     {
                         try
                         {
-                            this.Event.Set();
-                            this.Event.Dispose();
+                            Event.Set();
+                            Event.Dispose();
                         }
                         catch
                         {
@@ -794,7 +786,6 @@ namespace Opc.Ua.Server
                     }
                 }
             }
-            #endregion
 
             /// <summary>
             /// Waits for the request to be processed.
@@ -854,9 +845,7 @@ namespace Opc.Ua.Server
                 }
             }
         }
-        #endregion
 
-        #region QueuedSubscription Class
         /// <summary>
         /// Stores a subscription that has notifications ready to be sent back to the client.
         /// </summary>
@@ -867,9 +856,7 @@ namespace Opc.Ua.Server
             public bool ReadyToPublish;
             public bool Publishing;
         }
-        #endregion
 
-        #region Private Members
         /// <summary>
         /// Dumps the current state of the session queue.
         /// </summary>
@@ -923,10 +910,8 @@ namespace Opc.Ua.Server
 
             Utils.LogTrace(buffer.ToString());
         }
-        #endregion
 
-        #region Private Fields
-        private readonly object m_lock = new object();
+        private readonly object m_lock = new();
         private readonly IServerInternal m_server;
         private readonly ISession m_session;
         private readonly ManualResetEvent m_publishEvent;
@@ -934,6 +919,5 @@ namespace Opc.Ua.Server
         private List<QueuedSubscription> m_queuedSubscriptions;
         private readonly int m_maxPublishRequests;
         private bool m_subscriptionsWaiting;
-        #endregion
     }
 }

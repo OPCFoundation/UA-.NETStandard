@@ -41,32 +41,29 @@ namespace Opc.Ua.PubSub.Transport
     /// </summary>
     internal class UdpDiscoverySubscriber : UdpDiscovery
     {
-        #region  Private Fields
         private const int kInitialRequestInterval = 5000;
 
-        // The list that will store the WriterIds that shall be included in a DataSetMetaData Request message
+        /// <summary>
+        /// The list that will store the WriterIds that shall be included in a DataSetMetaData Request message
+        /// </summary>
         private readonly List<ushort> m_metadataWriterIdsToSend;
 
-        // the component that triggers the publish request messages
+        /// <summary>
+        /// the component that triggers the publish request messages
+        /// </summary>
         private readonly IntervalRunner m_intervalRunner;
-        #endregion
 
-        #region Constructor
         /// <summary>
         /// Create new instance of <see cref="UdpDiscoverySubscriber"/>
         /// </summary>
         /// <param name="udpConnection"></param>
         public UdpDiscoverySubscriber(UdpPubSubConnection udpConnection) : base(udpConnection)
         {
-            m_metadataWriterIdsToSend = new List<ushort>();
+            m_metadataWriterIdsToSend = [];
 
             m_intervalRunner = new IntervalRunner(udpConnection.PubSubConnectionConfiguration.Name,
                 kInitialRequestInterval, CanPublish, RequestDiscoveryMessages);
-
         }
-        #endregion
-
-        #region Start/Stop Method Overrides
 
         /// <summary>
         /// Implementation of StartAsync for the subscriber Discovery
@@ -90,11 +87,9 @@ namespace Opc.Ua.PubSub.Transport
 
             m_intervalRunner.Stop();
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
-        /// Enqueue the specified DataSetWriterId for DataSetInformation to be requested 
+        /// Enqueue the specified DataSetWriterId for DataSetInformation to be requested
         /// </summary>
         /// <param name="writerId"></param>
         public void AddWriterIdForDataSetMetadata(ushort writerId)
@@ -109,17 +104,14 @@ namespace Opc.Ua.PubSub.Transport
         }
 
         /// <summary>
-        /// Removes the specified DataSetWriterId for DataSetInformation to be requested 
+        /// Removes the specified DataSetWriterId for DataSetInformation to be requested
         /// </summary>
         /// <param name="writerId"></param>
         public void RemoveWriterIdForDataSetMetadata(ushort writerId)
         {
             lock (m_lock)
             {
-                if (m_metadataWriterIdsToSend.Contains(writerId))
-                {
-                    m_metadataWriterIdsToSend.Remove(writerId);
-                }
+                m_metadataWriterIdsToSend.Remove(writerId);
             }
         }
         /// <summary>
@@ -154,7 +146,7 @@ namespace Opc.Ua.PubSub.Transport
             }
 
             // double the time between requests
-            m_intervalRunner.Interval = m_intervalRunner.Interval * 2;
+            m_intervalRunner.Interval *= 2;
         }
 
         /// <summary>
@@ -202,7 +194,6 @@ namespace Opc.Ua.PubSub.Transport
             m_intervalRunner.Interval *= 2;
         }
 
-
         /// <summary>
         /// Create and Send the DiscoveryRequest messages for DataSetMetaData
         /// </summary>
@@ -211,7 +202,7 @@ namespace Opc.Ua.PubSub.Transport
             ushort[] dataSetWriterIds = null;
             lock (m_lock)
             {
-                dataSetWriterIds = m_metadataWriterIdsToSend.ToArray();
+                dataSetWriterIds = [.. m_metadataWriterIdsToSend];
                 m_metadataWriterIdsToSend.Clear();
             }
 
@@ -245,11 +236,9 @@ namespace Opc.Ua.PubSub.Transport
             }
 
             // double the time between requests
-            m_intervalRunner.Interval = m_intervalRunner.Interval * 2;
+            m_intervalRunner.Interval *= 2;
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Decide if there is anything to publish
         /// </summary>
@@ -276,6 +265,5 @@ namespace Opc.Ua.PubSub.Transport
             SendDiscoveryRequestDataSetMetaData();
             SendDiscoveryRequestDataSetWriterConfiguration();
         }
-        #endregion
     }
 }

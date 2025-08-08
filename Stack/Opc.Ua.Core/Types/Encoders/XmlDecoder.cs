@@ -25,7 +25,6 @@ namespace Opc.Ua
     /// </summary>
     public class XmlDecoder : IDecoder
     {
-        #region Constructors
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
@@ -105,9 +104,7 @@ namespace Opc.Ua
             m_reader = null;
             m_namespaces = new Stack<string>();
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Initializes a string table from an XML stream.
         /// </summary>
@@ -546,7 +543,8 @@ namespace Opc.Ua
                 // return undecoded xml body.
                 xmlString = m_reader.ReadOuterXml();
             }
-            catch (ArgumentException ae) {
+            catch (ArgumentException ae)
+            {
                 throw ServiceResultException.Create(StatusCodes.BadDecodingError,
                     "Failed to decode xml extension object body: {0}", ae.Message);
             }
@@ -562,9 +560,7 @@ namespace Opc.Ua
 
             return document.DocumentElement;
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -585,9 +581,7 @@ namespace Opc.Ua
                 m_reader = null;
             }
         }
-        #endregion
 
-        #region IDecoder Members
         /// <summary>
         /// The type of encoding being used.
         /// </summary>
@@ -988,7 +982,7 @@ namespace Opc.Ua
                     }
                     else
                     {
-                        value = Array.Empty<byte>();
+                        value = [];
                     }
                 }
                 catch (XmlException xe)
@@ -1010,7 +1004,7 @@ namespace Opc.Ua
                 return value;
             }
 
-            return !isNil ? Array.Empty<byte>() : null;
+            return !isNil ? [] : null;
         }
 
         /// <summary>
@@ -1073,10 +1067,10 @@ namespace Opc.Ua
 
                 EndField(fieldName);
 
-	            if (m_namespaceMappings != null && m_namespaceMappings.Length > value.NamespaceIndex)
-	            {
-	                value.SetNamespaceIndex(m_namespaceMappings[value.NamespaceIndex]);
-	            }
+                if (m_namespaceMappings != null && m_namespaceMappings.Length > value.NamespaceIndex)
+                {
+                    value.SetNamespaceIndex(m_namespaceMappings[value.NamespaceIndex]);
+                }
 
                 return value;
             }
@@ -1111,17 +1105,17 @@ namespace Opc.Ua
 
                 EndField(fieldName);
 
-	            if (m_namespaceMappings != null && m_namespaceMappings.Length > value.NamespaceIndex && !value.IsNull)
-	            {
-	                value.SetNamespaceIndex(m_namespaceMappings[value.NamespaceIndex]);
-	            }
+                if (m_namespaceMappings != null && m_namespaceMappings.Length > value.NamespaceIndex && !value.IsNull)
+                {
+                    value.SetNamespaceIndex(m_namespaceMappings[value.NamespaceIndex]);
+                }
 
-	            if (m_serverMappings != null && m_serverMappings.Length > value.ServerIndex && !value.IsNull)
-	            {
-	                value.SetServerIndex(m_serverMappings[value.ServerIndex]);
-	            }
+                if (m_serverMappings != null && m_serverMappings.Length > value.ServerIndex && !value.IsNull)
+                {
+                    value.SetServerIndex(m_serverMappings[value.ServerIndex]);
+                }
 
-            	return value;
+                return value;
             }
 
             return ExpandedNodeId.Null;
@@ -1413,7 +1407,7 @@ namespace Opc.Ua
             {
                 if (BeginField(fieldName, true))
                 {
-                    XmlQualifiedName xmlName = EncodeableFactory.GetXmlName(value, this.Context);
+                    XmlQualifiedName xmlName = EncodeableFactory.GetXmlName(value, Context);
 
                     PushNamespace(xmlName.Namespace);
                     value.Decode(this);
@@ -2395,7 +2389,7 @@ namespace Opc.Ua
                 Matrix matrix;
                 if (dimensions != null && dimensions.Count > 0)
                 {
-                    matrix = new Matrix(elements, builtInType, dimensions.ToArray());
+                    matrix = new Matrix(elements, builtInType, [.. dimensions]);
                 }
                 else
                 {
@@ -2418,9 +2412,7 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public uint ReadEncodingMask(IList<string> masks) => ReadUInt32("EncodingMask");
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Reads an DiagnosticInfo from the stream.
         /// Limits the InnerDiagnosticInfo nesting level.
@@ -2528,7 +2520,7 @@ namespace Opc.Ua
                 if (dimensions != null && dimensions.Count > 0)
                 {
                     int length = elements.Length;
-                    int[] dimensionsArray = dimensions.ToArray();
+                    int[] dimensionsArray = [.. dimensions];
                     (bool valid, int matrixLength) = Matrix.ValidateDimensions(dimensionsArray, length, Context.MaxArrayLength);
 
                     if (!valid || (matrixLength != length))
@@ -3003,14 +2995,11 @@ namespace Opc.Ua
                 throw CreateBadDecodingError(fieldName, fe, functionName);
             }
         }
-        #endregion
 
-        #region Private Fields
         private XmlReader m_reader;
         private Stack<string> m_namespaces;
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;
         private uint m_nestingLevel;
-        #endregion
     }
 }

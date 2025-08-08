@@ -50,15 +50,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     [SetCulture("en-us")]
     public class CertificateStoreTest
     {
-        #region DataPointSources
         public const string X509StoreSubject = "CN=Opc.Ua.Core.Tests, O=OPC Foundation, OU=X509Store, C=US";
         public const string X509StoreSubject2 = "CN=Opc.Ua.Core.Tests, O=OPC Foundation, OU=X509Store2, C=US";
 
         [DatapointSource]
         public string[] CertStores = GetCertStores();
-        #endregion
 
-        #region Test Setup
         /// <summary>
         /// Clean up the test cert store folder.
         /// </summary>
@@ -84,8 +81,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     }
                     if (x509Store.SupportsCRLs)
                     {
-                        X509CRLCollection crls = x509Store.EnumerateCRLsAsync().Result;
-                        foreach (X509CRL crl in crls)
+                        foreach (X509CRL crl in x509Store.EnumerateCRLsAsync().Result)
                         {
                             if (X509Utils.CompareDistinguishedName(X509StoreSubject, crl.Issuer))
                             {
@@ -101,9 +97,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
             Utils.SilentDispose(m_testCertificate);
         }
-        #endregion
 
-        #region Test Methods
         /// <summary>
         /// Verify new app certificate is stored in X509Store with private key.
         /// </summary>
@@ -198,7 +192,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                 X509Utils.VerifyRSAKeyPair(publicKey, privateKey, true);
 
-                using (ICertificateStore store = Opc.Ua.CertificateStoreIdentifier.CreateStore(storeType))
+                using (ICertificateStore store = CertificateStoreIdentifier.CreateStore(storeType))
                 {
                     store.Open(storePath, false);
                     await store.DeleteAsync(publicKey.Thumbprint).ConfigureAwait(false);
@@ -215,7 +209,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 #if !NET8_0_OR_GREATER
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-                Assert.Ignore("Skipped due to https://github.com/dotnet/runtime/issues/82682");
+                NUnit.Framework.Assert.Ignore("Skipped due to https://github.com/dotnet/runtime/issues/82682");
             }
 #endif
             // pki directory root for app cert
@@ -277,7 +271,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 #if !NET8_0_OR_GREATER
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-                Assert.Ignore("Skipped due to https://github.com/dotnet/runtime/issues/82682");
+                NUnit.Framework.Assert.Ignore("Skipped due to https://github.com/dotnet/runtime/issues/82682");
             }
 #endif
             // pki directory root for app cert
@@ -327,11 +321,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public void VerifyInvalidAppCertX509Store()
         {
             X509Certificate2 appCertificate = GetTestCert();
-            _ = Assert.Throws<ServiceResultException>(
+            _ = NUnit.Framework.Assert.Throws<ServiceResultException>(
                 () => appCertificate.AddToStore(
                     CertificateStoreType.X509Store,
                     "User\\UA_MachineDefault"));
-            _ = Assert.Throws<ServiceResultException>(
+            _ = NUnit.Framework.Assert.Throws<ServiceResultException>(
                 () => appCertificate.AddToStore(
                     CertificateStoreType.X509Store,
                     "System\\UA_MachineDefault"));
@@ -350,7 +344,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
                     Assert.False(x509Store.SupportsCRLs);
-                    Assert.Throws<ServiceResultException>(() => x509Store.EnumerateCRLsAsync());
+                    NUnit.Framework.Assert.Throws<ServiceResultException>(() => x509Store.EnumerateCRLsAsync());
                 }
                 else
                 {
@@ -368,7 +362,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                Assert.Ignore("Crls in an X509Store are only supported on Windows");
+                NUnit.Framework.Assert.Ignore("Crls in an X509Store are only supported on Windows");
             }
             using (var x509Store = new X509CertificateStore())
             {
@@ -390,7 +384,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 Assert.AreEqual(1, crls.Count);
                 Assert.AreEqual(crl.RawData, crls[0].RawData);
                 Assert.AreEqual(GetTestCert().SerialNumber,
-                    crls[0].RevokedCertificates.First().SerialNumber);
+                    crls[0].RevokedCertificates[0].SerialNumber);
 
                 //TestRevocation
                 StatusCode statusCode = await x509Store.IsRevokedAsync(GetTestCert(), GetTestCert()).ConfigureAwait(false);
@@ -407,13 +401,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                Assert.Ignore("Crls in an X509Store are only supported on Windows");
+                NUnit.Framework.Assert.Ignore("Crls in an X509Store are only supported on Windows");
             }
             using (var x509Store = new X509CertificateStore())
             {
                 x509Store.Open(storePath);
                 //enumerate Crls
-                X509CRL crl = (await x509Store.EnumerateCRLsAsync().ConfigureAwait(false)).First();
+                X509CRL crl = (await x509Store.EnumerateCRLsAsync().ConfigureAwait(false))[0];
 
                 //Test Revocation before adding cert
                 StatusCode statusCode = await x509Store.IsRevokedAsync(GetTestCert(), GetTestCert2()).ConfigureAwait(false);
@@ -445,7 +439,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                Assert.Ignore("Crls in an X509Store are only supported on Windows");
+                NUnit.Framework.Assert.Ignore("Crls in an X509Store are only supported on Windows");
             }
             using (var x509Store = new X509CertificateStore())
             {
@@ -475,7 +469,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                Assert.Ignore("Crls in an X509Store are only supported on Windows");
+                NUnit.Framework.Assert.Ignore("Crls in an X509Store are only supported on Windows");
             }
             using (var x509Store = new X509CertificateStore())
             {
@@ -496,7 +490,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 Assert.AreEqual((StatusCode)StatusCodes.BadCertificateRevocationUnknown, statusCode);
 
                 //Delete second (empty) crl from store
-                await x509Store.DeleteCRLAsync(crlsAfterFirstDelete.First()).ConfigureAwait(false);
+                await x509Store.DeleteCRLAsync(crlsAfterFirstDelete[0]).ConfigureAwait(false);
 
                 X509CRLCollection crlsAfterSecondDelete = await x509Store.EnumerateCRLsAsync().ConfigureAwait(false);
 
@@ -516,13 +510,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
-                    Assert.Throws<PlatformNotSupportedException>(() => x509Store.AddCrl(new byte[0]));
-                    Assert.Throws<PlatformNotSupportedException>(() => x509Store.EnumerateCrls());
-                    Assert.Throws<PlatformNotSupportedException>(() => x509Store.DeleteCrl(new byte[0]));
+                    NUnit.Framework.Assert.Throws<PlatformNotSupportedException>(() => x509Store.AddCrl([]));
+                    NUnit.Framework.Assert.Throws<PlatformNotSupportedException>(() => x509Store.EnumerateCrls());
+                    NUnit.Framework.Assert.Throws<PlatformNotSupportedException>(() => x509Store.DeleteCrl([]));
                 }
                 else
                 {
-                    Assert.Ignore("Test only relevant on MacOS/Linux");
+                    NUnit.Framework.Assert.Ignore("Test only relevant on MacOS/Linux");
                 }
             }
             using (var x509Store = new X509CertificateStore())
@@ -530,30 +524,27 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 x509Store.Open(storePath);
                 if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
-                    Assert.ThrowsAsync<ServiceResultException>(() => x509Store.AddCRLAsync(new X509CRL()));
-                    Assert.ThrowsAsync<ServiceResultException>(() => x509Store.EnumerateCRLsAsync());
-                    Assert.ThrowsAsync<ServiceResultException>(() => x509Store.DeleteCRLAsync(new X509CRL()));
+                    NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(() => x509Store.AddCRLAsync(new X509CRL()));
+                    NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(x509Store.EnumerateCRLsAsync);
+                    NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(() => x509Store.DeleteCRLAsync(new X509CRL()));
                 }
                 else
                 {
-                    Assert.Ignore("Test only relevant on MacOS/Linux");
+                    NUnit.Framework.Assert.Ignore("Test only relevant on MacOS/Linux");
                 }
             }
         }
 
-        #endregion
-
-        #region Private Methods
         private X509Certificate2 GetTestCert()
         {
-            return m_testCertificate ??
-                (m_testCertificate = CertificateFactory.CreateCertificate(X509StoreSubject).CreateForRSA());
+            return m_testCertificate ??=
+CertificateFactory.CreateCertificate(X509StoreSubject).CreateForRSA();
         }
 
         private X509Certificate2 GetTestCert2()
         {
-            return m_testCertificate2 ??
-                (m_testCertificate2 = CertificateFactory.CreateCertificate(X509StoreSubject2).CreateForRSA());
+            return m_testCertificate2 ??=
+CertificateFactory.CreateCertificate(X509StoreSubject2).CreateForRSA();
         }
 
         private static string[] GetCertStores()
@@ -565,26 +556,24 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 result.Add("CurrentUser\\UA_MachineDefault");
             }
-            return result.ToArray();
+            return [.. result];
         }
-        #endregion
 
-        #region Private Fields
         private X509Certificate2 m_testCertificate;
         private X509Certificate2 m_testCertificate2;
-        private const string s_keyPairPemBase64Encrypted = "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";
+        private const string kEyPairPemBase64Encrypted = "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";
         /// <summary>
         /// 16 bytes for AES-128
         /// </summary>
-        private static readonly byte[] s_aesKey = new byte[] { 0x13, 0x5e, 0xcf, 0xdd, 0x96, 0xf2, 0x99, 0x63, 0x9e, 0x2d, 0x50, 0x1c, 0x3a, 0xbb, 0xde, 0x02 };
+        private static readonly byte[] s_aesKey = [0x13, 0x5e, 0xcf, 0xdd, 0x96, 0xf2, 0x99, 0x63, 0x9e, 0x2d, 0x50, 0x1c, 0x3a, 0xbb, 0xde, 0x02];
         /// <summary>
         /// 16 bytes
         /// </summary>
-        private static readonly byte[] s_aesIV = new byte[] { 0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10, 0xEF, 0xCD, 0xAB, 0x89, 0x67, 0x45, 0x23, 0x01 };
+        private static readonly byte[] s_aesIV = [0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10, 0xEF, 0xCD, 0xAB, 0x89, 0x67, 0x45, 0x23, 0x01];
 
         private static byte[] DecryptKeyPairPemBase64()
         {
-            byte[] encryptedBytes = Convert.FromBase64String(s_keyPairPemBase64Encrypted);
+            byte[] encryptedBytes = Convert.FromBase64String(kEyPairPemBase64Encrypted);
             using var aes = Aes.Create();
             aes.Key = s_aesKey;
             aes.IV = s_aesIV;
@@ -595,6 +584,5 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             cs.CopyTo(output);
             return output.ToArray();
         }
-        #endregion
     }
 }

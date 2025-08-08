@@ -43,7 +43,6 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
     [Parallelizable]
     public class ComplexSampleTypesBuilder : ComplexTypesCommon
     {
-        #region Tests
         /// <summary>
         /// Create a structure type from a DataTypeDefinition.
         /// Activate an object and verify it is the expected type
@@ -53,7 +52,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         public void CreateComplexType(StructureType structureType)
         {
             // EncoderCommon.BuiltInTypes subtracted by the number of unused types.
-            int propertyBuiltInTypes = EncoderCommon.BuiltInTypes.Length - 3;
+            int propertyBuiltInTypes = BuiltInTypes.Length - 3;
             Type complexType = BuildComplexTypeWithAllBuiltInTypes(
                 structureType, nameof(CreateComplexType));
             Assert.NotNull(complexType);
@@ -103,7 +102,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         public void CreateComplexTypeWithData(StructureType structureType, bool randomValue)
         {
             // BuiltInTypes - Null type.
-            int propertyBuiltInTypes = EncoderCommon.BuiltInTypes.Length - 1;
+            int propertyBuiltInTypes = BuiltInTypes.Length - 1;
             Type complexType = BuildComplexTypeWithAllBuiltInTypes(
                 structureType, nameof(CreateComplexTypeWithData) + "." + randomValue.ToString());
             Assert.NotNull(complexType);
@@ -134,9 +133,5 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 }
             }
         }
-        #endregion Tests
-
-        #region Private Methods
-        #endregion Private Methods
     }
 }

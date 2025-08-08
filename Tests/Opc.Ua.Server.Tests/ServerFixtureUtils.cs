@@ -47,7 +47,6 @@ namespace Opc.Ua.Server.Tests
         public const int MinTestPort = 50000;
         public const int MaxTestPort = 65000;
 
-        #region Public Methods
         /// <summary>
         /// Create and Activate a session without security.
         /// </summary>
@@ -110,7 +109,7 @@ namespace Opc.Ua.Server.Tests
             // Activate session
             requestHeader.AuthenticationToken = authenticationToken;
             response = server.ActivateSession(requestHeader, signatureData,
-                new SignedSoftwareCertificateCollection(), new StringCollection(),
+                [], [],
                 (identityToken != null) ? new ExtensionObject(identityToken) : null, null,
                 out serverNonce, out StatusCodeCollection results, out DiagnosticInfoCollection diagnosticInfos);
             ValidateResponse(response);
@@ -253,7 +252,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// A dictionary of all node attributes.
         /// </summary>
-        public static readonly ReadOnlyDictionary<uint, DataValue> AttributesIds = new ReadOnlyDictionary<uint, DataValue>(
+        public static readonly ReadOnlyDictionary<uint, DataValue> AttributesIds = new(
             new SortedDictionary<uint, DataValue> {
                 { Attributes.NodeId, null },
                 { Attributes.NodeClass, null },
@@ -299,6 +298,5 @@ namespace Opc.Ua.Server.Tests
             }
             return 0;
         }
-        #endregion
     }
 }

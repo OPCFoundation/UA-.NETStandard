@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -41,13 +41,12 @@ namespace Opc.Ua.Server.UserDatabase
     /// </remarks>
     public class JsonUserDatabase : LinqUserDatabase
     {
-        #region Constructors
         /// <summary>
         /// Create a JSON database.
         /// </summary>
         public JsonUserDatabase(string fileName)
         {
-            m_fileName = fileName;
+            FileName = fileName;
         }
 
         /// <summary>
@@ -75,28 +74,20 @@ namespace Opc.Ua.Server.UserDatabase
             }
             return new JsonUserDatabase(fileName);
         }
-        #endregion
 
-        #region Public Members
         /// <summary>
         /// Save the complete database.
         /// </summary>
         public override void Save()
         {
             string json = JsonConvert.SerializeObject(this, Formatting.Indented);
-            File.WriteAllText(m_fileName, json);
+            File.WriteAllText(FileName, json);
         }
 
         /// <summary>
         /// Get or set the filename.
         /// </summary>
         [JsonIgnore]
-        public string FileName { get { return m_fileName; } private set { m_fileName = value; } }
-        #endregion
-
-        #region Private Fields
-        [JsonIgnore]
-        string m_fileName;
-        #endregion
+        public string FileName { get; private set; }
     }
 }

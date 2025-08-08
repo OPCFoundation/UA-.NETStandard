@@ -47,13 +47,12 @@ namespace Opc.Ua.Core.Tests.Types.LogTests
         /// <summary>
         /// A trace event callback for tests.
         /// </summary>
-        public class StringArrayTraceLogger : IDisposable
+        public sealed class StringArrayTraceLogger : IDisposable
         {
             private bool m_disposed;
             private readonly TextWriter m_writer;
             private readonly int m_traceMasks;
-            private readonly List<string> m_traceList;
-            public List<string> TraceList => m_traceList;
+            public List<string> TraceList { get; }
             public TraceEventArgs LastTraceEventArgs { get; set; }
 
             /// <summary>
@@ -76,7 +75,7 @@ namespace Opc.Ua.Core.Tests.Types.LogTests
             /// </summary>
             private StringArrayTraceLogger(TextWriter writer, int traceMasks)
             {
-                m_traceList = new List<string>();
+                TraceList = [];
                 m_writer = writer;
                 m_traceMasks = traceMasks;
             }
@@ -96,7 +95,7 @@ namespace Opc.Ua.Core.Tests.Types.LogTests
             {
                 if (!m_disposed)
                 {
-                    Utils.Tracing.TraceEventHandler -= this.TraceEventHandler;
+                    Utils.Tracing.TraceEventHandler -= TraceEventHandler;
                     m_disposed = true;
                 }
                 GC.SuppressFinalize(this);
@@ -113,11 +112,11 @@ namespace Opc.Ua.Core.Tests.Types.LogTests
                 if (e.Exception != null)
                 {
                     m_writer.WriteLine(e.Exception);
-                    m_traceList.Add(e.Exception.Message);
+                    TraceList.Add(e.Exception.Message);
                 }
                 string message = Utils.Format(e.Format, e.Arguments);
                 m_writer.WriteLine(message);
-                m_traceList.Add(message);
+                TraceList.Add(message);
             }
         }
 

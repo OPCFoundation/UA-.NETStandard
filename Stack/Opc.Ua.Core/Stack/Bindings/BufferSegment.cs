@@ -63,8 +63,6 @@ namespace Opc.Ua.Bindings
             return segment;
         }
 
-        #region Private Fields
         private readonly byte[] m_array;
-        #endregion
     }
 }

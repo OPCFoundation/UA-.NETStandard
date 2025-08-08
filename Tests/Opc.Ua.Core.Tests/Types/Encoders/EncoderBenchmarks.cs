@@ -49,12 +49,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             m_random = new Random(0x62541);
             m_nodeId = new NodeId((uint)m_random.Next(50000));
-            m_list = new List<int>();
+            m_list = [];
             for (int i = 0; i < DataValueCount; i++)
             {
                 m_list.Add(m_random.Next());
             }
-            m_values = new List<DataValue>();
+            m_values = [];
             var now = new DateTime(2024, 03, 01, 06, 05, 59, DateTimeKind.Utc);
             now += TimeSpan.FromTicks(456789);
             for (int i = 0; i < DataValueCount; i++)
@@ -66,7 +66,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Params(64, 1024)]
         public int PayLoadSize { get; set; } = 64;
 
-        #region Private Methods
         protected void TestEncoding(IEncoder encoder)
         {
             DateTime now = DateTime.UtcNow;
@@ -118,9 +117,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 _ = decoder.ReadDataValueArray("DataValues");
             }
         }
-        #endregion
 
-        #region Test Setup
         public void OneTimeSetUp()
         {
             // for validating benchmark tests
@@ -135,9 +132,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             m_memoryManager = null;
             m_bufferManager = null;
         }
-        #endregion
 
-        #region Benchmark Setup
         /// <summary>
         /// Set up some variables for benchmarks.
         /// </summary>
@@ -158,17 +153,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             m_memoryManager = null;
             m_bufferManager = null;
         }
-        #endregion
 
-        #region Protected Fields
         protected Random m_random;
-        protected NodeId m_nodeId = new NodeId(1234);
+        protected NodeId m_nodeId = new(1234);
         protected List<int> m_list;
         protected List<DataValue> m_values;
         protected IServiceMessageContext m_context;
         protected RecyclableMemoryStreamManager m_memoryManager;
         protected BufferManager m_bufferManager;
-        #endregion
     }
 
 #if NET6_0_OR_GREATER && ECC_SUPPORT
@@ -189,12 +181,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         public override int Read(Span<byte> buffer)
         {
-            return base.ReadMemoryStream(buffer);
+            return ReadMemoryStream(buffer);
         }
 
         public override void Write(ReadOnlySpan<byte> buffer)
         {
-            base.WriteMemoryStream(buffer);
+            WriteMemoryStream(buffer);
         }
     }
 #endif

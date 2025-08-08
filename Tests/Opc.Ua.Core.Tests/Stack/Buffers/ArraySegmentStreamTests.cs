@@ -27,11 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using NUnit.Framework;
-using NUnit.Framework.Internal;
 using System;
 using System.Buffers;
 using System.IO;
+using NUnit.Framework;
+using NUnit.Framework.Internal;
 using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Buffers.Tests
@@ -53,8 +53,8 @@ namespace Opc.Ua.Buffers.Tests
             var stream = new ArraySegmentStream(bufferManager);
 
             // Act
-            Action act = () => stream.Dispose();
-            byte[] buffer = new byte[1] { 0x55 };
+            Action act = stream.Dispose;
+            byte[] buffer = [0x55];
 
             // Assert
             Assert.That(stream.CanRead, Is.True);

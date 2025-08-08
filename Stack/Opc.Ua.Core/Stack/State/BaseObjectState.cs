@@ -13,12 +13,12 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Text;
-using System.Xml;
 using System.IO;
-using System.Runtime.Serialization;
 using System.Reflection;
+using System.Runtime.Serialization;
+using System.Text;
 using System.Threading;
+using System.Xml;
 
 namespace Opc.Ua
 {
@@ -27,7 +27,6 @@ namespace Opc.Ua
     /// </summary>
     public class BaseObjectState : BaseInstanceState
     {
-        #region Constructors
         /// <summary>
         /// Initializes the instance with its default attribute values.
         /// </summary>
@@ -37,7 +36,7 @@ namespace Opc.Ua
 
             if (parent != null)
             {
-                ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent;
+                ReferenceTypeId = ReferenceTypeIds.HasComponent;
             }
         }
 
@@ -50,15 +49,13 @@ namespace Opc.Ua
         {
             return new BaseObjectState(parent);
         }
-        #endregion
 
-        #region Initialization
         /// <summary>
         /// Initializes the instance with the default values.
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
-            SymbolicName = Utils.Format("{0}_Instance1", Opc.Ua.BrowseNames.BaseObjectType);
+            SymbolicName = Utils.Format("{0}_Instance1", BrowseNames.BaseObjectType);
             NodeId = null;
             BrowseName = new QualifiedName(SymbolicName, 1);
             DisplayName = SymbolicName;
@@ -66,7 +63,7 @@ namespace Opc.Ua
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;
             TypeDefinitionId = GetDefaultTypeDefinitionId(context.NamespaceUris);
-            NumericId = Opc.Ua.ObjectTypes.BaseObjectType;
+            NumericId = ObjectTypes.BaseObjectType;
             EventNotifier = EventNotifiers.None;
         }
 
@@ -90,13 +87,11 @@ namespace Opc.Ua
         {
             return ObjectTypeIds.BaseObjectType;
         }
-        #endregion
 
-        #region ICloneable Members
         /// <inheritdoc/>
         public override object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -107,21 +102,16 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
-            var clone = (BaseObjectState)Activator.CreateInstance(this.GetType(), this.Parent);
+            var clone = (BaseObjectState)Activator.CreateInstance(GetType(), Parent);
             return CloneChildren(clone);
         }
-        #endregion
 
-        #region Public Members
         /// <summary>
         /// The inverse name for the reference.
         /// </summary>
         public byte EventNotifier
         {
-            get
-            {
-                return m_eventNotifier;
-            }
+            get => m_eventNotifier;
 
             set
             {
@@ -133,9 +123,7 @@ namespace Opc.Ua
                 m_eventNotifier = value;
             }
         }
-        #endregion
 
-        #region Event Callbacks
         /// <summary>
         /// Raised when the EventNotifier attribute is read.
         /// </summary>
@@ -145,9 +133,7 @@ namespace Opc.Ua
         /// Raised when the EventNotifier attribute is written.
         /// </summary>
         public NodeAttributeEventHandler<byte> OnWriteEventNotifier;
-        #endregion
 
-        #region Serialization Functions
         /// <summary>
         /// Exports a copy of the node to a node table.
         /// </summary>
@@ -159,7 +145,7 @@ namespace Opc.Ua
 
             if (node is ObjectNode objectNode)
             {
-                objectNode.EventNotifier = this.EventNotifier;
+                objectNode.EventNotifier = EventNotifier;
             }
         }
 
@@ -249,9 +235,7 @@ namespace Opc.Ua
                 m_eventNotifier = decoder.ReadByte(null);
             }
         }
-        #endregion
 
-        #region Read Support Functions
         /// <summary>
         /// Reads the value for any non-value attribute.
         /// </summary>
@@ -284,9 +268,7 @@ namespace Opc.Ua
 
             return base.ReadNonValueAttribute(context, attributeId, ref value);
         }
-        #endregion
 
-        #region Write Support Functions
         /// <summary>
         /// Write the value for any non-value attribute.
         /// </summary>
@@ -331,11 +313,8 @@ namespace Opc.Ua
 
             return base.WriteNonValueAttribute(context, attributeId, value);
         }
-        #endregion
 
-        #region Private Fields
         private byte m_eventNotifier;
-        #endregion
     }
 
     /// <summary>
@@ -343,22 +322,19 @@ namespace Opc.Ua
     /// </summary>
     public class FolderState : BaseObjectState
     {
-        #region Constructors
         /// <summary>
         /// Initializes the instance with its default attribute values.
         /// </summary>
         public FolderState(NodeState parent) : base(parent)
         {
         }
-        #endregion
 
-        #region Initialization
         /// <summary>
         /// Initializes the instance with the default values.
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
-            SymbolicName = Utils.Format("{0}_Instance1", Opc.Ua.BrowseNames.FolderType);
+            SymbolicName = Utils.Format("{0}_Instance1", BrowseNames.FolderType);
             NodeId = null;
             BrowseName = new QualifiedName(SymbolicName, 1);
             DisplayName = SymbolicName;
@@ -366,7 +342,7 @@ namespace Opc.Ua
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;
             TypeDefinitionId = GetDefaultTypeDefinitionId(context.NamespaceUris);
-            NumericId = Opc.Ua.ObjectTypes.FolderType;
+            NumericId = ObjectTypes.FolderType;
             EventNotifier = EventNotifiers.None;
         }
 
@@ -377,6 +353,5 @@ namespace Opc.Ua
         {
             return ObjectTypeIds.FolderType;
         }
-        #endregion
     }
 }

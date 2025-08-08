@@ -22,23 +22,18 @@ namespace Opc.Ua
     /// </summary>
     public partial class NotificationMessage
     {
-        #region Public Interface
         /// <summary>
         /// The string table that was received with the message.
         /// </summary>
         public StringCollection StringTable
-        {
-            get { return m_stringTable; }
-            set { m_stringTable = value; }
+        { get => m_stringTable; set => m_stringTable = value;
         }
 
         /// <summary>
         /// Gets a value indicating whether there are more NotificationMessages for this publish interval.
         /// </summary>
         public bool MoreNotifications
-        {
-            get { return m_moreNotifications; }
-            set { m_moreNotifications = value; }
+        { get => m_moreNotifications; set => m_moreNotifications = value;
         }
 
         /// <summary>
@@ -47,15 +42,9 @@ namespace Opc.Ua
         /// <value>
         ///   <c>true</c> if this instance is empty; otherwise, <c>false</c>.
         /// </value>
-        public bool IsEmpty
-        {
-            get
-            {
-                return SequenceNumber == 0 &&
+        public bool IsEmpty => SequenceNumber == 0 &&
                     PublishTime == DateTime.MinValue &&
                     NotificationData.Count == 0;
-            }
-        }
 
         /// <summary>
         /// Returns the data changes contained in the notification message.
@@ -158,11 +147,8 @@ namespace Opc.Ua
 
             return events;
         }
-        #endregion
 
-        #region Private Fields
         private bool m_moreNotifications;
         private StringCollection m_stringTable;
-        #endregion
     }
 }

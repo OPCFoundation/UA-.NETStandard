@@ -180,13 +180,11 @@ namespace Opc.Ua.Server
     /// </summary>
     public delegate void SessionEventHandler(ISession session, SessionEventReason reason);
 
-    #region ImpersonateEventArgs Class
     /// <summary>
     /// A class which provides the event arguments for session related event.
     /// </summary>
     public class ImpersonateEventArgs : EventArgs
     {
-        #region Constructors
         /// <summary>
         /// Creates a new instance.
         /// </summary>
@@ -196,9 +194,7 @@ namespace Opc.Ua.Server
             UserTokenPolicy = userTokenPolicy;
             EndpointDescription = endpointDescription;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The new user identity for the session.
         /// </summary>
@@ -228,23 +224,18 @@ namespace Opc.Ua.Server
         /// Get the EndpointDescription
         /// </summary>
         public EndpointDescription EndpointDescription { get; }
-
-        #endregion
     }
 
     /// <summary>
     /// The delegate for functions used to receive impersonation events.
     /// </summary>
     public delegate void ImpersonateEventHandler(ISession session, ImpersonateEventArgs args);
-    #endregion
 
-    #region ValidateSessionLessRequestEventArgs Class
     /// <summary>
     /// A class which provides the event arguments for session related event.
     /// </summary>
     public class ValidateSessionLessRequestEventArgs : EventArgs
     {
-        #region Constructors
         /// <summary>
         /// Creates a new instance.
         /// </summary>
@@ -253,9 +244,7 @@ namespace Opc.Ua.Server
             AuthenticationToken = authenticationToken;
             RequestType = requestType;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The request type for the request.
         /// </summary>
@@ -275,7 +264,5 @@ namespace Opc.Ua.Server
         /// Set to indicate that an error occurred validating the session-less request and that it should be rejected.
         /// </summary>
         public ServiceResult Error { get; set; }
-        #endregion
     }
-    #endregion
 }

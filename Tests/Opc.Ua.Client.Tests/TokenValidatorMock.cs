@@ -37,7 +37,7 @@ namespace Opc.Ua.Client.Tests
 
         public IUserIdentity ValidateToken(IssuedIdentityToken issuedToken)
         {
-            this.LastIssuedToken = issuedToken;
+            LastIssuedToken = issuedToken;
 
             return new UserIdentity(issuedToken);
         }

@@ -39,7 +39,7 @@ namespace Opc.Ua.PubSub.Transport
         /// </summary>
         bool CanPublishMetaData(WriterGroupDataType writerGroupConfiguration, DataSetWriterDataType dataSetWriter);
 
-        /// <summary> 
+        /// <summary>
         /// Create and return the DataSetMetaData message for a DataSetWriter
         /// </summary>
         /// <returns></returns>

@@ -38,7 +38,6 @@ namespace Opc.Ua.Client
     /// </summary>
     public interface ISessionInstantiator
     {
-        #region Constructors
         /// <summary>
         /// Constructs a new instance of the <see cref="Session"/> class.
         /// </summary>
@@ -57,6 +56,5 @@ namespace Opc.Ua.Client
             X509Certificate2 clientCertificate,
             EndpointDescriptionCollection availableEndpoints = null,
             StringCollection discoveryProfileUris = null);
-        #endregion
     }
 }

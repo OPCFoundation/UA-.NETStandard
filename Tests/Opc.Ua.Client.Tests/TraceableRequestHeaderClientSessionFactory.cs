@@ -38,11 +38,10 @@ namespace Opc.Ua.Client
     /// </summary>
     public class TraceableRequestHeaderClientSessionFactory : TraceableSessionFactory
     {
-        #region ISessionInstantiator Members
         /// <summary>
         /// Object that creates instances of an Opc.Ua.Client.Session object with Activity Source.
         /// </summary>
-        public static new readonly TraceableRequestHeaderClientSessionFactory Instance = new TraceableRequestHeaderClientSessionFactory();
+        public static new readonly TraceableRequestHeaderClientSessionFactory Instance = new();
 
         /// <inheritdoc/>
         public override Session Create(
@@ -64,6 +63,5 @@ namespace Opc.Ua.Client
         {
             return new TraceableRequestHeaderClientSession(channel, configuration, endpoint, clientCertificate, availableEndpoints, discoveryProfileUris);
         }
-        #endregion
     }
 }

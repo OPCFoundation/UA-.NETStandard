@@ -29,10 +29,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Threading;
 using System.Globalization;
-using System.Threading.Tasks;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
@@ -42,7 +42,6 @@ namespace Opc.Ua.Server
     /// </summary>
     public class SubscriptionManager : ISubscriptionManager
     {
-        #region Constructors
         /// <summary>
         /// Initializes the manager with its configuration.
         /// </summary>
@@ -76,9 +75,9 @@ namespace Opc.Ua.Server
 
             m_subscriptionStore = server.SubscriptionStore;
 
-            m_subscriptions = new Dictionary<uint, ISubscription>();
-            m_publishQueues = new NodeIdDictionary<SessionPublishQueue>();
-            m_statusMessages = new NodeIdDictionary<Queue<StatusMessage>>();
+            m_subscriptions = [];
+            m_publishQueues = [];
+            m_statusMessages = [];
             m_lastSubscriptionId = BitConverter.ToInt64(Nonce.CreateRandomNonceData(sizeof(long)), 0);
 
             // create a event to signal shutdown.
@@ -88,9 +87,7 @@ namespace Opc.Ua.Server
             m_conditionRefreshEvent = new ManualResetEvent(false);
             m_conditionRefreshQueue = new Queue<ConditionRefreshTask>();
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -133,9 +130,7 @@ namespace Opc.Ua.Server
                 Utils.SilentDispose(m_conditionRefreshEvent);
             }
         }
-        #endregion
 
-        #region ISubscriptionManager Members
         /// <summary>
         /// Raised after a new subscription is created.
         /// </summary>
@@ -225,9 +220,7 @@ namespace Opc.Ua.Server
                 }
             }
         }
-        #endregion
 
-        #region Public Interface
         /// <summary>
         /// Starts up the manager makes it ready to create subscriptions.
         /// </summary>
@@ -244,7 +237,7 @@ namespace Opc.Ua.Server
 
                 m_conditionRefreshEvent.Reset();
 
-                Task.Factory.StartNew(() => ConditionRefreshWorker(), TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach);
+                Task.Factory.StartNew(ConditionRefreshWorker, TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach);
             }
         }
 
@@ -282,7 +275,6 @@ namespace Opc.Ua.Server
             }
         }
 
-        #region Subscription Store / Restore
         /// <summary>
         /// Stores durable subscriptions to  be able to restore them after a restart
         /// </summary>
@@ -430,7 +422,7 @@ namespace Opc.Ua.Server
 
             return subscription;
         }
-        #endregion
+
         /// <summary>
         /// Signals that a session is closing.
         /// </summary>
@@ -501,7 +493,7 @@ namespace Opc.Ua.Server
                     {
                         lock (m_lock)
                         {
-                            (m_abandonedSubscriptions ??= new List<ISubscription>()).Add(subscription);
+                            (m_abandonedSubscriptions ??= []).Add(subscription);
                             Utils.LogWarning("Subscription {0}, Id={1}.", "ABANDONED", subscription.Id);
                         }
                     }
@@ -643,7 +635,7 @@ namespace Opc.Ua.Server
                     if (!NodeId.IsNull(sessionId))
                     {
                         // check that the subscription is the owner.
-                        if (context != null && !Object.ReferenceEquals(context.Session, subscription.Session))
+                        if (context != null && !ReferenceEquals(context.Session, subscription.Session))
                         {
                             throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
                         }
@@ -701,7 +693,7 @@ namespace Opc.Ua.Server
                     {
                         SessionDiagnosticsDataType diagnostics = context.Session.SessionDiagnostics;
                         diagnostics.CurrentSubscriptionsCount--;
-                        SubscriptionManager.UpdateCurrentMonitoredItemsCount(diagnostics, -monitoredItemCount);
+                        UpdateCurrentMonitoredItemsCount(diagnostics, -monitoredItemCount);
                     }
                 }
 
@@ -1380,8 +1372,8 @@ namespace Opc.Ua.Server
             out TransferResultCollection results,
             out DiagnosticInfoCollection diagnosticInfos)
         {
-            results = new TransferResultCollection();
-            diagnosticInfos = new DiagnosticInfoCollection();
+            results = [];
+            diagnosticInfos = [];
 
             Utils.LogInfo("TransferSubscriptions to SessionId={0}, Count={1}, sendInitialValues={2}",
                 context.Session.Id, subscriptionIds.Count, sendInitialValues);
@@ -1698,7 +1690,7 @@ namespace Opc.Ua.Server
                 lock (context.Session.DiagnosticsLock)
                 {
                     SessionDiagnosticsDataType diagnostics = context.Session.SessionDiagnostics;
-                    SubscriptionManager.UpdateCurrentMonitoredItemsCount(diagnostics, monitoredItemCountIncrement);
+                    UpdateCurrentMonitoredItemsCount(diagnostics, monitoredItemCountIncrement);
                 }
             }
         }
@@ -1774,7 +1766,7 @@ namespace Opc.Ua.Server
                 lock (context.Session.DiagnosticsLock)
                 {
                     SessionDiagnosticsDataType diagnostics = context.Session.SessionDiagnostics;
-                    SubscriptionManager.UpdateCurrentMonitoredItemsCount(diagnostics, monitoredItemCountIncrement);
+                    UpdateCurrentMonitoredItemsCount(diagnostics, monitoredItemCountIncrement);
                 }
             }
         }
@@ -1809,8 +1801,6 @@ namespace Opc.Ua.Server
                 out results,
                 out diagnosticInfos);
         }
-        #endregion
-        #region Public Static Methods
 
         /// <summary>
         /// Calculate a revised queue size for a monitored item based on the provided maximum allowed queue sizes.
@@ -1838,8 +1828,7 @@ namespace Opc.Ua.Server
             //no revision needed as size within limits
             return queueSize;
         }
-        #endregion
-        #region Protected Methods
+
         /// <summary>
         /// Calculates the publishing interval.
         /// </summary>
@@ -2000,9 +1989,7 @@ namespace Opc.Ua.Server
                 publishingEnabled,
                 m_maxMessageCount);
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Checks if there is a status message to return.
         /// </summary>
@@ -2082,7 +2069,7 @@ namespace Opc.Ua.Server
                                 continue;
                             }
 
-                            (subscriptionsToDelete ??= new List<ISubscription>()).Add(subscription);
+                            (subscriptionsToDelete ??= []).Add(subscription);
                             SubscriptionExpired(subscription);
                             Utils.LogInfo("Subscription - Abandoned Subscription Id={0} Delete Scheduled.", subscription.Id);
                         }
@@ -2149,11 +2136,11 @@ namespace Opc.Ua.Server
                     }
                     else if (conditionRefreshTask.MonitoredItemId == 0)
                     {
-                        SubscriptionManager.DoConditionRefresh(conditionRefreshTask.Subscription);
+                        DoConditionRefresh(conditionRefreshTask.Subscription);
                     }
                     else
                     {
-                        SubscriptionManager.DoConditionRefresh2(conditionRefreshTask.Subscription, conditionRefreshTask.MonitoredItemId);
+                        DoConditionRefresh2(conditionRefreshTask.Subscription, conditionRefreshTask.MonitoredItemId);
                     }
 
                     // use shutdown event to end loop
@@ -2209,17 +2196,13 @@ namespace Opc.Ua.Server
                 Utils.LogError(e, "Server - CleanupSubscriptions Task Halted Unexpectedly");
             }
         }
-        #endregion
 
-        #region StatusMessage Class
         private class StatusMessage
         {
             public uint SubscriptionId;
             public NotificationMessage Message;
         }
-        #endregion
 
-        #region ConditionRefreshTask Class
         private class ConditionRefreshTask
         {
             public ConditionRefreshTask(ISubscription subscription, uint monitoredItemId)
@@ -2244,10 +2227,8 @@ namespace Opc.Ua.Server
                 return HashCode.Combine(Subscription.Id, MonitoredItemId);
             }
         }
-        #endregion
 
-        #region Private Fields
-        private readonly object m_lock = new object();
+        private readonly object m_lock = new();
         private long m_lastSubscriptionId;
         private readonly IServerInternal m_server;
         private readonly double m_minPublishingInterval;
@@ -2270,11 +2251,10 @@ namespace Opc.Ua.Server
         private readonly ManualResetEvent m_conditionRefreshEvent;
         private readonly ISubscriptionStore m_subscriptionStore;
 
-        private readonly object m_statusMessagesLock = new object();
-        private readonly object m_eventLock = new object();
-        private readonly object m_conditionRefreshLock = new object();
+        private readonly object m_statusMessagesLock = new();
+        private readonly object m_eventLock = new();
+        private readonly object m_conditionRefreshLock = new();
         private event SubscriptionEventHandler m_SubscriptionCreated;
         private event SubscriptionEventHandler m_SubscriptionDeleted;
-        #endregion
     }
 }

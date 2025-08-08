@@ -56,7 +56,7 @@ namespace Quickstarts.Servers
             MonitoredItemId = monitoredItemId;
             QueueSize = 0;
             m_itemsInQueue = 0;
-            m_enqueueBatch = new EventBatch(new List<EventFieldList>(), kBatchSize, monitoredItemId);
+            m_enqueueBatch = new EventBatch([], kBatchSize, monitoredItemId);
             m_dequeueBatch = m_enqueueBatch;
         }
 
@@ -75,7 +75,6 @@ namespace Quickstarts.Servers
             m_batchPersistor = batchPersistor;
         }
 
-        #region Public Methods
         /// <inheritdoc/>
         public bool IsDurable { get; }
 
@@ -147,7 +146,7 @@ namespace Quickstarts.Servers
                 if (m_dequeueBatch == m_enqueueBatch)
                 {
                     m_dequeueBatch = new EventBatch(m_enqueueBatch.Events, kBatchSize, MonitoredItemId);
-                    m_enqueueBatch = new EventBatch(new List<EventFieldList>(), kBatchSize, MonitoredItemId);
+                    m_enqueueBatch = new EventBatch([], kBatchSize, MonitoredItemId);
                 }
                 // persist the batch
                 else
@@ -162,7 +161,7 @@ namespace Quickstarts.Servers
                         m_batchPersistor.RequestBatchPersist(m_eventBatches[m_eventBatches.Count - 2]);
                     }
 
-                    m_enqueueBatch = new EventBatch(new List<EventFieldList>(), kBatchSize, MonitoredItemId);
+                    m_enqueueBatch = new EventBatch([], kBatchSize, MonitoredItemId);
                 }
             }
         }
@@ -358,18 +357,15 @@ namespace Quickstarts.Servers
                 Disposed?.Invoke(this, EventArgs.Empty);
             }
         }
-        #endregion
 
-        #region Private Fields
         /// <summary>
         /// the contained in the queue
         /// </summary>
         private EventBatch m_enqueueBatch;
-        private readonly List<EventBatch> m_eventBatches = new List<EventBatch>();
+        private readonly List<EventBatch> m_eventBatches = [];
         private EventBatch m_dequeueBatch;
         private int m_itemsInQueue;
         private readonly IBatchPersistor m_batchPersistor;
-        #endregion
     }
 
     /// <summary>

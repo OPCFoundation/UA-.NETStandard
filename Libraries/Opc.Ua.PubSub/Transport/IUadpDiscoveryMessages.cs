@@ -60,7 +60,7 @@ namespace Opc.Ua.PubSub
             StatusCode publisherProvideEndpointsStatusCode, object publisherId);
 
         /// <summary>
-        /// Create and return the list of DataSetMetaData response messages 
+        /// Create and return the list of DataSetMetaData response messages
         /// </summary>
         /// <param name="dataSetWriterIds"></param>
         /// <returns></returns>

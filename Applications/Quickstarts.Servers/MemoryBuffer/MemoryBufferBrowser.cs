@@ -29,10 +29,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Xml;
 using System.IO;
 using System.Reflection;
 using System.Threading;
+using System.Xml;
 using Opc.Ua;
 using Opc.Ua.Server;
 
@@ -43,7 +43,6 @@ namespace MemoryBuffer
     /// </summary>
     public class MemoryBufferBrowser : NodeBrowser
     {
-        #region Constructors
         /// <summary>
         /// Creates a new browser object with a set of filters.
         /// </summary>
@@ -71,9 +70,7 @@ namespace MemoryBuffer
             m_buffer = buffer;
             m_stage = Stage.Begin;
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Returns the next reference.
         /// </summary>
@@ -124,18 +121,16 @@ namespace MemoryBuffer
                 return null;
             }
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Returns the next child.
         /// </summary>
-        private IReference NextChild()
+        private NodeStateReference NextChild()
         {
             MemoryTagState tag = null;
 
             // check if a specific browse name is requested.
-            if (!QualifiedName.IsNull(base.BrowseName))
+            if (!QualifiedName.IsNull(BrowseName))
             {
                 // check if match found previously.
                 if (m_position == uint.MaxValue)
@@ -144,12 +139,12 @@ namespace MemoryBuffer
                 }
 
                 // browse name must be qualified by the correct namespace.
-                if (m_buffer.TypeDefinitionId.NamespaceIndex != base.BrowseName.NamespaceIndex)
+                if (m_buffer.TypeDefinitionId.NamespaceIndex != BrowseName.NamespaceIndex)
                 {
                     return null;
                 }
 
-                string name = base.BrowseName.Name;
+                string name = BrowseName.Name;
 
                 for (int ii = 0; ii < name.Length; ii++)
                 {
@@ -191,9 +186,7 @@ namespace MemoryBuffer
 
             return new NodeStateReference(ReferenceTypeIds.HasComponent, false, tag);
         }
-        #endregion
 
-        #region Stage Enumeration
         /// <summary>
         /// The stages available in a browse operation.
         /// </summary>
@@ -204,12 +197,9 @@ namespace MemoryBuffer
             ModelParents,
             Done
         }
-        #endregion
 
-        #region Private Fields
         private Stage m_stage;
         private uint m_position;
         private readonly MemoryBufferState m_buffer;
-        #endregion
     }
 }

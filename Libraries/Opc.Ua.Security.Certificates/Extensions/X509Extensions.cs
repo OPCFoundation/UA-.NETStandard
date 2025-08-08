@@ -246,7 +246,7 @@ namespace Opc.Ua.Security.Certificates
             )
         {
             var writer = new AsnWriter(AsnEncodingRules.DER);
-            writer.WriteEnumeratedValue<CRLReason>(reason);
+            writer.WriteEnumeratedValue(reason);
             return new X509Extension(Oids.CrlReasonCode, writer.Encode(), false);
         }
 

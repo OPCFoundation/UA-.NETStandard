@@ -68,7 +68,6 @@ namespace Opc.Ua.Bindings
             };
         }
 
-        #region IDisposable Members
         /// <inheritdoc/>
         public void Dispose()
         {
@@ -86,7 +85,6 @@ namespace Opc.Ua.Bindings
                 Args.Dispose();
             }
         }
-        #endregion
 
         /// <inheritdoc/>
         public object UserToken { get; set; }
@@ -137,9 +135,7 @@ namespace Opc.Ua.Bindings
 
         /// <inheritdoc/>
         public BufferCollection BufferList
-        {
-            get { return Args.BufferList as BufferCollection; }
-            set { Args.BufferList = value; }
+        { get => Args.BufferList as BufferCollection; set => Args.BufferList = value;
         }
 
         /// <summary>
@@ -163,12 +159,10 @@ namespace Opc.Ua.Bindings
             m_socketError = error;
         }
 
-        #region IDisposable Members
         /// <inheritdoc/>
         public void Dispose()
         {
         }
-        #endregion
 
         /// <inheritdoc/>
         public object UserToken { get; set; }
@@ -190,14 +184,7 @@ namespace Opc.Ua.Bindings
         /// <remarks>Not implemented here.</remarks>
         public event EventHandler<IMessageSocketAsyncEventArgs> Completed
         {
-            add
-            {
-                throw new NotImplementedException();
-            }
-            remove
-            {
-                throw new NotImplementedException();
-            }
+            add => throw new NotImplementedException(); remove => throw new NotImplementedException();
         }
 
         /// <inheritdoc/>
@@ -210,12 +197,7 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         /// <remarks>Not implememnted here.</remarks>
         public BufferCollection BufferList
-        {
-            get { return null; }
-            set
-            {
-                throw new NotImplementedException();
-            }
+        { get => null; set => throw new NotImplementedException();
         }
 
         private readonly SocketError m_socketError;
@@ -251,7 +233,6 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class TcpMessageSocket : IMessageSocket
     {
-        #region Constructors
         /// <summary>
         /// Creates an unconnected socket.
         /// </summary>
@@ -300,9 +281,7 @@ namespace Opc.Ua.Bindings
             m_incomingMessageSize = -1;
             m_readComplete = OnReadComplete;
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -322,9 +301,7 @@ namespace Opc.Ua.Bindings
                 m_socket?.Dispose();
             }
         }
-        #endregion
 
-        #region Connect/Disconnect Handling
         /// <summary>
         /// Gets the socket handle.
         /// </summary>
@@ -334,18 +311,18 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Gets the local endpoint.
         /// </summary>
-        /// <exception cref="System.Net.Sockets.SocketException">An error occurred when attempting to access the socket.
+        /// <exception cref="SocketException">An error occurred when attempting to access the socket.
         /// See the Remarks section for more information.</exception>
-        /// <exception cref="System.ObjectDisposedException">The System.Net.Sockets.Socket has been closed.</exception>
+        /// <exception cref="ObjectDisposedException">The System.Net.Sockets.Socket has been closed.</exception>
         /// <returns>The System.Net.EndPoint that the System.Net.Sockets.Socket is using for communications.</returns>
         public EndPoint LocalEndpoint => m_socket?.LocalEndPoint;
 
         /// <summary>
         /// Gets the local endpoint.
         /// </summary>
-        /// <exception cref="System.Net.Sockets.SocketException">An error occurred when attempting to access the socket.
+        /// <exception cref="SocketException">An error occurred when attempting to access the socket.
         /// See the Remarks section for more information.</exception>
-        /// <exception cref="System.ObjectDisposedException">The System.Net.Sockets.Socket has been closed.</exception>
+        /// <exception cref="ObjectDisposedException">The System.Net.Sockets.Socket has been closed.</exception>
         /// <returns>The System.Net.EndPoint that the System.Net.Sockets.Socket is using for communications.</returns>
         public EndPoint RemoteEndpoint => m_socket?.RemoteEndPoint;
 
@@ -419,9 +396,7 @@ namespace Opc.Ua.Bindings
                 }
             }
         }
-        #endregion
 
-        #region Read Handling
         /// <summary>
         /// Starts reading messages from the socket.
         /// </summary>
@@ -697,7 +672,7 @@ namespace Opc.Ua.Bindings
         /// <param name="callback">Callback that must be executed if the connection would be established</param>
         private SocketError BeginConnect(DnsEndPoint endpoint, CallbackAction callback)
         {
-            var socket = new Socket(SocketType.Stream, ProtocolType.Tcp){
+            var socket = new Socket(SocketType.Stream, ProtocolType.Tcp) {
                 NoDelay = true,
                 LingerState = new LingerOption(true, 5),
             };
@@ -757,9 +732,7 @@ namespace Opc.Ua.Bindings
             }
             args.Dispose();
         }
-        #endregion
 
-        #region Write Handling
         /// <summary>
         /// Sends a buffer.
         /// </summary>
@@ -776,9 +749,7 @@ namespace Opc.Ua.Bindings
             eventArgs.Args.SocketError = SocketError.NotConnected;
             return m_socket.SendAsync(eventArgs.Args);
         }
-        #endregion
 
-        #region Event factory
         /// <summary>
         /// Create event args for TcpMessageSocket.
         /// </summary>
@@ -786,15 +757,13 @@ namespace Opc.Ua.Bindings
         {
             return new TcpMessageSocketAsyncEventArgs();
         }
-        #endregion
 
-        #region Private Fields
         private IMessageSink m_sink;
         private readonly BufferManager m_bufferManager;
         private readonly int m_receiveBufferSize;
         private readonly EventHandler<SocketAsyncEventArgs> m_readComplete;
 
-        private readonly object m_socketLock = new object();
+        private readonly object m_socketLock = new();
         private Socket m_socket;
         private bool m_closed;
 
@@ -811,12 +780,11 @@ namespace Opc.Ua.Bindings
             NotConnected = 5,
             Error = 0xff
         }
-        private readonly object m_readLock = new object();
+        private readonly object m_readLock = new();
         private byte[] m_receiveBuffer;
         private int m_bytesReceived;
         private int m_bytesToReceive;
         private int m_incomingMessageSize;
         private ReadState m_readState;
-        #endregion
     }
 }

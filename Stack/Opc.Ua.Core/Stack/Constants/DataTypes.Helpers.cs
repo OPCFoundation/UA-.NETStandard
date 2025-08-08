@@ -21,7 +21,6 @@ namespace Opc.Ua
     /// </summary>
     public static partial class DataTypes
     {
-        #region Static Helper Functions
         /// <summary>
 		/// Returns the browse name for the attribute.
 		/// </summary>
@@ -136,6 +135,5 @@ namespace Opc.Ua
         {
             return TypeInfo.GetSystemType(datatypeId, factory);
         }
-        #endregion
     }
 }

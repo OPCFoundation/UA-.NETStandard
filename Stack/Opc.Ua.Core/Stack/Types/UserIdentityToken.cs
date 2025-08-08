@@ -11,8 +11,8 @@
 */
 
 using System;
-using System.Text;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
@@ -22,8 +22,6 @@ namespace Opc.Ua
     /// </summary>
     public partial class UserIdentityToken
     {
-        #region Public Methods
-
         /// <summary>
         /// Encrypts the token (implemented by the subclass).
         /// </summary>
@@ -67,7 +65,6 @@ namespace Opc.Ua
         {
             return true;
         }
-        #endregion
     }
 
     /// <summary>
@@ -75,7 +72,6 @@ namespace Opc.Ua
     /// </summary>
     public partial class UserNameIdentityToken
     {
-        #region Public Properties
         /// <summary>
         /// The decrypted password associated with the token.
         /// </summary>
@@ -107,9 +103,6 @@ namespace Opc.Ua
             }
         }
 
-        #endregion
-
-        #region Public Methods
         /// <summary>
         /// Encrypts the DecryptedPassword using the EncryptionAlgorithm and places the result in Password
         /// </summary>
@@ -271,11 +264,7 @@ namespace Opc.Ua
             }
         }
 
-        #endregion
-
-        #region Private Fields
         private byte[] m_decryptedPassword;
-        #endregion
     }
 
     /// <summary>
@@ -283,7 +272,6 @@ namespace Opc.Ua
     /// </summary>
     public partial class X509IdentityToken
     {
-        #region Public Properties
         /// <summary>
         /// The certificate associated with the token.
         /// </summary>
@@ -297,11 +285,10 @@ namespace Opc.Ua
                 }
                 return m_certificate;
             }
-            set { m_certificate = value; }
-        }
-        #endregion
 
-        #region Public Methods
+            set => m_certificate = value;
+        }
+
         /// <summary>
         /// Creates a signature with the token.
         /// </summary>
@@ -343,11 +330,8 @@ namespace Opc.Ua
                 throw ServiceResultException.Create(StatusCodes.BadIdentityTokenInvalid, e, "Could not verify user signature!");
             }
         }
-        #endregion
 
-        #region Private Fields
         private X509Certificate2 m_certificate;
-        #endregion
     }
 
     /// <summary>
@@ -378,7 +362,6 @@ namespace Opc.Ua
     /// </summary>
     public partial class IssuedIdentityToken
     {
-        #region Public Properties
         /// <summary>
         /// The type of issued token.
         /// </summary>
@@ -392,13 +375,9 @@ namespace Opc.Ua
         /// The decrypted password associated with the token.
         /// </summary>
         public byte[] DecryptedTokenData
-        {
-            get { return m_decryptedTokenData; }
-            set { m_decryptedTokenData = value; }
+        { get => m_decryptedTokenData; set => m_decryptedTokenData = value;
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Encrypts the DecryptedTokenData using the EncryptionAlgorithm and places the result in Password
         /// </summary>
@@ -495,10 +474,7 @@ namespace Opc.Ua
         {
             return true;
         }
-        #endregion
 
-        #region Private Fields
         private byte[] m_decryptedTokenData;
-        #endregion
     }
 }

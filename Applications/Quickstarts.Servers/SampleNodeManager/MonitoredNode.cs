@@ -38,7 +38,6 @@ namespace Opc.Ua.Sample
     /// </summary>
     public class MonitoredNode
     {
-        #region Constructors
         /// <summary>
         /// Initializes the instance with the context for the node being monitored.
         /// </summary>
@@ -51,9 +50,7 @@ namespace Opc.Ua.Sample
             NodeManager = nodeManager;
             Node = node;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The server that the node belongs to.
         /// </summary>
@@ -89,9 +86,7 @@ namespace Opc.Ua.Sample
 
             return false;
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Creates a new data change monitored item.
         /// </summary>
@@ -148,7 +143,7 @@ namespace Opc.Ua.Sample
 
             if (m_monitoredItems == null)
             {
-                m_monitoredItems = new List<DataChangeMonitoredItem>();
+                m_monitoredItems = [];
                 Node.OnStateChanged = OnNodeChange;
             }
 
@@ -218,7 +213,7 @@ namespace Opc.Ua.Sample
 
             if (m_monitoredItems == null)
             {
-                m_monitoredItems = new List<DataChangeMonitoredItem>();
+                m_monitoredItems = [];
                 Node.OnStateChanged = OnNodeChange;
             }
 
@@ -236,7 +231,7 @@ namespace Opc.Ua.Sample
             {
                 for (int ii = 0; ii < m_monitoredItems.Count; ii++)
                 {
-                    if (Object.ReferenceEquals(monitoredItem, m_monitoredItems[ii]))
+                    if (ReferenceEquals(monitoredItem, m_monitoredItems[ii]))
                     {
                         m_monitoredItems.RemoveAt(ii);
                         break;
@@ -288,7 +283,7 @@ namespace Opc.Ua.Sample
         {
             if (m_eventSubscriptions == null)
             {
-                m_eventSubscriptions = new List<IEventMonitoredItem>();
+                m_eventSubscriptions = [];
             }
 
             if (m_eventSubscriptions.Count == 0)
@@ -299,7 +294,7 @@ namespace Opc.Ua.Sample
 
             for (int ii = 0; ii < m_eventSubscriptions.Count; ii++)
             {
-                if (Object.ReferenceEquals(eventSubscription, m_eventSubscriptions[ii]))
+                if (ReferenceEquals(eventSubscription, m_eventSubscriptions[ii]))
                 {
                     return;
                 }
@@ -317,7 +312,7 @@ namespace Opc.Ua.Sample
             {
                 for (int ii = 0; ii < m_eventSubscriptions.Count; ii++)
                 {
-                    if (Object.ReferenceEquals(eventSubscription, m_eventSubscriptions[ii]))
+                    if (ReferenceEquals(eventSubscription, m_eventSubscriptions[ii]))
                     {
                         m_eventSubscriptions.RemoveAt(ii);
 
@@ -364,7 +359,7 @@ namespace Opc.Ua.Sample
                 for (int ii = 0; ii < m_eventSubscriptions.Count; ii++)
                 {
                     // only process items monitoring this node.
-                    if (!Object.ReferenceEquals(monitoredItem, m_eventSubscriptions[ii]))
+                    if (!ReferenceEquals(monitoredItem, m_eventSubscriptions[ii]))
                     {
                         continue;
                     }
@@ -382,10 +377,7 @@ namespace Opc.Ua.Sample
             }
         }
 
-#endregion
-#region Private Fields
         private List<IEventMonitoredItem> m_eventSubscriptions;
         private List<DataChangeMonitoredItem> m_monitoredItems;
-        #endregion
     }
 }

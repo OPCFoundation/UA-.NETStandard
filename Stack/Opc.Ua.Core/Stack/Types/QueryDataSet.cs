@@ -17,10 +17,8 @@ using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua
 {
-    #region NodeTypeDescription Class
     public partial class NodeTypeDescription
     {
-        #region Supporting Properties and Methods
         /// <summary>
         /// A handle assigned to the item during processing.
         /// </summary>
@@ -30,12 +28,8 @@ namespace Opc.Ua
         /// Whether the value has been processed.
         /// </summary>
         public bool Processed { get; set; }
-        #endregion
-
     }
-    #endregion
 
-    #region QueryDataDescription Class
     public partial class QueryDataDescription
     {
         /// <summary>
@@ -43,5 +37,4 @@ namespace Opc.Ua
         /// </summary>
         public NumericRange ParsedIndexRange { get; set; }
     }
-    #endregion
 }

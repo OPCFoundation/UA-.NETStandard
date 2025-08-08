@@ -37,18 +37,13 @@ namespace Opc.Ua.PubSub
     /// </summary>
     internal class UaPublisher : IUaPublisher
     {
-        #region Fields
-        private readonly object m_lock = new object();
-        
-        private readonly IUaPubSubConnection m_pubSubConnection;
-        private readonly WriterGroupDataType m_writerGroupConfiguration;
+        private readonly object m_lock = new();
         private readonly WriterGroupPublishState m_writerGroupPublishState;
 
-        // the component that triggers the publish messages
+        /// <summary>
+        /// the component that triggers the publish messages
+        /// </summary>
         private readonly IntervalRunner m_intervalRunner;
-        #endregion
-
-        #region Constructors
 
         /// <summary>
         /// Initializes a new instance of the <see cref="UaPublisher"/> class.
@@ -64,35 +59,23 @@ namespace Opc.Ua.PubSub
                 throw new ArgumentNullException(nameof(writerGroupConfiguration));
             }
 
-            m_pubSubConnection = pubSubConnection;
-            m_writerGroupConfiguration = writerGroupConfiguration;
+            PubSubConnection = pubSubConnection;
+            WriterGroupConfiguration = writerGroupConfiguration;
             m_writerGroupPublishState = new WriterGroupPublishState();
 
-            m_intervalRunner = new IntervalRunner(m_writerGroupConfiguration.Name, m_writerGroupConfiguration.PublishingInterval, CanPublish, PublishMessages);
-            
+            m_intervalRunner = new IntervalRunner(WriterGroupConfiguration.Name, WriterGroupConfiguration.PublishingInterval, CanPublish, PublishMessages);
         }
 
-        #endregion
-
-        #region Public Properties
         /// <summary>
         /// Get reference to the associated parent <see cref="IUaPubSubConnection"/> instance.
         /// </summary>
-        public IUaPubSubConnection PubSubConnection
-        {
-            get { return m_pubSubConnection; }
-        }
+        public IUaPubSubConnection PubSubConnection { get; }
 
         /// <summary>
         /// Get reference to the associated configuration object, the <see cref="WriterGroupDataType"/> instance.
         /// </summary>
-        public WriterGroupDataType WriterGroupConfiguration
-        {
-            get { return m_writerGroupConfiguration; }
-        }
-        #endregion
+        public WriterGroupDataType WriterGroupConfiguration { get; }
 
-        #region IDisposable Implementation
         /// <summary>
         /// Releases all resources used by the current instance of the <see cref="UaPublisher"/> class.
         /// </summary>
@@ -103,7 +86,7 @@ namespace Opc.Ua.PubSub
         }
 
         /// <summary>
-        ///  When overridden in a derived class, releases the unmanaged resources used by that class 
+        ///  When overridden in a derived class, releases the unmanaged resources used by that class
         ///  and optionally releases the managed resources.
         /// </summary>
         /// <param name="disposing"> true to release both managed and unmanaged resources; false to release only unmanaged resources.</param>
@@ -116,9 +99,6 @@ namespace Opc.Ua.PubSub
                 m_intervalRunner.Dispose();
             }
         }
-        #endregion
-
-        #region Public Methods
 
         /// <summary>
         /// Starts the publisher and makes it ready to send data.
@@ -126,7 +106,7 @@ namespace Opc.Ua.PubSub
         public void Start()
         {
             m_intervalRunner.Start();
-            Utils.Trace("The UaPublisher for WriterGroup '{0}' was started.", m_writerGroupConfiguration.Name);
+            Utils.Trace("The UaPublisher for WriterGroup '{0}' was started.", WriterGroupConfiguration.Name);
         }
 
         /// <summary>
@@ -136,12 +116,9 @@ namespace Opc.Ua.PubSub
         {
             m_intervalRunner.Stop();
 
-            Utils.Trace("The UaPublisher for WriterGroup '{0}' was stopped.", m_writerGroupConfiguration.Name);
+            Utils.Trace("The UaPublisher for WriterGroup '{0}' was stopped.", WriterGroupConfiguration.Name);
         }
-        #endregion
 
-        #region Private Methods
-        
         /// <summary>
         /// Decide if the connection can publish
         /// </summary>
@@ -150,7 +127,7 @@ namespace Opc.Ua.PubSub
         {
             lock (m_lock)
             {
-                return m_pubSubConnection.CanPublish(m_writerGroupConfiguration);
+                return PubSubConnection.CanPublish(WriterGroupConfiguration);
             }
         }
 
@@ -161,20 +138,19 @@ namespace Opc.Ua.PubSub
         {
             try
             {
-                IList<UaNetworkMessage> networkMessages = m_pubSubConnection.CreateNetworkMessages(m_writerGroupConfiguration, m_writerGroupPublishState);
+                IList<UaNetworkMessage> networkMessages = PubSubConnection.CreateNetworkMessages(WriterGroupConfiguration, m_writerGroupPublishState);
                 if (networkMessages != null)
                 {
                     foreach (UaNetworkMessage uaNetworkMessage in networkMessages)
                     {
                         if (uaNetworkMessage != null)
                         {
-                            bool success = m_pubSubConnection.PublishNetworkMessage(uaNetworkMessage);
+                            bool success = PubSubConnection.PublishNetworkMessage(uaNetworkMessage);
                             Utils.Trace(Utils.TraceMasks.Information,
-                                "UaPublisher - PublishNetworkMessage, WriterGroupId:{0}; success = {1}", m_writerGroupConfiguration.WriterGroupId, success.ToString());
+                                "UaPublisher - PublishNetworkMessage, WriterGroupId:{0}; success = {1}", WriterGroupConfiguration.WriterGroupId, success.ToString());
                         }
                     }
                 }
-               
             }
             catch (Exception e)
             {
@@ -182,6 +158,5 @@ namespace Opc.Ua.PubSub
                 Utils.Trace(e, "UaPublisher.PublishMessages");
             }
         }
-        #endregion
     }
 }

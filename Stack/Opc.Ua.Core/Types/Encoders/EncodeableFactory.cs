@@ -35,17 +35,16 @@ namespace Opc.Ua
     /// </remarks>
     public class EncodeableFactory : IEncodeableFactory, IDisposable
     {
-        #region Constructors
         /// <summary>
         /// Creates a factory initialized with the types in the core library.
         /// </summary>
         public EncodeableFactory()
         {
-            m_encodeableTypes = new Dictionary<ExpandedNodeId, Type>();
-            AddEncodeableTypes(this.GetType().GetTypeInfo().Assembly);
+            m_encodeableTypes = [];
+            AddEncodeableTypes(GetType().GetTypeInfo().Assembly);
 
 #if DEBUG
-            InstanceId = Interlocked.Increment(ref m_globalInstanceCount);
+            InstanceId = Interlocked.Increment(ref s_globalInstanceCount);
 #endif
         }
 
@@ -54,11 +53,11 @@ namespace Opc.Ua
         /// </summary>
         public EncodeableFactory(bool shared)
         {
-            m_encodeableTypes = new Dictionary<ExpandedNodeId, Type>();
+            m_encodeableTypes = [];
             AddEncodeableTypes(Utils.DefaultOpcUaCoreAssemblyFullName);
 
 #if DEBUG
-            InstanceId = Interlocked.Increment(ref m_globalInstanceCount);
+            InstanceId = Interlocked.Increment(ref s_globalInstanceCount);
             m_shared = true;
 #endif
         }
@@ -68,19 +67,17 @@ namespace Opc.Ua
         /// </summary>
         public EncodeableFactory(IEncodeableFactory factory)
         {
-            m_encodeableTypes = new Dictionary<ExpandedNodeId, Type>();
+            m_encodeableTypes = [];
 
 #if DEBUG
-            InstanceId = Interlocked.Increment(ref m_globalInstanceCount);
+            InstanceId = Interlocked.Increment(ref s_globalInstanceCount);
 #endif
             if (factory != null)
             {
                 m_encodeableTypes = ((EncodeableFactory)factory.Clone()).m_encodeableTypes;
             }
         }
-        #endregion
 
-        #region IDisposable
         /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
@@ -98,9 +95,7 @@ namespace Opc.Ua
             Dispose(disposing: true);
             GC.SuppressFinalize(this);
         }
-        #endregion
 
-        #region Private Members
         /// <summary>
         /// Loads the types from an assembly.
         /// </summary>
@@ -224,9 +219,7 @@ namespace Opc.Ua
                 m_encodeableTypes[jsonEncodingId] = systemType;
             }
         }
-        #endregion
 
-        #region Static Members
         /// <summary>
         /// The default factory for the process.
         /// </summary>
@@ -249,7 +242,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            object[] attributes = systemType.GetTypeInfo().GetCustomAttributes(typeof(DataContractAttribute), true).ToArray();
+            object[] attributes = [.. systemType.GetTypeInfo().GetCustomAttributes(typeof(DataContractAttribute), true)];
 
             if (attributes != null)
             {
@@ -267,7 +260,7 @@ namespace Opc.Ua
                 }
             }
 
-            attributes = systemType.GetTypeInfo().GetCustomAttributes(typeof(CollectionDataContractAttribute), true).ToArray();
+            attributes = [.. systemType.GetTypeInfo().GetCustomAttributes(typeof(CollectionDataContractAttribute), true)];
 
             if (attributes != null)
             {
@@ -314,9 +307,6 @@ namespace Opc.Ua
             return GetXmlName(value?.GetType());
         }
 
-        #endregion
-
-        #region Public Members
         /// <summary>
         /// Returns a unique identifier for the table instance. Used to debug problems with shared tables.
         /// </summary>
@@ -422,9 +412,9 @@ namespace Opc.Ua
                                     string name = field.Name[..^jsonEncodingSuffix.Length];
                                     object value = field.GetValue(null);
 
-                                    if (value is NodeId)
+                                    if (value is NodeId nodeId)
                                     {
-                                        unboundTypeIds[name] = new ExpandedNodeId((NodeId)value);
+                                        unboundTypeIds[name] = new ExpandedNodeId(nodeId);
                                     }
                                     else
                                     {
@@ -515,9 +505,7 @@ namespace Opc.Ua
         /// The dictionary of encodeabe types.
         /// </summary>
         public IReadOnlyDictionary<ExpandedNodeId, Type> EncodeableTypes => m_encodeableTypes;
-        #endregion
 
-        #region ICloneable Methods
         /// <inheritdoc/>
         public object Clone()
         {
@@ -544,17 +532,12 @@ namespace Opc.Ua
 
             return clone;
         }
-        #endregion
 
-        #region Private Fields
-        private readonly ReaderWriterLockSlim m_readerWriterLockSlim = new ReaderWriterLockSlim();
+        private readonly ReaderWriterLockSlim m_readerWriterLockSlim = new();
         private readonly Dictionary<ExpandedNodeId, Type> m_encodeableTypes;
-
 #if DEBUG
         private readonly bool m_shared;
-        private static int m_globalInstanceCount;
+        private static int s_globalInstanceCount;
 #endif
-        #endregion
-
     }//class
 }//namespace

@@ -40,8 +40,7 @@ namespace Alarms
     /// </summary>
     public class AlarmController
     {
-        #region Variables
-        const int kDefaultCycleTime = 180;
+        private const int kDefaultCycleTime = 180;
         protected BaseDataVariableState m_variable;
         protected int m_value;
         protected bool m_increment = true;
@@ -51,11 +50,10 @@ namespace Alarms
         protected bool m_isBoolean;
         protected bool m_allowChanges;
         protected bool m_reset;
-        protected DateTime m_lastMaxValue = new DateTime();
+        protected DateTime m_lastMaxValue = new();
         protected bool m_validLastMaxValue;
         private int m_branchCount;
         protected int m_midpoint = AlarmDefines.NORMAL_START_VALUE;
-        #endregion
 
         public AlarmController(BaseDataVariableState variable, int interval, bool isBoolean)
         {

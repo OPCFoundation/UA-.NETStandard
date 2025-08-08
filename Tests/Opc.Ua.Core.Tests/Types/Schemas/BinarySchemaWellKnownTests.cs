@@ -43,19 +43,16 @@ namespace Opc.Ua.Core.Tests.Types.Schemas
     [Parallelizable]
     public class BinarySchemaWellKnownTests : BinarySchemaValidator
     {
-        #region DataPointSources
         [DatapointSource]
         public string[][] WellKnownSchemaData = WellKnownDictionaries;
-        #endregion
 
-        #region Test Methods
         /// <summary>
         /// Load well known resource type dictionaries.
         /// </summary>
         [Theory]
         public void LoadResources(string[] schemaData)
         {
-            Assert.That(schemaData.Length == 2);
+            NUnit.Framework.Assert.That(schemaData.Length == 2);
             Assembly assembly = typeof(BinarySchemaValidator).GetTypeInfo().Assembly;
             object resource = LoadResource(typeof(TypeDictionary), schemaData[1], assembly);
             Assert.IsNotNull(resource);
@@ -77,6 +74,5 @@ namespace Opc.Ua.Core.Tests.Types.Schemas
             Assert.IsNotNull(schema.Dictionary);
             Assert.AreEqual(schemaData[0], schema.Dictionary.TargetNamespace);
         }
-        #endregion
     }
 }

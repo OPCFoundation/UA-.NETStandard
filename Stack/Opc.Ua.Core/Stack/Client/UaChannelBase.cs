@@ -23,7 +23,6 @@ namespace Opc.Ua
     /// </summary>
     public abstract class UaChannelBase : IChannelBase, ITransportChannel
     {
-        #region Constructors
         /// <summary>
         /// Initializes the object with the specified binding and endpoint address.
         /// </summary>
@@ -33,9 +32,7 @@ namespace Opc.Ua
             m_settings = null;
             m_uaBypassChannel = null;
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -52,9 +49,7 @@ namespace Opc.Ua
         {
             // nothing to do.
         }
-        #endregion
 
-        #region IChannelBase Members
         /// <summary>
         /// Returns true if the channel uses the UA Binary encoding.
         /// </summary>
@@ -116,9 +111,7 @@ namespace Opc.Ua
         {
             throw new NotImplementedException("UaBaseChannel does not implement ScheduleOutgoingRequest()");
         }
-        #endregion
 
-        #region ITransportChannel Members
         /// <summary>
         /// A masking indicating which features are implemented.
         /// </summary>
@@ -482,7 +475,7 @@ namespace Opc.Ua
         /// <returns>The response.</returns>
         public Task<IServiceResponse> SendRequestAsync(IServiceRequest request, CancellationToken ct)
         {
-            return Task.Factory.FromAsync<IServiceRequest, IServiceResponse>(BeginSendRequest, EndSendRequest, request, null);
+            return Task.Factory.FromAsync(BeginSendRequest, EndSendRequest, request, null);
         }
 
         /// <summary>
@@ -499,16 +492,15 @@ namespace Opc.Ua
         /// The client side implementation of the EndInvokeService service contract.
         /// </summary>
         public abstract InvokeServiceResponseMessage EndInvokeService(IAsyncResult result);
-        #endregion
 
 #if MANAGE_CHANNEL_THREADS
-        #region SendRequestAsyncResult Class
+
         /// <summary>
         /// An AsyncResult object when handling an asynchronous request.
         /// </summary>
         protected class SendRequestAsyncResult : AsyncResultBase, IChannelOutgoingRequest
         {
-        #region Constructors
+
             /// <summary>
             /// Initializes a new instance of the <see cref="SendRequestAsyncResult"/> class.
             /// </summary>
@@ -526,9 +518,7 @@ namespace Opc.Ua
             {
                 m_channel = channel;
             }
-        #endregion
 
-        #region IChannelOutgoingRequest Members
             /// <summary>
             /// Gets the request.
             /// </summary>
@@ -580,9 +570,7 @@ namespace Opc.Ua
                 // operation completed.
                 OperationCompleted();
             }
-        #endregion
 
-        #region Public Members
             /// <summary>
             /// Begins processing an incoming request.
             /// </summary>
@@ -659,9 +647,7 @@ namespace Opc.Ua
 
                 return null;
             }
-        #endregion
 
-        #region Private Members
             /// <summary>
             /// Processes the request.
             /// </summary>
@@ -682,17 +668,14 @@ namespace Opc.Ua
                 // report completion.
                 OperationCompleted();
             }
-        #endregion
 
-        #region Private Fields
             private IChannelBase m_channel;
             private ChannelSendRequestEventHandler m_handler;
             private IServiceRequest m_request;
             private IServiceResponse m_response;
             private Exception m_error;
-        #endregion
+
         }
-        #endregion
 
         /// <summary>
         /// Processes the request.
@@ -712,7 +695,6 @@ namespace Opc.Ua
         }
 #endif
 
-        #region Protected Methods
         /// <summary>
         /// Creates a new UA-binary transport channel if requested. Null otherwise.
         /// </summary>
@@ -851,16 +833,13 @@ namespace Opc.Ua
 
             return channel;
         }
-        #endregion
 
-        #region Private Fields
         internal TransportChannelSettings m_settings;
         internal IServiceMessageContext m_messageContext;
         internal ITransportChannel m_uaBypassChannel;
         internal int m_operationTimeout;
         internal IChannelBase m_channel;
         internal string g_ImplementationString = "Opc.Ua.ChannelBase UA Client " + Utils.GetAssemblySoftwareVersion();
-        #endregion
     }
 
     /// <summary>
@@ -868,7 +847,6 @@ namespace Opc.Ua
     /// </summary>
     public class UaChannelBase<TChannel> : UaChannelBase where TChannel : class, IChannelBase
     {
-        #region IDisposable Members
         /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
@@ -882,9 +860,7 @@ namespace Opc.Ua
 
             base.Dispose(disposing);
         }
-        #endregion
 
-        #region IChannelBase Members
         /// <summary>
         /// The client side implementation of the InvokeService service contract.
         /// </summary>
@@ -892,12 +868,12 @@ namespace Opc.Ua
         {
             IAsyncResult result = null;
 
-            lock (this.Channel)
+            lock (Channel)
             {
-                result = this.Channel.BeginInvokeService(request, null, null);
+                result = Channel.BeginInvokeService(request, null, null);
             }
 
-            return this.Channel.EndInvokeService(result);
+            return Channel.EndInvokeService(result);
         }
 
         /// <summary>
@@ -923,9 +899,7 @@ namespace Opc.Ua
             var asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndInvokeService(asyncResult.InnerResult);
         }
-        #endregion
 
-        #region ITransportChannel Members
         /// <summary>
         /// Closes any existing secure channel and opens a new one.
         /// </summary>
@@ -945,9 +919,7 @@ namespace Opc.Ua
         {
             throw new NotImplementedException("Reconnect for waiting connections is not supported for this channel");
         }
-        #endregion
 
-        #region UaChannelAsyncResult Class
         /// <summary>
         /// An async result object that wraps the UA channel.
         /// </summary>
@@ -1020,18 +992,13 @@ namespace Opc.Ua
                 return asyncResult;
             }
         }
-        #endregion
 
-        #region Protected Methods
         /// <summary>
         /// Gets the inner channel.
         /// </summary>
         /// <value>The channel.</value>
         protected TChannel Channel => m_channel;
-        #endregion
 
-        #region Private Fields
         private new TChannel m_channel;
-        #endregion
     }
 }

@@ -52,9 +52,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         public IServiceMessageContext EncoderContext;
         public Dictionary<StructureType, (ExpandedNodeId, Type)> TypeDictionary;
 
-        public readonly string[] DefaultEncodings = new string[] { BrowseNames.DefaultBinary, BrowseNames.DefaultJson, BrowseNames.DefaultXml };
+        public readonly string[] DefaultEncodings = [BrowseNames.DefaultBinary, BrowseNames.DefaultJson, BrowseNames.DefaultXml];
 
-        #region TestDataSource
         public enum TestRanks
         {
             Scalar = ValueRanks.Scalar,
@@ -67,7 +66,11 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         {
             public TestType(BuiltInType builtInType)
             {
-                Name = Enum.GetName(typeof(BuiltInType), builtInType);
+                Name = Enum.GetName(
+#if !NET8_0_OR_GREATER
+                    typeof(BuiltInType),
+#endif
+                    builtInType);
                 TypeId = new NodeId((uint)builtInType);
             }
 
@@ -93,7 +96,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             public TestTypeCollection(int capacity) : base(capacity) { }
             public static TestTypeCollection ToTestTypeCollection(TestType[] values)
             {
-                return values != null ? new TestTypeCollection(values) : new TestTypeCollection();
+                return values != null ? [.. values] : [];
             }
 
             public void Add(BuiltInType builtInType)
@@ -108,18 +111,22 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         }
 
         [DatapointSource]
-        public static TestType[] TypeSource = new TestTypeCollection(
-            ((BuiltInType[])Enum.GetValues(typeof(BuiltInType)))
-            .Where(b => b > BuiltInType.Null && b <= BuiltInType.DiagnosticInfo)
-            .Select(b => new TestType(b))) {
-            { nameof(DataTypeIds.BuildInfo), DataTypeIds.BuildInfo },
-            { nameof(DataTypeIds.Duration), DataTypeIds.Duration },
-            { nameof(DataTypeIds.BaseDataType), DataTypeIds.BaseDataType },
-            { nameof(DataTypeIds.Structure), DataTypeIds.Structure },
-        }.ToArray();
-        #endregion
+        public static readonly TestType[] TypeSource = new TestTypeCollection(
+#if NET8_0_OR_GREATER
+            Enum.GetValues<BuiltInType>()
+#else
+            Enum.GetValues(typeof(BuiltInType))
+                .Cast<BuiltInType>()
+#endif
+                .Where(b => b > BuiltInType.Null && b <= BuiltInType.DiagnosticInfo)
+                .Select(b => new TestType(b)))
+            {
+                    { nameof(DataTypeIds.BuildInfo), DataTypeIds.BuildInfo },
+                    { nameof(DataTypeIds.Duration), DataTypeIds.Duration },
+                    { nameof(DataTypeIds.BaseDataType), DataTypeIds.BaseDataType },
+                    { nameof(DataTypeIds.Structure), DataTypeIds.Structure },
+            }.ToArray();
 
-        #region Test Setup
         [OneTimeSetUp]
         protected new void OneTimeSetUp()
         {
@@ -143,9 +150,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         {
             base.TearDown();
         }
-        #endregion
 
-        #region Test Methods
         /// <summary>
         /// Test the functionality to create a custom complex type.
         /// </summary>
@@ -264,7 +269,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             byte[] buffer;
             using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
-                using (IEncoder encoder = CreateEncoder(EncodingType.Json, encoderContext, encoderStream, carType))
+                using (var  encoder = CreateEncoder(EncodingType.Json, encoderContext, encoderStream, carType))
                 {
                     encoder.WriteEncodeable("Car", car, carType);
                 }
@@ -444,7 +449,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             byte[] buffer;
             using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
-                using (IEncoder encoder = CreateEncoder(EncodingType.Json, encoderContext, encoderStream, arraysTypes))
+                using (var  encoder = CreateEncoder(EncodingType.Json, encoderContext, encoderStream, arraysTypes))
                 {
                     encoder.WriteEncodeable("Arrays", arrays, arraysTypes);
                 }
@@ -627,10 +632,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 NamespaceUris = mockResolver.NamespaceUris,
             };
 
-            byte [] buffer;
+            byte[] buffer;
             using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
-                using (IEncoder encoder = CreateEncoder(EncodingType.Json, encoderContext, encoderStream, arraysTypes))
+                using (var  encoder = CreateEncoder(EncodingType.Json, encoderContext, encoderStream, arraysTypes))
                 {
                     encoder.WriteEncodeable("TestType", testType, arraysTypes);
                 }
@@ -658,7 +663,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 PropertyInt16 = 2,
                 PropertyInt32 = 3,
                 PropertyInt64 = 4,
-                PropertyInt32Array = new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 },
+                PropertyInt32Array = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
                 PropertyInt322DArray = new[,] { { 1, 2, 3, }, { 4, 5, 6 } },
                 PropertyInt325DArray = new[, , , ,] {
                     {
@@ -674,9 +679,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 },
             };
         }
-        #endregion
 
-        #region Private Methods
         private object GetRandom(NodeId valueType)
         {
             BuiltInType builtInType = TypeInfo.GetBuiltInType(valueType);
@@ -686,26 +689,24 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             }
             if (valueType == DataTypeIds.BuildInfo)
             {
-                var buildInfo = new BuildInfo() {
+                return new BuildInfo() {
                     BuildDate = DataGenerator.GetRandomDateTime(),
                     BuildNumber = "1.4." + DataGenerator.GetRandomByte().ToString(CultureInfo.InvariantCulture),
                     ManufacturerName = "OPC Foundation",
                     ProductName = "Complex Type Client",
                     ProductUri = "http://opcfoundation.org/ComplexTypeClient",
                 };
-                return buildInfo;
             }
             else
             {
-                Assert.Fail($"Unexpected ValueType {valueType}");
+                NUnit.Framework.Assert.Fail($"Unexpected ValueType {valueType}");
             }
             return null;
         }
 
-        private void Iterate(int[] dimensions, int[] indices)
+        private static void Iterate(int[] dimensions, int[] indices)
         {
-            int i = 0;
-            while (i < dimensions.Length)
+            for (int i = 0; i < dimensions.Length; i++)
             {
                 indices[i]++;
                 if (indices[i] < dimensions[i])
@@ -713,7 +714,6 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     break;
                 }
                 indices[i] = 0;
-                i++;
             }
         }
 
@@ -728,15 +728,13 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             factory.AddEncodeableType(internalNodeId, enumType);
         }
 
-        private ExpandedNodeId NormalizeExpandedNodeId(ExpandedNodeId expandedNodeId, NamespaceTable namespaceUris)
+        private static ExpandedNodeId NormalizeExpandedNodeId(ExpandedNodeId expandedNodeId, NamespaceTable namespaceUris)
         {
             var nodeId = ExpandedNodeId.ToNodeId(expandedNodeId, namespaceUris);
             return NodeId.ToExpandedNodeId(nodeId, namespaceUris);
         }
-        #endregion Private Methods
     }
 
-    #region TestDataComplexType
     [StructureDefinition(BaseDataType = StructureBaseDataType.Structure)]
     [StructureTypeId(ComplexTypeId = "i=10000", BinaryEncodingId = "i=10001", XmlEncodingId = "i=10002")]
     public class TestDataComplexType : BaseComplexType
@@ -773,5 +771,4 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         [StructureField(BuiltInType = (int)BuiltInType.Int32, ValueRank = 5, IsOptional = false)]
         public int[,,,,] PropertyInt325DArray { get; set; }
     }
-    #endregion
 }

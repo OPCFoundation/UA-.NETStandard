@@ -49,7 +49,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="identity">The user identity.</param>
         public SystemConfigurationIdentity(IUserIdentity identity)
-        : base(identity, new List<Role> { Role.SecurityAdmin, Role.ConfigureAdmin })
+        : base(identity, [Role.SecurityAdmin, Role.ConfigureAdmin])
         {
         }
     }
@@ -59,7 +59,6 @@ namespace Opc.Ua.Server
     /// </summary>
     public class ConfigurationNodeManager : DiagnosticsNodeManager
     {
-        #region Constructors
         /// <summary>
         /// Initializes the configuration and diagnostics manager.
         /// </summary>
@@ -75,14 +74,14 @@ namespace Opc.Ua.Server
             {
                 m_rejectedStore = new CertificateStoreIdentifier(rejectedStorePath);
             }
-            m_certificateGroups = new List<ServerCertificateGroup>();
+            m_certificateGroups = [];
             m_configuration = configuration;
             // TODO: configure cert groups in configuration
             var defaultApplicationGroup = new ServerCertificateGroup {
-                NodeId = Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
-                BrowseName = Opc.Ua.BrowseNames.DefaultApplicationGroup,
-                CertificateTypes = Array.Empty<NodeId>(),
-                ApplicationCertificates = new CertificateIdentifierCollection(),
+                NodeId = ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
+                BrowseName = BrowseNames.DefaultApplicationGroup,
+                CertificateTypes = [],
+                ApplicationCertificates = [],
                 IssuerStore = new CertificateStoreIdentifier(configuration.SecurityConfiguration.TrustedIssuerCertificates.StorePath),
                 TrustedStore = new CertificateStoreIdentifier(configuration.SecurityConfiguration.TrustedPeerCertificates.StorePath)
             };
@@ -91,10 +90,10 @@ namespace Opc.Ua.Server
             if (configuration.SecurityConfiguration.UserIssuerCertificates != null && configuration.SecurityConfiguration.TrustedUserCertificates != null)
             {
                 var defaultUserGroup = new ServerCertificateGroup {
-                    NodeId = Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup,
-                    BrowseName = Opc.Ua.BrowseNames.DefaultUserTokenGroup,
-                    CertificateTypes = Array.Empty<NodeId>(),
-                    ApplicationCertificates = new CertificateIdentifierCollection(),
+                    NodeId = ObjectIds.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup,
+                    BrowseName = BrowseNames.DefaultUserTokenGroup,
+                    CertificateTypes = [],
+                    ApplicationCertificates = [],
                     IssuerStore = new CertificateStoreIdentifier(configuration.SecurityConfiguration.UserIssuerCertificates.StorePath),
                     TrustedStore = new CertificateStoreIdentifier(configuration.SecurityConfiguration.TrustedUserCertificates.StorePath)
                 };
@@ -105,10 +104,10 @@ namespace Opc.Ua.Server
             if (configuration.SecurityConfiguration.HttpsIssuerCertificates != null && configuration.SecurityConfiguration.TrustedHttpsCertificates != null)
             {
                 defaultHttpsGroup = new ServerCertificateGroup {
-                    NodeId = Opc.Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultHttpsGroup,
-                    BrowseName = Opc.Ua.BrowseNames.DefaultHttpsGroup,
-                    CertificateTypes = Array.Empty<NodeId>(),
-                    ApplicationCertificates = new CertificateIdentifierCollection(),
+                    NodeId = ObjectIds.ServerConfiguration_CertificateGroups_DefaultHttpsGroup,
+                    BrowseName = BrowseNames.DefaultHttpsGroup,
+                    CertificateTypes = [],
+                    ApplicationCertificates = [],
                     IssuerStore = new CertificateStoreIdentifier(configuration.SecurityConfiguration.HttpsIssuerCertificates.StorePath),
                     TrustedStore = new CertificateStoreIdentifier(configuration.SecurityConfiguration.TrustedHttpsCertificates.StorePath)
                 };
@@ -120,19 +119,17 @@ namespace Opc.Ua.Server
             // under the CertificateTypes field.
             foreach (CertificateIdentifier cert in configuration.SecurityConfiguration.ApplicationCertificates)
             {
-                defaultApplicationGroup.CertificateTypes = defaultApplicationGroup.CertificateTypes.Concat(new NodeId[] { cert.CertificateType }).ToArray();
+                defaultApplicationGroup.CertificateTypes = [.. defaultApplicationGroup.CertificateTypes, .. new NodeId[] { cert.CertificateType }];
                 defaultApplicationGroup.ApplicationCertificates.Add(cert);
 
                 if (cert.CertificateType == ObjectTypeIds.HttpsCertificateType && defaultHttpsGroup != null)
                 {
-                    defaultHttpsGroup.CertificateTypes = defaultHttpsGroup.CertificateTypes.Concat(new NodeId[] { cert.CertificateType }).ToArray();
+                    defaultHttpsGroup.CertificateTypes = [.. defaultHttpsGroup.CertificateTypes, .. new NodeId[] { cert.CertificateType }];
                     defaultHttpsGroup.ApplicationCertificates.Add(cert);
                 }
             }
         }
-        #endregion
 
-        #region INodeManager Members
         /// <summary>
         /// Replaces the generic node with a node specific to the model.
         /// </summary>
@@ -229,9 +226,7 @@ namespace Opc.Ua.Server
             }
             return base.AddBehaviourToPredefinedNode(context, predefinedNode);
         }
-        #endregion
 
-        #region Public methods
         /// <summary>
         /// Creates the configuration node for the server.
         /// </summary>
@@ -240,12 +235,12 @@ namespace Opc.Ua.Server
             ApplicationConfiguration configuration)
         {
             // setup server configuration node
-            m_serverConfigurationNode.ServerCapabilities.Value = configuration.ServerConfiguration.ServerCapabilities.ToArray();
+            m_serverConfigurationNode.ServerCapabilities.Value = [.. configuration.ServerConfiguration.ServerCapabilities];
             m_serverConfigurationNode.ServerCapabilities.ValueRank = ValueRanks.OneDimension;
-            m_serverConfigurationNode.ServerCapabilities.ArrayDimensions = new ReadOnlyList<uint>(new List<uint> { 0 });
-            m_serverConfigurationNode.SupportedPrivateKeyFormats.Value = configuration.ServerConfiguration.SupportedPrivateKeyFormats.ToArray();
+            m_serverConfigurationNode.ServerCapabilities.ArrayDimensions = new ReadOnlyList<uint>([0]);
+            m_serverConfigurationNode.SupportedPrivateKeyFormats.Value = [.. configuration.ServerConfiguration.SupportedPrivateKeyFormats];
             m_serverConfigurationNode.SupportedPrivateKeyFormats.ValueRank = ValueRanks.OneDimension;
-            m_serverConfigurationNode.SupportedPrivateKeyFormats.ArrayDimensions = new ReadOnlyList<uint>(new List<uint> { 0 });
+            m_serverConfigurationNode.SupportedPrivateKeyFormats.ArrayDimensions = new ReadOnlyList<uint>([0]);
             m_serverConfigurationNode.MaxTrustListSize.Value = (uint)configuration.ServerConfiguration.MaxTrustListSize;
             m_serverConfigurationNode.MulticastDnsEnabled.Value = configuration.ServerConfiguration.MultiCastDnsEnabled;
 
@@ -379,9 +374,7 @@ namespace Opc.Ua.Server
                 }
             }
         }
-        #endregion
 
-        #region Private Methods
         private ServiceResult UpdateCertificate(
            ISystemContext context,
            MethodState method,
@@ -396,7 +389,7 @@ namespace Opc.Ua.Server
         {
             HasApplicationSecureAdminAccess(context);
 
-            object[] inputArguments = new object[] { certificateGroupId, certificateTypeId, certificate, issuerCertificates, privateKeyFormat, privateKey };
+            object[] inputArguments = [certificateGroupId, certificateTypeId, certificate, issuerCertificates, privateKeyFormat, privateKey];
             X509Certificate2 newCert = null;
 
             Server.ReportCertificateUpdateRequestedAuditEvent(context, objectId, method, inputArguments);
@@ -768,7 +761,7 @@ namespace Opc.Ua.Server
             // No rejected store configured
             if (m_rejectedStore == null)
             {
-                certificates = Array.Empty<byte[]>();
+                certificates = [];
                 return StatusCodes.Good;
             }
 
@@ -783,7 +776,7 @@ namespace Opc.Ua.Server
                     {
                         rawList.Add(cert.RawData);
                     }
-                    certificates = rawList.ToArray();
+                    certificates = [.. rawList];
                 }
             }
             finally
@@ -811,7 +804,7 @@ namespace Opc.Ua.Server
             }
 
             certificateTypeIds = certificateGroup.CertificateTypes;
-            certificates = certificateGroup.ApplicationCertificates.Select(s => s.Certificate?.RawData).ToArray();
+            certificates = [.. certificateGroup.ApplicationCertificates.Select(s => s.Certificate?.RawData)];
 
             return ServiceResult.Good;
         }
@@ -865,7 +858,7 @@ namespace Opc.Ua.Server
                     return null;
                 }
 
-                IList<BaseInstanceState> serverNamespacesChildren = new List<BaseInstanceState>();
+                IList<BaseInstanceState> serverNamespacesChildren = [];
                 serverNamespacesNode.GetChildren(SystemContext, serverNamespacesChildren);
 
                 foreach (BaseInstanceState namespacesReference in serverNamespacesChildren)
@@ -886,7 +879,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                IList<IReference> serverNamespacesReferencs = new List<IReference>();
+                IList<IReference> serverNamespacesReferencs = [];
                 serverNamespacesNode.GetReferences(SystemContext, serverNamespacesReferencs);
 
                 foreach (IReference serverNamespacesReference in serverNamespacesReferencs)
@@ -937,9 +930,7 @@ namespace Opc.Ua.Server
                 }
             }
         }
-        #endregion
 
-        #region Private Fields
         private class UpdateCertificateData
         {
             public NodeId SessionId;
@@ -962,9 +953,8 @@ namespace Opc.Ua.Server
 
         private ServerConfigurationState m_serverConfigurationNode;
         private readonly ApplicationConfiguration m_configuration;
-        private readonly IList<ServerCertificateGroup> m_certificateGroups;
+        private readonly List<ServerCertificateGroup> m_certificateGroups;
         private readonly CertificateStoreIdentifier m_rejectedStore;
-        private readonly Dictionary<string, NamespaceMetadataState> m_namespaceMetadataStates = new Dictionary<string, NamespaceMetadataState>();
-        #endregion
+        private readonly Dictionary<string, NamespaceMetadataState> m_namespaceMetadataStates = [];
     }
 }

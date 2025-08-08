@@ -42,7 +42,6 @@ namespace Opc.Ua
         private const string kCertSearchString = "*.der";
         private const string kPemCertSearchString = "*.pem";
 
-        #region Constructors
         /// <summary>
         /// Initializes a store for a directory path.
         /// </summary>
@@ -56,11 +55,9 @@ namespace Opc.Ua
         public DirectoryCertificateStore(bool noSubDirs)
         {
             m_noSubDirs = noSubDirs;
-            m_certificates = new Dictionary<string, Entry>();
+            m_certificates = [];
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// May be called by the application to clean up resources.
         /// </summary>
@@ -86,19 +83,12 @@ namespace Opc.Ua
             }
             Close();
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The directory containing the certificate store.
         /// </summary>
-        public DirectoryInfo Directory
-        {
-            get { return m_directory; }
-        }
-        #endregion
+        public DirectoryInfo Directory => m_directory;
 
-        #region ICertificateStore Members
         /// <inheritdoc/>
         public void Open(string location, bool noPrivateKeys = false)
         {
@@ -589,19 +579,20 @@ namespace Opc.Ua
                                 .Append(Path.DirectorySeparatorChar)
                                 .Append(fileRoot);
 
-                            // By default keys are not persisted
-                            X509KeyStorageFlags defaultStorageSet = X509KeyStorageFlags.Exportable;
+                            X509KeyStorageFlags defaultStorageSet = X509KeyStorageFlags.DefaultKeySet;
 #if NETSTANDARD2_1_OR_GREATER || NET472_OR_GREATER || NET5_0_OR_GREATER
                             if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
                             {
                                 defaultStorageSet |= X509KeyStorageFlags.EphemeralKeySet;
                             }
 #endif
+                            // By default keys are not persisted
+                            defaultStorageSet |= X509KeyStorageFlags.Exportable;
 
-                            X509KeyStorageFlags[] storageFlags = {
-                        defaultStorageSet | X509KeyStorageFlags.MachineKeySet,
-                        defaultStorageSet | X509KeyStorageFlags.UserKeySet
-                    };
+                            X509KeyStorageFlags[] storageFlags = [
+                                defaultStorageSet | X509KeyStorageFlags.MachineKeySet,
+                                defaultStorageSet | X509KeyStorageFlags.UserKeySet
+                            ];
 
                             var privateKeyFilePfx = new FileInfo(filePath + kPfxExtension);
                             var privateKeyFilePem = new FileInfo(filePath + kPemExtension);
@@ -784,7 +775,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public bool SupportsCRLs { get { return true; } }
+        public bool SupportsCRLs => true;
 
         /// <inheritdoc/>
         [Obsolete("Use EnumerateCRLsAsync instead.")]
@@ -937,13 +928,11 @@ namespace Opc.Ua
 
             return Task.FromResult(false);
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Reads the current contents of the directory from disk.
         /// </summary>
-        private IDictionary<string, Entry> Load(string thumbprint)
+        private Dictionary<string, Entry> Load(string thumbprint)
         {
             lock (m_lock)
             {
@@ -1105,7 +1094,7 @@ namespace Opc.Ua
             {
                 char ch = commonName[ii];
 
-                if ("<>:\"/\\|?*".Contains(ch))
+                if ("<>:\"/\\|?*".Contains(ch, StringComparison.Ordinal))
                 {
                     ch = '+';
                 }
@@ -1191,9 +1180,7 @@ namespace Opc.Ua
 
             return fileInfo;
         }
-        #endregion
 
-        #region Private Class
         private class Entry
         {
             public FileInfo CertificateFile;
@@ -1202,10 +1189,8 @@ namespace Opc.Ua
             public X509Certificate2 CertificateWithPrivateKey;
             public DateTime LastWriteTimeUtc;
         }
-        #endregion
 
-        #region Private Fields
-        private readonly object m_lock = new object();
+        private readonly object m_lock = new();
         private readonly bool m_noSubDirs;
         private DirectoryInfo m_directory;
         private DirectoryInfo m_certificateSubdir;
@@ -1213,6 +1198,5 @@ namespace Opc.Ua
         private DirectoryInfo m_privateKeySubdir;
         private readonly Dictionary<string, Entry> m_certificates;
         private DateTime m_lastDirectoryCheck;
-        #endregion
     }
 }

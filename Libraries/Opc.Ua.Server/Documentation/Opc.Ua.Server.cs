@@ -35,6 +35,6 @@ namespace Opc.Ua.Server
     /// API that can be used to provide access to data and events in an external system.
     /// </summary>
     ///<exclude/>
-    [System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
+    [System.Runtime.CompilerServices.CompilerGenerated()]
     public class NamespaceDoc;
 }

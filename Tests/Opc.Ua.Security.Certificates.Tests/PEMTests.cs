@@ -22,7 +22,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 #if !NET8_0_OR_GREATER
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-                Assert.Ignore("Skipped due to https://github.com/dotnet/runtime/issues/82682");
+                NUnit.Framework.Assert.Ignore("Skipped due to https://github.com/dotnet/runtime/issues/82682");
             }
 #endif
             // Arrange
@@ -35,9 +35,9 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.IsNotNull(certs, "Certificates collection should not be null.");
             Assert.IsNotEmpty(certs, "Certificates collection should not be empty.");
             Assert.AreEqual(3, certs.Count, "Expected 3 certificates in the collection.");
-            Assert.NotNull(certs.Find(System.Security.Cryptography.X509Certificates.X509FindType.FindBySerialNumber, "029D603370C20AE2", false)[0]);
-            Assert.NotNull(certs.Find(System.Security.Cryptography.X509Certificates.X509FindType.FindBySerialNumber, "6E4385A67BDE4505", false)[0]);
-            X509Certificate2 leaf = certs.Find(System.Security.Cryptography.X509Certificates.X509FindType.FindBySerialNumber, "51BB4F74500125AD", false)[0];
+            Assert.NotNull(certs.Find(X509FindType.FindBySerialNumber, "029D603370C20AE2", false)[0]);
+            Assert.NotNull(certs.Find(X509FindType.FindBySerialNumber, "6E4385A67BDE4505", false)[0]);
+            X509Certificate2 leaf = certs.Find(X509FindType.FindBySerialNumber, "51BB4F74500125AD", false)[0];
             Assert.NotNull(leaf);
 
             //Act
@@ -52,11 +52,11 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.IsNotEmpty(updatedCerts, "Certificates collection should not be empty.");
             Assert.AreEqual(2, updatedCerts.Count, "Expected 2 certificates in the collection.");
             //root
-            Assert.NotNull(updatedCerts.Find(System.Security.Cryptography.X509Certificates.X509FindType.FindBySerialNumber, "029D603370C20AE2", false)[0]);
+            Assert.NotNull(updatedCerts.Find(X509FindType.FindBySerialNumber, "029D603370C20AE2", false)[0]);
             //intermediate
-            Assert.NotNull(updatedCerts.Find(System.Security.Cryptography.X509Certificates.X509FindType.FindBySerialNumber, "6E4385A67BDE4505", false)[0]);
+            Assert.NotNull(updatedCerts.Find(X509FindType.FindBySerialNumber, "6E4385A67BDE4505", false)[0]);
             // leaf
-            Assert.AreEqual(0, updatedCerts.Find(System.Security.Cryptography.X509Certificates.X509FindType.FindBySerialNumber, "51BB4F74500125AD", false).Count);
+            Assert.AreEqual(0, updatedCerts.Find(X509FindType.FindBySerialNumber, "51BB4F74500125AD", false).Count);
         }
 
         [Test]
@@ -65,7 +65,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 #if !NET8_0_OR_GREATER
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-                Assert.Ignore("Skipped due to https://github.com/dotnet/runtime/issues/82682");
+                NUnit.Framework.Assert.Ignore("Skipped due to https://github.com/dotnet/runtime/issues/82682");
             }
 #endif
             // Arrange
@@ -78,7 +78,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.IsNotNull(certs, "Certificates collection should not be null.");
             Assert.IsNotEmpty(certs, "Certificates collection should not be empty.");
             Assert.AreEqual(1, certs.Count, "Expected 1 certificate in the collection.");
-            X509Certificate2 leaf = certs.Find(System.Security.Cryptography.X509Certificates.X509FindType.FindBySerialNumber, "51BB4F74500125AD", false)[0];
+            X509Certificate2 leaf = certs.Find(X509FindType.FindBySerialNumber, "51BB4F74500125AD", false)[0];
             Assert.NotNull(leaf);
 
             //Act
@@ -102,11 +102,11 @@ namespace Opc.Ua.Security.Certificates.Tests
         /// <summary>
         /// 16 bytes for AES-128
         /// </summary>
-        private static readonly byte[] s_aesKey = new byte[] { 0x13, 0x5e, 0xcf, 0xdd, 0x96, 0xf2, 0x99, 0x63, 0x9e, 0x2d, 0x50, 0x1c, 0x3a, 0xbb, 0xde, 0x02 };
+        private static readonly byte[] s_aesKey = [0x13, 0x5e, 0xcf, 0xdd, 0x96, 0xf2, 0x99, 0x63, 0x9e, 0x2d, 0x50, 0x1c, 0x3a, 0xbb, 0xde, 0x02];
         /// <summary>
         /// 16 bytes
         /// </summary>
-        private static readonly byte[] s_aesIV = new byte[] { 0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10, 0xEF, 0xCD, 0xAB, 0x89, 0x67, 0x45, 0x23, 0x01 };
+        private static readonly byte[] s_aesIV = [0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10, 0xEF, 0xCD, 0xAB, 0x89, 0x67, 0x45, 0x23, 0x01];
 
         private static byte[] DecryptKeyPairPemBase64()
         {

@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -44,12 +44,9 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
     [Parallelizable]
     public class UANodeSetHelpersTests
     {
-        #region DataPointSource
         [DatapointSource]
-        public static readonly NodeSet2Asset[] NodeSet2AssetArray = new AssetCollection<NodeSet2Asset>(Ua.Tests.TestUtils.EnumerateTestAssets("*.NodeSet2.xml")).ToArray();
-        #endregion
+        public static readonly NodeSet2Asset[] NodeSet2AssetArray = [.. AssetCollection<NodeSet2Asset>.CreateFromFiles(Ua.Tests.TestUtils.EnumerateTestAssets("*.NodeSet2.xml"))];
 
-        #region Test Setup
         [OneTimeSetUp]
         protected void OneTimeSetUp()
         {
@@ -69,16 +66,14 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
         protected void TearDown()
         {
         }
-        #endregion
 
-        #region Test Methods
         /// <summary>
         /// Test Structure Field ArrayDimensions attribute is correctly imported respectively exported
         /// </summary>
         [Test]
         public void ArrayDimensionsValidationTest()
         {
-            const string bufferPath = @"./ArrayDimensionsValidationTest.xml";
+            const string bufferPath = "./ArrayDimensionsValidationTest.xml";
             const string importBuffer = @"<?xml version='1.0' encoding='utf-8'?>
                 <UANodeSet xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xmlns:xsd='http://www.w3.org/2001/XMLSchema' LastModified='2021-09-16T19:10:18.097476Z' xmlns='http://opcfoundation.org/UA/2011/03/UANodeSet.xsd'>
                   <NamespaceUris>
@@ -133,7 +128,7 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
 
             using (var importStream = new MemoryStream(Encoding.UTF8.GetBytes(importBuffer)))
             {
-                var importedNodeSet = Opc.Ua.Export.UANodeSet.Read(importStream);
+                var importedNodeSet = Export.UANodeSet.Read(importStream);
 
                 var importedNodeStates = new NodeStateCollection();
                 var localContext = new SystemContext {
@@ -263,9 +258,7 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
             }
         }
     }
-    #endregion
 
-    #region Asset helpers
     /// <summary>
     /// A NodeSet2 as test asset.
     /// </summary>
@@ -288,5 +281,4 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
             return $"{file}";
         }
     }
-    #endregion
 }

@@ -62,7 +62,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [DatapointSource]
         // for benchmarking with different escaped strings
         public static readonly string[] EscapeTestStrings =
-        {
+        [
             // The use case without escape characters, plain text
                 "The quick brown fox jumps over the lazy dog.",
             // The use case with many control characters escaped, 1 char spaces
@@ -83,7 +83,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 "     \0     \x01     \x02     \x03     \x04     ",
             // The use case with all escape characters and a long string
                 "Ascii characters, special characters \n \b & control characters \0 \x04 ␀ ␁ ␂ ␃ ␄. This is a test.",
-        };
+        ];
 
         /// <summary>
         /// Benchmark encoding of the previous implementation.
@@ -353,7 +353,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.IsTrue(Utils.IsEqual(resultLegacy, resultNewtonSoft));
         }
 
-        #region Test Setup
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
@@ -371,9 +370,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             m_memoryStream = null;
             m_memoryManager = null;
         }
-        #endregion
 
-        #region Benchmark Setup
         /// <summary>4
         /// Set up some variables for benchmarks.
         /// </summary>
@@ -395,9 +392,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             m_memoryStream = null;
             m_memoryManager = null;
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Version used previously in JsonEncoder.
         /// </summary>
@@ -808,39 +803,37 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
             m_streamWriter.Write(stringBuilder);
         }
-        #endregion
 
-        #region Private Fields
         private static string m_testString;
         private RecyclableMemoryStreamManager m_memoryManager;
         private RecyclableMemoryStream m_memoryStream;
         private StreamWriter m_streamWriter;
         private readonly int m_streamSize = 1024;
-        private static readonly string m_specialString = "\"\\\n\r\t\b\f";
+        private const string m_specialString = "\"\\\n\r\t\b\f";
 
         /// <summary>
         /// Declare static readonly characters for the special characters
         /// </summary>
-        private static readonly char sro_quotation = '\"';
-        private static readonly char sro_backslash = '\\';
-        private static readonly char sro_newline = '\n';
-        private static readonly char sro_return = '\r';
-        private static readonly char sro_tab = '\t';
-        private static readonly char sro_backspace = '\b';
-        private static readonly char sro_formfeed = '\f';
-        private static readonly char[] m_specialChars = new char[] { sro_quotation, sro_backslash, sro_newline, sro_return, sro_tab, sro_backspace, sro_formfeed };
+        private const char sro_quotation = '\"';
+        private const char sro_backslash = '\\';
+        private const char sro_newline = '\n';
+        private const char sro_return = '\r';
+        private const char sro_tab = '\t';
+        private const char sro_backspace = '\b';
+        private const char sro_formfeed = '\f';
+        private static readonly char[] m_specialChars = [sro_quotation, sro_backslash, sro_newline, sro_return, sro_tab, sro_backspace, sro_formfeed];
 
         /// <summary>
         /// Declare static readonly characters for the substitution characters
         /// </summary>
-        private static readonly char sro_quotationSub = '\"';
-        private static readonly char sro_backslashSub = '\\';
-        private static readonly char sro_newlineSub = 'n';
-        private static readonly char sro_returnSub = 'r';
-        private static readonly char sro_tabSub = 't';
-        private static readonly char sro_backspaceSub = 'b';
-        private static readonly char sro_formfeedSub = 'f';
-        private static readonly char[] m_substitution = new char[] { sro_quotationSub, sro_backslashSub, sro_newlineSub, sro_returnSub, sro_tabSub, sro_backspaceSub, sro_formfeedSub };
+        private const char sro_quotationSub = '\"';
+        private const char sro_backslashSub = '\\';
+        private const char sro_newlineSub = 'n';
+        private const char sro_returnSub = 'r';
+        private const char sro_tabSub = 't';
+        private const char sro_backspaceSub = 'b';
+        private const char sro_formfeedSub = 'f';
+        private static readonly char[] m_substitution = [sro_quotationSub, sro_backslashSub, sro_newlineSub, sro_returnSub, sro_tabSub, sro_backspaceSub, sro_formfeedSub];
 
         /// <summary>
         /// Special characters as const
@@ -853,7 +846,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         private const char s_backspace = '\b';
         private const char s_formfeed = '\f';
 
-        private static readonly char[] m_specialCharsConst = new char[] { s_quotation, s_backslash, s_newline, s_return, s_tab, s_backspace, s_formfeed };
+        private static readonly char[] m_specialCharsConst = [s_quotation, s_backslash, s_newline, s_return, s_tab, s_backspace, s_formfeed];
 
         /// <summary>
         /// Substitution as const
@@ -866,11 +859,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         private const char s_backspaceSub = 'b';
         private const char s_formfeedSub = 'f';
 
-        private static readonly char[] m_substitutionConst = new char[] { s_quotationSub, s_backslashSub, s_newlineSub, s_returnSub, s_tabSub, s_backspaceSub, s_formfeedSub };
+        private static readonly char[] m_substitutionConst = [s_quotationSub, s_backslashSub, s_newlineSub, s_returnSub, s_tabSub, s_backspaceSub, s_formfeedSub];
 
-        private static readonly string[] m_substitutionStrings = new string[] { "\\\"", "\\\\", "\\n", "\\r", "\\t", "\\b", "\\f" };
-        private static readonly Dictionary<char, string> m_replace = new Dictionary<char, string>
-        {
+        private static readonly string[] m_substitutionStrings = ["\\\"", "\\\\", "\\n", "\\r", "\\t", "\\b", "\\f"];
+        private static readonly Dictionary<char, string> m_replace = new() {
             {  '\"', "\\\"" },
             {  '\\', "\\\\" },
             { '\n', "\\n" },
@@ -879,6 +871,5 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             { '\b', "\\b" },
             { '\f', "\\f" }
         };
-        #endregion
     }
 }

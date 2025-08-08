@@ -14,7 +14,6 @@ namespace Opc.Ua.Server.Tests
     [Parallelizable]
     public class CustomNodeManagerTests
     {
-        #region Test Methods
         /// <summary>
         /// Tests the componentCache methods with multiple threads
         /// </summary>
@@ -157,7 +156,6 @@ namespace Opc.Ua.Server.Tests
 
             await Task.CompletedTask.ConfigureAwait(false);
         }
-        #endregion
 
         public static async Task<(bool IsSuccess, Exception Error)> RunTaskInParallel(Func<Task> task, int iterations)
         {
@@ -198,7 +196,6 @@ namespace Opc.Ua.Server.Tests
         public TestableCustomNodeManger2(IServerInternal server, params string[] namespaceUris) : base(server, namespaceUris)
         { }
 
-        #region componentCache
         public new NodeState AddNodeToComponentCache(ISystemContext context, NodeHandle handle, NodeState node)
         {
             return base.AddNodeToComponentCache(context, handle, node);
@@ -211,16 +208,11 @@ namespace Opc.Ua.Server.Tests
         {
             return base.LookupNodeInComponentCache(context, handle);
         }
-        #endregion
-
-        #region PredefinedNodes
 
         public new NodeIdDictionary<NodeState> PredefinedNodes => base.PredefinedNodes;
         public new virtual void AddPredefinedNode(ISystemContext context, NodeState node)
         {
             base.AddPredefinedNode(context, node);
         }
-
-        #endregion
     }
 }

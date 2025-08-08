@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -56,16 +56,16 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             DualBaseAddressesWithAlternateHost,
             DualBaseAdressesWithAlternatePort,
             DualBaseAddressesWithAlternateHostAndPort,
-        };
+        }
 
         public const int BaseAddressCount = 6;
         public const int EndpointCount = 12;
-        ApplicationConfiguration m_configuration;
-        ApplicationDescription m_serverDescription;
-        EndpointDescriptionCollection m_endpoints;
-        readonly TestConfigurations m_testConfiguration;
+        private ApplicationConfiguration m_configuration;
+        private ApplicationDescription m_serverDescription;
+        private EndpointDescriptionCollection m_endpoints;
+        private readonly TestConfigurations m_testConfiguration;
 
-        public static readonly object[] FixtureArgs = new object[] {
+        public static readonly object[] FixtureArgs = [
             new object[] { TestConfigurations.SingleBaseAdresses },
             new object[] { TestConfigurations.SingleBaseAdressesWithAlternateHost },
             new object[] { TestConfigurations.SingleBaseAdressesWithAlternatePort },
@@ -74,7 +74,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             new object[] { TestConfigurations.DualBaseAddressesWithAlternateHost },
             new object[] { TestConfigurations.DualBaseAdressesWithAlternatePort },
             new object[] { TestConfigurations.DualBaseAddressesWithAlternateHostAndPort },
-        };
+        ];
 
         public ServerBaseTests()
         {
@@ -86,12 +86,11 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             m_testConfiguration = configType;
         }
 
-        #region DataPointSource
         /// <summary>
         /// An array of Client Urls.
         /// </summary>
         [DatapointSource]
-        public static readonly string[] ClientUrls = new string[] {
+        public static readonly string[] ClientUrls = [
             "opc.tcp://localhost:51210/UA/SampleServer",
             "opc.tcp://externalhostname.com:50001/UA/SampleServer",
             "opc.tcp://externalhostname.com:52541/UA/SampleServer",
@@ -115,10 +114,8 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             "https://someserver:62541/UA/SampleServer",
             "https://localhost:51210/UA/SampleServer",
             "https://UNKNOWNHOSTNAME.COM:51210/UA/SampleServer",
-        };
-        #endregion
+        ];
 
-        #region Test Setup
         [OneTimeSetUp]
         protected void OneTimeSetUp()
         {
@@ -220,7 +217,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 DiscoveryUrls = GetDiscoveryUrls()
             };
 
-            m_endpoints = new EndpointDescriptionCollection();
+            m_endpoints = [];
 
             // add endpoints.
             foreach (string baseAddress in configuration.ServerConfiguration.BaseAddresses)
@@ -285,9 +282,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         protected void TearDown()
         {
         }
-        #endregion
 
-        #region Test Methods
         /// <summary>
         /// Ensure .
         /// </summary>
@@ -326,10 +321,10 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 catch (UriFormatException e)
                 {
                     TestContext.WriteLine($"Exception: {e.Message}");
-                    Assert.Ignore("Invalid Left Part of URL");
+                    NUnit.Framework.Assert.Ignore("Invalid Left Part of URL");
                 }
             }
-            System.Collections.Generic.IList<BaseAddress> filteredBaseAddresses = this.FilterByEndpointUrl(parsedEndpointUrl, BaseAddresses);
+            System.Collections.Generic.IList<BaseAddress> filteredBaseAddresses = FilterByEndpointUrl(parsedEndpointUrl, BaseAddresses);
             Assert.NotNull(filteredBaseAddresses);
             Assert.Greater(filteredBaseAddresses.Count, 0);
             TestContext.WriteLine($"Filtered endpoints: {filteredBaseAddresses.Count}");
@@ -367,16 +362,16 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 catch (UriFormatException e)
                 {
                     TestContext.WriteLine($"Exception: {e.Message}");
-                    Assert.Ignore("Invalid Left Part of URL");
+                    NUnit.Framework.Assert.Ignore("Invalid Left Part of URL");
                 }
                 parsedEndpointUrl = new Uri(parsedEndpointUrl.GetLeftPart(UriPartial.Authority));
             }
             if (parsedEndpointUrl != null)
             {
-                baseAddresses = this.FilterByEndpointUrl(parsedEndpointUrl, BaseAddresses);
+                baseAddresses = FilterByEndpointUrl(parsedEndpointUrl, BaseAddresses);
             }
             Assert.Greater(BaseAddressCount, 0);
-            EndpointDescriptionCollection translatedEndpoints = this.TranslateEndpointDescriptions(parsedEndpointUrl, baseAddresses, m_endpoints, m_serverDescription);
+            EndpointDescriptionCollection translatedEndpoints = TranslateEndpointDescriptions(parsedEndpointUrl, baseAddresses, m_endpoints, m_serverDescription);
             Assert.NotNull(translatedEndpoints);
             Assert.Greater(translatedEndpoints.Count, 0);
             foreach (EndpointDescription endpoint in translatedEndpoints)
@@ -398,7 +393,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 var matches = m_endpoints.Where(endpoint => Utils.IsEqual(endpoint.UserIdentityTokens, translatedEndpoint.UserIdentityTokens)).ToList();
                 Assert.NotNull(matches);
                 Assert.AreEqual(matches.Count, 1);
-                EndpointDescription firstMatch = matches.First();
+                EndpointDescription firstMatch = matches[0];
                 Assert.AreEqual(firstMatch.UserIdentityTokens.Count, translatedEndpoint.UserIdentityTokens.Count);
                 for (int i = 0; i < firstMatch.UserIdentityTokens.Count; i++)
                 {
@@ -424,7 +419,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                     Assert.AreEqual(firstMatchEndpointUrl.Port % 10, translatedEndpointUrl.Port % 10);
 
                     var theSchemes = m_endpoints.Where(endpoint => endpoint.EndpointUrl.StartsWith(translatedEndpointUrl.Scheme, StringComparison.Ordinal)).ToList();
-                    Assert.AreEqual(theSchemes.First().EndpointUrl, firstMatch.EndpointUrl);
+                    Assert.AreEqual(theSchemes[0].EndpointUrl, firstMatch.EndpointUrl);
                 }
                 Assert.AreEqual(firstMatchEndpointUrl.Scheme, translatedEndpointUrl.Scheme);
 
@@ -442,7 +437,6 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                     Assert.IsTrue(translatedEndpointUrl.Port % 10 == 1);
                 }
             }
-            #endregion
         }
     }
 }

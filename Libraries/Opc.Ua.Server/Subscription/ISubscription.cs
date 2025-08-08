@@ -88,7 +88,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets the current diagnostics for the subscription.
         /// </summary>
-        public SubscriptionDiagnosticsDataType Diagnostics { get; }
+        SubscriptionDiagnosticsDataType Diagnostics { get; }
 
         /// <summary>
         /// Called when a monitored item is ready to publish.
@@ -114,7 +114,7 @@ namespace Opc.Ua.Server
         /// Returns the available sequence numbers for retransmission
         /// For example used in Transfer Subscription
         /// </summary>
-        public UInt32Collection AvailableSequenceNumbersForRetransmission();
+        UInt32Collection AvailableSequenceNumbersForRetransmission();
 
         /// <summary>
         /// Refreshes the conditions.
@@ -191,7 +191,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Sets the subscription to durable mode.
         /// </summary>
-        public ServiceResult SetSubscriptionDurable(uint maxLifetimeCount);
+        ServiceResult SetSubscriptionDurable(uint maxLifetimeCount);
 
         /// <summary>
         /// Initiates resending of all data monitored items in a Subscription
@@ -258,7 +258,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Updates the triggers for the monitored item.
         /// </summary>
-        public void SetTriggering(
+        void SetTriggering(
             OperationContext context,
             uint triggeringItemId,
             UInt32Collection linksToAdd,
@@ -271,6 +271,6 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Return a StorableSubscription for restore after a server restart
         /// </summary>
-        public IStoredSubscription ToStorableSubscription();
+        IStoredSubscription ToStorableSubscription();
     }
 }

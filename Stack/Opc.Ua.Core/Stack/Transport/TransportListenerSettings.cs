@@ -20,7 +20,6 @@ namespace Opc.Ua
     /// </summary>
     public class TransportListenerSettings
     {
-        #region Public Properties
         /// <summary>
         /// Gets or sets the descriptions for the endpoints supported by the listener.
         /// </summary>
@@ -91,7 +90,5 @@ namespace Opc.Ua
         /// In case true, the client should provide it's own valid TLS certificate to the TLS layer for the connection to succeed.
         /// </summary>
         public bool HttpsMutualTls { get; set; }
-
-#endregion
     }
 }

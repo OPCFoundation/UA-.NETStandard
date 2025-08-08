@@ -45,7 +45,6 @@ namespace Opc.Ua.Core.Tests.Stack.Client
     [Parallelizable]
     public class ClientTests
     {
-        #region Test Setup
         [OneTimeSetUp]
         protected void OneTimeSetUp()
         {
@@ -65,9 +64,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         protected void TearDown()
         {
         }
-        #endregion
 
-        #region Test Methods
         /// <summary>
         /// Ensure that use of OriginalString preserves a scope id of a IPv6 address.
         /// </summary>
@@ -97,15 +94,14 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         {
             var appConfig = new ApplicationConfiguration() {
                 ApplicationName = "Test",
-                ClientConfiguration = new ClientConfiguration() { },
+                ClientConfiguration = new ClientConfiguration(),
                 SecurityConfiguration = new SecurityConfiguration() {
                     ApplicationCertificate = new CertificateIdentifier(),
                     TrustedPeerCertificates = new CertificateTrustList { StorePath = "Test" },
                     TrustedIssuerCertificates = new CertificateTrustList { StorePath = "Test" },
                 }
             };
-            Assert.DoesNotThrow(() => appConfig.ValidateAsync(ApplicationType.Client).GetAwaiter().GetResult());
+            NUnit.Framework.Assert.DoesNotThrow(() => appConfig.ValidateAsync(ApplicationType.Client).GetAwaiter().GetResult());
         }
-        #endregion
     }
 }

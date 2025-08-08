@@ -18,11 +18,10 @@ namespace Opc.Ua.Server.Tests
     [MemoryDiagnoser]
     public class MonitoreItemTests
     {
-        #region MonitoredItemDurable
         [Test]
         public void CreateMI()
         {
-            MonitoredItem monitoredItem = MonitoreItemTests.CreateMonitoredItem();
+            MonitoredItem monitoredItem = CreateMonitoredItem();
             Assert.That(monitoredItem, Is.Not.Null);
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(0));
 
@@ -49,7 +48,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void CreateEventMI()
         {
-            MonitoredItem monitoredItem = MonitoreItemTests.CreateMonitoredItem(true);
+            MonitoredItem monitoredItem = CreateMonitoredItem(true);
             Assert.That(monitoredItem, Is.Not.Null);
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(0));
 
@@ -70,7 +69,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void CreateMIQueueNoQueue()
         {
-            MonitoredItem monitoredItem = MonitoreItemTests.CreateMonitoredItem(false, 0);
+            MonitoredItem monitoredItem = CreateMonitoredItem(false, 0);
 
             Assert.That(monitoredItem.QueueSize, Is.EqualTo(1));
 
@@ -93,7 +92,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void CreateEventMIOverflow()
         {
-            MonitoredItem monitoredItem = MonitoreItemTests.CreateMonitoredItem(true, 2);
+            MonitoredItem monitoredItem = CreateMonitoredItem(true, 2);
             Assert.That(monitoredItem, Is.Not.Null);
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(0));
 
@@ -119,7 +118,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void CreateEventMIOverflowMultiplePublish()
         {
-            MonitoredItem monitoredItem = MonitoreItemTests.CreateMonitoredItem(true, 2);
+            MonitoredItem monitoredItem = CreateMonitoredItem(true, 2);
             Assert.That(monitoredItem, Is.Not.Null);
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(0));
 
@@ -156,7 +155,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void CreateEventMIOverflowNoDiscard()
         {
-            MonitoredItem monitoredItem = MonitoreItemTests.CreateMonitoredItem(true, 2, true);
+            MonitoredItem monitoredItem = CreateMonitoredItem(true, 2, true);
             Assert.That(monitoredItem, Is.Not.Null);
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(0));
 
@@ -182,7 +181,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void CreateEventMIPublishPartial()
         {
-            MonitoredItem monitoredItem = MonitoreItemTests.CreateMonitoredItem(true, 3);
+            MonitoredItem monitoredItem = CreateMonitoredItem(true, 3);
             Assert.That(monitoredItem, Is.Not.Null);
             Assert.That(monitoredItem.ItemsInQueue, Is.EqualTo(0));
 
@@ -212,9 +211,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(publishResult2, Is.Not.Null);
             Assert.That(publishResult2.Handle, Is.AssignableTo<AuditUrlMismatchEventState>());
         }
-        #endregion
 
-        #region private methods
         private static MonitoredItem CreateMonitoredItem(bool events = false, uint queueSize = 10, bool discardOldest = false)
         {
             MonitoringFilter filter = events ? new EventFilter() : new MonitoringFilter();
@@ -246,6 +243,5 @@ namespace Opc.Ua.Server.Tests
                 1000
                 );
         }
-        #endregion
     }
 }

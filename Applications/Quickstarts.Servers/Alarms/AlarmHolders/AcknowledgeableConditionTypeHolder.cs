@@ -54,7 +54,7 @@ namespace Alarms
         {
             if (create)
             {
-                Initialize(Opc.Ua.ObjectTypes.AcknowledgeableConditionType, name);
+                Initialize(ObjectTypes.AcknowledgeableConditionType, name);
             }
         }
 
@@ -97,8 +97,6 @@ namespace Alarms
             alarm.Confirm = new AddCommentMethodState(alarm);
         }
 
-        #region Overrides 
-
         public override void SetValue(string message = "")
         {
             bool requiresUpdate = false;
@@ -138,10 +136,6 @@ namespace Alarms
             return retainState;
         }
 
-        #endregion
-
-        #region Helpers
-
         private AcknowledgeableConditionState GetAlarm(BaseEventState alarm = null)
         {
             if (alarm == null)
@@ -163,10 +157,6 @@ namespace Alarms
             }
             return alarmOrBranch;
         }
-
-        #endregion
-
-        #region Methods
 
         private ServiceResult OnAcknowledge(
             ISystemContext context,
@@ -255,14 +245,7 @@ namespace Alarms
             return ServiceResult.Good;
         }
 
-        #endregion
-
-        #region Private
-
-        protected HashSet<string> m_acked = new HashSet<string>();
-        protected HashSet<string> m_confirmed = new HashSet<string>();
-
-        #endregion
-
+        protected HashSet<string> m_acked = [];
+        protected HashSet<string> m_confirmed = [];
     }
 }

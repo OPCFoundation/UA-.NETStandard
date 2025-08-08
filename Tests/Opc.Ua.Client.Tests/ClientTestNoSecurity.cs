@@ -44,12 +44,12 @@ namespace Opc.Ua.Client.Tests
     {
         private ClientTest m_clientTest { get; }
 
-        public static readonly object[] FixtureArgs = {
+        public static readonly object[] FixtureArgs = [
             new object [] { Utils.UriSchemeOpcTcp},
             // https protocol security None is not supported
             // new object [] { Utils.UriSchemeHttps},
             // new object [] { Utils.UriSchemeOpcHttps},
-        };
+        ];
 
         public ClientTestNoSecurity()
         {
@@ -61,7 +61,6 @@ namespace Opc.Ua.Client.Tests
             m_clientTest = new ClientTest(uriScheme);
         }
 
-        #region Test Setup
         /// <summary>
         /// Set up a Server and a Client instance.
         /// </summary>
@@ -98,7 +97,6 @@ namespace Opc.Ua.Client.Tests
         {
             return m_clientTest.TearDown();
         }
-        #endregion
 
         /// <summary>
         /// GetEndpoints on the discovery channel,

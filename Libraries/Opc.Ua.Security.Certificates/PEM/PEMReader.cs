@@ -43,7 +43,6 @@ namespace Opc.Ua.Security.Certificates
     /// </summary>
     public static class PEMReader
     {
-        #region Public Methods
         /// <summary>
         /// Checks if the PEM data contains a private key.
         /// </summary>
@@ -55,12 +54,12 @@ namespace Opc.Ua.Security.Certificates
             {
                 string pemText = Encoding.UTF8.GetString(pemDataBlob);
 
-                string[] valuesToCheck = {
+                string[] valuesToCheck = [
                     "-----BEGIN PRIVATE KEY-----",
                     "-----BEGIN RSA PRIVATE KEY-----",
                     "-----BEGIN ENCRYPTED PRIVATE KEY-----",
                     "-----BEGIN EC PRIVATE KEY-----"
-                };
+                ];
 
                 return valuesToCheck.Any(value => pemText.Contains(value, StringComparison.Ordinal));
             }
@@ -137,9 +136,9 @@ namespace Opc.Ua.Security.Certificates
             byte[] pemDataBlob,
             string password = null)
         {
-            string[] labels = {
+            string[] labels = [
                 "ENCRYPTED PRIVATE KEY", "PRIVATE KEY", "RSA PRIVATE KEY"
-                };
+                ];
             try
             {
                 string pemText = Encoding.UTF8.GetString(pemDataBlob);
@@ -207,11 +206,11 @@ namespace Opc.Ua.Security.Certificates
         {
             // PEM labels for EC keys. Probably need adjustment
             string[] labels =
-            {
+            [
                 "ENCRYPTED PRIVATE KEY",
                 "PRIVATE KEY",
                 "EC PRIVATE KEY"
-            };
+            ];
 
             try
             {
@@ -285,8 +284,6 @@ namespace Opc.Ua.Security.Certificates
             // If no recognized PEM label was found
             throw new ArgumentException("No ECDSA private PEM key found.");
         }
-        #endregion
-
     }
 }
 #endif

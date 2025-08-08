@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -37,7 +37,6 @@ using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Tests
 {
-    #region Asset Helpers
     /// <summary>
     /// The interface to initialize an asset.
     /// </summary>
@@ -56,15 +55,17 @@ namespace Opc.Ua.Tests
         public AssetCollection(int capacity) : base(capacity) { }
         public static AssetCollection<T> ToAssetCollection(T[] values)
         {
-            return values != null ? new AssetCollection<T>(values) : new AssetCollection<T>();
+            return values != null ? [.. values] : [];
         }
 
-        public AssetCollection(IEnumerable<string> filelist)
+        public static AssetCollection<T> CreateFromFiles(IEnumerable<string> filelist)
         {
+            var result = new AssetCollection<T>();
             foreach (string file in filelist)
             {
-                Add(file);
+                result.Add(file);
             }
+            return result;
         }
 
         public void Add(string path)
@@ -75,9 +76,7 @@ namespace Opc.Ua.Tests
             Add(asset);
         }
     }
-    #endregion
 
-    #region TestUtils
     /// <summary>
     /// Test helpers.
     /// </summary>
@@ -88,9 +87,9 @@ namespace Opc.Ua.Tests
             string assetsPath = Utils.GetAbsoluteDirectoryPath("Assets", true, false, false);
             if (assetsPath != null)
             {
-                return Directory.EnumerateFiles(assetsPath, searchPattern).ToArray();
+                return [.. Directory.EnumerateFiles(assetsPath, searchPattern)];
             }
-            return Array.Empty<string>();
+            return [];
         }
 
         public static void ValidateSelSignedBasicConstraints(X509Certificate2 certificate)
@@ -102,5 +101,4 @@ namespace Opc.Ua.Tests
             Assert.False(basicConstraintsExtension.HasPathLengthConstraint);
         }
     }
-    #endregion
 }

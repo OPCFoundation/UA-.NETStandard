@@ -28,9 +28,8 @@
  * ======================================================================*/
 
 using System;
-using System.Runtime.Serialization;
 using System.Collections.Generic;
-
+using System.Runtime.Serialization;
 using Opc.Ua.Server;
 
 namespace MemoryBuffer
@@ -41,7 +40,6 @@ namespace MemoryBuffer
     [DataContract(Namespace = Namespaces.MemoryBuffer)]
     public class MemoryBufferConfiguration
     {
-        #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
@@ -66,16 +64,12 @@ namespace MemoryBuffer
         {
             Buffers = null;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The buffers exposed by the memory
         /// </summary>
         [DataMember(Order = 1)]
         public MemoryBufferInstanceCollection Buffers { get; set; }
-
-        #endregion
     }
 
     /// <summary>
@@ -84,7 +78,6 @@ namespace MemoryBuffer
     [DataContract(Namespace = Namespaces.MemoryBuffer)]
     public class MemoryBufferInstance
     {
-        #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
@@ -111,9 +104,7 @@ namespace MemoryBuffer
             TagCount = 0;
             DataType = null;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The browse name for the instance.
         /// </summary>
@@ -131,15 +122,11 @@ namespace MemoryBuffer
         /// </summary>
         [DataMember(Order = 3)]
         public string DataType { get; set; }
-
-        #endregion
     }
 
-    #region MemoryBufferInstanceCollection Class
     /// <summary>
     /// A collection of MemoryBufferInstances.
     /// </summary>
     [CollectionDataContract(Name = "ListOfMemoryBufferInstance", Namespace = Namespaces.MemoryBuffer, ItemName = "MemoryBufferInstance")]
     public class MemoryBufferInstanceCollection : List<MemoryBufferInstance>;
-    #endregion
 }

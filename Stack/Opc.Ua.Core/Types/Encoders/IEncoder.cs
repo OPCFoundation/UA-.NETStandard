@@ -357,7 +357,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes an encodeable object array to the stream.
         /// </summary>
-        void WriteEncodeableArray(string fieldName, IList<IEncodeable> values, System.Type systemType);
+        void WriteEncodeableArray(string fieldName, IList<IEncodeable> values, Type systemType);
 
         /// <summary>
         /// Writes an enumerated value array to the stream.

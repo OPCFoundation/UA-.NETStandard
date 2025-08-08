@@ -20,7 +20,6 @@ namespace Opc.Ua
     /// </summary>
     public class InstanceStateSnapshot : IFilterTarget
     {
-        #region Public Interface
         /// <summary>
         /// Gets or sets a handled associated with the snapshot.
         /// </summary>
@@ -52,11 +51,9 @@ namespace Opc.Ua
             NodeClass nodeClass,
             object value)
         {
-            InstanceStateSnapshot.SetChildValue(m_snapshot, browseName, nodeClass, value);
+            SetChildValue(m_snapshot, browseName, nodeClass, value);
         }
-        #endregion
 
-        #region IFilterTarget Members
         /// <summary>
         /// Returns true if the snapshort is an instance of the specified type.
         /// </summary>
@@ -93,7 +90,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            object value = InstanceStateSnapshot.GetAttributeValue(
+            object value = GetAttributeValue(
                 m_snapshot,
                 relativePath,
                 0,
@@ -111,9 +108,7 @@ namespace Opc.Ua
 
             return value;
         }
-        #endregion
 
-        #region ChildNode Class
         /// <summary>
         /// Stores the key attributes of a child node.
         /// </summary>
@@ -124,9 +119,7 @@ namespace Opc.Ua
             public object Value;
             public List<ChildNode> Children;
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Sets the value for a child. Adds it if it does not already exist.
         /// </summary>
@@ -158,7 +151,7 @@ namespace Opc.Ua
             }
             else
             {
-                node.Children = new List<ChildNode>();
+                node.Children = [];
             }
 
             if (child == null)
@@ -272,17 +265,14 @@ namespace Opc.Ua
             {
                 if (node.Children[ii].BrowseName == relativePath[index])
                 {
-                    return InstanceStateSnapshot.GetAttributeValue(node.Children[ii], relativePath, index + 1, attributeId);
+                    return GetAttributeValue(node.Children[ii], relativePath, index + 1, attributeId);
                 }
             }
 
             return null;
         }
-        #endregion
 
-        #region Private Fields
         private NodeId m_typeDefinitionId;
         private ChildNode m_snapshot;
-        #endregion
     }
 }

@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -60,7 +60,7 @@ namespace Quickstarts.Servers
                         new CallMethodRequest {
                             MethodId = new NodeId("Alarms.Start", (ushort)index),
                             ObjectId = new NodeId("Alarms", (ushort)index),
-                            InputArguments = new VariantCollection() { new Variant(uint.MaxValue) }
+                            InputArguments = [new Variant(uint.MaxValue)]
                         });
                     var requestHeader = new RequestHeader() {
                         Timestamp = DateTime.UtcNow,
@@ -112,11 +112,11 @@ namespace Quickstarts.Servers
         {
             get
             {
-                if (m_nodeManagerFactories == null)
+                if (s_nodeManagerFactories == null)
                 {
-                    m_nodeManagerFactories = GetNodeManagerFactories();
+                    s_nodeManagerFactories = GetNodeManagerFactories();
                 }
-                return new ReadOnlyList<INodeManagerFactory>(m_nodeManagerFactories);
+                return new ReadOnlyList<INodeManagerFactory>(s_nodeManagerFactories);
             }
         }
 
@@ -138,13 +138,13 @@ namespace Quickstarts.Servers
         /// Enumerates all node manager factories.
         /// </summary>
         /// <returns></returns>
-        private static IList<INodeManagerFactory> GetNodeManagerFactories()
+        private static List<INodeManagerFactory> GetNodeManagerFactories()
         {
             Assembly assembly = typeof(Utils).Assembly;
-            IEnumerable<INodeManagerFactory> nodeManagerFactories = assembly.GetExportedTypes().Select(type => IsINodeManagerFactoryType(type)).Where(type => type != null);
-            return nodeManagerFactories.ToList();
+            IEnumerable<INodeManagerFactory> nodeManagerFactories = assembly.GetExportedTypes().Select(IsINodeManagerFactoryType).Where(type => type != null);
+            return [.. nodeManagerFactories];
         }
 
-        private static IList<INodeManagerFactory> m_nodeManagerFactories;
+        private static IList<INodeManagerFactory> s_nodeManagerFactories;
     }
 }

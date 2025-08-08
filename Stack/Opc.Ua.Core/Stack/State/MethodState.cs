@@ -13,12 +13,12 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Text;
-using System.Xml;
 using System.IO;
-using System.Runtime.Serialization;
 using System.Reflection;
+using System.Runtime.Serialization;
+using System.Text;
 using System.Threading;
+using System.Xml;
 
 namespace Opc.Ua
 {
@@ -27,7 +27,6 @@ namespace Opc.Ua
     /// </summary>
     public class MethodState : BaseInstanceState
     {
-        #region Constructors
         /// <summary>
         /// Initializes the instance with its default attribute values.
         /// </summary>
@@ -46,9 +45,7 @@ namespace Opc.Ua
         {
             return new MethodState(parent);
         }
-        #endregion
 
-        #region Initialization
         /// <summary>
         /// Initializes the instance with the default values.
         /// </summary>
@@ -73,13 +70,11 @@ namespace Opc.Ua
 
             base.Initialize(context, source);
         }
-        #endregion
 
-        #region ICloneable Members
         /// <inheritdoc/>
         public override object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -90,26 +85,18 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
-            var clone = (MethodState)Activator.CreateInstance(this.GetType(), this.Parent);
+            var clone = (MethodState)Activator.CreateInstance(GetType(), Parent);
             return CloneChildren(clone);
         }
-        #endregion
 
-        #region Public Members
         /// <summary>
         /// The identifier for the declaration of the method in the type model.
         /// </summary>
         public NodeId MethodDeclarationId
         {
-            get
-            {
-                return base.TypeDefinitionId;
-            }
+            get => TypeDefinitionId;
 
-            set
-            {
-                base.TypeDefinitionId = value;
-            }
+            set => TypeDefinitionId = value;
         }
 
         /// <summary>
@@ -117,10 +104,7 @@ namespace Opc.Ua
         /// </summary>
         public bool Executable
         {
-            get
-            {
-                return m_executable;
-            }
+            get => m_executable;
 
             set
             {
@@ -138,10 +122,7 @@ namespace Opc.Ua
         /// </summary>
         public bool UserExecutable
         {
-            get
-            {
-                return m_userExecutable;
-            }
+            get => m_userExecutable;
 
             set
             {
@@ -153,9 +134,7 @@ namespace Opc.Ua
                 m_userExecutable = value;
             }
         }
-        #endregion
 
-        #region Event Callbacks
         /// <summary>
         /// Raised when the Executable attribute is read.
         /// </summary>
@@ -185,9 +164,7 @@ namespace Opc.Ua
         /// Raised when the method is called.
         /// </summary>
         public GenericMethodCalledEventHandler2 OnCallMethod2;
-        #endregion
 
-        #region Serialization Functions
         /// <summary>
         /// Exports a copy of the node to a node table.
         /// </summary>
@@ -199,8 +176,8 @@ namespace Opc.Ua
 
             if (node is MethodNode methodNode)
             {
-                methodNode.Executable = this.Executable;
-                methodNode.UserExecutable = this.UserExecutable;
+                methodNode.Executable = Executable;
+                methodNode.UserExecutable = UserExecutable;
             }
         }
 
@@ -315,9 +292,7 @@ namespace Opc.Ua
                 m_userExecutable = decoder.ReadBoolean(null);
             }
         }
-        #endregion
 
-        #region Read Support Functions
         /// <summary>
         /// Reads the value for any non-value attribute.
         /// </summary>
@@ -367,9 +342,7 @@ namespace Opc.Ua
 
             return base.ReadNonValueAttribute(context, attributeId, ref value);
         }
-        #endregion
 
-        #region Write Support Functions
         /// <summary>
         /// Write the value for any non-value attribute.
         /// </summary>
@@ -443,22 +416,17 @@ namespace Opc.Ua
 
             return base.WriteNonValueAttribute(context, attributeId, value);
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The input arguments for the method.
         /// </summary>
         public PropertyState<Argument[]> InputArguments
         {
-            get
-            {
-                return m_inputArguments;
-            }
+            get => m_inputArguments;
 
             set
             {
-                if (!Object.ReferenceEquals(m_inputArguments, value))
+                if (!ReferenceEquals(m_inputArguments, value))
                 {
                     ChangeMasks |= NodeStateChangeMasks.Children;
                 }
@@ -472,14 +440,11 @@ namespace Opc.Ua
         /// </summary>
         public PropertyState<Argument[]> OutputArguments
         {
-            get
-            {
-                return m_outputArguments;
-            }
+            get => m_outputArguments;
 
             set
             {
-                if (!Object.ReferenceEquals(m_outputArguments, value))
+                if (!ReferenceEquals(m_outputArguments, value))
                 {
                     ChangeMasks |= NodeStateChangeMasks.Children;
                 }
@@ -487,9 +452,7 @@ namespace Opc.Ua
                 m_outputArguments = value;
             }
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Populates a list with the children that belong to the node.
         /// </summary>
@@ -569,9 +532,7 @@ namespace Opc.Ua
 
             return instance ?? base.FindChild(context, browseName, createOrReplace, replacement);
         }
-        #endregion
 
-        #region Method Invocation
         /// <summary>
         /// Invokes the methods and returns the output parameters.
         /// </summary>
@@ -725,7 +686,7 @@ namespace Opc.Ua
                 return onCallMethod2(context, this, objectId, inputArguments, outputArguments);
             }
 
-            GenericMethodCalledEventHandler onCallMethod = this.OnCallMethod;
+            GenericMethodCalledEventHandler onCallMethod = OnCallMethod;
 
             if (onCallMethod != null)
             {
@@ -795,14 +756,11 @@ namespace Opc.Ua
         {
             return TypeInfo.GetDefaultValue(outputArgument.DataType, outputArgument.ValueRank, context.TypeTable);
         }
-        #endregion
 
-        #region Private Fields
         private bool m_executable;
         private bool m_userExecutable;
         private PropertyState<Argument[]> m_inputArguments;
         private PropertyState<Argument[]> m_outputArguments;
-        #endregion
     }
 
     /// <summary>

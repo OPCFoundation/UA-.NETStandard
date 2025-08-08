@@ -38,7 +38,6 @@ namespace Opc.Ua.Server
     /// </summary>
     public class RequestManager : IDisposable
     {
-        #region Constructors
         /// <summary>
         /// Initilizes the manager.
         /// </summary>
@@ -51,12 +50,10 @@ namespace Opc.Ua.Server
             }
 
             m_server = server;
-            m_requests = new Dictionary<uint, OperationContext>();
+            m_requests = [];
             m_requestTimer = null;
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -91,9 +88,7 @@ namespace Opc.Ua.Server
                 m_requestTimer = null;
             }
         }
-        #endregion
 
-        #region Public Members
         /// <summary>
         /// Raised when the status of an outstanding request changes.
         /// </summary>
@@ -200,9 +195,7 @@ namespace Opc.Ua.Server
                 }
             }
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Checks for any expired requests and changes their status.
         /// </summary>
@@ -256,17 +249,14 @@ namespace Opc.Ua.Server
                 }
             }
         }
-        #endregion
 
-        #region Private Fields
-        private readonly object m_lock = new object();
+        private readonly object m_lock = new();
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
         private readonly IServerInternal m_server;
         private readonly Dictionary<uint, OperationContext> m_requests;
-        private readonly object m_requestsLock = new object();
+        private readonly object m_requestsLock = new();
         private Timer m_requestTimer;
         private event RequestCancelledEventHandler m_RequestCancelled;
-        #endregion
     }
 
     /// <summary>

@@ -29,7 +29,6 @@
 
 namespace Alarms
 {
-    #region Namespace Declarations
     /// <summary>
     /// Defines constants for all namespaces referenced by the model design.
     /// </summary>
@@ -40,5 +39,4 @@ namespace Alarms
         /// </summary>
         public const string Alarms = "http://test.org/UA/Alarms/";
     }
-    #endregion
 }

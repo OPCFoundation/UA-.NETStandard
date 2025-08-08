@@ -33,7 +33,7 @@ using Opc.Ua;
 
 namespace Alarms
 {
-    class NonExclusiveLimitHolder : LimitAlarmTypeHolder
+    internal class NonExclusiveLimitHolder : LimitAlarmTypeHolder
     {
         public NonExclusiveLimitHolder(
             AlarmNodeManager alarmNodeManager,
@@ -50,7 +50,7 @@ namespace Alarms
         {
             if (create)
             {
-                Initialize(Opc.Ua.ObjectTypes.NonExclusiveLimitAlarmType, name, maxShelveTime);
+                Initialize(ObjectTypes.NonExclusiveLimitAlarmType, name, maxShelveTime);
             }
         }
 

@@ -38,7 +38,6 @@ namespace Opc.Ua.Server
     /// </summary>
     public class AggregateCalculator : IAggregateCalculator
     {
-        #region Constructors
         /// <summary>
         /// Creates a default aggregator.
         /// </summary>
@@ -109,9 +108,7 @@ namespace Opc.Ua.Server
 
             m_values = new LinkedList<DataValue>();
         }
-        #endregion
 
-        #region IAggregateCalculator Members
         /// <summary>
         /// The aggregate function applied by the calculator.
         /// </summary>
@@ -304,9 +301,7 @@ namespace Opc.Ua.Server
 
             return CurrentSlice.EndTime <= currentTime;
         }
-        #endregion
 
-        #region Protected Methods
         /// <summary>
         /// The start time for the request.
         /// </summary>
@@ -372,7 +367,7 @@ namespace Opc.Ua.Server
         {
             if (value1 == null)
             {
-                return (value2 == null)?0:-1;
+                return (value2 == null) ? 0 : -1;
             }
 
             if (value2 == null)
@@ -414,7 +409,7 @@ namespace Opc.Ua.Server
         {
             if (value2 == null)
             {
-                return (value1 == null)?0:+1;
+                return (value1 == null) ? 0 : +1;
             }
 
             return CompareTimestamps(value1, value2.Value);
@@ -430,7 +425,7 @@ namespace Opc.Ua.Server
         {
             if (value1 == null)
             {
-                return (value2 == null)?0:-1;
+                return (value2 == null) ? 0 : -1;
             }
 
             if (value2 == null)
@@ -839,7 +834,7 @@ namespace Opc.Ua.Server
                 {
                     dataValue = SlopedInterpolate(timestamp, slice.EarlyBound.Value, slice.LateBound.Value);
 
-                    if (!Object.ReferenceEquals(slice.EarlyBound.Next, slice.LateBound))
+                    if (!ReferenceEquals(slice.EarlyBound.Next, slice.LateBound))
                     {
                         dataValue.StatusCode = dataValue.StatusCode.SetCodeBits(StatusCodes.UncertainDataSubNormal);
                     }
@@ -1492,12 +1487,9 @@ namespace Opc.Ua.Server
             // always calculated.
             return statusCode;
         }
-        #endregion
 
-        #region Private Fields
         private LinkedList<DataValue> m_values;
         private DateTime m_startOfData;
         private DateTime m_endOfData;
-        #endregion
     }
 }

@@ -107,7 +107,6 @@ namespace Opc.Ua
     /// </summary>
     public class SystemContext : ISystemContext, IOperationContext
     {
-        #region Constructors
         /// <summary>
         /// Initializes a new instance of the <see cref="SystemContext"/> class.
         /// </summary>
@@ -125,9 +124,7 @@ namespace Opc.Ua
             NodeStateFactory = new NodeStateFactory();
             OperationContext = context;
         }
-        #endregion
 
-        #region ISystemContext Members
         /// <summary>
         /// An application defined handle for the system.
         /// </summary>
@@ -150,10 +147,7 @@ namespace Opc.Ua
                 return m_sessionId;
             }
 
-            set
-            {
-                m_sessionId = value;
-            }
+            set => m_sessionId = value;
         }
 
         /// <summary>
@@ -172,10 +166,7 @@ namespace Opc.Ua
                 return m_userIdentity;
             }
 
-            set
-            {
-                m_userIdentity = value;
-            }
+            set => m_userIdentity = value;
         }
 
         /// <summary>
@@ -194,10 +185,7 @@ namespace Opc.Ua
                 return m_preferredLocales;
             }
 
-            set
-            {
-                m_preferredLocales = value;
-            }
+            set => m_preferredLocales = value;
         }
 
         /// <summary>
@@ -216,10 +204,7 @@ namespace Opc.Ua
                 return m_auditEntryId;
             }
 
-            set
-            {
-                m_auditEntryId = value;
-            }
+            set => m_auditEntryId = value;
         }
 
         /// <summary>
@@ -257,9 +242,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The node identifiers factory.</value>
         public INodeIdFactory NodeIdFactory { get; set; }
-        #endregion
 
-        #region Public Members
         /// <summary>
         /// The operation context associated with the system context.
         /// </summary>
@@ -284,9 +267,7 @@ namespace Opc.Ua
 
             return copy;
         }
-        #endregion
 
-        #region IOperationContext Members
         /// <summary>
         /// The diagnostics mask associated with the operation.
         /// </summary>
@@ -355,12 +336,9 @@ namespace Opc.Ua
             }
         }
 
-#endregion
-#region Private Fields
         private NodeId m_sessionId;
         private IList<string> m_preferredLocales;
         private string m_auditEntryId;
         private IUserIdentity m_userIdentity;
-        #endregion
     }
 }

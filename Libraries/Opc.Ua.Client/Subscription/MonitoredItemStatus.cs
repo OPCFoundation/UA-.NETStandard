@@ -36,7 +36,6 @@ namespace Opc.Ua.Client
     /// </summary>
     public class MonitoredItemStatus
     {
-        #region Constructors
         /// <summary>
         /// Creates a empty object.
         /// </summary>
@@ -60,9 +59,7 @@ namespace Opc.Ua.Client
             m_queueSize = 0;
             m_discardOldest = true;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The identifier assigned by the server.
         /// </summary>
@@ -132,9 +129,7 @@ namespace Opc.Ua.Client
         /// Whether to discard the oldest entries in the queue when it is full.
         /// </summary>
         public bool DiscardOldest => m_discardOldest;
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Updates the monitoring mode.
         /// </summary>
@@ -226,7 +221,7 @@ namespace Opc.Ua.Client
 
             if (monitoredItem.Filter != null)
             {
-                m_filter = Utils.Clone(monitoredItem.Filter) as MonitoringFilter;
+                m_filter = Utils.Clone(monitoredItem.Filter);
             }
         }
 
@@ -291,8 +286,6 @@ namespace Opc.Ua.Client
             m_error = error;
         }
 
-#endregion
-#region Private Fields
         private ServiceResult m_error;
         private NodeId m_nodeId;
         private uint m_attributeId;
@@ -305,6 +298,5 @@ namespace Opc.Ua.Client
         private MonitoringFilterResult m_filterResult;
         private uint m_queueSize;
         private bool m_discardOldest;
-        #endregion
     }
 }

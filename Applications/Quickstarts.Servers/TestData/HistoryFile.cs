@@ -29,12 +29,12 @@
 
 using System;
 using System.Collections.Generic;
-using System.Xml;
-using System.IO;
-using System.Text;
-using System.Reflection;
-using System.Threading;
 using System.Globalization;
+using System.IO;
+using System.Reflection;
+using System.Text;
+using System.Threading;
+using System.Xml;
 using Opc.Ua;
 using Opc.Ua.Server;
 
@@ -45,7 +45,6 @@ namespace TestData
     /// </summary>
     internal class HistoryFile : IHistoryDataSource
     {
-        #region Constructors
         /// <summary>
         /// Creates a new file.
         /// </summary>
@@ -54,9 +53,7 @@ namespace TestData
             m_lock = dataLock;
             m_entries = entries;
         }
-        #endregion
 
-        #region IHistoryReader Members
         /// <summary>
         /// Returns the next value in the archive.
         /// </summary>
@@ -143,11 +140,8 @@ namespace TestData
                 return value;
             }
         }
-        #endregion
 
-        #region Private Fields
-        private readonly object m_lock = new object();
+        private readonly object m_lock = new();
         private readonly List<HistoryEntry> m_entries;
-        #endregion
     }
 }

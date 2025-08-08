@@ -42,9 +42,8 @@ namespace Opc.Ua.Server.Tests
     public class ServerStartupTests
     {
         [DatapointSource]
-        public string[] UriSchemes = { Utils.UriSchemeOpcTcp, Utils.UriSchemeHttps, Utils.UriSchemeOpcHttps };
+        public string[] UriSchemes = [Utils.UriSchemeOpcTcp, Utils.UriSchemeHttps, Utils.UriSchemeOpcHttps];
 
-        #region Test Methods
         /// <summary>
         /// Start a server fixture with different uri schemes.
         /// </summary>
@@ -62,6 +61,5 @@ namespace Opc.Ua.Server.Tests
             await Task.Delay(1000).ConfigureAwait(false);
             await fixture.StopAsync().ConfigureAwait(false);
         }
-        #endregion
     }
 }

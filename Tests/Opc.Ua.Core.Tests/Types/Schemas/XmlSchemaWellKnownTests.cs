@@ -49,19 +49,16 @@ namespace Opc.Ua.Core.Tests.Types.Schemas
     [Parallelizable]
     public class XmlSchemaWellKnownTests : XmlSchemaValidator
     {
-        #region DataPointSources
         [DatapointSource]
         public string[][] WellKnownSchemaData => WellKnownDictionaries;
-        #endregion
 
-        #region Test Methods
         /// <summary>
         /// Load well known resource type dictionaries.
         /// </summary>
         [Theory]
         public void LoadResources(string[] schemaData)
         {
-            Assert.That(schemaData.Length == 2);
+            NUnit.Framework.Assert.That(schemaData.Length == 2);
             Assembly assembly = typeof(XmlSchemaValidator).GetTypeInfo().Assembly;
             using (Stream stream = assembly.GetManifestResourceStream(schemaData[1]))
             {
@@ -119,7 +116,7 @@ namespace Opc.Ua.Core.Tests.Types.Schemas
 
                     var exportedNodeSet = Export.UANodeSet.Read(zipStream);
                     Assert.IsNotNull(exportedNodeSet);
-                    exportedNodeSet.NamespaceUris = exportedNodeSet.NamespaceUris ?? System.Array.Empty<string>();
+                    exportedNodeSet.NamespaceUris ??= [];
                     foreach (string namespaceUri in exportedNodeSet.NamespaceUris)
                     {
                         localContext.NamespaceUris.Append(namespaceUri);
@@ -130,6 +127,5 @@ namespace Opc.Ua.Core.Tests.Types.Schemas
                 }
             }
         }
-        #endregion
     }
 }

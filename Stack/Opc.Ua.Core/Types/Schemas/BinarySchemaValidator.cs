@@ -26,7 +26,6 @@ namespace Opc.Ua.Schema.Binary
     /// </summary>
     public class BinarySchemaValidator : SchemaValidator
     {
-        #region Constructors
         /// <summary>
         /// Intializes the object with default values.
         /// </summary>
@@ -50,9 +49,7 @@ namespace Opc.Ua.Schema.Binary
         {
             SetResourcePaths(WellKnownDictionaries);
         }
-        #endregion
 
-        #region Public Members
         /// <summary>
         /// The dictionary that was validated.
         /// </summary>
@@ -129,17 +126,15 @@ namespace Opc.Ua.Schema.Binary
 
             return Encoding.UTF8.GetString(ostrm.ToArray(), 0, (int)ostrm.Length);
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Generates the code from the contents of the address space.
         /// </summary>
         private void Validate()
         {
-            m_descriptions = new Dictionary<XmlQualifiedName, TypeDescription>();
-            m_validatedDescriptions = new List<TypeDescription>();
-            m_warnings = new List<string>();
+            m_descriptions = [];
+            m_validatedDescriptions = [];
+            m_warnings = [];
 
             // import types from referenced dictionaries.
             if (Dictionary.Import != null)
@@ -409,7 +404,7 @@ namespace Opc.Ua.Schema.Binary
             {
                 if (structure.Field == null || structure.Field.Length == 0)
                 {
-                    structure.Field = Array.Empty<FieldType>();
+                    structure.Field = [];
                 }
 
                 int bitCount = 0;
@@ -494,22 +489,19 @@ namespace Opc.Ua.Schema.Binary
                 }
             }
         }
-        #endregion
 
-        #region Private Fields
         /// <summary>
         /// Well known embedded binary schemas.
         /// </summary>
-        protected static readonly string[][] WellKnownDictionaries = new string[][]
-        {
-            new string[] { Namespaces.OpcBinarySchema,   "Opc.Ua.Types.Schemas.StandardTypes.bsd" },
-            new string[] { Namespaces.OpcUaBuiltInTypes, "Opc.Ua.Types.Schemas.BuiltInTypes.bsd"  },
-            new string[] { Namespaces.OpcUa, "Opc.Ua.Schema.Opc.Ua.Types.bsd"  }
-        };
+        protected static readonly string[][] WellKnownDictionaries =
+        [
+            [Namespaces.OpcBinarySchema,   "Opc.Ua.Types.Schemas.StandardTypes.bsd"],
+            [Namespaces.OpcUaBuiltInTypes, "Opc.Ua.Types.Schemas.BuiltInTypes.bsd"],
+            [Namespaces.OpcUa, "Opc.Ua.Schema.Opc.Ua.Types.bsd"]
+        ];
 
         private Dictionary<XmlQualifiedName, TypeDescription> m_descriptions;
         private List<TypeDescription> m_validatedDescriptions;
         private List<string> m_warnings;
-        #endregion
     }
 }

@@ -51,7 +51,7 @@ namespace Opc.Ua.Server
                 configuration.ServerConfiguration.AvailableSamplingRates);
 
             m_nodeManager = nodeManager;
-            MonitoredNodes = new NodeIdDictionary<MonitoredNode2>();
+            MonitoredNodes = [];
             MonitoredItems = new ConcurrentDictionary<uint, IMonitoredItem>();
         }
         /// <inheritdoc/>
@@ -79,7 +79,7 @@ namespace Opc.Ua.Server
             Func<ISystemContext, NodeHandle, NodeState, NodeState> AddNodeToComponentCache)
         {
             // set min sampling interval if 0
-            if(samplingInterval.CompareTo(0.0) == 0)
+            if (samplingInterval.CompareTo(0.0) == 0)
             {
                 samplingInterval = 1;
             }
@@ -138,7 +138,7 @@ namespace Opc.Ua.Server
                 return StatusCodes.BadMonitoredItemIdInvalid;
             }
 
-            if (!Object.ReferenceEquals(monitoredItem, existingMonitoredItem))
+            if (!ReferenceEquals(monitoredItem, existingMonitoredItem))
             {
                 return StatusCodes.BadMonitoredItemIdInvalid;
             }
@@ -171,7 +171,7 @@ namespace Opc.Ua.Server
                 return StatusCodes.BadMonitoredItemIdInvalid;
             }
 
-            if (!Object.ReferenceEquals(monitoredItem, existingMonitoredItem))
+            if (!ReferenceEquals(monitoredItem, existingMonitoredItem))
             {
                 return StatusCodes.BadMonitoredItemIdInvalid;
             }
@@ -194,7 +194,7 @@ namespace Opc.Ua.Server
                 return (StatusCodes.BadMonitoredItemIdInvalid, null);
             }
 
-            if (!Object.ReferenceEquals(monitoredItem, existingMonitoredItem))
+            if (!ReferenceEquals(monitoredItem, existingMonitoredItem))
             {
                 return (StatusCodes.BadMonitoredItemIdInvalid, null);
             }

@@ -43,7 +43,6 @@ namespace Opc.Ua.Core.Tests.Types.NumericRange
     [Parallelizable]
     public class NumericRangeTests
     {
-        #region Test Setup
         [OneTimeSetUp]
         protected void OneTimeSetUp()
         {
@@ -63,9 +62,7 @@ namespace Opc.Ua.Core.Tests.Types.NumericRange
         protected void TearDown()
         {
         }
-        #endregion
 
-        #region Test Methods
         /// <summary>
         /// Test that NumericRange can be applied to Matrix objects
         /// </summary>
@@ -83,7 +80,7 @@ namespace Opc.Ua.Core.Tests.Types.NumericRange
             var matrix = new Matrix(int3x3Matrix, BuiltInType.Int32);
 
             // Select the center element
-            var numericRange = Opc.Ua.NumericRange.Parse("1,1");
+            var numericRange = Ua.NumericRange.Parse("1,1");
 
             object value = matrix;
 
@@ -115,7 +112,7 @@ namespace Opc.Ua.Core.Tests.Types.NumericRange
             var dstMatrix = new Matrix(dstInt3x3Matrix, BuiltInType.Int32);
 
             // Update the center element
-            var numericRange = Opc.Ua.NumericRange.Parse("1,1");
+            var numericRange = Ua.NumericRange.Parse("1,1");
             object dst = dstMatrix;
             StatusCode statusCode = numericRange.UpdateRange(ref dst, new int[,] { { 10 } });
 
@@ -134,7 +131,8 @@ namespace Opc.Ua.Core.Tests.Types.NumericRange
             }, modifiedInt3x3Matrix);
         }
 
-        private static readonly string[] src = new string[] { "ha" };
+        private static readonly string[] s_src = ["ha"];
+        private static readonly string[] s_expected = ["Test1", "That2", "Test3"];
 
         /// <summary>
         /// Test that String array object can be updated using NumericRange.UpdateRange when using sub ranges
@@ -144,14 +142,14 @@ namespace Opc.Ua.Core.Tests.Types.NumericRange
         public void UpdateStringArrayTest()
         {
             // Update the middle element "Test2" to "That2" by modifying "es" to "ha".
-            var numericRange = Opc.Ua.NumericRange.Parse("1,1:2");
+            var numericRange = Ua.NumericRange.Parse("1,1:2");
             object dst = new string[] { "Test1", "Test2", "Test3" };
-            StatusCode statusCode = numericRange.UpdateRange(ref dst, src);
+            StatusCode statusCode = numericRange.UpdateRange(ref dst, s_src);
             Assert.AreEqual(new StatusCode(StatusCodes.Good), statusCode);
 
             string[] updatedValue = dst as string[];
             Assert.NotNull(updatedValue);
-            Assert.AreEqual(new string[] { "Test1", "That2", "Test3" }, updatedValue);
+            Assert.AreEqual(s_expected, updatedValue);
         }
 
         /// <summary>
@@ -162,27 +160,24 @@ namespace Opc.Ua.Core.Tests.Types.NumericRange
         public void UpdateByteStringArrayTest()
         {
             // Update the middle element <0x55, 0x66, 0x77, 0x88> to <0x55, 0xDD, 0xEE, 0x88> by modifying 0x66 to 0xDD and 0x77 to 0xEE.
-            var numericRange = Opc.Ua.NumericRange.Parse("1,1:2");
+            var numericRange = Ua.NumericRange.Parse("1,1:2");
             object dst = new byte[][]
             {
-                new byte[] { 0x11, 0x22, 0x33, 0x44 },
-                new byte[] { 0x55, 0x66, 0x77, 0x88 },
-                new byte[] { 0x99, 0xAA, 0xBB, 0xCC }
+                [0x11, 0x22, 0x33, 0x44],
+                [0x55, 0x66, 0x77, 0x88],
+                [0x99, 0xAA, 0xBB, 0xCC]
             };
-            StatusCode statusCode = numericRange.UpdateRange(ref dst, new byte[][] { new byte[] { 0xDD, 0xEE } });
+            StatusCode statusCode = numericRange.UpdateRange(ref dst, new byte[][] { [0xDD, 0xEE] });
             Assert.AreEqual(new StatusCode(StatusCodes.Good), statusCode);
 
             byte[][] updatedValue = dst as byte[][];
             Assert.NotNull(updatedValue);
             Assert.AreEqual(new byte[][]
             {
-                new byte[] { 0x11, 0x22, 0x33, 0x44 },
-                new byte[] { 0x55, 0xDD, 0xEE, 0x88 },
-                new byte[] { 0x99, 0xAA, 0xBB, 0xCC }
+                [0x11, 0x22, 0x33, 0x44],
+                [0x55, 0xDD, 0xEE, 0x88],
+                [0x99, 0xAA, 0xBB, 0xCC]
             }, updatedValue);
         }
     }
-
-    #endregion
-
 }

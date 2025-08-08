@@ -38,7 +38,7 @@ namespace Opc.Ua
             var dnsNames = new List<string>();
 
             // extracts the domain from the subject name.
-            List<string> fields = X509Utils.ParseDistinguishedName(certificate.Subject);
+            List<string> fields = ParseDistinguishedName(certificate.Subject);
 
             var builder = new StringBuilder();
 
@@ -264,7 +264,7 @@ namespace Opc.Ua
         /// <returns>True if self signed.</returns>
         public static bool IsSelfSigned(X509Certificate2 certificate)
         {
-            return X509Utils.CompareDistinguishedName(certificate.SubjectName, certificate.IssuerName);
+            return CompareDistinguishedName(certificate.SubjectName, certificate.IssuerName);
         }
 
         /// <summary>
@@ -307,7 +307,7 @@ namespace Opc.Ua
         /// <summary>
         /// Compares string fields of two distinguished names.
         /// </summary>
-        private static bool CompareDistinguishedNameFields(IList<string> fields1, IList<string> fields2)
+        private static bool CompareDistinguishedNameFields(List<string> fields1, List<string> fields2)
         {
             // compare each.
             for (int ii = 0; ii < fields1.Count; ii++)
@@ -349,7 +349,7 @@ namespace Opc.Ua
             return CompareDistinguishedNameFields(parsedName, certificateName);
         }
 
-        private static readonly char[] anyOf = new char[] { '/', ',', '=' };
+        private static readonly char[] anyOf = ['/', ',', '='];
 
         /// <summary>
         /// Parses a distingushed name.
@@ -544,7 +544,7 @@ namespace Opc.Ua
             X509Certificate2 certWithPrivateKey,
             bool throwOnError = false)
         {
-#if ECC_SUPPORT  
+#if ECC_SUPPORT
             return X509PfxUtils.VerifyECDsaKeyPair(certWithPublicKey, certWithPrivateKey, throwOnError);
 #else
             throw new NotSupportedException();
@@ -629,7 +629,7 @@ namespace Opc.Ua
 
             foreach (X509Certificate2 certificate in certificates)
             {
-                if (X509Utils.CompareDistinguishedName(certificate.SubjectName, issuer) &&
+                if (CompareDistinguishedName(certificate.SubjectName, issuer) &&
                     Utils.IsEqual(certificate.SerialNumber, serialnumber))
                 {
                     return certificate;

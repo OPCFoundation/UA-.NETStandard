@@ -51,7 +51,6 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
     /// </summary>
     internal static class X509Utils
     {
-        #region Internal Methods
         /// <summary>
         /// Create a Pfx blob with a private key by combining
         /// a bouncy castle X509Certificate and a private key.
@@ -221,14 +220,14 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         /// or throws if no curve is identified</returns>
         internal static ECCurve IdentifyEccCurveByCoefficients(byte[] a, byte[] b)
         {
-            byte[] brainpoolP256AStart = new byte[] { 0x7D, 0x5A, 0x09, 0x75 };
-            byte[] brainpoolP256BStart = new byte[] { 0x26, 0xDC, 0x5C, 0x6C };
-            byte[] brainpoolP384AStart = new byte[] { 0x7B, 0xC3, 0x82, 0xC6 };
-            byte[] brainpoolP384BStart = new byte[] { 0x04, 0xA8, 0xC7, 0xDD };
-            byte[] nistP256AStart = new byte[] { 0xFF, 0xFF, 0xFF, 0xFF };
-            byte[] nistP256BStart = new byte[] { 0x5A, 0xC6, 0x35, 0xD8 };
-            byte[] nistP384AStart = new byte[] { 0xFF, 0xFF, 0xFF, 0xFF };
-            byte[] nistP384BStart = new byte[] { 0xB3, 0x31, 0x2F, 0xA7 };
+            byte[] brainpoolP256AStart = [0x7D, 0x5A, 0x09, 0x75];
+            byte[] brainpoolP256BStart = [0x26, 0xDC, 0x5C, 0x6C];
+            byte[] brainpoolP384AStart = [0x7B, 0xC3, 0x82, 0xC6];
+            byte[] brainpoolP384BStart = [0x04, 0xA8, 0xC7, 0xDD];
+            byte[] nistP256AStart = [0xFF, 0xFF, 0xFF, 0xFF];
+            byte[] nistP256BStart = [0x5A, 0xC6, 0x35, 0xD8];
+            byte[] nistP384AStart = [0xFF, 0xFF, 0xFF, 0xFF];
+            byte[] nistP384BStart = [0xB3, 0x31, 0x2F, 0xA7];
 
             if (a.Take(4).SequenceEqual(brainpoolP256AStart) && b.Take(4).SequenceEqual(brainpoolP256BStart))
             {
@@ -251,7 +250,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         }
 
         private static readonly Dictionary<string, string> FriendlyNameToOidMap
-            = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            = new(StringComparer.OrdinalIgnoreCase)
             {
                 { "nistP256", "1.2.840.10045.3.1.7"},
                 { "nistP384", "1.3.132.0.34" },
@@ -324,7 +323,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         internal static BigInteger GetSerialNumber(X509Certificate2 certificate)
         {
             byte[] serialNumber = certificate.GetSerialNumber();
-            return new BigInteger(1, serialNumber.Reverse().ToArray());
+            return new BigInteger(1, [.. serialNumber.Reverse()]);
         }
 
         /// <summary>
@@ -332,7 +331,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         /// </summary>
         internal static string GetCertificateCommonName(Org.BouncyCastle.X509.X509Certificate certificate)
         {
-            System.Collections.Generic.IList<string> subjectDN = certificate.SubjectDN.GetValueList(X509Name.CN);
+            IList<string> subjectDN = certificate.SubjectDN.GetValueList(X509Name.CN);
             if (subjectDN.Count > 0)
             {
                 return subjectDN[0];
@@ -377,7 +376,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         /// <param name="arrayToPad">Provided array to pad</param>
         /// <param name="desiredSize">The desired total length of byte array after padding</param>
         /// <returns></returns>
-        internal static byte[] PadWithLeadingZeros(byte[] arrayToPad,  int desiredSize)
+        internal static byte[] PadWithLeadingZeros(byte[] arrayToPad, int desiredSize)
         {
             if (arrayToPad.Length == desiredSize)
             {
@@ -397,7 +396,6 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
 
             return paddedArray;
         }
-#endregion
     }
 }
 #endif

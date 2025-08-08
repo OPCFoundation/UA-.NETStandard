@@ -43,9 +43,8 @@ namespace Opc.Ua.Server.Tests
         public const int DefaultMonitoredItemsQueueSize = 0;
         public const int DefaultMonitoredItemsSamplingInterval = -1;
 
-        #region Public Test Sets
         public static readonly ExpandedNodeId[] NodeIdTestSetStatic =
-        {
+        [
             new ExpandedNodeId("Scalar_Static_SByte", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
             new ExpandedNodeId("Scalar_Static_Int16", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
             new ExpandedNodeId("Scalar_Static_Int32", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
@@ -56,24 +55,24 @@ namespace Opc.Ua.Server.Tests
             new ExpandedNodeId("Scalar_Static_LocalizedText", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
             new ExpandedNodeId("Scalar_Static_QualifiedName", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
             new ExpandedNodeId("Scalar_Static_Variant", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
-        };
+        ];
 
         /// <summary>
         /// static variables from namespace TestData
         /// </summary>
         public static readonly ExpandedNodeId[] NodeIdTestDataSetStatic =
-        {
+        [
             new ExpandedNodeId(TestData.Variables.Data_Static_Scalar_Int16Value, TestData.Namespaces.TestData),
             new ExpandedNodeId(TestData.Variables.Data_Static_Scalar_Int32Value, TestData.Namespaces.TestData),
             new ExpandedNodeId(TestData.Variables.Data_Static_Scalar_UInt16Value, TestData.Namespaces.TestData),
             new ExpandedNodeId(TestData.Variables.Data_Static_Scalar_UInt32Value, TestData.Namespaces.TestData),
-        };
+        ];
 
         /// <summary>
         /// CTT simulation data
         /// </summary>
         public static readonly ExpandedNodeId[] NodeIdTestSetSimulation =
-        {
+        [
             new ExpandedNodeId("Scalar_Simulation_SByte", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
             new ExpandedNodeId("Scalar_Simulation_Int16", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
             new ExpandedNodeId("Scalar_Simulation_Int32", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
@@ -84,13 +83,13 @@ namespace Opc.Ua.Server.Tests
             new ExpandedNodeId("Scalar_Simulation_LocalizedText", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
             new ExpandedNodeId("Scalar_Simulation_QualifiedName", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
             new ExpandedNodeId("Scalar_Simulation_Variant", Quickstarts.ReferenceServer.Namespaces.ReferenceServer),
-        };
+        ];
 
         /// <summary>
         /// Ref server test data node manager.
         /// </summary>
         public static readonly ExpandedNodeId[] NodeIdTestSetDataSimulation =
-        {
+        [
             new ExpandedNodeId(TestData.Variables.Data_Dynamic_Scalar_Int16Value, TestData.Namespaces.TestData),
             new ExpandedNodeId(TestData.Variables.Data_Dynamic_Scalar_Int32Value, TestData.Namespaces.TestData),
             new ExpandedNodeId(TestData.Variables.Data_Dynamic_Scalar_UInt16Value, TestData.Namespaces.TestData),
@@ -100,22 +99,20 @@ namespace Opc.Ua.Server.Tests
             new ExpandedNodeId(TestData.Variables.Data_Dynamic_Scalar_VectorValue, TestData.Namespaces.TestData),
             new ExpandedNodeId(TestData.Variables.Data_Dynamic_Scalar_VectorValue_X, TestData.Namespaces.TestData),
             new ExpandedNodeId(TestData.Variables.Data_Dynamic_Structure_ScalarStructure, TestData.Namespaces.TestData),
-        };
+        ];
 
         public static readonly ExpandedNodeId[] NodeIdTestDataHistory =
-        {
+        [
             new ExpandedNodeId(TestData.Variables.Data_Dynamic_Scalar_Int32Value, TestData.Namespaces.TestData),
-        };
+        ];
 
         public static readonly ExpandedNodeId[] NodeIdMemoryBufferSimulation =
-            {
+            [
             // dynamic variables from namespace MemoryBuffer
             new ExpandedNodeId("UInt32[64]", MemoryBuffer.Namespaces.MemoryBuffer + "/Instance"),
             new ExpandedNodeId("Double[40]", MemoryBuffer.Namespaces.MemoryBuffer + "/Instance"),
-        };
-        #endregion
+        ];
 
-        #region Public Workers
         /// <summary>
         /// Worker function to browse the full address space of a server.
         /// </summary>
@@ -142,7 +139,7 @@ namespace Opc.Ua.Server.Tests
                 ResultMask = (uint)BrowseResultMask.All
             };
             BrowseDescriptionCollection browseDescriptionCollection = ServerFixtureUtils.CreateBrowseDescriptionCollectionFromNodeId(
-                new NodeIdCollection(new NodeId[] { Objects.RootFolder }),
+                [.. new NodeId[] { Objects.RootFolder }],
                 browseTemplate);
 
             // Browse
@@ -153,7 +150,7 @@ namespace Opc.Ua.Server.Tests
 
             // Test if server responds with BadNothingToDo
             {
-                ServiceResultException sre = Assert.Throws<ServiceResultException>(() =>
+                ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
                     _ = services.Browse(requestHeader, null,
                         0, browseDescriptionCollection.Take(0).ToArray(),
                         out BrowseResultCollection results, out DiagnosticInfoCollection infos));
@@ -168,15 +165,15 @@ namespace Opc.Ua.Server.Tests
                 {
                     verifyMaxNodesPerBrowse = false;
                     // Test if server responds with BadTooManyOperations
-                    ServiceResultException sre = Assert.Throws<ServiceResultException>(() =>
+                    ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
                         _ = services.Browse(requestHeader, null,
                             0, browseDescriptionCollection,
                             out BrowseResultCollection results, out DiagnosticInfoCollection infos));
                     Assert.AreEqual((StatusCode)StatusCodes.BadTooManyOperations, (StatusCode)sre.StatusCode);
 
                     // Test if server responds with BadTooManyOperations
-                    BrowseDescription[] tempBrowsePath = browseDescriptionCollection.Take((int)operationLimits.MaxNodesPerBrowse + 1).ToArray();
-                    sre = Assert.Throws<ServiceResultException>(() =>
+                    BrowseDescription[] tempBrowsePath = [.. browseDescriptionCollection.Take((int)operationLimits.MaxNodesPerBrowse + 1)];
+                    sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
                         _ = services.Browse(requestHeader, null,
                             0, tempBrowsePath,
                             out BrowseResultCollection results, out DiagnosticInfoCollection infos));
@@ -288,7 +285,7 @@ namespace Opc.Ua.Server.Tests
                 {
                     verifyMaxNodesPerBrowse = false;
                     // Test if server responds with BadTooManyOperations
-                    ServiceResultException sre = Assert.Throws<ServiceResultException>(() =>
+                    ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
                         _ = services.TranslateBrowsePathsToNodeIds(requestHeader, browsePaths, out BrowsePathResultCollection results, out DiagnosticInfoCollection infos));
                     Assert.AreEqual((StatusCode)StatusCodes.BadTooManyOperations, (StatusCode)sre.StatusCode);
                 }
@@ -351,7 +348,7 @@ namespace Opc.Ua.Server.Tests
 
             var itemsToCreate = new MonitoredItemCreateRequestCollection();
             // check badnothingtodo
-            ServiceResultException sre = Assert.Throws<ServiceResultException>(() =>
+            ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
                 services.CreateMonitoredItems(requestHeader, id, TimestampsToReturn.Neither, itemsToCreate,
                     out MonitoredItemCreateResultCollection mockResults, out DiagnosticInfoCollection mockInfos));
             Assert.AreEqual((StatusCode)StatusCodes.BadNothingToDo, (StatusCode)sre.StatusCode);
@@ -428,7 +425,7 @@ namespace Opc.Ua.Server.Tests
             int loopCounter = (int)queueSize;
             Thread.Sleep(loopCounter * 1000);
 
-            acknowledgements = new SubscriptionAcknowledgementCollection();
+            acknowledgements = [];
             do
             {
                 // get publish responses
@@ -505,8 +502,9 @@ namespace Opc.Ua.Server.Tests
                 CreateMonitoredItem(services, requestHeader, subscriptionId, testNode, clientHandle++, queueSize, samplingInterval);
             }
 
-            var subscriptionIds = new UInt32Collection();
-            subscriptionIds.Add(subscriptionId);
+            var subscriptionIds = new UInt32Collection {
+                subscriptionId
+            };
 
             // enable publishing
             ResponseHeader response = services.SetPublishingMode(requestHeader, true, subscriptionIds,
@@ -589,8 +587,8 @@ namespace Opc.Ua.Server.Tests
             if (sendInitialData)
             {
                 ExtensionObject items = notificationMessage.NotificationData.FirstOrDefault();
-                Assert.IsTrue(items.Body is Opc.Ua.DataChangeNotification);
-                MonitoredItemNotificationCollection monitoredItemsCollection = ((Opc.Ua.DataChangeNotification)items.Body).MonitoredItems;
+                Assert.IsTrue(items.Body is DataChangeNotification);
+                MonitoredItemNotificationCollection monitoredItemsCollection = ((DataChangeNotification)items.Body).MonitoredItems;
                 Assert.IsNotEmpty(monitoredItemsCollection);
             }
             //Assert.AreEqual(0, availableSequenceNumbers.Count);
@@ -642,9 +640,7 @@ namespace Opc.Ua.Server.Tests
                 ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, subscriptionIds, response.StringTable);
             }
         }
-        #endregion
 
-        #region Private Helpers
         private static uint CreateSubscription(IServerTestServices services, RequestHeader requestHeader)
         {
             // start time
@@ -706,7 +702,7 @@ namespace Opc.Ua.Server.Tests
                 new SimpleAttributeOperand() {
                     AttributeId = Attributes.Value,
                     TypeDefinitionId = ObjectTypeIds.BaseEventType,
-                    BrowsePath = new QualifiedNameCollection(new QualifiedName[] { "EventType" })
+                    BrowsePath = [.. new QualifiedName[] { "EventType" }]
                 },
                 new LiteralOperand {
                     Value = new Variant(new NodeId(ObjectTypeIds.BaseEventType))
@@ -724,14 +720,13 @@ namespace Opc.Ua.Server.Tests
                     SamplingInterval = -1,
                     Filter = new ExtensionObject(
                         new EventFilter {
-                            SelectClauses = new SimpleAttributeOperandCollection(
-                            new SimpleAttributeOperand[] {
-                                new SimpleAttributeOperand{
+                            SelectClauses = [.. new SimpleAttributeOperand[] {
+                                new() {
                                     AttributeId = Attributes.Value,
                                     TypeDefinitionId = ObjectTypeIds.BaseEventType,
-                                    BrowsePath = new QualifiedNameCollection(new QualifiedName[] { BrowseNames.Message})
+                                    BrowsePath = [.. new QualifiedName[] { BrowseNames.Message}]
                                 }
-                            }),
+                            }],
                             WhereClause = whereClause,
                         }),
                     DiscardOldest = true,
@@ -739,7 +734,5 @@ namespace Opc.Ua.Server.Tests
                 }
             };
         }
-        #endregion
-
     }
 }

@@ -70,10 +70,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The Server ILogger event Ids used for event messages, when calling back to ILogger.
         /// </summary>
-        private readonly EventId m_sendResponseEventId = new EventId(TraceMasks.ServiceDetail, nameof(SendResponse));
-        private readonly EventId m_serverCallEventId = new EventId(TraceMasks.ServiceDetail, nameof(ServerCall));
-        private readonly EventId m_sessionStateMessageEventId = new EventId(TraceMasks.Information, nameof(SessionState));
-        private readonly EventId m_monitoredItemReadyEventId = new EventId(TraceMasks.OperationDetail, nameof(MonitoredItemReady));
+        private readonly EventId m_sendResponseEventId = new(TraceMasks.ServiceDetail, nameof(SendResponse));
+        private readonly EventId m_serverCallEventId = new(TraceMasks.ServiceDetail, nameof(ServerCall));
+        private readonly EventId m_sessionStateMessageEventId = new(TraceMasks.Information, nameof(SessionState));
+        private readonly EventId m_monitoredItemReadyEventId = new(TraceMasks.OperationDetail, nameof(MonitoredItemReady));
 
         /// <summary>
         /// The send response.

@@ -47,12 +47,9 @@ namespace Opc.Ua.Core.Tests.Stack.State
         public const string OpcUa = "http://opcfoundation.org/UA/";
         public IServiceMessageContext Context;
 
-        #region DataPointSources
         [DatapointSource]
-        public Type[] TypeArray = typeof(BaseObjectState).Assembly.GetExportedTypes().Where(type => IsNodeStateType(type)).ToArray();
-        #endregion
+        public Type[] TypeArray = [.. typeof(BaseObjectState).Assembly.GetExportedTypes().Where(IsNodeStateType)];
 
-        #region Test Setup
         [OneTimeSetUp]
         protected void OneTimeSetUp()
         {
@@ -68,9 +65,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         {
             Utils.SilentDispose(Context);
         }
-        #endregion
 
-        #region Test Methods
         /// <summary>
         /// Verify activation of a NodeState type.
         /// </summary>
@@ -87,9 +82,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             testObject.Create(context, new NodeId(1000), "Name", "DisplayName", true);
             testObject.Dispose();
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Create an instance of a NodeState type with default values.
         /// </summary>
@@ -121,7 +114,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         /// <summary>
         /// Return true if system Type is IEncodeable.
         /// </summary>
-        private static bool IsNodeStateType(System.Type systemType)
+        private static bool IsNodeStateType(Type systemType)
         {
             if (systemType == null)
             {
@@ -138,13 +131,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             var nodeState = CreateDefaultNodeStateType(systemType) as NodeState;
 
-            if (nodeState == null)
-            {
-                return false;
-            }
-
-            return true;
+            return nodeState != null;
         }
-        #endregion
     }
 }

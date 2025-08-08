@@ -58,7 +58,6 @@ namespace Opc.Ua.Client.ComplexTypes
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
     public sealed class StructureDefinitionAttribute : Attribute
     {
-        #region Constructors
         /// <summary>
         /// Create the attribute for a structure definition.
         /// </summary>
@@ -66,9 +65,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             StructureType = StructureType.Structure;
         }
-        #endregion Constructors
 
-        #region Public Methods
         /// <summary>
         /// Convert the base type node id to a <see cref="StructureBaseDataType"/>.
         /// </summary>
@@ -85,9 +82,7 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             return StructureBaseDataType.Structure;
         }
-        #endregion Public Methods
 
-        #region  Public Properties
         /// <summary>
         /// The default encoding Id.
         /// </summary>
@@ -100,6 +95,5 @@ namespace Opc.Ua.Client.ComplexTypes
         /// The structure type.
         /// </summary>
         public StructureType StructureType { get; set; }
-        #endregion Public Properties
     }
 }//namespace

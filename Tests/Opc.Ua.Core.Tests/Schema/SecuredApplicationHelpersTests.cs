@@ -1,5 +1,5 @@
-using Opc.Ua.Security;
 using NUnit.Framework;
+using Opc.Ua.Security;
 
 namespace Opc.Ua.Core.Tests.Schema
 {

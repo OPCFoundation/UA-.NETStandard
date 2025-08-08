@@ -50,7 +50,7 @@ namespace Opc.Ua.Client.Tests
 {
     public class ClientTestServerQuotas : ClientTestFramework
     {
-        const int MaxByteStringLengthForTest = 4096;
+        internal const int MaxByteStringLengthForTest = 4096;
         public ClientTestServerQuotas() : base(Utils.UriSchemeOpcTcp)
         {
         }
@@ -60,7 +60,6 @@ namespace Opc.Ua.Client.Tests
         {
         }
 
-        #region Test Setup
         /// <summary>
         /// Set up a Server and a Client instance.
         /// </summary>
@@ -68,7 +67,7 @@ namespace Opc.Ua.Client.Tests
         public new Task OneTimeSetUp()
         {
             SupportsExternalServerUrl = true;
-            return base.OneTimeSetUpAsync();
+            return OneTimeSetUpAsync();
         }
 
         /// <summary>
@@ -111,10 +110,10 @@ namespace Opc.Ua.Client.Tests
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.UserName));
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.Certificate));
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
-                new UserTokenPolicy(UserTokenType.IssuedToken) { IssuedTokenType = Opc.Ua.Profiles.JwtUserToken });
+                new UserTokenPolicy(UserTokenType.IssuedToken) { IssuedTokenType = Profiles.JwtUserToken });
 
             ReferenceServer = await ServerFixture.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
-            ReferenceServer.TokenValidator = this.TokenValidator;
+            ReferenceServer.TokenValidator = TokenValidator;
             ServerFixturePort = ServerFixture.Port;
         }
 
@@ -126,9 +125,7 @@ namespace Opc.Ua.Client.Tests
         {
             return base.TearDown();
         }
-        #endregion
 
-        #region Benchmark Setup
         /// <summary>
         /// Global Setup for benchmarks.
         /// </summary>
@@ -146,9 +143,6 @@ namespace Opc.Ua.Client.Tests
         {
             base.GlobalCleanup();
         }
-        #endregion
-
-        #region Test Methods
 
         [Test, Order(200)]
         public void TestBoundaryCaseForReadingChunks()
@@ -176,7 +170,7 @@ namespace Opc.Ua.Client.Tests
 
             if (results[0] != StatusCodes.Good)
             {
-                Assert.Fail($"Write failed with status code {results[0]}");
+                NUnit.Framework.Assert.Fail($"Write failed with status code {results[0]}");
             }
 
             byte[] readData = theSession.ReadByteStringInChunks(NodeId);
@@ -212,12 +206,11 @@ namespace Opc.Ua.Client.Tests
             DiagnosticInfoCollection diagnosticInfos = result.DiagnosticInfos;
             if (results[0] != StatusCodes.Good)
             {
-                Assert.Fail($"Write failed with status code {results[0]}");
+                NUnit.Framework.Assert.Fail($"Write failed with status code {results[0]}");
             }
 
             byte[] readData = await theSession.ReadByteStringInChunksAsync(NodeId, default).ConfigureAwait(false);
             Assert.IsTrue(Utils.IsEqual(chunk, readData));
         }
-        #endregion // Test Methods
     }
 }

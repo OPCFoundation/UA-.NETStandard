@@ -37,7 +37,6 @@ namespace Opc.Ua
         /// </summary>
         public static readonly int MaxInnerDepth = 5;
 
-        #region Constructors
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
@@ -249,7 +248,7 @@ namespace Opc.Ua
                 }
             }
 
-            if ((DiagnosticsMasks.ServiceLocalizedText & diagnosticsMask) != 0 && !Opc.Ua.LocalizedText.IsNullOrEmpty(result.LocalizedText))
+            if ((DiagnosticsMasks.ServiceLocalizedText & diagnosticsMask) != 0 && !Ua.LocalizedText.IsNullOrEmpty(result.LocalizedText))
             {
                 if (!string.IsNullOrEmpty(result.LocalizedText.Locale))
                 {
@@ -305,9 +304,7 @@ namespace Opc.Ua
                 }
             }
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The index of the symbolic id in the string table.
         /// </summary>
@@ -353,22 +350,14 @@ namespace Opc.Ua
         /// <summary>
         /// Whether the object represents a Null DiagnosticInfo.
         /// </summary>
-        public bool IsNullDiagnosticInfo
-        {
-            get
-            {
-                return SymbolicId == -1 &&
+        public bool IsNullDiagnosticInfo => SymbolicId == -1 &&
                     Locale == -1 &&
                     LocalizedText == -1 &&
                     NamespaceUri == -1 &&
                     AdditionalInfo == null &&
                     InnerDiagnosticInfo == null &&
                     InnerStatusCode == StatusCodes.Good;
-            }
-        }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Determines if the specified object is equal to the object.
         /// </summary>
@@ -397,9 +386,7 @@ namespace Opc.Ua
         {
             return ToString(null, null);
         }
-        #endregion
 
-        #region IFormattable Members
         /// <summary>
         /// Returns the string representation of the object.
         /// </summary>
@@ -418,13 +405,11 @@ namespace Opc.Ua
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
         }
-        #endregion
 
-        #region ICloneable Members
         /// <inheritdoc/>
         public object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -434,30 +419,28 @@ namespace Opc.Ua
         {
             return new DiagnosticInfo(this);
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Adds the hashcodes for the object.
         /// Limits the recursion depth to prevent stack overflow.
         /// </summary>
         private void GetHashCode(ref HashCode hash, int depth)
         {
-            hash.Add(this.SymbolicId);
-            hash.Add(this.NamespaceUri);
-            hash.Add(this.Locale);
-            hash.Add(this.LocalizedText);
+            hash.Add(SymbolicId);
+            hash.Add(NamespaceUri);
+            hash.Add(Locale);
+            hash.Add(LocalizedText);
 
-            if (this.AdditionalInfo != null)
+            if (AdditionalInfo != null)
             {
-                hash.Add(this.AdditionalInfo);
+                hash.Add(AdditionalInfo);
             }
 
-            hash.Add(this.InnerStatusCode);
+            hash.Add(InnerStatusCode);
 
-            if (this.InnerDiagnosticInfo != null && depth < MaxInnerDepth)
+            if (InnerDiagnosticInfo != null && depth < MaxInnerDepth)
             {
-                this.InnerDiagnosticInfo.GetHashCode(ref hash, depth + 1);
+                InnerDiagnosticInfo.GetHashCode(ref hash, depth + 1);
             }
         }
 
@@ -467,7 +450,7 @@ namespace Opc.Ua
         /// </summary>
         private bool Equals(object obj, int depth)
         {
-            if (Object.ReferenceEquals(this, obj))
+            if (ReferenceEquals(this, obj))
             {
                 return true;
             }
@@ -479,41 +462,41 @@ namespace Opc.Ua
 
             if (obj is DiagnosticInfo value)
             {
-                if (this.SymbolicId != value.SymbolicId)
+                if (SymbolicId != value.SymbolicId)
                 {
                     return false;
                 }
 
-                if (this.NamespaceUri != value.NamespaceUri)
+                if (NamespaceUri != value.NamespaceUri)
                 {
                     return false;
                 }
 
-                if (this.Locale != value.Locale)
+                if (Locale != value.Locale)
                 {
                     return false;
                 }
 
-                if (this.LocalizedText != value.LocalizedText)
+                if (LocalizedText != value.LocalizedText)
                 {
                     return false;
                 }
 
-                if (this.AdditionalInfo != value.AdditionalInfo)
+                if (AdditionalInfo != value.AdditionalInfo)
                 {
                     return false;
                 }
 
-                if (this.InnerStatusCode != value.InnerStatusCode)
+                if (InnerStatusCode != value.InnerStatusCode)
                 {
                     return false;
                 }
 
-                if (this.InnerDiagnosticInfo != null)
+                if (InnerDiagnosticInfo != null)
                 {
                     if (depth < MaxInnerDepth)
                     {
-                        return this.InnerDiagnosticInfo.Equals(value.InnerDiagnosticInfo, depth + 1);
+                        return InnerDiagnosticInfo.Equals(value.InnerDiagnosticInfo, depth + 1);
                     }
                     else
                     {
@@ -527,11 +510,8 @@ namespace Opc.Ua
 
             return false;
         }
-
-#endregion
     }
 
-    #region DiagnosticInfoCollection Class
     /// <summary>
     /// A collection of DiagnosticInfo objects.
     /// </summary>
@@ -578,10 +558,10 @@ namespace Opc.Ua
         {
             if (values != null)
             {
-                return new DiagnosticInfoCollection(values);
+                return [.. values];
             }
 
-            return new DiagnosticInfoCollection();
+            return [];
         }
 
         /// <summary>
@@ -596,11 +576,10 @@ namespace Opc.Ua
             return ToDiagnosticInfoCollection(values);
         }
 
-        #region ICloneable
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -611,18 +590,14 @@ namespace Opc.Ua
         /// </remarks>
         public new object MemberwiseClone()
         {
-            var clone = new DiagnosticInfoCollection(this.Count);
+            var clone = new DiagnosticInfoCollection(Count);
 
             foreach (DiagnosticInfo element in this)
             {
-                clone.Add((DiagnosticInfo)Utils.Clone(element));
+                clone.Add(Utils.Clone(element));
             }
 
             return clone;
         }
-        #endregion
-
     }//class
-    #endregion
-
 }//namespace

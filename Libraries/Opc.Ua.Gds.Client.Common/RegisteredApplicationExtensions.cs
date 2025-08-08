@@ -46,9 +46,9 @@ namespace Opc.Ua.Gds.Client
         /// <returns></returns>
         public string GetHttpsDomainName()
         {
-            if (this.DiscoveryUrl != null)
+            if (DiscoveryUrl != null)
             {
-                foreach (string discoveryUrl in this.DiscoveryUrl)
+                foreach (string discoveryUrl in DiscoveryUrl)
                 {
                     if (Uri.IsWellFormedUriString(discoveryUrl, UriKind.Absolute))
                     {
@@ -67,20 +67,14 @@ namespace Opc.Ua.Gds.Client
 
             if (RegistrationType != RegistrationType.ServerPush)
             {
-                if (!string.IsNullOrEmpty(CertificatePrivateKeyPath))
-                {
-                    if (CertificatePrivateKeyPath.EndsWith("PEM", StringComparison.OrdinalIgnoreCase))
-                    {
-                        privateKeyFormat = "PEM";
-                    }
-                }
-            }
-            else
-            {
-                if (privateKeyFormats == null || !privateKeyFormats.Contains("PFX"))
+                if (!string.IsNullOrEmpty(CertificatePrivateKeyPath) && CertificatePrivateKeyPath.EndsWith("PEM", StringComparison.OrdinalIgnoreCase))
                 {
                     privateKeyFormat = "PEM";
                 }
+            }
+            else if (privateKeyFormats == null || !privateKeyFormats.Contains("PFX"))
+            {
+                privateKeyFormat = "PEM";
             }
 
             return privateKeyFormat;
@@ -187,6 +181,5 @@ namespace Opc.Ua.Gds.Client
             domainNames.Add(Utils.GetHostName());
             return domainNames;
         }
-
     }
 }

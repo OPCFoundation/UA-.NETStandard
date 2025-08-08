@@ -58,7 +58,6 @@ namespace Opc.Ua
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class DataValue : ICloneable, IFormattable, IEquatable<DataValue>
     {
-        #region Constructors
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
@@ -200,9 +199,7 @@ namespace Opc.Ua
             SourceTimestamp = DateTime.MinValue;
             ServerTimestamp = DateTime.MinValue;
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Determines if the specified object is equal to the object.
         /// </summary>
@@ -212,39 +209,39 @@ namespace Opc.Ua
         /// <param name="obj">The object to compare to *this*</param>
         public override bool Equals(object obj)
         {
-            if (Object.ReferenceEquals(this, obj))
+            if (ReferenceEquals(this, obj))
             {
                 return true;
             }
 
             if (obj is DataValue value)
             {
-                if (this.StatusCode != value.StatusCode)
+                if (StatusCode != value.StatusCode)
                 {
                     return false;
                 }
 
-                if (this.ServerTimestamp != value.ServerTimestamp)
+                if (ServerTimestamp != value.ServerTimestamp)
                 {
                     return false;
                 }
 
-                if (this.SourceTimestamp != value.SourceTimestamp)
+                if (SourceTimestamp != value.SourceTimestamp)
                 {
                     return false;
                 }
 
-                if (this.ServerPicoseconds != value.ServerPicoseconds)
+                if (ServerPicoseconds != value.ServerPicoseconds)
                 {
                     return false;
                 }
 
-                if (this.SourcePicoseconds != value.SourcePicoseconds)
+                if (SourcePicoseconds != value.SourcePicoseconds)
                 {
                     return false;
                 }
 
-                return Utils.IsEqual(this.m_value.Value, value.m_value.Value);
+                return Utils.IsEqual(m_value.Value, value.m_value.Value);
             }
 
             return false;
@@ -259,39 +256,39 @@ namespace Opc.Ua
         /// <param name="other">The DataValue to compare to *this*</param>
         public bool Equals(DataValue other)
         {
-            if (Object.ReferenceEquals(this, other))
+            if (ReferenceEquals(this, other))
             {
                 return true;
             }
 
             if (other != null)
             {
-                if (this.StatusCode != other.StatusCode)
+                if (StatusCode != other.StatusCode)
                 {
                     return false;
                 }
 
-                if (this.ServerTimestamp != other.ServerTimestamp)
+                if (ServerTimestamp != other.ServerTimestamp)
                 {
                     return false;
                 }
 
-                if (this.SourceTimestamp != other.SourceTimestamp)
+                if (SourceTimestamp != other.SourceTimestamp)
                 {
                     return false;
                 }
 
-                if (this.ServerPicoseconds != other.ServerPicoseconds)
+                if (ServerPicoseconds != other.ServerPicoseconds)
                 {
                     return false;
                 }
 
-                if (this.SourcePicoseconds != other.SourcePicoseconds)
+                if (SourcePicoseconds != other.SourcePicoseconds)
                 {
                     return false;
                 }
 
-                return Utils.IsEqual(this.m_value.Value, other.m_value.Value);
+                return Utils.IsEqual(m_value.Value, other.m_value.Value);
             }
 
             return false;
@@ -305,12 +302,12 @@ namespace Opc.Ua
         /// </remarks>
         public override int GetHashCode()
         {
-            if (this.m_value.Value != null)
+            if (m_value.Value != null)
             {
-                return this.m_value.Value.GetHashCode();
+                return m_value.Value.GetHashCode();
             }
 
-            return this.StatusCode.GetHashCode();
+            return StatusCode.GetHashCode();
         }
 
         /// <summary>
@@ -323,9 +320,7 @@ namespace Opc.Ua
         {
             return ToString(null, null);
         }
-        #endregion
 
-        #region IFormattable Members
         /// <summary>
         /// Returns the string representation of the object.
         /// </summary>
@@ -344,13 +339,11 @@ namespace Opc.Ua
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
         }
-        #endregion
 
-        #region ICloneable Members
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -363,9 +356,7 @@ namespace Opc.Ua
         {
             return new DataValue(this);
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The value of data value.
         /// </summary>
@@ -374,9 +365,7 @@ namespace Opc.Ua
         /// </remarks>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1721:PropertyNamesShouldNotMatchGetMethods")]
         public object Value
-        {
-            get { return m_value.Value; }
-            set { m_value.Value = value; }
+        { get => m_value.Value; set => m_value.Value = value;
         }
 
         /// <summary>
@@ -387,9 +376,7 @@ namespace Opc.Ua
         /// </remarks>
         [DataMember(Name = "Value", Order = 1, IsRequired = false)]
         public Variant WrappedValue
-        {
-            get { return m_value; }
-            set { m_value = value; }
+        { get => m_value; set => m_value = value;
         }
 
         /// <summary>
@@ -436,9 +423,7 @@ namespace Opc.Ua
         /// </remarks>
         [DataMember(Order = 6, IsRequired = false)]
         public ushort ServerPicoseconds { get; set; }
-        #endregion
 
-        #region Static Methods
         /// <summary>
         /// Returns true if the status code is good.
         /// </summary>
@@ -546,12 +531,12 @@ namespace Opc.Ua
         /// </summary>
         public object GetValue(Type expectedType)
         {
-            object value = this.Value;
+            object value = Value;
 
             if (expectedType != null && value != null)
             {
                 // return null for a DataValue with bad status code.
-                if (StatusCode.IsBad(this.StatusCode))
+                if (StatusCode.IsBad(StatusCode))
                 {
                     return null;
                 }
@@ -584,12 +569,12 @@ namespace Opc.Ua
         public T GetValueOrDefault<T>()
         {
             // return default for a DataValue with bad status code.
-            if (StatusCode.IsBad(this.StatusCode))
+            if (StatusCode.IsBad(StatusCode))
             {
                 return default;
             }
 
-            object value = this.Value;
+            object value = Value;
             if (value != null)
             {
                 if (value is ExtensionObject extension)
@@ -627,31 +612,27 @@ namespace Opc.Ua
         /// </remarks>
         public T GetValue<T>(T defaultValue)
         {
-            if (StatusCode.IsNotGood(this.StatusCode))
+            if (StatusCode.IsNotGood(StatusCode))
             {
                 return defaultValue;
             }
 
-            if (typeof(T).IsInstanceOfType(this.Value))
+            if (typeof(T).IsInstanceOfType(Value))
             {
-                return (T)this.Value;
+                return (T)Value;
             }
 
-            if (this.Value is ExtensionObject extension && typeof(T).IsInstanceOfType(extension.Body))
+            if (Value is ExtensionObject extension && typeof(T).IsInstanceOfType(extension.Body))
             {
                 return (T)extension.Body;
             }
 
             return defaultValue;
         }
-        #endregion
 
-        #region Private Fields
         private Variant m_value;
-        #endregion
     }
 
-    #region DataValueCollection Class
     /// <summary>
     /// A collection of DataValues.
     /// </summary>
@@ -698,10 +679,10 @@ namespace Opc.Ua
         {
             if (values != null)
             {
-                return new DataValueCollection(values);
+                return [.. values];
             }
 
-            return new DataValueCollection();
+            return [];
         }
 
         /// <summary>
@@ -716,11 +697,10 @@ namespace Opc.Ua
             return ToDataValueCollection(values);
         }
 
-        #region ICloneable
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -731,17 +711,14 @@ namespace Opc.Ua
         /// </remarks>
         public new object MemberwiseClone()
         {
-            var clone = new DataValueCollection(this.Count);
+            var clone = new DataValueCollection(Count);
 
             foreach (DataValue element in this)
             {
-                clone.Add((DataValue)Utils.Clone(element));
+                clone.Add(Utils.Clone(element));
             }
 
             return clone;
         }
-        #endregion
     }
-    #endregion
-
 }//namespace

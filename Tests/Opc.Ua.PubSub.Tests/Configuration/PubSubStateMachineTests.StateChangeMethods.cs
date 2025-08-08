@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -27,19 +27,19 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using NUnit.Framework;
 using System;
+using NUnit.Framework;
 using Opc.Ua.PubSub.Configuration;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.PubSub.Tests.Configuration
 {
-    partial class PubSubStateMachineTests
+    public partial class PubSubStateMachineTests
     {
         [Test(Description = "Validate Call Enable on Disabled object")]
         public void ValidateEnableOnDisabled()
         {
-            var uaPubSubApplication = UaPubSubApplication.Create(publisherConfigurationFile);
+            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
             PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration;
             configurator.Disable(pubSub);
@@ -49,7 +49,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test(Description = "Validate Call Enable on Enabled object")]
         public void ValidateEnableOnOperational()
         {
-            var uaPubSubApplication = UaPubSubApplication.Create(publisherConfigurationFile);
+            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
             PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration;
             configurator.Enable(pubSub);
@@ -59,7 +59,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test(Description = "Validate Call Disable on Enabled object")]
         public void ValidateDisableOnEnabled()
         {
-            var uaPubSubApplication = UaPubSubApplication.Create(publisherConfigurationFile);
+            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
             PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration;
             configurator.Enable(pubSub);
@@ -69,7 +69,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test(Description = "Validate Call Disable on Disabled object")]
         public void ValidateDisableOnDisabled()
         {
-            var uaPubSubApplication = UaPubSubApplication.Create(publisherConfigurationFile);
+            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
             PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration;
             configurator.Disable(pubSub);
@@ -79,36 +79,35 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test(Description = "Validate Call Enable on null object")]
         public void ValidateEnableOnNUll()
         {
-            var uaPubSubApplication = UaPubSubApplication.Create(publisherConfigurationFile);
+            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
-            Assert.Throws<ArgumentException>(() => configurator.Enable(null), "The Enable method does not throw exception when called with null parameter.");
+            NUnit.Framework.Assert.Throws<ArgumentException>(() => configurator.Enable(null), "The Enable method does not throw exception when called with null parameter.");
         }
 
         [Test(Description = "Validate Call Disable on null object")]
         public void ValidateDisableOnNUll()
         {
-            var uaPubSubApplication = UaPubSubApplication.Create(publisherConfigurationFile);
+            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
-            Assert.Throws<ArgumentException>(() => configurator.Disable(null), "The Disable method does not throw exception when called with null parameter.");
+            NUnit.Framework.Assert.Throws<ArgumentException>(() => configurator.Disable(null), "The Disable method does not throw exception when called with null parameter.");
         }
 
         [Test(Description = "Validate Call Enable on non existing object")]
         public void ValidateEnableOnNonExisting()
         {
-            var uaPubSubApplication = UaPubSubApplication.Create(publisherConfigurationFile);
+            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
             var nonExisting = new PubSubConfigurationDataType();
-            Assert.Throws<ArgumentException>(() => configurator.Enable(nonExisting), "The Enable method does not throw exception when called with non existing parameter.");
+            NUnit.Framework.Assert.Throws<ArgumentException>(() => configurator.Enable(nonExisting), "The Enable method does not throw exception when called with non existing parameter.");
         }
 
         [Test(Description = "Validate Call Disable on non existing object")]
         public void ValidateDisableOnNonExisting()
         {
-            var uaPubSubApplication = UaPubSubApplication.Create(publisherConfigurationFile);
+            var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
             var nonExisting = new PubSubConfigurationDataType();
-            Assert.Throws<ArgumentException>(() => configurator.Disable(nonExisting), "The Disable method does not throw exception when called with non existing parameter.");
+            NUnit.Framework.Assert.Throws<ArgumentException>(() => configurator.Disable(nonExisting), "The Disable method does not throw exception when called with non existing parameter.");
         }
-
     }
 }

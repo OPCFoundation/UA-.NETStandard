@@ -42,7 +42,6 @@ namespace Opc.Ua.Client
     /// </summary>
     public class TraceableRequestHeaderClientSession : Session
     {
-        #region Constructors
         /// <summary>
         /// Constructs a new instance of the <see cref="Session"/> class.
         /// </summary>
@@ -97,7 +96,6 @@ namespace Opc.Ua.Client
             base(channel, template, copyEventHandlers)
         {
         }
-        #endregion
 
         /// <summary>
         /// Populates AdditionalParameters with details from the ActivityContext

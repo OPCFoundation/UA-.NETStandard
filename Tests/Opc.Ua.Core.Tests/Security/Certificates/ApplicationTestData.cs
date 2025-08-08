@@ -42,7 +42,7 @@ namespace Opc.Ua.Core.Tests
         {
             ApplicationUri = null;
             ApplicationName = null;
-            DomainNames = new StringCollection();
+            DomainNames = [];
             Subject = null;
             PrivateKeyFormat = "PFX";
             PrivateKeyPassword = "";

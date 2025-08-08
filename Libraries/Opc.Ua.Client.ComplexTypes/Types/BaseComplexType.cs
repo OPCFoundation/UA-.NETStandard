@@ -46,7 +46,6 @@ namespace Opc.Ua.Client.ComplexTypes
         IComplexTypeProperties,
         IStructureTypeInfo
     {
-        #region Constructors
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
@@ -83,9 +82,7 @@ namespace Opc.Ua.Client.ComplexTypes
             TypeId = ExpandedNodeId.Null;
             m_context = MessageContextExtension.CurrentContext;
         }
-        #endregion Constructors
 
-        #region ICloneable
         /// <inheritdoc/>
         public virtual object Clone()
         {
@@ -115,9 +112,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
             return clone;
         }
-        #endregion
 
-        #region Public Properties
         /// <inheritdoc/>
         public ExpandedNodeId TypeId { get; set; }
 
@@ -191,9 +186,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             return ToString(null, null);
         }
-        #endregion Public Properties
 
-        #region IFormattable Members
         /// <summary>
         /// Returns the string representation of the complex type.
         /// </summary>
@@ -229,9 +222,7 @@ namespace Opc.Ua.Client.ComplexTypes
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
         }
-        #endregion IFormattable Members
 
-        #region IComplexTypeProperties
         /// <inheritdoc/>
         public virtual int GetPropertyCount()
         {
@@ -253,8 +244,8 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <inheritdoc/>
         public virtual object this[int index]
         {
-            get => m_propertyList.ElementAt(index).GetValue(this);
-            set => m_propertyList.ElementAt(index).SetValue(this, value);
+            get => m_propertyList[index].GetValue(this);
+            set => m_propertyList[index].SetValue(this, value);
         }
 
         /// <inheritdoc/>
@@ -269,9 +260,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             return m_propertyList;
         }
-        #endregion IComplexTypeProperties
 
-        #region Private Members
         /// <summary>
         /// Formatting helper.
         /// </summary>
@@ -632,8 +621,7 @@ namespace Opc.Ua.Client.ComplexTypes
             }
 
             m_propertyList = [];
-            PropertyInfo[] properties = GetType().GetProperties();
-            foreach (PropertyInfo property in properties)
+            foreach (PropertyInfo property in GetType().GetProperties())
             {
                 StructureFieldAttribute fieldAttribute = property.GetCustomAttribute<StructureFieldAttribute>();
 
@@ -651,9 +639,7 @@ namespace Opc.Ua.Client.ComplexTypes
             m_propertyList = [.. m_propertyList.OrderBy(p => p.Order)];
             m_propertyDict = m_propertyList.ToDictionary(p => p.Name, p => p);
         }
-        #endregion Private Members
 
-        #region Protected Properties
         /// <summary>
         /// Provide XmlNamespace based on systemType
         /// </summary>
@@ -669,9 +655,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 return m_xmlName != null ? m_xmlName.Namespace : string.Empty;
             }
         }
-        #endregion
 
-        #region Protected Fields
         /// <summary>
         /// The list of properties of this complex type.
         /// </summary>
@@ -681,12 +665,9 @@ namespace Opc.Ua.Client.ComplexTypes
         /// The list of properties as dictionary.
         /// </summary>
         protected Dictionary<string, ComplexTypePropertyInfo> m_propertyDict;
-        #endregion Protected Fields
 
-        #region Private Fields
         private IServiceMessageContext m_context;
         private StructureBaseDataType m_structureBaseType;
         private XmlQualifiedName m_xmlName;
-        #endregion Private Fields
     }
 }//namespace

@@ -55,17 +55,14 @@ namespace Opc.Ua.PubSub
         /// </summary>
         private readonly Dictionary<ushort, DataSetState> m_dataSetStates;
 
-        #region Constructor
         /// <summary>
         /// Creates a new instance.
         /// </summary>
         public WriterGroupPublishState()
         {
-            m_dataSetStates = new Dictionary<ushort, DataSetState>();
+            m_dataSetStates = [];
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Returns TRUE if the next DataSetMessage is a delta frame.
         /// </summary>
@@ -135,7 +132,7 @@ namespace Opc.Ua.PubSub
 
                 if (lastDataSet == null)
                 {
-                    state.LastDataSet = Utils.Clone(dataset) as DataSet;
+                    state.LastDataSet = Utils.Clone(dataset);
                     return dataset;
                 }
 
@@ -188,13 +185,12 @@ namespace Opc.Ua.PubSub
 
                 if (writer.KeyFrameCount > 1)
                 {
-
                     state.ConfigurationVersion =
                         dataset.DataSetMetaData.ConfigurationVersion.Clone() as ConfigurationVersionDataType;
 
                     if (state.LastDataSet == null)
                     {
-                        state.LastDataSet = Utils.Clone(dataset) as DataSet;
+                        state.LastDataSet = Utils.Clone(dataset);
                         return;
                     }
 
@@ -204,17 +200,12 @@ namespace Opc.Ua.PubSub
 
                         if (field != null)
                         {
-                            state.LastDataSet.Fields[ii] = Utils.Clone(field) as Field;
+                            state.LastDataSet.Fields[ii] = Utils.Clone(field);
                         }
                     }
-
                 }
             }
         }
-        #endregion
-
-        #region Private Methods
-
 
         private DataSetState GetState(DataSetWriterDataType writer)
         {
@@ -227,6 +218,5 @@ namespace Opc.Ua.PubSub
 
             return state;
         }
-        #endregion
     }
 }

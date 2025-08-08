@@ -49,20 +49,19 @@ namespace Opc.Ua.Server.Tests
     [DisassemblyDiagnoser]
     public class ReferenceServerTests
     {
-        const double kMaxAge = 10000;
-        const uint kTimeoutHint = 10000;
-        const uint kQueueSize = 5;
+        private const double kMaxAge = 10000;
+        private const uint kTimeoutHint = 10000;
+        private const uint kQueueSize = 5;
 
-        ServerFixture<ReferenceServer> m_fixture;
-        ReferenceServer m_server;
-        RequestHeader m_requestHeader;
-        OperationLimits m_operationLimits;
-        ReferenceDescriptionCollection m_referenceDescriptions;
-        RandomSource m_random;
-        DataGenerator m_generator;
-        bool m_sessionClosed;
+        private ServerFixture<ReferenceServer> m_fixture;
+        private ReferenceServer m_server;
+        private RequestHeader m_requestHeader;
+        private OperationLimits m_operationLimits;
+        private ReferenceDescriptionCollection m_referenceDescriptions;
+        private RandomSource m_random;
+        private DataGenerator m_generator;
+        private bool m_sessionClosed;
 
-        #region Test Setup
         /// <summary>
         /// Set up a Server fixture.
         /// </summary>
@@ -116,9 +115,7 @@ namespace Opc.Ua.Server.Tests
                 m_requestHeader = null;
             }
         }
-        #endregion
 
-        #region Benchmark Setup
         /// <summary>
         /// Set up a Reference Server a session
         /// </summary>
@@ -141,9 +138,7 @@ namespace Opc.Ua.Server.Tests
             m_fixture.StopAsync().GetAwaiter().GetResult();
             Thread.Sleep(1000);
         }
-        #endregion
 
-        #region Test Methods
         /// <summary>
         /// Test for expected exceptions.
         /// </summary>
@@ -301,7 +296,7 @@ namespace Opc.Ua.Server.Tests
         {
             // Nodes
             NamespaceTable namespaceUris = m_server.CurrentInstance.NamespaceUris;
-            NodeId[] testSet = CommonTestWorkers.NodeIdTestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).ToArray();
+            NodeId[] testSet = [.. CommonTestWorkers.NodeIdTestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris))];
 
             UpdateValues(testSet);
         }
@@ -369,7 +364,7 @@ namespace Opc.Ua.Server.Tests
                 RequestHeader transferRequestHeader = m_server.CreateAndActivateSession("ClosedSession", useSecurity);
                 SecureChannelContext transferSecurityContext = SecureChannelContext.Current;
                 NamespaceTable namespaceUris = m_server.CurrentInstance.NamespaceUris;
-                NodeId[] testSet = CommonTestWorkers.NodeIdTestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).ToArray();
+                NodeId[] testSet = [.. CommonTestWorkers.NodeIdTestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris))];
                 transferRequestHeader.Timestamp = DateTime.UtcNow;
                 UInt32Collection subscriptionIds = CommonTestWorkers.CreateSubscriptionForTransfer(serverTestServices, transferRequestHeader, testSet, kQueueSize, -1);
 
@@ -383,7 +378,7 @@ namespace Opc.Ua.Server.Tests
                 if (useSecurity)
                 {
                     // subscription was deleted, expect 'BadNoSubscription'
-                    ServiceResultException sre = Assert.Throws<ServiceResultException>(() => {
+                    ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() => {
                         m_requestHeader.Timestamp = DateTime.UtcNow;
                         CommonTestWorkers.VerifySubscriptionTransferred(serverTestServices, m_requestHeader, subscriptionIds, true);
                     });
@@ -411,7 +406,7 @@ namespace Opc.Ua.Server.Tests
             try
             {
                 NamespaceTable namespaceUris = m_server.CurrentInstance.NamespaceUris;
-                NodeId[] testSet = CommonTestWorkers.NodeIdTestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).ToArray();
+                NodeId[] testSet = [.. CommonTestWorkers.NodeIdTestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris))];
                 UInt32Collection subscriptionIds = CommonTestWorkers.CreateSubscriptionForTransfer(serverTestServices, m_requestHeader, testSet, kQueueSize, -1);
 
                 RequestHeader transferRequestHeader = m_server.CreateAndActivateSession("TransferSession", useSecurity);
@@ -457,7 +452,7 @@ namespace Opc.Ua.Server.Tests
                 NamespaceTable namespaceUris = m_server.CurrentInstance.NamespaceUris;
                 NodeIdCollection testSetCollection = CommonTestWorkers.NodeIdTestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).ToArray();
                 testSetCollection.AddRange(CommonTestWorkers.NodeIdTestDataSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).ToArray());
-                NodeId[] testSet = testSetCollection.ToArray();
+                NodeId[] testSet = [.. testSetCollection];
 
                 //Re-use method CreateSubscriptionForTransfer to create a subscription
                 UInt32Collection subscriptionIds = CommonTestWorkers.CreateSubscriptionForTransfer(serverTestServices, m_requestHeader, testSet, queueSize, 0);
@@ -471,7 +466,7 @@ namespace Opc.Ua.Server.Tests
 
                 Thread.Sleep(1000);
 
-                // Make sure publish queue becomes empty by consuming it 
+                // Make sure publish queue becomes empty by consuming it
                 Assert.AreEqual(1, subscriptionIds.Count);
 
                 // Issue a Publish request
@@ -566,8 +561,8 @@ namespace Opc.Ua.Server.Tests
                 Assert.AreEqual(subscriptionIds[0], publishedId);
                 Assert.AreEqual(1, notificationMessage.NotificationData.Count);
                 ExtensionObject items = notificationMessage.NotificationData.FirstOrDefault();
-                Assert.IsTrue(items.Body is Opc.Ua.DataChangeNotification);
-                MonitoredItemNotificationCollection monitoredItemsCollection = ((Opc.Ua.DataChangeNotification)items.Body).MonitoredItems;
+                Assert.IsTrue(items.Body is DataChangeNotification);
+                MonitoredItemNotificationCollection monitoredItemsCollection = ((DataChangeNotification)items.Body).MonitoredItems;
                 Assert.AreEqual(testSet.Length, monitoredItemsCollection.Count);
 
                 Thread.Sleep(1000);
@@ -587,13 +582,13 @@ namespace Opc.Ua.Server.Tests
                     Assert.AreEqual(subscriptionIds[0], publishedId);
                     Assert.AreEqual(1, notificationMessage.NotificationData.Count);
                     items = notificationMessage.NotificationData.FirstOrDefault();
-                    Assert.IsTrue(items.Body is Opc.Ua.DataChangeNotification);
-                    monitoredItemsCollection = ((Opc.Ua.DataChangeNotification)items.Body).MonitoredItems;
+                    Assert.IsTrue(items.Body is DataChangeNotification);
+                    monitoredItemsCollection = ((DataChangeNotification)items.Body).MonitoredItems;
                     Assert.AreEqual(testSet.Length * (queueSize - 1), monitoredItemsCollection.Count, testSet.Length);
                 }
 
                 // Call ResendData method with invalid subscription Id
-                ResendDataCall(StatusCodes.BadSubscriptionIdInvalid, new UInt32Collection() { subscriptionIds[^1] + 20 });
+                ResendDataCall(StatusCodes.BadSubscriptionIdInvalid, [subscriptionIds[^1] + 20]);
 
                 // Nothing to publish since previous ResendData call did not execute
                 m_requestHeader.Timestamp = DateTime.UtcNow;
@@ -618,9 +613,7 @@ namespace Opc.Ua.Server.Tests
                 SecureChannelContext.Current = securityContext;
             }
         }
-        #endregion
 
-        #region Private Methods
         private CallMethodRequestCollection ResendDataCall(StatusCode expectedStatus, UInt32Collection subscriptionIds)
         {
             // Find the ResendData method
@@ -630,7 +623,7 @@ namespace Opc.Ua.Server.Tests
                 nodesToCall.Add(new CallMethodRequest() {
                     ObjectId = ObjectIds.Server,
                     MethodId = MethodIds.Server_ResendData,
-                    InputArguments = new VariantCollection() { new Variant(subscriptionId) }
+                    InputArguments = [new Variant(subscriptionId)]
                 });
             }
 
@@ -692,6 +685,5 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateResponse(response, writeDataValues, nodesToWrite);
             ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, writeDataValues, response.StringTable);
         }
-        #endregion
     }
 }

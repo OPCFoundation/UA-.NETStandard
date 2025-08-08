@@ -23,7 +23,6 @@ namespace Opc.Ua
     /// </summary>
     public partial class RelativePath
     {
-        #region Constructors
         /// <summary>
         /// Creates a relative path to follow any hierarchial references to find the specified browse name.
         /// </summary>
@@ -54,9 +53,7 @@ namespace Opc.Ua
 
             m_elements.Add(element);
         }
-        #endregion
 
-        #region Public Members
         /// <summary>
         /// Formats the relative path as a string.
         /// </summary>
@@ -198,7 +195,6 @@ namespace Opc.Ua
 
             return relativePath;
         }
-        #endregion
     }
 
     /// <summary>
@@ -206,13 +202,12 @@ namespace Opc.Ua
     /// </summary>
     public class RelativePathFormatter : IFormattable
     {
-        #region Constructors
         /// <summary>
         /// Initializes the object the default values.
         /// </summary>
         public RelativePathFormatter(RelativePath relativePath, ITypeTable typeTree)
         {
-            Elements = new List<Element>();
+            Elements = [];
 
             if (relativePath != null)
             {
@@ -228,11 +223,9 @@ namespace Opc.Ua
         /// </summary>
         public RelativePathFormatter()
         {
-            Elements = new List<Element>();
+            Elements = [];
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The elements in the relative path.
         /// </summary>
@@ -356,9 +349,7 @@ namespace Opc.Ua
                 }
             }
         }
-        #endregion
 
-        #region Overridden Members
         /// <summary>
         /// Formats the relative path as a string.
         /// </summary>
@@ -369,9 +360,7 @@ namespace Opc.Ua
         {
             return ToString(null, null);
         }
-        #endregion
 
-        #region IFormattable Members
         /// <summary>
         /// Formats the relative path as a string.
         /// </summary>
@@ -397,9 +386,7 @@ namespace Opc.Ua
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
         }
-        #endregion
 
-        #region Static Members
         /// <summary>
         /// Returns true if the relative path does not specify any elements.
         /// </summary>
@@ -468,16 +455,13 @@ namespace Opc.Ua
 
             return path;
         }
-        #endregion
 
-        #region Element class
         /// <summary>
         /// A element in a relative path string.
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1034:NestedTypesShouldNotBeVisible")]
         public class Element : IFormattable
         {
-            #region Constructors
             /// <summary>
             /// Initializes the object from a RelativePathElement
             /// </summary>
@@ -495,18 +479,18 @@ namespace Opc.Ua
 
                 ReferenceTypeName = null;
                 TargetName = element.TargetName;
-                ElementType = RelativePathFormatter.ElementType.ForwardReference;
+                ElementType = ElementType.ForwardReference;
                 IncludeSubtypes = element.IncludeSubtypes;
 
                 if (!element.IsInverse && element.IncludeSubtypes)
                 {
                     if (element.ReferenceTypeId == ReferenceTypeIds.HierarchicalReferences)
                     {
-                        ElementType = RelativePathFormatter.ElementType.AnyHierarchical;
+                        ElementType = ElementType.AnyHierarchical;
                     }
                     else if (element.ReferenceTypeId == ReferenceTypeIds.Aggregates)
                     {
-                        ElementType = RelativePathFormatter.ElementType.AnyComponent;
+                        ElementType = ElementType.AnyComponent;
                     }
                     else
                     {
@@ -517,7 +501,7 @@ namespace Opc.Ua
                 {
                     if (element.IsInverse)
                     {
-                        ElementType = RelativePathFormatter.ElementType.InverseReference;
+                        ElementType = ElementType.InverseReference;
                     }
 
                     ReferenceTypeName = typeTree.FindReferenceTypeName(element.ReferenceTypeId);
@@ -529,14 +513,12 @@ namespace Opc.Ua
             /// </summary>
             public Element()
             {
-                ElementType = RelativePathFormatter.ElementType.AnyHierarchical;
+                ElementType = ElementType.AnyHierarchical;
                 ReferenceTypeName = null;
                 IncludeSubtypes = true;
                 TargetName = null;
             }
-            #endregion
 
-            #region Public Properties
             /// <summary>
             /// The type of element.
             /// </summary>
@@ -556,9 +538,7 @@ namespace Opc.Ua
             /// The browse name of the target to find.
             /// </summary>
             public QualifiedName TargetName { get; set; }
-            #endregion
 
-            #region Overridden Members
             /// <summary>
             /// Formats the relative path element as a string.
             /// </summary>
@@ -566,9 +546,7 @@ namespace Opc.Ua
             {
                 return ToString(null, null);
             }
-            #endregion
 
-            #region IFormattable Members
             /// <summary>
             /// Formats the numeric range as a string.
             /// </summary>
@@ -636,9 +614,7 @@ namespace Opc.Ua
 
                 throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
             }
-            #endregion
 
-            #region Static Methods
             /// <summary>
             /// Extracts a relative path element from a string.
             /// </summary>
@@ -687,9 +663,7 @@ namespace Opc.Ua
 
                 return element;
             }
-            #endregion
 
-            #region Private Methods
             /// <summary>
             /// Extracts a browse name with an optional namespace prefix from the reader.
             /// </summary>
@@ -831,12 +805,8 @@ namespace Opc.Ua
                     path.Append(name[ii]);
                 }
             }
-
-#endregion
         }
-        #endregion
 
-        #region ElementType enumeration
         /// <summary>
         /// The type of relative path element.
         /// </summary>
@@ -863,7 +833,5 @@ namespace Opc.Ua
             /// </summary>
             InverseReference = 0x04
         }
-
-#endregion
     }
 }

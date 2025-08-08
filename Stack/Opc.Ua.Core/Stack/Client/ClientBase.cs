@@ -22,7 +22,6 @@ namespace Opc.Ua
 	/// </summary>
     public class ClientBase : IClientBase
     {
-        #region Constructors
         /// <summary>
         /// Intializes the object with a channel and a message context.
         /// </summary>
@@ -36,9 +35,7 @@ namespace Opc.Ua
 
             InitializeChannel(channel);
         }
-        #endregion
 
-        #region IDisposable Members
         /// <inheritdoc/>
         public void Dispose()
         {
@@ -56,35 +53,15 @@ namespace Opc.Ua
 
             m_disposed = true;
         }
-        #endregion
-
-        #region Public Properties
-        /// <inheritdoc/>
-        public EndpointDescription Endpoint
-        {
-            get
-            {
-                return NullableTransportChannel?.EndpointDescription;
-            }
-        }
 
         /// <inheritdoc/>
-        public EndpointConfiguration EndpointConfiguration
-        {
-            get
-            {
-                return NullableTransportChannel?.EndpointConfiguration;
-            }
-        }
+        public EndpointDescription Endpoint => NullableTransportChannel?.EndpointDescription;
 
         /// <inheritdoc/>
-        public IServiceMessageContext MessageContext
-        {
-            get
-            {
-                return NullableTransportChannel?.MessageContext;
-            }
-        }
+        public EndpointConfiguration EndpointConfiguration => NullableTransportChannel?.EndpointConfiguration;
+
+        /// <inheritdoc/>
+        public IServiceMessageContext MessageContext => NullableTransportChannel?.MessageContext;
 
         /// <inheritdoc/>
         public ITransportChannel NullableTransportChannel
@@ -170,10 +147,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public int OperationTimeout
         {
-            get
-            {
-                return NullableTransportChannel?.OperationTimeout ?? 0;
-            }
+            get => NullableTransportChannel?.OperationTimeout ?? 0;
 
             set
             {
@@ -184,9 +158,7 @@ namespace Opc.Ua
                 }
             }
         }
-        #endregion
 
-        #region Public Methods
         /// <inheritdoc/>
         public virtual void AttachChannel(ITransportChannel channel)
         {
@@ -227,13 +199,7 @@ namespace Opc.Ua
         /// Whether the object has been disposed.
         /// </summary>
         /// <value><c>true</c> if disposed; otherwise, <c>false</c>.</value>
-        public bool Disposed
-        {
-            get
-            {
-                return m_disposed;
-            }
-        }
+        public bool Disposed => m_disposed;
 
         /// <summary>
         /// Generates a unique request handle.
@@ -242,9 +208,7 @@ namespace Opc.Ua
         {
             return (uint)Utils.IncrementIdentifier(ref m_nextRequestHandle);
         }
-        #endregion
 
-        #region Protected Methods
         /// <summary>
         /// Initializes the channel.
         /// </summary>
@@ -443,9 +407,7 @@ namespace Opc.Ua
                 throw new ServiceResultException(new ServiceResult(header.ServiceResult, header.ServiceDiagnostics, header.StringTable));
             }
         }
-        #endregion
 
-        #region Static Methods
         /// <summary>
         /// Validates a response returned by the server.
         /// </summary>
@@ -541,13 +503,10 @@ namespace Opc.Ua
             return null;
         }
 
-#endregion
-#region Private Fields
         private ITransportChannel m_channel;
         private int m_nextRequestHandle;
         private int m_pendingRequestCount;
         private bool m_disposed;
         private bool m_useTransportChannel;
-        #endregion
     }
 }

@@ -44,7 +44,6 @@ namespace Opc.Ua.Client
         /// </summary>
         public static readonly int DefaultDiscoverTimeout = 15000;
 
-        #region Discovery
         /// <summary>
         /// Discovers the servers on the local machine.
         /// </summary>
@@ -290,6 +289,5 @@ namespace Opc.Ua.Client
             // parse the selected URL.
             return new Uri(discoveryUrl);
         }
-        #endregion
     }
 }

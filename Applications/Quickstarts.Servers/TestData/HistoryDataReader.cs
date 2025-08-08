@@ -29,12 +29,12 @@
 
 using System;
 using System.Collections.Generic;
-using System.Xml;
-using System.IO;
-using System.Text;
-using System.Reflection;
-using System.Threading;
 using System.Globalization;
+using System.IO;
+using System.Reflection;
+using System.Text;
+using System.Threading;
+using System.Xml;
 using Opc.Ua;
 using Opc.Ua.Server;
 
@@ -45,7 +45,6 @@ namespace TestData
     /// </summary>
     public class HistoryDataReader : IDisposable
     {
-        #region Constructors
         /// <summary>
         /// Constructs a reader for the source.
         /// </summary>
@@ -56,9 +55,7 @@ namespace TestData
             VariableId = variableId;
             m_source = source;
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -75,9 +72,7 @@ namespace TestData
         {
             // nothing to do.
         }
-        #endregion
 
-        #region Public Interface
         /// <summary>
         /// A globally unique identifier for the instance.
         /// </summary>
@@ -185,9 +180,7 @@ namespace TestData
 
             return true;
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Adds a DataValue to a list of values to return.
         /// </summary>
@@ -251,8 +244,6 @@ namespace TestData
             values.Add(value);
         }
 
-#endregion
-#region Private Fields
         private readonly IHistoryDataSource m_source;
         private ReadRawModifiedDetails m_request;
         private DateTime m_startTime;
@@ -260,6 +251,5 @@ namespace TestData
         private bool m_isForward;
         private int m_position;
         private DateTime m_lastTime;
-        #endregion
     }
 }

@@ -33,8 +33,6 @@ using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua.Client.Tests
 {
-    #region Namespace Declarations
-
     /// <summary>
     /// Namespaces
     /// </summary>
@@ -45,7 +43,6 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         public const string OpcUaClient = "http://opcfoundation.org/UA/Client/Types.xsd";
     }
-    #endregion
 
     /// <summary>
     /// A subclass of a session for testing purposes, e.g. to override some implementations.
@@ -55,7 +52,6 @@ namespace Opc.Ua.Client.Tests
     [KnownType(typeof(TestableMonitoredItem))]
     public class TestableSession : Session
     {
-        #region Constructors
         /// <summary>
         /// Constructs a new instance of the <see cref="Session"/> class.
         /// </summary>
@@ -110,7 +106,6 @@ namespace Opc.Ua.Client.Tests
             base(channel, template, copyEventHandlers)
         {
         }
-        #endregion
 
         /// <summary>
         /// The timespan offset to be used to modify the request header timestamp.
@@ -129,7 +124,7 @@ namespace Opc.Ua.Client.Tests
         public override Session CloneSession(ITransportChannel channel, bool copyEventHandlers)
         {
             return new TestableSession(channel, this, copyEventHandlers) {
-                TimestampOffset = this.TimestampOffset,
+                TimestampOffset = TimestampOffset,
             };
         }
     }
@@ -141,7 +136,6 @@ namespace Opc.Ua.Client.Tests
     [KnownType(typeof(TestableMonitoredItem))]
     public class TestableSubscription : Subscription
     {
-        #region Constructors
         /// <summary>
         /// Constructs a new instance of the <see cref="TestableSubscription"/> class.
         /// </summary>
@@ -153,7 +147,7 @@ namespace Opc.Ua.Client.Tests
         /// Constructs a new instance of the <see cref="TestableSubscription"/> class.
         /// </summary>
         public TestableSubscription(Subscription template)
-            : this (template, false)
+            : this(template, false)
         {
         }
 
@@ -163,7 +157,7 @@ namespace Opc.Ua.Client.Tests
         public TestableSubscription(Subscription template, bool copyEventHandlers)
             : base(template, copyEventHandlers)
         {
-            TestableSubscription.Initialize();
+            Initialize();
         }
 
         /// <summary>
@@ -173,7 +167,7 @@ namespace Opc.Ua.Client.Tests
         protected new void Initialize(StreamingContext context)
         {
             base.Initialize(context);
-            TestableSubscription.Initialize();
+            Initialize();
         }
 
         /// <summary>
@@ -182,7 +176,6 @@ namespace Opc.Ua.Client.Tests
         private static void Initialize()
         {
         }
-        #endregion
 
         /// <inheritdoc/>
         public override Subscription CloneSubscription(bool copyEventHandlers)
@@ -198,7 +191,6 @@ namespace Opc.Ua.Client.Tests
     [KnownType(typeof(TestableMonitoredItem))]
     public class TestableMonitoredItem : MonitoredItem
     {
-        #region Constructors
         /// <summary>
         /// Constructs a new instance of the <see cref="TestableMonitoredItem"/> class.
         /// </summary>
@@ -229,7 +221,7 @@ namespace Opc.Ua.Client.Tests
         protected new void Initialize(StreamingContext context)
         {
             base.Initialize(context);
-            TestableMonitoredItem.Initialize();
+            Initialize();
         }
 
         /// <summary>
@@ -238,7 +230,6 @@ namespace Opc.Ua.Client.Tests
         private static void Initialize()
         {
         }
-        #endregion
 
         /// <inheritdoc/>
         public override MonitoredItem CloneMonitoredItem(bool copyEventHandlers, bool copyClientHandle)

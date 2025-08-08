@@ -24,15 +24,12 @@ namespace Opc.Ua
     /// </summary>
     public partial class ContentFilter
     {
-        #region  Public Static Properties
         /// <summary>
         /// Set the default StringComparison to use when evaluating the Equals operator.
         /// This property is meant to be set as a config setting and not set / reset on a per context basis, to ensure consistency
         /// </summary>
         public static StringComparison EqualsOperatorDefaultStringComparison { get; set; } = StringComparison.Ordinal;
-        #endregion
 
-        #region Public functions
         /// <summary>
         /// Evaluates the first element in the ContentFilter. If the first or any
         /// subsequent element has dependent elements, the dependent elements are
@@ -46,7 +43,7 @@ namespace Opc.Ua
         public bool Evaluate(FilterContext context, IFilterTarget target)
         {
             // check if nothing to do.
-            if (this.Elements.Count == 0)
+            if (Elements.Count == 0)
             {
                 return true;
             }
@@ -55,9 +52,7 @@ namespace Opc.Ua
 
             return result ?? false;
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Evaluates element at the specified index.
         /// </summary>
@@ -472,9 +467,7 @@ namespace Opc.Ua
             BuiltInType.Int32 or BuiltInType.UInt32 or
             BuiltInType.Int64 or BuiltInType.UInt64;
         }
-        #endregion
 
-        #region Casting
         /// <summary>
         /// Converts a value to a Boolean
         /// </summary>
@@ -1404,9 +1397,6 @@ namespace Opc.Ua
             return null;
         }
 
-        #endregion
-
-        #region FilterOperator Implementations
         /// <summary>
         /// And FilterOperator
         /// </summary>
@@ -2081,6 +2071,6 @@ namespace Opc.Ua
         [GeneratedRegex("(?<!\\\\)(\\[!)", RegexOptions.Compiled)]
         private static partial Regex ReplaceBrackets();
 #endif
-        #endregion
+
     }
 }

@@ -29,10 +29,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Threading;
-using System.Reflection;
-using Opc.Ua.Server;
 using System.Linq;
+using System.Reflection;
+using System.Threading;
+using Opc.Ua.Server;
 
 namespace Opc.Ua.Sample
 {
@@ -41,7 +41,6 @@ namespace Opc.Ua.Sample
     /// </summary>
     public class SampleNodeManager : INodeManager, INodeIdFactory, IDisposable
     {
-        #region Constructors
         /// <summary>
         /// Initializes the node manager.
         /// </summary>
@@ -57,14 +56,12 @@ namespace Opc.Ua.Sample
             SystemContext.NodeIdFactory = this;
 
             // create the table of nodes. 
-            PredefinedNodes = new NodeIdDictionary<NodeState>();
-            RootNotifiers = new List<NodeState>();
-            m_sampledItems = new List<DataChangeMonitoredItem>();
+            PredefinedNodes = [];
+            RootNotifiers = [];
+            m_sampledItems = [];
             m_minimumSamplingInterval = 100;
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -93,9 +90,7 @@ namespace Opc.Ua.Sample
                 }
             }
         }
-        #endregion
 
-        #region INodeIdFactory Members
         /// <summary>
         /// Creates the NodeId for the specified node.
         /// </summary>
@@ -106,16 +101,12 @@ namespace Opc.Ua.Sample
         {
             return node.NodeId;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// Acquires the lock on the node manager.
         /// </summary>
         public object Lock { get; } = new object();
-        #endregion
 
-        #region Protected Members
         /// <summary>
         /// The server that the node manager belongs to.
         /// </summary>
@@ -285,9 +276,7 @@ namespace Opc.Ua.Sample
         {
             Server.Factory.AddEncodeableTypes(assembly.GetExportedTypes().Where(t => t.FullName.StartsWith(filter)));
         }
-        #endregion
 
-        #region INodeManager Members
         /// <summary>
         /// Returns the namespaces used by the node manager.
         /// </summary>
@@ -297,10 +286,7 @@ namespace Opc.Ua.Sample
         /// </remarks>
         public virtual IEnumerable<string> NamespaceUris
         {
-            get
-            {
-                return m_namespaceUris;
-            }
+            get => m_namespaceUris;
 
             protected set
             {
@@ -310,7 +296,7 @@ namespace Opc.Ua.Sample
                 }
                 else
                 {
-                    m_namespaceUris = new List<string>();
+                    m_namespaceUris = [];
                 }
 
                 m_namespaceIndexes = new ushort[m_namespaceUris.Count];
@@ -339,7 +325,6 @@ namespace Opc.Ua.Sample
             }
         }
 
-        #region CreateAddressSpace Support Functions
         /// <summary>
         /// Loads a node set from a file or resource and adds them to the set of predefined nodes.
         /// </summary>
@@ -368,7 +353,7 @@ namespace Opc.Ua.Sample
         /// </summary>
         protected virtual NodeStateCollection LoadPredefinedNodes(ISystemContext context)
         {
-            return new NodeStateCollection();
+            return [];
         }
 
         /// <summary>
@@ -509,7 +494,7 @@ namespace Opc.Ua.Sample
         {
             for (int ii = 0; ii < RootNotifiers.Count; ii++)
             {
-                if (Object.ReferenceEquals(notifier, RootNotifiers[ii]))
+                if (ReferenceEquals(notifier, RootNotifiers[ii]))
                 {
                     return;
                 }
@@ -543,7 +528,7 @@ namespace Opc.Ua.Sample
         {
             for (int ii = 0; ii < RootNotifiers.Count; ii++)
             {
-                if (Object.ReferenceEquals(notifier, RootNotifiers[ii]))
+                if (ReferenceEquals(notifier, RootNotifiers[ii]))
                 {
                     RootNotifiers.RemoveAt(ii);
                     break;
@@ -585,7 +570,7 @@ namespace Opc.Ua.Sample
                 }
                 */
 
-                IList<IReference> references = new List<IReference>();
+                IList<IReference> references = [];
                 source.GetReferences(SystemContext, references);
 
                 for (int ii = 0; ii < references.Count; ii++)
@@ -651,7 +636,7 @@ namespace Opc.Ua.Sample
 
             if (!externalReferences.TryGetValue(sourceId, out referencesToAdd))
             {
-                externalReferences[sourceId] = referencesToAdd = new List<IReference>();
+                externalReferences[sourceId] = referencesToAdd = [];
             }
 
             // add reserve reference from external node.
@@ -722,7 +707,6 @@ namespace Opc.Ua.Sample
 
             return node;
         }
-        #endregion
 
         /// <summary>
         /// Frees any resources allocated for the address space.
@@ -1034,7 +1018,6 @@ namespace Opc.Ua.Sample
             }
         }
 
-        #region Browse Support Functions
         /// <summary>
         /// Returns the references for the node that meets the criteria specified.
         /// </summary>
@@ -1116,7 +1099,6 @@ namespace Opc.Ua.Sample
 
             return description;
         }
-        #endregion
 
         /// <summary>
         /// Returns the target of the specified browse path fragment(s).
@@ -2736,7 +2718,7 @@ namespace Opc.Ua.Sample
         {
             for (int ii = 0; ii < m_sampledItems.Count; ii++)
             {
-                if (Object.ReferenceEquals(monitoredItem, m_sampledItems[ii]))
+                if (ReferenceEquals(monitoredItem, m_sampledItems[ii]))
                 {
                     m_sampledItems.RemoveAt(ii);
                     break;
@@ -3046,7 +3028,7 @@ namespace Opc.Ua.Sample
             IList<ServiceResult> errors)
         {
             ServerSystemContext systemContext = SystemContext.Copy(context);
-            IList<IMonitoredItem> transferredItems = new List<IMonitoredItem>();
+            IList<IMonitoredItem> transferredItems = [];
             lock (Lock)
             {
                 for (int ii = 0; ii < monitoredItems.Count; ii++)
@@ -3186,14 +3168,11 @@ namespace Opc.Ua.Sample
             // does nothing.
         }
 
-#endregion
-#region Private Fields
         private IList<string> m_namespaceUris;
         private ushort[] m_namespaceIndexes;
 
         private Timer m_samplingTimer;
         private readonly List<DataChangeMonitoredItem> m_sampledItems;
         private readonly double m_minimumSamplingInterval;
-        #endregion
     }
 }

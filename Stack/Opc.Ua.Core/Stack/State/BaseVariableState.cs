@@ -12,11 +12,11 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.Reflection;
+using System.Runtime.Serialization;
 using System.Text;
 using System.Xml;
-using System.Runtime.Serialization;
-using System.Reflection;
-using System.Globalization;
 
 namespace Opc.Ua
 {
@@ -26,7 +26,6 @@ namespace Opc.Ua
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public abstract class BaseVariableState : BaseInstanceState
     {
-        #region Constructors
         /// <summary>
         /// Initializes the instance with its default attribute values.
         /// </summary>
@@ -45,9 +44,7 @@ namespace Opc.Ua
             CopyPolicy = VariableCopyPolicy.CopyOnRead;
             m_valueTouched = false;
         }
-        #endregion
 
-        #region Initialization
         /// <summary>
         /// Initializes the instance from another instance.
         /// </summary>
@@ -421,13 +418,11 @@ namespace Opc.Ua
 
             return (T)value;
         }
-        #endregion
 
-        #region ICloneable Members
         /// <inheritdoc/>
         public override object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -438,21 +433,16 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
-            var clone = (BaseInstanceState)Activator.CreateInstance(this.GetType(), this.Parent);
+            var clone = (BaseInstanceState)Activator.CreateInstance(GetType(), Parent);
             return CloneChildren(clone);
         }
-        #endregion
 
-        #region Public Members
         /// <summary>
         /// The value of the variable.
         /// </summary>
         public object Value
         {
-            get
-            {
-                return m_value;
-            }
+            get => m_value;
 
             set
             {
@@ -461,7 +451,7 @@ namespace Opc.Ua
                     value = ExtractValueFromVariant(null, value, false);
                 }
 
-                if (!Object.ReferenceEquals(m_value, value))
+                if (!ReferenceEquals(m_value, value))
                 {
                     ChangeMasks |= NodeStateChangeMasks.Value;
                 }
@@ -489,15 +479,9 @@ namespace Opc.Ua
         [DataMember(Name = "Value", Order = 0, IsRequired = false, EmitDefaultValue = false)]
         public Variant WrappedValue
         {
-            get
-            {
-                return new Variant(m_value);
-            }
+            get => new(m_value);
 
-            set
-            {
-                Value = ExtractValueFromVariant(null, value.Value, false);
-            }
+            set => Value = ExtractValueFromVariant(null, value.Value, false);
         }
 
         /// <summary>
@@ -506,10 +490,7 @@ namespace Opc.Ua
         /// <value>The timestamp.</value>
         public DateTime Timestamp
         {
-            get
-            {
-                return m_timestamp;
-            }
+            get => m_timestamp;
 
             set
             {
@@ -528,10 +509,7 @@ namespace Opc.Ua
         /// <value>The status code.</value>
         public StatusCode StatusCode
         {
-            get
-            {
-                return m_statusCode;
-            }
+            get => m_statusCode;
 
             set
             {
@@ -560,14 +538,11 @@ namespace Opc.Ua
         [DataMember(Name = "DataType", Order = 1, IsRequired = false, EmitDefaultValue = false)]
         public NodeId DataType
         {
-            get
-            {
-                return m_dataType;
-            }
+            get => m_dataType;
 
             set
             {
-                if (!Object.ReferenceEquals(m_dataType, value))
+                if (!ReferenceEquals(m_dataType, value))
                 {
                     ChangeMasks |= NodeStateChangeMasks.NonValue;
                 }
@@ -584,10 +559,7 @@ namespace Opc.Ua
         [DataMember(Name = "ValueRank", Order = 2, IsRequired = false, EmitDefaultValue = false)]
         public int ValueRank
         {
-            get
-            {
-                return m_valueRank;
-            }
+            get => m_valueRank;
 
             set
             {
@@ -612,14 +584,11 @@ namespace Opc.Ua
         /// </remarks>
         public ReadOnlyList<uint> ArrayDimensions
         {
-            get
-            {
-                return m_arrayDimensions;
-            }
+            get => m_arrayDimensions;
 
             set
             {
-                if (!Object.ReferenceEquals(m_arrayDimensions, value))
+                if (!ReferenceEquals(m_arrayDimensions, value))
                 {
                     ChangeMasks |= NodeStateChangeMasks.NonValue;
                 }
@@ -635,10 +604,7 @@ namespace Opc.Ua
         [DataMember(Name = "AccessLevel", Order = 4, IsRequired = false, EmitDefaultValue = false)]
         public byte AccessLevel
         {
-            get
-            {
-                return (byte)(m_accessLevel & 0xFF);
-            }
+            get => (byte)(m_accessLevel & 0xFF);
 
             set
             {
@@ -659,10 +625,7 @@ namespace Opc.Ua
         [DataMember(Name = "UserAccessLevel", Order = 5, IsRequired = false, EmitDefaultValue = false)]
         public byte UserAccessLevel
         {
-            get
-            {
-                return m_userAccessLevel;
-            }
+            get => m_userAccessLevel;
 
             set
             {
@@ -682,10 +645,7 @@ namespace Opc.Ua
         [DataMember(Name = "MinimumSamplingInterval", Order = 6, IsRequired = false, EmitDefaultValue = false)]
         public double MinimumSamplingInterval
         {
-            get
-            {
-                return m_minimumSamplingInterval;
-            }
+            get => m_minimumSamplingInterval;
 
             set
             {
@@ -705,10 +665,7 @@ namespace Opc.Ua
         [DataMember(Name = "Historizing", Order = 7, IsRequired = false, EmitDefaultValue = false)]
         public bool Historizing
         {
-            get
-            {
-                return m_historizing;
-            }
+            get => m_historizing;
 
             set
             {
@@ -728,10 +685,7 @@ namespace Opc.Ua
         [DataMember(Name = "AccessLevelEx", Order = 8, IsRequired = false, EmitDefaultValue = false)]
         public uint AccessLevelEx
         {
-            get
-            {
-                return m_accessLevel;
-            }
+            get => m_accessLevel;
 
             set
             {
@@ -743,9 +697,7 @@ namespace Opc.Ua
                 m_accessLevel = value;
             }
         }
-        #endregion
 
-        #region Event Callbacks
         /// <summary>
         /// Raised when the Value attribute is read.
         /// </summary>
@@ -845,9 +797,7 @@ namespace Opc.Ua
         /// Raised when the AccessLevelEx attribute is written.
         /// </summary>
         public NodeAttributeEventHandler<uint> OnWriteAccessLevelEx;
-        #endregion
 
-        #region Serialization Functions
         /// <summary>
         /// Exports a copy of the node to a <paramref name="node"/> node provided the <paramref name="node"/> type is compatible with <see cref="VariableNode"/>.
         /// </summary>
@@ -861,23 +811,23 @@ namespace Opc.Ua
             {
                 try
                 {
-                    variableNode.Value = new Variant(Utils.Clone(this.Value));
+                    variableNode.Value = new Variant(Utils.Clone(Value));
 
-                    variableNode.DataType = this.DataType;
-                    variableNode.ValueRank = this.ValueRank;
+                    variableNode.DataType = DataType;
+                    variableNode.ValueRank = ValueRank;
                     variableNode.ArrayDimensions = null;
 
-                    ReadOnlyList<uint> arrayDimensions = this.ArrayDimensions;
+                    ReadOnlyList<uint> arrayDimensions = ArrayDimensions;
 
                     if (arrayDimensions != null)
                     {
-                        variableNode.ArrayDimensions = new UInt32Collection(arrayDimensions);
+                        variableNode.ArrayDimensions = [.. arrayDimensions];
                     }
 
-                    variableNode.AccessLevel = this.AccessLevel;
-                    variableNode.UserAccessLevel = this.UserAccessLevel;
-                    variableNode.MinimumSamplingInterval = this.MinimumSamplingInterval;
-                    variableNode.Historizing = this.Historizing;
+                    variableNode.AccessLevel = AccessLevel;
+                    variableNode.UserAccessLevel = UserAccessLevel;
+                    variableNode.MinimumSamplingInterval = MinimumSamplingInterval;
+                    variableNode.Historizing = Historizing;
                 }
                 catch (Exception e)
                 {
@@ -1276,9 +1226,7 @@ namespace Opc.Ua
 
             return new ReadOnlyList<uint>(arrayDimensions);
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Recursively sets the status code and timestamp for the node and all child variables.
         /// </summary>
@@ -1296,9 +1244,6 @@ namespace Opc.Ua
                 Timestamp = timestamp;
             }
         }
-        #endregion
-
-        #region Read Support Functions
 
         /// <summary>
         /// Reads the value for any non-value attribute.
@@ -1619,9 +1564,6 @@ namespace Opc.Ua
             return ServiceResult.Good;
         }
 
-        #endregion
-
-        #region Write Support Functions
         /// <summary>
         /// Write the value for any non-value attribute.
         /// </summary>
@@ -2002,9 +1944,7 @@ namespace Opc.Ua
 
             return ServiceResult.Good;
         }
-        #endregion
 
-        #region Private Fields
         private object m_value;
         private DateTime m_timestamp;
         private bool m_valueTouched;
@@ -2016,8 +1956,7 @@ namespace Opc.Ua
         private byte m_userAccessLevel;
         private double m_minimumSamplingInterval;
         private bool m_historizing;
-        private static readonly char[] s_commaSeparator = new char[] { ',' };
-        #endregion
+        private static readonly char[] s_commaSeparator = [','];
     }
 
     /// <summary>
@@ -2026,7 +1965,6 @@ namespace Opc.Ua
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class PropertyState : BaseVariableState
     {
-        #region Constructors
         /// <summary>
         /// Initializes the instance with its default attribute values.
         /// </summary>
@@ -2044,24 +1982,22 @@ namespace Opc.Ua
         {
             return new PropertyState(parent);
         }
-        #endregion
 
-        #region Initialization
         /// <summary>
         /// Initializes the instance with the default values.
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
-            SymbolicName = Utils.Format("{0}_Instance1", Opc.Ua.BrowseNames.PropertyType);
+            SymbolicName = Utils.Format("{0}_Instance1", BrowseNames.PropertyType);
             NodeId = null;
             BrowseName = new QualifiedName(SymbolicName, 1);
             DisplayName = SymbolicName;
             Description = null;
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;
-            ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasProperty;
+            ReferenceTypeId = ReferenceTypeIds.HasProperty;
             TypeDefinitionId = GetDefaultTypeDefinitionId(context.NamespaceUris);
-            NumericId = Opc.Ua.VariableTypes.PropertyType;
+            NumericId = VariableTypes.PropertyType;
             Value = null;
             DataType = GetDefaultDataTypeId(context.NamespaceUris);
             ValueRank = GetDefaultValueRank();
@@ -2079,7 +2015,6 @@ namespace Opc.Ua
         {
             return VariableTypeIds.PropertyType;
         }
-        #endregion
     }
 
     /// <summary>
@@ -2088,7 +2023,6 @@ namespace Opc.Ua
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class PropertyState<T> : PropertyState
     {
-        #region Constructors
         /// <summary>
         /// Initializes the instance with its default attribute values.
         /// </summary>
@@ -2097,9 +2031,7 @@ namespace Opc.Ua
             Value = default;
             IsValueType = !typeof(T).GetTypeInfo().IsValueType;
         }
-        #endregion
 
-        #region Initialization
         /// <summary>
         /// Initializes the instance with the default values.
         /// </summary>
@@ -2119,25 +2051,16 @@ namespace Opc.Ua
         {
             return ExtractValueFromVariant<T>(context, value, throwOnError);
         }
-        #endregion
 
-        #region Public Members
         /// <summary>
         /// The value of the variable.
         /// </summary>
         public new T Value
         {
-            get
-            {
-                return CheckTypeBeforeCast<T>(base.Value, true);
-            }
+            get => CheckTypeBeforeCast<T>(base.Value, true);
 
-            set
-            {
-                base.Value = value;
-            }
+            set => base.Value = value;
         }
-        #endregion
     }
 
     /// <summary>
@@ -2146,7 +2069,6 @@ namespace Opc.Ua
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class BaseDataVariableState : BaseVariableState
     {
-        #region Constructors
         /// <summary>
         /// Initializes the instance with its default attribute values.
         /// </summary>
@@ -2155,7 +2077,7 @@ namespace Opc.Ua
             if (parent != null)
             {
                 StatusCode = StatusCodes.BadWaitingForInitialData;
-                ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent;
+                ReferenceTypeId = ReferenceTypeIds.HasComponent;
             }
         }
 
@@ -2168,24 +2090,22 @@ namespace Opc.Ua
         {
             return new BaseDataVariableState(parent);
         }
-        #endregion
 
-        #region Initialization
         /// <summary>
         /// Initializes the instance with the default values.
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
-            SymbolicName = Utils.Format("{0}_Instance1", Opc.Ua.BrowseNames.BaseDataVariableType);
+            SymbolicName = Utils.Format("{0}_Instance1", BrowseNames.BaseDataVariableType);
             NodeId = null;
             BrowseName = new QualifiedName(SymbolicName, 1);
             DisplayName = SymbolicName;
             Description = null;
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;
-            ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent;
+            ReferenceTypeId = ReferenceTypeIds.HasComponent;
             TypeDefinitionId = GetDefaultTypeDefinitionId(context.NamespaceUris);
-            NumericId = Opc.Ua.VariableTypes.BaseDataVariableType;
+            NumericId = VariableTypes.BaseDataVariableType;
             Value = null;
             DataType = GetDefaultDataTypeId(context.NamespaceUris);
             ValueRank = GetDefaultValueRank();
@@ -2203,22 +2123,17 @@ namespace Opc.Ua
         {
             return VariableTypeIds.BaseDataVariableType;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The strings that describe the values for an enumeration.
         /// </summary>
         public PropertyState<LocalizedText[]> EnumStrings
         {
-            get
-            {
-                return m_enumStrings;
-            }
+            get => m_enumStrings;
 
             set
             {
-                if (!Object.ReferenceEquals(m_enumStrings, value))
+                if (!ReferenceEquals(m_enumStrings, value))
                 {
                     ChangeMasks |= NodeStateChangeMasks.Children;
                 }
@@ -2226,9 +2141,7 @@ namespace Opc.Ua
                 m_enumStrings = value;
             }
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Populates a list with the children that belong to the node.
         /// </summary>
@@ -2283,11 +2196,8 @@ namespace Opc.Ua
 
             return instance ?? base.FindChild(context, browseName, createOrReplace, replacement);
         }
-        #endregion
 
-        #region Private Fields
         private PropertyState<LocalizedText[]> m_enumStrings;
-        #endregion
     }
 
     /// <summary>
@@ -2296,7 +2206,6 @@ namespace Opc.Ua
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class BaseDataVariableState<T> : BaseDataVariableState
     {
-        #region Constructors
         /// <summary>
         /// Initializes the instance with its default attribute values.
         /// </summary>
@@ -2305,9 +2214,7 @@ namespace Opc.Ua
             Value = default;
             IsValueType = !typeof(T).GetTypeInfo().IsValueType;
         }
-        #endregion
 
-        #region Initialization
         /// <summary>
         /// Initializes the instance with the default values.
         /// </summary>
@@ -2335,34 +2242,23 @@ namespace Opc.Ua
         {
             return ExtractValueFromVariant<T>(context, value, throwOnError);
         }
-        #endregion
 
-        #region Public Members
         /// <summary>
         /// The value of the variable.
         /// </summary>
         public new T Value
         {
-            get
-            {
-                return CheckTypeBeforeCast<T>(base.Value, true);
-            }
+            get => CheckTypeBeforeCast<T>(base.Value, true);
 
-            set
-            {
-                base.Value = value;
-            }
+            set => base.Value = value;
         }
-        #endregion
     }
 
-    #region BaseVariableValue Class
     /// <summary>
     /// A thread safe object that can be used to access the value of a structure variable.
     /// </summary>
     public class BaseVariableValue
     {
-        #region Constructors
         /// <summary>
         /// Initializes the instance with a synchronization object.
         /// </summary>
@@ -2376,9 +2272,7 @@ namespace Opc.Ua
                 Lock = new object();
             }
         }
-        #endregion
 
-        #region Public Members
         /// <summary>
         /// An object used to synchronize access to the value.
         /// </summary>
@@ -2421,9 +2315,7 @@ namespace Opc.Ua
                 }
             }
         }
-        #endregion
 
-        #region Event Callbacks
         /// <summary>
         /// Raised before the value is read.
         /// </summary>
@@ -2433,9 +2325,7 @@ namespace Opc.Ua
         /// Raised after the value is written.
         /// </summary>
         public VariableValueEventHandler OnAfterWrite;
-        #endregion
 
-        #region Protected Methods
         /// <summary>
         /// Does any processing before a read operation takes place.
         /// </summary>
@@ -2573,12 +2463,8 @@ namespace Opc.Ua
             }
         }
 
-#endregion
-#region Private Fields
         private BaseInstanceState[] m_updateList;
-        #endregion
     }
-    #endregion
 
     /// <summary>
     /// Used to receive notifications when the value attribute is read or written.

@@ -378,7 +378,6 @@ namespace Opc.Ua.Server
     /// </summary>
     public class NodeMetadata
     {
-        #region Constructors
         /// <summary>
         /// Initializes the object with its handle and NodeId.
         /// </summary>
@@ -387,9 +386,7 @@ namespace Opc.Ua.Server
             Handle = handle;
             NodeId = nodeId;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The handle assigned by the NodeManager that owns the Node.
         /// </summary>
@@ -494,7 +491,5 @@ namespace Opc.Ua.Server
         /// The value reflects the DefaultUserRolePermissions Property from the NamespaceMetadata Object associated with the Node.
         /// </summary>
         public RolePermissionTypeCollection DefaultUserRolePermissions { get; set; }
-
-#endregion
     }
 }

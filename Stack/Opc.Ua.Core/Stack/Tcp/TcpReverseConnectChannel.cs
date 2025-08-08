@@ -21,7 +21,6 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class TcpReverseConnectChannel : TcpListenerChannel
     {
-        #region Constructors
         /// <summary>
         /// Attaches the object to an existing socket.
         /// </summary>
@@ -35,16 +34,12 @@ namespace Opc.Ua.Bindings
             base(contextId, listener, bufferManager, quotas, null, endpoints)
         {
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// The channel name used in trace output.
         /// </summary>
         public override string ChannelName => "TCPREVERSECONNECTCHANNEL";
-        #endregion
 
-        #region Socket Event Handlers
         /// <summary>
         /// Processes an incoming message.
         /// </summary>
@@ -78,9 +73,7 @@ namespace Opc.Ua.Bindings
                 }
             }
         }
-        #endregion
 
-        #region Connect/Reconnect Sequence
         /// <summary>
         /// Processes a ReverseHello message from the server.
         /// </summary>
@@ -109,7 +102,7 @@ namespace Opc.Ua.Bindings
                     var t = Task.Run(async () => {
                         try
                         {
-                            if (false == await Listener.TransferListenerChannelAsync(Id, serverUri, endpointUri).ConfigureAwait(false))
+                            if (!await Listener.TransferListenerChannelAsync(Id, serverUri, endpointUri).ConfigureAwait(false))
                             {
                                 SetResponseRequired(true);
                                 ForceChannelFault(StatusCodes.BadTcpMessageTypeInvalid, "The reverse connection was rejected by the client.");
@@ -130,6 +123,5 @@ namespace Opc.Ua.Bindings
 
             return false;
         }
-        #endregion
     }
 }

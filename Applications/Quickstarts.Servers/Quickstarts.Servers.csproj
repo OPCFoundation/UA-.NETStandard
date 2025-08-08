@@ -16,9 +16,11 @@
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
-  
+
   <ItemGroup>
-    <EmbeddedResource Include="TestData\TestData.PredefinedNodes.uanodes;MemoryBuffer\MemoryBuffer.PredefinedNodes.uanodes;Boiler\Boiler.PredefinedNodes.uanodes" />
+    <EmbeddedResource Include="Boiler\Generated\Boiler.PredefinedNodes.uanodes" />
+    <!--<EmbeddedResource Include="TestData\Generated\TestData.PredefinedNodes.uanodes" />-->
+    <!--<EmbeddedResource Include="MemoryBuffer\Generated\MemoryBuffer.PredefinedNodes.uanodes" />-->
   </ItemGroup>
 
   <ItemGroup>
@@ -35,5 +37,5 @@
   </PropertyGroup>
 
   <Target Name="GetPackagingOutputs" />
-  
+
 </Project>

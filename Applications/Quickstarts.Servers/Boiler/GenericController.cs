@@ -38,7 +38,6 @@ namespace Boiler
     /// </summary>
     public partial class GenericControllerState
     {
-        #region Public Interface
         /// <summary>
         /// Updates the measurement and calculates the new control output.
         /// </summary>
@@ -77,6 +76,5 @@ namespace Boiler
             // return the new output.
             return m_controlOut.Value;
         }
-        #endregion
     }
 }

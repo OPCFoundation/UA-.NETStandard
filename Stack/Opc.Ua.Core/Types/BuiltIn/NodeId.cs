@@ -15,7 +15,6 @@
 // #define IMMUTABLENULLNODEID
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -60,7 +59,6 @@ namespace Opc.Ua
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class NodeId : IComparable, IFormattable, IEquatable<NodeId>, ICloneable
     {
-        #region Constructors
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
@@ -222,7 +220,7 @@ namespace Opc.Ua
         /// <param name="text">The string id of this new node</param>
         public NodeId(string text)
         {
-            var nodeId = NodeId.Parse(text);
+            var nodeId = Parse(text);
 
             m_namespaceIndex = nodeId.NamespaceIndex;
             m_identifierType = nodeId.IdType;
@@ -292,9 +290,7 @@ namespace Opc.Ua
             m_identifierType = IdType.Numeric;
             m_identifier = null;
         }
-        #endregion
 
-        #region Static Members
         /// <summary>
         /// Parses an NodeId formatted as a string and converts it a NodeId.
         /// </summary>
@@ -713,7 +709,7 @@ namespace Opc.Ua
         /// <param name="text">The <see cref="string"/> to compare this node to.</param>
         public static implicit operator NodeId(string text)
         {
-            return NodeId.Parse(text);
+            return Parse(text);
         }
 
         /// <summary>
@@ -781,7 +777,7 @@ namespace Opc.Ua
             {
                 if (string.IsNullOrEmpty(text))
                 {
-                    return NodeId.Null;
+                    return Null;
                 }
 
                 ushort namespaceIndex = 0;
@@ -861,9 +857,7 @@ namespace Opc.Ua
 #if IMMUTABLENULLNODEID
 #else
 #endif
-        #endregion
 
-        #region Public Methods (and some Internals)
         /// <summary>
         /// Formats a node id as a string.
         /// </summary>
@@ -986,7 +980,7 @@ namespace Opc.Ua
         /// </summary>
         internal void SetNamespaceIndex(ushort value)
         {
-            NodeId.ValidateImmutableNodeIdIsNotModified();
+            ValidateImmutableNodeIdIsNotModified();
             m_namespaceIndex = value;
         }
 
@@ -995,7 +989,7 @@ namespace Opc.Ua
         /// </summary>
         internal void SetIdentifier(IdType idType, object value)
         {
-            NodeId.ValidateImmutableNodeIdIsNotModified();
+            ValidateImmutableNodeIdIsNotModified();
             m_identifierType = idType;
 
             switch (idType)
@@ -1019,14 +1013,12 @@ namespace Opc.Ua
         /// </summary>
         internal void SetIdentifier(string value, IdType idType)
         {
-            NodeId.ValidateImmutableNodeIdIsNotModified();
+            ValidateImmutableNodeIdIsNotModified();
 
             m_identifierType = idType;
             SetIdentifier(IdType.String, value);
         }
-        #endregion
 
-        #region IComparable Members
         /// <summary>
         /// Compares the current instance to the object.
         /// </summary>
@@ -1037,27 +1029,27 @@ namespace Opc.Ua
         public int CompareTo(object obj)
         {
             // check for null.
-            if (Object.ReferenceEquals(obj, null))
+            if (ReferenceEquals(obj, null))
             {
                 return -1;
             }
 
             // check for reference comparisons.
-            if (Object.ReferenceEquals(this, obj))
+            if (ReferenceEquals(this, obj))
             {
                 return 0;
             }
 
-            ushort namespaceIndex = this.m_namespaceIndex;
-            IdType idType = this.m_identifierType;
+            ushort namespaceIndex = m_namespaceIndex;
+            IdType idType = m_identifierType;
             object id = null;
 
             // check for expanded node ids.
             var nodeId = obj as NodeId;
 
-            if (!Object.ReferenceEquals(nodeId, null))
+            if (!ReferenceEquals(nodeId, null))
             {
-                if (this.IsNullNodeId && nodeId.IsNullNodeId)
+                if (IsNullNodeId && nodeId.IsNullNodeId)
                 {
                     return 0;
                 }
@@ -1105,14 +1097,14 @@ namespace Opc.Ua
 
                 var expandedId = obj as ExpandedNodeId;
 
-                if (!Object.ReferenceEquals(expandedId, null))
+                if (!ReferenceEquals(expandedId, null))
                 {
                     if (expandedId.IsAbsolute)
                     {
                         return -1;
                     }
 
-                    if (this.IsNullNodeId && expandedId.InnerNodeId?.IsNullNodeId != false)
+                    if (IsNullNodeId && expandedId.InnerNodeId?.IsNullNodeId != false)
                     {
                         return 0;
                     }
@@ -1250,7 +1242,7 @@ namespace Opc.Ua
         /// </remarks>
         public static bool operator >(NodeId value1, NodeId value2)
         {
-            if (!Object.ReferenceEquals(value1, null))
+            if (!ReferenceEquals(value1, null))
             {
                 return value1.CompareTo(value2) > 0;
             }
@@ -1266,16 +1258,14 @@ namespace Opc.Ua
         /// </remarks>
         public static bool operator <(NodeId value1, NodeId value2)
         {
-            if (!Object.ReferenceEquals(value1, null))
+            if (!ReferenceEquals(value1, null))
             {
                 return value1.CompareTo(value2) < 0;
             }
 
             return true;
         }
-        #endregion
 
-        #region IFormattable Members
         /// <summary>
         /// Returns the string representation of a NodeId.
         /// </summary>
@@ -1293,13 +1283,11 @@ namespace Opc.Ua
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
         }
-        #endregion
 
-        #region ICloneable
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -1313,9 +1301,7 @@ namespace Opc.Ua
             // this object cannot be altered after it is created so no new allocation is necessary.
             return this;
         }
-        #endregion
 
-        #region Comparison Functions
         /// <summary>
         /// Determines if the specified object is equal to the NodeId.
         /// </summary>
@@ -1338,7 +1324,7 @@ namespace Opc.Ua
         /// <param name="other">The NodeId to compare to</param>
         public bool Equals(NodeId other)
         {
-            if (Object.ReferenceEquals(this, other))
+            if (ReferenceEquals(this, other))
             {
                 return true;
             }
@@ -1403,8 +1389,7 @@ namespace Opc.Ua
 #if NET6_0_OR_GREATER
                     hashCode.AddBytes((byte[])m_identifier);
 #else
-                    byte[] identifier = (byte[])m_identifier;
-                    foreach (byte id in identifier)
+                    foreach (byte id in (byte[])m_identifier)
                     {
                         hashCode.Add(id);
                     }
@@ -1425,9 +1410,9 @@ namespace Opc.Ua
         /// </remarks>
         public static bool operator ==(NodeId value1, object value2)
         {
-            if (Object.ReferenceEquals(value1, null))
+            if (ReferenceEquals(value1, null))
             {
-                return Object.ReferenceEquals(value2, null);
+                return ReferenceEquals(value2, null);
             }
 
             return value1.CompareTo(value2) == 0;
@@ -1441,16 +1426,14 @@ namespace Opc.Ua
         /// </remarks>
         public static bool operator !=(NodeId value1, object value2)
         {
-            if (Object.ReferenceEquals(value1, null))
+            if (ReferenceEquals(value1, null))
             {
-                return !Object.ReferenceEquals(value2, null);
+                return !ReferenceEquals(value2, null);
             }
 
             return value1.CompareTo(value2) != 0;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The node identifier formatted as a URI.
         /// </summary>
@@ -1460,15 +1443,12 @@ namespace Opc.Ua
         [DataMember(Name = "Identifier", Order = 1)]
         internal string IdentifierText
         {
-            get
-            {
-                return Format(CultureInfo.InvariantCulture);
-            }
+            get => Format(CultureInfo.InvariantCulture);
             set
             {
-                NodeId.ValidateImmutableNodeIdIsNotModified();
+                ValidateImmutableNodeIdIsNotModified();
 
-                var nodeId = NodeId.Parse(value);
+                var nodeId = Parse(value);
 
                 m_namespaceIndex = nodeId.NamespaceIndex;
                 m_identifierType = nodeId.IdType;
@@ -1582,9 +1562,7 @@ namespace Opc.Ua
                 return true;
             }
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Compares two node identifiers.
         /// </summary>
@@ -1822,17 +1800,14 @@ namespace Opc.Ua
             }
 #endif
         }
-        #endregion
 
-        #region Private Fields
         private ushort m_namespaceIndex;
         private IdType m_identifierType;
         private object m_identifier;
-        #endregion
     }
 
 #if IMMUTABLENULLNODEID
-    #region ImmutableNodeId
+
     /// <summary>
     /// A NodeId class as helper to catch if the immutable NodeId.Null is being modified.
     /// </summary>
@@ -1842,10 +1817,9 @@ namespace Opc.Ua
         {
         }
     }
-    #endregion
+
 #endif
 
-    #region NodeIdCollection Class
     /// <summary>
     /// A collection of NodeIds.
     /// </summary>
@@ -1855,8 +1829,6 @@ namespace Opc.Ua
     [CollectionDataContract(Name = "ListOfNodeId", Namespace = Namespaces.OpcUaXsd, ItemName = "NodeId")]
     public class NodeIdCollection : List<NodeId>, ICloneable
     {
-        #region CTORs
-
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
@@ -1883,9 +1855,6 @@ namespace Opc.Ua
         /// <param name="capacity">The max. capacity of the collection</param>
         public NodeIdCollection(int capacity) : base(capacity) { }
 
-        #endregion
-
-        #region public static NodeIdCollection ToNodeIdCollection(NodeId[] values)
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
@@ -1899,15 +1868,12 @@ namespace Opc.Ua
         {
             if (values != null)
             {
-                return new NodeIdCollection(values);
+                return [.. values];
             }
 
-            return new NodeIdCollection();
+            return [];
         }
 
-        #endregion
-
-        #region public static implicit operator NodeIdCollection(NodeId[] values)
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
@@ -1920,13 +1886,10 @@ namespace Opc.Ua
             return ToNodeIdCollection(values);
         }
 
-        #endregion
-
-        #region ICloneable
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -1937,18 +1900,16 @@ namespace Opc.Ua
         /// </remarks>
         public new object MemberwiseClone()
         {
-            var clone = new NodeIdCollection(this.Count);
+            var clone = new NodeIdCollection(Count);
 
             foreach (NodeId element in this)
             {
-                clone.Add((NodeId)Utils.Clone(element));
+                clone.Add(Utils.Clone(element));
             }
 
             return clone;
         }
-        #endregion
     }//class
-    #endregion
 
     /// <summary>
     /// Options that affect how a NodeId string is parsed.
@@ -1971,7 +1932,6 @@ namespace Opc.Ua
         public ushort[] ServerMappings { get; set; }
     }
 
-    #region NodeIdComparer Class
     /// <summary>
     /// Helper which implements a NodeId IEqualityComparer for Linq queries.
     /// </summary>
@@ -2004,5 +1964,4 @@ namespace Opc.Ua
             return nodeId.GetHashCode();
         }
     }
-    #endregion
 }

@@ -41,7 +41,6 @@ namespace Opc.Ua.Server
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling")]
     public class MasterNodeManager : IDisposable
     {
-        #region Constructors
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
@@ -62,7 +61,7 @@ namespace Opc.Ua.Server
             }
 
             Server = server;
-            m_nodeManagers = new List<INodeManager>();
+            m_nodeManagers = [];
             m_maxContinuationPointsPerBrowse = (uint)configuration.ServerConfiguration.MaxBrowseContinuationPoints;
 
             // ensure the dynamic namespace uris.
@@ -80,10 +79,10 @@ namespace Opc.Ua.Server
 
             // need to build a table of NamespaceIndexes and their NodeManagers.
             List<INodeManager> registeredManagers = null;
-            var namespaceManagers = new Dictionary<int, List<INodeManager>>();
-
-            namespaceManagers[0] = registeredManagers = new List<INodeManager>();
-            namespaceManagers[1] = registeredManagers = new List<INodeManager>();
+            var namespaceManagers = new Dictionary<int, List<INodeManager>> {
+                [0] = registeredManagers = [],
+                [1] = registeredManagers = []
+            };
 
             // always add the diagnostics and configuration node manager to the start of the list.
             var configurationAndDiagnosticsManager = new ConfigurationNodeManager(server, configuration);
@@ -114,7 +113,7 @@ namespace Opc.Ua.Server
                 {
                     if (namespaceManagers.TryGetValue(ii, out registeredManagers))
                     {
-                        m_namespaceManagers[ii] = registeredManagers.ToArray();
+                        m_namespaceManagers[ii] = [.. registeredManagers];
                     }
                 }
             }
@@ -146,16 +145,14 @@ namespace Opc.Ua.Server
                     // add manager to list for the namespace.
                     if (!namespaceManagers.TryGetValue(index, out registeredManagers))
                     {
-                        namespaceManagers[index] = registeredManagers = new List<INodeManager>();
+                        namespaceManagers[index] = registeredManagers = [];
                     }
 
                     registeredManagers.Add(nodeManager);
                 }
             }
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -186,9 +183,7 @@ namespace Opc.Ua.Server
                 }
             }
         }
-        #endregion
 
-        #region Static Methods
         /// <summary>
         /// Adds a reference to the table of external references.
         /// </summary>
@@ -212,7 +207,7 @@ namespace Opc.Ua.Server
 
             if (!externalReferences.TryGetValue(sourceId, out references))
             {
-                externalReferences[sourceId] = references = new List<IReference>();
+                externalReferences[sourceId] = references = [];
             }
 
             references.Add(reference);
@@ -269,41 +264,21 @@ namespace Opc.Ua.Server
                     return PermissionType.ModifyHistory;
             }
         }
-        #endregion
 
-        #region Public Interface
         /// <summary>
         /// Returns the core node manager.
         /// </summary>
-        public CoreNodeManager CoreNodeManager
-        {
-            get
-            {
-                return m_nodeManagers[1] as CoreNodeManager;
-            }
-        }
+        public CoreNodeManager CoreNodeManager => m_nodeManagers[1] as CoreNodeManager;
 
         /// <summary>
         /// Returns the diagnostics node manager.
         /// </summary>
-        public DiagnosticsNodeManager DiagnosticsNodeManager
-        {
-            get
-            {
-                return m_nodeManagers[0] as DiagnosticsNodeManager;
-            }
-        }
+        public DiagnosticsNodeManager DiagnosticsNodeManager => m_nodeManagers[0] as DiagnosticsNodeManager;
 
         /// <summary>
         /// Returns the configuration node manager.
         /// </summary>
-        public ConfigurationNodeManager ConfigurationNodeManager
-        {
-            get
-            {
-                return m_nodeManagers[0] as ConfigurationNodeManager;
-            }
-        }
+        public ConfigurationNodeManager ConfigurationNodeManager => m_nodeManagers[0] as ConfigurationNodeManager;
 
         /// <summary>
         /// Creates the node managers and start them
@@ -639,8 +614,9 @@ namespace Opc.Ua.Server
 
                 // delete the reference.
 
-                var map = new Dictionary<NodeId, IList<IReference>>();
-                map.Add(sourceId, references);
+                var map = new Dictionary<NodeId, IList<IReference>> {
+                    { sourceId, references }
+                };
                 nodeManager.AddReferences(map);
             }
         }
@@ -690,7 +666,6 @@ namespace Opc.Ua.Server
             }
         }
 
-        #region Register/Unregister Nodes
         /// <summary>
         /// Registers a set of node ids.
         /// </summary>
@@ -762,9 +737,7 @@ namespace Opc.Ua.Server
             }
             */
         }
-        #endregion
 
-        #region TranslateBrowsePathsToNodeIds
         /// <summary>
         /// Translates a start node id plus a relative paths into a node id.
         /// </summary>
@@ -1099,9 +1072,7 @@ namespace Opc.Ua.Server
                     index + 1);
             }
         }
-        #endregion
 
-        #region Browse
         /// <summary>
         /// Returns the set of references that meet the filter criteria.
         /// </summary>
@@ -1256,10 +1227,10 @@ namespace Opc.Ua.Server
                 uniqueNodes.Add(nodeId);
             }
             // uniqueNodesReadAttributes is the place where the attributes for each unique nodeId are kept on the services
-            uniqueNodesServiceAttributes = new Dictionary<NodeId, List<object>>();
+            uniqueNodesServiceAttributes = [];
             foreach (NodeId uniqueNode in uniqueNodes)
             {
-                uniqueNodesServiceAttributes.Add(uniqueNode, new List<object>());
+                uniqueNodesServiceAttributes.Add(uniqueNode, []);
             }
         }
 
@@ -1565,7 +1536,6 @@ namespace Opc.Ua.Server
             // all is good.
             return ServiceResult.Good;
         }
-        #endregion
 
         /// <summary>
         /// Updates the reference description with the node attributes.
@@ -1672,7 +1642,7 @@ namespace Opc.Ua.Server
                 nodesToRead.Count);
 
             Dictionary<NodeId, List<object>> uniqueNodesReadAttributes;
-            MasterNodeManager.PrepareValidationCache(nodesToRead, out uniqueNodesReadAttributes);
+            PrepareValidationCache(nodesToRead, out uniqueNodesReadAttributes);
 
             for (int ii = 0; ii < nodesToRead.Count; ii++)
             {
@@ -2897,7 +2867,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             uint subscriptionId,
             IList<IMonitoredItem> monitoredItems,
-            IList<bool> processedItems,
+            List<bool> processedItems,
             IList<ServiceResult> errors)
         {
             for (int ii = 0; ii < monitoredItems.Count; ii++)
@@ -3002,7 +2972,7 @@ namespace Opc.Ua.Server
             OperationContext context,
             MonitoringMode monitoringMode,
             IList<IMonitoredItem> monitoredItems,
-            IList<bool> processedItems,
+            List<bool> processedItems,
             IList<ServiceResult> errors)
         {
             for (int ii = 0; ii < monitoredItems.Count; ii++)
@@ -3024,9 +2994,7 @@ namespace Opc.Ua.Server
                 errors[ii] = StatusCodes.Good;
             }
         }
-        #endregion
 
-        #region Protected Members
         /// <summary>
         /// The server that the node manager belongs to.
         /// </summary>
@@ -3035,10 +3003,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The node managers being managed.
         /// </summary>
-        public IList<INodeManager> NodeManagers
-        {
-            get { return m_nodeManagers; }
-        }
+        public IList<INodeManager> NodeManagers => m_nodeManagers;
 
         /// <summary>
         /// The namespace managers being managed
@@ -3328,7 +3293,6 @@ namespace Opc.Ua.Server
 
             return serviceResult;
         }
-        #region Validate Permissions Methods
 
         /// <summary>
         /// Check if the Base NodeClass attributes and NameSpace meta-data attributes
@@ -3554,7 +3518,7 @@ namespace Opc.Ua.Server
             }
             else
             {
-                commonRoleIdPermissions = new Dictionary<NodeId, PermissionType>();
+                commonRoleIdPermissions = [];
                 // intersect role permissions from node and user
                 foreach (NodeId roleId in roleIdPermissions.Keys)
                 {
@@ -3583,20 +3547,14 @@ namespace Opc.Ua.Server
                 "The requested permission {0} is not granted for node id {1}.", requestedPermission, nodeMetadata.NodeId);
         }
 
-        #endregion
-        #endregion
-
-        #region Private Fields
-        private readonly object m_lock = new object();
+        private readonly object m_lock = new();
         private readonly List<INodeManager> m_nodeManagers;
         private long m_lastMonitoredItemId;
         private INodeManager[][] m_namespaceManagers;
         private readonly uint m_maxContinuationPointsPerBrowse;
-        private readonly ReaderWriterLockSlim m_readWriterLockSlim = new ReaderWriterLockSlim();
-        #endregion
+        private readonly ReaderWriterLockSlim m_readWriterLockSlim = new();
     }
 
-    #region LocalReference Class
     /// <summary>
     /// Stores a reference between NodeManagers that is needs to be created or deleted.
     /// </summary>
@@ -3637,5 +3595,4 @@ namespace Opc.Ua.Server
         /// </summary>
         public NodeId TargetId { get; }
     }
-    #endregion
 }

@@ -40,12 +40,14 @@ using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.PubSub.Tests.Transport
 {
-    public partial class UdpClientCreatorTests
+    public class UdpClientCreatorTests
     {
         private readonly string m_publisherConfigurationFileName = Path.Combine("Configuration", "PublisherConfiguration.xml");
         private readonly string m_urlScheme = Utils.Format("{0}://", Utils.UriSchemeOpcUdp);
 
-        // generic well known address
+        /// <summary>
+        /// generic well known address
+        /// </summary>
         private string m_urlHostName = "192.168.0.1";
         private const int kDiscoveryPortNo = 4840;
 
@@ -122,7 +124,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             // this test fails on macOS, ignore
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-                Assert.Ignore("Skip UdpClientCreatorUrl test on mac OS.");
+                NUnit.Framework.Assert.Ignore("Skip UdpClientCreatorUrl test on mac OS.");
             }
 
             IPEndPoint ipEndPoint = UdpClientCreator.GetEndPoint($"{m_urlScheme}{Environment.MachineName}:{kDiscoveryPortNo}");
@@ -148,7 +150,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(publisherConfiguration.Connections, "publisherConfiguration.Connections should not be null");
             Assert.IsNotEmpty(publisherConfiguration.Connections, "publisherConfiguration.Connections should not be empty");
 
-            PubSubConnectionDataType publisherConnection1 = publisherConfiguration.Connections.First();
+            PubSubConnectionDataType publisherConnection1 = publisherConfiguration.Connections[0];
             Assert.IsNotNull(publisherConnection1, "publisherConnection1 should not be null");
 
             var networkAddressUrlState1 = ExtensionObject.ToEncodeable(publisherConnection1.Address)
@@ -196,8 +198,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.AreNotEqual(udpClientEndPoint1.Port, udpClientEndPoint2.Port, "udpClientEndPoint1 port number: {0} should not match udpClientEndPoint1 port number: {1}", udpClientEndPoint1.Port, udpClientEndPoint2.Port);
         }
 
-        #region Private methods
-        private string ReplaceLastIpByte(string ipAddress, string lastIpByte)
+        private static string ReplaceLastIpByte(string ipAddress, string lastIpByte)
         {
             string newIPAddress = null;
             try
@@ -217,10 +218,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
             }
             catch
             {
-
             }
             return newIPAddress;
         }
-        #endregion
     }
 }

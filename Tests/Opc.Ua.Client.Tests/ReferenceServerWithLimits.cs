@@ -79,7 +79,7 @@ namespace Opc.Ua.Client.Tests
         {
             Configuration.ServerConfiguration.MaxBrowseContinuationPoints = (int)maxNumberOfContinuationPoints;
             ((MasterNodeManagerWithLimits)MasterNodeManagerReference).MaxContinuationPointsPerBrowseForUnitTest = maxNumberOfContinuationPoints;
-            foreach (Opc.Ua.Server.ISession session in SessionManagerForTest.GetSessions().ToList())
+            foreach (Server.ISession session in SessionManagerForTest.GetSessions().ToList())
             {
                 try
                 {
@@ -93,25 +93,26 @@ namespace Opc.Ua.Client.Tests
         {
             Utils.LogInfo(Utils.TraceMasks.StartStop, "Creating the Reference Server Node Manager.");
 
-            IList<INodeManager> nodeManagers = new List<INodeManager>();
-
-            // create the custom node manager.
-            nodeManagers.Add(new ReferenceNodeManager(server, configuration));
+            IList<INodeManager> nodeManagers =
+            [
+                // create the custom node manager.
+                new ReferenceNodeManager(server, configuration),
+            ];
 
             foreach (INodeManagerFactory nodeManagerFactory in NodeManagerFactories)
             {
                 nodeManagers.Add(nodeManagerFactory.Create(server, configuration));
             }
             //this.MasterNodeManagerReference = new MasterNodeManager(server, configuration, null, nodeManagers.ToArray());
-            this.MasterNodeManagerReference = new MasterNodeManagerWithLimits(server, configuration, null, nodeManagers.ToArray());
+            MasterNodeManagerReference = new MasterNodeManagerWithLimits(server, configuration, null, [.. nodeManagers]);
             // create master node manager.
-            return this.MasterNodeManagerReference;
+            return MasterNodeManagerReference;
         }
 
         protected override ISessionManager CreateSessionManager(IServerInternal server, ApplicationConfiguration configuration)
         {
-            this.SessionManagerForTest = new SessionManagerWithLimits(server, configuration);
-            return this.SessionManagerForTest;
+            SessionManagerForTest = new SessionManagerWithLimits(server, configuration);
+            return SessionManagerForTest;
         }
     }
 
@@ -119,7 +120,7 @@ namespace Opc.Ua.Client.Tests
     /// provide a means to set the maximum number of browse continuation points to
     /// the (Server) session.
     /// </summary>
-    public class ServerSessionWithLimits : Opc.Ua.Server.Session
+    public class ServerSessionWithLimits : Server.Session
     {
         public ServerSessionWithLimits(
             OperationContext context,
@@ -169,7 +170,7 @@ namespace Opc.Ua.Client.Tests
     /// <summary>
     /// ensures that the (Server) session is the derived one for the test.
     /// </summary>
-    public class SessionManagerWithLimits : Opc.Ua.Server.SessionManager
+    public class SessionManagerWithLimits : SessionManager
     {
         private readonly IServerInternal m_4TestServer;
         private readonly int m_4TestMaxRequestAge;
@@ -202,7 +203,7 @@ namespace Opc.Ua.Client.Tests
         /// <param name="maxRequestAge"></param>
         /// <param name="maxContinuationPoints"></param>
         /// <returns></returns>
-        protected override Ua.Server.ISession CreateSession(
+        protected override Server.ISession CreateSession(
             OperationContext context,
             IServerInternal server,
             X509Certificate2 serverCertificate,
@@ -333,7 +334,7 @@ namespace Opc.Ua.Client.Tests
                 // need to trap unexpected exceptions to handle bugs in the node managers.
                 try
                 {
-                    error = base.Browse(
+                    error = Browse(
                         context,
                         view,
                         maxReferencesPerNode,

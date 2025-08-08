@@ -36,14 +36,13 @@ namespace Opc.Ua.PubSub.Transport
 {
     /// <summary>
     /// This class handles the broadcast message sending.
-    /// It enables fine tuning the routing option of the internal socket and binding to a specified endpoint so that the messages are routed on a corresponding 
+    /// It enables fine tuning the routing option of the internal socket and binding to a specified endpoint so that the messages are routed on a corresponding
     /// interface (the one to which the endpoint belongs to).
     /// </summary>
     internal class UdpClientBroadcast : UdpClient
     {
-        #region Constructors
         /// <summary>
-        /// Instantiates a UDP Broadcast client 
+        /// Instantiates a UDP Broadcast client
         /// </summary>
         /// <param name="address">The IPAddress which the socket should be bound to</param>
         /// <param name="port">The port used by the endpoint that should different than 0 on a Subscriber context</param>
@@ -74,9 +73,7 @@ namespace Opc.Ua.PubSub.Transport
 
             Utils.Trace("UdpClientBroadcast was created for address: {0}:{1} - {2}.", address, port, pubSubContext);
         }
-        #endregion
 
-        #region Properties
         /// <summary>
         /// The Ip Address
         /// </summary>
@@ -91,9 +88,7 @@ namespace Opc.Ua.PubSub.Transport
         /// Publisher or Subscriber context where the UdpClient is used
         /// </summary>
         internal UsedInContext PubSubContext { get; }
-        #endregion
 
-        #region Private methods
         /// <summary>
         /// Explicitly specifies that routing the packets to a specific interface is enabled
         /// and should broadcast only on the interface (to which the socket is bound)
@@ -108,7 +103,7 @@ namespace Opc.Ua.PubSub.Transport
                 catch (Exception ex)
                 {
                     Utils.Trace(Utils.TraceMasks.Information, "UdpClientBroadcast set SetSocketOption {1} to {2} resulted in ex {0}", ex.Message, SocketOptionName.Broadcast, value);
-                };
+                }
             };
             setSocketOption(SocketOptionLevel.Socket, SocketOptionName.Broadcast, true);
             setSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontRoute, false);
@@ -124,9 +119,7 @@ namespace Opc.Ua.PubSub.Transport
                 {
                     Utils.Trace(Utils.TraceMasks.Information, "UdpClientBroadcast set ExclusiveAddressUse to false resulted in ex {0}", ex.Message);
                 }
-
             }
         }
-        #endregion
     }
 }

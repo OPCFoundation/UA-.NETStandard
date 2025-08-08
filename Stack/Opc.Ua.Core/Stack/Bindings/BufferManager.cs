@@ -19,13 +19,11 @@ using System.Collections.Generic;
 
 namespace Opc.Ua.Bindings
 {
-    #region BufferCollection Class
     /// <summary>
     /// A collection of buffers.
     /// </summary>
     public class BufferCollection : List<ArraySegment<byte>>
     {
-        #region Constructors
         /// <summary>
         /// Creates an empty collection.
         /// </summary>
@@ -60,9 +58,7 @@ namespace Opc.Ua.Bindings
         {
             Add(new ArraySegment<byte>(array, offset, count));
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Returns the buffers to the manager before clearing the collection.
         /// </summary>
@@ -94,7 +90,7 @@ namespace Opc.Ua.Bindings
             {
                 int count = 0;
 
-                for (int ii = 0; ii < this.Count; ii++)
+                for (int ii = 0; ii < Count; ii++)
                 {
                     count += this[ii].Count;
                 }
@@ -102,17 +98,13 @@ namespace Opc.Ua.Bindings
                 return count;
             }
         }
-        #endregion
     }
-    #endregion
 
-    #region BufferManager Class
     /// <summary>
     /// A thread safe wrapper for the buffer manager class.
     /// </summary>
     public class BufferManager
     {
-        #region Constructors
         /// <summary>
         /// Constructs the buffer manager.
         /// </summary>
@@ -125,11 +117,9 @@ namespace Opc.Ua.Bindings
                 ? ArrayPool<byte>.Shared
                 : ArrayPool<byte>.Create(maxBufferSize + kCookieLength, 4);
             m_maxBufferSize = maxBufferSize;
-            MaxSuggestedBufferSize = BufferManager.DetermineSuggestedBufferSize(maxBufferSize);
+            MaxSuggestedBufferSize = DetermineSuggestedBufferSize(maxBufferSize);
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Returns a buffer with at least the specified size.
         /// </summary>
@@ -344,8 +334,8 @@ namespace Opc.Ua.Bindings
         /// <param name="maxBufferSize">The max buffer size configured.</param>
         private static int DetermineSuggestedBufferSize(int maxBufferSize)
         {
-            int bufferArrayPoolSize = BufferManager.RoundUpToPowerOfTwo(maxBufferSize);
-            int maxDataRentSize = BufferManager.RoundUpToPowerOfTwo(maxBufferSize + kCookieLength);
+            int bufferArrayPoolSize = RoundUpToPowerOfTwo(maxBufferSize);
+            int maxDataRentSize = RoundUpToPowerOfTwo(maxBufferSize + kCookieLength);
             if (bufferArrayPoolSize != maxDataRentSize)
             {
                 Utils.LogWarning("BufferManager: Max buffer size {0} + cookie length {1} may waste memory because it allocates buffers in the next bucket!", maxBufferSize, kCookieLength);
@@ -379,9 +369,7 @@ namespace Opc.Ua.Bindings
         /// for the maximum buffer size when taking buffers.
         /// </remarks>
         public int MaxSuggestedBufferSize { get; }
-        #endregion
 
-        #region Private Fields
         private readonly string m_name;
         private readonly int m_maxBufferSize;
 #if TRACE_MEMORY
@@ -408,7 +396,6 @@ namespace Opc.Ua.Bindings
 #else
         private const byte kCookieLength = 1;
 #endif
-        #endregion
+
     }
-    #endregion
 }

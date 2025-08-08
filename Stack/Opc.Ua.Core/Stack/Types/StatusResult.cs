@@ -22,7 +22,6 @@ namespace Opc.Ua
     /// </summary>
     public partial class StatusResult
     {
-        #region Public Interface
         /// <summary>
         /// Initializes the object with a ServiceResult.
         /// </summary>
@@ -49,10 +48,7 @@ namespace Opc.Ua
                 m_diagnosticInfo = new DiagnosticInfo(m_result, diagnosticMasks, false, stringTable);
             }
         }
-        #endregion
 
-        #region Private Fields
         private readonly ServiceResult m_result;
-        #endregion
     }
 }

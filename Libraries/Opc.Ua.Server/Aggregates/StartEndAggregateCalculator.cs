@@ -38,7 +38,6 @@ namespace Opc.Ua.Server
     /// </summary>
     public class StartEndAggregateCalculator : AggregateCalculator
     {
-        #region Constructors
         /// <summary>
         /// Initializes the aggregate calculator.
         /// </summary>
@@ -60,9 +59,7 @@ namespace Opc.Ua.Server
         {
             SetPartialBit = true;
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Computes the value for the timeslice.
         /// </summary>
@@ -96,9 +93,7 @@ namespace Opc.Ua.Server
 
             return base.ComputeValue(slice);
         }
-        #endregion
 
-        #region Protected Methods
         /// <summary>
         /// Calculate the Start and End aggregates for the timeslice.
         /// </summary>
@@ -292,7 +287,7 @@ namespace Opc.Ua.Server
             }
 
             DataValue start = values[0];
-            DataValue end = values[values.Count-1];
+            DataValue end = values[values.Count - 1];
 
             // check for bad bounds.
             if (!IsGood(start) || !IsGood(end))
@@ -358,6 +353,5 @@ namespace Opc.Ua.Server
             // return result.
             return value;
         }
-        #endregion
     }
 }

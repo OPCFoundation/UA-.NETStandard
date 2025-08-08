@@ -37,12 +37,12 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
+using X509AuthorityKeyIdentifierExtension = Opc.Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension;
 
 namespace Opc.Ua.Gds.Server
 {
     public class CertificateGroup : ICertificateGroup
     {
-        #region Public Fields
         public NodeId Id { get; set; }
         public NodeIdCollection CertificateTypes { get; set; }
         public CertificateGroupConfiguration Configuration { get; }
@@ -51,7 +51,6 @@ namespace Opc.Ua.Gds.Server
         public bool UpdateRequired { get; set; }
         public CertificateStoreIdentifier AuthoritiesStore { get; }
         public CertificateStoreIdentifier IssuerCertificatesStore { get; }
-        #endregion
 
         public CertificateGroup()
         {
@@ -71,13 +70,13 @@ namespace Opc.Ua.Gds.Server
                 IssuerCertificatesStore = new CertificateStoreIdentifier(trustedIssuerCertificatesStorePath);
             }
             SubjectName = Configuration.SubjectName.Replace("localhost", Utils.GetHostName(), StringComparison.Ordinal);
-            CertificateTypes = new NodeIdCollection();
+            CertificateTypes = [];
 
             Certificates = new ConcurrentDictionary<NodeId, X509Certificate2>();
 
             foreach (string certificateTypeString in Configuration.CertificateTypes)
             {
-                var certificateType = typeof(Opc.Ua.ObjectTypeIds).GetField(certificateTypeString).GetValue(null) as NodeId;
+                var certificateType = typeof(Ua.ObjectTypeIds).GetField(certificateTypeString).GetValue(null) as NodeId;
                 if (certificateType != null)
                 {
                     if (!Utils.IsSupportedCertificateType(certificateType))
@@ -100,7 +99,6 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
-        #region ICertificateGroupProvider
         public virtual async Task InitAsync()
         {
             Utils.LogInfo("InitializeCertificateGroup: {0}", SubjectName);
@@ -161,7 +159,6 @@ namespace Opc.Ua.Gds.Server
                     await CreateCACertificateAsync(SubjectName, certificateType).ConfigureAwait(false);
                     Utils.LogCertificate(Utils.TraceMasks.Security, "Created CA certificate: ", Certificates[certificateType]);
                 }
-
             }
         }
 
@@ -197,12 +194,12 @@ namespace Opc.Ua.Gds.Server
 
             if (application.ApplicationUri == null)
             {
-                throw new ArgumentNullException(nameof(application.ApplicationUri));
+                throw new ArgumentNullException(nameof(application), "ApplicationUri is null");
             }
 
             if (application.ApplicationNames == null)
             {
-                throw new ArgumentNullException(nameof(application.ApplicationNames));
+                throw new ArgumentNullException(nameof(application), "ApplicationNames is null");
             }
 
             using (X509Certificate2 signingKey = await LoadSigningKeyAsync(Certificates[certificateType], string.Empty).ConfigureAwait(false))
@@ -285,29 +282,18 @@ namespace Opc.Ua.Gds.Server
 
                 Org.BouncyCastle.Asn1.Pkcs.CertificationRequestInfo info = pkcs10CertificationRequest.GetCertificationRequestInfo();
                 X509SubjectAltNameExtension altNameExtension = GetAltNameExtensionFromCSRInfo(info);
-                if (altNameExtension != null)
+                if (altNameExtension != null && altNameExtension.Uris.Count > 0 && !altNameExtension.Uris.Contains(application.ApplicationUri))
                 {
-                    if (altNameExtension.Uris.Count > 0)
-                    {
-                        if (!altNameExtension.Uris.Contains(application.ApplicationUri))
-                        {
-                            throw new ServiceResultException(StatusCodes.BadCertificateUriInvalid,
-                                "CSR AltNameExtension does not match " + application.ApplicationUri);
-                        }
-                    }
+                    throw new ServiceResultException(StatusCodes.BadCertificateUriInvalid,
+                        "CSR AltNameExtension does not match " + application.ApplicationUri);
                 }
                 return Task.CompletedTask;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not ServiceResultException)
             {
-                if (ex is ServiceResultException)
-                {
-                    throw;
-                }
                 throw new ServiceResultException(StatusCodes.BadInvalidArgument, ex.Message);
             }
         }
-
 
         public virtual async Task<X509Certificate2> SigningRequestAsync(
             ApplicationRecordDataType application,
@@ -328,21 +314,18 @@ namespace Opc.Ua.Gds.Server
                 X509SubjectAltNameExtension altNameExtension = GetAltNameExtensionFromCSRInfo(info);
                 if (altNameExtension != null)
                 {
-                    if (altNameExtension.Uris.Count > 0)
+                    if (altNameExtension.Uris.Count > 0 && !altNameExtension.Uris.Contains(application.ApplicationUri))
                     {
-                        if (!altNameExtension.Uris.Contains(application.ApplicationUri))
+                        var applicationUriMissing = new StringBuilder();
+                        applicationUriMissing.AppendLine("Expected AltNameExtension (ApplicationUri):");
+                        applicationUriMissing.AppendLine(application.ApplicationUri);
+                        applicationUriMissing.AppendLine("CSR AltNameExtensions found:");
+                        foreach (string uri in altNameExtension.Uris)
                         {
-                            var applicationUriMissing = new StringBuilder();
-                            applicationUriMissing.AppendLine("Expected AltNameExtension (ApplicationUri):");
-                            applicationUriMissing.AppendLine(application.ApplicationUri);
-                            applicationUriMissing.AppendLine("CSR AltNameExtensions found:");
-                            foreach (string uri in altNameExtension.Uris)
-                            {
-                                applicationUriMissing.AppendLine(uri);
-                            }
-                            throw new ServiceResultException(StatusCodes.BadCertificateUriInvalid,
-                                applicationUriMissing.ToString());
+                            applicationUriMissing.AppendLine(uri);
                         }
+                        throw new ServiceResultException(StatusCodes.BadCertificateUriInvalid,
+                            applicationUriMissing.ToString());
                     }
 
                     if (altNameExtension.IPAddresses.Count > 0 || altNameExtension.DomainNames.Count > 0)
@@ -350,7 +333,7 @@ namespace Opc.Ua.Gds.Server
                         var domainNameList = new List<string>();
                         domainNameList.AddRange(altNameExtension.DomainNames);
                         domainNameList.AddRange(altNameExtension.IPAddresses);
-                        domainNames = domainNameList.ToArray();
+                        domainNames = [.. domainNameList];
                     }
                 }
 
@@ -386,15 +369,10 @@ namespace Opc.Ua.Gds.Server
                     return certificate;
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not ServiceResultException)
             {
-                if (ex is ServiceResultException)
-                {
-                    throw;
-                }
                 throw new ServiceResultException(StatusCodes.BadInvalidArgument, ex.Message);
             }
-
         }
 
         public virtual async Task<X509Certificate2> CreateCACertificateAsync(
@@ -462,12 +440,8 @@ namespace Opc.Ua.Gds.Server
             Utils.SilentDispose(certificate);
 
             return Certificates[certificateType];
-
         }
 
-        #endregion
-
-        #region Public Methods
         /// <summary>
         /// load the authority signing key.
         /// </summary>
@@ -500,7 +474,8 @@ namespace Opc.Ua.Gds.Server
             bool isCACert = X509Utils.IsCertificateAuthority(certificate);
 
             // find the authority key identifier.
-            Security.Certificates.X509AuthorityKeyIdentifierExtension authority = X509Extensions.FindExtension<Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension>(certificate);
+
+            X509AuthorityKeyIdentifierExtension authority = certificate.FindExtension<X509AuthorityKeyIdentifierExtension>();
             if (authority != null)
             {
                 keyId = authority.KeyIdentifier;
@@ -574,47 +549,37 @@ namespace Opc.Ua.Gds.Server
             }
             return updatedCRL;
         }
-        #endregion
 
-        #region Private Methods
 #if ECC_SUPPORT
         /// <summary>
         /// GetTheEccCurve of the CertificateGroups CertificateType
         /// </summary>
         /// <returns>returns false if RSA CertificateType, true if a ECCurve can be found, else throws Exception</returns>
         /// <exception cref="ServiceResultException"></exception>
-        private bool TryGetECCCurve(NodeId certificateType, out ECCurve curve)
+        private static bool TryGetECCCurve(NodeId certificateType, out ECCurve curve)
         {
             curve = default;
             if (IsRSACertificateType(certificateType))
             {
                 return false;
             }
-            ECCurve? tempCurve = EccUtils.GetCurveFromCertificateTypeId(certificateType);
-
-            if (tempCurve == null)
-            {
-                throw new ServiceResultException(StatusCodes.BadNotSupported, $"The certificate type {certificateType} is not supported.");
-            }
-
-            curve = tempCurve.Value;
-
+            curve = EccUtils.GetCurveFromCertificateTypeId(certificateType)
+                ?? throw new ServiceResultException(StatusCodes.BadNotSupported,
+                    $"The certificate type {certificateType} is not supported.");
             return true;
+
+            //  Checks if the Certificate Group is for RSA Certificates
+            static bool IsRSACertificateType(NodeId certificateType)
+            {
+                return certificateType == null ||
+                       certificateType == Ua.ObjectTypeIds.ApplicationCertificateType ||
+                       certificateType == Ua.ObjectTypeIds.HttpsCertificateType ||
+                       certificateType == Ua.ObjectTypeIds.UserCredentialCertificateType ||
+                       certificateType == Ua.ObjectTypeIds.RsaMinApplicationCertificateType ||
+                       certificateType == Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType;
+            }
         }
 #endif
-        /// <summary>
-        /// Checks if the Certificate Group is for RSA Certificates
-        /// </summary>
-        /// <returns>True if the CertificateType of the Certificate Group is an RSA Certificate Type</returns>
-        private bool IsRSACertificateType(NodeId certificateType)
-        {
-            return certificateType == null ||
-                   certificateType == Opc.Ua.ObjectTypeIds.ApplicationCertificateType ||
-                   certificateType == Opc.Ua.ObjectTypeIds.HttpsCertificateType ||
-                   certificateType == Opc.Ua.ObjectTypeIds.UserCredentialCertificateType ||
-                   certificateType == Opc.Ua.ObjectTypeIds.RsaMinApplicationCertificateType ||
-                   certificateType == Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType;
-        }
 
         /// <summary>
         /// Updates the certificate authority certificate and CRL in the provided CertificateStore
@@ -680,13 +645,12 @@ namespace Opc.Ua.Gds.Server
                     var oid = Org.BouncyCastle.Asn1.DerObjectIdentifier.GetInstance(sequence[0].ToAsn1Object());
                     if (oid.Equals(Org.BouncyCastle.Asn1.Pkcs.PkcsObjectIdentifiers.Pkcs9AtExtensionRequest))
                     {
-                        Org.BouncyCastle.Asn1.Asn1Set extensionInstance = Org.BouncyCastle.Asn1.DerSet.GetInstance(sequence[1]);
+                        Org.BouncyCastle.Asn1.Asn1Set extensionInstance = Org.BouncyCastle.Asn1.Asn1Set.GetInstance(sequence[1]);
                         var extensionSequence = Org.BouncyCastle.Asn1.Asn1Sequence.GetInstance(extensionInstance[0]);
                         var extensions = Org.BouncyCastle.Asn1.X509.X509Extensions.GetInstance(extensionSequence);
                         Org.BouncyCastle.Asn1.X509.X509Extension extension = extensions.GetExtension(Org.BouncyCastle.Asn1.X509.X509Extensions.SubjectAlternativeName);
-                        var asnEncodedAltNameExtension = new System.Security.Cryptography.AsnEncodedData(Org.BouncyCastle.Asn1.X509.X509Extensions.SubjectAlternativeName.ToString(), extension.Value.GetOctets());
-                        var altNameExtension = new X509SubjectAltNameExtension(asnEncodedAltNameExtension, extension.IsCritical);
-                        return altNameExtension;
+                        var asnEncodedAltNameExtension = new AsnEncodedData(Org.BouncyCastle.Asn1.X509.X509Extensions.SubjectAlternativeName.ToString(), extension.Value.GetOctets());
+                        return new X509SubjectAltNameExtension(asnEncodedAltNameExtension, extension.IsCritical);
                     }
                 }
             }
@@ -696,12 +660,7 @@ namespace Opc.Ua.Gds.Server
             }
             return null;
         }
-        #endregion
 
-        #region Protected Properties
         protected string SubjectName { get; }
-        #endregion
-
     }
-
 }

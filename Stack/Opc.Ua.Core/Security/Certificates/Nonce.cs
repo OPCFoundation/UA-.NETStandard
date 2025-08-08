@@ -11,8 +11,8 @@
 */
 
 using System;
-using System.Security.Cryptography;
 using System.Runtime.Serialization;
+using System.Security.Cryptography;
 
 #if CURVE25519
 using Org.BouncyCastle.Pkcs;
@@ -39,8 +39,6 @@ namespace Opc.Ua
     public class Nonce : ISerializable
 #endif
     {
-        #region Constructor
-
         /// <summary>
         /// Constructor
         /// </summary>
@@ -53,20 +51,11 @@ namespace Opc.Ua
             m_bcKeyPair = null;
 #endif
         }
-        #endregion
-
-        #region Public Properties
 
         /// <summary>
         /// Gets the nonce data.
         /// </summary>
         public byte[] Data { get; private set; }
-
-        #endregion
-
-        #region Public Methods
-
-        #region Instance Methods
 
 #if ECC_SUPPORT
         /// <summary>
@@ -127,8 +116,7 @@ namespace Opc.Ua
 
                 byte[] output = new byte[length];
 
-                HMAC hmac = algorithm.Name switch
-                {
+                HMAC hmac = algorithm.Name switch {
                     "SHA256" => new HMACSHA256(secret),
                     "SHA384" => new HMACSHA384(secret),
                     _ => new HMACSHA256(secret),
@@ -170,9 +158,6 @@ namespace Opc.Ua
         }
 #endif
 
-        #endregion
-
-        #region Factory Methods
         /// <summary>
         /// Creates a nonce for the specified security policy URI and nonce length.
         /// </summary>
@@ -262,9 +247,6 @@ namespace Opc.Ua
 
             return nonce;
         }
-        #endregion
-
-        #region Utility Methods
 
         /// <summary>
         /// Generates a Nonce for cryptographic functions of a given length.
@@ -274,7 +256,7 @@ namespace Opc.Ua
         public static byte[] CreateRandomNonceData(uint length)
         {
             byte[] randomBytes = new byte[length];
-            m_rng.GetBytes(randomBytes);
+            s_rng.GetBytes(randomBytes);
             return randomBytes;
         }
 
@@ -346,7 +328,7 @@ namespace Opc.Ua
                 case SecurityPolicies.None:
                 default:
                     // Minimum nonce length by default
-                    return m_minNonceLength;
+                    return s_minNonceLength;
             }
         }
 
@@ -380,13 +362,8 @@ namespace Opc.Ua
         /// <param name="nonceLength"></param>
         public static void SetMinNonceValue(uint nonceLength)
         {
-            m_minNonceLength = nonceLength;
+            s_minNonceLength = nonceLength;
         }
-        #endregion
-
-        #endregion
-
-        #region Private Methods
 
         /// <summary>
         /// Creates a new Nonce object for use with Curve25519.
@@ -525,9 +502,6 @@ namespace Opc.Ua
         }
 #endif
 
-        #endregion
-
-        #region Protected Methods
         /// <summary>
         /// Custom deserialization
         /// </summary>
@@ -552,9 +526,6 @@ namespace Opc.Ua
 #endif
             Data = (byte[])info.GetValue("Data", typeof(byte[]));
         }
-        #endregion
-
-        #region Private Members
 
 #if ECC_SUPPORT
         private ECDiffieHellman m_ecdh;
@@ -565,15 +536,9 @@ namespace Opc.Ua
         private AsymmetricCipherKeyPair m_bcKeyPair;
 #endif
 
-        #endregion
+        private static readonly RandomNumberGenerator s_rng = RandomNumberGenerator.Create();
+        private static uint s_minNonceLength = 32;
 
-        #region Private Static Members
-        private static readonly RandomNumberGenerator m_rng = RandomNumberGenerator.Create();
-
-        private static uint m_minNonceLength = 32;
-        #endregion
-
-        #region IDisposable
 #if ECC_SUPPORT
         /// <summary>
         /// Frees any unmanaged resources.
@@ -596,9 +561,6 @@ namespace Opc.Ua
             }
         }
 #endif
-        #endregion
-
-        #region ISerializable
 
         /// <summary>
         /// Custom serialization
@@ -624,7 +586,5 @@ namespace Opc.Ua
 #endif
             info.AddValue("Data", Data);
         }
-
-        #endregion
     }
 }

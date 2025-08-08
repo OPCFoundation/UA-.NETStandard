@@ -35,7 +35,7 @@ namespace Opc.Ua.PubSub
     public interface IUaPubSubDataStore
     {
         /// <summary>
-        /// Write a DataValue to the DataStore. 
+        /// Write a DataValue to the DataStore.
         /// The DataValue is identified by node NodeId and Attribute.
         /// </summary>
         /// <param name="nodeId">NodeId identifier for DataValue that will be stored</param>

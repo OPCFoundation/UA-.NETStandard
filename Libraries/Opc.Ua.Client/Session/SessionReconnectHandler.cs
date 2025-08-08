@@ -106,7 +106,6 @@ namespace Opc.Ua.Client
             m_random = new Random();
         }
 
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -134,9 +133,7 @@ namespace Opc.Ua.Client
                 }
             }
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Gets the session managed by the handler.
         /// </summary>
@@ -280,9 +277,7 @@ namespace Opc.Ua.Client
                 return Math.Max(reconnectPeriod, MinReconnectPeriod);
             }
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Called when the reconnect timer expires.
         /// </summary>
@@ -537,10 +532,8 @@ namespace Opc.Ua.Client
             m_cancelReconnect = false;
             m_updateFromServer = false;
         }
-        #endregion
 
-        #region Private Fields
-        private readonly object m_lock = new object();
+        private readonly object m_lock = new();
         private ISession m_session;
         private ReconnectState m_state;
         private readonly Random m_random;
@@ -554,6 +547,5 @@ namespace Opc.Ua.Client
         private Timer m_reconnectTimer;
         private EventHandler m_callback;
         private ReverseConnectManager m_reverseConnectManager;
-        #endregion
     }
 }

@@ -13,8 +13,8 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.Tracing;
 using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.Tracing;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 using static Opc.Ua.Utils;
@@ -27,41 +27,40 @@ namespace Opc.Ua
     [EventSource(Name = "OPC-UA-Core", Guid = "753029BC-A4AA-4440-8668-290D0692A72B")]
     internal sealed class OpcUaCoreEventSource : EventSource, ILogger
     {
-        #region Definitions
-        private const int TraceId = 1;
-        private const int DebugId = TraceId + 1;
-        private const int InfoId = DebugId + 1;
-        private const int WarningId = InfoId + 1;
-        private const int ErrorId = WarningId + 1;
-        private const int CriticalId = ErrorId + 1;
+        internal const int TraceId = 1;
+        internal const int DebugId = TraceId + 1;
+        internal const int InfoId = DebugId + 1;
+        internal const int WarningId = InfoId + 1;
+        internal const int ErrorId = WarningId + 1;
+        internal const int CriticalId = ErrorId + 1;
 
         /// <summary>
         /// The core event ids.
         /// </summary>
-        private const int ServiceCallStartId = CriticalId + 3;
-        private const int ServiceCallStopId = ServiceCallStartId + 1;
-        private const int ServiceCallBadStopId = ServiceCallStopId + 1;
-        private const int SubscriptionStateId = ServiceCallBadStopId + 1;
-        private const int SendResponseId = SubscriptionStateId + 1;
-        private const int ServiceFaultId = SendResponseId + 1;
+        internal const int ServiceCallStartId = CriticalId + 3;
+        internal const int ServiceCallStopId = ServiceCallStartId + 1;
+        internal const int ServiceCallBadStopId = ServiceCallStopId + 1;
+        internal const int SubscriptionStateId = ServiceCallBadStopId + 1;
+        internal const int SendResponseId = SubscriptionStateId + 1;
+        internal const int ServiceFaultId = SendResponseId + 1;
 
         /// <summary>
         /// The core messages.
         /// </summary>
-        private const string ServiceCallStartMessage = "{0} Called. RequestHandle={1}, PendingRequestCount={2}";
-        private const string ServiceCallStopMessage = "{0} Completed. RequestHandle={1}, PendingRequestCount={2}";
-        private const string ServiceCallBadStopMessage = "{0} Completed. RequestHandle={1}, PendingRequestCount={2}, StatusCode={3}";
-        private const string SendResponseMessage = "ChannelId {0}: SendResponse {1}";
-        private const string ServiceFaultMessage = "Service Fault Occured. Reason={0}";
+        internal const string ServiceCallStartMessage = "{0} Called. RequestHandle={1}, PendingRequestCount={2}";
+        internal const string ServiceCallStopMessage = "{0} Completed. RequestHandle={1}, PendingRequestCount={2}";
+        internal const string ServiceCallBadStopMessage = "{0} Completed. RequestHandle={1}, PendingRequestCount={2}, StatusCode={3}";
+        internal const string SendResponseMessage = "ChannelId {0}: SendResponse {1}";
+        internal const string ServiceFaultMessage = "Service Fault Occured. Reason={0}";
 
         /// <summary>
         /// The Core ILogger event Ids used for event messages, when calling back to ILogger.
         /// </summary>
-        private readonly EventId ServiceCallStartEventId = new EventId(TraceMasks.Service, nameof(ServiceCallStart));
-        private readonly EventId ServiceCallStopEventId = new EventId(TraceMasks.Service, nameof(ServiceCallStop));
-        private readonly EventId ServiceCallBadStopEventId = new EventId(TraceMasks.Service, nameof(ServiceCallBadStop));
-        private readonly EventId SendResponseEventId = new EventId(TraceMasks.Service, nameof(SendResponse));
-        private readonly EventId ServiceFaultEventId = new EventId(TraceMasks.Service, nameof(ServiceFault));
+        internal readonly EventId ServiceCallStartEventId = new(TraceMasks.Service, nameof(ServiceCallStart));
+        internal readonly EventId ServiceCallStopEventId = new(TraceMasks.Service, nameof(ServiceCallStop));
+        internal readonly EventId ServiceCallBadStopEventId = new(TraceMasks.Service, nameof(ServiceCallBadStop));
+        internal readonly EventId SendResponseEventId = new(TraceMasks.Service, nameof(SendResponse));
+        internal readonly EventId ServiceFaultEventId = new(TraceMasks.Service, nameof(ServiceFault));
 
         /// <summary>
         /// The task definitions.
@@ -88,9 +87,7 @@ namespace Opc.Ua
             /// </summary>
             public const EventKeywords Services = (EventKeywords)2;
         }
-        #endregion
 
-        #region ILogger Messages 
         /// <inheritdoc/>
         [Event(CriticalId, Keywords = Keywords.FormattedMessage, Level = EventLevel.Critical)]
         internal void Critical(int eventId, string eventName, string message)
@@ -134,9 +131,7 @@ namespace Opc.Ua
             WriteFormattedMessage(DebugId, eventId, eventName, message);
 #endif
         }
-        #endregion
 
-        #region ILogger Interface
         [NonEvent]
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
         {
@@ -217,9 +212,7 @@ namespace Opc.Ua
 
             return LogLevel.Critical;
         }
-        #endregion
 
-        #region Service Events
         /// <summary>
         /// A server service call message.
         /// </summary>
@@ -230,7 +223,7 @@ namespace Opc.Ua
             {
                 WriteEvent(ServiceCallStartId, serviceName, requestHandle, pendingRequestCount);
             }
-            else if (Utils.Logger.IsEnabled(LogLevel.Trace))
+            else if (Logger.IsEnabled(LogLevel.Trace))
             {
                 Utils.Log(LogLevel.Trace, ServiceCallStartEventId, ServiceCallStartMessage, serviceName, requestHandle, pendingRequestCount);
             }
@@ -246,7 +239,7 @@ namespace Opc.Ua
             {
                 WriteEvent(ServiceCallStopId, serviceName, requestHandle, pendingRequestCount);
             }
-            else if (Utils.Logger.IsEnabled(LogLevel.Trace))
+            else if (Logger.IsEnabled(LogLevel.Trace))
             {
                 Utils.Log(LogLevel.Trace, ServiceCallStopEventId, ServiceCallStopMessage, serviceName, requestHandle, pendingRequestCount);
             }
@@ -262,7 +255,7 @@ namespace Opc.Ua
             {
                 WriteEvent(ServiceCallBadStopId, serviceName, requestHandle, pendingRequestCount, statusCode);
             }
-            else if (Utils.Logger.IsEnabled(LogLevel.Trace))
+            else if (Logger.IsEnabled(LogLevel.Trace))
             {
                 Utils.Log(LogLevel.Trace, ServiceCallBadStopEventId, ServiceCallBadStopMessage, serviceName, requestHandle, pendingRequestCount, statusCode);
             }
@@ -280,7 +273,7 @@ namespace Opc.Ua
             }
             else
             {
-                Utils.LogWarning(ServiceFaultEventId, ServiceFaultMessage, statusCode);
+                LogWarning(ServiceFaultEventId, ServiceFaultMessage, statusCode);
             }
         }
 
@@ -294,11 +287,10 @@ namespace Opc.Ua
             {
                 WriteEvent(SendResponseId, channelId, requestId);
             }
-            else if (Utils.Logger.IsEnabled(LogLevel.Trace))
+            else if (Logger.IsEnabled(LogLevel.Trace))
             {
                 Utils.Log(LogLevel.Trace, SendResponseEventId, SendResponseMessage, channelId, requestId);
             }
         }
-        #endregion
     }
 }

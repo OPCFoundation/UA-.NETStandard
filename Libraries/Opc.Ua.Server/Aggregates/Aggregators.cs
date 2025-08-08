@@ -29,8 +29,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Globalization;
+using System.Text;
 
 namespace Opc.Ua.Server
 {
@@ -63,8 +63,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Mapping for all of the standard aggregates.
         /// </summary>
-        private static readonly FactoryMapping[] s_Mappings = new FactoryMapping[]
-        {
+        private static readonly FactoryMapping[] s_Mappings =
+        [
             new FactoryMapping() { AggregateId = ObjectIds.AggregateFunction_Interpolative, AggregateName = BrowseNames.AggregateFunction_Interpolative, Calculator = typeof(AggregateCalculator) },
             new FactoryMapping() { AggregateId = ObjectIds.AggregateFunction_Average, AggregateName = BrowseNames.AggregateFunction_Average, Calculator = typeof(AverageAggregateCalculator) },
             new FactoryMapping() { AggregateId = ObjectIds.AggregateFunction_TimeAverage, AggregateName = BrowseNames.AggregateFunction_TimeAverage, Calculator = typeof(AverageAggregateCalculator) },
@@ -107,7 +107,7 @@ namespace Opc.Ua.Server
             new FactoryMapping() { AggregateId = ObjectIds.AggregateFunction_VariancePopulation, AggregateName = BrowseNames.AggregateFunction_VariancePopulation, Calculator = typeof(StdDevAggregateCalculator) },
             new FactoryMapping() { AggregateId = ObjectIds.AggregateFunction_StandardDeviationSample, AggregateName = BrowseNames.AggregateFunction_StandardDeviationSample, Calculator = typeof(StdDevAggregateCalculator) },
             new FactoryMapping() { AggregateId = ObjectIds.AggregateFunction_VarianceSample, AggregateName = BrowseNames.AggregateFunction_VarianceSample, Calculator = typeof(StdDevAggregateCalculator) },
-        };
+        ];
 
         /// <summary>
         /// Returns the name for a standard aggregates.

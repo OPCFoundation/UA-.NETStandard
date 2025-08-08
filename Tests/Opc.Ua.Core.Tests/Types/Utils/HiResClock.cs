@@ -52,9 +52,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         /// <summary>
         /// On MacOS allow higher margin due to flaky tests in CI builds.
         /// </summary>
-        public int Percent { get => RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ? 5 : 2; }
+        public int Percent => RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ? 5 : 2;
 
-        #region Test Setup
         [OneTimeSetUp]
         protected void OneTimeSetup()
         {
@@ -72,9 +71,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             HiResClock.Reset();
         }
-        #endregion
 
-        #region Test Methods
         /// <summary>
         /// Validate HiResClock defaults, platform dependant.
         /// </summary>
@@ -123,7 +120,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             }
             if (counts < 500)
             {
-                Assert.Inconclusive("Polling tick count unsuccessful, maybe CPU is overloaded.");
+                NUnit.Framework.Assert.Inconclusive("Polling tick count unsuccessful, maybe CPU is overloaded.");
             }
             stopWatch.Stop();
             long elapsed = lastTickCount - firstTickCount;
@@ -131,11 +128,11 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             // test accuracy of counter vs. stop watch
             try
             {
-                Assert.That(elapsed, Is.EqualTo(stopWatch.ElapsedMilliseconds).Within(Percent).Percent);
+                NUnit.Framework.Assert.That(elapsed, Is.EqualTo(stopWatch.ElapsedMilliseconds).Within(Percent).Percent);
             }
             catch (Exception ex)
             {
-                Assert.Inconclusive(ex.Message);
+                NUnit.Framework.Assert.Inconclusive(ex.Message);
             }
         }
 
@@ -174,16 +171,14 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             // test accuracy of counter vs. stop watch
             try
             {
-                Assert.That(elapsed, Is.EqualTo(stopWatch.ElapsedMilliseconds).Within(Percent).Percent);
+                NUnit.Framework.Assert.That(elapsed, Is.EqualTo(stopWatch.ElapsedMilliseconds).Within(Percent).Percent);
             }
             catch (Exception ex)
             {
-                Assert.Inconclusive(ex.Message);
+                NUnit.Framework.Assert.Inconclusive(ex.Message);
             }
         }
-        #endregion
 
-        #region Benchmarks
         /// <summary>
         /// Test the overhead and perf of the Stopwatch timer.
         /// </summary>
@@ -237,6 +232,5 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             _ = Environment.TickCount64;
 #endif
         }
-        #endregion
     }
 }

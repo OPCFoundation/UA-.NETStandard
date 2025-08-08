@@ -41,7 +41,7 @@ namespace Opc.Ua.PubSub
         Variant = 0,
         RawData = 1,
         DataValue = 2,
-        Reserved = 3
+        Reserved = RawData | DataValue
     }
 
     /// <summary>
@@ -172,6 +172,10 @@ namespace Opc.Ua.PubSub
     public enum UADPNetworkMessageDiscoveryType
     {
         /// <summary>
+        /// Default value, no discovery response type.
+        /// </summary>
+        None = 0,
+        /// <summary>
         /// Discovery Response message - PublisherEndpoint
         /// </summary>
         PublisherEndpoint = 2,
@@ -259,9 +263,9 @@ namespace Opc.Ua.PubSub
         Byte = 0,
         UInt16 = 1,
         UInt32 = 2,
-        UInt64 = 3,
+        UInt64 = UInt16 | UInt32,
         String = 4,
-        Reserved = 5
+        Reserved = UInt16 | String
     }
 
     /// <summary>
@@ -398,7 +402,7 @@ namespace Opc.Ua.PubSub
     }
 
     /// <summary>
-    /// Where is a method call used in 
+    /// Where is a method call used in
     /// </summary>
     internal enum UsedInContext
     {
@@ -414,7 +418,7 @@ namespace Opc.Ua.PubSub
         /// Discovery context call
         /// </summary>
         Discovery,
-    };
+    }
 
     /// <summary>
     /// The reason an error has been detected while decoding a DataSet
@@ -484,5 +488,4 @@ namespace Opc.Ua.PubSub
         /// </summary>
         ConfigurationVersion,
     }
-
 }

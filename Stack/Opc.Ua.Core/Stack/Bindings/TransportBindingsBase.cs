@@ -31,7 +31,7 @@ namespace Opc.Ua.Bindings
         /// </remarks>
         protected TransportBindingsBase()
         {
-            Bindings = new Dictionary<string, T>();
+            Bindings = [];
             AddBindings(typeof(TransportBindingsBase<T>).Assembly);
         }
 
@@ -40,18 +40,15 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected TransportBindingsBase(Type[] defaultBindings)
         {
-            Bindings = new Dictionary<string, T>();
+            Bindings = [];
             AddBindings(defaultBindings);
         }
 
-        #region Public Properties
         /// <summary>
         /// Dictionary of bindings.
         /// </summary>
         protected Dictionary<string, T> Bindings { get; }
-        #endregion
 
-        #region ITransportBindings
         /// <inheritdoc/>
         public T GetBinding(string uriScheme)
         {
@@ -83,7 +80,7 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public IEnumerable<Type> AddBindings(Assembly assembly)
         {
-            IEnumerable<Type> bindings = assembly.GetExportedTypes().Where(type => IsBindingType(type));
+            IEnumerable<Type> bindings = assembly.GetExportedTypes().Where(IsBindingType);
             return AddBindings(bindings);
         }
 
@@ -101,13 +98,11 @@ namespace Opc.Ua.Bindings
             }
             return result;
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Validate the type is a transport listener.
         /// </summary>
-        protected static bool IsBindingType(System.Type bindingType)
+        protected static bool IsBindingType(Type bindingType)
         {
             if (bindingType == null)
             {
@@ -163,6 +158,5 @@ namespace Opc.Ua.Bindings
             }
             return false;
         }
-        #endregion
     }
 }

@@ -45,10 +45,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     public class XmlEncoderTests
     {
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "SYSLIB1045:Convert to 'GeneratedRegexAttribute'.", Justification = "Tests")]
-        static readonly Regex REValue = new Regex("Value>([^<]*)<");
-        private static readonly int[] elements = new int[] { 1, 2, 3, 4 };
+        static readonly Regex REValue = new("Value>([^<]*)<");
+        private static readonly int[] elements = [1, 2, 3, 4];
+        private static readonly int[] dimensions = [2, 2];
 
-        #region Test Methods
         /// <summary>
         /// Validate the encoding and decoding of the float special values.
         /// </summary>
@@ -61,7 +61,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             // Encode
             var context = new ServiceMessageContext();
             string actualXmlValue;
-            using (IEncoder xmlEncoder = new XmlEncoder(new XmlQualifiedName("FloatSpecialValues", Namespaces.OpcUaXsd), null, context))
+            using (var xmlEncoder = new XmlEncoder(new XmlQualifiedName("FloatSpecialValues", Namespaces.OpcUaXsd), null, context))
             {
                 xmlEncoder.PushNamespace(Namespaces.OpcUaXsd);
                 xmlEncoder.WriteFloat("Value", binaryValue);
@@ -78,11 +78,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             // Decode
             float actualBinaryValue;
             using (var reader = XmlReader.Create(new StringReader(actualXmlValue)))
+            using (var  xmlDecoder = new XmlDecoder(null, reader, context))
             {
-                using (IDecoder xmlDecoder = new XmlDecoder(null, reader, context))
-                {
-                    actualBinaryValue = xmlDecoder.ReadFloat("Value");
-                }
+                actualBinaryValue = xmlDecoder.ReadFloat("Value");
             }
 
             // Check decode result against input value
@@ -108,7 +106,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             // Encode
             var context = new ServiceMessageContext();
             string actualXmlValue;
-            using (IEncoder xmlEncoder = new XmlEncoder(new XmlQualifiedName("DoubleSpecialValues", Namespaces.OpcUaXsd), null, context))
+            using (var  xmlEncoder = new XmlEncoder(new XmlQualifiedName("DoubleSpecialValues", Namespaces.OpcUaXsd), null, context))
             {
                 xmlEncoder.PushNamespace(Namespaces.OpcUaXsd);
                 xmlEncoder.WriteDouble("Value", binaryValue);
@@ -125,11 +123,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             // Decode
             double actualBinaryValue;
             using (var reader = XmlReader.Create(new StringReader(actualXmlValue)))
+            using (var  xmlDecoder = new XmlDecoder(null, reader, context))
             {
-                using (IDecoder xmlDecoder = new XmlDecoder(null, reader, context))
-                {
-                    actualBinaryValue = xmlDecoder.ReadDouble("Value");
-                }
+                actualBinaryValue = xmlDecoder.ReadDouble("Value");
             }
 
             // Check decode result against input value
@@ -152,7 +148,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             var value = new Matrix(
                 elements,
                 BuiltInType.Int32,
-                new int[] { 2, 2 }
+                dimensions
             );
             var variant = new Variant(value);
 
@@ -161,7 +157,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             // Encode
             var context = new ServiceMessageContext();
             string actualXmlValue;
-            using (IEncoder xmlEncoder = new XmlEncoder(new XmlQualifiedName("VariantTest", Namespaces.OpcUaXsd), null, context))
+            using (var  xmlEncoder = new XmlEncoder(new XmlQualifiedName("VariantTest", Namespaces.OpcUaXsd), null, context))
             {
                 xmlEncoder.PushNamespace(Namespaces.OpcUaXsd);
                 xmlEncoder.WriteVariant("Test", variant);
@@ -175,11 +171,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             // Decode
             Variant actualVariant;
             using (var reader = XmlReader.Create(new StringReader(actualXmlValue)))
+            using (var  xmlDecoder = new XmlDecoder(null, reader, context))
             {
-                using (IDecoder xmlDecoder = new XmlDecoder(null, reader, context))
-                {
-                    actualVariant = xmlDecoder.ReadVariant("Test");
-                }
+                actualVariant = xmlDecoder.ReadVariant("Test");
             }
 
             // Check decode result against input value
@@ -199,7 +193,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             // Encode
             var context = new ServiceMessageContext();
             string actualXmlValue;
-            using (IEncoder xmlEncoder = new XmlEncoder(new XmlQualifiedName("VariantTest", Namespaces.OpcUaXsd), null, context))
+            using (var  xmlEncoder = new XmlEncoder(new XmlQualifiedName("VariantTest", Namespaces.OpcUaXsd), null, context))
             {
                 xmlEncoder.PushNamespace(Namespaces.OpcUaXsd);
                 xmlEncoder.WriteVariant("Test", variant);
@@ -213,16 +207,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             // Decode
             Variant actualVariant;
             using (var reader = XmlReader.Create(new StringReader(actualXmlValue)))
+            using (var  xmlDecoder = new XmlDecoder(null, reader, context))
             {
-                using (IDecoder xmlDecoder = new XmlDecoder(null, reader, context))
-                {
-                    actualVariant = xmlDecoder.ReadVariant("Test");
-                }
+                actualVariant = xmlDecoder.ReadVariant("Test");
             }
 
             // Check decode result against input value
             Assert.AreEqual(actualVariant, Variant.Null);
         }
-        #endregion
     }
 }

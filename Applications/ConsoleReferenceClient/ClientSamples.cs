@@ -56,7 +56,7 @@ namespace Quickstarts
         /// The session to use.
         /// </summary>
         ISession Session { get; }
-    };
+    }
 
     /// <summary>
     /// Sample Session calls based on the reference server node model.
@@ -70,22 +70,21 @@ namespace Quickstarts
             m_validateResponse = validateResponse ?? ClientBase.ValidateResponse;
             m_quitEvent = quitEvent;
             m_verbose = verbose;
-            m_desiredEventFields = new Dictionary<int, QualifiedNameCollection>();
+            m_desiredEventFields = [];
             int eventIndexCounter = 0;
-            m_desiredEventFields.Add(eventIndexCounter++, new QualifiedNameCollection(new QualifiedName[] { BrowseNames.Time }));
-            m_desiredEventFields.Add(eventIndexCounter++, new QualifiedNameCollection(new QualifiedName[] { BrowseNames.ActiveState }));
-            m_desiredEventFields.Add(eventIndexCounter++, new QualifiedNameCollection(new QualifiedName[] { BrowseNames.Message }));
-            m_desiredEventFields.Add(eventIndexCounter++, new QualifiedNameCollection(new QualifiedName[] { BrowseNames.LimitState, BrowseNames.CurrentState }));
-            m_desiredEventFields.Add(eventIndexCounter++, new QualifiedNameCollection(new QualifiedName[] { BrowseNames.LimitState, BrowseNames.LastTransition }));
+            m_desiredEventFields.Add(eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.Time }]);
+            m_desiredEventFields.Add(eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.ActiveState }]);
+            m_desiredEventFields.Add(eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.Message }]);
+            m_desiredEventFields.Add(eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.LimitState, BrowseNames.CurrentState }]);
+            m_desiredEventFields.Add(eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.LimitState, BrowseNames.LastTransition }]);
         }
 
-        #region Public Sample Methods
         /// <summary>
         /// Read a list of nodes from Server
         /// </summary>
         public void ReadNodes(ISession session)
         {
-            if (session == null || session.Connected == false)
+            if (session == null || !session.Connected)
             {
                 m_output.WriteLine("Session not connected!");
                 return;
@@ -93,8 +92,6 @@ namespace Quickstarts
 
             try
             {
-                #region Read a node by calling the Read Service
-
                 // build a list of nodes to be read
                 var nodesToRead = new ReadValueIdCollection()
                 {
@@ -126,15 +123,12 @@ namespace Quickstarts
                 {
                     m_output.WriteLine("Read Value = {0} , StatusCode = {1}", result.Value, result.StatusCode);
                 }
-                #endregion
 
-                #region Read the Value attribute of a node by calling the Session.ReadValue method
                 // Read Server NamespaceArray
                 m_output.WriteLine("Reading Value of NamespaceArray node...");
                 DataValue namespaceArray = session.ReadValue(Variables.Server_NamespaceArray);
                 // Display the result
                 m_output.WriteLine($"NamespaceArray Value = {namespaceArray}");
-                #endregion
             }
             catch (Exception ex)
             {
@@ -148,7 +142,7 @@ namespace Quickstarts
         /// </summary>
         public void WriteNodes(ISession session)
         {
-            if (session == null || session.Connected == false)
+            if (session == null || !session.Connected)
             {
                 m_output.WriteLine("Session not connected!");
                 return;
@@ -217,7 +211,7 @@ namespace Quickstarts
         /// </summary>
         public void Browse(ISession session)
         {
-            if (session == null || session.Connected == false)
+            if (session == null || !session.Connected)
             {
                 m_output.WriteLine("Session not connected!");
                 return;
@@ -260,7 +254,7 @@ namespace Quickstarts
         /// </summary>
         public void CallMethod(ISession session)
         {
-            if (session == null || session.Connected == false)
+            if (session == null || !session.Connected)
             {
                 m_output.WriteLine("Session not connected!");
                 return;
@@ -276,7 +270,7 @@ namespace Quickstarts
 
                 // Define the method parameters
                 // Input argument requires a Float and an UInt32 value
-                object[] inputArguments = new object[] { (float)10.5, (uint)10 };
+                object[] inputArguments = [(float)10.5, (uint)10];
                 IList<object> outputArguments = null;
 
                 // Invoke Call service
@@ -302,7 +296,7 @@ namespace Quickstarts
         /// </summary>
         public void EnableEvents(ISession session, uint timeToRun)
         {
-            if (session == null || session.Connected == false)
+            if (session == null || !session.Connected)
             {
                 m_output.WriteLine("Session not connected!");
                 return;
@@ -318,7 +312,7 @@ namespace Quickstarts
 
                 // Define the method parameters
                 // Input argument requires a Float and an UInt32 value
-                object[] inputArguments = new object[] { timeToRun };
+                object[] inputArguments = [timeToRun];
                 IList<object> outputArguments = null;
 
                 // Invoke Call service
@@ -346,7 +340,7 @@ namespace Quickstarts
         {
             bool isDurable = false;
 
-            if (session == null || session.Connected == false)
+            if (session == null || !session.Connected)
             {
                 m_output.WriteLine("Session not connected!");
                 return isDurable;
@@ -355,8 +349,8 @@ namespace Quickstarts
             try
             {
                 // Create a subscription for receiving data change notifications
-                int subscriptionPublishingInterval = 1000;
-                int itemSamplingInterval = 1000;
+                const int subscriptionPublishingInterval = 1000;
+                const int itemSamplingInterval = 1000;
                 uint queueSize = 10;
                 uint lifetime = minLifeTime;
 
@@ -437,7 +431,7 @@ namespace Quickstarts
                 subscription.AddItem(stringMonitoredItem);
 
                 var eventMonitoredItem = new MonitoredItem(subscription.DefaultItem);
-                eventMonitoredItem.StartNodeId = new NodeId(Opc.Ua.ObjectIds.Server);
+                eventMonitoredItem.StartNodeId = new NodeId(ObjectIds.Server);
                 eventMonitoredItem.AttributeId = Attributes.EventNotifier;
                 eventMonitoredItem.DisplayName = "Event Variable";
                 eventMonitoredItem.SamplingInterval = itemSamplingInterval;
@@ -462,19 +456,18 @@ namespace Quickstarts
                 var existingEventType = new SimpleAttributeOperand() {
                     AttributeId = Attributes.Value,
                     TypeDefinitionId = ObjectTypeIds.ExclusiveLevelAlarmType,
-                    BrowsePath = new QualifiedNameCollection(new QualifiedName[] { "EventType" })
+                    BrowsePath = new QualifiedNameCollection(["EventType"])
                 };
-                var desiredEventType = new LiteralOperand();
-                desiredEventType.Value = new Variant(new NodeId(Opc.Ua.ObjectTypeIds.ExclusiveLevelAlarmType));
+                var desiredEventType = new LiteralOperand {
+                    Value = new Variant(new NodeId(ObjectTypeIds.ExclusiveLevelAlarmType))
+                };
 
-
-                whereClause.Push(FilterOperator.Equals, new FilterOperand[] { existingEventType, desiredEventType });
+                whereClause.Push(FilterOperator.Equals, [existingEventType, desiredEventType]);
 
                 filter.WhereClause = whereClause;
 
                 eventMonitoredItem.Filter = filter;
                 eventMonitoredItem.NodeClass = NodeClass.Object;
-
 
                 subscription.AddItem(eventMonitoredItem);
 
@@ -489,9 +482,7 @@ namespace Quickstarts
 
             return isDurable;
         }
-        #endregion
 
-        #region Fetch with NodeCache
         /// <summary>
         /// Fetch all references and nodes with attributes except values from the server.
         /// </summary>
@@ -627,9 +618,6 @@ namespace Quickstarts
 
             return result;
         }
-        #endregion
-
-        #region BrowseAddressSpace with ManagedBrowse sample
 
         /// <summary>
         /// Browse full address space using the ManagedBrowseMethod, which
@@ -666,7 +654,7 @@ namespace Quickstarts
 
                 if (browseDescription.ResultMask != (uint)BrowseResultMask.All)
                 {
-                    Utils.LogWarning($"Setting the BrowseResultMask is not supported by the " +
+                    Utils.LogWarning("Setting the BrowseResultMask is not supported by the " +
                         $"ManagedBrowse method. Using '{BrowseResultMask.All}' instead of " +
                         $"the mask {browseDescription.ResultMask} for the result mask");
                 }
@@ -688,13 +676,13 @@ namespace Quickstarts
             var newReferenceDescriptions = new List<ReferenceDescriptionCollection>();
             var allServiceResults = new List<ServiceResult>();
 
-            while (nodesToBrowse.Any() && searchDepth < kMaxSearchDepth)
+            while (nodesToBrowse.Count != 0 && searchDepth < kMaxSearchDepth)
             {
                 searchDepth++;
                 Utils.LogInfo("{0}: Browse {1} nodes after {2}ms",
                     searchDepth, nodesToBrowse.Count, stopWatch.ElapsedMilliseconds);
 
-                bool repeatBrowse = false;
+                const bool repeatBrowse = false;
 
                 do
                 {
@@ -728,8 +716,6 @@ namespace Quickstarts
                         allReferenceDescriptions.AddRange(descriptions);
                         newReferenceDescriptions.AddRange(descriptions);
                         allServiceResults.AddRange(errors);
-
-
                     }
                     catch (ServiceResultException sre)
                     {
@@ -764,7 +750,6 @@ namespace Quickstarts
                             duplicates++;
                         }
                     }
-
                 }
 
                 newReferenceDescriptions.Clear();
@@ -775,9 +760,6 @@ namespace Quickstarts
                 {
                     Utils.LogInfo("Managed Browse Result {0} duplicate nodes were ignored.", duplicates);
                 }
-
-
-
             }
 
             stopWatch.Stop();
@@ -801,9 +783,7 @@ namespace Quickstarts
 
             return result;
         }
-        #endregion
 
-        #region BrowseAddressSpace sample
         /// <summary>
         /// Browse full address space.
         /// </summary>
@@ -830,7 +810,7 @@ namespace Quickstarts
                 ResultMask = (uint)BrowseResultMask.All
             };
             BrowseDescriptionCollection browseDescriptionCollection = CreateBrowseDescriptionCollectionFromNodeId(
-                new NodeIdCollection(new NodeId[] { startingNode ?? ObjectIds.RootFolder }),
+                [.. new NodeId[] { startingNode ?? ObjectIds.RootFolder }],
                 browseTemplate);
 
             // Browse
@@ -988,9 +968,7 @@ namespace Quickstarts
 
             return result;
         }
-        #endregion
 
-        #region Load TypeSystem
         /// <summary>
         /// Loads the custom type system of the server in the session.
         /// </summary>
@@ -1034,9 +1012,7 @@ namespace Quickstarts
 
             return complexTypeSystem;
         }
-        #endregion
 
-        #region Fetch ReferenceId Types
         /// <summary>
         /// Read all ReferenceTypeIds from the server that are not known by the client.
         /// To reduce the number of calls due to traversal call pyramid, start with all
@@ -1046,19 +1022,17 @@ namespace Quickstarts
         /// The NodeCache needs this information to function properly with subtypes of hierarchical calls.
         /// </remarks>
         /// <param name="session">The session to use</param>
-        Task FetchReferenceIdTypesAsync(ISession session)
+        static Task FetchReferenceIdTypesAsync(ISession session)
         {
             // fetch the reference types first, otherwise browse for e.g. hierarchical references with subtypes won't work
-            BindingFlags bindingFlags = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public;
+            const BindingFlags bindingFlags = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public;
             NamespaceTable namespaceUris = session.NamespaceUris;
             IEnumerable<ExpandedNodeId> referenceTypes = typeof(ReferenceTypeIds)
                      .GetFields(bindingFlags)
                      .Select(field => NodeId.ToExpandedNodeId((NodeId)field.GetValue(null), namespaceUris));
-            return session.FetchTypeTreeAsync(new ExpandedNodeIdCollection(referenceTypes));
+            return session.FetchTypeTreeAsync([.. referenceTypes]);
         }
-        #endregion
 
-        #region Read Values and output as JSON sample
         /// <summary>
         /// Output all values as JSON.
         /// </summary>
@@ -1076,8 +1050,8 @@ namespace Quickstarts
                 {
                     if (retrySingleRead)
                     {
-                        values = new DataValueCollection();
-                        errors = new List<ServiceResult>();
+                        values = [];
+                        errors = [];
 
                         foreach (NodeId variableId in variableIds)
                         {
@@ -1090,7 +1064,7 @@ namespace Quickstarts
 
                                 if (ServiceResult.IsNotBad(value.StatusCode))
                                 {
-                                    string valueString = ClientSamples.FormatValueAsJson(uaClient.Session.MessageContext, variableId.ToString(), value, JsonEncodingType.Compact);
+                                    string valueString = FormatValueAsJson(uaClient.Session.MessageContext, variableId.ToString(), value, JsonEncodingType.Compact);
                                     m_output.WriteLine(valueString);
                                 }
                                 else
@@ -1115,7 +1089,7 @@ namespace Quickstarts
                         {
                             if (ServiceResult.IsNotBad(errors[ii]))
                             {
-                                string valueString = ClientSamples.FormatValueAsJson(uaClient.Session.MessageContext, variableIds[ii].ToString(), value, JsonEncodingType.Compact);
+                                string valueString = FormatValueAsJson(uaClient.Session.MessageContext, variableIds[ii].ToString(), value, JsonEncodingType.Compact);
                                 m_output.WriteLine(valueString);
                             }
                             else
@@ -1130,16 +1104,14 @@ namespace Quickstarts
                 }
                 catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadEncodingLimitsExceeded)
                 {
-                    m_output.WriteLine("Retry to read the values due to error:", sre.Message);
+                    m_output.WriteLine("Retry to read the values due to error: {0}", sre.Message);
                     retrySingleRead = !retrySingleRead;
                 }
             } while (retrySingleRead);
 
             return (values, errors);
         }
-        #endregion
 
-        #region Subscribe Values
         /// <summary>
         /// Subscribe to all variables in the list.
         /// </summary>
@@ -1220,9 +1192,7 @@ namespace Quickstarts
                 m_output.WriteLine("Subscribe error: {0}", ex.Message);
             }
         }
-        #endregion
 
-        #region Helper Methods
         /// <summary>
         /// Create a prettified JSON string of a DataValue.
         /// </summary>
@@ -1259,7 +1229,6 @@ namespace Quickstarts
                 }
                 catch (Exception ex)
                 {
-
                     stringWriter.WriteLine("Failed to format the JSON output: {0}", ex.Message);
                     stringWriter.WriteLine(textbuffer);
                     throw;
@@ -1267,9 +1236,7 @@ namespace Quickstarts
                 return stringWriter.ToString();
             }
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// The fast keep alive notification callback.
         /// </summary>
@@ -1348,7 +1315,7 @@ namespace Quickstarts
                             fieldPath.Append(entry.Value[index].Name);
                             if (index < lastIndex)
                             {
-                                fieldPath.Append(".");
+                                fieldPath.Append('.');
                             }
                         }
 
@@ -1387,7 +1354,6 @@ namespace Quickstarts
                 m_output.WriteLine("OnMonitoredItemEventNotification error: {0}", ex.Message);
             }
         }
-
 
         /// <summary>
         /// Event handler to defer publish response sequence number acknowledge.
@@ -1445,14 +1411,13 @@ namespace Quickstarts
             }
             return continuationPoints;
         }
-        #endregion
 
         private readonly Action<IList, IList> m_validateResponse;
         private readonly TextWriter m_output;
         private readonly ManualResetEvent m_quitEvent;
         private readonly bool m_verbose;
-        private readonly Dictionary<int, QualifiedNameCollection> m_desiredEventFields = null;
-        private int m_processedEvents = 0;
+        private readonly Dictionary<int, QualifiedNameCollection> m_desiredEventFields;
+        private int m_processedEvents;
         private DateTime m_lastEventTime = DateTime.Now;
     }
 }

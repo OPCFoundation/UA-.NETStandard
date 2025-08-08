@@ -38,7 +38,6 @@ namespace Opc.Ua.Server
     /// </summary>
     public class AverageAggregateCalculator : AggregateCalculator
     {
-        #region Constructors
         /// <summary>
         /// Initializes the aggregate calculator.
         /// </summary>
@@ -58,11 +57,9 @@ namespace Opc.Ua.Server
         :
             base(aggregateId, startTime, endTime, processingInterval, stepped, configuration)
         {
-            SetPartialBit = aggregateId != Opc.Ua.ObjectIds.AggregateFunction_Average;
+            SetPartialBit = aggregateId != ObjectIds.AggregateFunction_Average;
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Computes the value for the timeslice.
         /// </summary>
@@ -93,9 +90,7 @@ namespace Opc.Ua.Server
 
             return base.ComputeValue(slice);
         }
-        #endregion
 
-        #region Protected Methods
         /// <summary>
         /// Calculates the RegSlope, RegConst and RegStdDev aggregates for the timeslice.
         /// </summary>
@@ -138,7 +133,7 @@ namespace Opc.Ua.Server
             }
 
             // select the result.
-            double result = total/count;
+            double result = total / count;
 
             // set the timestamp and status.
             var value = new DataValue();
@@ -184,7 +179,7 @@ namespace Opc.Ua.Server
 
             for (int ii = 0; ii < regions.Count; ii++)
             {
-                double duration = regions[ii].Duration/1000.0;
+                double duration = regions[ii].Duration / 1000.0;
 
                 if (StatusCode.IsNotBad(regions[ii].StatusCode))
                 {
@@ -239,6 +234,5 @@ namespace Opc.Ua.Server
             // return result.
             return value;
         }
-        #endregion
     }
 }

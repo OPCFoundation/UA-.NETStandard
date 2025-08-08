@@ -21,7 +21,6 @@ namespace Opc.Ua
     /// </summary>
     public class BaseInstanceState : NodeState, IFilterTarget
     {
-        #region Constructors
         /// <summary>
         /// Initializes the instance with its default attribute values.
         /// </summary>
@@ -29,9 +28,7 @@ namespace Opc.Ua
         {
             Parent = parent;
         }
-        #endregion
 
-        #region Initialization
         /// <summary>
         /// Initializes the instance from another instance.
         /// </summary>
@@ -57,13 +54,11 @@ namespace Opc.Ua
         {
             return null;
         }
-        #endregion
 
-        #region ICloneable Members
         /// <inheritdoc/>
         public override object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -74,12 +69,10 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
-            var clone = new BaseInstanceState(this.NodeClass, this.Parent);
+            var clone = new BaseInstanceState(NodeClass, Parent);
             return CloneChildren(clone);
         }
-        #endregion
 
-        #region Public Members
         /// <summary>
         /// The parent node.
         /// </summary>
@@ -107,7 +100,7 @@ namespace Opc.Ua
         /// </summary>
         public string GetDisplayText()
         {
-            return BaseInstanceState.GetNonNullText(this);
+            return GetNonNullText(this);
         }
 
         /// <summary>
@@ -115,7 +108,7 @@ namespace Opc.Ua
         /// </summary>
         public string GetDisplayPath(int maxLength, char seperator)
         {
-            string name = BaseInstanceState.GetNonNullText(this);
+            string name = GetNonNullText(this);
 
             NodeState stateParent = Parent;
 
@@ -140,7 +133,7 @@ namespace Opc.Ua
 
                     parent = instance.Parent;
 
-                    string parentName = BaseInstanceState.GetNonNullText(parent);
+                    string parentName = GetNonNullText(parent);
                     names.Add(parentName);
 
                     if (names.Count == maxLength - 2)
@@ -156,7 +149,7 @@ namespace Opc.Ua
                 }
             }
 
-            buffer.Append(BaseInstanceState.GetNonNullText(stateParent));
+            buffer.Append(GetNonNullText(stateParent));
             buffer.Append(seperator);
             buffer.Append(name);
 
@@ -198,14 +191,11 @@ namespace Opc.Ua
         /// </summary>
         public NodeId ReferenceTypeId
         {
-            get
-            {
-                return m_referenceTypeId;
-            }
+            get => m_referenceTypeId;
 
             set
             {
-                if (!Object.ReferenceEquals(m_referenceTypeId, value))
+                if (!ReferenceEquals(m_referenceTypeId, value))
                 {
                     ChangeMasks |= NodeStateChangeMasks.References;
                 }
@@ -219,14 +209,11 @@ namespace Opc.Ua
         /// </summary>
         public NodeId TypeDefinitionId
         {
-            get
-            {
-                return m_typeDefinitionId;
-            }
+            get => m_typeDefinitionId;
 
             set
             {
-                if (!Object.ReferenceEquals(m_typeDefinitionId, value))
+                if (!ReferenceEquals(m_typeDefinitionId, value))
                 {
                     ChangeMasks |= NodeStateChangeMasks.References;
                 }
@@ -240,14 +227,11 @@ namespace Opc.Ua
         /// </summary>
         public NodeId ModellingRuleId
         {
-            get
-            {
-                return m_modellingRuleId;
-            }
+            get => m_modellingRuleId;
 
             set
             {
-                if (!Object.ReferenceEquals(m_modellingRuleId, value))
+                if (!ReferenceEquals(m_modellingRuleId, value))
                 {
                     ChangeMasks |= NodeStateChangeMasks.References;
                 }
@@ -298,7 +282,7 @@ namespace Opc.Ua
                 // extract the NodeId for the event.
                 if (field.BrowsePath.Count == 0 && field.AttributeId == Attributes.NodeId)
                 {
-                    this.NodeId = value as NodeId;
+                    NodeId = value as NodeId;
                     continue;
                 }
 
@@ -310,7 +294,7 @@ namespace Opc.Ua
                 }
 
                 // save value for child node.
-                NodeState parent = this;
+                BaseInstanceState parent = this;
 
                 for (int jj = 0; jj < field.BrowsePath.Count; jj++)
                 {
@@ -402,9 +386,7 @@ namespace Opc.Ua
                 children[ii].SetMinimumSamplingInterval(context, minimumSamplingInterval);
             }
         }
-        #endregion
 
-        #region IFilterTarget Members
         /// <inheritdoc/>
         public virtual bool IsTypeOf(FilterContext context, NodeId typeDefinitionId)
         {
@@ -456,9 +438,7 @@ namespace Opc.Ua
             // return the result.
             return value;
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Exports a copy of the node to a node table.
         /// </summary>
@@ -468,26 +448,26 @@ namespace Opc.Ua
         {
             base.Export(context, node);
 
-            if (this.Parent != null)
+            if (Parent != null)
             {
-                NodeId referenceTypeId = this.ReferenceTypeId;
+                NodeId referenceTypeId = ReferenceTypeId;
 
                 if (NodeId.IsNull(referenceTypeId))
                 {
                     referenceTypeId = ReferenceTypeIds.HasComponent;
                 }
 
-                node.ReferenceTable.Add(referenceTypeId, true, this.Parent.NodeId);
+                node.ReferenceTable.Add(referenceTypeId, true, Parent.NodeId);
             }
 
             if (!NodeId.IsNull(m_typeDefinitionId) && IsObjectOrVariable)
             {
-                node.ReferenceTable.Add(ReferenceTypeIds.HasTypeDefinition, false, this.TypeDefinitionId);
+                node.ReferenceTable.Add(ReferenceTypeIds.HasTypeDefinition, false, TypeDefinitionId);
             }
 
-            if (!NodeId.IsNull(this.ModellingRuleId))
+            if (!NodeId.IsNull(ModellingRuleId))
             {
-                node.ReferenceTable.Add(ReferenceTypeIds.HasModellingRule, false, this.ModellingRuleId);
+                node.ReferenceTable.Add(ReferenceTypeIds.HasModellingRule, false, ModellingRuleId);
             }
         }
 
@@ -680,7 +660,7 @@ namespace Opc.Ua
 
             if (parent != null)
             {
-                NodeId referenceTypeId = this.m_referenceTypeId;
+                NodeId referenceTypeId = m_referenceTypeId;
 
                 if (!NodeId.IsNull(referenceTypeId) && browser.IsRequired(referenceTypeId, true))
                 {
@@ -688,14 +668,11 @@ namespace Opc.Ua
                 }
             }
         }
-        #endregion
 
-        private bool IsObjectOrVariable => (this.NodeClass & (NodeClass.Variable | NodeClass.Object)) != 0;
+        private bool IsObjectOrVariable => (NodeClass & (NodeClass.Variable | NodeClass.Object)) != 0;
 
-#region Private Fields
         private NodeId m_referenceTypeId;
         private NodeId m_typeDefinitionId;
         private NodeId m_modellingRuleId;
-        #endregion
     }
 }

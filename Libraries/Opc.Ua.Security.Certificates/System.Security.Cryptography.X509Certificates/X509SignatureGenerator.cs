@@ -17,15 +17,9 @@ namespace Opc.Ua.Security.Certificates
 {
     public abstract class X509SignatureGenerator
     {
-        private PublicKey _publicKey;
+        private PublicKey m_publicKey;
 
-        public PublicKey PublicKey
-        {
-            get
-            {
-                return _publicKey ??= BuildPublicKey();
-            }
-        }
+        public PublicKey PublicKey => m_publicKey ??= BuildPublicKey();
 
         public abstract byte[] GetSignatureAlgorithmIdentifier(HashAlgorithmName hashAlgorithm);
         public abstract byte[] SignData(byte[] data, HashAlgorithmName hashAlgorithm);

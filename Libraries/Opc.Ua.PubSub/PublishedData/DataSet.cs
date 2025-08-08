@@ -36,7 +36,6 @@ namespace Opc.Ua.PubSub.PublishedData
     /// </summary>
     public class DataSet : ICloneable
     {
-        #region Constructor
         /// <summary>
         /// Create new instance of <see cref="DataSet"/>
         /// </summary>
@@ -45,9 +44,7 @@ namespace Opc.Ua.PubSub.PublishedData
         {
             Name = name;
         }
-        #endregion
 
-        #region Properties
         /// <summary>
         /// Get/Set data set name
         /// </summary>
@@ -77,13 +74,11 @@ namespace Opc.Ua.PubSub.PublishedData
         /// Get/Set data set fields for this data set
         /// </summary>
         public Field[] Fields { get; set; }
-        #endregion
 
-        #region ICloneable method
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -92,27 +87,20 @@ namespace Opc.Ua.PubSub.PublishedData
         public new object MemberwiseClone()
         {
             var copy = base.MemberwiseClone() as DataSet;
-            if (DataSetMetaData != null)
+            if (DataSetMetaData != null && copy != null)
             {
-                if (copy != null)
-                {
-                    copy.DataSetMetaData = DataSetMetaData.Clone() as DataSetMetaDataType;
-                }
+                copy.DataSetMetaData = DataSetMetaData.Clone() as DataSetMetaDataType;
             }
 
-            if (Fields != null)
+            if (Fields != null && copy != null)
             {
-                if (copy != null)
+                copy.Fields = new Field[Fields.Length];
+                for (int i = 0; i < Fields.Length; i++)
                 {
-                    copy.Fields = new Field[Fields.Length];
-                    for (int i = 0; i < Fields.Length; i++)
-                    {
-                        copy.Fields[i] = Fields[i].Clone() as Field;
-                    }
+                    copy.Fields[i] = Fields[i].Clone() as Field;
                 }
             }
             return copy;
         }
-        #endregion
     }
 }

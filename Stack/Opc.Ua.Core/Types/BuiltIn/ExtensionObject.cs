@@ -274,7 +274,6 @@ namespace Opc.Ua
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class ExtensionObject : IFormattable, ICloneable
     {
-        #region Constructors
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
@@ -358,9 +357,7 @@ namespace Opc.Ua
             m_body = null;
             m_context = MessageContextExtension.CurrentContext;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The data type node id for the extension object.
         /// </summary>
@@ -389,7 +386,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException">Thrown when the body is not one of the types listed above</exception>
         public object Body
         {
-            get { return m_body; }
+            get => m_body;
 
             set
             {
@@ -411,7 +408,7 @@ namespace Opc.Ua
                 {
                     m_encoding = ExtensionObjectEncoding.Xml;
                 }
-                else if (m_body is Newtonsoft.Json.Linq.JObject)
+                else if (m_body is JObject)
                 {
                     m_encoding = ExtensionObjectEncoding.Json;
                 }
@@ -423,9 +420,7 @@ namespace Opc.Ua
                 }
             }
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Determines if the specified object is equal to the <paramref name="obj"/>.
         /// </summary>
@@ -435,24 +430,24 @@ namespace Opc.Ua
         /// </returns>
         public override bool Equals(object obj)
         {
-            if (Object.ReferenceEquals(obj, null))
+            if (ReferenceEquals(obj, null))
             {
                 return IsNull(this);
             }
 
-            if (Object.ReferenceEquals(this, obj))
+            if (ReferenceEquals(this, obj))
             {
                 return true;
             }
 
             if (obj is ExtensionObject value)
             {
-                if (this.TypeId != value.TypeId)
+                if (TypeId != value.TypeId)
                 {
                     return false;
                 }
 
-                return Utils.IsEqual(this.m_body, value.m_body);
+                return Utils.IsEqual(m_body, value.m_body);
             }
 
             return false;
@@ -466,14 +461,14 @@ namespace Opc.Ua
         /// </returns>
         public override int GetHashCode()
         {
-            if (this.m_body != null)
+            if (m_body != null)
             {
-                return this.m_body.GetHashCode();
+                return m_body.GetHashCode();
             }
 
-            if (this.TypeId != null)
+            if (TypeId != null)
             {
-                return this.TypeId.GetHashCode();
+                return TypeId.GetHashCode();
             }
 
             return 0;
@@ -489,9 +484,7 @@ namespace Opc.Ua
         {
             return ToString(null, null);
         }
-        #endregion
 
-        #region IFormattable Members
         /// <summary>
         /// Returns the string representation of the embeddedobject.
         /// </summary>
@@ -531,7 +524,7 @@ namespace Opc.Ua
 
                     foreach (PropertyInfo property in m_body.GetType().GetProperties(BindingFlags.Public | BindingFlags.FlattenHierarchy | BindingFlags.Instance))
                     {
-                        object[] attributes = property.GetCustomAttributes(typeof(DataMemberAttribute), true).ToArray();
+                        object[] attributes = [.. property.GetCustomAttributes(typeof(DataMemberAttribute), true)];
 
                         for (int ii = 0; ii < attributes.Length; ii++)
                         {
@@ -559,9 +552,9 @@ namespace Opc.Ua
                     return string.Format(formatProvider, "{0}", body);
                 }
 
-                if (!NodeId.IsNull(this.TypeId))
+                if (!NodeId.IsNull(TypeId))
                 {
-                    return string.Format(formatProvider, "{{{0}}}", this.TypeId);
+                    return string.Format(formatProvider, "{{{0}}}", TypeId);
                 }
 
                 return "(null)";
@@ -569,13 +562,11 @@ namespace Opc.Ua
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
         }
-        #endregion
 
-        #region ICloneable Members
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -588,9 +579,7 @@ namespace Opc.Ua
         {
             return new ExtensionObject(this);
         }
-        #endregion
 
-        #region Static Members
         /// <summary>
         /// Tests if the extension or embed objects are null value.
         /// </summary>
@@ -693,7 +682,6 @@ namespace Opc.Ua
         /// Returns an instance of a null ExtensionObject.
         /// </summary>
         public static ExtensionObject Null { get; } = new ExtensionObject();
-        #endregion
 
         [DataMember(Name = "TypeId", Order = 1, IsRequired = false, EmitDefaultValue = true)]
         internal NodeId XmlEncodedTypeId
@@ -716,10 +704,7 @@ namespace Opc.Ua
                 return ExpandedNodeId.ToNodeId(TypeId, m_context.NamespaceUris);
             }
 
-            set
-            {
-                TypeId = NodeId.ToExpandedNodeId(value, m_context.NamespaceUris);
-            }
+            set => TypeId = NodeId.ToExpandedNodeId(value, m_context.NamespaceUris);
         }
 
         [DataMember(Name = "Body", Order = 2, IsRequired = false, EmitDefaultValue = true)]
@@ -734,13 +719,13 @@ namespace Opc.Ua
                 }
 
                 // create encoder.
-                using (XmlEncoder encoder = new XmlEncoder(m_context))
+                using (var encoder = new XmlEncoder(m_context))
                 {
                     // write body.
                     encoder.WriteExtensionObjectBody(m_body);
 
                     // create document from encoder.
-                    XmlDocument document = new XmlDocument();
+                    var document = new XmlDocument();
                     document.LoadInnerXml(encoder.CloseAndReturnText());
 
                     // return root element.
@@ -785,14 +770,11 @@ namespace Opc.Ua
             }
         }
 
-        #region Private Fields
         private ExtensionObjectEncoding m_encoding;
         private object m_body;
         private IServiceMessageContext m_context;
-        #endregion
     }
 
-    #region ExtensionObjectEncoding Enumeration
     /// <summary>
     /// The types of encodings that may used with an object.
     /// </summary>
@@ -823,9 +805,7 @@ namespace Opc.Ua
         /// </summary>
         Json = 4
     }
-    #endregion
 
-    #region ExtensionObjectCollection Class
     /// <summary>
     /// A collection of ExtensionObjects.
     /// </summary>
@@ -835,7 +815,6 @@ namespace Opc.Ua
     [CollectionDataContract(Name = "ListOfExtensionObject", Namespace = Namespaces.OpcUaXsd, ItemName = "ExtensionObject")]
     public class ExtensionObjectCollection : List<ExtensionObject>, ICloneable
     {
-        #region Constructors
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
@@ -861,9 +840,7 @@ namespace Opc.Ua
         /// </remarks>
         /// <param name="capacity">Max capacity of the collection</param>
         public ExtensionObjectCollection(int capacity) : base(capacity) { }
-        #endregion
 
-        #region Static Members
         /// <summary>
         /// Converts an array of ExtensionObjects to a collection.
         /// </summary>
@@ -875,10 +852,10 @@ namespace Opc.Ua
         {
             if (values != null)
             {
-                return new ExtensionObjectCollection(values);
+                return [.. values];
             }
 
-            return new ExtensionObjectCollection();
+            return [];
         }
 
         /// <summary>
@@ -920,13 +897,11 @@ namespace Opc.Ua
 
             return extensibles;
         }
-        #endregion
 
-        #region ICloneable
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -937,16 +912,14 @@ namespace Opc.Ua
         /// </remarks>
         public new object MemberwiseClone()
         {
-            var clone = new ExtensionObjectCollection(this.Count);
+            var clone = new ExtensionObjectCollection(Count);
 
             foreach (ExtensionObject element in this)
             {
-                clone.Add((ExtensionObject)Utils.Clone(element));
+                clone.Add(Utils.Clone(element));
             }
 
             return clone;
         }
-        #endregion
     }//class
-    #endregion
 }//namespace

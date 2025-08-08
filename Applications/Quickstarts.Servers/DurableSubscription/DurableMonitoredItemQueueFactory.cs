@@ -41,12 +41,12 @@ namespace Quickstarts.Servers
     /// </summary>
     public class DurableMonitoredItemQueueFactory : IMonitoredItemQueueFactory
     {
-        private readonly IBatchPersistor m_batchPersistor = new BatchPersistor();
-        private static readonly JsonSerializerSettings s_settings = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All };
+        private readonly BatchPersistor m_batchPersistor = new();
+        private static readonly JsonSerializerSettings s_settings = new() { TypeNameHandling = TypeNameHandling.All };
         private const string s_queueDirectory = "Queues";
         private const string s_base_filename = "_queue.txt";
-        private ConcurrentDictionary<uint, DurableDataChangeMonitoredItemQueue> m_dataChangeQueues = new ConcurrentDictionary<uint, DurableDataChangeMonitoredItemQueue>();
-        private ConcurrentDictionary<uint, DurableEventMonitoredItemQueue> m_eventQueues = new ConcurrentDictionary<uint, DurableEventMonitoredItemQueue>();
+        private ConcurrentDictionary<uint, DurableDataChangeMonitoredItemQueue> m_dataChangeQueues = new();
+        private ConcurrentDictionary<uint, DurableEventMonitoredItemQueue> m_eventQueues = new();
         /// <inheritdoc/>
         public bool SupportsDurableQueues => true;
 

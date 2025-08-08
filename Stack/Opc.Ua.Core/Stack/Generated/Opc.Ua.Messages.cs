@@ -81,13 +81,13 @@ namespace Opc.Ua
         }
 
         #region IServiceMessage Members
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.GetRequest" />
         public IServiceRequest GetRequest()
         {
             return FindServersRequest;
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.CreateResponse" />
         public object CreateResponse(IServiceResponse response)
         {
             FindServersResponse body = response as FindServersResponse;
@@ -196,13 +196,13 @@ namespace Opc.Ua
         }
 
         #region IServiceMessage Members
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.GetRequest" />
         public IServiceRequest GetRequest()
         {
             return FindServersOnNetworkRequest;
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.CreateResponse" />
         public object CreateResponse(IServiceResponse response)
         {
             FindServersOnNetworkResponse body = response as FindServersOnNetworkResponse;
@@ -311,13 +311,13 @@ namespace Opc.Ua
         }
 
         #region IServiceMessage Members
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.GetRequest" />
         public IServiceRequest GetRequest()
         {
             return GetEndpointsRequest;
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.CreateResponse" />
         public object CreateResponse(IServiceResponse response)
         {
             GetEndpointsResponse body = response as GetEndpointsResponse;
@@ -426,13 +426,13 @@ namespace Opc.Ua
         }
 
         #region IServiceMessage Members
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.GetRequest" />
         public IServiceRequest GetRequest()
         {
             return RegisterServerRequest;
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.CreateResponse" />
         public object CreateResponse(IServiceResponse response)
         {
             RegisterServerResponse body = response as RegisterServerResponse;
@@ -541,13 +541,13 @@ namespace Opc.Ua
         }
 
         #region IServiceMessage Members
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.GetRequest" />
         public IServiceRequest GetRequest()
         {
             return RegisterServer2Request;
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.CreateResponse" />
         public object CreateResponse(IServiceResponse response)
         {
             RegisterServer2Response body = response as RegisterServer2Response;
@@ -656,13 +656,13 @@ namespace Opc.Ua
         }
 
         #region IServiceMessage Members
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.GetRequest" />
         public IServiceRequest GetRequest()
         {
             return OpenSecureChannelRequest;
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.CreateResponse" />
         public object CreateResponse(IServiceResponse response)
         {
             OpenSecureChannelResponse body = response as OpenSecureChannelResponse;
@@ -771,13 +771,13 @@ namespace Opc.Ua
         }
 
         #region IServiceMessage Members
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.GetRequest" />
         public IServiceRequest GetRequest()
         {
             return CloseSecureChannelRequest;
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.CreateResponse" />
         public object CreateResponse(IServiceResponse response)
         {
             CloseSecureChannelResponse body = response as CloseSecureChannelResponse;
@@ -886,13 +886,13 @@ namespace Opc.Ua
         }
 
         #region IServiceMessage Members
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.GetRequest" />
         public IServiceRequest GetRequest()
         {
             return CreateSessionRequest;
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.CreateResponse" />
         public object CreateResponse(IServiceResponse response)
         {
             CreateSessionResponse body = response as CreateSessionResponse;
@@ -1001,13 +1001,13 @@ namespace Opc.Ua
         }
 
         #region IServiceMessage Members
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.GetRequest" />
         public IServiceRequest GetRequest()
         {
             return ActivateSessionRequest;
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.CreateResponse" />
         public object CreateResponse(IServiceResponse response)
         {
             ActivateSessionResponse body = response as ActivateSessionResponse;
@@ -1116,13 +1116,13 @@ namespace Opc.Ua
         }
 
         #region IServiceMessage Members
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.GetRequest" />
         public IServiceRequest GetRequest()
         {
             return CloseSessionRequest;
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.CreateResponse" />
         public object CreateResponse(IServiceResponse response)
         {
             CloseSessionResponse body = response as CloseSessionResponse;
@@ -1231,13 +1231,13 @@ namespace Opc.Ua
         }
 
         #region IServiceMessage Members
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.GetRequest" />
         public IServiceRequest GetRequest()
         {
             return CancelRequest;
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.CreateResponse" />
         public object CreateResponse(IServiceResponse response)
         {
             CancelResponse body = response as CancelResponse;
@@ -1346,13 +1346,13 @@ namespace Opc.Ua
         }
 
         #region IServiceMessage Members
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.GetRequest" />
         public IServiceRequest GetRequest()
         {
             return AddNodesRequest;
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.CreateResponse" />
         public object CreateResponse(IServiceResponse response)
         {
             AddNodesResponse body = response as AddNodesResponse;
@@ -1461,13 +1461,13 @@ namespace Opc.Ua
         }
 
         #region IServiceMessage Members
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.GetRequest" />
         public IServiceRequest GetRequest()
         {
             return AddReferencesRequest;
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.CreateResponse" />
         public object CreateResponse(IServiceResponse response)
         {
             AddReferencesResponse body = response as AddReferencesResponse;
@@ -1576,13 +1576,13 @@ namespace Opc.Ua
         }
 
         #region IServiceMessage Members
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.GetRequest" />
         public IServiceRequest GetRequest()
         {
             return DeleteNodesRequest;
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.CreateResponse" />
         public object CreateResponse(IServiceResponse response)
         {
             DeleteNodesResponse body = response as DeleteNodesResponse;
@@ -1691,13 +1691,13 @@ namespace Opc.Ua
         }
 
         #region IServiceMessage Members
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.GetRequest" />
         public IServiceRequest GetRequest()
         {
             return DeleteReferencesRequest;
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.CreateResponse" />
         public object CreateResponse(IServiceResponse response)
         {
             DeleteReferencesResponse body = response as DeleteReferencesResponse;
@@ -1806,13 +1806,13 @@ namespace Opc.Ua
         }
 
         #region IServiceMessage Members
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.GetRequest" />
         public IServiceRequest GetRequest()
         {
             return BrowseRequest;
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.CreateResponse" />
         public object CreateResponse(IServiceResponse response)
         {
             BrowseResponse body = response as BrowseResponse;
@@ -1921,13 +1921,13 @@ namespace Opc.Ua
         }
 
         #region IServiceMessage Members
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.GetRequest" />
         public IServiceRequest GetRequest()
         {
             return BrowseNextRequest;
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.CreateResponse" />
         public object CreateResponse(IServiceResponse response)
         {
             BrowseNextResponse body = response as BrowseNextResponse;
@@ -2036,13 +2036,13 @@ namespace Opc.Ua
         }
 
         #region IServiceMessage Members
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.GetRequest" />
         public IServiceRequest GetRequest()
         {
             return TranslateBrowsePathsToNodeIdsRequest;
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.CreateResponse" />
         public object CreateResponse(IServiceResponse response)
         {
             TranslateBrowsePathsToNodeIdsResponse body = response as TranslateBrowsePathsToNodeIdsResponse;
@@ -2151,13 +2151,13 @@ namespace Opc.Ua
         }
 
         #region IServiceMessage Members
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.GetRequest" />
         public IServiceRequest GetRequest()
         {
             return RegisterNodesRequest;
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.CreateResponse" />
         public object CreateResponse(IServiceResponse response)
         {
             RegisterNodesResponse body = response as RegisterNodesResponse;
@@ -2266,13 +2266,13 @@ namespace Opc.Ua
         }
 
         #region IServiceMessage Members
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.GetRequest" />
         public IServiceRequest GetRequest()
         {
             return UnregisterNodesRequest;
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.CreateResponse" />
         public object CreateResponse(IServiceResponse response)
         {
             UnregisterNodesResponse body = response as UnregisterNodesResponse;
@@ -2381,13 +2381,13 @@ namespace Opc.Ua
         }
 
         #region IServiceMessage Members
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.GetRequest" />
         public IServiceRequest GetRequest()
         {
             return QueryFirstRequest;
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.CreateResponse" />
         public object CreateResponse(IServiceResponse response)
         {
             QueryFirstResponse body = response as QueryFirstResponse;
@@ -2496,13 +2496,13 @@ namespace Opc.Ua
         }
 
         #region IServiceMessage Members
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.GetRequest" />
         public IServiceRequest GetRequest()
         {
             return QueryNextRequest;
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.CreateResponse" />
         public object CreateResponse(IServiceResponse response)
         {
             QueryNextResponse body = response as QueryNextResponse;
@@ -2611,13 +2611,13 @@ namespace Opc.Ua
         }
 
         #region IServiceMessage Members
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.GetRequest" />
         public IServiceRequest GetRequest()
         {
             return ReadRequest;
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.CreateResponse" />
         public object CreateResponse(IServiceResponse response)
         {
             ReadResponse body = response as ReadResponse;
@@ -2726,13 +2726,13 @@ namespace Opc.Ua
         }
 
         #region IServiceMessage Members
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.GetRequest" />
         public IServiceRequest GetRequest()
         {
             return HistoryReadRequest;
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.CreateResponse" />
         public object CreateResponse(IServiceResponse response)
         {
             HistoryReadResponse body = response as HistoryReadResponse;
@@ -2841,13 +2841,13 @@ namespace Opc.Ua
         }
 
         #region IServiceMessage Members
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.GetRequest" />
         public IServiceRequest GetRequest()
         {
             return WriteRequest;
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.CreateResponse" />
         public object CreateResponse(IServiceResponse response)
         {
             WriteResponse body = response as WriteResponse;
@@ -2956,13 +2956,13 @@ namespace Opc.Ua
         }
 
         #region IServiceMessage Members
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.GetRequest" />
         public IServiceRequest GetRequest()
         {
             return HistoryUpdateRequest;
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.CreateResponse" />
         public object CreateResponse(IServiceResponse response)
         {
             HistoryUpdateResponse body = response as HistoryUpdateResponse;
@@ -3071,13 +3071,13 @@ namespace Opc.Ua
         }
 
         #region IServiceMessage Members
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.GetRequest" />
         public IServiceRequest GetRequest()
         {
             return CallRequest;
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.CreateResponse" />
         public object CreateResponse(IServiceResponse response)
         {
             CallResponse body = response as CallResponse;
@@ -3186,13 +3186,13 @@ namespace Opc.Ua
         }
 
         #region IServiceMessage Members
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.GetRequest" />
         public IServiceRequest GetRequest()
         {
             return CreateMonitoredItemsRequest;
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.CreateResponse" />
         public object CreateResponse(IServiceResponse response)
         {
             CreateMonitoredItemsResponse body = response as CreateMonitoredItemsResponse;
@@ -3301,13 +3301,13 @@ namespace Opc.Ua
         }
 
         #region IServiceMessage Members
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.GetRequest" />
         public IServiceRequest GetRequest()
         {
             return ModifyMonitoredItemsRequest;
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.CreateResponse" />
         public object CreateResponse(IServiceResponse response)
         {
             ModifyMonitoredItemsResponse body = response as ModifyMonitoredItemsResponse;
@@ -3416,13 +3416,13 @@ namespace Opc.Ua
         }
 
         #region IServiceMessage Members
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.GetRequest" />
         public IServiceRequest GetRequest()
         {
             return SetMonitoringModeRequest;
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.CreateResponse" />
         public object CreateResponse(IServiceResponse response)
         {
             SetMonitoringModeResponse body = response as SetMonitoringModeResponse;
@@ -3531,13 +3531,13 @@ namespace Opc.Ua
         }
 
         #region IServiceMessage Members
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.GetRequest" />
         public IServiceRequest GetRequest()
         {
             return SetTriggeringRequest;
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.CreateResponse" />
         public object CreateResponse(IServiceResponse response)
         {
             SetTriggeringResponse body = response as SetTriggeringResponse;
@@ -3646,13 +3646,13 @@ namespace Opc.Ua
         }
 
         #region IServiceMessage Members
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.GetRequest" />
         public IServiceRequest GetRequest()
         {
             return DeleteMonitoredItemsRequest;
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.CreateResponse" />
         public object CreateResponse(IServiceResponse response)
         {
             DeleteMonitoredItemsResponse body = response as DeleteMonitoredItemsResponse;
@@ -3761,13 +3761,13 @@ namespace Opc.Ua
         }
 
         #region IServiceMessage Members
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.GetRequest" />
         public IServiceRequest GetRequest()
         {
             return CreateSubscriptionRequest;
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.CreateResponse" />
         public object CreateResponse(IServiceResponse response)
         {
             CreateSubscriptionResponse body = response as CreateSubscriptionResponse;
@@ -3876,13 +3876,13 @@ namespace Opc.Ua
         }
 
         #region IServiceMessage Members
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.GetRequest" />
         public IServiceRequest GetRequest()
         {
             return ModifySubscriptionRequest;
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.CreateResponse" />
         public object CreateResponse(IServiceResponse response)
         {
             ModifySubscriptionResponse body = response as ModifySubscriptionResponse;
@@ -3991,13 +3991,13 @@ namespace Opc.Ua
         }
 
         #region IServiceMessage Members
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.GetRequest" />
         public IServiceRequest GetRequest()
         {
             return SetPublishingModeRequest;
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.CreateResponse" />
         public object CreateResponse(IServiceResponse response)
         {
             SetPublishingModeResponse body = response as SetPublishingModeResponse;
@@ -4106,13 +4106,13 @@ namespace Opc.Ua
         }
 
         #region IServiceMessage Members
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.GetRequest" />
         public IServiceRequest GetRequest()
         {
             return PublishRequest;
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.CreateResponse" />
         public object CreateResponse(IServiceResponse response)
         {
             PublishResponse body = response as PublishResponse;
@@ -4221,13 +4221,13 @@ namespace Opc.Ua
         }
 
         #region IServiceMessage Members
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.GetRequest" />
         public IServiceRequest GetRequest()
         {
             return RepublishRequest;
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.CreateResponse" />
         public object CreateResponse(IServiceResponse response)
         {
             RepublishResponse body = response as RepublishResponse;
@@ -4336,13 +4336,13 @@ namespace Opc.Ua
         }
 
         #region IServiceMessage Members
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.GetRequest" />
         public IServiceRequest GetRequest()
         {
             return TransferSubscriptionsRequest;
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.CreateResponse" />
         public object CreateResponse(IServiceResponse response)
         {
             TransferSubscriptionsResponse body = response as TransferSubscriptionsResponse;
@@ -4451,13 +4451,13 @@ namespace Opc.Ua
         }
 
         #region IServiceMessage Members
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.GetRequest" />
         public IServiceRequest GetRequest()
         {
             return DeleteSubscriptionsRequest;
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="IServiceMessage.CreateResponse" />
         public object CreateResponse(IServiceResponse response)
         {
             DeleteSubscriptionsResponse body = response as DeleteSubscriptionsResponse;

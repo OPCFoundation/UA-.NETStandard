@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2018 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -50,7 +50,6 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         public ServiceMessageContext EncoderContext;
         public Dictionary<StructureType, (ExpandedNodeId, Type)> TypeDictionary;
 
-        #region Test Setup
         [OneTimeSetUp]
         protected new void OneTimeSetUp()
         {
@@ -60,7 +59,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             EncoderContext.NamespaceUris.Append("urn:This:is:my:test:encoder");
             EncoderContext.NamespaceUris.Append("urn:This:is:another:namespace");
             EncoderContext.NamespaceUris.Append(Namespaces.OpcUaEncoderTests);
-            TypeDictionary = new Dictionary<StructureType, (ExpandedNodeId, Type)>();
+            TypeDictionary = [];
             CreateComplexTypes(EncoderContext, TypeDictionary, "");
         }
 
@@ -78,14 +77,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         protected new void TearDown()
         {
         }
-        #endregion Test Setup
 
-        #region DataSource
         /// <summary>
         /// Constants used by test data set.
         /// </summary>
-        const long kInt64Value = -123456789123456;
-        const ulong kUInt64Value = 123456789123456;
+        private const long kInt64Value = -123456789123456;
+        private const ulong kUInt64Value = 123456789123456;
 
         /// <summary>
         /// An array of spec compliant Json encoding test data sets which
@@ -113,9 +110,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             //{   BuiltInType.Float, float.PositiveInfinity, "Infinity", "Infinity" },
             {   BuiltInType.Double, 7.77, "7.77", "7.77" }
         }.ToArray();
-        #endregion DataSource
 
-        #region Test Methods
         /// <summary>
         /// Verify encoding of a Structure as body of ExtensionObject.
         /// </summary>
@@ -191,9 +186,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 jsonValidationData.GetExpected(jsonEncoding),
                 false);
         }
-        #endregion Test Methods
 
-        #region Private Methods
         protected void EncodeJsonComplexTypeVerifyResult(
             BuiltInType builtInType,
             MemoryStreamType memoryStreamType,
@@ -211,7 +204,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             byte[] buffer;
             using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
-                using (IEncoder encoder = CreateEncoder(
+                using (var  encoder = CreateEncoder(
                     EncodingType.Json, EncoderContext, encoderStream,
                     typeof(ExtensionObject), jsonEncoding, topLevelIsArray))
                 {
@@ -359,7 +352,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
                         if (jsonEncoding == JsonEncodingType.Reversible)
                         {
-                            json += $"\"Body\":{{";
+                            json += "\"Body\":{";
                         }
 
                         if (jsonEncoding != JsonEncodingType.Verbose)
@@ -529,6 +522,5 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             }
             return expected;
         }
-        #endregion Private Methods
     }
 }

@@ -164,13 +164,11 @@ namespace Opc.Ua.Core.Tests
             await TestUtils.CleanupTrustListAsync(m_rejectedStore, dispose).ConfigureAwait(false);
         }
 
-        #region Private Fields
         private int m_disposed;
         private CertificateValidator m_certificateValidator;
         private DirectoryCertificateStore m_issuerStore;
         private DirectoryCertificateStore m_trustedStore;
         private DirectoryCertificateStore m_rejectedStore;
         private readonly string m_pkiRoot;
-        #endregion
-    };
+    }
 }

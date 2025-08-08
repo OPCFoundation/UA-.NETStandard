@@ -41,7 +41,6 @@ namespace Opc.Ua.Client.ComplexTypes
     /// </summary>
     public static class AttributeExtensions
     {
-        #region Extensions
         /// <summary>
         /// Get the return type of an item in a collection.
         /// </summary>
@@ -195,9 +194,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 ]);
             typeBuilder.SetCustomAttribute(builder);
         }
-        #endregion Extensions
 
-        #region Private Static Members
         /// <summary>
         /// Build the DataMember attribute.
         /// </summary>
@@ -205,7 +202,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             Type attributeType = typeof(DataMemberAttribute);
             ConstructorInfo ctorInfo = attributeType.GetConstructor(Type.EmptyTypes);
-            var builder = new CustomAttributeBuilder(
+            return new CustomAttributeBuilder(
                 ctorInfo,
                 [],  // constructor arguments
                 // properties to assign
@@ -220,7 +217,6 @@ namespace Opc.Ua.Client.ComplexTypes
                     isRequired,
                     order
                 ]);
-            return builder;
         }
 
         /// <summary>
@@ -230,7 +226,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             Type attributeType = typeof(DataContractAttribute);
             ConstructorInfo ctorInfo = attributeType.GetConstructor(Type.EmptyTypes);
-            var builder = new CustomAttributeBuilder(
+            return new CustomAttributeBuilder(
                 ctorInfo,
                 [],  // constructor arguments
                 // properties to assign
@@ -241,7 +237,6 @@ namespace Opc.Ua.Client.ComplexTypes
                 [
                     @namespace
                 ]);
-            return builder;
         }
 
         /// <summary>
@@ -283,7 +278,5 @@ namespace Opc.Ua.Client.ComplexTypes
                 _ => TypeInfo.GetBuiltInType(datatypeId),
             };
         }
-        #endregion Private Static Members
-
     }
 }//namespace

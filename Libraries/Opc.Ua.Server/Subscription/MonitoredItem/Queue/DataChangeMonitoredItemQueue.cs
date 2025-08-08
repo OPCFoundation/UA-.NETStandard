@@ -53,7 +53,6 @@ namespace Opc.Ua.Server
             m_end = -1;
         }
 
-        #region Public Methods
         /// <inheritdoc/>
         public uint MonitoredItemId { get; }
 
@@ -277,8 +276,6 @@ namespace Opc.Ua.Server
             return m_values[m_start];
         }
 
-#endregion
-#region Private Fields
         /// <summary>
         /// the stored data values
         /// </summary>
@@ -295,6 +292,5 @@ namespace Opc.Ua.Server
         /// the end of the buffer
         /// </summary>
         protected int m_end;
-        #endregion
     }
 }

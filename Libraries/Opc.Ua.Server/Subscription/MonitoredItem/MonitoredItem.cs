@@ -39,7 +39,6 @@ namespace Opc.Ua.Server
     /// </summary>
     public class MonitoredItem : IEventMonitoredItem, ISampledDataChangeMonitoredItem, ITriggeredMonitoredItem
     {
-        #region Constructors
         /// <summary>
         /// Initializes the object with its node type.
         /// </summary>
@@ -249,9 +248,7 @@ namespace Opc.Ua.Server
             m_samplingError = ServiceResult.Good;
             m_resendData = false;
         }
-        #endregion
 
-        #region IMonitoredItem Members
         /// <summary>
         /// The node manager that created the item.
         /// </summary>
@@ -841,7 +838,7 @@ namespace Opc.Ua.Server
                 // make a shallow copy of the value.
                 if (value != null)
                 {
-                    Utils.LogTrace(Utils.TraceMasks.OperationDetail, "RECEIVED VALUE[{0}] Value={1}", this.m_id, value.WrappedValue);
+                    Utils.LogTrace(Utils.TraceMasks.OperationDetail, "RECEIVED VALUE[{0}] Value={1}", m_id, value.WrappedValue);
 
                     value = new DataValue {
                         WrappedValue = value.WrappedValue,
@@ -933,7 +930,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Whether the item is monitoring all events produced by the server.
         /// </summary>
-        public bool MonitoringAllEvents => this.m_nodeId == ObjectIds.Server;
+        public bool MonitoringAllEvents => m_nodeId == ObjectIds.Server;
 
         /// <summary>
         /// Fetches the event fields from the event.
@@ -1119,7 +1116,7 @@ namespace Opc.Ua.Server
 
         private HashSet<string> GetFilteredRetainConditionIds()
         {
-            return m_filteredRetainConditionIds ??= new HashSet<string>();
+            return m_filteredRetainConditionIds ??= [];
         }
 
         /// <summary>
@@ -1530,9 +1527,7 @@ namespace Opc.Ua.Server
                 ParsedIndexRange = m_parsedIndexRange
             };
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Applies the filter to value to determine if the new value should be kept.
         /// </summary>
@@ -1651,7 +1646,7 @@ namespace Opc.Ua.Server
         protected static bool Equals(object value1, object value2, DeadbandType deadbandType, double deadband, double range)
         {
             // check if reference to same object.
-            if (Object.ReferenceEquals(value1, value2))
+            if (ReferenceEquals(value1, value2))
             {
                 return true;
             }
@@ -1966,10 +1961,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        #endregion
-
-        #region Private Members
-        private readonly object m_lock = new object();
+        private readonly object m_lock = new();
         private IServerInternal m_server;
         private INodeManager m_nodeManager;
         private object m_managerHandle;
@@ -1995,8 +1987,8 @@ namespace Opc.Ua.Server
         private ServiceResult m_lastError;
         private long m_nextSamplingTime;
         private readonly IMonitoredItemQueueFactory m_monitoredItemQueueFactory;
-        private IDataChangeQueueHandler m_dataChangeQueueHandler;
-        private IEventQueueHandler m_eventQueueHandler;
+        private DataChangeQueueHandler m_dataChangeQueueHandler;
+        private EventQueueHandler m_eventQueueHandler;
         private readonly ISubscriptionStore m_subscriptionStore;
         private bool m_readyToPublish;
         private bool m_readyToTrigger;
@@ -2008,6 +2000,5 @@ namespace Opc.Ua.Server
         private bool m_triggered;
         private bool m_resendData;
         private HashSet<string> m_filteredRetainConditionIds;
-        #endregion
     }
 }

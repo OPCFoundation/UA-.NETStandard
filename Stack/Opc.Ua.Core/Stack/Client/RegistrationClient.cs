@@ -20,8 +20,6 @@ namespace Opc.Ua
     /// </summary>
     public partial class RegistrationClient
     {
-        #region Constructors
-
         /// <summary>
         /// Creates a binding for to use for discovering servers.
         /// </summary>
@@ -55,8 +53,6 @@ namespace Opc.Ua
 
             return new RegistrationClient(channel);
         }
-
-        #endregion
     }
 
     /// <summary>
@@ -64,7 +60,6 @@ namespace Opc.Ua
     /// </summary>
     public partial class RegistrationChannel
     {
-        #region Constructors
         /// <summary>
         /// Creates a new transport channel that supports the IRegistrationChannel service contract.
         /// </summary>
@@ -104,7 +99,5 @@ namespace Opc.Ua
 
             return channel;
         }
-
-        #endregion
     }
 }

@@ -44,20 +44,14 @@ namespace Boiler
         /// <inheritdoc/>
         public INodeManager Create(IServerInternal server, ApplicationConfiguration configuration)
         {
-            return new BoilerNodeManager(server, configuration, NamespacesUris.ToArray());
+            return new BoilerNodeManager(server, configuration, [.. NamespacesUris]);
         }
 
         /// <inheritdoc/>
-        public StringCollection NamespacesUris
-        {
-            get
-            {
-                return new StringCollection {
+        public StringCollection NamespacesUris => [
                     Namespaces.Boiler,
                     Namespaces.Boiler + "Instance"
-                };
-            }
-        }
+                ];
     }
 
     /// <summary>
@@ -65,7 +59,6 @@ namespace Boiler
     /// </summary>
     public class BoilerNodeManager : SampleNodeManager
     {
-        #region Constructors
         /// <summary>
         /// Initializes the node manager.
         /// </summary>
@@ -84,11 +77,9 @@ namespace Boiler
             AddEncodeableNodeManagerTypes(typeof(BoilerNodeManager).Assembly, typeof(BoilerNodeManager).Namespace);
 
             m_lastUsedId = 0;
-            m_boilers = new List<BoilerState>();
+            m_boilers = [];
         }
-        #endregion
 
-        #region INodeIdFactory Members
         /// <summary>
         /// Creates the NodeId for the specified node.
         /// </summary>
@@ -100,9 +91,7 @@ namespace Boiler
             uint id = Utils.IncrementIdentifier(ref m_lastUsedId);
             return new NodeId(id, m_namespaceIndex);
         }
-        #endregion
 
-        #region INodeManager Members
         /// <summary>
         /// Does any initialization required before the address space can be used.
         /// </summary>
@@ -160,8 +149,8 @@ namespace Boiler
 
             // Autostart boiler simulation state machine
             MethodState start = boiler.Simulation.Start;
-            IList<Variant> inputArguments = new List<Variant>();
-            IList<Variant> outputArguments = new List<Variant>();
+            IList<Variant> inputArguments = [];
+            IList<Variant> outputArguments = [];
             var errors = new List<ServiceResult>();
             start.Call(context, boiler.NodeId, inputArguments, errors, outputArguments);
         }
@@ -197,7 +186,7 @@ namespace Boiler
         protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
         {
             var predefinedNodes = new NodeStateCollection();
-            predefinedNodes.LoadFromBinaryResource(context, "Quickstarts.Servers.Boiler.Boiler.PredefinedNodes.uanodes", this.GetType().GetTypeInfo().Assembly, true);
+            predefinedNodes.LoadFromBinaryResource(context, "Quickstarts.Servers.Boiler.Boiler.PredefinedNodes.uanodes", GetType().GetTypeInfo().Assembly, true);
             return predefinedNodes;
         }
 
@@ -237,8 +226,8 @@ namespace Boiler
 
                     // Autostart boiler simulation state machine
                     MethodState start = activeNode.Simulation.Start;
-                    IList<Variant> inputArguments = new List<Variant>();
-                    IList<Variant> outputArguments = new List<Variant>();
+                    IList<Variant> inputArguments = [];
+                    IList<Variant> outputArguments = [];
                     var errors = new List<ServiceResult>();
                     start.Call(context, activeNode.NodeId, inputArguments, errors, outputArguments);
 
@@ -296,13 +285,10 @@ namespace Boiler
         {
             // TBD
         }
-        #endregion
 
-        #region Private Fields
         private readonly ushort m_namespaceIndex;
         private readonly ushort m_typeNamespaceIndex;
         private long m_lastUsedId;
         private readonly List<BoilerState> m_boilers;
-        #endregion
     }
 }

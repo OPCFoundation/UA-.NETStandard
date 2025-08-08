@@ -38,8 +38,6 @@ namespace Opc.Ua.Server
     /// </summary>
     public class Session : ISession
     {
-        #region Constructors
-
         /// <summary>
         /// Initializes a new instance of the <see cref="Session"/> class.
         /// </summary>
@@ -162,9 +160,7 @@ namespace Opc.Ua.Server
 
             TraceState("CREATED");
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -214,9 +210,7 @@ namespace Opc.Ua.Server
                 }
             }
         }
-        #endregion
 
-        #region Public Interface
         /// <summary>
         /// Gets the identifier assigned to the session when it was created.
         /// </summary>
@@ -225,34 +219,22 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The user identity provided by the client.
         /// </summary>
-        public IUserIdentity Identity
-        {
-            get { return m_identity; }
-        }
+        public IUserIdentity Identity => m_identity;
 
         /// <summary>
         /// The application defined mapping for user identity provided by the client.
         /// </summary>
-        public IUserIdentity EffectiveIdentity
-        {
-            get { return m_effectiveIdentity; }
-        }
+        public IUserIdentity EffectiveIdentity => m_effectiveIdentity;
 
         /// <summary>
         /// The user identity token provided by the client.
         /// </summary>
-        public UserIdentityToken IdentityToken
-        {
-            get { return m_identityToken; }
-        }
+        public UserIdentityToken IdentityToken => m_identityToken;
 
         /// <summary>
         /// A lock which must be acquired before accessing the diagnostics.
         /// </summary>
-        public object DiagnosticsLock
-        {
-            get { return SessionDiagnostics; }
-        }
+        public object DiagnosticsLock => SessionDiagnostics;
 
         /// <summary>
         /// The diagnostics associated with the session.
@@ -273,10 +255,7 @@ namespace Opc.Ua.Server
         /// The locales requested when the session was created.
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
-        public string[] PreferredLocales
-        {
-            get { return m_localeIds; }
-        }
+        public string[] PreferredLocales => m_localeIds;
 
         /// <summary>
         /// Whether the session timeout has elapsed since the last communication from the client.
@@ -309,13 +288,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Whether the session has been activated.
         /// </summary>
-        public bool Activated
-        {
-            get
-            {
-                return m_activated;
-            }
-        }
+        public bool Activated => m_activated;
 
         /// <summary>
         /// Set the ECC security policy URI
@@ -364,13 +337,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns the session's SecureChannelId
         /// </summary>
-        public string SecureChannelId
-        {
-            get
-            {
-                return m_secureChannelId;
-            }
-        }
+        public string SecureChannelId => m_secureChannelId;
 
         /// <summary>
         /// allow derived classes access
@@ -451,7 +418,7 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                string[] ids = localeIds.ToArray();
+                string[] ids = [.. localeIds];
 
                 if (!Utils.IsEqual(ids, m_localeIds))
                 {
@@ -460,7 +427,7 @@ namespace Opc.Ua.Server
                     // update diagnostics.
                     lock (DiagnosticsLock)
                     {
-                        SessionDiagnostics.LocaleIds = new StringCollection(localeIds);
+                        SessionDiagnostics.LocaleIds = [.. localeIds];
                     }
 
                     return true;
@@ -523,7 +490,7 @@ namespace Opc.Ua.Server
                                 serverCertificateChainList.AddRange(serverCertificateChain[i].RawData);
                             }
 
-                            byte[] serverCertificateChainData = serverCertificateChainList.ToArray();
+                            byte[] serverCertificateChainData = [.. serverCertificateChainList];
 
                             dataToSign = Utils.Append(serverCertificateChainData, m_serverNonce.Data);
 
@@ -665,7 +632,7 @@ namespace Opc.Ua.Server
             {
                 if (m_browseContinuationPoints == null)
                 {
-                    m_browseContinuationPoints = new List<ContinuationPoint>();
+                    m_browseContinuationPoints = [];
                 }
 
                 // remove the first continuation point if too many points.
@@ -737,7 +704,7 @@ namespace Opc.Ua.Server
             {
                 if (m_historyContinuationPoints == null)
                 {
-                    m_historyContinuationPoints = new List<HistoryContinuationPoint>();
+                    m_historyContinuationPoints = [];
                 }
 
                 // remove existing continuation point if space needed.
@@ -804,9 +771,7 @@ namespace Opc.Ua.Server
             public object Value;
             public DateTime Timestamp;
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Dumps the current state of the session queue.
         /// </summary>
@@ -860,7 +825,7 @@ namespace Opc.Ua.Server
 
             // check for empty token.
             if (identityToken == null || identityToken.Body == null ||
-                identityToken.Body.GetType() == typeof(Opc.Ua.AnonymousIdentityToken))
+                identityToken.Body.GetType() == typeof(AnonymousIdentityToken))
             {
                 // check if an anonymous login is permitted.
                 if (EndpointDescription.UserIdentityTokens != null && EndpointDescription.UserIdentityTokens.Count > 0)
@@ -1004,7 +969,7 @@ namespace Opc.Ua.Server
                                 serverCertificateChainList.AddRange(serverCertificateChain[i].RawData);
                             }
 
-                            byte[] serverCertificateChainData = serverCertificateChainList.ToArray();
+                            byte[] serverCertificateChainData = [.. serverCertificateChainList];
 
                             dataToSign = Utils.Append(serverCertificateChainData, m_serverNonce.Data);
 
@@ -1163,10 +1128,8 @@ namespace Opc.Ua.Server
                 }
             }
         }
-        #endregion
 
-        #region Private Fields
-        private readonly object m_lock = new object();
+        private readonly object m_lock = new();
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
         private readonly NodeId m_authenticationToken;
         private readonly IServerInternal m_server;
@@ -1195,6 +1158,5 @@ namespace Opc.Ua.Server
         private readonly SessionSecurityDiagnosticsDataType m_securityDiagnostics;
         private List<ContinuationPoint> m_browseContinuationPoints;
         private List<HistoryContinuationPoint> m_historyContinuationPoints;
-        #endregion
     }
 }

@@ -40,7 +40,6 @@ namespace Opc.Ua.Server
     /// </summary>
     public class SamplingGroup : IDisposable
     {
-        #region Constructors
         /// <summary>
         /// Creates a new instance of a sampling group.
         /// </summary>
@@ -82,16 +81,14 @@ namespace Opc.Ua.Server
             m_diagnosticsMask = context.DiagnosticsMask & DiagnosticsMasks.OperationAll;
             m_samplingInterval = AdjustSamplingInterval(samplingInterval);
 
-            m_itemsToAdd = new List<ISampledDataChangeMonitoredItem>();
-            m_itemsToRemove = new List<ISampledDataChangeMonitoredItem>();
-            m_items = new Dictionary<uint, ISampledDataChangeMonitoredItem>();
+            m_itemsToAdd = [];
+            m_itemsToRemove = [];
+            m_items = [];
 
             // create a event to signal shutdown.
             m_shutdownEvent = new ManualResetEvent(true);
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -127,9 +124,7 @@ namespace Opc.Ua.Server
                 Utils.SilentDispose(m_shutdownEvent);
             }
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Starts the sampling thread which periodically reads the items in the group.
         /// </summary>
@@ -283,9 +278,7 @@ namespace Opc.Ua.Server
                 return m_items.Count == 0;
             }
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Checks if the item meets the group's criteria.
         /// </summary>
@@ -516,10 +509,8 @@ namespace Opc.Ua.Server
                 Utils.LogError(e, "Server: Unexpected error sampling values.");
             }
         }
-        #endregion
 
-        #region Private Fields
-        private readonly object m_lock = new object();
+        private readonly object m_lock = new();
         private readonly IServerInternal m_server;
         private readonly INodeManager m_nodeManager;
         private ISession m_session;
@@ -532,6 +523,5 @@ namespace Opc.Ua.Server
         private readonly ManualResetEvent m_shutdownEvent;
         private readonly List<SamplingRateGroup> m_samplingRates;
         private Task m_samplingTask;
-        #endregion
     }
 }

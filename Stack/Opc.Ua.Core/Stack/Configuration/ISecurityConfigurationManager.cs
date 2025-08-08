@@ -35,7 +35,6 @@ namespace Opc.Ua.Security
         void WriteConfiguration(string filePath, SecuredApplication configuration);
     }
 
-    #region SecurityConfigurationManagerFactory Class
     /// <summary>
     /// A class used to create instances of ISecurityConfigurationManager.
     /// </summary>
@@ -74,5 +73,4 @@ namespace Opc.Ua.Security
             return configuration;
         }
     }
-    #endregion
 }

@@ -12,18 +12,17 @@
 
 using System;
 using System.Collections.Generic;
-using System.Xml;
-using System.Text;
+using System.Globalization;
 using System.IO;
 using System.Reflection;
+using System.Text;
+using System.Xml;
 using Opc.Ua;
-using System.Globalization;
 
 namespace Opc.Ua
 {
     public partial class DialogConditionState
     {
-        #region Initialization
         /// <summary>
         /// Called after a node is created.
         /// </summary>
@@ -31,14 +30,12 @@ namespace Opc.Ua
         {
             base.OnAfterCreate(context, node);
 
-            if (this.Respond != null)
+            if (Respond != null)
             {
-                this.Respond.OnCall = OnRespondCalled;
+                Respond.OnCall = OnRespondCalled;
             }
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Activates the dialog.
         /// </summary>
@@ -50,12 +47,12 @@ namespace Opc.Ua
                 "en-US",
                 ConditionStateNames.Active);
 
-            this.DialogState.Value = new LocalizedText(state);
-            this.DialogState.Id.Value = true;
+            DialogState.Value = new LocalizedText(state);
+            DialogState.Id.Value = true;
 
-            if (this.DialogState.TransitionTime != null)
+            if (DialogState.TransitionTime != null)
             {
-                this.DialogState.TransitionTime.Value = DateTime.UtcNow;
+                DialogState.TransitionTime.Value = DateTime.UtcNow;
             }
 
             UpdateEffectiveState(context);
@@ -68,26 +65,24 @@ namespace Opc.Ua
         /// <param name="response">The selected response.</param>
         public virtual void SetResponse(ISystemContext context, int response)
         {
-            this.LastResponse.Value = response;
+            LastResponse.Value = response;
 
             var state = new TranslationInfo(
                 "ConditionStateDialogInactive",
                 "en-US",
                 ConditionStateNames.Inactive);
 
-            this.DialogState.Value = new LocalizedText(state);
-            this.DialogState.Id.Value = false;
+            DialogState.Value = new LocalizedText(state);
+            DialogState.Id.Value = false;
 
-            if (this.DialogState.TransitionTime != null)
+            if (DialogState.TransitionTime != null)
             {
-                this.DialogState.TransitionTime.Value = DateTime.UtcNow;
+                DialogState.TransitionTime.Value = DateTime.UtcNow;
             }
 
             UpdateEffectiveState(context);
         }
-        #endregion
 
-        #region Event Handlers
         /// <summary>
         /// Raised when a dialog receives a Response.
         /// </summary>
@@ -95,16 +90,14 @@ namespace Opc.Ua
         /// Return code can be used to cancel the operation.
         /// </remarks>
         public DialogResponseEventHandler OnRespond;
-        #endregion
 
-        #region Protected Methods
         /// <summary>
         /// Updates the effective state for the condition.
         /// </summary>
         /// <param name="context">The context.</param>
         protected override void UpdateEffectiveState(ISystemContext context)
         {
-            if (!this.EnabledState.Id.Value)
+            if (!EnabledState.Id.Value)
             {
                 base.UpdateEffectiveState(context);
                 return;
@@ -114,10 +107,10 @@ namespace Opc.Ua
 
             string locale = null;
 
-            if (this.DialogState.Value != null)
+            if (DialogState.Value != null)
             {
-                locale = this.DialogState.Value.Locale;
-                builder.Append(this.DialogState.Value);
+                locale = DialogState.Value.Locale;
+                builder.Append(DialogState.Value);
             }
 
             var effectiveState = new LocalizedText(locale, builder.ToString());
@@ -143,17 +136,17 @@ namespace Opc.Ua
 
             try
             {
-                if (!this.EnabledState.Id.Value)
+                if (!EnabledState.Id.Value)
                 {
                     return error = StatusCodes.BadConditionDisabled;
                 }
 
-                if (!this.DialogState.Id.Value)
+                if (!DialogState.Id.Value)
                 {
                     return error = StatusCodes.BadDialogNotActive;
                 }
 
-                if (selectedResponse < 0 || selectedResponse >= this.ResponseOptionSet.Value.Length)
+                if (selectedResponse < 0 || selectedResponse >= ResponseOptionSet.Value.Length)
                 {
                     return error = StatusCodes.BadDialogResponseInvalid;
                 }
@@ -173,7 +166,7 @@ namespace Opc.Ua
             }
             finally
             {
-                if (this.AreEventsMonitored)
+                if (AreEventsMonitored)
                 {
                     var e = new AuditConditionRespondEventState(null);
 
@@ -204,7 +197,6 @@ namespace Opc.Ua
 
             return error;
         }
-        #endregion
     }
 
     /// <summary>

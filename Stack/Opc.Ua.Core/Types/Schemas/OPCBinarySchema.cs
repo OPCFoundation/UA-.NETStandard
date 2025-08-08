@@ -411,76 +411,48 @@ namespace Opc.Ua.Schema.Binary
     }
 
     /// <inheritdoc/>
-    [System.Xml.Serialization.XmlIncludeAttribute(typeof(StructuredType))]
-    [System.Xml.Serialization.XmlIncludeAttribute(typeof(OpaqueType))]
-    [System.Xml.Serialization.XmlIncludeAttribute(typeof(EnumeratedType))]
-    [System.CodeDom.Compiler.GeneratedCodeAttribute("xsd", "2.0.50727.312")]
-    [DataContractAttribute()]
-    [System.Diagnostics.DebuggerStepThroughAttribute()]
-    [System.Xml.Serialization.XmlTypeAttribute(Namespace = "http://opcfoundation.org/BinarySchema/")]
+    [System.Xml.Serialization.XmlInclude(typeof(StructuredType))]
+    [System.Xml.Serialization.XmlInclude(typeof(OpaqueType))]
+    [System.Xml.Serialization.XmlInclude(typeof(EnumeratedType))]
+    [System.CodeDom.Compiler.GeneratedCode("xsd", "2.0.50727.312")]
+    [DataContract()]
+    [System.Diagnostics.DebuggerStepThrough()]
+    [System.Xml.Serialization.XmlType(Namespace = "http://opcfoundation.org/BinarySchema/")]
     public partial class TypeDescription
     {
-        private Documentation documentationField;
+        private Documentation m_documentationField;
 
-        private string nameField;
+        private string m_nameField;
 
-        private ByteOrder defaultByteOrderField;
+        private ByteOrder m_defaultByteOrderField;
 
         private bool defaultByteOrderFieldSpecified;
 
         /// <inheritdoc/>
         public Documentation Documentation
         {
-            get
-            {
-                return this.documentationField;
-            }
-            set
-            {
-                this.documentationField = value;
-            }
+            get => m_documentationField; set => m_documentationField = value;
         }
 
         /// <inheritdoc/>
-        [System.Xml.Serialization.XmlAttributeAttribute(DataType = "NCName")]
+        [System.Xml.Serialization.XmlAttribute(DataType = "NCName")]
         public string Name
         {
-            get
-            {
-                return this.nameField;
-            }
-            set
-            {
-                this.nameField = value;
-            }
+            get => m_nameField; set => m_nameField = value;
         }
 
         /// <inheritdoc/>
-        [System.Xml.Serialization.XmlAttributeAttribute()]
+        [System.Xml.Serialization.XmlAttribute()]
         public ByteOrder DefaultByteOrder
         {
-            get
-            {
-                return this.defaultByteOrderField;
-            }
-            set
-            {
-                this.defaultByteOrderField = value;
-            }
+            get => m_defaultByteOrderField; set => m_defaultByteOrderField = value;
         }
 
         /// <inheritdoc/>
-        [System.Xml.Serialization.XmlIgnoreAttribute()]
+        [System.Xml.Serialization.XmlIgnore()]
         public bool DefaultByteOrderSpecified
         {
-            get
-            {
-                return this.defaultByteOrderFieldSpecified;
-            }
-            set
-            {
-                this.defaultByteOrderFieldSpecified = value;
-            }
+            get => defaultByteOrderFieldSpecified; set => defaultByteOrderFieldSpecified = value;
         }
     }
 

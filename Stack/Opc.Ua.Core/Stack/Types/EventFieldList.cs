@@ -22,28 +22,20 @@ namespace Opc.Ua
     /// </summary>
     public partial class EventFieldList
     {
-        #region Public Properties
         /// <summary>
         /// The handle cast to a notification message.
         /// </summary>
         public NotificationMessage Message
-        {
-            get { return m_handle as NotificationMessage; }
-            set { m_handle = value; }
+        { get => m_handle as NotificationMessage; set => m_handle = value;
         }
 
         /// <summary>
         /// A handle associated withe the event instance.
         /// </summary>
         public object Handle
-        {
-            get { return m_handle; }
-            set { m_handle = value; }
+        { get => m_handle; set => m_handle = value;
         }
-        #endregion
 
-        #region Private Fields
         private object m_handle;
-        #endregion
     }
 }

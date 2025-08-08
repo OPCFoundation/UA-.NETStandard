@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -44,12 +44,9 @@ namespace Opc.Ua.Security.Certificates.Tests
     [SetCulture("en-us")]
     public class ExtensionTests
     {
-        #region DataPointSources
         [DatapointSource]
-        public CertificateAsset[] CertificateTestCases = new AssetCollection<CertificateAsset>(TestUtils.EnumerateTestAssets("*.?er")).ToArray();
-        #endregion
+        public CertificateAsset[] CertificateTestCases = [.. AssetCollection<CertificateAsset>.CreateFromFiles(TestUtils.EnumerateTestAssets("*.?er"))];
 
-        #region Test Methods
         [Theory]
         public void DecodeExtensions(
             CertificateAsset certAsset
@@ -91,8 +88,8 @@ namespace Opc.Ua.Security.Certificates.Tests
         public void VerifyX509AuthorityKeyIdentifierExtension()
         {
             var authorityName = new X500DistinguishedName("CN=Test,O=OPC Foundation,DC=localhost");
-            byte[] serialNumber = new byte[] { 9, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
-            byte[] subjectKeyIdentifier = new byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+            byte[] serialNumber = [9, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+            byte[] subjectKeyIdentifier = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
             var aki = new X509AuthorityKeyIdentifierExtension(subjectKeyIdentifier, authorityName, serialNumber);
             Assert.NotNull(aki);
             TestContext.Out.WriteLine("Encoded:");
@@ -125,7 +122,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Test]
         public void VerifyX509AuthorityKeyIdentifierExtensionOnlyKeyID()
         {
-            byte[] subjectKeyIdentifier = new byte[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+            byte[] subjectKeyIdentifier = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
             var aki = new X509AuthorityKeyIdentifierExtension(subjectKeyIdentifier);
             Assert.NotNull(aki);
             TestContext.Out.WriteLine("Encoded:");
@@ -159,7 +156,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         public void VerifyX509SubjectAlternateNameExtension()
         {
             const string applicationUri = "urn:opcfoundation.org";
-            string[] domainNames = { "mypc.mydomain.com", "192.168.100.100", "1234:5678::1" };
+            string[] domainNames = ["mypc.mydomain.com", "192.168.100.100", "1234:5678::1"];
             TestContext.Out.WriteLine("Encoded:");
             var san = new X509SubjectAltNameExtension(applicationUri, domainNames);
             TestContext.Out.WriteLine(san.Format(true));
@@ -197,7 +194,5 @@ namespace Opc.Ua.Security.Certificates.Tests
             TestContext.Out.WriteLine(decodednumber.Format(true));
             Assert.AreEqual(crlNumber, decodednumber.CrlNumber);
         }
-
-        #endregion
     }
 }

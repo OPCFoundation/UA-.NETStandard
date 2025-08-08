@@ -34,10 +34,8 @@ using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
-
 namespace Opc.Ua.Gds.Tests
 {
-
     public static class X509TestUtils
     {
         public static void VerifyApplicationCertIntegrity(byte[] certificate, byte[] privateKey, string privateKeyPassword, string privateKeyFormat, byte[][] issuerCertificates)
@@ -55,7 +53,7 @@ namespace Opc.Ua.Gds.Tests
             }
             else
             {
-                Assert.Fail("Invalid private key format");
+                NUnit.Framework.Assert.Fail("Invalid private key format");
             }
             Assert.IsNotNull(newPrivateKeyCert);
             // verify the public cert matches the private key
@@ -75,9 +73,7 @@ namespace Opc.Ua.Gds.Tests
             var trustedStore = new CertificateTrustList();
             trustedStore.TrustedCertificates = issuerCertIdCollection;
             certValidator.Update(trustedStore, issuerStore, null);
-            Assert.That(() => {
-                certValidator.Validate(newCert);
-            }, Throws.Exception);
+            NUnit.Framework.Assert.That(() => certValidator.Validate(newCert), Throws.Exception);
             issuerStore.TrustedCertificates = issuerCertIdCollection;
             certValidator.Update(issuerStore, trustedStore, null);
             certValidator.Validate(newCert);
@@ -102,7 +98,7 @@ namespace Opc.Ua.Gds.Tests
             TestContext.Out.WriteLine($"Issuer Subject: {issuerCert.Subject}");
 
             // test basic constraints
-            X509BasicConstraintsExtension constraints = X509Extensions.FindExtension<X509BasicConstraintsExtension>(signedCert);
+            X509BasicConstraintsExtension constraints = signedCert.FindExtension<X509BasicConstraintsExtension>();
             Assert.NotNull(constraints);
             TestContext.Out.WriteLine($"Constraints: {constraints.Format(true)}");
             Assert.True(constraints.Critical);
@@ -110,7 +106,7 @@ namespace Opc.Ua.Gds.Tests
             Assert.False(constraints.HasPathLengthConstraint);
 
             // key usage
-            X509KeyUsageExtension keyUsage = X509Extensions.FindExtension<X509KeyUsageExtension>(signedCert);
+            X509KeyUsageExtension keyUsage = signedCert.FindExtension<X509KeyUsageExtension>();
             Assert.NotNull(keyUsage);
             TestContext.Out.WriteLine($"KeyUsage: {keyUsage.Format(true)}");
             Assert.True(keyUsage.Critical);
@@ -136,7 +132,7 @@ namespace Opc.Ua.Gds.Tests
                 Assert.True((keyUsage.KeyUsages & X509KeyUsageFlags.KeyAgreement) == 0);
 
                 // enhanced key usage
-                X509EnhancedKeyUsageExtension enhancedKeyUsage = X509Extensions.FindExtension<X509EnhancedKeyUsageExtension>(signedCert);
+                X509EnhancedKeyUsageExtension enhancedKeyUsage = signedCert.FindExtension<X509EnhancedKeyUsageExtension>();
                 Assert.NotNull(enhancedKeyUsage);
                 TestContext.Out.WriteLine($"Enhanced Key Usage: {enhancedKeyUsage.Format(true)}");
                 Assert.True(enhancedKeyUsage.Critical);
@@ -144,7 +140,7 @@ namespace Opc.Ua.Gds.Tests
 
             // test for authority key
 
-            Security.Certificates.X509AuthorityKeyIdentifierExtension authority = X509Extensions.FindExtension<Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension>(signedCert);
+            Security.Certificates.X509AuthorityKeyIdentifierExtension authority = signedCert.FindExtension<Security.Certificates.X509AuthorityKeyIdentifierExtension>();
             Assert.NotNull(authority);
             TestContext.Out.WriteLine($"Authority Key Identifier: {authority.Format(true)}");
             Assert.NotNull(authority.SerialNumber);
@@ -154,12 +150,12 @@ namespace Opc.Ua.Gds.Tests
             Assert.AreEqual(issuerCert.SubjectName.RawData, authority.Issuer.RawData);
 
             // verify authority key in signed cert
-            X509SubjectKeyIdentifierExtension subjectKeyId = X509Extensions.FindExtension<X509SubjectKeyIdentifierExtension>(issuerCert);
+            X509SubjectKeyIdentifierExtension subjectKeyId = issuerCert.FindExtension<X509SubjectKeyIdentifierExtension>();
             TestContext.Out.WriteLine($"Issuer Subject Key Identifier: {subjectKeyId}");
             Assert.AreEqual(subjectKeyId.SubjectKeyIdentifier, authority.KeyIdentifier);
             Assert.AreEqual(issuerCert.SerialNumber, authority.SerialNumber);
 
-            X509SubjectAltNameExtension subjectAlternateName = X509Extensions.FindExtension<X509SubjectAltNameExtension>(signedCert);
+            X509SubjectAltNameExtension subjectAlternateName = signedCert.FindExtension<X509SubjectAltNameExtension>();
             Assert.NotNull(subjectAlternateName);
             TestContext.Out.WriteLine($"Issuer Subject Alternate Name: {subjectAlternateName}");
             Assert.False(subjectAlternateName.Critical);

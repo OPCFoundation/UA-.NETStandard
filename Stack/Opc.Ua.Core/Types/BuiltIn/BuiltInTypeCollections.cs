@@ -73,10 +73,10 @@ namespace Opc.Ua
         {
             if (values != null)
             {
-                return new BooleanCollection(values);
+                return [.. values];
             }
 
-            return new BooleanCollection();
+            return [];
         }
 
         /// <summary>
@@ -91,11 +91,10 @@ namespace Opc.Ua
             return ToBooleanCollection(values);
         }
 
-        #region ICloneable
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -108,7 +107,6 @@ namespace Opc.Ua
         {
             return new BooleanCollection(this);
         }
-        #endregion
     }
 
     /// <summary>
@@ -157,10 +155,10 @@ namespace Opc.Ua
         {
             if (values != null)
             {
-                return new SByteCollection(values);
+                return [.. values];
             }
 
-            return new SByteCollection();
+            return [];
         }
 
         /// <summary>
@@ -175,11 +173,10 @@ namespace Opc.Ua
             return ToSByteCollection(values);
         }
 
-        #region ICloneable
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -192,7 +189,6 @@ namespace Opc.Ua
         {
             return new SByteCollection(this);
         }
-        #endregion
     }
 
     /// <summary>
@@ -241,10 +237,10 @@ namespace Opc.Ua
         {
             if (values != null)
             {
-                return new ByteCollection(values);
+                return [.. values];
             }
 
-            return new ByteCollection();
+            return [];
         }
 
         /// <summary>
@@ -259,11 +255,10 @@ namespace Opc.Ua
             return ToByteCollection(values);
         }
 
-        #region ICloneable
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -276,7 +271,6 @@ namespace Opc.Ua
         {
             return new ByteCollection(this);
         }
-        #endregion
     }
 
     /// <summary>
@@ -325,10 +319,10 @@ namespace Opc.Ua
         {
             if (values != null)
             {
-                return new Int16Collection(values);
+                return [.. values];
             }
 
-            return new Int16Collection();
+            return [];
         }
 
         /// <summary>
@@ -343,11 +337,10 @@ namespace Opc.Ua
             return ToInt16Collection(values);
         }
 
-        #region ICloneable
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -360,7 +353,6 @@ namespace Opc.Ua
         {
             return new Int16Collection(this);
         }
-        #endregion
     }
 
     /// <summary>
@@ -409,10 +401,10 @@ namespace Opc.Ua
         {
             if (values != null)
             {
-                return new UInt16Collection(values);
+                return [.. values];
             }
 
-            return new UInt16Collection();
+            return [];
         }
 
         /// <summary>
@@ -427,11 +419,10 @@ namespace Opc.Ua
             return ToUInt16Collection(values);
         }
 
-        #region ICloneable
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -444,7 +435,6 @@ namespace Opc.Ua
         {
             return new UInt16Collection(this);
         }
-        #endregion
     }
 
     /// <summary>
@@ -490,10 +480,10 @@ namespace Opc.Ua
         {
             if (values != null)
             {
-                return new Int32Collection(values);
+                return [.. values];
             }
 
-            return new Int32Collection();
+            return [];
         }
 
         /// <summary>
@@ -508,11 +498,10 @@ namespace Opc.Ua
             return ToInt32Collection(values);
         }
 
-        #region ICloneable
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -525,7 +514,6 @@ namespace Opc.Ua
         {
             return new Int32Collection(this);
         }
-        #endregion
     }
 
     /// <summary>
@@ -576,10 +564,10 @@ namespace Opc.Ua
         {
             if (values != null)
             {
-                return new UInt32Collection(values);
+                return [.. values];
             }
 
-            return new UInt32Collection();
+            return [];
         }
 
         /// <summary>
@@ -596,11 +584,10 @@ namespace Opc.Ua
             return ToUInt32Collection(values);
         }
 
-        #region ICloneable
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -613,7 +600,6 @@ namespace Opc.Ua
         {
             return new UInt32Collection(this);
         }
-        #endregion
     }
 
     /// <summary>
@@ -662,10 +648,10 @@ namespace Opc.Ua
         {
             if (values != null)
             {
-                return new Int64Collection(values);
+                return [.. values];
             }
 
-            return new Int64Collection();
+            return [];
         }
 
         /// <summary>
@@ -680,11 +666,10 @@ namespace Opc.Ua
             return ToInt64Collection(values);
         }
 
-        #region ICloneable
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -697,7 +682,6 @@ namespace Opc.Ua
         {
             return new Int64Collection(this);
         }
-        #endregion
     }
 
     /// <summary>
@@ -746,10 +730,10 @@ namespace Opc.Ua
         {
             if (values != null)
             {
-                return new UInt64Collection(values);
+                return [.. values];
             }
 
-            return new UInt64Collection();
+            return [];
         }
 
         /// <summary>
@@ -764,11 +748,10 @@ namespace Opc.Ua
             return ToUInt64Collection(values);
         }
 
-        #region ICloneable
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -781,7 +764,6 @@ namespace Opc.Ua
         {
             return new UInt64Collection(this);
         }
-        #endregion
     }
 
     /// <summary>
@@ -830,10 +812,10 @@ namespace Opc.Ua
         {
             if (values != null)
             {
-                return new FloatCollection(values);
+                return [.. values];
             }
 
-            return new FloatCollection();
+            return [];
         }
 
         /// <summary>
@@ -848,11 +830,10 @@ namespace Opc.Ua
             return ToFloatCollection(values);
         }
 
-        #region ICloneable
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -865,7 +846,6 @@ namespace Opc.Ua
         {
             return new FloatCollection(this);
         }
-        #endregion
     }
 
     /// <summary>
@@ -914,10 +894,10 @@ namespace Opc.Ua
         {
             if (values != null)
             {
-                return new DoubleCollection(values);
+                return [.. values];
             }
 
-            return new DoubleCollection();
+            return [];
         }
 
         /// <summary>
@@ -932,11 +912,10 @@ namespace Opc.Ua
             return ToDoubleCollection(values);
         }
 
-        #region ICloneable
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -949,7 +928,6 @@ namespace Opc.Ua
         {
             return new DoubleCollection(this);
         }
-        #endregion
     }
 
     /// <summary>
@@ -998,10 +976,9 @@ namespace Opc.Ua
         {
             if (values != null)
             {
-                return new StringCollection(values);
+                return [.. values];
             }
-
-            return new StringCollection();
+            return [];
         }
 
         /// <summary>
@@ -1016,11 +993,10 @@ namespace Opc.Ua
             return ToStringCollection(values);
         }
 
-        #region ICloneable
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -1033,7 +1009,6 @@ namespace Opc.Ua
         {
             return new StringCollection(this);
         }
-        #endregion
     }
 
     /// <summary>
@@ -1082,10 +1057,10 @@ namespace Opc.Ua
         {
             if (values != null)
             {
-                return new DateTimeCollection(values);
+                return [.. values];
             }
 
-            return new DateTimeCollection();
+            return [];
         }
 
         /// <summary>
@@ -1100,11 +1075,10 @@ namespace Opc.Ua
             return ToDateTimeCollection(values);
         }
 
-        #region ICloneable
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -1117,7 +1091,6 @@ namespace Opc.Ua
         {
             return new DateTimeCollection(this);
         }
-        #endregion
     }
 
     /// <summary>
@@ -1166,10 +1139,10 @@ namespace Opc.Ua
         {
             if (values != null)
             {
-                return new ByteStringCollection(values);
+                return [.. values];
             }
 
-            return new ByteStringCollection();
+            return [];
         }
 
         /// <summary>
@@ -1184,11 +1157,10 @@ namespace Opc.Ua
             return ToByteStringCollection(values);
         }
 
-        #region ICloneable
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -1199,16 +1171,15 @@ namespace Opc.Ua
         /// </remarks>
         public new object MemberwiseClone()
         {
-            var clone = new ByteStringCollection(this.Count);
+            var clone = new ByteStringCollection(Count);
 
             foreach (byte[] element in this)
             {
-                clone.Add((byte[])Utils.Clone(element));
+                clone.Add(Utils.Clone(element));
             }
 
             return clone;
         }
-        #endregion
     }
 
     /// <summary>
@@ -1257,10 +1228,10 @@ namespace Opc.Ua
         {
             if (values != null)
             {
-                return new XmlElementCollection(values);
+                return [.. values];
             }
 
-            return new XmlElementCollection();
+            return [];
         }
 
         /// <summary>
@@ -1275,11 +1246,10 @@ namespace Opc.Ua
             return ToXmlElementCollection(values);
         }
 
-        #region ICloneable
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -1290,15 +1260,14 @@ namespace Opc.Ua
         /// </remarks>
         public new object MemberwiseClone()
         {
-            var clone = new XmlElementCollection(this.Count);
+            var clone = new XmlElementCollection(Count);
 
             foreach (XmlElement element in this)
             {
-                clone.Add((XmlElement)Utils.Clone(element));
+                clone.Add(Utils.Clone(element));
             }
 
             return clone;
         }
-        #endregion
     }//class
 }//namespace

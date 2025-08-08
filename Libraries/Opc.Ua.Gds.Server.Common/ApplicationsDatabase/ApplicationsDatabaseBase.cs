@@ -32,14 +32,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-
-
 namespace Opc.Ua.Gds.Server.Database
 {
     [Serializable]
     public abstract class ApplicationsDatabaseBase : IApplicationsDatabase
     {
-        #region IApplicationsDatabase Members
         public virtual void Initialize()
         {
         }
@@ -57,32 +54,32 @@ namespace Opc.Ua.Gds.Server.Database
 
             if (application.ApplicationUri == null)
             {
-                throw new ArgumentNullException("ApplicationUri");
+                throw new ArgumentNullException(nameof(application), "ApplicationUri is null");
             }
 
             if (!Uri.IsWellFormedUriString(application.ApplicationUri, UriKind.Absolute))
             {
-                throw new ArgumentException(application.ApplicationUri + " is not a valid URI.", "ApplicationUri");
+                throw new ArgumentException(application.ApplicationUri + " is not a valid URI.", nameof(application));
             }
 
             if (application.ApplicationType < ApplicationType.Server || application.ApplicationType > ApplicationType.DiscoveryServer)
             {
-                throw new ArgumentException(application.ApplicationType.ToString() + " is not a valid ApplicationType.", "ApplicationType");
+                throw new ArgumentException(application.ApplicationType.ToString() + " is not a valid ApplicationType.", nameof(application));
             }
 
             if (application.ApplicationNames == null || application.ApplicationNames.Count == 0 || LocalizedText.IsNullOrEmpty(application.ApplicationNames[0]))
             {
-                throw new ArgumentException("At least one ApplicationName must be provided.", "ApplicationNames");
+                throw new ArgumentException("At least one ApplicationName must be provided.", nameof(application));
             }
 
             if (string.IsNullOrEmpty(application.ProductUri))
             {
-                throw new ArgumentException("A ProductUri must be provided.", "ProductUri");
+                throw new ArgumentException("A ProductUri must be provided.", nameof(application));
             }
 
             if (!Uri.IsWellFormedUriString(application.ProductUri, UriKind.Absolute))
             {
-                throw new ArgumentException(application.ProductUri + " is not a valid URI.", "ProductUri");
+                throw new ArgumentException(application.ProductUri + " is not a valid URI.", nameof(application));
             }
 
             if (application.DiscoveryUrls != null)
@@ -96,7 +93,7 @@ namespace Opc.Ua.Gds.Server.Database
 
                     if (!Uri.IsWellFormedUriString(discoveryUrl, UriKind.Absolute))
                     {
-                        throw new ArgumentException(discoveryUrl + " is not a valid URL.", "DiscoveryUrls");
+                        throw new ArgumentException(discoveryUrl + " is not a valid URL.", nameof(application));
                     }
                 }
             }
@@ -105,20 +102,17 @@ namespace Opc.Ua.Gds.Server.Database
             {
                 if (application.DiscoveryUrls == null || application.DiscoveryUrls.Count == 0)
                 {
-                    throw new ArgumentException("At least one DiscoveryUrl must be provided.", "DiscoveryUrls");
+                    throw new ArgumentException("At least one DiscoveryUrl must be provided.", nameof(application));
                 }
 
                 if (application.ServerCapabilities == null || application.ServerCapabilities.Count == 0)
                 {
-                    application.ServerCapabilities = new StringCollection() { "NA" };
+                    application.ServerCapabilities = ["NA"];
                 }
             }
-            else
+            else if (application.DiscoveryUrls != null && application.DiscoveryUrls.Count > 0)
             {
-                if (application.DiscoveryUrls != null && application.DiscoveryUrls.Count > 0)
-                {
-                    throw new ArgumentException("DiscoveryUrls must not be specified for clients.", "DiscoveryUrls");
-                }
+                throw new ArgumentException("DiscoveryUrls must not be specified for clients.", nameof(application));
             }
 
             NodeId nodeId = NodeId.Null;
@@ -134,7 +128,7 @@ namespace Opc.Ua.Gds.Server.Database
                         nodeId = new NodeId((string)application.ApplicationId.Identifier, NamespaceIndex);
                         break;
                     default:
-                        throw new ArgumentException("The ApplicationId has invalid type {0}", application.ApplicationId.ToString());
+                        throw new ArgumentException("The ApplicationId has invalid type {0}", nameof(application));
                 }
             }
 
@@ -228,8 +222,7 @@ namespace Opc.Ua.Gds.Server.Database
             ValidateApplicationNodeId(applicationId);
             return false;
         }
-        #endregion
-        #region Public Menbers
+
         /// <summary>
         /// Returns true if the target string matches the UA pattern string.
         /// The pattern string may include UA wildcards %_\[]!
@@ -263,22 +256,16 @@ namespace Opc.Ua.Gds.Server.Database
                 }
             }
 
-            if (targetIndex < target.Length)
-            {
-                return false;
-            }
-
-            return true;
+            return targetIndex >= target.Length;
         }
 
         /// <summary>
         /// Returns true if the pattern string contains a UA pattern.
         /// The pattern string may include UA wildcards %_\[]!
         /// </summary>
-
         public static bool IsMatchPattern(string pattern)
         {
-            char[] patternChars = new char[] { '%', '_', '\\', '[', ']', '!' };
+            char[] patternChars = ['%', '_', '\\', '[', ']', '!'];
             if (string.IsNullOrEmpty(pattern))
             {
                 return false;
@@ -300,7 +287,7 @@ namespace Opc.Ua.Gds.Server.Database
             {
                 if (application.ServerCapabilities == null || application.ServerCapabilities.Count == 0)
                 {
-                    throw new ArgumentException("At least one Server Capability must be provided.", "ServerCapabilities");
+                    throw new ArgumentException("At least one Server Capability must be provided.", nameof(application));
                 }
             }
 
@@ -341,13 +328,11 @@ namespace Opc.Ua.Gds.Server.Database
                 throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
             }
 
-            var id = nodeId.Identifier as Guid?;
-
-            if (id == null)
+            if (!(nodeId.Identifier is Guid id))
             {
                 throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
             }
-            return (Guid)id;
+            return id;
         }
 
         protected string GetNodeIdString(
@@ -364,9 +349,7 @@ namespace Opc.Ua.Gds.Server.Database
                 throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
             }
 
-            string id = nodeId.Identifier as string;
-
-            if (id == null)
+            if (!(nodeId.Identifier is string id))
             {
                 throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
             }
@@ -390,24 +373,20 @@ namespace Opc.Ua.Gds.Server.Database
 
             if (nodeId.IdType == IdType.Guid)
             {
-                // test if identifier is a valid Guid
-                var id = nodeId.Identifier as Guid?;
-
-                if (id == null)
+                // test if identifier is a valid Guid - if null we already threw earlier
+                if (!(nodeId.Identifier is Guid id))
                 {
                     throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
                 }
             }
         }
 
-        #endregion
-        #region Private Members
         private static List<string> Parse(string pattern)
         {
             var tokens = new List<string>();
 
             int ii = 0;
-            var buffer = new System.Text.StringBuilder();
+            var buffer = new StringBuilder();
 
             while (ii < pattern.Length)
             {
@@ -527,7 +506,6 @@ namespace Opc.Ua.Gds.Server.Database
                 return target.Length + 1;
             }
 
-
             if (!tokens[tokenIndex + 1].StartsWith("[^", StringComparison.Ordinal))
             {
                 int nextTokenIndex = tokenIndex + 1;
@@ -620,7 +598,7 @@ namespace Opc.Ua.Gds.Server.Database
                 return SkipToNext(target, targetIndex, tokens, ref tokenIndex);
             }
 
-            if (token.StartsWith("[", StringComparison.Ordinal))
+            if (token.StartsWith('['))
             {
                 bool inverse = false;
                 bool match = false;
@@ -656,6 +634,5 @@ namespace Opc.Ua.Gds.Server.Database
 
             return -1;
         }
-        #endregion
     }
 }

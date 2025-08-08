@@ -29,15 +29,15 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Diagnostics;
-using System.Xml;
 using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Text;
 using System.Threading;
+using System.Xml;
 using Opc.Ua;
 using Opc.Ua.Server;
-using System.Reflection;
-using System.Linq;
 
 namespace TestData
 {
@@ -49,20 +49,14 @@ namespace TestData
         /// <inheritdoc/>
         public INodeManager Create(IServerInternal server, ApplicationConfiguration configuration)
         {
-            return new TestDataNodeManager(server, configuration, NamespacesUris.ToArray());
+            return new TestDataNodeManager(server, configuration, [.. NamespacesUris]);
         }
 
         /// <inheritdoc/>
-        public StringCollection NamespacesUris
-        {
-            get
-            {
-                return new StringCollection {
+        public StringCollection NamespacesUris => [
                     Namespaces.TestData,
                     Namespaces.TestData + "Instance"
-                };
-            }
-        }
+                ];
     }
 
     /// <summary>
@@ -70,11 +64,10 @@ namespace TestData
     /// </summary>
     public class TestDataNodeManager : CustomNodeManager2, ITestDataSystemCallback
     {
-        #region Constructors
         /// <summary>
         /// Initializes the node manager.
         /// </summary>
-        public TestDataNodeManager(Opc.Ua.Server.IServerInternal server, ApplicationConfiguration configuration, string[] namespaceUris)
+        public TestDataNodeManager(IServerInternal server, ApplicationConfiguration configuration, string[] namespaceUris)
         :
             base(server, configuration)
         {
@@ -96,9 +89,7 @@ namespace TestData
             // update the default context.
             SystemContext.SystemHandle = m_system;
         }
-        #endregion
 
-        #region ITestDataSystemCallback Members
         /// <summary>
         /// Updates the variable after receiving a notification that it has changed in the underlying system.
         /// </summary>
@@ -128,9 +119,7 @@ namespace TestData
                 }
             }
         }
-        #endregion
 
-        #region INodeIdFactory Members
         /// <summary>
         /// Creates the NodeId for the specified node.
         /// </summary>
@@ -142,9 +131,7 @@ namespace TestData
             uint id = Utils.IncrementIdentifier(ref m_lastUsedId);
             return new NodeId(id, m_namespaceIndex);
         }
-        #endregion
 
-        #region INodeManager Members
         /// <summary>
         /// Does any initialization required before the address space can be used.
         /// </summary>
@@ -183,7 +170,7 @@ namespace TestData
                 foreach (NodeState node in PredefinedNodes.Values)
                 {
                     var condition = node as ConditionState;
-                    if (condition != null && !Object.ReferenceEquals(condition.Parent, conditionsFolder))
+                    if (condition != null && !ReferenceEquals(condition.Parent, conditionsFolder))
                     {
                         condition.AddNotifier(SystemContext, null, true, conditionsFolder);
                         conditionsFolder.AddNotifier(SystemContext, null, false, condition);
@@ -234,7 +221,7 @@ namespace TestData
         protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
         {
             var predefinedNodes = new NodeStateCollection();
-            predefinedNodes.LoadFromBinaryResource(context, "Quickstarts.Servers.TestData.TestData.PredefinedNodes.uanodes", this.GetType().GetTypeInfo().Assembly, true);
+            predefinedNodes.LoadFromBinaryResource(context, "Quickstarts.Servers.TestData.TestData.PredefinedNodes.uanodes", GetType().GetTypeInfo().Assembly, true);
             return predefinedNodes;
         }
 
@@ -474,7 +461,7 @@ namespace TestData
         /// <summary>
         /// Restores a previously cached history reader.
         /// </summary>
-        protected virtual HistoryDataReader RestoreDataReader(Opc.Ua.Server.ServerSystemContext context, byte[] continuationPoint)
+        protected virtual HistoryDataReader RestoreDataReader(ServerSystemContext context, byte[] continuationPoint)
         {
             if (context == null || context.OperationContext == null || context.OperationContext.Session == null)
             {
@@ -492,7 +479,7 @@ namespace TestData
         /// <summary>
         /// Saves a history data reader.
         /// </summary>
-        protected virtual void SaveDataReader(Opc.Ua.Server.ServerSystemContext context, HistoryDataReader reader)
+        protected virtual void SaveDataReader(ServerSystemContext context, HistoryDataReader reader)
         {
             if (context == null || context.OperationContext == null || context.OperationContext.Session == null)
             {
@@ -506,7 +493,7 @@ namespace TestData
         /// Returns the history data source for a node.
         /// </summary>
         protected virtual ServiceResult GetHistoryDataSource(
-            Opc.Ua.Server.ServerSystemContext context,
+            ServerSystemContext context,
             BaseVariableState variable,
             out IHistoryDataSource datasource)
         {
@@ -739,7 +726,6 @@ namespace TestData
                 ExpandedNodeId.ToNodeId(expandedNodeId, Server.NamespaceUris),
                 typeof(TS)) as TS;
         }
-        #endregion
 
 #if CONDITION_SAMPLES
         /// <summary>
@@ -834,7 +820,6 @@ namespace TestData
         }
 #endif
 
-        #region Private Fields
         private readonly TestDataNodeManagerConfiguration m_configuration;
         private ushort m_namespaceIndex;
         private ushort m_typeNamespaceIndex;
@@ -851,6 +836,5 @@ namespace TestData
         private VectorVariableValue m_dataDynamicStructureVectorStructure;
         private VectorVariableValue m_dataStaticVectorScalarValue;
         private VectorVariableValue m_dataDynamicVectorScalarValue;
-        #endregion
     }
 }

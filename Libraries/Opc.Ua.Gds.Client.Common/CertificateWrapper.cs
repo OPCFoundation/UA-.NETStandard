@@ -184,7 +184,6 @@ namespace Opc.Ua.Gds.Client
             private set { }
         }
 
-
         [DataMember(Order = 10)]
         public int KeySize
         {
@@ -266,21 +265,11 @@ namespace Opc.Ua.Gds.Client
             return SubjectName;
         }
 
-        #region IEncodeable Members
-        public ExpandedNodeId TypeId
-        {
-            get { return NodeId.Null; }
-        }
+        public ExpandedNodeId TypeId => NodeId.Null;
 
-        public ExpandedNodeId BinaryEncodingId
-        {
-            get { return NodeId.Null; }
-        }
+        public ExpandedNodeId BinaryEncodingId => NodeId.Null;
 
-        public ExpandedNodeId XmlEncodingId
-        {
-            get { return NodeId.Null; }
-        }
+        public ExpandedNodeId XmlEncodingId => NodeId.Null;
 
         public void Encode(IEncoder encoder)
         {
@@ -299,8 +288,7 @@ namespace Opc.Ua.Gds.Client
 
         public object Clone()
         {
-            return new CertificateWrapper() { Certificate = this.Certificate };
+            return new CertificateWrapper() { Certificate = Certificate };
         }
-        #endregion
     }
 }

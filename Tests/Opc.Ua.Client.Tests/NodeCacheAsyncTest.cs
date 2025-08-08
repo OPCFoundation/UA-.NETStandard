@@ -53,12 +53,12 @@ namespace Opc.Ua.Client.Tests
 
         public bool UseAsync = true;
 
-        public static readonly object[] AsyncFixtureArgs = {
+        public static readonly object[] AsyncFixtureArgs = [
             new object [] { Utils.UriSchemeOpcTcp, false },
             new object [] { Utils.UriSchemeOpcTcp, true },
             new object [] { Utils.UriSchemeHttps, false },
             new object [] { Utils.UriSchemeOpcHttps, true },
-        };
+        ];
 
         public NodeCacheAsyncTest(string uriScheme = Utils.UriSchemeOpcTcp, bool useAsync = true) :
             base(uriScheme)
@@ -66,7 +66,6 @@ namespace Opc.Ua.Client.Tests
             UseAsync = useAsync;
         }
 
-        #region Test Setup
         /// <summary>
         /// Set up a Server and a Client instance.
         /// </summary>
@@ -108,9 +107,7 @@ namespace Opc.Ua.Client.Tests
         {
             return base.TearDown();
         }
-        #endregion
 
-        #region Benchmark Setup
         /// <summary>
         /// Global Setup for benchmarks.
         /// </summary>
@@ -128,9 +125,7 @@ namespace Opc.Ua.Client.Tests
         {
             base.GlobalCleanup();
         }
-        #endregion
 
-        #region Test Methods
         /// <summary>
         /// Load Ua types in node cache.
         /// </summary>
@@ -204,7 +199,7 @@ namespace Opc.Ua.Client.Tests
                         }
                     }
                 }
-                nodesToBrowse = new ExpandedNodeIdCollection(nextNodesToBrowse.Distinct());
+                nodesToBrowse = [.. nextNodesToBrowse.Distinct()];
                 TestContext.Out.WriteLine("Found {0} duplicates", nextNodesToBrowse.Count - nodesToBrowse.Count);
             }
 
@@ -266,7 +261,7 @@ namespace Opc.Ua.Client.Tests
                         TestContext.Out.WriteLine("Access denied: Skipped node.");
                     }
                 }
-                nodesToBrowse = new ExpandedNodeIdCollection(nextNodesToBrowse.Distinct());
+                nodesToBrowse = [.. nextNodesToBrowse.Distinct()];
                 TestContext.Out.WriteLine("Found {0} duplicates", nextNodesToBrowse.Count - nodesToBrowse.Count);
             }
 
@@ -281,7 +276,7 @@ namespace Opc.Ua.Client.Tests
         {
             if (UseAsync)
             {
-                Assert.Ignore("no async version available");
+                NUnit.Framework.Assert.Ignore("no async version available");
             }
 
             INodeCache nodeCache = Session.NodeCache;
@@ -411,11 +406,11 @@ namespace Opc.Ua.Client.Tests
             IList<INode> nodes;
             if (!UseAsync)
             {
-                nodes = Session.NodeCache.FindReferences(testSet, new NodeIdCollection() { ReferenceTypeIds.NonHierarchicalReferences }, false, true);
+                nodes = Session.NodeCache.FindReferences(testSet, [ReferenceTypeIds.NonHierarchicalReferences], false, true);
             }
             else
             {
-                nodes = await Session.NodeCache.FindReferencesAsync(testSet, new NodeIdCollection() { ReferenceTypeIds.NonHierarchicalReferences }, false, true).ConfigureAwait(false);
+                nodes = await Session.NodeCache.FindReferencesAsync(testSet, [ReferenceTypeIds.NonHierarchicalReferences], false, true).ConfigureAwait(false);
             }
 
             foreach (INode node in nodes)
@@ -451,11 +446,11 @@ namespace Opc.Ua.Client.Tests
 
             if (!UseAsync)
             {
-                Session.FetchTypeTree(new ExpandedNodeIdCollection(fieldValues));
+                Session.FetchTypeTree([.. fieldValues]);
             }
             else
             {
-                await Session.FetchTypeTreeAsync(new ExpandedNodeIdCollection(fieldValues)).ConfigureAwait(false);
+                await Session.FetchTypeTreeAsync([.. fieldValues]).ConfigureAwait(false);
             }
         }
 
@@ -495,11 +490,11 @@ namespace Opc.Ua.Client.Tests
 
             if (!UseAsync)
             {
-                Task.WaitAll(taskList.ToArray());
+                Task.WaitAll([.. taskList]);
             }
             else
             {
-                await Task.WhenAll(taskList.ToArray()).ConfigureAwait(false);
+                await Task.WhenAll([.. taskList]).ConfigureAwait(false);
             }
         }
 
@@ -536,11 +531,11 @@ namespace Opc.Ua.Client.Tests
             }
             if (!UseAsync)
             {
-                Task.WaitAll(taskList.ToArray());
+                Task.WaitAll([.. taskList]);
             }
             else
             {
-                await Task.WhenAll(taskList.ToArray()).ConfigureAwait(false);
+                await Task.WhenAll([.. taskList]).ConfigureAwait(false);
             }
         }
 
@@ -580,11 +575,11 @@ namespace Opc.Ua.Client.Tests
             }
             if (!UseAsync)
             {
-                Task.WaitAll(taskList.ToArray());
+                Task.WaitAll([.. taskList]);
             }
             else
             {
-                await Task.WhenAll(taskList.ToArray()).ConfigureAwait(false);
+                await Task.WhenAll([.. taskList]).ConfigureAwait(false);
             }
         }
 
@@ -736,7 +731,7 @@ namespace Opc.Ua.Client.Tests
                                 // NodeId findDataTypeId2 = Session.NodeCache.FindDataTypeId((int)Objects.DataTypeAttributes_Encoding_DefaultBinary);
                                 break;
                             default:
-                                Assert.Fail("Invalid test case");
+                                NUnit.Framework.Assert.Fail("Invalid test case");
                                 break;
                         }
                     } while ((DateTime.UtcNow - start).TotalMilliseconds < testCaseRunTime);
@@ -745,16 +740,14 @@ namespace Opc.Ua.Client.Tests
             }
             if (!UseAsync)
             {
-                Task.WaitAll(taskList.ToArray());
+                Task.WaitAll([.. taskList]);
             }
             else
             {
-                await Task.WhenAll(taskList.ToArray()).ConfigureAwait(false);
+                await Task.WhenAll([.. taskList]).ConfigureAwait(false);
             }
         }
-        #endregion
 
-        #region Private Methods
         private void BrowseFullAddressSpace()
         {
             var requestHeader = new RequestHeader {
@@ -766,6 +759,5 @@ namespace Opc.Ua.Client.Tests
             var clientTestServices = new ClientTestServices(Session);
             ReferenceDescriptions = CommonTestWorkers.BrowseFullAddressSpaceWorker(clientTestServices, requestHeader);
         }
-        #endregion
     }
 }

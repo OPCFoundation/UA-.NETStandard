@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -40,7 +40,7 @@ using static System.Net.Mime.MediaTypeNames;
 namespace Opc.Ua.Server.UserDatabase
 {
     [Serializable]
-    class User
+    internal class User
     {
         [JsonRequired]
         public Guid ID { get; set; }
@@ -55,7 +55,6 @@ namespace Opc.Ua.Server.UserDatabase
     [Serializable]
     public class LinqUserDatabase : IUserDatabase
     {
-        #region IUsersDatabase
         /// <summary>
         /// initializes the collection the users database is working with
         /// </summary>
@@ -80,7 +79,7 @@ namespace Opc.Ua.Server.UserDatabase
                 return false;
             }
 
-            string hash = LinqUserDatabase.Hash(password);
+            string hash = Hash(password);
 
             var user = new User { UserName = userName, Hash = hash, Roles = roles };
 
@@ -126,7 +125,7 @@ namespace Opc.Ua.Server.UserDatabase
                 return false;
             }
 
-            return LinqUserDatabase.Check(user.Hash, password);
+            return Check(user.Hash, password);
         }
         /// <inheritdoc/>
         public IEnumerable<Role> GetUserRoles(string userName)
@@ -167,25 +166,21 @@ namespace Opc.Ua.Server.UserDatabase
                 return false;
             }
 
-            if (LinqUserDatabase.Check(user.Hash, oldPassword))
+            if (Check(user.Hash, oldPassword))
             {
-                user.Hash = LinqUserDatabase.Hash(newPassword);
+                user.Hash = Hash(newPassword);
                 return true;
             }
             return false;
         }
-        #endregion
 
-        #region Public Members
         /// <summary>
         /// Persists the changes to the users database
         /// </summary>
         public virtual void Save()
         {
         }
-        #endregion
 
-        #region Private Members
         private void SaveChanges()
         {
             lock (Lock)
@@ -193,8 +188,8 @@ namespace Opc.Ua.Server.UserDatabase
                 queryCounterResetTime = DateTime.UtcNow;
                 // assign IDs to new users
                 IEnumerable<User> queryNewUsers = from x in Users
-                                    where x.ID == Guid.Empty
-                                    select x;
+                                                  where x.ID == Guid.Empty
+                                                  select x;
                 if (Users.Count > 0)
                 {
                     foreach (User user in queryNewUsers)
@@ -205,9 +200,7 @@ namespace Opc.Ua.Server.UserDatabase
                 Save();
             }
         }
-        #endregion
 
-        #region IPasswordHasher
         private static string Hash(string password)
         {
 #if NETSTANDARD2_0 || NET462
@@ -235,7 +228,7 @@ namespace Opc.Ua.Server.UserDatabase
 
         private static bool Check(string hash, string password)
         {
-            char[] separator = new char[] { '.' };
+            char[] separator = ['.'];
             string[] parts = hash.Split(separator, 3);
 
             if (parts.Length != 3)
@@ -270,20 +263,15 @@ namespace Opc.Ua.Server.UserDatabase
             }
         }
 
-        #endregion
-
-        #region Internal Members
         [OnDeserialized]
         internal void OnDeserializedMethod(StreamingContext context)
         {
             Lock = new object();
             queryCounterResetTime = DateTime.UtcNow;
         }
-        #endregion
 
-        #region Internal Fields
         [NonSerialized]
-        internal object Lock = new object();
+        internal object Lock = new();
         [NonSerialized]
         internal DateTime queryCounterResetTime = DateTime.UtcNow;
         /// <summary>
@@ -303,6 +291,5 @@ namespace Opc.Ua.Server.UserDatabase
         private const int kKeySize = 32;
         [JsonProperty]
         internal ICollection<User> Users = new HashSet<User>();
-        #endregion
     }
 }

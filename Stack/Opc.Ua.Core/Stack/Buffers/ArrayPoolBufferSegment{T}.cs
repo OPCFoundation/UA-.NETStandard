@@ -38,7 +38,7 @@ namespace Opc.Ua.Buffers
     /// </summary>
     public sealed class ArrayPoolBufferSegment<T> : ReadOnlySequenceSegment<T>
     {
-        private T[] _array;
+        private T[] m_array;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ArrayPoolBufferSegment{T}"/> class.
@@ -46,7 +46,7 @@ namespace Opc.Ua.Buffers
         public ArrayPoolBufferSegment(T[] array, int offset, int length)
         {
             Memory = new ReadOnlyMemory<T>(array, offset, length);
-            _array = array;
+            m_array = array;
         }
 
         /// <summary>
@@ -54,7 +54,7 @@ namespace Opc.Ua.Buffers
         /// </summary>
         public void Return(bool clearArray = false)
         {
-            T[] array = Interlocked.Exchange(ref _array, null);
+            T[] array = Interlocked.Exchange(ref m_array, null);
             if (array != null)
             {
                 ArrayPool<T>.Shared.Return(array, clearArray);

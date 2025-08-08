@@ -32,7 +32,7 @@ using System;
 namespace Opc.Ua.PubSub
 {
     /// <summary>
-    /// Class that contains data related to ConfigurationUpdating event 
+    /// Class that contains data related to ConfigurationUpdating event
     /// </summary>
     public class ConfigurationUpdatingEventArgs : EventArgs
     {

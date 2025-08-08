@@ -38,7 +38,6 @@ namespace Opc.Ua.Client.Tests
     /// </summary>
     public class TestableSessionInstantiator : ISessionInstantiator
     {
-        #region Constructors
         /// <inheritdoc/>
         public Session Create(
             ISessionChannel channel,
@@ -59,6 +58,5 @@ namespace Opc.Ua.Client.Tests
         {
             return new TestableSession(channel, configuration, endpoint, clientCertificate, availableEndpoints, discoveryProfileUris);
         }
-        #endregion
     }
 }

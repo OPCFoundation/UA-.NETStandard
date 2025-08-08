@@ -139,17 +139,14 @@ namespace Opc.Ua
     /// </summary>
     public class ReferenceCollection : IReferenceCollection, IFormattable
     {
-        #region Constructors
         /// <summary>
         /// Initializes the object.
         /// </summary>
         public ReferenceCollection()
         {
-            m_references = new IReferenceDictionary<object>();
+            m_references = [];
         }
-        #endregion
 
-        #region IFormattable Members
         /// <summary>
         /// Returns a string representation of the ReferenceCollection.
         /// </summary>
@@ -166,8 +163,8 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="format">The <see cref="string"/> specifying the format to use.
         /// -or-
-        /// null to use the default format defined for the type of the <see cref="System.IFormattable"/> implementation.</param>
-        /// <param name="formatProvider">The <see cref="System.IFormatProvider"/> to use to format the value.
+        /// null to use the default format defined for the type of the <see cref="IFormattable"/> implementation.</param>
+        /// <param name="formatProvider">The <see cref="IFormatProvider"/> to use to format the value.
         /// -or-
         /// null to obtain the numeric format information from the current locale setting of the operating system.</param>
         /// <returns>
@@ -182,9 +179,7 @@ namespace Opc.Ua
 
             return string.Format(formatProvider, "References {0}", m_references.Count);
         }
-        #endregion
 
-        #region IReferenceCollection Members
         /// <summary>
         /// Adds the reference to the node.
         /// </summary>
@@ -324,23 +319,12 @@ namespace Opc.Ua
         {
             return m_references.FindReferencesToTarget(targetId);
         }
-        #endregion
-
-        #region ICollection<IReference> Members
-        /// <inheritdoc/>
-        public int Count
-        {
-            get
-            {
-                return m_references.Count;
-            }
-        }
 
         /// <inheritdoc/>
-        public bool IsReadOnly
-        {
-            get { return false; }
-        }
+        public int Count => m_references.Count;
+
+        /// <inheritdoc/>
+        public bool IsReadOnly => false;
 
         /// <inheritdoc/>
         public void Add(IReference item)
@@ -387,27 +371,20 @@ namespace Opc.Ua
                 array[arrayIndex + ii] = elements[ii].Key;
             }
         }
-        #endregion
 
-        #region IEnumerable<IReference> Members
         /// <inheritdoc/>
         public IEnumerator<IReference> GetEnumerator()
         {
             return m_references.Keys.GetEnumerator();
         }
-        #endregion
 
-        #region IEnumerable Members
         /// <inheritdoc/>
-        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+        IEnumerator IEnumerable.GetEnumerator()
         {
             return GetEnumerator();
         }
-        #endregion
 
-        #region Private Fields
         private readonly IReferenceDictionary<object> m_references;
-        #endregion
     }
 
     /// <summary>
@@ -415,19 +392,16 @@ namespace Opc.Ua
     /// </summary>
     public class IReferenceDictionary<T> : IDictionary<IReference, T>
     {
-        #region Constructors
         /// <summary>
         /// Creates an empty dictionary.
         /// </summary>
         public IReferenceDictionary()
         {
             m_version = 0;
-            m_references = new NodeIdDictionary<ReferenceTypeEntry>();
+            m_references = [];
             m_list = new LinkedList<KeyValuePair<IReference, T>>();
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Returns true if the dictionary contains a reference that matches any subtype of the reference type.
         /// </summary>
@@ -584,7 +558,7 @@ namespace Opc.Ua
                 {
                     foreach (LinkedListNode<KeyValuePair<IReference, T>> node in entry.InverseTargets.Values)
                     {
-                        if (Object.ReferenceEquals(m_list, node.List))
+                        if (ReferenceEquals(m_list, node.List))
                         {
                             m_list.Remove(node);
                         }
@@ -597,7 +571,7 @@ namespace Opc.Ua
                 {
                     foreach (LinkedListNode<KeyValuePair<IReference, T>> node in entry.InverseExternalTargets.Values)
                     {
-                        if (Object.ReferenceEquals(m_list, node.List))
+                        if (ReferenceEquals(m_list, node.List))
                         {
                             m_list.Remove(node);
                         }
@@ -612,7 +586,7 @@ namespace Opc.Ua
                 {
                     foreach (LinkedListNode<KeyValuePair<IReference, T>> node in entry.ForwardTargets.Values)
                     {
-                        if (Object.ReferenceEquals(m_list, node.List))
+                        if (ReferenceEquals(m_list, node.List))
                         {
                             m_list.Remove(node);
                         }
@@ -625,7 +599,7 @@ namespace Opc.Ua
                 {
                     foreach (LinkedListNode<KeyValuePair<IReference, T>> node in entry.ForwardExternalTargets.Values)
                     {
-                        if (Object.ReferenceEquals(m_list, node.List))
+                        if (ReferenceEquals(m_list, node.List))
                         {
                             m_list.Remove(node);
                         }
@@ -643,9 +617,7 @@ namespace Opc.Ua
 
             return true;
         }
-        #endregion
 
-        #region IDictionary<IReference,T> Members
         /// <inheritdoc/>
         public void Add(IReference key, T value)
         {
@@ -817,14 +789,9 @@ namespace Opc.Ua
                 return target.Value;
             }
 
-            set
-            {
-                Add(key, value, true);
-            }
+            set => Add(key, value, true);
         }
-        #endregion
 
-        #region ICollection<KeyValuePair<IReference,T>> Members
         /// <inheritdoc/>
         public void Add(KeyValuePair<IReference, T> item)
         {
@@ -849,7 +816,7 @@ namespace Opc.Ua
                 return false;
             }
 
-            return Object.Equals(target.Value, item.Value);
+            return Equals(target.Value, item.Value);
         }
 
         /// <inheritdoc/>
@@ -859,45 +826,29 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public int Count
-        {
-            get
-            {
-                return m_list.Count;
-            }
-        }
+        public int Count => m_list.Count;
 
         /// <inheritdoc/>
-        public bool IsReadOnly
-        {
-            get { return false; }
-        }
+        public bool IsReadOnly => false;
 
         /// <inheritdoc/>
         public bool Remove(KeyValuePair<IReference, T> item)
         {
             return Remove(item.Key);
         }
-        #endregion
 
-        #region IEnumerable<KeyValuePair<IReference,T>> Members
         /// <inheritdoc/>
         public IEnumerator<KeyValuePair<IReference, T>> GetEnumerator()
         {
             return m_list.GetEnumerator();
         }
-        #endregion
 
-        #region IEnumerable Members
         /// <inheritdoc/>
-        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+        IEnumerator IEnumerable.GetEnumerator()
         {
             return GetEnumerator();
         }
-        #endregion
 
-        #region Private Methods
-        #region ReferenceTypeEntry Class
         /// <summary>
         /// Stores the references for a particular reference type.
         /// </summary>
@@ -940,7 +891,6 @@ namespace Opc.Ua
                 }
             }
         }
-        #endregion
 
         /// <summary>
         /// Validates a reference passed as a parameter.
@@ -1097,7 +1047,7 @@ namespace Opc.Ua
                 {
                     if (entry.InverseExternalTargets == null)
                     {
-                        entry.InverseExternalTargets = new Dictionary<ExpandedNodeId, LinkedListNode<KeyValuePair<IReference, T>>>();
+                        entry.InverseExternalTargets = [];
                     }
 
                     targets = entry.InverseExternalTargets;
@@ -1106,7 +1056,7 @@ namespace Opc.Ua
                 {
                     if (entry.ForwardExternalTargets == null)
                     {
-                        entry.ForwardExternalTargets = new Dictionary<ExpandedNodeId, LinkedListNode<KeyValuePair<IReference, T>>>();
+                        entry.ForwardExternalTargets = [];
                     }
 
                     targets = entry.ForwardExternalTargets;
@@ -1148,7 +1098,7 @@ namespace Opc.Ua
                 {
                     if (entry.InverseTargets == null)
                     {
-                        entry.InverseTargets = new NodeIdDictionary<LinkedListNode<KeyValuePair<IReference, T>>>();
+                        entry.InverseTargets = [];
                     }
 
                     targets = entry.InverseTargets;
@@ -1157,7 +1107,7 @@ namespace Opc.Ua
                 {
                     if (entry.ForwardTargets == null)
                     {
-                        entry.ForwardTargets = new NodeIdDictionary<LinkedListNode<KeyValuePair<IReference, T>>>();
+                        entry.ForwardTargets = [];
                     }
 
                     targets = entry.ForwardTargets;
@@ -1296,12 +1246,9 @@ namespace Opc.Ua
                 }
             }
         }
-        #endregion
 
-        #region Private Fields
         private readonly NodeIdDictionary<ReferenceTypeEntry> m_references;
         private readonly LinkedList<KeyValuePair<IReference, T>> m_list;
         private ulong m_version;
-        #endregion
     }
 }

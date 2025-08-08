@@ -50,7 +50,6 @@ namespace Opc.Ua.Client.Tests
     {
         private readonly string m_subscriptionTestXml = Path.Combine(Path.GetTempPath(), "SubscriptionTest.xml");
 
-        #region Test Setup
         /// <summary>
         /// Set up a Server and a Client instance.
         /// </summary>
@@ -62,7 +61,7 @@ namespace Opc.Ua.Client.Tests
             // create a new session for every test
             SingleSession = false;
             MaxChannelCount = 1000;
-            return base.OneTimeSetUpAsync(writer: null, securityNone: true);
+            return OneTimeSetUpAsync(writer: null, securityNone: true);
         }
 
         /// <summary>
@@ -91,9 +90,7 @@ namespace Opc.Ua.Client.Tests
         {
             return base.TearDown();
         }
-        #endregion
 
-        #region Test Methods
         [Test, Order(100)]
         public void AddSubscription()
         {
@@ -127,7 +124,7 @@ namespace Opc.Ua.Client.Tests
             subscription.AddItem(list[0]);
             Assert.AreEqual(1, subscription.MonitoredItemCount);
             Assert.True(subscription.ChangesPending);
-            Assert.Throws<ServiceResultException>(() => subscription.Create());
+            NUnit.Framework.Assert.Throws<ServiceResultException>(() => subscription.Create());
             bool result = Session.AddSubscription(subscription);
             Assert.True(result);
             subscription.Create();
@@ -141,7 +138,7 @@ namespace Opc.Ua.Client.Tests
             };
 
             IList<NodeId> simulatedNodes = GetTestSetSimulation(Session.NamespaceUris);
-            list2.AddRange(SubscriptionTest.CreateMonitoredItemTestSet(subscription, simulatedNodes));
+            list2.AddRange(CreateMonitoredItemTestSet(subscription, simulatedNodes));
             list2.ForEach(i => i.Notification += (MonitoredItem item, MonitoredItemNotificationEventArgs e) => {
                 foreach (DataValue value in item.DequeueValues())
                 {
@@ -166,7 +163,7 @@ namespace Opc.Ua.Client.Tests
             OutputSubscriptionInfo(TestContext.Out, subscription);
 
             subscription.ConditionRefresh();
-            ServiceResultException sre = Assert.Throws<ServiceResultException>(() => subscription.Republish(subscription.SequenceNumber + 100));
+            ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() => subscription.Republish(subscription.SequenceNumber + 100));
             Assert.AreEqual((StatusCode)StatusCodes.BadMessageNotAvailable, (StatusCode)sre.StatusCode);
 
             // verify that reconnect created subclassed version of subscription and monitored item
@@ -225,16 +222,16 @@ namespace Opc.Ua.Client.Tests
             subscription.AddItem(list[0]);
             Assert.AreEqual(1, subscription.MonitoredItemCount);
             Assert.True(subscription.ChangesPending);
-            Assert.ThrowsAsync<ServiceResultException>(async () => await subscription.CreateAsync().ConfigureAwait(false));
+            NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () => await subscription.CreateAsync().ConfigureAwait(false));
             bool result = await Session.RemoveSubscriptionAsync(subscription).ConfigureAwait(false);
             Assert.False(result);
-            result = await Session.RemoveSubscriptionsAsync(new List<Subscription>() { subscription }).ConfigureAwait(false);
+            result = await Session.RemoveSubscriptionsAsync([subscription]).ConfigureAwait(false);
             Assert.False(result);
             result = Session.AddSubscription(subscription);
             Assert.True(result);
             result = Session.AddSubscription(subscription);
             Assert.False(result);
-            result = await Session.RemoveSubscriptionsAsync(new List<Subscription>() { subscription }).ConfigureAwait(false);
+            result = await Session.RemoveSubscriptionsAsync([subscription]).ConfigureAwait(false);
             Assert.True(result);
             result = await Session.RemoveSubscriptionAsync(subscription).ConfigureAwait(false);
             Assert.False(result);
@@ -251,7 +248,7 @@ namespace Opc.Ua.Client.Tests
             };
 
             IList<NodeId> simulatedNodes = GetTestSetSimulation(Session.NamespaceUris);
-            list2.AddRange(SubscriptionTest.CreateMonitoredItemTestSet(subscription, simulatedNodes));
+            list2.AddRange(CreateMonitoredItemTestSet(subscription, simulatedNodes));
             list2.ForEach(i => i.Notification += (MonitoredItem item, MonitoredItemNotificationEventArgs e) => {
                 foreach (DataValue value in item.DequeueValues())
                 {
@@ -276,7 +273,7 @@ namespace Opc.Ua.Client.Tests
             OutputSubscriptionInfo(TestContext.Out, subscription);
 
             await subscription.ConditionRefreshAsync().ConfigureAwait(false);
-            ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(async () => await subscription.RepublishAsync(subscription.SequenceNumber + 100).ConfigureAwait(false));
+            ServiceResultException sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () => await subscription.RepublishAsync(subscription.SequenceNumber + 100).ConfigureAwait(false));
             Assert.AreEqual((StatusCode)StatusCodes.BadMessageNotAvailable, (StatusCode)sre.StatusCode, $"Expected BadMessageNotAvailable, but received {sre.Message}");
 
             // verify that reconnect created subclassed version of subscription and monitored item
@@ -303,7 +300,7 @@ namespace Opc.Ua.Client.Tests
         {
             if (!File.Exists(m_subscriptionTestXml))
             {
-                Assert.Ignore($"Save file {m_subscriptionTestXml} does not exist yet");
+                NUnit.Framework.Assert.Ignore($"Save file {m_subscriptionTestXml} does not exist yet");
             }
 
             // load
@@ -462,7 +459,7 @@ namespace Opc.Ua.Client.Tests
             // The issue more unlikely seem to appear on .NET 6 in the given timeframe
             if (!enabled && !failed)
             {
-                Assert.Inconclusive("The test couldn't validate the issue on this platform");
+                NUnit.Framework.Assert.Inconclusive("The test couldn't validate the issue on this platform");
             }
 
             // catch if expected/unexpected Out-of-sequence occurred
@@ -533,7 +530,7 @@ namespace Opc.Ua.Client.Tests
 
             ServiceResultException sre;
 
-            IUserIdentity userIdentity = anonymous ? new UserIdentity() : new UserIdentity("user1", "password");
+            var userIdentity = anonymous ? new UserIdentity() : new UserIdentity("user1", "password");
 
             // the first channel determines the endpoint
             ConfiguredEndpoint endpoint = await ClientFixture.GetEndpointAsync(ServerUrl, securityPolicy, Endpoints).ConfigureAwait(false);
@@ -544,7 +541,7 @@ namespace Opc.Ua.Client.Tests
                 endpoint.Description.SecurityPolicyUri);
             if (identityPolicy == null)
             {
-                Assert.Ignore($"No UserTokenPolicy found for {userIdentity.TokenType} / {userIdentity.IssuedTokenType}");
+                NUnit.Framework.Assert.Ignore($"No UserTokenPolicy found for {userIdentity.TokenType} / {userIdentity.IssuedTokenType}");
             }
 
             // the active channel
@@ -715,7 +712,7 @@ namespace Opc.Ua.Client.Tests
                 // cannot read using a closed channel, validate the status code
                 if (endpoint.EndpointUrl.ToString().StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
                 {
-                    sre = Assert.Throws<ServiceResultException>(() => session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType)));
+                    sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() => session1.ReadValue(VariableIds.Server_ServerStatus, typeof(ServerStatusDataType)));
                     Assert.AreEqual((StatusCode)StatusCodes.BadSecureChannelIdInvalid, (StatusCode)sre.StatusCode, sre.Message);
                 }
                 else
@@ -782,7 +779,7 @@ namespace Opc.Ua.Client.Tests
                 var dict = list.ToDictionary(item => item.ClientHandle, _ => DateTime.MinValue);
 
                 subscription.AddItems(list);
-                Assert.Throws<ServiceResultException>(() => subscription.Create());
+                NUnit.Framework.Assert.Throws<ServiceResultException>(subscription.Create);
                 bool result = Session.AddSubscription(subscription);
                 Assert.True(result);
                 await subscription.CreateAsync().ConfigureAwait(false);
@@ -1175,7 +1172,7 @@ namespace Opc.Ua.Client.Tests
             };
 
             IList<NodeId> staticNodes = GetTestSetStatic(Session.NamespaceUris);
-            list.AddRange(SubscriptionTest.CreateMonitoredItemTestSet(subscription, staticNodes));
+            list.AddRange(CreateMonitoredItemTestSet(subscription, staticNodes));
             list.ForEach(i => i.Notification += (MonitoredItem item, MonitoredItemNotificationEventArgs e) => {
                 foreach (DataValue value in item.DequeueValues())
                 {
@@ -1234,7 +1231,7 @@ namespace Opc.Ua.Client.Tests
             bool conditionRefresh = subscription.ConditionRefresh();
             Assert.True(conditionRefresh);
 
-            ServiceResultException sre = Assert.Throws<ServiceResultException>(() => subscription.Republish(subscription.SequenceNumber + 100));
+            ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() => subscription.Republish(subscription.SequenceNumber + 100));
             Assert.AreEqual((StatusCode)StatusCodes.BadMessageNotAvailable, (StatusCode)sre.StatusCode);
 
             subscription.RemoveItems(list);
@@ -1243,9 +1240,7 @@ namespace Opc.Ua.Client.Tests
             result = Session.RemoveSubscription(subscription);
             Assert.True(result);
         }
-        #endregion
 
-        #region Private Methods
         private void CreateSubscriptions(
             ISession session,
             Subscription template,
@@ -1292,7 +1287,7 @@ namespace Opc.Ua.Client.Tests
                     testSet.AddRange(GetTestSetSimulation(namespaceUris));
                 }
 
-                var list = SubscriptionTest.CreateMonitoredItemTestSet(subscription, testSet).ToList();
+                var list = CreateMonitoredItemTestSet(subscription, testSet).ToList();
                 list.ForEach(i => i.Notification += (MonitoredItem item, MonitoredItemNotificationEventArgs e) => {
                     notificationCounters[(int)subscription.Handle]++;
                     foreach (DataValue value in item.DequeueValues())
@@ -1327,6 +1322,5 @@ namespace Opc.Ua.Client.Tests
             e.DeferredAcknowledgementsToSend.Clear();
             e.AcknowledgementsToSend.Clear();
         }
-        #endregion
     }
 }

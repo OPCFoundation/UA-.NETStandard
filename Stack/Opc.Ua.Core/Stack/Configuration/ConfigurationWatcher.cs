@@ -20,7 +20,6 @@ namespace Opc.Ua
     /// </summary>
     public class ConfigurationWatcher : IDisposable
     {
-        #region Constructors
         /// <summary>
         /// Creates the watcher for the configuration.
         /// </summary>
@@ -42,9 +41,7 @@ namespace Opc.Ua
             m_lastWriteTime = fileInfo.LastWriteTimeUtc;
             m_watcher = new System.Threading.Timer(Watcher_Changed, null, 5000, 5000);
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -65,27 +62,17 @@ namespace Opc.Ua
                 m_watcher = null;
             }
         }
-        #endregion
 
-        #region Public Interface
         /// <summary>
         /// Raised when the configuration file changes.
         /// </summary>
         public event EventHandler<ConfigurationWatcherEventArgs> Changed
         {
-            add
-            {
-                m_Changed += value;
-            }
+            add => m_Changed += value;
 
-            remove
-            {
-                m_Changed -= value;
-            }
+            remove => m_Changed -= value;
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Handles a file changed event.
         /// </summary>
@@ -114,23 +101,18 @@ namespace Opc.Ua
                 Utils.LogError(exception, "Unexpected error raising configuration file changed event.");
             }
         }
-        #endregion
 
-        #region Private Fields
-                private readonly ApplicationConfiguration m_configuration;
+        private readonly ApplicationConfiguration m_configuration;
         private System.Threading.Timer m_watcher;
         private DateTime m_lastWriteTime;
         private event EventHandler<ConfigurationWatcherEventArgs> m_Changed;
-        #endregion
     }
 
-    #region ConfigurationWatcherEventArgs Class
     /// <summary>
     /// Stores the arguments passed when the configuration file changes.
     /// </summary>
     public class ConfigurationWatcherEventArgs : EventArgs
     {
-        #region Constructors
         /// <summary>
         /// Initializes the object with a configuration and a file path.
         /// </summary>
@@ -141,9 +123,7 @@ namespace Opc.Ua
             Configuration = configuration;
             FilePath = filePath;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The application configuration which changed.
         /// </summary>
@@ -153,8 +133,5 @@ namespace Opc.Ua
         /// The path to the application configuration file.
         /// </summary>
         public string FilePath { get; }
-
-        #endregion
     }
-    #endregion
 }

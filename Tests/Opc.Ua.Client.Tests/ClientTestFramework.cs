@@ -32,10 +32,8 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
-using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using Opc.Ua.Server.Tests;
 using Quickstarts.ReferenceServer;
@@ -48,11 +46,11 @@ namespace Opc.Ua.Client.Tests
     /// </summary>
     public class ClientTestFramework
     {
-        public static readonly object[] FixtureArgs = {
+        public static readonly object[] FixtureArgs = [
             new object [] { Utils.UriSchemeOpcTcp},
             new object [] { Utils.UriSchemeHttps},
             new object [] { Utils.UriSchemeOpcHttps},
-        };
+        ];
 
         public const int MaxReferences = 100;
         public const int MaxTimeout = 10000;
@@ -91,13 +89,9 @@ namespace Opc.Ua.Client.Tests
             Session = session;
         }
 
-        #region DataPointSources
         [DatapointSource]
-        public static readonly string[] Policies = SecurityPolicies.GetDisplayNames()
-            .Select(displayName => SecurityPolicies.GetUri(displayName)).ToArray();
-        #endregion
+        public static readonly string[] Policies = [.. SecurityPolicies.GetDisplayNames().Select(SecurityPolicies.GetUri)];
 
-        #region Test Setup
         /// <summary>
         /// Set up a Server and a Client instance.
         /// </summary>
@@ -131,8 +125,8 @@ namespace Opc.Ua.Client.Tests
                     TestContext.Out.WriteLine("Using the external Server Url {0}", customUrl);
 
                     // load custom test sets
-                    TestSetStatic = ClientTestFramework.ReadCustomTestSet("TestSetStatic");
-                    TestSetSimulation = ClientTestFramework.ReadCustomTestSet("TestSetSimulation");
+                    TestSetStatic = ReadCustomTestSet("TestSetStatic");
+                    TestSetSimulation = ReadCustomTestSet("TestSetSimulation");
                 }
                 else
                 {
@@ -179,7 +173,7 @@ namespace Opc.Ua.Client.Tests
                 }
                 catch (Exception e)
                 {
-                    Assert.Warn($"OneTimeSetup failed to create session with {ServerUrl}, tests fail. Error: {e.Message}");
+                    NUnit.Framework.Assert.Warn($"OneTimeSetup failed to create session with {ServerUrl}, tests fail. Error: {e.Message}");
                 }
             }
         }
@@ -211,7 +205,7 @@ namespace Opc.Ua.Client.Tests
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.UserName));
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.Certificate));
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
-                new UserTokenPolicy(UserTokenType.IssuedToken) { IssuedTokenType = Opc.Ua.Profiles.JwtUserToken });
+                new UserTokenPolicy(UserTokenType.IssuedToken) { IssuedTokenType = Profiles.JwtUserToken });
 
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.UserName) {
                 SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1"
@@ -240,32 +234,29 @@ namespace Opc.Ua.Client.Tests
             });
 
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.IssuedToken) {
-                IssuedTokenType = Opc.Ua.Profiles.JwtUserToken,
+                IssuedTokenType = Profiles.JwtUserToken,
                 PolicyId = Profiles.JwtUserToken,
-                SecurityPolicyUri =  "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1"
+                SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1"
             });
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.IssuedToken)
-            {
-                IssuedTokenType = Opc.Ua.Profiles.JwtUserToken,
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.IssuedToken) {
+                IssuedTokenType = Profiles.JwtUserToken,
                 PolicyId = Profiles.JwtUserToken,
                 SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1"
             });
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.IssuedToken)
-            {
-                IssuedTokenType = Opc.Ua.Profiles.JwtUserToken,
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.IssuedToken) {
+                IssuedTokenType = Profiles.JwtUserToken,
                 PolicyId = Profiles.JwtUserToken,
                 SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256"
             });
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.IssuedToken)
-            {
-                IssuedTokenType = Opc.Ua.Profiles.JwtUserToken,
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.IssuedToken) {
+                IssuedTokenType = Profiles.JwtUserToken,
                 PolicyId = Profiles.JwtUserToken,
                 SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP384"
             });
 
             ServerFixture.Config.ServerConfiguration.MaxChannelCount = MaxChannelCount;
             ReferenceServer = await ServerFixture.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
-            ReferenceServer.TokenValidator = this.TokenValidator;
+            ReferenceServer.TokenValidator = TokenValidator;
             ServerFixturePort = ServerFixture.Port;
         }
 
@@ -311,7 +302,7 @@ namespace Opc.Ua.Client.Tests
                 }
                 catch (Exception e)
                 {
-                    Assert.Ignore($"OneTimeSetup failed to create session, tests skipped. Error: {e.Message}");
+                    NUnit.Framework.Assert.Ignore($"OneTimeSetup failed to create session, tests skipped. Error: {e.Message}");
                 }
             }
             if (ServerFixture == null)
@@ -337,9 +328,7 @@ namespace Opc.Ua.Client.Tests
             }
             return Task.CompletedTask;
         }
-        #endregion
 
-        #region Nodes Test Set
         /// <summary>
         /// Return a test set of nodes with static character.
         /// </summary>
@@ -347,7 +336,7 @@ namespace Opc.Ua.Client.Tests
         /// <returns>The list of static test nodes.</returns>
         public IList<NodeId> GetTestSetStatic(NamespaceTable namespaceUris)
         {
-            return TestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).Where(n => n != null).ToList();
+            return [.. TestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).Where(n => n != null)];
         }
 
         /// <summary>
@@ -357,7 +346,7 @@ namespace Opc.Ua.Client.Tests
         /// <returns>The list of simulated test nodes.</returns>
         public IList<NodeId> GetTestSetSimulation(NamespaceTable namespaceUris)
         {
-            return TestSetSimulation.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).Where(n => n != null).ToList();
+            return [.. TestSetSimulation.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).Where(n => n != null)];
         }
 
         /// <summary>
@@ -379,7 +368,7 @@ namespace Opc.Ua.Client.Tests
         /// <returns>The list of simulated test nodes.</returns>
         public IList<NodeId> GetTestSetDataSimulation(NamespaceTable namespaceUris)
         {
-            return TestSetDataSimulation.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).Where(n => n != null).ToList();
+            return [.. TestSetDataSimulation.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).Where(n => n != null)];
         }
 
         /// <summary>
@@ -389,11 +378,9 @@ namespace Opc.Ua.Client.Tests
         /// <returns>The list of test nodes.</returns>
         public IList<NodeId> GetTestSetHistory(NamespaceTable namespaceUris)
         {
-            return TestSetHistory.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).Where(n => n != null).ToList();
+            return [.. TestSetHistory.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).Where(n => n != null)];
         }
-        #endregion
 
-        #region Benchmark Setup
         /// <summary>
         /// Enumerator for security policies.
         /// </summary>
@@ -426,9 +413,7 @@ namespace Opc.Ua.Client.Tests
             OneTimeTearDownAsync().GetAwaiter().GetResult();
             Console.WriteLine("GlobalCleanup: Done");
         }
-        #endregion
 
-        #region Public Methods
         public void GetOperationLimits()
         {
             OperationLimits = new OperationLimits() {
@@ -477,9 +462,7 @@ namespace Opc.Ua.Client.Tests
             writer.WriteLine("Notifications           : {0}", subscription.Notifications.Count());
             writer.WriteLine("OutstandingMessageWorker: {0}", subscription.OutstandingMessageWorkers);
         }
-        #endregion
 
-        #region Private Methods
         private static ExpandedNodeId[] ReadCustomTestSet(string param)
         {
             // load custom test sets
@@ -493,9 +476,9 @@ namespace Opc.Ua.Client.Tests
                 {
                     testSet.Add(ExpandedNodeId.Parse(parameter));
                 }
-                return testSet.ToArray();
+                return [.. testSet];
             }
-            return Array.Empty<ExpandedNodeId>();
+            return [];
         }
 
         protected void Session_Closing(object sender, EventArgs e)
@@ -505,6 +488,5 @@ namespace Opc.Ua.Client.Tests
                 TestContext.Out.WriteLine("Session_Closing: {0}", session.SessionId);
             }
         }
-        #endregion
     }
 }

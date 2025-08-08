@@ -28,9 +28,9 @@
  * ======================================================================*/
 
 using System;
-using System.Security.Cryptography.X509Certificates;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua.Security.Certificates
 {
@@ -87,7 +87,7 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="serialNumber"></param>
         public RevokedCertificate(string serialNumber) : this()
         {
-            UserCertificate = serialNumber.FromHexString().Reverse().ToArray();
+            UserCertificate = [.. serialNumber.FromHexString().Reverse()];
         }
 
         /// <summary>
@@ -103,7 +103,7 @@ namespace Opc.Ua.Security.Certificates
         private RevokedCertificate()
         {
             RevocationDate = DateTime.UtcNow;
-            CrlEntryExtensions = new X509ExtensionCollection();
+            CrlEntryExtensions = [];
         }
 
         /// <summary>

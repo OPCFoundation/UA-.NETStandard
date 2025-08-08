@@ -61,7 +61,6 @@ namespace Opc.Ua.Server
     /// </remarks>
     public class ServerInternalData : IServerInternal
     {
-        #region Constructors
         /// <summary>
         /// Initializes the datastore with the server configuration.
         /// </summary>
@@ -81,7 +80,7 @@ namespace Opc.Ua.Server
             m_configuration = configuration;
             MessageContext = messageContext;
 
-            m_endpointAddresses = new List<Uri>();
+            m_endpointAddresses = [];
 
             foreach (string baseAddresses in m_configuration.ServerConfiguration.BaseAddresses)
             {
@@ -105,9 +104,7 @@ namespace Opc.Ua.Server
             // create the default system context.
             DefaultSystemContext = new ServerSystemContext(this);
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -134,26 +131,18 @@ namespace Opc.Ua.Server
                 Utils.SilentDispose(m_monitoredItemQueueFactory);
             }
         }
-        #endregion
 
-        #region Public Interface
         /// <summary>
         /// The session manager to use with the server.
         /// </summary>
         /// <value>The session manager.</value>
-        public ISessionManager SessionManager
-        {
-            get { return m_sessionManager; }
-        }
+        public ISessionManager SessionManager => m_sessionManager;
 
         /// <summary>
         /// The subscription manager to use with the server.
         /// </summary>
         /// <value>The subscription manager.</value>
-        public ISubscriptionManager SubscriptionManager
-        {
-            get { return m_subscriptionManager; }
-        }
+        public ISubscriptionManager SubscriptionManager => m_subscriptionManager;
 
         /// <summary>
         /// Stores the MasterNodeManager and the CoreNodeManager
@@ -228,18 +217,11 @@ namespace Opc.Ua.Server
             m_aggregateManager = aggregateManager;
         }
 
-        #endregion
-
-        #region IServerInternal Members
-
         /// <summary>
         /// The endpoint addresses used by the server.
         /// </summary>
         /// <value>The endpoint addresses.</value>
-        public IEnumerable<Uri> EndpointAddresses
-        {
-            get { return m_endpointAddresses; }
-        }
+        public IEnumerable<Uri> EndpointAddresses => m_endpointAddresses;
 
         /// <summary>
         /// The context to use when serializing/deserializing extension objects.
@@ -286,107 +268,71 @@ namespace Opc.Ua.Server
         /// The master node manager for the server.
         /// </summary>
         /// <value>The node manager.</value>
-        public MasterNodeManager NodeManager
-        {
-            get { return m_nodeManager; }
-        }
+        public MasterNodeManager NodeManager => m_nodeManager;
 
         /// <summary>
         /// The internal node manager for the servers.
         /// </summary>
         /// <value>The core node manager.</value>
-        public CoreNodeManager CoreNodeManager
-        {
-            get { return m_coreNodeManager; }
-        }
+        public CoreNodeManager CoreNodeManager => m_coreNodeManager;
 
         /// <summary>
         /// Returns the node manager that managers the server diagnostics.
         /// </summary>
         /// <value>The diagnostics node manager.</value>
-        public DiagnosticsNodeManager DiagnosticsNodeManager
-        {
-            get { return m_diagnosticsNodeManager; }
-        }
+        public DiagnosticsNodeManager DiagnosticsNodeManager => m_diagnosticsNodeManager;
 
         /// <summary>
         /// The manager for events that all components use to queue events that occur.
         /// </summary>
         /// <value>The event manager.</value>
-        public EventManager EventManager
-        {
-            get { return m_eventManager; }
-        }
+        public EventManager EventManager => m_eventManager;
 
         /// <summary>
         /// A manager for localized resources that components can use to localize text.
         /// </summary>
         /// <value>The resource manager.</value>
-        public ResourceManager ResourceManager
-        {
-            get { return m_resourceManager; }
-        }
+        public ResourceManager ResourceManager => m_resourceManager;
 
         /// <summary>
         /// A manager for outstanding requests that allows components to receive notifications if the timeout or are cancelled.
         /// </summary>
         /// <value>The request manager.</value>
-        public RequestManager RequestManager
-        {
-            get { return m_requestManager; }
-        }
+        public RequestManager RequestManager => m_requestManager;
 
         /// <summary>
         /// A manager for aggregate calculators supported by the server.
         /// </summary>
         /// <value>The aggregate manager.</value>
-        public AggregateManager AggregateManager
-        {
-            get { return m_aggregateManager; }
-        }
+        public AggregateManager AggregateManager => m_aggregateManager;
 
         /// <summary>
         /// The manager for active sessions.
         /// </summary>
         /// <value>The session manager.</value>
-        ISessionManager IServerInternal.SessionManager
-        {
-            get { return m_sessionManager; }
-        }
+        ISessionManager IServerInternal.SessionManager => m_sessionManager;
 
         /// <summary>
         /// The manager for active subscriptions.
         /// </summary>
-        ISubscriptionManager IServerInternal.SubscriptionManager
-        {
-            get { return m_subscriptionManager; }
-        }
+        ISubscriptionManager IServerInternal.SubscriptionManager => m_subscriptionManager;
 
         /// <summary>
         /// The factory for durable monitored item queues
         /// </summary>
-        public IMonitoredItemQueueFactory MonitoredItemQueueFactory
-        {
-            get { return m_monitoredItemQueueFactory; }
-        }
+        public IMonitoredItemQueueFactory MonitoredItemQueueFactory => m_monitoredItemQueueFactory;
 
         /// <summary>
         /// The store to persist and retrieve subscriptions
         /// </summary>
-        public ISubscriptionStore SubscriptionStore
-        {
-            get { return m_subscriptionStore; }
-        }
+        public ISubscriptionStore SubscriptionStore => m_subscriptionStore;
 
         /// <summary>
         /// Returns the status object for the server.
         /// </summary>
         /// <value>The status.</value>
         [Obsolete("No longer thread safe. To read the value use CurrentState, to write use UpdateServerStatus.")]
-        public ServerStatusValue Status
-        {
-            get { return m_serverStatus; }
-        }
+        public ServerStatusValue Status => m_serverStatus;
 
         /// <summary>
         /// Gets or sets the current state of the server.
@@ -415,10 +361,7 @@ namespace Opc.Ua.Server
         /// Returns the Server object node
         /// </summary>
         /// <value>The Server object node.</value>
-        public ServerObjectState ServerObject
-        {
-            get { return m_serverObject; }
-        }
+        public ServerObjectState ServerObject => m_serverObject;
 
         /// <summary>
         /// Used to synchronize access to the server diagnostics.
@@ -448,10 +391,7 @@ namespace Opc.Ua.Server
         /// Returns the diagnostics structure for the server.
         /// </summary>
         /// <value>The server diagnostics.</value>
-        public ServerDiagnosticsSummaryDataType ServerDiagnostics
-        {
-            get { return m_serverDiagnostics; }
-        }
+        public ServerDiagnosticsSummaryDataType ServerDiagnostics => m_serverDiagnostics;
 
         /// <summary>
         /// Whether the server is currently running.
@@ -592,9 +532,6 @@ namespace Opc.Ua.Server
             }
         }
 
-        #endregion
-
-        #region IAuditReportEvents Members
         /// <inheritdoc/>
         public bool Auditing => m_auditing;
 
@@ -612,9 +549,7 @@ namespace Opc.Ua.Server
 
             ReportEvent(context, e);
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Creates the ServerObject and attaches it to the NodeManager.
         /// </summary>
@@ -630,7 +565,7 @@ namespace Opc.Ua.Server
                 // update server capabilities.
                 serverObject.ServiceLevel.Value = 255;
                 serverObject.ServerCapabilities.LocaleIdArray.Value = m_resourceManager.GetAvailableLocales();
-                serverObject.ServerCapabilities.ServerProfileArray.Value = m_configuration.ServerConfiguration.ServerProfileArray.ToArray();
+                serverObject.ServerCapabilities.ServerProfileArray.Value = [.. m_configuration.ServerConfiguration.ServerProfileArray];
                 serverObject.ServerCapabilities.MinSupportedSampleRate.Value = 0;
                 serverObject.ServerCapabilities.MaxBrowseContinuationPoints.Value = (ushort)m_configuration.ServerConfiguration.MaxBrowseContinuationPoints;
                 serverObject.ServerCapabilities.MaxQueryContinuationPoints.Value = (ushort)m_configuration.ServerConfiguration.MaxQueryContinuationPoints;
@@ -644,18 +579,18 @@ namespace Opc.Ua.Server
                 OperationLimits configOperationLimits = m_configuration.ServerConfiguration.OperationLimits;
                 if (configOperationLimits != null)
                 {
-                    operationLimits.MaxNodesPerRead = ServerInternalData.SetPropertyValue(operationLimits.MaxNodesPerRead, configOperationLimits.MaxNodesPerRead);
-                    operationLimits.MaxNodesPerHistoryReadData = ServerInternalData.SetPropertyValue(operationLimits.MaxNodesPerHistoryReadData, configOperationLimits.MaxNodesPerHistoryReadData);
-                    operationLimits.MaxNodesPerHistoryReadEvents = ServerInternalData.SetPropertyValue(operationLimits.MaxNodesPerHistoryReadEvents, configOperationLimits.MaxNodesPerHistoryReadEvents);
-                    operationLimits.MaxNodesPerWrite = ServerInternalData.SetPropertyValue(operationLimits.MaxNodesPerWrite, configOperationLimits.MaxNodesPerWrite);
-                    operationLimits.MaxNodesPerHistoryUpdateData = ServerInternalData.SetPropertyValue(operationLimits.MaxNodesPerHistoryUpdateData, configOperationLimits.MaxNodesPerHistoryUpdateData);
-                    operationLimits.MaxNodesPerHistoryUpdateEvents = ServerInternalData.SetPropertyValue(operationLimits.MaxNodesPerHistoryUpdateEvents, configOperationLimits.MaxNodesPerHistoryUpdateEvents);
-                    operationLimits.MaxNodesPerMethodCall = ServerInternalData.SetPropertyValue(operationLimits.MaxNodesPerMethodCall, configOperationLimits.MaxNodesPerMethodCall);
-                    operationLimits.MaxNodesPerBrowse = ServerInternalData.SetPropertyValue(operationLimits.MaxNodesPerBrowse, configOperationLimits.MaxNodesPerBrowse);
-                    operationLimits.MaxNodesPerRegisterNodes = ServerInternalData.SetPropertyValue(operationLimits.MaxNodesPerRegisterNodes, configOperationLimits.MaxNodesPerRegisterNodes);
-                    operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds = ServerInternalData.SetPropertyValue(operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds, configOperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds);
-                    operationLimits.MaxNodesPerNodeManagement = ServerInternalData.SetPropertyValue(operationLimits.MaxNodesPerNodeManagement, configOperationLimits.MaxNodesPerNodeManagement);
-                    operationLimits.MaxMonitoredItemsPerCall = ServerInternalData.SetPropertyValue(operationLimits.MaxMonitoredItemsPerCall, configOperationLimits.MaxMonitoredItemsPerCall);
+                    operationLimits.MaxNodesPerRead = SetPropertyValue(operationLimits.MaxNodesPerRead, configOperationLimits.MaxNodesPerRead);
+                    operationLimits.MaxNodesPerHistoryReadData = SetPropertyValue(operationLimits.MaxNodesPerHistoryReadData, configOperationLimits.MaxNodesPerHistoryReadData);
+                    operationLimits.MaxNodesPerHistoryReadEvents = SetPropertyValue(operationLimits.MaxNodesPerHistoryReadEvents, configOperationLimits.MaxNodesPerHistoryReadEvents);
+                    operationLimits.MaxNodesPerWrite = SetPropertyValue(operationLimits.MaxNodesPerWrite, configOperationLimits.MaxNodesPerWrite);
+                    operationLimits.MaxNodesPerHistoryUpdateData = SetPropertyValue(operationLimits.MaxNodesPerHistoryUpdateData, configOperationLimits.MaxNodesPerHistoryUpdateData);
+                    operationLimits.MaxNodesPerHistoryUpdateEvents = SetPropertyValue(operationLimits.MaxNodesPerHistoryUpdateEvents, configOperationLimits.MaxNodesPerHistoryUpdateEvents);
+                    operationLimits.MaxNodesPerMethodCall = SetPropertyValue(operationLimits.MaxNodesPerMethodCall, configOperationLimits.MaxNodesPerMethodCall);
+                    operationLimits.MaxNodesPerBrowse = SetPropertyValue(operationLimits.MaxNodesPerBrowse, configOperationLimits.MaxNodesPerBrowse);
+                    operationLimits.MaxNodesPerRegisterNodes = SetPropertyValue(operationLimits.MaxNodesPerRegisterNodes, configOperationLimits.MaxNodesPerRegisterNodes);
+                    operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds = SetPropertyValue(operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds, configOperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds);
+                    operationLimits.MaxNodesPerNodeManagement = SetPropertyValue(operationLimits.MaxNodesPerNodeManagement, configOperationLimits.MaxNodesPerNodeManagement);
+                    operationLimits.MaxMonitoredItemsPerCall = SetPropertyValue(operationLimits.MaxMonitoredItemsPerCall, configOperationLimits.MaxMonitoredItemsPerCall);
                 }
                 else
                 {
@@ -767,7 +702,7 @@ namespace Opc.Ua.Server
                 auditing.OnSimpleWriteValue += OnWriteAuditing;
                 auditing.OnSimpleReadValue += OnReadAuditing;
                 auditing.Value = m_auditing;
-                auditing.RolePermissions = new RolePermissionTypeCollection {
+                auditing.RolePermissions = [
                         new RolePermissionType {
                             RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
                             Permissions = (uint)(PermissionType.Browse|PermissionType.Read)
@@ -775,7 +710,7 @@ namespace Opc.Ua.Server
                         new RolePermissionType {
                             RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
                             Permissions = (uint)(PermissionType.Browse|PermissionType.Write|PermissionType.ReadRolePermissions|PermissionType.Read)
-                            }};
+                            }];
                 auditing.AccessLevel = AccessLevels.CurrentRead;
                 auditing.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
                 auditing.MinimumSamplingInterval = 1000;
@@ -913,9 +848,7 @@ namespace Opc.Ua.Server
             }
             return property;
         }
-        #endregion
 
-        #region Private Fields
         private readonly ServerProperties m_serverDescription;
         private readonly ApplicationConfiguration m_configuration;
         private readonly List<Uri> m_endpointAddresses;
@@ -934,6 +867,5 @@ namespace Opc.Ua.Server
         private ServerStatusValue m_serverStatus;
         private bool m_auditing;
         private ServerDiagnosticsSummaryDataType m_serverDiagnostics;
-        #endregion
     }
 }

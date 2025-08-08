@@ -36,24 +36,24 @@ namespace Opc.Ua.X509StoreExtensions
     /// </summary>
     internal static class PlatformHelper
     {
-        private static bool? _isWindowsWithCrlSupport;
+        private static bool? s_isWindowsWithCrlSupport;
         /// <summary>
         /// True if OS Windows and Version >= Windows XP
         /// </summary>
         /// <returns>True if Crl Support is given in the system X509 Store</returns>
         public static bool IsWindowsWithCrlSupport()
         {
-            if (_isWindowsWithCrlSupport != null)
+            if (s_isWindowsWithCrlSupport != null)
             {
-                return _isWindowsWithCrlSupport.Value;
+                return s_isWindowsWithCrlSupport.Value;
             }
             OperatingSystem version = Environment.OSVersion;
-            _isWindowsWithCrlSupport = version.Platform == PlatformID.Win32NT
+            s_isWindowsWithCrlSupport = version.Platform == PlatformID.Win32NT
                 && (
                        (version.Version.Major > 5)
                         || (version.Version.Major == 5 && version.Version.Minor >= 1)
                     );
-            return _isWindowsWithCrlSupport.Value;
+            return s_isWindowsWithCrlSupport.Value;
         }
     }
 }

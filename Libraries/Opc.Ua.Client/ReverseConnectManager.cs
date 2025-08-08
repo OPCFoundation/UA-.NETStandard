@@ -180,20 +180,17 @@ namespace Opc.Ua.Client
             public ReverseConnectStrategy ReverseConnectStrategy;
         }
 
-        #region Constructors
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
         public ReverseConnectManager()
         {
             m_state = ReverseConnectManagerState.New;
-            m_registrations = new List<Registration>();
-            m_endpointUrls = new Dictionary<Uri, ReverseConnectInfo>();
+            m_registrations = [];
+            m_endpointUrls = [];
             m_cts = new CancellationTokenSource();
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// Dispose implementation.
         /// </summary>
@@ -222,14 +219,12 @@ namespace Opc.Ua.Client
             }
             DisposeHosts();
         }
-        #endregion
 
-        #region Protected Members
         /// <summary>
         /// Raised when the configuration changes.
         /// </summary>
         /// <param name="sender">The sender.</param>
-        /// <param name="args">The <see cref="Opc.Ua.ConfigurationWatcherEventArgs"/> instance containing the event data.</param>
+        /// <param name="args">The <see cref="ConfigurationWatcherEventArgs"/> instance containing the event data.</param>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2109:ReviewVisibleEventHandlers")]
         protected virtual async void OnConfigurationChanged(object sender, ConfigurationWatcherEventArgs args)
         {
@@ -511,8 +506,7 @@ namespace Opc.Ua.Client
                 (object sender, ConnectionWaitingEventArgs e) => tcs.TrySetResult(e),
                 ReverseConnectStrategy.Once);
 
-            Func<Task> listenForCancelTaskFnc = async () =>
-            {
+            Func<Task> listenForCancelTaskFnc = async () => {
                 if (ct == default)
                 {
                     int waitTimeout = m_configuration.WaitTimeout > 0 ? m_configuration.WaitTimeout : DefaultWaitTimeout;
@@ -525,10 +519,10 @@ namespace Opc.Ua.Client
                 tcs.TrySetCanceled();
             };
 
-            await Task.WhenAny(new Task[] {
+            await Task.WhenAny([
                 tcs.Task,
                 listenForCancelTaskFnc()
-            }).ConfigureAwait(false);
+            ]).ConfigureAwait(false);
 
             if (!tcs.Task.IsCompleted || tcs.Task.IsCanceled)
             {
@@ -680,8 +674,7 @@ namespace Opc.Ua.Client
                 int delay = endTime - HiResClock.TickCount;
                 if (delay > 0)
                 {
-                    await Task.Delay(delay, ct).ContinueWith(tsk =>
-                    {
+                    await Task.Delay(delay, ct).ContinueWith(tsk => {
                         if (tsk.IsCanceled)
                         {
                             matched = MatchRegistration(sender, e);
@@ -774,10 +767,8 @@ namespace Opc.Ua.Client
             cts.Cancel();
             cts.Dispose();
         }
-        #endregion
 
-        #region Private Fields
-        private readonly object m_lock = new object();
+        private readonly object m_lock = new();
         private ConfigurationWatcher m_configurationWatcher;
         private ApplicationType m_applicationType;
         private Type m_configType;
@@ -785,8 +776,7 @@ namespace Opc.Ua.Client
         private Dictionary<Uri, ReverseConnectInfo> m_endpointUrls;
         private ReverseConnectManagerState m_state;
         private readonly List<Registration> m_registrations;
-        private readonly object m_registrationsLock = new object();
+        private readonly object m_registrationsLock = new();
         private CancellationTokenSource m_cts;
-        #endregion
     }
 }

@@ -43,6 +43,7 @@ using EmbedIO.Actions;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
+using X509AuthorityKeyIdentifierExtension = Opc.Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension;
 
 #if !ECC_SUPPORT
 using X509SignatureGenerator = Opc.Ua.Security.Certificates.X509SignatureGenerator;
@@ -58,18 +59,18 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     [NonParallelizable]
     [TestFixtureSource(nameof(FixtureArgs))]
     [SetCulture("en-us")]
-    class CertificateValidatorAlternate
+    public class CertificateValidatorAlternate
     {
         /// <summary>
         /// the root and alternate root CA
         /// </summary>
-        const string kCaSubject = "CN=Root";
-        const string kCaAltSubject = "CN=rOOT";
+        private const string kCaSubject = "CN=Root";
+        private const string kCaAltSubject = "CN=rOOT";
 
-        public static readonly object[] FixtureArgs = {
+        public static readonly object[] FixtureArgs = [
             new object [] { kCaSubject },
             new object [] { kCaAltSubject }
-        };
+        ];
 
         public CertificateValidatorAlternate(string altSubject = kCaSubject)
         {
@@ -85,12 +86,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// <summary>
         /// A web server to host root CA and CRL
         /// </summary>
-        private IWebServer m_webServer = null;
+        private IWebServer m_webServer;
         private string m_webServerUrl;
         private string m_webServerPath;
         private string m_altCertFilename;
 
-        #region Test Setup
         /// <summary>
         /// Set up a web server and root CAs.
         /// </summary>
@@ -152,7 +152,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
             catch
             {
-                Assert.Ignore($"Web server could not start at: {m_webServerUrl}");
+                NUnit.Framework.Assert.Ignore($"Web server could not start at: {m_webServerUrl}");
             }
         }
 
@@ -184,7 +184,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public void TearDown()
         {
         }
-        #endregion
 
         /// <summary>
         /// A signed app cert that has no keyid information.
@@ -216,7 +215,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             X509SubjectKeyIdentifierExtension ski = m_rootCert.Extensions.OfType<X509SubjectKeyIdentifierExtension>().Single();
 
             // create a certificate with special key info
-            var authorityKeyIdentifier = new Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension(
+            var authorityKeyIdentifier = new X509AuthorityKeyIdentifierExtension(
                     subjectKeyIdentifier ? ski.SubjectKeyIdentifier.FromHexString() : null,
                     issuerName ? m_rootCert.IssuerName : null,
                     serialNumber ? m_rootCert.GetSerialNumber() : null);
@@ -233,7 +232,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 m_certValidator.RejectUnknownRevocationStatus = false;
                 if (!subjectKeyIdentifier && !serialNumber)
                 {
-                    ServiceResultException result = Assert.Throws<ServiceResultException>(() => m_certValidator.Validate(appCert));
+                    ServiceResultException result = NUnit.Framework.Assert.Throws<ServiceResultException>(() => m_certValidator.Validate(appCert));
                     TestContext.Out.WriteLine($"{result.Result}: {result.Message}");
                 }
                 else
@@ -250,9 +249,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public void AlternateRootCertificateWithoutAuthorityKeyID(bool rejectUnknownRevocationStatus)
         {
             ICertificateBuilder certBuilder = CertificateFactory.CreateCertificate("CN=AlternateAppCert");
-            var caIssuerUrl = new List<string>();
-            caIssuerUrl.Add(m_webServerUrl + m_altCertFilename);
-            X509Extension extension = X509Extensions.BuildX509AuthorityInformationAccess(caIssuerUrl.ToArray());
+            var caIssuerUrl = new List<string> {
+                m_webServerUrl + m_altCertFilename
+            };
+            X509Extension extension = caIssuerUrl.ToArray().BuildX509AuthorityInformationAccess();
             certBuilder.AddExtension(extension);
             TestContext.Out.WriteLine("Extension: {0}", extension.Format(true));
 
@@ -262,7 +262,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 Assert.NotNull(altAppCert);
 
                 m_certValidator.RejectUnknownRevocationStatus = rejectUnknownRevocationStatus;
-                ServiceResultException result = Assert.Throws<ServiceResultException>(() => m_certValidator.Validate(altAppCert));
+                ServiceResultException result = NUnit.Framework.Assert.Throws<ServiceResultException>(() => m_certValidator.Validate(altAppCert));
 
                 TestContext.Out.WriteLine($"{result.Result}: {result.Message}");
             }
@@ -281,16 +281,17 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             X509SubjectKeyIdentifierExtension ski = m_rootAltCert.Extensions.OfType<X509SubjectKeyIdentifierExtension>().Single();
 
             // create a certificate with special key info / no key id
-            var authorityKeyIdentifier = new Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension(
+            var authorityKeyIdentifier = new X509AuthorityKeyIdentifierExtension(
                     subjectKeyIdentifier ? ski.SubjectKeyIdentifier.FromHexString() : null,
                     issuerName ? m_rootAltCert.IssuerName : null,
                     serialNumber ? m_rootAltCert.GetSerialNumber() : null);
             certBuilder.AddExtension(authorityKeyIdentifier);
             TestContext.Out.WriteLine("Extension: {0}", authorityKeyIdentifier.Format(true));
 
-            var caIssuerUrl = new List<string>();
-            caIssuerUrl.Add(m_webServerUrl + m_altCertFilename);
-            X509Extension extension = X509Extensions.BuildX509AuthorityInformationAccess(caIssuerUrl.ToArray());
+            var caIssuerUrl = new List<string> {
+                m_webServerUrl + m_altCertFilename
+            };
+            X509Extension extension = caIssuerUrl.ToArray().BuildX509AuthorityInformationAccess();
             certBuilder.AddExtension(extension);
             TestContext.Out.WriteLine("Extension: {0}", extension.Format(true));
 
@@ -303,7 +304,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                 // should not pass!
                 m_certValidator.RejectUnknownRevocationStatus = false;
-                ServiceResultException result = Assert.Throws<ServiceResultException>(() => m_certValidator.Validate(altAppCert));
+                ServiceResultException result = NUnit.Framework.Assert.Throws<ServiceResultException>(() => m_certValidator.Validate(altAppCert));
                 TestContext.Out.WriteLine($"{result.Result}: {result.Message}");
             }
         }
@@ -357,7 +358,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 using (var validator = TemporaryCertValidator.Create())
                 {
                     CertificateValidator certValidator = validator.Update();
-                    ServiceResultException result = Assert.Throws<ServiceResultException>(() => certValidator.Validate(collection));
+                    ServiceResultException result = NUnit.Framework.Assert.Throws<ServiceResultException>(() => certValidator.Validate(collection));
 
                     TestContext.Out.WriteLine($"{result.Result}: {result.Message}");
                 }
@@ -368,7 +369,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     await validator.IssuerStore.AddAsync(rootReverseCert).ConfigureAwait(false);
                     await validator.TrustedStore.AddAsync(subCACert).ConfigureAwait(false);
                     CertificateValidator certValidator = validator.Update();
-                    ServiceResultException result = Assert.Throws<ServiceResultException>(() => certValidator.Validate(collection));
+                    ServiceResultException result = NUnit.Framework.Assert.Throws<ServiceResultException>(() => certValidator.Validate(collection));
 
                     TestContext.Out.WriteLine($"{result.Result}: {result.Message}");
                 }
@@ -378,7 +379,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// <summary>
         /// Create and configure web server.
         /// </summary>
-        private static IWebServer CreateWebServer(string url, string tempPath, CancellationToken ct)
+        private static WebServer CreateWebServer(string url, string tempPath, CancellationToken ct)
         {
             if (!Directory.Exists(tempPath))
             {
@@ -414,9 +415,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             TestContext.Out.WriteLine("Hosting content at: {0}", tempPath);
 
             // Listen for state changes.
-            server.StateChanged += (s, e) => {
-                TestContext.Out.WriteLine($"WebServer New State - {e.NewState}");
-            };
+            server.StateChanged += (s, e) => TestContext.Out.WriteLine($"WebServer New State - {e.NewState}");
             server.Start(ct);
 
             TestContext.Out.WriteLine("Server started.");

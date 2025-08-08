@@ -44,13 +44,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns a monotonic increasing tick count in milliseconds.
         /// </summary>
-        public static long TickCount64
-        {
-            get
-            {
-                return (long)(s_Default.m_ticksDelegate() / s_Default.m_ticksPerMillisecond);
-            }
-        }
+        public static long TickCount64 => (long)(s_Default.m_ticksDelegate() / s_Default.m_ticksPerMillisecond);
 
         /// <summary>
         /// Returns a monotonic increasing tick count based on the frequency of the underlying timer.
@@ -95,10 +89,7 @@ namespace Opc.Ua
         /// </summary>
         public static bool Disabled
         {
-            get
-            {
-                return s_Default.m_disabled;
-            }
+            get => s_Default.m_disabled;
 
             set
             {
@@ -168,7 +159,7 @@ namespace Opc.Ua
         /// <summary>
         /// Defines a global instance.
         /// </summary>
-        private static HiResClock s_Default = new HiResClock(false);
+        private static HiResClock s_Default = new(false);
         private readonly TicksDelegate m_ticksDelegate;
         private readonly long m_frequency;
         private readonly long m_baseline;

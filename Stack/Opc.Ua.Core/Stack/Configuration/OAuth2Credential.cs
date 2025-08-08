@@ -26,13 +26,12 @@ namespace Opc.Ua
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public class OAuth2Credential
     {
-        #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
         public OAuth2Credential()
         {
-            OAuth2Credential.Initialize();
+            Initialize();
         }
 
         /// <summary>
@@ -41,7 +40,7 @@ namespace Opc.Ua
         [OnDeserializing()]
         private static void Initialize(StreamingContext context)
         {
-            OAuth2Credential.Initialize();
+            Initialize();
         }
 
         /// <summary>
@@ -50,9 +49,7 @@ namespace Opc.Ua
         private static void Initialize()
         {
         }
-        #endregion
 
-        #region Public Properties
         [DataMember(Order = 1)]
         public string AuthorityUrl { get; set; }
 
@@ -76,7 +73,6 @@ namespace Opc.Ua
 
         [DataMember(Order = 8)]
         public OAuth2ServerSettingsCollection Servers { get; set; }
-        #endregion
 
         public OAuth2ServerSettings SelectedServer { get; set; }
     }
@@ -104,7 +100,7 @@ namespace Opc.Ua
 
                 if (list == null)
                 {
-                    list = configuration.ParseExtension<OAuth2CredentialCollection>() ?? new OAuth2CredentialCollection();
+                    list = configuration.ParseExtension<OAuth2CredentialCollection>() ?? [];
 
                     configuration.Properties["OAuth2Credentials"] = list;
                 }
@@ -162,7 +158,7 @@ namespace Opc.Ua
                 throw new ArgumentException("The authority Url is invalid.", nameof(authorityUrl));
             }
 
-            if (!authorityUrl.EndsWith("/"))
+            if (!authorityUrl.EndsWith('/'))
             {
                 authorityUrl += "/";
             }

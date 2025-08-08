@@ -11,11 +11,11 @@
 */
 
 using System;
-using System.Xml;
 using System.Collections.Generic;
 using System.IO;
-using System.Threading;
 using System.Runtime.Serialization;
+using System.Threading;
+using System.Xml;
 
 namespace Opc.Ua
 {
@@ -24,16 +24,15 @@ namespace Opc.Ua
     /// </summary>
     public class StringTable
     {
-        #region Constructors
         /// <summary>
         /// Creates an empty collection.
         /// </summary>
         public StringTable()
         {
-            m_strings = new List<string>();
+            m_strings = [];
 
 #if DEBUG
-            m_instanceId = Interlocked.Increment(ref m_globalInstanceCount);
+            m_instanceId = Interlocked.Increment(ref s_globalInstanceCount);
 #endif
         }
 
@@ -42,11 +41,11 @@ namespace Opc.Ua
         /// </summary>
         public StringTable(bool shared)
         {
-            m_strings = new List<string>();
+            m_strings = [];
 
 #if DEBUG
             m_shared = shared;
-            m_instanceId = Interlocked.Increment(ref m_globalInstanceCount);
+            m_instanceId = Interlocked.Increment(ref s_globalInstanceCount);
 #endif
         }
 
@@ -58,28 +57,21 @@ namespace Opc.Ua
             Update(strings);
 
 #if DEBUG
-            m_instanceId = Interlocked.Increment(ref m_globalInstanceCount);
+            m_instanceId = Interlocked.Increment(ref s_globalInstanceCount);
 #endif
         }
-        #endregion
 
-        #region Public Members
         /// <summary>
         /// The synchronization object.
         /// </summary>
-        public object SyncRoot { get; } = new object();
+        public object SyncRoot { get; } = new();
 
+#if DEBUG
         /// <summary>
         /// Returns a unique identifier for the table instance. Used to debug problems with shared tables.
         /// </summary>
-        public int InstanceId
-        {
-#if DEBUG
-            get { return m_instanceId; }
-#else
-            get { return 0; }
+        public int InstanceId => m_instanceId;
 #endif
-        }
 
         /// <summary>
         /// Updates the table of namespace uris.
@@ -201,7 +193,7 @@ namespace Opc.Ua
         {
             lock (SyncRoot)
             {
-                return m_strings.ToArray();
+                return [.. m_strings];
             }
         }
 
@@ -257,16 +249,15 @@ namespace Opc.Ua
             return mapping;
         }
 
-#endregion                        
-#region Private Fields
         private List<string> m_strings;
-
 #if DEBUG
-        internal bool m_shared;
-        internal int m_instanceId;
-        private static int m_globalInstanceCount;
+        /// <summary>
+        /// Whether the table is shared.
+        /// </summary>
+        protected bool m_shared;
+        private int m_instanceId;
+        private static int s_globalInstanceCount;
 #endif
-        #endregion
     }
 
     /// <summary>
@@ -274,7 +265,6 @@ namespace Opc.Ua
     /// </summary>
     public class NamespaceTable : StringTable
     {
-        #region Constructors
         /// <summary>
         /// Creates an empty collection.
         /// </summary>
@@ -302,9 +292,7 @@ namespace Opc.Ua
         {
             Update(namespaceUris);
         }
-        #endregion
 
-        #region Public Members
         /// <summary>
         /// Updates the table of namespace uris.
         /// </summary>
@@ -335,6 +323,5 @@ namespace Opc.Ua
 
             base.Update(namespaceUris);
         }
-        #endregion
     }
 }

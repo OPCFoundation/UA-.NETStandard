@@ -12,10 +12,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Reflection;
-using System.Xml;
 using System.Runtime.Serialization;
+using System.Text;
+using System.Xml;
 
 namespace Opc.Ua
 {
@@ -24,7 +24,6 @@ namespace Opc.Ua
     /// </summary>
     public static partial class ReferenceTypes
     {
-        #region Static Helper Functions
         /// <summary>
         /// Returns the browse name for the attribute.
         /// </summary>
@@ -75,6 +74,5 @@ namespace Opc.Ua
 
             return 0;
         }
-        #endregion
     }
 }

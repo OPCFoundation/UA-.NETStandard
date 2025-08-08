@@ -37,7 +37,6 @@ namespace Opc.Ua.Client.ComplexTypes
     [AttributeUsage(AttributeTargets.Property)]
     public sealed class StructureFieldAttribute : Attribute
     {
-        #region Constructors
         /// <summary>
         /// Initialize a field attribute with defaults.
         /// </summary>
@@ -48,9 +47,7 @@ namespace Opc.Ua.Client.ComplexTypes
             IsOptional = false;
             BuiltInType = 0;
         }
-        #endregion Constructors
 
-        #region  Public Properties
         /// <summary>
         /// The value rank of the field.
         /// </summary>
@@ -70,6 +67,5 @@ namespace Opc.Ua.Client.ComplexTypes
         /// The datatype of a field as BuiltInType.
         /// </summary>
         public int BuiltInType { get; set; }
-        #endregion Public Properties
     }
 }//namespace

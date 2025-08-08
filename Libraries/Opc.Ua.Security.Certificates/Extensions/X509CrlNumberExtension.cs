@@ -45,7 +45,6 @@ namespace Opc.Ua.Security.Certificates
     /// </remarks>
     public class X509CrlNumberExtension : X509Extension
     {
-        #region Constructors
         /// <summary>
         /// Creates an empty extension.
         /// </summary>
@@ -89,9 +88,7 @@ namespace Opc.Ua.Security.Certificates
             CrlNumber = crlNumber;
             RawData = Encode();
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Returns a formatted version of the Abstract Syntax Notation One (ASN.1)-encoded data as a string.
         /// </summary>
@@ -119,9 +116,7 @@ namespace Opc.Ua.Security.Certificates
             RawData = asnEncodedData.RawData;
             Decode(RawData);
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The OID for a CRL Number extension.
         /// </summary>
@@ -132,9 +127,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <value>The uris.</value>
         public BigInteger CrlNumber { get; private set; }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Encode the CRL Number extension.
         /// </summary>
@@ -150,7 +143,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         private void Decode(byte[] data)
         {
-            if (base.Oid.Value == CrlNumberOid)
+            if (Oid.Value == CrlNumberOid)
             {
                 try
                 {
@@ -168,14 +161,11 @@ namespace Opc.Ua.Security.Certificates
                 throw new CryptographicException("Invalid CrlNumberOid.");
             }
         }
-        #endregion
 
-        #region Private Fields
         /// <summary>
         /// CRL Number extension string
         /// definitions see RFC 5280 5.2.3
         /// </summary>
         private const string kFriendlyName = "CRL Number";
-        #endregion
     }
 }

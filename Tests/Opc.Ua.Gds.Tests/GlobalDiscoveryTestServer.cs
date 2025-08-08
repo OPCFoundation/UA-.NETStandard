@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -206,23 +206,24 @@ namespace Opc.Ua.Gds.Tests
             // load the application configuration.
             ApplicationConfiguration config = await application.LoadApplicationConfiguration(true).ConfigureAwait(false);
 #else
+            string[] baseAddresses = ["opc.tcp://localhost:58810/GlobalDiscoveryTestServer"];
             string root = Path.Combine("%LocalApplicationData%", "OPC");
             string gdsRoot = Path.Combine(root, "GDS");
             var gdsConfig = new GlobalDiscoveryServerConfiguration() {
                 AuthoritiesStorePath = Path.Combine(gdsRoot, "authorities"),
                 ApplicationCertificatesStorePath = Path.Combine(gdsRoot, "applications"),
                 DefaultSubjectNameContext = "O=OPC Foundation",
-                CertificateGroups = new CertificateGroupConfigurationCollection()
-                {
+                CertificateGroups =
+                [
                     new CertificateGroupConfiguration() {
                         Id = "Default",
-                        CertificateTypes = new StringCollection() {
+                        CertificateTypes = [
                             "RsaSha256ApplicationCertificateType",
                             "EccNistP256ApplicationCertificateType",
                             "EccNistP384ApplicationCertificateType",
                             "EccBrainpoolP256r1ApplicationCertificateType",
                             "EccBrainpoolP384r1ApplicationCertificateType"
-                        },
+                        ],
                         SubjectName = "CN=GDS Test CA, O=OPC Foundation",
                         BaseStorePath = Path.Combine(gdsRoot, "CA", "default"),
                         DefaultCertificateHashSize = 256,
@@ -232,7 +233,7 @@ namespace Opc.Ua.Gds.Tests
                         CACertificateKeySize = 4096,
                         CACertificateLifetime = 60
                     }
-                },
+                ],
                 DatabaseStorePath = Path.Combine(gdsRoot, "gdsdb.json"),
                 UsersDatabaseStorePath = Path.Combine(gdsRoot, "gdsusersdb.json")
             };
@@ -248,7 +249,7 @@ namespace Opc.Ua.Gds.Tests
                 .Build(
                     "urn:localhost:opcfoundation.org:GlobalDiscoveryTestServer",
                     "http://opcfoundation.org/UA/GlobalDiscoveryTestServer")
-                .AsServer(new string[] { "opc.tcp://localhost:58810/GlobalDiscoveryTestServer" })
+                .AsServer(baseAddresses)
                 .AddUserTokenPolicy(UserTokenType.Anonymous)
                 .AddUserTokenPolicy(UserTokenType.UserName)
                 .SetDiagnosticsEnabled(true)
@@ -273,6 +274,6 @@ namespace Opc.Ua.Gds.Tests
         }
 
         private GlobalDiscoverySampleServer m_server;
-        private static bool s_autoAccept = false;
+        private static bool s_autoAccept;
     }
 }

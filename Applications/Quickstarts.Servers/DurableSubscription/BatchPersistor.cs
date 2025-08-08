@@ -31,23 +31,22 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
-using System.Text.RegularExpressions;
 using Opc.Ua;
-using System.Linq;
-using System.Threading;
 
 namespace Quickstarts.Servers
 {
     /// <inheritdoc/>
     public class BatchPersistor : IBatchPersistor
     {
-        private static readonly JsonSerializerSettings s_settings = new JsonSerializerSettings { TypeNameHandling = TypeNameHandling.All };
+        private static readonly JsonSerializerSettings s_settings = new() { TypeNameHandling = TypeNameHandling.All };
         private static readonly string s_storage_path = Path.Combine(Environment.CurrentDirectory, "Durable Subscriptions", "Batches");
-        private const string s_baseFilename = "_batch.txt";
+        private const string kBaseFilename = "_batch.txt";
 
-        #region IBatchPersistor Members
         /// <inheritdoc/>
         public void RequestBatchPersist(BatchBase batch)
         {
@@ -92,7 +91,7 @@ namespace Quickstarts.Servers
         /// <inheritdoc/>
         public void RestoreSynchronously(BatchBase batch)
         {
-            string filePath = Path.Combine(s_storage_path, $"{batch.MonitoredItemId}_{batch.Id}{s_baseFilename}");
+            string filePath = Path.Combine(s_storage_path, $"{batch.MonitoredItemId}_{batch.Id}{kBaseFilename}");
             object result = null;
             try
             {
@@ -143,7 +142,7 @@ namespace Quickstarts.Servers
                     Directory.CreateDirectory(s_storage_path);
                 }
 
-                string filePath = Path.Combine(s_storage_path, $"{batch.MonitoredItemId}_{batch.Id}{s_baseFilename}");
+                string filePath = Path.Combine(s_storage_path, $"{batch.MonitoredItemId}_{batch.Id}{kBaseFilename}");
 
                 File.WriteAllText(filePath, result);
 
@@ -176,7 +175,6 @@ namespace Quickstarts.Servers
                 }
             }
         }
-        #endregion
 
         /// <inheritdoc/>
         public void DeleteBatches(IEnumerable<uint> batchesToKeep)
@@ -188,7 +186,7 @@ namespace Quickstarts.Servers
                     var directory = new DirectoryInfo(s_storage_path);
 
                     // Create a single regex pattern that matches any of the batches to keep
-                    string pattern = string.Join("|", batchesToKeep.Select(batch => $"{batch}_.*{s_baseFilename}$"));
+                    string pattern = string.Join("|", batchesToKeep.Select(batch => $"{batch}_.*{kBaseFilename}$"));
                     var regex = new Regex(pattern, RegexOptions.Compiled);
 
                     foreach (FileInfo file in directory.GetFiles())
@@ -213,7 +211,7 @@ namespace Quickstarts.Servers
                 if (Directory.Exists(s_storage_path))
                 {
                     var directory = new DirectoryInfo(s_storage_path);
-                    var regex = new Regex($"{batchToRemove.MonitoredItemId}_.{batchToRemove.Id}._{s_baseFilename}$", RegexOptions.Compiled);
+                    var regex = new Regex($"{batchToRemove.MonitoredItemId}_.{batchToRemove.Id}._{kBaseFilename}$", RegexOptions.Compiled);
 
                     foreach (FileInfo file in directory.GetFiles())
                     {
@@ -231,7 +229,7 @@ namespace Quickstarts.Servers
             }
         }
 
-        private readonly ConcurrentDictionary<Guid, BatchBase> m_batchesToRestore = new ConcurrentDictionary<Guid, BatchBase>();
-        private readonly ConcurrentDictionary<Guid, BatchBase> m_batchesToPersist = new ConcurrentDictionary<Guid, BatchBase>();
+        private readonly ConcurrentDictionary<Guid, BatchBase> m_batchesToRestore = new();
+        private readonly ConcurrentDictionary<Guid, BatchBase> m_batchesToPersist = new();
     }
 }

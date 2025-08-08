@@ -55,14 +55,10 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
     [Parallelizable]
     public class ContentFilterTests
     {
-        #region Shared Properties
         public EventFilter Filter { get; }
         public FilterContext FilterContext { get; }
         public TestFilterTarget TestFilterTarget { get; }
 
-        #endregion
-
-        #region Constructor
         public ContentFilterTests()
         {
             // construct the context to use for the event filter.
@@ -77,9 +73,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
 
             TestFilterTarget = new TestFilterTarget();
         }
-        #endregion
 
-        #region Test Setup
         [OneTimeSetUp]
         protected void OneTimeSetUp()
         {
@@ -99,9 +93,6 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         protected void TearDown()
         {
         }
-        #endregion
-
-        #region Test Methods
 
         [Test]
         [TestCase(5, 3, 7, true)]
@@ -249,7 +240,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             var filterElement1 = new ContentFilterElement {
                 FilterOperator = filterOp1
             };
-            filterElement1.SetOperands(new List<FilterOperand>() { loperand1, loperand2 });
+            filterElement1.SetOperands([loperand1, loperand2]);
 
             // Setup the Second ContentfilterElement
             var elementOperand = new ElementOperand {
@@ -259,7 +250,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             var filterElement2 = new ContentFilterElement {
                 FilterOperator = filterOp2
             };
-            filterElement2.SetOperands(new List<FilterOperand>() { elementOperand });
+            filterElement2.SetOperands([elementOperand]);
 
             Filter.WhereClause.Elements = new[] { filterElement2, filterElement1 };
 
@@ -299,7 +290,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             var filterElement1 = new ContentFilterElement {
                 FilterOperator = filterOp1
             };
-            filterElement1.SetOperands(new List<FilterOperand>() { loperand1, loperand2 });
+            filterElement1.SetOperands([loperand1, loperand2]);
 
             // Setup the Second ContentfilterElement
             var lFirstOperand = new LiteralOperand {
@@ -312,7 +303,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             var filterElement2 = new ContentFilterElement {
                 FilterOperator = filterOp2
             };
-            filterElement2.SetOperands(new List<FilterOperand>() { lFirstOperand, elementOperand });
+            filterElement2.SetOperands([lFirstOperand, elementOperand]);
 
             Filter.WhereClause.Elements = new[] { filterElement2, filterElement1 };
 
@@ -330,9 +321,9 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [TestCase("mainstation", "mainstation", StringComparison.InvariantCulture, true)]
         public void EqualsStringComparsion(string operandFirst1, string operandFirst2, StringComparison stringComparison, object expectedResult)
         {
-            Opc.Ua.ContentFilter.EqualsOperatorDefaultStringComparison = stringComparison;
-            var loperand1 = new LiteralOperand { Value = new Variant(operandFirst1)};
-            var loperand2 = new LiteralOperand { Value = new Variant(operandFirst2)};
+            Ua.ContentFilter.EqualsOperatorDefaultStringComparison = stringComparison;
+            var loperand1 = new LiteralOperand { Value = new Variant(operandFirst1) };
+            var loperand2 = new LiteralOperand { Value = new Variant(operandFirst2) };
 
             var filterElement = new ContentFilterElement {
                 FilterOperator = FilterOperator.Equals
@@ -344,7 +335,5 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             object result = Filter.WhereClause.Evaluate(FilterContext, TestFilterTarget);
             Assert.AreEqual(expectedResult, result);
         }
-
-        #endregion
     }
 }

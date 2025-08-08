@@ -29,10 +29,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using System.Threading;
 using System.Xml;
-using System.IO;
 using Opc.Ua;
 
 namespace TestData
@@ -42,7 +42,6 @@ namespace TestData
     /// </summary>
     internal class HistoryArchive : IDisposable
     {
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -62,9 +61,7 @@ namespace TestData
                 m_updateTimer = null;
             }
         }
-        #endregion
 
-        #region Public Interface
         /// <summary>
         /// Returns an object that can be used to browse the archive.
         /// </summary>
@@ -97,7 +94,7 @@ namespace TestData
             {
                 var record = new HistoryRecord();
 
-                record.RawData = new List<HistoryEntry>();
+                record.RawData = [];
                 record.Historizing = true;
                 record.DataType = dataType;
 
@@ -124,7 +121,7 @@ namespace TestData
 
                 if (m_records == null)
                 {
-                    m_records = new Dictionary<NodeId, HistoryRecord>();
+                    m_records = [];
                 }
 
                 m_records[nodeId] = record;
@@ -135,9 +132,7 @@ namespace TestData
                 }
             }
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Periodically adds new values into the archive.
         /// </summary>
@@ -180,16 +175,12 @@ namespace TestData
                 Utils.LogError(e, "Unexpected error updating history.");
             }
         }
-        #endregion
 
-        #region Private Fields
-        private readonly object m_lock = new object();
+        private readonly object m_lock = new();
         private Timer m_updateTimer;
         private Dictionary<NodeId, HistoryRecord> m_records;
-        #endregion
     }
 
-    #region HistoryEntry Class
     /// <summary>
     /// A single entry in the archive.
     /// </summary>
@@ -198,9 +189,7 @@ namespace TestData
         public DataValue Value;
         public bool IsModified;
     }
-    #endregion
 
-    #region HistoryRecord Class
     /// <summary>
     /// A record in the archive.
     /// </summary>
@@ -210,5 +199,4 @@ namespace TestData
         public bool Historizing;
         public BuiltInType DataType;
     }
-    #endregion
 }

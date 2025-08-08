@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2018 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -48,14 +48,13 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
     [Parallelizable]
     public class UtilsTests
     {
-        #region Misc
         /// <summary>
         /// Convert to and from little endian hex string.
         /// </summary>
         [Test]
         public void ToHexFromHexLittleEndian()
         {
-            byte[] blob = new byte[] { 0, 1, 2, 3, 4, 5, 6, 255 };
+            byte[] blob = [0, 1, 2, 3, 4, 5, 6, 255];
             const string hex = "00010203040506FF";
             string hexutil = Utils.ToHexString(blob);
             Assert.AreEqual(hex, hexutil);
@@ -73,14 +72,14 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void ToHexEndianessValidation()
         {
-            // definition as big endian 64,206(0xFACE) 
-            byte[] bigEndian = new byte[] { 64206 / 256, 64206 % 256 };
+            // definition as big endian 64,206(0xFACE)
+            byte[] bigEndian = [64206 / 256, 64206 % 256];
             // big endian is written as FA CE.
             Assert.AreEqual("FACE", Utils.ToHexString(bigEndian, false));
             // In Little Endian it's written as CE FA
             Assert.AreEqual("CEFA", Utils.ToHexString(bigEndian, true));
-            // definition as little endian 64,206(0xFACE) 
-            byte[] littleEndian = new byte[] { 64206 & 0xff, 64206 >> 8 };
+            // definition as little endian 64,206(0xFACE)
+            byte[] littleEndian = [64206 & 0xff, 64206 >> 8];
             // big endian is written as FA CE.
             Assert.AreEqual("FACE", Utils.ToHexString(littleEndian, true));
             // In Little Endian it's written as CE FA
@@ -92,7 +91,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         /// </summary>
         public void ToHexBigEndian()
         {
-            byte[] blob = new byte[] { 0, 1, 2, 3, 4, 5, 6, 255 };
+            byte[] blob = [0, 1, 2, 3, 4, 5, 6, 255];
             const string hex = "FF06050403020100";
             string hexutil = Utils.ToHexString(blob, true);
             Assert.AreEqual(hex, hexutil);
@@ -115,7 +114,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             var uri1 = new Uri("opc.tcp://host1:4840");
             var uri1_dupe = new Uri("opc.tcp://host1:4840");
-            var uri2 = new Uri($"opc.tcp://localhost:4840");
+            var uri2 = new Uri("opc.tcp://localhost:4840");
             var uri2_dupe = new Uri($"opc.tcp://{Utils.GetHostName()}:4840");
 
             // uri compare resolves localhost
@@ -145,7 +144,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 
         public class TestClone
         {
-            readonly object m_object;
+            private readonly object m_object;
 
             public TestClone(object value)
             {
@@ -160,7 +159,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 
         public class TestNoClone
         {
-            readonly object m_object;
+            private readonly object m_object;
 
             public TestNoClone(object value)
             {
@@ -175,7 +174,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 
         public class TestMemberwiseClone
         {
-            readonly object m_object;
+            private readonly object m_object;
 
             public TestMemberwiseClone(object value)
             {
@@ -196,7 +195,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             var testMemberwiseClone = new TestMemberwiseClone(2);
             Assert.NotNull(Utils.Clone(testMemberwiseClone));
             var testNoClone = new TestNoClone(3);
-            Assert.Throws<NotSupportedException>(() => Utils.Clone(testNoClone));
+            NUnit.Framework.Assert.Throws<NotSupportedException>(() => Utils.Clone(testNoClone));
         }
 
         [Test]
@@ -228,9 +227,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             Assert.False(Utils.IsEqualUserIdentity(null, user2));
             Assert.False(Utils.IsEqualUserIdentity(user1, null));
         }
-        #endregion
 
-        #region RelativePath.Parse
         /// <summary>
         /// Parse simple plain path string containing only numeric chars.
         /// </summary>
@@ -307,11 +304,11 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [TestCase("/1:abc/2:def", "/1:abc/3:def")]
         public void RelativePathParseTranslateNamespaceIndexReferenceType(string input, string output)
         {
-            var currentTable = new NamespaceTable(new List<string>() { Namespaces.OpcUa, "1", Namespaces.OpcUaGds });
-            var targetTable = new NamespaceTable(new List<string>() { Namespaces.OpcUa, "1", "2", Namespaces.OpcUaGds });
+            var currentTable = new NamespaceTable([Namespaces.OpcUa, "1", Namespaces.OpcUaGds]);
+            var targetTable = new NamespaceTable([Namespaces.OpcUa, "1", "2", Namespaces.OpcUaGds]);
 
             var typeTable = new TypeTable(new NamespaceTable());
-            typeTable.AddReferenceSubtype(Opc.Ua.ReferenceTypeIds.HasChild, NodeId.Null, new QualifiedName("HasChild", 3));
+            typeTable.AddReferenceSubtype(ReferenceTypeIds.HasChild, NodeId.Null, new QualifiedName("HasChild", 3));
             Assert.AreEqual(output, RelativePath.Parse(input, typeTable, currentTable, targetTable).Format(typeTable));
         }
 
@@ -336,11 +333,11 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         )]
         public void RelativePathParseInvalidNamespaceIndex(string[] currentNamespaces, string[] targetNamespaces, string path)
         {
-            var currentTable = new NamespaceTable(new List<string>(currentNamespaces));
-            var targetTable = new NamespaceTable(new List<string>(targetNamespaces));
+            var currentTable = new NamespaceTable([.. currentNamespaces]);
+            var targetTable = new NamespaceTable([.. targetNamespaces]);
 
             var typeTable = new TypeTable(new NamespaceTable());
-            ServiceResultException sre = Assert.Throws<ServiceResultException>(() => RelativePath.Parse(path, typeTable, currentTable, targetTable).Format(typeTable));
+            ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() => RelativePath.Parse(path, typeTable, currentTable, targetTable).Format(typeTable));
             Assert.AreEqual((StatusCode)StatusCodes.BadIndexRangeInvalid, (StatusCode)sre.StatusCode);
         }
 
@@ -371,7 +368,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 
             // Validate the default reader (expansion limited at 10000000 bytes)
             TestContext.Out.WriteLine("Testing XmlDocument.LoadXml.");
-            XmlException ex = Assert.Throws<XmlException>(() => {
+            XmlException ex = NUnit.Framework.Assert.Throws<XmlException>(() => {
                 var document = new XmlDocument();
                 document.LoadXml(xmlEEXX.ToString());
             });
@@ -379,7 +376,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 
             // Validate the InnerXml default (expansion limited at 10000000 bytes)
             TestContext.Out.WriteLine("Testing XmlDocument.InnerXml.");
-            ex = Assert.Throws<XmlException>(() => {
+            ex = NUnit.Framework.Assert.Throws<XmlException>(() => {
                 var document = new XmlDocument {
                     InnerXml = xmlEEXX.ToString()
                 };
@@ -391,7 +388,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             using (var stream = new StringReader(xmlEEXX.ToString()))
             using (var reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings()))
             {
-                ex = Assert.Throws<XmlException>(() => {
+                ex = NUnit.Framework.Assert.Throws<XmlException>(() => {
                     var document = new XmlDocument();
                     document.Load(reader);
                 });
@@ -400,7 +397,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 
             // Validate the LoadInnerXml helper settings prohibit Dtd (recommended)
             TestContext.Out.WriteLine("Testing LoadInnerXml helper.");
-            ex = Assert.Throws<XmlException>(() => {
+            ex = NUnit.Framework.Assert.Throws<XmlException>(() => {
                 var document = new XmlDocument();
                 document.LoadInnerXml(xmlEEXX.ToString());
             });
@@ -429,7 +426,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             Assert.AreEqual(BuiltInType.NodeId, TypeInfo.GetBuiltInType(DataTypeIds.SessionAuthenticationToken));
             Assert.AreEqual(BuiltInType.Double, TypeInfo.GetBuiltInType(DataTypeIds.Duration));
 
-            bnList = new List<string> { BrowseNames.IntegerId, BrowseNames.Index, BrowseNames.VersionTime, BrowseNames.Counter };
+            bnList = [BrowseNames.IntegerId, BrowseNames.Index, BrowseNames.VersionTime, BrowseNames.Counter];
             foreach (string name in bnList)
             {
                 object staticValue = typeof(DataTypeIds).GetFields(BindingFlags.Public | BindingFlags.Static).First(f => f.Name == name).GetValue(null);
@@ -438,10 +435,10 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 
             Assert.AreEqual(BuiltInType.UInt64, TypeInfo.GetBuiltInType(DataTypeIds.BitFieldMaskDataType));
 
-            bnList = new List<string> { BrowseNames.DateString, BrowseNames.DecimalString,
+            bnList = [ BrowseNames.DateString, BrowseNames.DecimalString,
                 BrowseNames.DurationString, BrowseNames.LocaleId,
                 BrowseNames.NormalizedString, BrowseNames.NumericRange,
-                BrowseNames.TimeString };
+                BrowseNames.TimeString ];
             foreach (string name in bnList)
             {
                 object staticValue = typeof(DataTypeIds).GetFields(BindingFlags.Public | BindingFlags.Static).First(f => f.Name == name).GetValue(null);
@@ -470,9 +467,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             Assert.AreEqual(ConformanceLevel.Document, settings.ConformanceLevel);
             Assert.AreEqual(false, settings.CloseInput);
         }
-        #endregion
 
-        #region RelativePath.Parse Escaping
         /// <summary>
         /// Parse a path containing non-escaped hash character.
         /// </summary>
@@ -481,7 +476,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             var typeTable = new TypeTable(new NamespaceTable());
             const string str = "/abc#def";
-            Assert.Throws<ServiceResultException>(() => RelativePath.Parse(str, typeTable).Format(typeTable));
+            NUnit.Framework.Assert.Throws<ServiceResultException>(() => RelativePath.Parse(str, typeTable).Format(typeTable));
         }
 
         /// <summary>
@@ -504,7 +499,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             var typeTable = new TypeTable(new NamespaceTable());
             const string str = "/abc&#!def";
-            Assert.Throws<ServiceResultException>(() => RelativePath.Parse(str, typeTable).Format(typeTable));
+            NUnit.Framework.Assert.Throws<ServiceResultException>(() => RelativePath.Parse(str, typeTable).Format(typeTable));
         }
 
         /// <summary>
@@ -515,7 +510,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             var typeTable = new TypeTable(new NamespaceTable());
             const string str = "<abc&#!def>";
-            Assert.Throws<ServiceResultException>(() => RelativePath.Parse(str, typeTable).Format(typeTable));
+            NUnit.Framework.Assert.Throws<ServiceResultException>(() => RelativePath.Parse(str, typeTable).Format(typeTable));
         }
 
         /// <summary>
@@ -526,8 +521,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             var typeTable = new TypeTable(new NamespaceTable());
             const string str = "/abc&$!def";
-            Assert.Throws<ServiceResultException>(() => RelativePath.Parse(str, typeTable).Format(typeTable));
+            NUnit.Framework.Assert.Throws<ServiceResultException>(() => RelativePath.Parse(str, typeTable).Format(typeTable));
         }
-        #endregion
     }
 }

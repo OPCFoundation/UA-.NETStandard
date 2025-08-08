@@ -15,7 +15,6 @@ using System.Threading;
 
 namespace Opc.Ua
 {
-    #region MessageContextExtension Class
     /// <summary>
     /// Uses to add the service message context to the operation context.
     /// </summary>
@@ -45,7 +44,7 @@ namespace Opc.Ua
         {
             get
             {
-                MessageContextExtension extension = MessageContextExtension.Current;
+                MessageContextExtension extension = Current;
 
                 if (extension != null)
                 {
@@ -71,7 +70,7 @@ namespace Opc.Ua
             MessageContextExtension previousContext = Current;
             Current = new MessageContextExtension(messageContext);
 
-            return new DisposableAction (() => Current = previousContext);
+            return new DisposableAction(() => Current = previousContext);
         }
 
         /// <summary>
@@ -93,7 +92,6 @@ namespace Opc.Ua
             }
         }
 
-        private static readonly AsyncLocal<MessageContextExtension> s_current = new AsyncLocal<MessageContextExtension>();
+        private static readonly AsyncLocal<MessageContextExtension> s_current = new();
     }
-    #endregion
 }

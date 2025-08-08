@@ -51,7 +51,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             var dataCollector = new DataCollector(new UaPubSubDataStore());
 
             //Assert
-            Assert.Throws<ArgumentException>(() => dataCollector.AddPublishedDataSet(null));
+            NUnit.Framework.Assert.Throws<ArgumentException>(() => dataCollector.AddPublishedDataSet(null));
         }
 
         [Test(Description = "Validate AddPublishedDataSet.")]
@@ -63,8 +63,8 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
 
             var dataCollector = new DataCollector(new UaPubSubDataStore());
             //Act  
-            dataCollector.AddPublishedDataSet(pubSubConfiguration.PublishedDataSets.First());
-            DataSet collectedDataSet = dataCollector.CollectData(pubSubConfiguration.PublishedDataSets.First().Name);
+            dataCollector.AddPublishedDataSet(pubSubConfiguration.PublishedDataSets[0]);
+            DataSet collectedDataSet = dataCollector.CollectData(pubSubConfiguration.PublishedDataSets[0].Name);
             //Assert
             Assert.IsNotNull(collectedDataSet,
                 "Cannot collect data therefore the '{0}' publishedDataSet was not registered correctly.", pubSubConfiguration.PublishedDataSets[0].Name);
@@ -91,7 +91,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             //Arrange
             var dataCollector = new DataCollector(new UaPubSubDataStore());
             //Assert
-            Assert.Throws<ArgumentException>(() => dataCollector.RemovePublishedDataSet(null));
+            NUnit.Framework.Assert.Throws<ArgumentException>(() => dataCollector.RemovePublishedDataSet(null));
         }
 
         [Test(Description = "Validate CollectData from DataStore.")]
@@ -105,15 +105,15 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             dataStore.WritePublishedDataItem(new NodeId("DateTime", NamespaceIndex), 0, new DataValue(new Variant(DateTime.MaxValue)));
 
             var dataCollector = new DataCollector(dataStore);
-            #region set up published data set that collects data from extension fields
+
             var publishedDataSetSimple = new PublishedDataSetDataType();
             publishedDataSetSimple.Name = "Simple";
             // Define  publishedDataSetSimple.DataSetMetaData
             publishedDataSetSimple.DataSetMetaData = new DataSetMetaDataType();
             publishedDataSetSimple.DataSetMetaData.DataSetClassId = new Uuid(Guid.Empty);
             publishedDataSetSimple.DataSetMetaData.Name = publishedDataSetSimple.Name;
-            publishedDataSetSimple.DataSetMetaData.Fields = new FieldMetaDataCollection()
-                {
+            publishedDataSetSimple.DataSetMetaData.Fields =
+                [
                     new FieldMetaData()
                     {
                         Name = "BoolToggle",
@@ -142,10 +142,10 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                         DataType = DataTypeIds.DateTime,
                         ValueRank = ValueRanks.Scalar
                     }
-                };
+                ];
 
             var publishedDataItems = new PublishedDataItemsDataType();
-            publishedDataItems.PublishedData = new PublishedVariableDataTypeCollection();
+            publishedDataItems.PublishedData = [];
             //create PublishedData based on metadata names
             foreach (FieldMetaData field in publishedDataSetSimple.DataSetMetaData.Fields)
             {
@@ -156,7 +156,6 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                     });
             }
             publishedDataSetSimple.DataSetSource = new ExtensionObject(publishedDataItems);
-            #endregion 
 
             //Act  
             dataCollector.AddPublishedDataSet(publishedDataSetSimple);
@@ -176,22 +175,21 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             Assert.AreEqual(collectedDataSet.Fields[3].Value.Value, DateTime.MaxValue, "collectedDataSet.Fields[3].Value.Value does not match.");
         }
 
-
         [Test(Description = "Validate CollectData from ExtensionFields.")]
         public void ValidateCollectDataFromExtensionFields()
         {
             //Arrange
             var dataStore = new UaPubSubDataStore();
             var dataCollector = new DataCollector(dataStore);
-            #region set up published data set that collects data from extension fields
+
             var publishedDataSetSimple = new PublishedDataSetDataType();
             publishedDataSetSimple.Name = "Simple";
             // Define  publishedDataSetSimple.DataSetMetaData
             publishedDataSetSimple.DataSetMetaData = new DataSetMetaDataType();
             publishedDataSetSimple.DataSetMetaData.DataSetClassId = new Uuid(Guid.Empty);
             publishedDataSetSimple.DataSetMetaData.Name = publishedDataSetSimple.Name;
-            publishedDataSetSimple.DataSetMetaData.Fields = new FieldMetaDataCollection()
-                {
+            publishedDataSetSimple.DataSetMetaData.Fields =
+                [
                     new FieldMetaData()
                     {
                         Name = "BoolToggle",
@@ -220,35 +218,35 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                         DataType = DataTypeIds.DateTime,
                         ValueRank = ValueRanks.Scalar
                     }
-                };
+                ];
 
             //initialize Extension fields collection
-            publishedDataSetSimple.ExtensionFields = new KeyValuePairCollection()
-                {
-                    new Opc.Ua.KeyValuePair()
+            publishedDataSetSimple.ExtensionFields =
+                [
+                    new KeyValuePair()
                     {
                         Key =  new QualifiedName("BoolToggle"),
                         Value = true
                     },
-                     new Opc.Ua.KeyValuePair()
+                     new KeyValuePair()
                     {
                         Key =  new QualifiedName("Int32"),
                         Value = 100
                     },
-                     new Opc.Ua.KeyValuePair()
+                     new KeyValuePair()
                     {
                         Key =  new QualifiedName("Int32Fast"),
                         Value = 50
                     },
-                    new Opc.Ua.KeyValuePair()
+                    new KeyValuePair()
                     {
                         Key =  new QualifiedName( "DateTime"),
                         Value = DateTime.Today
                     }
-                };
+                ];
 
             var publishedDataItems = new PublishedDataItemsDataType();
-            publishedDataItems.PublishedData = new PublishedVariableDataTypeCollection();
+            publishedDataItems.PublishedData = [];
             //create PublishedData based on metadata names
             foreach (FieldMetaData field in publishedDataSetSimple.DataSetMetaData.Fields)
             {
@@ -258,7 +256,6 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                     });
             }
             publishedDataSetSimple.DataSetSource = new ExtensionObject(publishedDataItems);
-            #endregion
 
             //Act  
             dataCollector.AddPublishedDataSet(publishedDataSetSimple);
@@ -294,7 +291,7 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             var dataCollector = new DataCollector(new UaPubSubDataStore());
 
             //Assert
-            Assert.Throws<ArgumentException>(() => dataCollector.CollectData(null), "The data collect does not throw exception when null parameter.");
+            NUnit.Framework.Assert.Throws<ArgumentException>(() => dataCollector.CollectData(null), "The data collect does not throw exception when null parameter.");
         }
     }
 }

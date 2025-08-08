@@ -38,7 +38,6 @@ namespace Opc.Ua.Client.ComplexTypes
     /// </summary>
     public class ComplexTypeFieldBuilder : IComplexTypeFieldBuilder
     {
-        #region Constructors
         /// <summary>
         /// The field builder for a complex type.
         /// </summary>
@@ -51,9 +50,7 @@ namespace Opc.Ua.Client.ComplexTypes
             m_structureBuilder = structureBuilder;
             m_structureType = structureType;
         }
-        #endregion Constructors
 
-        #region Public Properties
         /// <inheritdoc/>
         public void AddTypeIdAttribute(
             ExpandedNodeId complexTypeId,
@@ -77,7 +74,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 PropertyAttributes.None,
                 fieldType,
                 null);
-            System.Reflection.MethodAttributes methodAttributes =
+            const System.Reflection.MethodAttributes methodAttributes =
                 System.Reflection.MethodAttributes.Public |
                 System.Reflection.MethodAttributes.HideBySig |
                 System.Reflection.MethodAttributes.Virtual;
@@ -138,11 +135,8 @@ namespace Opc.Ua.Client.ComplexTypes
                 return null;
             }
         }
-        #endregion Public Properties
 
-        #region Private Member
         private TypeBuilder m_structureBuilder;
         private readonly StructureType m_structureType;
-        #endregion Private Member
     }
 }//namespace

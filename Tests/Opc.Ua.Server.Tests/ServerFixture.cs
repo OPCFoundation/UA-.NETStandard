@@ -93,9 +93,9 @@ namespace Opc.Ua.Server.Tests
                 .SetMaxArrayLength(1024 * 1024)
                 .SetChannelLifetime(30000)
                 .AsServer(
-                    new string[] {
+                    [
                     endpointUrl
-                });
+                ]);
 
             if (SecurityNone)
             {
@@ -223,9 +223,9 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         private async Task InternalStartServerAsync(TextWriter writer, int port)
         {
-            Config.ServerConfiguration.BaseAddresses = new StringCollection() {
+            Config.ServerConfiguration.BaseAddresses = [
                 $"{UriScheme}://localhost:{port}/{typeof(T).Name}"
-            };
+            ];
 
             if (writer != null)
             {

@@ -78,7 +78,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         protected BufferManager BufferManager { get; private set; }
         protected RecyclableMemoryStreamManager RecyclableMemoryManager { get; private set; }
 
-        #region Test Setup
         [OneTimeSetUp]
         protected void OneTimeSetUp()
         {
@@ -132,66 +131,72 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             RandomSource = new RandomSource(randomSeed + kRandomStart);
             DataGenerator = new DataGenerator(RandomSource);
         }
-        #endregion
-
-        #region DataPointSources
-        [DatapointSource]
-        public static readonly BuiltInType[] BuiltInTypes = ((BuiltInType[])Enum.GetValues(typeof(BuiltInType)))
-            .ToList().Where(b =>
-                (b != BuiltInType.Variant) &&
-                (b != BuiltInType.DiagnosticInfo) &&
-                (b != BuiltInType.DataValue) &&
-                (b < BuiltInType.Number || b > BuiltInType.UInteger)
-             ).ToArray();
 
         [DatapointSource]
-        public static readonly EncodingType[] EncoderTypes = (EncodingType[])Enum.GetValues(typeof(EncodingType));
+        public static readonly BuiltInType[] BuiltInTypes =
+#if NET8_0_OR_GREATER
+            [.. Enum.GetValues<BuiltInType>()
+#else
+            [.. Enum.GetValues(typeof(BuiltInType))
+                .Cast<BuiltInType>()
+#endif
+                .Where(b => b is
+                    not BuiltInType.Variant and
+                    not BuiltInType.DiagnosticInfo and
+                    not BuiltInType.DataValue and
+                    (< BuiltInType.Number or > BuiltInType.UInteger))];
 
-        public static readonly EncodingTypeGroup[] EncodingTypesJson = new EncodingTypeGroup[] {
+        [DatapointSource]
+        public static readonly EncodingType[] EncoderTypes =
+#if NET8_0_OR_GREATER
+            Enum.GetValues<EncodingType>();
+#else
+            (EncodingType[])Enum.GetValues(typeof(EncodingType));
+#endif
+
+        public static readonly EncodingTypeGroup[] EncodingTypesJson = [
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Reversible),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Compact),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.NonReversible),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Verbose)
-        };
+        ];
 
-        public static readonly EncodingTypeGroup[] EncodingTypesJsonNonReversibleVerbose = new EncodingTypeGroup[] {
+        public static readonly EncodingTypeGroup[] EncodingTypesJsonNonReversibleVerbose = [
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Reversible),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Compact)
-        };
+        ];
 
-        public static readonly EncodingTypeGroup[] EncodingTypesReversibleCompact = new EncodingTypeGroup[] {
+        public static readonly EncodingTypeGroup[] EncodingTypesReversibleCompact = [
             new EncodingTypeGroup(EncodingType.Binary),
             new EncodingTypeGroup(EncodingType.Xml),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Reversible),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Compact)
-        };
+        ];
 
-        public static readonly EncodingTypeGroup[] EncodingTypesNonReversibleVerbose = new EncodingTypeGroup[] {
+        public static readonly EncodingTypeGroup[] EncodingTypesNonReversibleVerbose = [
             new EncodingTypeGroup(EncodingType.Binary),
             new EncodingTypeGroup(EncodingType.Xml),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.NonReversible),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Verbose)
-        };
+        ];
 
-        public static readonly EncodingTypeGroup[] EncodingTypesAll = new EncodingTypeGroup[] {
+        public static readonly EncodingTypeGroup[] EncodingTypesAll = [
             new EncodingTypeGroup(EncodingType.Binary),
             new EncodingTypeGroup(EncodingType.Xml),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.NonReversible),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Reversible),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Compact),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Verbose)
-        };
+        ];
 
-        public static readonly EncodingTypeGroup[] EncodingTypesAllButJsonNonReversible = new EncodingTypeGroup[] {
+        public static readonly EncodingTypeGroup[] EncodingTypesAllButJsonNonReversible = [
             new EncodingTypeGroup(EncodingType.Binary),
             new EncodingTypeGroup(EncodingType.Xml),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Reversible),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Compact),
             new EncodingTypeGroup(EncodingType.Json, JsonEncodingType.Verbose)
-        };
-        #endregion
+        ];
 
-        #region Protected Methods
         /// <summary>
         /// Encode data value and return encoded string.
         /// </summary>
@@ -212,7 +217,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.IsNotNull(expected, "Expected DataValue is Null, " + encodeInfo);
             using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
-                using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, typeof(DataValue), encoding))
+                using (var  encoder = CreateEncoder(encoderType, Context, encoderStream, typeof(DataValue), encoding))
                 {
                     encoder.WriteDataValue("DataValue", expected);
                 }
@@ -246,7 +251,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 byte[] buffer;
                 using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
                 {
-                    using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, typeof(DataValue), jsonEncodingType))
+                    using (var  encoder = CreateEncoder(encoderType, Context, encoderStream, typeof(DataValue), jsonEncodingType))
                     {
                         encoder.WriteDataValue("DataValue", expected);
                     }
@@ -264,7 +269,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 }
 
                 using (var decoderStream = new MemoryStream(buffer))
-                using (IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, typeof(DataValue)))
+                using (var  decoder = CreateDecoder(encoderType, Context, decoderStream, typeof(DataValue)))
                 {
                     result = decoder.ReadDataValue("DataValue");
                 }
@@ -313,7 +318,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 byte[] buffer;
                 using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
                 {
-                    using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, type, jsonEncodingType))
+                    using (var  encoder = CreateEncoder(encoderType, Context, encoderStream, type, jsonEncodingType))
                     {
                         Encode(encoder, builtInType, builtInType.ToString(), expected);
                     }
@@ -335,7 +340,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 }
 
                 using (var decoderStream = new MemoryStream(buffer))
-                using (IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, type))
+                using (var  decoder = CreateDecoder(encoderType, Context, decoderStream, type))
                 {
                     result = Decode(decoder, builtInType, builtInType.ToString(), type);
                 }
@@ -346,7 +351,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     expected = Utils.ToOpcUaUniversalTime((DateTime)expected);
                 }
                 Assert.AreEqual(expected, result, encodeInfo);
-                Assert.IsTrue(Opc.Ua.Utils.IsEqual(expected, result), "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
+                Assert.IsTrue(Utils.IsEqual(expected, result), "Opc.Ua.Utils.IsEqual failed to compare expected and result. " + encodeInfo);
             }
             catch
             {
@@ -391,13 +396,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 }
 
                 bool isNumber = TypeInfo.IsNumericType(builtInType) || builtInType == BuiltInType.Boolean;
-                bool includeDefaultValues = !isNumber ? includeDefaults : false;
-                bool includeDefaultNumbers = isNumber ? includeDefaults : true;
+                bool includeDefaultValues = !isNumber && includeDefaults;
+                bool includeDefaultNumbers = !isNumber || includeDefaults;
 
                 byte[] buffer;
                 using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
                 {
-                    using (IEncoder encoder = CreateEncoder(EncodingType.Json, Context, encoderStream, typeof(DataValue),
+                    using (var  encoder = CreateEncoder(EncodingType.Json, Context, encoderStream, typeof(DataValue),
                         jsonEncoding, topLevelIsArray, includeDefaultValues, includeDefaultNumbers))
                     {
                         if (jsonEncoding == JsonEncodingType.Reversible || jsonEncoding == JsonEncodingType.NonReversible)
@@ -476,7 +481,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             catch (Exception ex)
             {
                 TestContext.Out.WriteLine(xml);
-                Assert.Fail("Invalid xml data: " + ex.Message);
+                NUnit.Framework.Assert.Fail("Invalid xml data: " + ex.Message);
             }
             return Encoding.UTF8.GetString(xml);
         }
@@ -498,28 +503,26 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 using (var stringWriter = new StringWriter())
                 using (var stringReader = new StringReader(json))
+                using (var jsonReader = new JsonTextReader(stringReader))
+                using (var jsonWriter = new JsonTextWriter(stringWriter) {
+                    FloatFormatHandling = FloatFormatHandling.String,
+                    Formatting = Newtonsoft.Json.Formatting.Indented,
+                    Culture = System.Globalization.CultureInfo.InvariantCulture
+                })
                 {
-                    using (var jsonReader = new JsonTextReader(stringReader))
-                    using (var jsonWriter = new JsonTextWriter(stringWriter) {
-                        FloatFormatHandling = FloatFormatHandling.String,
-                        Formatting = Newtonsoft.Json.Formatting.Indented,
-                        Culture = System.Globalization.CultureInfo.InvariantCulture
-                    })
+                    jsonWriter.WriteToken(jsonReader);
+                    string formattedJson = stringWriter.ToString();
+                    if (outputFormatted)
                     {
-                        jsonWriter.WriteToken(jsonReader);
-                        string formattedJson = stringWriter.ToString();
-                        if (outputFormatted)
-                        {
-                            TestContext.Out.WriteLine(formattedJson);
-                        }
-                        return formattedJson;
+                        TestContext.Out.WriteLine(formattedJson);
                     }
+                    return formattedJson;
                 }
             }
             catch (Exception ex)
             {
                 TestContext.Out.WriteLine(json);
-                Assert.Fail("Invalid json data: " + ex.Message);
+                NUnit.Framework.Assert.Fail("Invalid json data: " + ex.Message);
             }
             return json;
         }
@@ -575,7 +578,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     {
                         encoder.IncludeDefaultValues = includeDefaultValues;
                         encoder.IncludeDefaultNumberValues = includeDefaultNumbers;
-                    };
+                    }
                     return encoder;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(encoderType), encoderType, "Invalid EncoderType specified.");
@@ -706,7 +709,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                         return;
                 }
             }
-            Assert.Fail($"Unknown BuiltInType {builtInType}");
+            NUnit.Framework.Assert.Fail($"Unknown BuiltInType {builtInType}");
         }
 
         /// <summary>
@@ -771,7 +774,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
                 case BuiltInType.Variant: return decoder.ReadVariant(fieldName);
             }
-            Assert.Fail($"Unknown BuiltInType {builtInType}");
+            NUnit.Framework.Assert.Fail($"Unknown BuiltInType {builtInType}");
             return null;
         }
 
@@ -787,12 +790,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             if (builtInType == BuiltInType.Variant)
             {
                 // decoder result will be an Int32
-                if (value is Matrix enumMatrix)
+                if (value is Matrix enumMatrix && enumMatrix?.TypeInfo.BuiltInType == BuiltInType.Enumeration)
                 {
-                    if (enumMatrix?.TypeInfo.BuiltInType == BuiltInType.Enumeration)
-                    {
-                        return new Matrix(enumMatrix.Elements, BuiltInType.Int32, enumMatrix.Dimensions).ToArray();
-                    }
+                    return new Matrix(enumMatrix.Elements, BuiltInType.Int32, enumMatrix.Dimensions).ToArray();
                 }
             }
             if (encoderType == EncodingType.Binary)
@@ -835,7 +835,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// <summary>
         /// Adjust DateTime results of binary encoder.
         /// </summary>
-        private DateTime AdjustExpectedDateTimeBinaryEncoding(DateTime dateTime)
+        private static DateTime AdjustExpectedDateTimeBinaryEncoding(DateTime dateTime)
         {
             if (dateTime == DateTime.MaxValue || dateTime == DateTime.MinValue)
             {
@@ -856,7 +856,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// <summary>
         /// Return true if system Type is IEncodeable.
         /// </summary>
-        protected static bool IsEncodeableType(System.Type systemType)
+        protected static bool IsEncodeableType(Type systemType)
         {
             if (systemType == null)
             {
@@ -872,12 +872,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             var encodeable = Activator.CreateInstance(systemType) as IEncodeable;
 
-            if (encodeable == null)
-            {
-                return false;
-            }
-
-            return true;
+            return encodeable != null;
         }
 
         /// <summary>
@@ -940,12 +935,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             [EnumMember(Value = "Hundred_100")]
             Hundred = 100,
         }
-        #endregion
 
-        #region Protected classes
         protected class FooBarEncodeable : IEncodeable, IDisposable
         {
-            private static int s_count = 0;
+            private static int s_count;
 
             public FooBarEncodeable()
             {
@@ -1016,13 +1009,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             public virtual object Clone()
             {
-                return this.MemberwiseClone();
+                return MemberwiseClone();
             }
 
             public new object MemberwiseClone()
             {
                 return new FooBarEncodeable(FieldName, Foo) {
-                    Count = this.Count
+                    Count = Count
                 };
             }
             private readonly bool m_resetCounter;
@@ -1033,7 +1026,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         protected class DynamicEncodeable : IEncodeable, IJsonEncodeable, IDisposable, IDynamicComplexTypeInstance
         {
-            private static int s_count = 0;
+            private static int s_count;
             public DynamicEncodeable()
             {
             }
@@ -1144,13 +1137,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             public virtual object Clone()
             {
-                return this.MemberwiseClone();
+                return MemberwiseClone();
             }
 
             public new object MemberwiseClone()
             {
                 return new DynamicEncodeable(m_xmlName, m_xmlNamespace, TypeId, BinaryEncodingId, XmlEncodingId, JsonEncodingId, m_fields.ToDictionary(kv => kv.Key, kv => kv.Value)) {
-                    Count = this.Count
+                    Count = Count
                 };
             }
 
@@ -1168,7 +1161,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         protected class DynamicEncodeableFactory : EncodeableFactory
         {
-            readonly Dictionary<ExpandedNodeId, DynamicEncodeable> _dynamicEncodeables = new Dictionary<ExpandedNodeId, DynamicEncodeable>();
+            private readonly Dictionary<ExpandedNodeId, DynamicEncodeable> m_dynamicEncodeables = [];
 
             public DynamicEncodeableFactory(IEncodeableFactory factory) : base(factory)
             {
@@ -1176,29 +1169,24 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             public DynamicEncodeable GetDynamicEncodeableForEncoding(ExpandedNodeId typeId)
             {
-                if (typeId != null)
+                if (typeId != null && m_dynamicEncodeables.TryGetValue(typeId, out DynamicEncodeable dynamicEncodeable))
                 {
-                    if (_dynamicEncodeables.TryGetValue(typeId, out DynamicEncodeable dynamicEncodeable))
-                    {
-                        return dynamicEncodeable;
-                    }
+                    return dynamicEncodeable;
                 }
                 return null;
             }
 
             public void AddDynamicEncodeable(DynamicEncodeable encodeable)
             {
-                _dynamicEncodeables[encodeable.XmlEncodingId] = encodeable;
-                _dynamicEncodeables[encodeable.JsonEncodingId] = encodeable;
-                _dynamicEncodeables[encodeable.BinaryEncodingId] = encodeable;
-                _dynamicEncodeables[encodeable.TypeId] = encodeable;
+                m_dynamicEncodeables[encodeable.XmlEncodingId] = encodeable;
+                m_dynamicEncodeables[encodeable.JsonEncodingId] = encodeable;
+                m_dynamicEncodeables[encodeable.BinaryEncodingId] = encodeable;
+                m_dynamicEncodeables[encodeable.TypeId] = encodeable;
                 AddEncodeableType(encodeable.XmlEncodingId, typeof(DynamicEncodeable));
                 AddEncodeableType(encodeable.JsonEncodingId, typeof(DynamicEncodeable));
                 AddEncodeableType(encodeable.BinaryEncodingId, typeof(DynamicEncodeable));
                 AddEncodeableType(encodeable.TypeId, typeof(DynamicEncodeable));
             }
         }
-
-        #endregion
     }
 }

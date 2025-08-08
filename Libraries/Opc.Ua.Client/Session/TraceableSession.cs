@@ -44,7 +44,6 @@ namespace Opc.Ua.Client
     /// </summary>
     public class TraceableSession : ISession
     {
-        #region Constructors
         /// <summary>
         /// Initializes a new instance of the class.
         /// </summary>
@@ -52,7 +51,6 @@ namespace Opc.Ua.Client
         {
             Session = session;
         }
-        #endregion
 
         /// <summary>
         /// Activity Source Name.
@@ -63,12 +61,11 @@ namespace Opc.Ua.Client
         /// Activity Source static instance.
         /// </summary>
         public static ActivitySource ActivitySource => s_activitySource.Value;
-        private static readonly Lazy<ActivitySource> s_activitySource = new Lazy<ActivitySource>(() => new ActivitySource(ActivitySourceName, "1.0.0"));
+        private static readonly Lazy<ActivitySource> s_activitySource = new(() => new ActivitySource(ActivitySourceName, "1.0.0"));
 
         /// <inheritdoc/>
         public ISession Session { get; }
 
-        #region ISession interface
         /// <inheritdoc/>
         public event KeepAliveEventHandler KeepAlive
         {
@@ -2112,6 +2109,5 @@ namespace Opc.Ua.Client
                 return await Session.ResendDataAsync(subscriptions, ct).ConfigureAwait(false);
             }
         }
-        #endregion
     }
 }

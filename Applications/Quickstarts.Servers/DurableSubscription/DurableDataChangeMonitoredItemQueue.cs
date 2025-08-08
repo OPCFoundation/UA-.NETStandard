@@ -52,7 +52,7 @@ namespace Quickstarts.Servers
             IsDurable = createDurable;
             MonitoredItemId = monitoredItemId;
             m_batchPersistor = batchPersistor;
-            m_enqueueBatch = new DataChangeBatch(new List<(DataValue, ServiceResult)>(), kBatchSize, monitoredItemId);
+            m_enqueueBatch = new DataChangeBatch([], kBatchSize, monitoredItemId);
             m_dequeueBatch = m_enqueueBatch;
             m_queueSize = 0;
             m_itemsInQueue = 0;
@@ -72,32 +72,18 @@ namespace Quickstarts.Servers
             m_itemsInQueue = queue.ItemsInQueue;
         }
 
-        #region Public Methods
-
         /// <inheritdoc/>
         public uint MonitoredItemId { get; }
 
         /// <summary>
         /// Gets the current queue size.
         /// </summary>
-        public uint QueueSize
-        {
-            get
-            {
-                return m_queueSize;
-            }
-        }
+        public uint QueueSize => m_queueSize;
 
         /// <summary>
         /// Gets number of elements actually contained in value queue.
         /// </summary>
-        public int ItemsInQueue
-        {
-            get
-            {
-                return m_itemsInQueue;
-            }
-        }
+        public int ItemsInQueue => m_itemsInQueue;
         /// <summary>
         /// Brings the queue with content into a storable format
         /// </summary>
@@ -153,7 +139,7 @@ namespace Quickstarts.Servers
                 if (m_dequeueBatch == m_enqueueBatch)
                 {
                     m_dequeueBatch = new DataChangeBatch(m_enqueueBatch.Values, kBatchSize, MonitoredItemId);
-                    m_enqueueBatch = new DataChangeBatch(new List<(DataValue, ServiceResult)>(), kBatchSize, MonitoredItemId);
+                    m_enqueueBatch = new DataChangeBatch([], kBatchSize, MonitoredItemId);
                 }
                 // persist the batch
                 else
@@ -167,7 +153,7 @@ namespace Quickstarts.Servers
                         m_batchPersistor.RequestBatchPersist(m_dataChangeBatches[m_dataChangeBatches.Count - 2]);
                     }
 
-                    m_enqueueBatch = new DataChangeBatch(new List<(DataValue, ServiceResult)>(), kBatchSize, MonitoredItemId);
+                    m_enqueueBatch = new DataChangeBatch([], kBatchSize, MonitoredItemId);
                 }
             }
         }
@@ -196,7 +182,7 @@ namespace Quickstarts.Servers
         /// <inheritdoc/>
         public void ResetQueue(uint queueSize, bool queueErrors)
         {
-            m_enqueueBatch = new DataChangeBatch(new List<(DataValue, ServiceResult)>(), kBatchSize, MonitoredItemId);
+            m_enqueueBatch = new DataChangeBatch([], kBatchSize, MonitoredItemId);
             m_dequeueBatch = m_enqueueBatch;
             m_itemsInQueue = 0;
             m_queueErrors = queueErrors;
@@ -328,16 +314,13 @@ namespace Quickstarts.Servers
             }
         }
 
-#endregion
-#region Private Fields
         private DataChangeBatch m_enqueueBatch;
-        private readonly List<DataChangeBatch> m_dataChangeBatches = new List<DataChangeBatch>();
+        private readonly List<DataChangeBatch> m_dataChangeBatches = [];
         private DataChangeBatch m_dequeueBatch;
         private int m_itemsInQueue;
         private uint m_queueSize;
         private bool m_queueErrors;
         private readonly IBatchPersistor m_batchPersistor;
-        #endregion
     }
     /// <summary>
     /// Batch of Datachanges and corresponding errors

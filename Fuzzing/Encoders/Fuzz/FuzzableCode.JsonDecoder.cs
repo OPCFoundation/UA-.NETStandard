@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -31,117 +31,119 @@ using System;
 using System.Text;
 using Opc.Ua;
 
-/// <summary>
-/// Fuzzing code for the JSON decoder and encoder.
-/// </summary>
-public static partial class FuzzableCode
+namespace Opc.Ua.Fuzzing
 {
     /// <summary>
-    /// The Json decoder fuzz target for afl-fuzz.
+    /// Fuzzing code for the JSON decoder and encoder.
     /// </summary>
-    public static void AflfuzzJsonDecoder(string input)
+    public static partial class FuzzableCode
     {
-        _ = FuzzJsonDecoderCore(input);
-    }
-
-    /// <summary>
-    /// The Json encoder fuzz target for afl-fuzz.
-    /// </summary>
-    public static void AflfuzzJsonEncoder(string input)
-    {
-        IEncodeable encodeable = null;
-        try
+        /// <summary>
+        /// The Json decoder fuzz target for afl-fuzz.
+        /// </summary>
+        public static void AflfuzzJsonDecoder(string input)
         {
-            encodeable = FuzzJsonDecoderCore(input);
-        }
-        catch
-        {
-            return;
+            _ = FuzzJsonDecoderCore(input);
         }
 
-        // encode the fuzzed object and see if it crashes
-        if (encodeable != null)
+        /// <summary>
+        /// The Json encoder fuzz target for afl-fuzz.
+        /// </summary>
+        public static void AflfuzzJsonEncoder(string input)
         {
-            using (var encoder = new JsonEncoder(messageContext, true))
+            IEncodeable encodeable = null;
+            try
             {
-                encoder.EncodeMessage(encodeable);
-                encoder.Close();
+                encodeable = FuzzJsonDecoderCore(input);
+            }
+            catch
+            {
+                return;
+            }
+
+            // encode the fuzzed object and see if it crashes
+            if (encodeable != null)
+            {
+                using (var encoder = new JsonEncoder(s_messageContext, true))
+                {
+                    encoder.EncodeMessage(encodeable);
+                    encoder.Close();
+                }
             }
         }
-    }
 
-    /// <summary>
-    /// The json decoder fuzz target for libfuzzer.
-    /// </summary>
-    public static void LibfuzzJsonDecoder(ReadOnlySpan<byte> input)
-    {
+        /// <summary>
+        /// The json decoder fuzz target for libfuzzer.
+        /// </summary>
+        public static void LibfuzzJsonDecoder(ReadOnlySpan<byte> input)
+        {
 #if NETFRAMEWORK
-        string json = Encoding.UTF8.GetString(input.ToArray());
+            string json = Encoding.UTF8.GetString(input.ToArray());
 #else
-        string json = Encoding.UTF8.GetString(input);
+            string json = Encoding.UTF8.GetString(input);
 #endif
-        _ = FuzzJsonDecoderCore(json);
-    }
+            _ = FuzzJsonDecoderCore(json);
+        }
 
-    /// <summary>
-    /// The binary encoder fuzz target for afl-fuzz.
-    /// </summary>
-    public static void LibfuzzJsonEncoder(ReadOnlySpan<byte> input)
-    {
-        IEncodeable encodeable = null;
+        /// <summary>
+        /// The binary encoder fuzz target for afl-fuzz.
+        /// </summary>
+        public static void LibfuzzJsonEncoder(ReadOnlySpan<byte> input)
+        {
+            IEncodeable encodeable = null;
 #if NETFRAMEWORK
-        string json = Encoding.UTF8.GetString(input.ToArray());
+            string json = Encoding.UTF8.GetString(input.ToArray());
 #else
-        string json = Encoding.UTF8.GetString(input);
+            string json = Encoding.UTF8.GetString(input);
 #endif
-        try
-        {
-            encodeable = FuzzJsonDecoderCore(json);
-        }
-        catch
-        {
-            return;
-        }
-
-        // encode the fuzzed object and see if it crashes
-        if (encodeable != null)
-        {
-            using (var encoder = new JsonEncoder(messageContext, true))
+            try
             {
-                encoder.EncodeMessage(encodeable);
-                encoder.Close();
+                encodeable = FuzzJsonDecoderCore(json);
             }
-        }
-    }
-
-    /// <summary>
-    /// The fuzz target for the JsonDecoder.
-    /// </summary>
-    /// <param name="json">A string with fuzz content.</param>
-    internal static IEncodeable FuzzJsonDecoderCore(string json, bool throwAll = false)
-    {
-        try
-        {
-            using (var decoder = new JsonDecoder(json, messageContext))
+            catch
             {
-                return decoder.DecodeMessage(null);
-            }
-        }
-        catch (ServiceResultException sre)
-        {
-            switch (sre.StatusCode)
-            {
-                case StatusCodes.BadEncodingLimitsExceeded:
-                case StatusCodes.BadDecodingError:
-                    if (!throwAll)
-                    {
-                        return null;
-                    }
-                    break;
+                return;
             }
 
-            throw;
+            // encode the fuzzed object and see if it crashes
+            if (encodeable != null)
+            {
+                using (var encoder = new JsonEncoder(s_messageContext, true))
+                {
+                    encoder.EncodeMessage(encodeable);
+                    encoder.Close();
+                }
+            }
+        }
+
+        /// <summary>
+        /// The fuzz target for the JsonDecoder.
+        /// </summary>
+        /// <param name="json">A string with fuzz content.</param>
+        internal static IEncodeable FuzzJsonDecoderCore(string json, bool throwAll = false)
+        {
+            try
+            {
+                using (var decoder = new JsonDecoder(json, s_messageContext))
+                {
+                    return decoder.DecodeMessage(null);
+                }
+            }
+            catch (ServiceResultException sre)
+            {
+                switch (sre.StatusCode)
+                {
+                    case StatusCodes.BadEncodingLimitsExceeded:
+                    case StatusCodes.BadDecodingError:
+                        if (!throwAll)
+                        {
+                            return null;
+                        }
+                        break;
+                }
+
+                throw;
+            }
         }
     }
 }
-

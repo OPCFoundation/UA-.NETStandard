@@ -167,19 +167,19 @@ namespace Opc.Ua.Gds
         #endregion
 
         #region IEncodeable Members
-        /// <inheritdoc/>
+        /// <summary cref="IEncodeable.TypeId" />
         public virtual ExpandedNodeId TypeId => DataTypeIds.ApplicationRecordDataType; 
 
-        /// <inheritdoc/>
+        /// <summary cref="IEncodeable.BinaryEncodingId" />
         public virtual ExpandedNodeId BinaryEncodingId => ObjectIds.ApplicationRecordDataType_Encoding_DefaultBinary;
 
-        /// <inheritdoc/>
+        /// <summary cref="IEncodeable.XmlEncodingId" />
         public virtual ExpandedNodeId XmlEncodingId => ObjectIds.ApplicationRecordDataType_Encoding_DefaultXml;
                     
-        /// <inheritdoc/>
+        /// <summary cref="IJsonEncodeable.JsonEncodingId" />
         public virtual ExpandedNodeId JsonEncodingId => ObjectIds.ApplicationRecordDataType_Encoding_DefaultJson; 
 
-        /// <inheritdoc/>
+        /// <summary cref="IEncodeable.Encode(IEncoder)" />
         public virtual void Encode(IEncoder encoder)
         {
             encoder.PushNamespace(Opc.Ua.Gds.Namespaces.OpcUaGdsXsd);
@@ -195,7 +195,7 @@ namespace Opc.Ua.Gds
             encoder.PopNamespace();
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="IEncodeable.Decode(IDecoder)" />
         public virtual void Decode(IDecoder decoder)
         {
             decoder.PushNamespace(Opc.Ua.Gds.Namespaces.OpcUaGdsXsd);
@@ -211,7 +211,7 @@ namespace Opc.Ua.Gds
             decoder.PopNamespace();
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="IEncodeable.IsEqual(IEncodeable)" />
         public virtual bool IsEqual(IEncodeable encodeable)
         {
             if (Object.ReferenceEquals(this, encodeable))
@@ -237,13 +237,13 @@ namespace Opc.Ua.Gds
             return true;
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="ICloneable.Clone" />
         public virtual object Clone()
         {
             return (ApplicationRecordDataType)this.MemberwiseClone();
         }
 
-        /// <inheritdoc/>
+        /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
         {
             ApplicationRecordDataType clone = (ApplicationRecordDataType)base.MemberwiseClone();
@@ -321,7 +321,7 @@ namespace Opc.Ua.Gds
         }
         #endregion
 
-        /// <inheritdoc/>
+        /// <summary cref="Object.MemberwiseClone" />
         public new object MemberwiseClone()
         {
             ApplicationRecordDataTypeCollection clone = new ApplicationRecordDataTypeCollection(this.Count);

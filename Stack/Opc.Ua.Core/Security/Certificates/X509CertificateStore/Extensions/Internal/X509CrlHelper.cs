@@ -91,7 +91,7 @@ namespace Opc.Ua.X509StoreExtensions.Internal
             {
                 Utils.LogError(ex, "Exception while enumerating Crls from X509Store");
             }
-            return crls.ToArray();
+            return [.. crls];
         }
 
         /// <summary>

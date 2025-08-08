@@ -52,14 +52,13 @@ namespace Opc.Ua.PubSub.Transport
     /// </summary>
     internal class MqttPubSubConnection : UaPubSubConnection, IMqttPubSubConnection
     {
-        #region Private Fields
         private string m_brokerHostName = "localhost";
         private string m_urlScheme;
         private int m_brokerPort = Utils.MqttDefaultPort;
         private readonly int m_reconnectIntervalSeconds = 5;
 
-        private IMqttClient m_publisherMqttClient;
-        private IMqttClient m_subscriberMqttClient;
+        private MqttClient m_publisherMqttClient;
+        private MqttClient m_subscriberMqttClient;
         private readonly MessageMapping m_messageMapping;
         private readonly MessageCreator m_messageCreator;
 
@@ -67,24 +66,22 @@ namespace Opc.Ua.PubSub.Transport
         private MqttClientTlsOptions m_mqttClientTlsOptions;
         private MqttClientOptions m_publisherMqttClientOptions;
         private MqttClientOptions m_subscriberMqttClientOptions;
-        private readonly List<MqttMetadataPublisher> m_metaDataPublishers = new List<MqttMetadataPublisher>();
-        #endregion
+        private readonly List<MqttMetadataPublisher> m_metaDataPublishers = [];
 
-        #region Public Properties
         /// <summary>
         /// Gets the host name or IP address of the broker.
         /// </summary>
-        public string BrokerHostName { get => m_brokerHostName; }
+        public string BrokerHostName => m_brokerHostName;
 
         /// <summary>
         /// Gets the port of the mqttConnection.
         /// </summary>
-        public int BrokerPort { get { return m_brokerPort; } }
+        public int BrokerPort => m_brokerPort;
 
         /// <summary>
         /// Gets the scheme of the Url.
         /// </summary>
-        public string UrlScheme { get => m_urlScheme; }
+        public string UrlScheme => m_urlScheme;
 
         /// <summary>
         /// Gets and sets the MqttClientOptions for the publisher connection
@@ -143,16 +140,12 @@ namespace Opc.Ua.PubSub.Transport
                 }
             }
         }
-        #endregion Public Properties
 
-        #region Constants
         /// <summary>
         /// Value in seconds with which to surpass the max keep alive value found.
         /// </summary>
         private readonly int m_maxKeepAliveIncrement = 5;
-        #endregion
 
-        #region Constructor
         /// <summary>
         ///  Create new instance of <see cref="MqttPubSubConnection"/> from <see cref="PubSubConnectionDataType"/> configuration data
         /// </summary>
@@ -184,9 +177,6 @@ namespace Opc.Ua.PubSub.Transport
 
             Utils.Trace("MqttPubSubConnection with name '{0}' was created.", pubSubConnectionDataType.Name);
         }
-        #endregion
-
-        #region Public Methods
 
         /// <summary>
         /// Determine if the connection can publish metadata for specified writer group and data set writer
@@ -194,9 +184,8 @@ namespace Opc.Ua.PubSub.Transport
         public bool CanPublishMetaData(WriterGroupDataType writerGroupConfiguration,
             DataSetWriterDataType dataSetWriter)
         {
-            return !CanPublish(writerGroupConfiguration)
-                ? false
-                : Application.UaPubSubConfigurator.FindStateForObject(dataSetWriter) == PubSubState.Operational;
+            return CanPublish(writerGroupConfiguration)
+                && Application.UaPubSubConfigurator.FindStateForObject(dataSetWriter) == PubSubState.Operational;
         }
 
         /// <summary>
@@ -226,13 +215,10 @@ namespace Opc.Ua.PubSub.Transport
         public UaNetworkMessage CreateDataSetMetaDataNetworkMessage(WriterGroupDataType writerGroup, DataSetWriterDataType dataSetWriter)
         {
             PublishedDataSetDataType publishedDataSet = Application.DataCollector.GetPublishedDataSet(dataSetWriter.DataSetName);
-            if (publishedDataSet != null && publishedDataSet.DataSetMetaData != null)
+            if (publishedDataSet != null && publishedDataSet.DataSetMetaData != null && m_messageCreator != null)
             {
-                if (m_messageCreator != null)
-                {
-                    return m_messageCreator.CreateDataSetMetaDataNetworkMessage(writerGroup,
-                        dataSetWriter.DataSetWriterId, publishedDataSet.DataSetMetaData);
-                }
+                return m_messageCreator.CreateDataSetMetaDataNetworkMessage(writerGroup,
+                    dataSetWriter.DataSetWriterId, publishedDataSet.DataSetMetaData);
             }
             return null;
         }
@@ -267,15 +253,12 @@ namespace Opc.Ua.PubSub.Transport
                                 DataSetWriterDataType dataSetWriter = networkMessage.WriterGroupConfiguration.DataSetWriters
                                     .Find(x => x.DataSetWriterId == networkMessage.DataSetWriterId);
 
-                                if (dataSetWriter != null)
-                                {
-                                    if (ExtensionObject
+                                if (dataSetWriter != null && ExtensionObject
                                         .ToEncodeable(dataSetWriter.TransportSettings) is BrokerDataSetWriterTransportDataType transportSettings)
-                                    {
-                                        qos = transportSettings.RequestedDeliveryGuarantee;
+                                {
+                                    qos = transportSettings.RequestedDeliveryGuarantee;
 
-                                        queueName = networkMessage.IsMetaDataMessage ? transportSettings.MetaDataQueueName : transportSettings.QueueName;
-                                    }
+                                    queueName = networkMessage.IsMetaDataMessage ? transportSettings.MetaDataQueueName : transportSettings.QueueName;
                                 }
                             }
 
@@ -336,9 +319,7 @@ namespace Opc.Ua.PubSub.Transport
             return (m_publisherMqttClient == null || m_publisherMqttClient.IsConnected)
                 && (m_subscriberMqttClient == null || m_subscriberMqttClient.IsConnected);
         }
-        #endregion Public Methods
 
-        #region Protected Methods
         /// <summary>
         /// Perform specific Start tasks
         /// </summary>
@@ -452,7 +433,6 @@ namespace Opc.Ua.PubSub.Transport
                             continue;
                         }
 
-
                         if (ExtensionObject.ToEncodeable(dataSetReader.TransportSettings) is BrokerDataSetReaderTransportDataType brokerTransportSettings && !topics.Contains(brokerTransportSettings.QueueName))
                         {
                             topics.Add(brokerTransportSettings.QueueName);
@@ -544,9 +524,6 @@ namespace Opc.Ua.PubSub.Transport
                 m_mqttClientTlsOptions = null;
             }
         }
-        #endregion Protected Methods
-
-        #region Private Methods
 
         private static bool MatchTopic(string pattern, string topic)
         {
@@ -707,18 +684,15 @@ namespace Opc.Ua.PubSub.Transport
             Uri connectionUri = null;
 
             if (networkAddressUrlState.Url != null &&
-                Uri.TryCreate(networkAddressUrlState.Url, UriKind.Absolute, out connectionUri))
+                Uri.TryCreate(networkAddressUrlState.Url, UriKind.Absolute, out connectionUri) && (connectionUri.Scheme != Utils.UriSchemeMqtt) && (connectionUri.Scheme != Utils.UriSchemeMqtts))
             {
-                if ((connectionUri.Scheme != Utils.UriSchemeMqtt) && (connectionUri.Scheme != Utils.UriSchemeMqtts))
-                {
-                    Utils.Trace(Utils.TraceMasks.Error,
-                        "The configuration for mqttConnection '{0}' has an invalid Url value {1}. The Uri scheme should be either {2}:// or {3}://",
-                        PubSubConnectionConfiguration.Name,
-                        networkAddressUrlState.Url,
-                        Utils.UriSchemeMqtt,
-                        Utils.UriSchemeMqtts);
-                    return null;
-                }
+                Utils.Trace(Utils.TraceMasks.Error,
+                    "The configuration for mqttConnection '{0}' has an invalid Url value {1}. The Uri scheme should be either {2}:// or {3}://",
+                    PubSubConnectionConfiguration.Name,
+                    networkAddressUrlState.Url,
+                    Utils.UriSchemeMqtt,
+                    Utils.UriSchemeMqtts);
+                return null;
             }
 
             if (connectionUri == null)
@@ -743,7 +717,6 @@ namespace Opc.Ua.PubSub.Transport
 
             ITransportProtocolConfiguration transportProtocolConfiguration =
                 new MqttClientProtocolConfiguration(PubSubConnectionConfiguration.ConnectionProperties);
-
 
             if (transportProtocolConfiguration is MqttClientProtocolConfiguration mqttProtocolConfiguration)
             {
@@ -931,9 +904,6 @@ namespace Opc.Ua.PubSub.Transport
             }
         }
 
-#endregion Private methods
-
-        #region MessageCreator innner classes
         /// <summary>
         /// Base abstract class for MessageCreator
         /// </summary>
@@ -1058,7 +1028,7 @@ namespace Opc.Ua.PubSub.Transport
                     // create a new network message for each dataset
                     foreach (Encoding.JsonDataSetMessage dataSetMessage in jsonDataSetMessages)
                     {
-                        dataSetMessagesList.Add(new List<Encoding.JsonDataSetMessage>() { dataSetMessage });
+                        dataSetMessagesList.Add([dataSetMessage]);
                     }
                 }
                 else
@@ -1109,7 +1079,6 @@ namespace Opc.Ua.PubSub.Transport
             /// </summary>
             public UadpMessageCreator(MqttPubSubConnection mqttConnection) : base(mqttConnection)
             {
-
             }
 
             /// <summary>
@@ -1205,7 +1174,6 @@ namespace Opc.Ua.PubSub.Transport
                 return networkMessages;
             }
 
-
             /// <summary>
             /// Create and return the Uadp DataSetMetaData message for a DataSetWriter
             /// </summary>
@@ -1218,6 +1186,5 @@ namespace Opc.Ua.PubSub.Transport
                 };
             }
         }
-        #endregion
     }
 }

@@ -38,11 +38,10 @@ using Opc.Ua.Gds.Client;
 
 namespace Opc.Ua.Gds.Tests
 {
-
     public class GlobalDiscoveryTestClient
     {
         public GlobalDiscoveryServerClient GDSClient => m_client;
-        public static bool AutoAccept = false;
+        public static bool AutoAccept { get; set; }
 
         public GlobalDiscoveryTestClient(bool autoAccept, string storeType = CertificateStoreType.Directory)
         {
@@ -56,7 +55,6 @@ namespace Opc.Ua.Gds.Tests
         public ApplicationTestData OwnApplicationTestData { get; private set; }
         public ApplicationConfiguration Configuration { get; private set; }
 
-        #region Public methods
         public async Task LoadClientConfiguration(int port = -1)
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
@@ -76,7 +74,6 @@ namespace Opc.Ua.Gds.Tests
                 ApplicationType = ApplicationType.Client,
                 ConfigSectionName = configSectionName
             };
-
 
 #if USE_FILE_CONFIG
             // load the application configuration.
@@ -182,10 +179,9 @@ namespace Opc.Ua.Gds.Tests
             }
             catch (ArgumentException e)
             {
-                Console.WriteLine("RegisterTestClientAtGds at GDS failed" + e.ToString());
+                Console.WriteLine("RegisterTestClientAtGds at GDS failed" + e);
                 return false;
             }
-
 
             return true;
         }
@@ -206,9 +202,7 @@ namespace Opc.Ua.Gds.Tests
         {
             return File.ReadAllText(Utils.ReplaceSpecialFolderNames(Configuration.TraceConfiguration.OutputFilePath));
         }
-        #endregion
 
-        #region Private Methods
         private async Task ApplyNewApplicationInstanceCertificateAsync(byte[] certificate, byte[] privateKey)
         {
             using (X509Certificate2 x509 = X509CertificateLoader.LoadCertificate(certificate))
@@ -276,38 +270,30 @@ namespace Opc.Ua.Gds.Tests
 
         private ApplicationTestData GetOwnApplicationData()
         {
-            var
-                //fill application record data type with own Data
-                ownApplicationTestData = new ApplicationTestData {
-                    ApplicationRecord = new ApplicationRecordDataType {
-                        ApplicationUri = m_client.Configuration.ApplicationUri,
-                        ApplicationType = m_client.Configuration.ApplicationType,
-                        ProductUri = m_client.Configuration.ProductUri,
-                        ApplicationNames = new LocalizedTextCollection() { new LocalizedText(m_client.Configuration.ApplicationName) },
-                        ApplicationId = new NodeId(Guid.NewGuid())
-                    },
-                    PrivateKeyFormat = "PEM",
-                    Subject = $"CN={m_client.Configuration.ApplicationName},DC={Utils.GetHostName()},O=OPC Foundation",
-                };
-            return ownApplicationTestData;
+            return new ApplicationTestData {
+                ApplicationRecord = new ApplicationRecordDataType {
+                    ApplicationUri = m_client.Configuration.ApplicationUri,
+                    ApplicationType = m_client.Configuration.ApplicationType,
+                    ProductUri = m_client.Configuration.ProductUri,
+                    ApplicationNames = [new LocalizedText(m_client.Configuration.ApplicationName)],
+                    ApplicationId = new NodeId(Guid.NewGuid())
+                },
+                PrivateKeyFormat = "PEM",
+                Subject = $"CN={m_client.Configuration.ApplicationName},DC={Utils.GetHostName()},O=OPC Foundation",
+            };
         }
-
-        #endregion
-
 
         private GlobalDiscoveryServerClient m_client;
         private ApplicationInstance m_application;
         private readonly string m_storeType;
-
     }
 
     /// <summary>
     /// Stores the configuration the data access node manager.
     /// </summary>
-    [DataContract(Namespace = Opc.Ua.Gds.Namespaces.OpcUaGds + "Configuration.xsd")]
+    [DataContract(Namespace = Namespaces.OpcUaGds + "Configuration.xsd")]
     public class GlobalDiscoveryTestClientConfiguration
     {
-        #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
@@ -320,7 +306,7 @@ namespace Opc.Ua.Gds.Tests
         /// Initializes the object during deserialization.
         /// </summary>
         [OnDeserializing()]
-        private void Initialize(StreamingContext context)
+        private static void Initialize(StreamingContext context)
         {
             Initialize();
         }
@@ -328,12 +314,10 @@ namespace Opc.Ua.Gds.Tests
         /// <summary>
         /// Sets private members to default values.
         /// </summary>
-        private void Initialize()
+        private static void Initialize()
         {
         }
-        #endregion
 
-        #region Public
         [DataMember(Order = 1)]
         public string GlobalDiscoveryServerUrl { get; set; }
         [DataMember(Order = 2)]
@@ -344,10 +328,5 @@ namespace Opc.Ua.Gds.Tests
         public string AdminUserName { get; set; }
         [DataMember(Order = 5, IsRequired = true)]
         public string AdminPassword { get; set; }
-        #endregion
-
-        #region Private Members
-        #endregion
     }
-
 }

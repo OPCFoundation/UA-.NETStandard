@@ -42,7 +42,6 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
     [Parallelizable]
     public class NonceTests
     {
-        #region Test Methods
         /// <summary>
         /// Test the CreateNonce - securitypolicy and valid nonceLength
         /// </summary>
@@ -122,9 +121,9 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
                     if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX) &&
                         (securityPolicyUri == SecurityPolicies.ECC_nistP256 || securityPolicyUri == SecurityPolicies.ECC_nistP384))
                     {
-                        Assert.Ignore("No exception is thrown on OSX with NIST curves");
+                        NUnit.Framework.Assert.Ignore("No exception is thrown on OSX with NIST curves");
                     }
-                    Assert.Throws(typeof(ArgumentException), () => Ua.Nonce.CreateNonce(securityPolicyUri, randomValue));
+                    NUnit.Framework.Assert.Throws<ArgumentException>(() => Ua.Nonce.CreateNonce(securityPolicyUri, randomValue));
                 }
                 else
                 {
@@ -133,16 +132,13 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
                 }
             }
         }
-        #endregion
-
-        #region Helper
 
         /// <summary>
         /// Determines if security policy is supported by platform
         /// </summary>
         /// <param name="securityPolicyUri"></param>
         /// <returns></returns>
-        private bool IsSupportedByPlatform(string securityPolicyUri)
+        private static bool IsSupportedByPlatform(string securityPolicyUri)
         {
             if (securityPolicyUri.Equals(SecurityPolicies.ECC_nistP256, StringComparison.Ordinal))
             {
@@ -163,7 +159,5 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
 
             return true;
         }
-
-        #endregion
     }
 }

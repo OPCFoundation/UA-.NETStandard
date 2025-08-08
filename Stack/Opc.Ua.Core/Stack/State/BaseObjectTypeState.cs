@@ -19,7 +19,6 @@ namespace Opc.Ua
     /// </summary>
     public class BaseObjectTypeState : BaseTypeState
     {
-        #region Constructors
         /// <summary>
         /// Initializes the instance with its default attribute values.
         /// </summary>
@@ -32,10 +31,10 @@ namespace Opc.Ua
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
-            SuperTypeId = Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.BaseObjectType, Opc.Ua.Namespaces.OpcUa, context.NamespaceUris);
-            NodeId = Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.BaseObjectType, Opc.Ua.Namespaces.OpcUa, context.NamespaceUris);
-            BrowseName = Opc.Ua.QualifiedName.Create(Opc.Ua.BrowseNames.BaseObjectType, Opc.Ua.Namespaces.OpcUa, context.NamespaceUris);
-            DisplayName = new LocalizedText(Opc.Ua.BrowseNames.BaseObjectType, string.Empty, Opc.Ua.BrowseNames.BaseObjectType);
+            SuperTypeId = NodeId.Create(ObjectTypes.BaseObjectType, Namespaces.OpcUa, context.NamespaceUris);
+            NodeId = NodeId.Create(ObjectTypes.BaseObjectType, Namespaces.OpcUa, context.NamespaceUris);
+            BrowseName = QualifiedName.Create(BrowseNames.BaseObjectType, Namespaces.OpcUa, context.NamespaceUris);
+            DisplayName = new LocalizedText(BrowseNames.BaseObjectType, string.Empty, BrowseNames.BaseObjectType);
             Description = null;
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;
@@ -51,13 +50,11 @@ namespace Opc.Ua
         {
             return new BaseObjectTypeState();
         }
-        #endregion
 
-        #region ICloneable Members
         /// <inheritdoc/>
         public override object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -68,10 +65,9 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
-            var clone = (BaseObjectTypeState)Activator.CreateInstance(this.GetType());
+            var clone = (BaseObjectTypeState)Activator.CreateInstance(GetType());
             return CloneChildren(clone);
         }
-        #endregion
     }
 
     /// <summary>
@@ -79,30 +75,26 @@ namespace Opc.Ua
     /// </summary>
     public class FolderTypeState : BaseObjectTypeState
     {
-        #region Constructors
         /// <summary>
         /// Initializes the instance with its default attribute values.
         /// </summary>
         public FolderTypeState()
         {
         }
-        #endregion
 
-        #region Initialization
         /// <summary>
         /// Initializes the instance with the default values.
         /// </summary>
         protected override void Initialize(ISystemContext context)
         {
-            SuperTypeId = Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.FolderType, Opc.Ua.Namespaces.OpcUa, context.NamespaceUris);
-            NodeId = Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.FolderType, Opc.Ua.Namespaces.OpcUa, context.NamespaceUris);
-            BrowseName = Opc.Ua.QualifiedName.Create(Opc.Ua.BrowseNames.FolderType, Opc.Ua.Namespaces.OpcUa, context.NamespaceUris);
-            DisplayName = new LocalizedText(Opc.Ua.BrowseNames.FolderType, string.Empty, Opc.Ua.BrowseNames.FolderType);
+            SuperTypeId = NodeId.Create(ObjectTypes.FolderType, Namespaces.OpcUa, context.NamespaceUris);
+            NodeId = NodeId.Create(ObjectTypes.FolderType, Namespaces.OpcUa, context.NamespaceUris);
+            BrowseName = QualifiedName.Create(BrowseNames.FolderType, Namespaces.OpcUa, context.NamespaceUris);
+            DisplayName = new LocalizedText(BrowseNames.FolderType, string.Empty, BrowseNames.FolderType);
             Description = null;
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;
             IsAbstract = false;
         }
-        #endregion
     }
 }

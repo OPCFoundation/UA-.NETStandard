@@ -30,8 +30,8 @@
 using System;
 using System.Collections;
 using System.Diagnostics;
-using System.Xml;
 using System.Threading;
+using System.Xml;
 
 namespace Opc.Ua.Server
 {
@@ -40,7 +40,6 @@ namespace Opc.Ua.Server
     /// </summary>
     public class AsyncPublishOperation
     {
-        #region Constructors
         /// <summary>
         /// Initializes a new instance of the <see cref="AsyncPublishOperation"/> class.
         /// </summary>
@@ -58,9 +57,7 @@ namespace Opc.Ua.Server
             Response = new PublishResponse();
             m_request.Calldata = this;
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -79,9 +76,7 @@ namespace Opc.Ua.Server
                 m_request.OperationCompleted(null, StatusCodes.BadServerHalted);
             }
         }
-        #endregion
 
-        #region Public Members
         /// <summary>
         /// Gets the context.
         /// </summary>
@@ -92,10 +87,7 @@ namespace Opc.Ua.Server
         /// Gets the request handle.
         /// </summary>
         /// <value>The request handle.</value>
-        public uint RequestHandle
-        {
-            get { return m_request.Request.RequestHeader.RequestHandle; }
-        }
+        public uint RequestHandle => m_request.Request.RequestHeader.RequestHandle;
 
         /// <summary>
         /// Gets the response.
@@ -107,10 +99,7 @@ namespace Opc.Ua.Server
         /// Gets the calldata.
         /// </summary>
         /// <value>The calldata.</value>
-        public object Calldata
-        {
-            get { return m_calldata; }
-        }
+        public object Calldata => m_calldata;
 
         /// <summary>
         /// Schedules a thread to complete the request.
@@ -121,12 +110,9 @@ namespace Opc.Ua.Server
             m_calldata = calldata;
             m_server.ScheduleIncomingRequest(m_request);
         }
-        #endregion
 
-        #region Private Fields
         private readonly IEndpointIncomingRequest m_request;
         private readonly StandardServer m_server;
         private object m_calldata;
-        #endregion
     }
 }

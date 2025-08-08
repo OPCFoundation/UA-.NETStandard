@@ -228,7 +228,7 @@ namespace Opc.Ua.Server
             {
                 if (m_overflow != null && m_overflow == value)
                 {
-                    DataChangeQueueHandler.SetOverflowBit(ref value, ref error);
+                    SetOverflowBit(ref value, ref error);
                     m_overflow = null;
                 }
 

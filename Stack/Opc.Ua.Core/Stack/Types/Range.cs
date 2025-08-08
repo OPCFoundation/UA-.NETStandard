@@ -41,9 +41,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the difference between high and low.
         /// </summary>
-        public double Magnitude
-        {
-            get { return Math.Abs(m_high - m_low); }
-        }
+        public double Magnitude => Math.Abs(m_high - m_low);
     }
 }

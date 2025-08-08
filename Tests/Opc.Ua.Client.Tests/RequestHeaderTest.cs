@@ -45,14 +45,13 @@ namespace Opc.Ua.Client.Tests
     [Parallelizable]
     public class RequestHeaderTest : ClientTestFramework
     {
-        #region Test Setup
         /// <summary>
         /// Setup a server and client fixture.
         /// </summary>
         [OneTimeSetUp]
         public Task OneTimeSetUpAsync()
         {
-            return base.OneTimeSetUpAsync(writer: null, securityNone: false, enableClientSideTracing: false ,enableServerSideTracing: false);
+            return OneTimeSetUpAsync(writer: null, securityNone: false, enableClientSideTracing: false, enableServerSideTracing: false);
         }
 
         /// <summary>
@@ -82,9 +81,7 @@ namespace Opc.Ua.Client.Tests
         {
             return base.TearDown();
         }
-        #endregion
 
-        #region Benchmark Setup
         /// <summary>
         /// Global Setup for benchmarks.
         /// </summary>
@@ -106,9 +103,6 @@ namespace Opc.Ua.Client.Tests
         {
             base.GlobalCleanup();
         }
-        #endregion
-
-        #region Test Methods
 
         [Test]
         [Benchmark]
@@ -121,6 +115,5 @@ namespace Opc.Ua.Client.Tests
             Assert.AreEqual(testSet.Count, values.Count);
             Assert.AreEqual(testSet.Count, errors.Count);
         }
-        #endregion
     }
 }

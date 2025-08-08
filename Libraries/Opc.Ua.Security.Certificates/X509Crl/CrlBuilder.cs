@@ -28,12 +28,12 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Formats.Asn1;
+using System.Linq;
+using System.Numerics;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using System.Numerics;
-using System.Linq;
-using System.Collections.Generic;
 
 namespace Opc.Ua.Security.Certificates
 {
@@ -42,7 +42,6 @@ namespace Opc.Ua.Security.Certificates
     /// </summary>
     public sealed class CrlBuilder : IX509CRL
     {
-        #region Constructors
         /// <summary>
         /// Create a CRL builder initialized with a decoded CRL.
         /// </summary>
@@ -83,11 +82,7 @@ namespace Opc.Ua.Security.Certificates
             NextUpdate = crl.NextUpdate;
             RawData = crl.RawData;
             m_revokedCertificates = [.. crl.RevokedCertificates];
-            CrlExtensions = new X509ExtensionCollection();
-            foreach (X509Extension extension in crl.CrlExtensions)
-            {
-                CrlExtensions.Add(extension);
-            }
+            CrlExtensions = [.. crl.CrlExtensions];
         }
 
         /// <summary>
@@ -118,12 +113,10 @@ namespace Opc.Ua.Security.Certificates
         {
             ThisUpdate = DateTime.UtcNow;
             NextUpdate = DateTime.MinValue;
-            m_revokedCertificates = new List<RevokedCertificate>();
-            CrlExtensions = new X509ExtensionCollection();
+            m_revokedCertificates = [];
+            CrlExtensions = [];
         }
-        #endregion
 
-        #region IX509CRL Interface
         /// <inheritdoc/>
         public X500DistinguishedName IssuerName { get; }
 
@@ -147,9 +140,7 @@ namespace Opc.Ua.Security.Certificates
 
         /// <inheritdoc/>
         public byte[] RawData { get; private set; }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Set this update time.
         /// </summary>
@@ -288,9 +279,7 @@ namespace Opc.Ua.Security.Certificates
             }
         }
 #endif
-        #endregion
 
-        #region Internal Methods
         /// <summary>
         /// Constructs Certificate Revocation List raw data in X509 ASN format.
         /// </summary>
@@ -425,10 +414,7 @@ namespace Opc.Ua.Security.Certificates
                 writer.WriteGeneralizedTime(utcTime, true);
             }
         }
-        #endregion
 
-        #region Private Fields
         private readonly List<RevokedCertificate> m_revokedCertificates;
-        #endregion
     }
 }

@@ -65,7 +65,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 #endif
         }
 
-        #region Test Setup
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
@@ -77,9 +76,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void OneTimeTearDown()
         {
         }
-        #endregion
 
-        #region Benchmark Setup
         /// <summary>
         /// Set up some variables for benchmarks.
         /// </summary>
@@ -107,10 +104,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void GlobalCleanup()
         {
         }
-        #endregion
 
-        #region Private Fields
         private DateTime m_dateTime;
-        #endregion
     }
 }

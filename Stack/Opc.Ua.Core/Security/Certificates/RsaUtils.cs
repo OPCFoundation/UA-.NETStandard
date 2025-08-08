@@ -22,7 +22,6 @@ namespace Opc.Ua
     /// </summary>
     internal static class RsaUtils
     {
-        #region Public Enum
         public enum Padding
         {
             Pkcs1,
@@ -40,9 +39,7 @@ namespace Opc.Ua
             }
             throw new ServiceResultException("Invalid Padding");
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Return the plaintext block size for RSA OAEP encryption.
         /// </summary>
@@ -326,7 +323,7 @@ namespace Opc.Ua
         {
             try
             {
-                var randomSource = new Opc.Ua.Test.RandomSource();
+                var randomSource = new Test.RandomSource();
                 const int blockSize = 0x10;
                 byte[] testBlock = new byte[blockSize];
                 randomSource.NextBytes(testBlock, 0, blockSize);
@@ -342,7 +339,7 @@ namespace Opc.Ua
         /// <summary>
         /// Lazy helper to allow runtime to check for Pss support.
         /// </summary>
-        internal static readonly Lazy<bool> IsSupportingRSAPssSign = new Lazy<bool>(() => {
+        internal static readonly Lazy<bool> IsSupportingRSAPssSign = new(() => {
 #if NETFRAMEWORK
             // The Pss check returns false on .Net4.6/4.7, although it is always supported with certs.
             // but not supported with Mono
@@ -350,10 +347,9 @@ namespace Opc.Ua
 #else
             using (var rsa = RSA.Create())
             {
-                return RsaUtils.TryVerifyRSAPssSign(rsa, rsa);
+                return TryVerifyRSAPssSign(rsa, rsa);
             }
 #endif
         });
-        #endregion
     }
 }

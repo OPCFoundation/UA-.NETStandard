@@ -67,14 +67,14 @@ namespace Opc.Ua.Gds.Server.Database
             string certificateTypeId,
             out string trustListId);
         ApplicationDescription[] QueryApplications(
-            uint startingRecordId, 
-            uint maxRecordsToReturn, 
-            string applicationName, 
-            string applicationUri, 
+            uint startingRecordId,
+            uint maxRecordsToReturn,
+            string applicationName,
+            string applicationUri,
             uint applicationType,
-            string productUri, 
-            string[] serverCapabilities, 
-            out DateTime lastCounterResetTime, 
+            string productUri,
+            string[] serverCapabilities,
+            out DateTime lastCounterResetTime,
             out uint nextRecordId);
     }
 }

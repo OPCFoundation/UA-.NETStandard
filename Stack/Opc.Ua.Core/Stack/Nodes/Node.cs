@@ -16,13 +16,11 @@ using System.Globalization;
 
 namespace Opc.Ua
 {
-    #region Node Class
     /// <summary>
     /// A node in the server address space.
     /// </summary>
     public partial class Node : IFormattable, ILocalNode
     {
-        #region Constructors
         /// <summary>
         /// Creates a node from a reference description.
         /// </summary>
@@ -47,13 +45,13 @@ namespace Opc.Ua
 
             if (source != null)
             {
-                this.NodeId = source.NodeId;
-                this.NodeClass = source.NodeClass;
-                this.BrowseName = source.BrowseName;
-                this.DisplayName = source.DisplayName;
-                this.Description = source.Description;
-                this.WriteMask = (uint)source.WriteMask;
-                this.UserWriteMask = (uint)source.UserWriteMask;
+                NodeId = source.NodeId;
+                NodeClass = source.NodeClass;
+                BrowseName = source.BrowseName;
+                DisplayName = source.DisplayName;
+                Description = source.Description;
+                WriteMask = (uint)source.WriteMask;
+                UserWriteMask = (uint)source.UserWriteMask;
             }
         }
 
@@ -123,21 +121,15 @@ namespace Opc.Ua
 
             return new Node(source);
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// An opaque handle that can be associated with the node.
         /// </summary>
         /// <value>The handle.</value>
         public object Handle
-        {
-            get { return m_handle; }
-            set { m_handle = value; }
+        { get => m_handle; set => m_handle = value;
         }
-        #endregion
 
-        #region IFormattable Members
         /// <summary>
         /// Returns the string representation of the object.
         /// </summary>
@@ -174,17 +166,12 @@ namespace Opc.Ua
         {
             return ToString(null, null);
         }
-        #endregion
 
-        #region INode Methods
         /// <summary>
         /// The node identifier.
         /// </summary>
         /// <value>The node identifier.</value>
-        ExpandedNodeId Opc.Ua.INode.NodeId
-        {
-            get { return m_nodeId; }
-        }
+        ExpandedNodeId INode.NodeId => m_nodeId;
 
         /// <summary>
         /// The identifier for the TypeDefinition node.
@@ -202,58 +189,40 @@ namespace Opc.Ua
                 return null;
             }
         }
-        #endregion
 
-        #region ILocalNode Methods
         /// <summary>
         /// A synchronization object that can be used to safely access the node.
         /// </summary>
         /// <value>The data lock.</value>
-        public object DataLock
-        {
-            get { return this; }
-        }
+        public object DataLock => this;
 
         /// <summary>
         /// A mask indicating which attributes are writeable.
         /// </summary>
         /// <value>The write mask.</value>
-        AttributeWriteMask Opc.Ua.ILocalNode.WriteMask
-        {
-            get { return (AttributeWriteMask)m_writeMask; }
-            set { m_writeMask = (uint)value; }
+        AttributeWriteMask ILocalNode.WriteMask
+        { get => (AttributeWriteMask)m_writeMask; set => m_writeMask = (uint)value;
         }
 
         /// <summary>
         /// A mask indicating which attributes that are writeable for the current user.
         /// </summary>
         /// <value>The user write mask.</value>
-        AttributeWriteMask Opc.Ua.ILocalNode.UserWriteMask
-        {
-            get { return (AttributeWriteMask)m_userWriteMask; }
-            set { m_userWriteMask = (uint)value; }
+        AttributeWriteMask ILocalNode.UserWriteMask
+        { get => (AttributeWriteMask)m_userWriteMask; set => m_userWriteMask = (uint)value;
         }
 
         /// <summary>
         /// The identifier for the ModellingRule node.
         /// </summary>
         /// <value>The modelling rule.</value>
-        public NodeId ModellingRule
-        {
-            get
-            {
-                return (NodeId)ReferenceTable.FindTarget(ReferenceTypeIds.HasModellingRule, false, false, null, 0);
-            }
-        }
+        public NodeId ModellingRule => (NodeId)ReferenceTable.FindTarget(ReferenceTypeIds.HasModellingRule, false, false, null, 0);
 
         /// <summary>
         /// The collection of references for the node.
         /// </summary>
         /// <value>The references.</value>
-        IReferenceCollection ILocalNode.References
-        {
-            get { return ReferenceTable; }
-        }
+        IReferenceCollection ILocalNode.References => ReferenceTable;
 
         /// <summary>
         /// Creates a copy of the node.
@@ -262,7 +231,7 @@ namespace Opc.Ua
         /// <returns>Copy of the node</returns>
         public ILocalNode CreateCopy(NodeId nodeId)
         {
-            var node = Node.Copy(this);
+            var node = Copy(this);
             node.NodeId = nodeId;
             return node;
         }
@@ -346,20 +315,12 @@ namespace Opc.Ua
 
             return Write(attributeId, value.Value);
         }
-        #endregion
 
-        #region Public Members
         /// <summary>
         /// A searchable table of references for the node.
         /// </summary>
         /// <value>The reference table.</value>
-        public ReferenceCollection ReferenceTable
-        {
-            get
-            {
-                return m_referenceTable ??= new ReferenceCollection();
-            }
-        }
+        public ReferenceCollection ReferenceTable => m_referenceTable ??= [];
 
         /// <summary>
         /// Returns true if the reference exist.
@@ -431,9 +392,7 @@ namespace Opc.Ua
             hash.Add(m_browseName);
             return hash.ToHashCode();
         }
-        #endregion
 
-        #region Protected Methods
         /// <summary>
         /// Reads the value of an attribute.
         /// </summary>
@@ -490,22 +449,16 @@ namespace Opc.Ua
 
             return ServiceResult.Good;
         }
-        #endregion
 
-        #region Private Fields
         private object m_handle;
         private ReferenceCollection m_referenceTable;
-        #endregion
     }
-    #endregion
 
-    #region ReferenceNode Class
     /// <summary>
     /// A node in the server address space.
     /// </summary>
     public partial class ReferenceNode : IReference, IComparable, IFormattable
     {
-        #region Constructors
         /// <summary>
         /// Initializes the reference.
         /// </summary>
@@ -518,9 +471,7 @@ namespace Opc.Ua
             m_isInverse = isInverse;
             m_targetId = targetId;
         }
-        #endregion
 
-        #region IFormattable Members
         /// <summary>
         /// Returns a string representation of the HierarchyBrowsePath.
         /// </summary>
@@ -566,9 +517,7 @@ namespace Opc.Ua
                 return Utils.Format("<{0}>{1}", referenceType, m_targetId);
             }
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Determines whether the specified <see cref="T:System.Object"/> is equal to the current <see cref="T:System.Object"/>.
         /// </summary>
@@ -607,9 +556,9 @@ namespace Opc.Ua
         /// <returns>The result of the operator.Returns true if the objects are equal.</returns>
 		public static bool operator ==(ReferenceNode a, object b)
         {
-            if (Object.ReferenceEquals(a, null))
+            if (ReferenceEquals(a, null))
             {
-                return Object.ReferenceEquals(b, null);
+                return ReferenceEquals(b, null);
             }
 
             return a.CompareTo(b) == 0;
@@ -623,16 +572,14 @@ namespace Opc.Ua
         /// <returns>The result of the operator.Returns true if the objects are not equal.</returns>
 		public static bool operator !=(ReferenceNode a, object b)
         {
-            if (Object.ReferenceEquals(a, null))
+            if (ReferenceEquals(a, null))
             {
-                return !Object.ReferenceEquals(b, null);
+                return !ReferenceEquals(b, null);
             }
 
             return a.CompareTo(b) != 0;
         }
-        #endregion
 
-        #region IComparable Members
         /// <summary>
         /// Compares the current instance with another object of the same type and returns an integer that indicates whether the current instance precedes, follows, or occurs in the same position in the sort order as the other object.
         /// </summary>
@@ -653,12 +600,12 @@ namespace Opc.Ua
         /// </exception>
         public int CompareTo(object obj)
         {
-            if (Object.ReferenceEquals(obj, null))
+            if (ReferenceEquals(obj, null))
             {
                 return +1;
             }
 
-            if (Object.ReferenceEquals(obj, this))
+            if (ReferenceEquals(obj, this))
             {
                 return 0;
             }
@@ -668,9 +615,9 @@ namespace Opc.Ua
                 return -1;
             }
 
-            if (Object.ReferenceEquals(m_referenceTypeId, null))
+            if (ReferenceEquals(m_referenceTypeId, null))
             {
-                return Object.ReferenceEquals(reference.m_referenceTypeId, null) ? 0 : -1;
+                return ReferenceEquals(reference.m_referenceTypeId, null) ? 0 : -1;
             }
 
             int result = m_referenceTypeId.CompareTo(reference.m_referenceTypeId);
@@ -680,29 +627,25 @@ namespace Opc.Ua
                 return result;
             }
 
-            if (reference.m_isInverse != this.m_isInverse)
+            if (reference.m_isInverse != m_isInverse)
             {
-                return this.m_isInverse ? +1 : -1;
+                return m_isInverse ? +1 : -1;
             }
 
-            if (Object.ReferenceEquals(m_targetId, null))
+            if (ReferenceEquals(m_targetId, null))
             {
-                return Object.ReferenceEquals(reference.m_targetId, null) ? 0 : -1;
+                return ReferenceEquals(reference.m_targetId, null) ? 0 : -1;
             }
 
             return m_targetId.CompareTo(reference.m_targetId);
         }
-        #endregion
     }
-    #endregion
 
-    #region InstanceNode Class
     /// <summary>
     /// An instance node in the server address space.
     /// </summary>
     public partial class InstanceNode : Node
     {
-        #region Constructors
         /// <summary>
         /// Creates a node from another node (copies attributes - not references).
         /// </summary>
@@ -710,17 +653,13 @@ namespace Opc.Ua
         public InstanceNode(ILocalNode source) : base(source)
         {
         }
-        #endregion
     }
-    #endregion
 
-    #region TypeNode Class
     /// <summary>
     /// An type node in the server address space.
     /// </summary>
     public partial class TypeNode : Node
     {
-        #region Constructors
         /// <summary>
         /// Creates a node from another node (copies attributes - not references).
         /// </summary>
@@ -728,62 +667,50 @@ namespace Opc.Ua
         public TypeNode(ILocalNode source) : base(source)
         {
         }
-        #endregion
     }
-    #endregion
 
-    #region VariableNode Class
     /// <summary>
     /// A variable node in the server address space.
     /// </summary>
     public partial class VariableNode : IVariable
     {
-        #region Constructors
         /// <summary>
         /// Creates a node from another node (copies attributes - not references).
         /// </summary>
         /// <param name="source">The source.</param>
         public VariableNode(ILocalNode source) : base(source)
         {
-            this.NodeClass = NodeClass.Variable;
+            NodeClass = NodeClass.Variable;
 
             if (source is IVariable variable)
             {
-                this.DataType = variable.DataType;
-                this.ValueRank = variable.ValueRank;
-                this.AccessLevel = variable.AccessLevel;
-                this.UserAccessLevel = variable.UserAccessLevel;
-                this.MinimumSamplingInterval = variable.MinimumSamplingInterval;
-                this.Historizing = variable.Historizing;
+                DataType = variable.DataType;
+                ValueRank = variable.ValueRank;
+                AccessLevel = variable.AccessLevel;
+                UserAccessLevel = variable.UserAccessLevel;
+                MinimumSamplingInterval = variable.MinimumSamplingInterval;
+                Historizing = variable.Historizing;
 
                 object value = variable.Value ?? TypeInfo.GetDefaultValue(variable.DataType, variable.ValueRank);
 
-                this.Value = new Variant(value);
+                Value = new Variant(value);
 
                 if (variable.ArrayDimensions != null)
                 {
-                    this.ArrayDimensions = new UInt32Collection(variable.ArrayDimensions);
+                    ArrayDimensions = [.. variable.ArrayDimensions];
                 }
             }
         }
-        #endregion
 
-        #region IVariableBase Members
         /// <summary>
         /// The value attribute.
         /// </summary>
         /// <value>The value.</value>
         object IVariableBase.Value
         {
-            get
-            {
-                return m_value.Value;
-            }
+            get => m_value.Value;
 
-            set
-            {
-                m_value = new Variant(value);
-            }
+            set => m_value = new Variant(value);
         }
 
         /// <summary>
@@ -792,26 +719,21 @@ namespace Opc.Ua
         /// <value>The array dimensions.</value>
         IList<uint> IVariableBase.ArrayDimensions
         {
-            get
-            {
-                return m_arrayDimensions;
-            }
+            get => m_arrayDimensions;
 
             set
             {
                 if (value == null)
                 {
-                    m_arrayDimensions = new UInt32Collection();
+                    m_arrayDimensions = [];
                 }
                 else
                 {
-                    m_arrayDimensions = new UInt32Collection(value);
+                    m_arrayDimensions = [.. value];
                 }
             }
         }
-        #endregion
 
-        #region Protected Methods
         /// <summary>
         /// Whether the node supports the specified attribute.
         /// </summary>
@@ -922,7 +844,7 @@ namespace Opc.Ua
                     return ServiceResult.Good;
 
                 case Attributes.ArrayDimensions:
-                    m_arrayDimensions = new UInt32Collection((uint[])value);
+                    m_arrayDimensions = [.. (uint[])value];
 
                     // ensure number of dimensions is correct.
                     if (m_arrayDimensions.Count > 0 && m_arrayDimensions.Count != m_valueRank)
@@ -936,33 +858,27 @@ namespace Opc.Ua
 
             return base.Write(attributeId, value);
         }
-        #endregion
     }
-    #endregion
 
-    #region ObjectNode Class
     /// <summary>
     /// An object node in the server address space.
     /// </summary>
     public partial class ObjectNode : IObject
     {
-        #region Constructors
         /// <summary>
         /// Creates a node from another node (copies attributes - not references).
         /// </summary>
         /// <param name="source">The source.</param>
         public ObjectNode(ILocalNode source) : base(source)
         {
-            this.NodeClass = NodeClass.Object;
+            NodeClass = NodeClass.Object;
 
             if (source is IObject node)
             {
-                this.EventNotifier = node.EventNotifier;
+                EventNotifier = node.EventNotifier;
             }
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Whether the node supports the specified attribute.
         /// </summary>
@@ -1009,33 +925,27 @@ namespace Opc.Ua
 
             return base.Write(attributeId, value);
         }
-        #endregion
     }
-    #endregion
 
-    #region ObjectTypeNode Class
     /// <summary>
     /// An object type node in the server address space.
     /// </summary>
     public partial class ObjectTypeNode : IObjectType
     {
-        #region Constructors
         /// <summary>
         /// Creates a node from another node (copies attributes - not references).
         /// </summary>
         /// <param name="source">The source.</param>
         public ObjectTypeNode(ILocalNode source) : base(source)
         {
-            this.NodeClass = NodeClass.ObjectType;
+            NodeClass = NodeClass.ObjectType;
 
             if (source is IObjectType node)
             {
-                this.IsAbstract = node.IsAbstract;
+                IsAbstract = node.IsAbstract;
             }
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Whether the node supports the specified attribute.
         /// </summary>
@@ -1082,56 +992,44 @@ namespace Opc.Ua
 
             return base.Write(attributeId, value);
         }
-        #endregion
     }
-    #endregion
 
-    #region VariableTypeNode Class
     /// <summary>
     /// A variable type node in the server address space.
     /// </summary>
     public partial class VariableTypeNode : IVariableType
     {
-        #region Constructors
         /// <summary>
         /// Creates a node from another node (copies attributes - not references).
         /// </summary>
         /// <param name="source">The source.</param>
         public VariableTypeNode(ILocalNode source) : base(source)
         {
-            this.NodeClass = NodeClass.VariableType;
+            NodeClass = NodeClass.VariableType;
 
             if (source is IVariableType node)
             {
-                this.IsAbstract = node.IsAbstract;
-                this.Value = new Variant(node.Value);
-                this.DataType = node.DataType;
-                this.ValueRank = node.ValueRank;
+                IsAbstract = node.IsAbstract;
+                Value = new Variant(node.Value);
+                DataType = node.DataType;
+                ValueRank = node.ValueRank;
 
                 if (node.ArrayDimensions != null)
                 {
-                    this.ArrayDimensions = new UInt32Collection(node.ArrayDimensions);
+                    ArrayDimensions = [.. node.ArrayDimensions];
                 }
             }
         }
-        #endregion
 
-        #region IVariableBase Members
         /// <summary>
         /// The value attribute.
         /// </summary>
         /// <value>The value.</value>
         object IVariableBase.Value
         {
-            get
-            {
-                return m_value.Value;
-            }
+            get => m_value.Value;
 
-            set
-            {
-                m_value = new Variant(value);
-            }
+            set => m_value = new Variant(value);
         }
 
         /// <summary>
@@ -1140,26 +1038,21 @@ namespace Opc.Ua
         /// <value>The number in each dimension of an array value.</value>
         IList<uint> IVariableBase.ArrayDimensions
         {
-            get
-            {
-                return m_arrayDimensions;
-            }
+            get => m_arrayDimensions;
 
             set
             {
                 if (value == null)
                 {
-                    m_arrayDimensions = new UInt32Collection();
+                    m_arrayDimensions = [];
                 }
                 else
                 {
-                    m_arrayDimensions = new UInt32Collection(value);
+                    m_arrayDimensions = [.. value];
                 }
             }
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Whether the node supports the specified attribute.
         /// </summary>
@@ -1252,7 +1145,7 @@ namespace Opc.Ua
                     return ServiceResult.Good;
 
                 case Attributes.ArrayDimensions:
-                    m_arrayDimensions = new UInt32Collection((uint[])value);
+                    m_arrayDimensions = [.. (uint[])value];
 
                     // ensure number of dimensions is correct.
                     if (m_arrayDimensions.Count > 0 && m_valueRank != m_arrayDimensions.Count)
@@ -1266,35 +1159,29 @@ namespace Opc.Ua
 
             return base.Write(attributeId, value);
         }
-        #endregion
     }
-    #endregion
 
-    #region ReferenceTypeNode Class
     /// <summary>
     /// A reference type node in the server address space.
     /// </summary>
     public partial class ReferenceTypeNode : IReferenceType
     {
-        #region Constructors
         /// <summary>
         /// Creates a node from another node (copies attributes - not references).
         /// </summary>
         /// <param name="source">The source.</param>
         public ReferenceTypeNode(ILocalNode source) : base(source)
         {
-            this.NodeClass = NodeClass.ReferenceType;
+            NodeClass = NodeClass.ReferenceType;
 
             if (source is IReferenceType node)
             {
-                this.IsAbstract = node.IsAbstract;
-                this.InverseName = node.InverseName;
-                this.Symmetric = node.Symmetric;
+                IsAbstract = node.IsAbstract;
+                InverseName = node.InverseName;
+                Symmetric = node.Symmetric;
             }
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Whether the node supports the specified attribute.
         /// </summary>
@@ -1349,34 +1236,28 @@ namespace Opc.Ua
 
             return base.Write(attributeId, value);
         }
-        #endregion
     }
-    #endregion
 
-    #region MethodNode Class
     /// <summary>
     /// A method node in the server address space.
     /// </summary>
     public partial class MethodNode : IMethod
     {
-        #region Constructors
         /// <summary>
         /// Creates a node from another node (copies attributes - not references).
         /// </summary>
         /// <param name="source">The source.</param>
         public MethodNode(ILocalNode source) : base(source)
         {
-            this.NodeClass = NodeClass.Method;
+            NodeClass = NodeClass.Method;
 
             if (source is IMethod node)
             {
-                this.Executable = node.Executable;
-                this.UserExecutable = node.UserExecutable;
+                Executable = node.Executable;
+                UserExecutable = node.UserExecutable;
             }
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Whether the node supports the specified attribute.
         /// </summary>
@@ -1427,34 +1308,28 @@ namespace Opc.Ua
 
             return base.Write(attributeId, value);
         }
-        #endregion
     }
-    #endregion
 
-    #region ViewNode Class
     /// <summary>
     /// A view node in the server address space.
     /// </summary>
     public partial class ViewNode : IView
     {
-        #region Constructors
         /// <summary>
         /// Creates a node from another node (copies attributes - not references).
         /// </summary>
         /// <param name="source">The source.</param>
         public ViewNode(ILocalNode source) : base(source)
         {
-            this.NodeClass = NodeClass.View;
+            NodeClass = NodeClass.View;
 
             if (source is IView node)
             {
-                this.EventNotifier = node.EventNotifier;
-                this.ContainsNoLoops = node.ContainsNoLoops;
+                EventNotifier = node.EventNotifier;
+                ContainsNoLoops = node.ContainsNoLoops;
             }
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Whether the node supports the specified attribute.
         /// </summary>
@@ -1505,33 +1380,27 @@ namespace Opc.Ua
 
             return base.Write(attributeId, value);
         }
-        #endregion
     }
-    #endregion
 
-    #region DataTypeNode Class
     /// <summary>
     /// A view node in the server address space.
     /// </summary>
     public partial class DataTypeNode : IDataType
     {
-        #region Constructors
         /// <summary>
         /// Creates a node from another node (copies attributes - not references).
         /// </summary>
         /// <param name="source">The source.</param>
         public DataTypeNode(ILocalNode source) : base(source)
         {
-            this.NodeClass = NodeClass.DataType;
+            NodeClass = NodeClass.DataType;
 
             if (source is IDataType node)
             {
-                this.IsAbstract = node.IsAbstract;
+                IsAbstract = node.IsAbstract;
             }
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Whether the node supports the specified attribute.
         /// </summary>
@@ -1582,7 +1451,5 @@ namespace Opc.Ua
 
             return base.Write(attributeId, value);
         }
-        #endregion
     }
-    #endregion
 }

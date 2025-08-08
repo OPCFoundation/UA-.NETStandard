@@ -26,7 +26,6 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public partial class UaSCUaBinaryChannel
     {
-        #region IUaTcpSecureChannel Members
         /// <summary>
         /// Returns the endpoint description selected by the client.
         /// </summary>
@@ -48,9 +47,7 @@ namespace Opc.Ua.Bindings
                 }
             }
         }
-        #endregion
 
-        #region General Cryptographic Methods and Properties
         /// <summary>
         /// The certificate for the server.
         /// </summary>
@@ -60,9 +57,7 @@ namespace Opc.Ua.Bindings
         /// The server certificate chain.
         /// </summary>
         protected X509Certificate2Collection ServerCertificateChain
-        {
-            get { return m_serverCertificateChain; }
-            set { m_serverCertificateChain = value; }
+        { get => m_serverCertificateChain; set => m_serverCertificateChain = value;
         }
 
         /// <summary>
@@ -84,18 +79,14 @@ namespace Opc.Ua.Bindings
         /// The certificate for the client.
         /// </summary>
         protected X509Certificate2 ClientCertificate
-        {
-            get { return m_clientCertificate; }
-            set { m_clientCertificate = value; }
+        { get => m_clientCertificate; set => m_clientCertificate = value;
         }
 
         /// <summary>
         /// The client certificate chain.
         /// </summary>
         internal X509Certificate2Collection ClientCertificateChain
-        {
-            get { return m_clientCertificateChain; }
-            set { m_clientCertificateChain = value; }
+        { get => m_clientCertificateChain; set => m_clientCertificateChain = value;
         }
 
         /// <summary>
@@ -175,9 +166,6 @@ namespace Opc.Ua.Bindings
                     (actual != null) ? actual.Thumbprint : "(null)");
             }
         }
-        #endregion
-
-        #region Asymmetric Cryptography Functions
 
         /// <summary>
         /// Validates the nonce.
@@ -510,7 +498,7 @@ namespace Opc.Ua.Bindings
                         }
                     }
 
-                    encoder.WriteByteString(null, senderCertificateList.ToArray());
+                    encoder.WriteByteString(null, [.. senderCertificateList]);
                 }
                 else
                 {
@@ -961,13 +949,13 @@ namespace Opc.Ua.Bindings
                 string securityPolicyUri = null;
                 X509Certificate2Collection senderCertificateChain;
 
-            // parse the security header.
-            ReadAsymmetricMessageHeader(
-                decoder,
-                ref receiverCertificate,
-                out channelId,
-                out senderCertificateChain,
-                out securityPolicyUri);
+                // parse the security header.
+                ReadAsymmetricMessageHeader(
+                    decoder,
+                    ref receiverCertificate,
+                    out channelId,
+                    out senderCertificateChain,
+                    out securityPolicyUri);
 
                 if (senderCertificateChain != null && senderCertificateChain.Count > 0)
                 {
@@ -1301,9 +1289,7 @@ namespace Opc.Ua.Bindings
                     return Rsa_Decrypt(dataToDecrypt, headerToCopy, receiverCertificate, RsaUtils.Padding.Pkcs1);
             }
         }
-        #endregion
 
-        #region Private Fields
         private readonly EndpointDescriptionCollection m_endpoints;
         private MessageSecurityMode m_securityMode;
         private string m_securityPolicyUri;
@@ -1319,6 +1305,6 @@ namespace Opc.Ua.Bindings
         private Nonce m_localNonce;
         private Nonce m_remoteNonce;
 #endif
-        #endregion
+
     }
 }

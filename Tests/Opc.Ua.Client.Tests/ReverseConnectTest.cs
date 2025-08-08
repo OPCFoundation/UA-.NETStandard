@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -50,12 +50,9 @@ namespace Opc.Ua.Client.Tests
     {
         Uri m_endpointUrl;
 
-        #region DataPointSources
         [DatapointSource]
-        public static ISessionFactory[] SessionFactories = { TraceableSessionFactory.Instance, TestableSessionFactory.Instance, DefaultSessionFactory.Instance };
-        #endregion
+        public static readonly ISessionFactory[] SessionFactories = [TraceableSessionFactory.Instance, TestableSessionFactory.Instance, DefaultSessionFactory.Instance];
 
-        #region Test Setup
         /// <summary>
         /// Setup a server and client fixture.
         /// </summary>
@@ -65,10 +62,10 @@ namespace Opc.Ua.Client.Tests
             // this test fails on macOS, ignore (TODO)
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-                Assert.Ignore("Reverse connect fails on mac OS.");
+                NUnit.Framework.Assert.Ignore("Reverse connect fails on mac OS.");
             }
 
-            // pki directory root for test runs. 
+            // pki directory root for test runs.
             PkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
 
             // start ref server with reverse connect
@@ -117,9 +114,7 @@ namespace Opc.Ua.Client.Tests
         {
             return base.TearDown();
         }
-        #endregion
 
-        #region Test Methods
         /// <summary>
         /// Get endpoints using a reverse connection.
         /// </summary>
@@ -253,9 +248,7 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(result);
             session.Dispose();
         }
-        #endregion
 
-        #region Private Methods
         private async Task RequireEndpoints()
         {
             await m_requiredLock.WaitAsync().ConfigureAwait(false);
@@ -271,8 +264,7 @@ namespace Opc.Ua.Client.Tests
                 m_requiredLock.Release();
             }
         }
-        #endregion
 
-        private readonly SemaphoreSlim m_requiredLock = new SemaphoreSlim(1);
+        private readonly SemaphoreSlim m_requiredLock = new(1);
     }
 }

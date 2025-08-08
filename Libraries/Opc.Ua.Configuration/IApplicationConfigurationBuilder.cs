@@ -27,9 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Threading.Tasks;
 using System.Xml;
-using System;
 
 namespace Opc.Ua.Configuration
 {

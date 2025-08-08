@@ -93,7 +93,7 @@ namespace Opc.Ua.Security.Certificates
 
             if (buffer.Length == 0)
             {
-                return Array.Empty<byte>();
+                return [];
             }
 
 #if NET6_0_OR_GREATER

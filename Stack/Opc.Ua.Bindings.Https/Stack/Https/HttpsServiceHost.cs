@@ -151,7 +151,7 @@ namespace Opc.Ua.Bindings
                 // if no mutual TLS authentication is used, anonymous user tokens are not allowed
                 if (!httpsMutualTls)
                 {
-                    description.UserIdentityTokens = new UserTokenPolicyCollection(description.UserIdentityTokens.Where(token => token.TokenType != UserTokenType.Anonymous));
+                    description.UserIdentityTokens = [.. description.UserIdentityTokens.Where(token => token.TokenType != UserTokenType.Anonymous)];
                 }
 
                 ITransportListener listener = Create();
@@ -168,7 +168,7 @@ namespace Opc.Ua.Bindings
             }
 
             // create the host.
-            hosts[hostName] = serverBase.CreateServiceHost(serverBase, uris.ToArray());
+            hosts[hostName] = serverBase.CreateServiceHost(serverBase, [.. uris]);
 
             return endpoints;
         }

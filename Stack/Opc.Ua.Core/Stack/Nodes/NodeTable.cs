@@ -94,7 +94,6 @@ namespace Opc.Ua
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1710:IdentifiersShouldHaveCorrectSuffix")]
     public class NodeTable : INodeTable, IEnumerable<INode>
     {
-        #region Constructors
         /// <summary>
         /// Initializes the object.
         /// </summary>
@@ -109,12 +108,10 @@ namespace Opc.Ua
             NamespaceUris = namespaceUris;
             ServerUris = serverUris;
             m_typeTree = typeTree;
-            m_localNodes = new NodeIdDictionary<ILocalNode>();
-            m_remoteNodes = new SortedDictionary<ExpandedNodeId, RemoteNode>();
+            m_localNodes = [];
+            m_remoteNodes = [];
         }
-        #endregion
 
-        #region INodeTable Methods
         /// <inheritdoc/>
         public NamespaceTable NamespaceUris { get; }
 
@@ -122,10 +119,7 @@ namespace Opc.Ua
         public StringTable ServerUris { get; }
 
         /// <inheritdoc/>
-        public ITypeTable TypeTree
-        {
-            get { return m_typeTree; }
-        }
+        public ITypeTable TypeTree => m_typeTree;
 
         /// <inheritdoc/>
         public bool Exists(ExpandedNodeId nodeId)
@@ -201,7 +195,7 @@ namespace Opc.Ua
             bool includeSubtypes)
         {
             // create an empty list.
-            IList<INode> nodes = new List<INode>();
+            IList<INode> nodes = [];
 
             // find the source.
             INode source = InternalFind(sourceId);
@@ -238,9 +232,7 @@ namespace Opc.Ua
             // return list of nodes.
             return nodes;
         }
-        #endregion
 
-        #region IEnumerable<INode> Members
         /// <summary>
         /// Returns an enumerator that iterates through the collection.
         /// </summary>
@@ -257,9 +249,7 @@ namespace Opc.Ua
 
             return list.GetEnumerator();
         }
-        #endregion
 
-        #region IEnumerable Members
         /// <summary>
         /// Returns an enumerator that iterates through a collection.
         /// </summary>
@@ -270,20 +260,12 @@ namespace Opc.Ua
         {
             return GetEnumerator();
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// The number of nodes in the table.
         /// </summary>
         /// <value>The count.</value>
-        public int Count
-        {
-            get
-            {
-                return m_localNodes.Count + m_remoteNodes.Count;
-            }
-        }
+        public int Count => m_localNodes.Count + m_remoteNodes.Count;
 
         /// <summary>
         /// Adds a set of nodes to the table.
@@ -397,7 +379,7 @@ namespace Opc.Ua
 
                             if (!externalReferences.TryGetValue(targetId, out referenceList))
                             {
-                                externalReferences[targetId] = referenceList = new List<IReference>();
+                                externalReferences[targetId] = referenceList = [];
                             }
 
                             var reverseReference = new ReferenceNode();
@@ -627,9 +609,7 @@ namespace Opc.Ua
             m_localNodes.Clear();
             m_remoteNodes.Clear();
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Adds the node to the table.
         /// </summary>
@@ -729,15 +709,12 @@ namespace Opc.Ua
             // node not found.
             return null;
         }
-        #endregion
 
-        #region RemoteNode Class
         /// <summary>
         /// Stores information for a node on a remote server.
         /// </summary>
         private class RemoteNode : INode
         {
-            #region Public Interface
             /// <summary>
             /// Initializes the object.
             /// </summary>
@@ -781,9 +758,7 @@ namespace Opc.Ua
             /// </summary>
             /// <value>The type definition identifier.</value>
             public ExpandedNodeId TypeDefinitionId { get; internal set; }
-            #endregion
 
-            #region INode Members
             /// <summary>
             /// The node identifier.
             /// </summary>
@@ -808,17 +783,11 @@ namespace Opc.Ua
             /// <value>The display name.</value>
             public LocalizedText DisplayName { get; internal set; }
 
-            #endregion
-            #region Private Fields
             private int m_refs;
-            #endregion
         }
-        #endregion
 
-        #region Private Fields
         private readonly NodeIdDictionary<ILocalNode> m_localNodes;
         private readonly SortedDictionary<ExpandedNodeId, RemoteNode> m_remoteNodes;
         private readonly TypeTable m_typeTree;
-        #endregion
     }
 }

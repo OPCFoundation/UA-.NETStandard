@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -40,7 +39,6 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
     /// </summary>
     public class MockResolver : IComplexTypeResolver
     {
-        #region Constructors
         /// <summary>
         /// The mock resolver emulates data type definitions
         /// which are stored in the server address space.
@@ -52,8 +50,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
         private void Initialize()
         {
-            m_dataTypeDictionary = new NodeIdDictionary<DataDictionary>();
-            m_dataTypeNodes = new NodeIdDictionary<INode>();
+            m_dataTypeDictionary = [];
+            m_dataTypeNodes = [];
             m_factory = new EncodeableFactory(EncodeableFactory.GlobalFactory);
             m_namespaceUris = new NamespaceTable();
 
@@ -61,13 +59,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             m_namespaceUris.Append("urn:This:is:another:namespace");
             m_namespaceUris.Append(Namespaces.OpcUaEncoderTests);
             m_namespaceUris.Append(Namespaces.MockResolverUrl);
-
         }
-        #endregion Constructors
 
         public NodeIdDictionary<INode> DataTypeNodes => m_dataTypeNodes;
 
-        #region IComplexTypeResolver
         /// <inheritdoc/>
         public NodeIdDictionary<DataDictionary> DataTypeSystem => m_dataTypeDictionary;
 
@@ -86,7 +81,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// <inheritdoc/>
         public Task<IList<NodeId>> BrowseForEncodingsAsync(IList<ExpandedNodeId> nodeIds, string[] supportedEncodings, CancellationToken ct = default)
         {
-            return Task.FromResult((IList<NodeId>)new List<NodeId>());
+            return Task.FromResult((IList<NodeId>)[]);
         }
 
         /// <inheritdoc/>
@@ -103,8 +98,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             if (node is DataTypeNode dataTypeNode)
             {
                 var result = new List<NodeId>();
-                IEnumerable<ReferenceNode> references = dataTypeNode.References.Where(r => r.ReferenceTypeId.Equals(ReferenceTypeIds.HasEncoding));
-                foreach (ReferenceNode reference in references)
+                foreach (ReferenceNode reference in dataTypeNode.References.Where(r => r.ReferenceTypeId.Equals(ReferenceTypeIds.HasEncoding)))
                 {
                     INode encodingNode = m_dataTypeNodes[ExpandedNodeId.ToNodeId(reference.TargetId, NamespaceUris)];
                     if (encodingNode == null)
@@ -166,20 +160,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 var nextNodesToBrowse = new ExpandedNodeIdCollection();
                 foreach (ExpandedNodeId node in nodesToBrowse)
                 {
-
-                    IEnumerable<DataTypeNode> response = m_dataTypeNodes.Values.Where(n => {
-                        if (n.NodeClass == NodeClass.DataType)
-                        {
-                            if (((DataTypeNode)n).DataTypeDefinition.Body is StructureDefinition structureDefinition)
-                            {
-                                if (Utils.IsEqual(structureDefinition.BaseDataType, node))
-                                {
-                                    return true;
-                                }
-                            }
-                        }
-                        return false;
-                    }).Cast<DataTypeNode>();
+                    IEnumerable<DataTypeNode> response = m_dataTypeNodes.Values.Where(n => n.NodeClass == NodeClass.DataType && ((DataTypeNode)n).DataTypeDefinition.Body is StructureDefinition structureDefinition && Utils.IsEqual(structureDefinition.BaseDataType, node)).Cast<DataTypeNode>();
                     if (nestedSubTypes)
                     {
                         nextNodesToBrowse.AddRange(response.Select(r => NodeId.ToExpandedNodeId(r.NodeId, NamespaceUris)).ToList());
@@ -228,9 +209,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             }
             return Task.FromResult(DataTypeIds.BaseDataType);
         }
-        #endregion IComplexTypeResolver
 
-        #region Private Methods
         /// <summary>
         /// Helper to ensure the expanded nodeId contains a valid namespaceUri.
         /// </summary>
@@ -241,13 +220,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             var nodeId = ExpandedNodeId.ToNodeId(expandedNodeId, NamespaceUris);
             return NodeId.ToExpandedNodeId(nodeId, NamespaceUris);
         }
-        #endregion Private Methods
 
-        #region Private Fields
         private NodeIdDictionary<DataDictionary> m_dataTypeDictionary;
         private NodeIdDictionary<INode> m_dataTypeNodes;
         private EncodeableFactory m_factory;
         private NamespaceTable m_namespaceUris;
-        #endregion Private Fields
     }//namespace
 }

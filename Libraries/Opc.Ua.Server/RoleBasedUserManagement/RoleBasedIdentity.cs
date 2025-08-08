@@ -68,7 +68,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The Role is allowed to browse, read live data, read historical data/events, call Methods or subscribe to data/events.
         /// </summary>
-        public static Role Supervisor { get; }  = new Role(ObjectIds.WellKnownRole_Supervisor, BrowseNames.WellKnownRole_Supervisor);
+        public static Role Supervisor { get; } = new Role(ObjectIds.WellKnownRole_Supervisor, BrowseNames.WellKnownRole_Supervisor);
 
         /// <summary>
         /// The Role is allowed to change the non-security related configuration settings.
@@ -99,7 +99,7 @@ namespace Opc.Ua.Server
         /// the name of the role
         /// </summary>
         public string Name { get; }
-        #region value equality
+
         /// <inheritdoc/>
         public bool Equals(Role other)
         {
@@ -107,11 +107,11 @@ namespace Opc.Ua.Server
             {
                 return false;
             }
-            if (Object.ReferenceEquals(this, other))
+            if (ReferenceEquals(this, other))
             {
                 return true;
             }
-            if (this.GetType() != other.GetType())
+            if (GetType() != other.GetType())
             {
                 return false;
             }
@@ -145,7 +145,7 @@ namespace Opc.Ua.Server
         }
         /// <inheritdoc/>
         public static bool operator !=(Role lhs, Role rhs) => !(lhs == rhs);
-        #endregion
+
         /// <summary>
         /// returns the name of the role
         /// </summary>
@@ -180,10 +180,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public NodeIdCollection GrantedRoleIds
-        {
-            get { return m_identity.GrantedRoleIds; }
-        }
+        public NodeIdCollection GrantedRoleIds => m_identity.GrantedRoleIds;
 
         /// <summary>
         /// The role in the context of a server.
@@ -191,34 +188,19 @@ namespace Opc.Ua.Server
         public IEnumerable<Role> Roles { get; }
 
         /// <inheritdoc/>
-        public string DisplayName
-        {
-            get { return m_identity.DisplayName; }
-        }
+        public string DisplayName => m_identity.DisplayName;
 
         /// <inheritdoc/>
-        public string PolicyId
-        {
-            get { return m_identity.PolicyId; }
-        }
+        public string PolicyId => m_identity.PolicyId;
 
         /// <inheritdoc/>
-        public UserTokenType TokenType
-        {
-            get { return m_identity.TokenType; }
-        }
+        public UserTokenType TokenType => m_identity.TokenType;
 
         /// <inheritdoc/>
-        public XmlQualifiedName IssuedTokenType
-        {
-            get { return m_identity.IssuedTokenType; }
-        }
+        public XmlQualifiedName IssuedTokenType => m_identity.IssuedTokenType;
 
         /// <inheritdoc/>
-        public bool SupportsSignatures
-        {
-            get { return m_identity.SupportsSignatures; }
-        }
+        public bool SupportsSignatures => m_identity.SupportsSignatures;
 
         /// <inheritdoc/>
         public UserIdentityToken GetIdentityToken()

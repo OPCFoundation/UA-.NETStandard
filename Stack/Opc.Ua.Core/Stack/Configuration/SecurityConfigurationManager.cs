@@ -23,7 +23,6 @@ namespace Opc.Ua.Security
     /// </summary>
     public class SecurityConfigurationManager : ISecurityConfigurationManager
     {
-        #region ISecurityConfigurationManager Members
         /// <summary>
         /// Exports the security configuration for an application identified by a file or url.
         /// </summary>
@@ -226,7 +225,7 @@ namespace Opc.Ua.Security
                     return (XmlElement)ii;
                 }
 
-                XmlElement child = SecurityConfigurationManager.Find(ii, localName, namespaceUri);
+                XmlElement child = Find(ii, localName, namespaceUri);
 
                 if (child != null)
                 {
@@ -265,7 +264,7 @@ namespace Opc.Ua.Security
             {
                 document.Load(xmlReader);
             }
-            XmlElement element = SecurityConfigurationManager.Find(document.DocumentElement, "SecuredApplication", Namespaces.OpcUaSecurity);
+            XmlElement element = Find(document.DocumentElement, "SecuredApplication", Namespaces.OpcUaSecurity);
 
             // update secured application.
             if (element != null)
@@ -284,7 +283,7 @@ namespace Opc.Ua.Security
             {
                 // update configuration file.
                 Stream ostrm = File.Open(filePath, FileMode.Create, FileAccess.Write);
-                var writer = new StreamWriter(ostrm, System.Text.Encoding.UTF8);
+                var writer = new StreamWriter(ostrm, Encoding.UTF8);
 
                 try
                 {
@@ -305,9 +304,7 @@ namespace Opc.Ua.Security
                     configuration.ConfigurationFile);
             }
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Updates the XML document with the new configuration information.
         /// </summary>
@@ -406,6 +403,5 @@ namespace Opc.Ua.Security
                 return document.DocumentElement.InnerXml;
             }
         }
-        #endregion
     }
 }

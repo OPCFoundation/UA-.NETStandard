@@ -53,7 +53,6 @@ namespace Opc.Ua.Client
     /// </summary>
     public sealed class LruNodeCache : ILruNodeCache
     {
-        #region Constructor
         /// <summary>
         /// Create cache
         /// </summary>
@@ -95,9 +94,7 @@ namespace Opc.Ua.Client
             m_values = valuesBuilder.Build();
             m_refs = refsBuilder.Build();
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// Node metrics
         /// </summary>
@@ -115,9 +112,6 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
         public ISession Session { get; }
-        #endregion
-
-        #region Public Methods
 
         /// <inheritdoc/>
         public ValueTask<INode> GetNodeAsync(NodeId nodeId, CancellationToken ct)
@@ -434,9 +428,7 @@ namespace Opc.Ua.Client
             m_values.Clear();
             m_refs.Clear();
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Get or add references to cache
         /// </summary>
@@ -595,9 +587,7 @@ namespace Opc.Ua.Client
             return expandedNodeId.IsAbsolute ? NodeId.Null :
                 ExpandedNodeId.ToNodeId(expandedNodeId, Session.NamespaceUris);
         }
-        #endregion
 
-        #region Inner Classes
         /// <summary>
         /// Node id comparer
         /// </summary>
@@ -634,12 +624,9 @@ namespace Opc.Ua.Client
             }
         }
 
-#endregion
-#region Private Fields
         private readonly IAsyncCache<NodeId, INode> m_nodes;
         private readonly IAsyncCache<NodeId, List<ReferenceDescription>> m_refs;
         private readonly IAsyncCache<NodeId, DataValue> m_values;
-        #endregion
     }
 }
 #endif

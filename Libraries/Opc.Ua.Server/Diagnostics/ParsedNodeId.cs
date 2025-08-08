@@ -44,7 +44,6 @@ namespace Opc.Ua.Server
     /// </remarks>
     public class ParsedNodeId
     {
-        #region Public Interface
         /// <summary>
         /// The namespace index that qualified the NodeId.
         /// </summary>
@@ -113,7 +112,7 @@ namespace Opc.Ua.Server
             // extract any component path.
             var buffer = new StringBuilder();
 
-            int index = start+1;
+            int index = start + 1;
             int end = identifier.Length;
 
             bool escaped = false;
@@ -204,11 +203,11 @@ namespace Opc.Ua.Server
             buffer.Append(':');
 
             // add the root identifier.
-            if (this.RootId != null)
+            if (RootId != null)
             {
-                for (int ii = 0; ii < this.RootId.Length; ii++)
+                for (int ii = 0; ii < RootId.Length; ii++)
                 {
-                    char ch = this.RootId[ii];
+                    char ch = RootId[ii];
 
                     // escape any special characters.
                     if (ch == '&' || ch == '?')
@@ -221,16 +220,16 @@ namespace Opc.Ua.Server
             }
 
             // add the component path.
-            if (!string.IsNullOrEmpty(this.ComponentPath))
+            if (!string.IsNullOrEmpty(ComponentPath))
             {
                 buffer.Append('?');
-                buffer.Append(this.ComponentPath);
+                buffer.Append(ComponentPath);
             }
 
             // add the component name.
             if (!string.IsNullOrEmpty(componentName))
             {
-                if (string.IsNullOrEmpty(this.ComponentPath))
+                if (string.IsNullOrEmpty(ComponentPath))
                 {
                     buffer.Append('?');
                 }
@@ -243,7 +242,7 @@ namespace Opc.Ua.Server
             }
 
             // construct the node id with the namespace index provided.
-            return new NodeId(buffer.ToString(), this.NamespaceIndex);
+            return new NodeId(buffer.ToString(), NamespaceIndex);
         }
 
         /// <summary>
@@ -290,7 +289,5 @@ namespace Opc.Ua.Server
             // return the node identifier.
             return new NodeId(buffer.ToString(), namespaceIndex);
         }
-
-#endregion
     }
 }

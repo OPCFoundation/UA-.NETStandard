@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -27,29 +27,27 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Opc.Ua.PubSub.PublishedData;
 using System;
 using System.Collections.Generic;
-using System.Xml;
-using System.Linq;
 using System.Globalization;
+using System.Linq;
+using System.Xml;
+using Opc.Ua.PubSub.PublishedData;
 
 namespace Opc.Ua.PubSub.Encoding
 {
     /// <summary>
     /// The UADPDataSetMessage class handler.
-    /// It handles the UADPDataSetMessage encoding 
+    /// It handles the UADPDataSetMessage encoding
     /// </summary>
     public class UadpDataSetMessage : UaDataSetMessage
     {
-        #region Fields
-        // Validation masks
+        /// <summary>
+        /// Validation masks
+        /// </summary>
         private const byte kFieldTypeUsedBits = 0x06;
         private const DataSetFlags1EncodingMask kPreservedDataSetFlags1UsedBits = (DataSetFlags1EncodingMask)0x07;
-        private const DataSetFlags1EncodingMask kDataSetFlags1UsedBits = (DataSetFlags1EncodingMask)0xF9;
-        #endregion
-
-        #region Constructors
+        private const DataSetFlags1EncodingMask kDataSetFlags1UsedBits = DataSetFlags1EncodingMask.MessageIsValid | DataSetFlags1EncodingMask.SequenceNumber | DataSetFlags1EncodingMask.Status | DataSetFlags1EncodingMask.ConfigurationVersionMajorVersion | DataSetFlags1EncodingMask.ConfigurationVersionMinorVersion | DataSetFlags1EncodingMask.DataSetFlags2;
 
         /// <summary>
         /// Constructor for <see cref="UadpDataSetMessage"/>.
@@ -62,15 +60,12 @@ namespace Opc.Ua.PubSub.Encoding
 
         /// <summary>
         /// Constructor for <see cref="UadpDataSetMessage"/> with DataSet parameter
-        /// </summary>     
+        /// </summary>
         public UadpDataSetMessage(DataSet dataSet = null) : this()
         {
             DataSet = dataSet;
         }
 
-        #endregion
-
-        #region Properties
         /// <summary>
         /// Get UadpDataSetMessageContentMask
         /// The DataSetWriterMessageContentMask defines the flags for the content of the DataSetMessage header.
@@ -113,19 +108,13 @@ namespace Opc.Ua.PubSub.Encoding
         /// </summary>
         public int StartPositionInStream { get; set; }
 
-        #endregion Properties
-
-        #region Public Methods
-
         /// <summary>
-        /// Set DataSetFieldContentMask 
+        /// Set DataSetFieldContentMask
         /// </summary>
         /// <param name="fieldContentMask">The new <see cref="DataSetFieldContentMask"/> for this dataset</param>
         public override void SetFieldContentMask(DataSetFieldContentMask fieldContentMask)
         {
             FieldContentMask = fieldContentMask;
-
-            #region DataSetFlags1: Bit range 1-2: Field Encoding
 
             DataSetFlags1 &= kDataSetFlags1UsedBits;
 
@@ -151,12 +140,10 @@ namespace Opc.Ua.PubSub.Encoding
             }
 
             DataSetFlags1 |= (DataSetFlags1EncodingMask)((byte)fieldType << 1);
-
-            #endregion
         }
 
         /// <summary>
-        /// Set MessageContentMask 
+        /// Set MessageContentMask
         /// </summary>
         /// <param name="messageContentMask"></param>
         public void SetMessageContentMask(UadpDataSetMessageContentMask messageContentMask)
@@ -165,8 +152,6 @@ namespace Opc.Ua.PubSub.Encoding
 
             DataSetFlags1 &= kPreservedDataSetFlags1UsedBits;
             DataSetFlags2 = 0;
-
-            #region DataSetFlags1: Bit range 3-7: Enabled flags options
 
             if ((DataSetMessageContentMask & UadpDataSetMessageContentMask.SequenceNumber) != 0)
             {
@@ -187,10 +172,6 @@ namespace Opc.Ua.PubSub.Encoding
             {
                 DataSetFlags1 |= DataSetFlags1EncodingMask.ConfigurationVersionMinorVersion;
             }
-
-            #endregion
-
-            #region DataSetFlags2
 
             // Bit range 0-3: UADP DataSetMessage type
             // 0000 Data Key Frame (by default for now)
@@ -214,8 +195,6 @@ namespace Opc.Ua.PubSub.Encoding
                 DataSetFlags1 |= DataSetFlags1EncodingMask.DataSetFlags2;
                 DataSetFlags2 |= DataSetFlags2EncodingMask.PicoSeconds;
             }
-
-            #endregion
         }
 
         /// <summary>
@@ -297,17 +276,13 @@ namespace Opc.Ua.PubSub.Encoding
                     DataSet = DecodeMessageDataKeyFrame(binaryDecoder, dataSetReader);
                 }
             }
-
         }
-        #endregion
-
-        #region Encode header & payload
 
         /// <summary>
         /// Encode DataSet message header
         /// </summary>
         /// <param name="encoder"></param>
-        private void EncodeDataSetMessageHeader(IEncoder encoder)
+        private void EncodeDataSetMessageHeader(BinaryEncoder encoder)
         {
             if ((DataSetFlags1 & DataSetFlags1EncodingMask.MessageIsValid) != 0)
             {
@@ -358,8 +333,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="binaryEncoder"></param>
         private void EncodeMessageDataKeyFrame(BinaryEncoder binaryEncoder)
         {
-            var fieldType = (FieldTypeEncodingMask)(((byte)DataSetFlags1 & kFieldTypeUsedBits) >> 1);
-            switch (fieldType)
+            switch ((FieldTypeEncodingMask)(((byte)DataSetFlags1 & kFieldTypeUsedBits) >> 1))
             {
                 case FieldTypeEncodingMask.Variant:
                     binaryEncoder.WriteUInt16("DataSetFieldCount", (ushort)DataSet.Fields.Length);
@@ -373,7 +347,7 @@ namespace Opc.Ua.PubSub.Encoding
                     binaryEncoder.WriteUInt16("DataSetFieldCount", (ushort)DataSet.Fields.Length);
                     foreach (Field field in DataSet.Fields)
                     {
-                        // 10 DataValue type 
+                        // 10 DataValue type
                         binaryEncoder.WriteDataValue("DataValue", field.Value);
                     }
                     break;
@@ -381,7 +355,7 @@ namespace Opc.Ua.PubSub.Encoding
                     // DataSetFieldCount is not persisted for RawData
                     foreach (Field field in DataSet.Fields)
                     {
-                        UadpDataSetMessage.EncodeFieldAsRawData(binaryEncoder, field, CultureInfo.InvariantCulture);
+                        EncodeFieldAsRawData(binaryEncoder, field, CultureInfo.InvariantCulture);
                     }
                     break;
                 case FieldTypeEncodingMask.Reserved:
@@ -422,11 +396,11 @@ namespace Opc.Ua.PubSub.Encoding
                         binaryEncoder.WriteVariant("FieldValue", field.Value.WrappedValue);
                         break;
                     case FieldTypeEncodingMask.DataValue:
-                        // 10 DataValue type 
+                        // 10 DataValue type
                         binaryEncoder.WriteDataValue("FieldValue", field.Value);
                         break;
                     case FieldTypeEncodingMask.RawData:
-                        UadpDataSetMessage.EncodeFieldAsRawData(binaryEncoder, field, CultureInfo.InvariantCulture);
+                        EncodeFieldAsRawData(binaryEncoder, field, CultureInfo.InvariantCulture);
                         break;
                     case FieldTypeEncodingMask.Reserved:
                         // ignore
@@ -435,15 +409,11 @@ namespace Opc.Ua.PubSub.Encoding
             }
         }
 
-        #endregion
-
-        #region Decode header & payload
-
         /// <summary>
         /// Decode DataSet message header
         /// </summary>
         /// <param name="decoder"></param>
-        private void DecodeDataSetMessageHeader(IDecoder decoder)
+        private void DecodeDataSetMessageHeader(BinaryDecoder decoder)
         {
             if ((DataSetFlags1 & DataSetFlags1EncodingMask.MessageIsValid) != 0)
             {
@@ -513,7 +483,7 @@ namespace Opc.Ua.PubSub.Encoding
                 {
                     if (dataSetMetaData != null)
                     {
-                        // metadata should provide field count 
+                        // metadata should provide field count
                         fieldCount = (ushort)dataSetMetaData.Fields.Count;
                     }
                 }
@@ -521,7 +491,6 @@ namespace Opc.Ua.PubSub.Encoding
                 {
                     fieldCount = binaryDecoder.ReadUInt16("DataSetFieldCount");
                 }
-
 
                 // check configuration version
                 var dataValues = new List<DataValue>();
@@ -584,7 +553,7 @@ namespace Opc.Ua.PubSub.Encoding
 
                 var dataSet = new DataSet(dataSetMetaData?.Name);
                 dataSet.DataSetMetaData = dataSetMetaData;
-                dataSet.Fields = dataFields.ToArray();
+                dataSet.Fields = [.. dataFields];
                 dataSet.DataSetWriterId = DataSetWriterId;
                 dataSet.SequenceNumber = SequenceNumber;
                 return dataSet;
@@ -660,7 +629,7 @@ namespace Opc.Ua.PubSub.Encoding
 
                     var dataSet = new DataSet(dataSetMetaData?.Name);
                     dataSet.DataSetMetaData = dataSetMetaData;
-                    dataSet.Fields = dataFields.ToArray();
+                    dataSet.Fields = [.. dataFields];
                     dataSet.IsDeltaFrame = true;
                     dataSet.DataSetWriterId = DataSetWriterId;
                     dataSet.SequenceNumber = SequenceNumber;
@@ -684,7 +653,7 @@ namespace Opc.Ua.PubSub.Encoding
         {
             try
             {
-                // 01 RawData Field Encoding 
+                // 01 RawData Field Encoding
                 Variant variant = field.Value.WrappedValue;
 
                 if (variant.TypeInfo == null || variant.TypeInfo.BuiltInType == BuiltInType.Null)
@@ -785,7 +754,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="binaryDecoder"></param>
         /// <param name="fieldMetaData"></param>
         /// <returns></returns>
-        private object DecodeRawData(BinaryDecoder binaryDecoder, FieldMetaData fieldMetaData)
+        private static object DecodeRawData(BinaryDecoder binaryDecoder, FieldMetaData fieldMetaData)
         {
             if (fieldMetaData.BuiltInType != 0)// && fieldMetaData.DataType.Equals(new NodeId(fieldMetaData.BuiltInType)))
             {
@@ -795,7 +764,7 @@ namespace Opc.Ua.PubSub.Encoding
                     {
 
                         case ValueRanks.Scalar:
-                            return UadpDataSetMessage.DecodeRawScalar(binaryDecoder, fieldMetaData.BuiltInType);
+                            return DecodeRawScalar(binaryDecoder, fieldMetaData.BuiltInType);
 
                         case ValueRanks.OneDimension:
                         case ValueRanks.TwoDimensions:
@@ -884,8 +853,5 @@ namespace Opc.Ua.PubSub.Encoding
                     return null;
             }
         }
-
-        #endregion
-
     }
 }

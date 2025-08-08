@@ -19,7 +19,6 @@ namespace Opc.Ua
 	/// </summary>
 	public interface IServiceMessageContext
     {
-        #region Public Properties
         /// <summary>
         /// The maximum length for any string, byte string or xml element.
         /// </summary>
@@ -65,6 +64,5 @@ namespace Opc.Ua
         /// The factory used to create encodeable objects.
         /// </summary>
         IEncodeableFactory Factory { get; }
-        #endregion
     }
 }

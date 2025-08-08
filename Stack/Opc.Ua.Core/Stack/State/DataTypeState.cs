@@ -20,7 +20,6 @@ namespace Opc.Ua
     /// </summary>
     public class DataTypeState : BaseTypeState
     {
-        #region Constructors
         /// <summary>
         /// Initializes the instance with its default attribute values.
         /// </summary>
@@ -37,13 +36,11 @@ namespace Opc.Ua
         {
             return new DataTypeState();
         }
-        #endregion
 
-        #region ICloneable Members
         /// <inheritdoc/>
         public override object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -54,20 +51,16 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
-            var clone = (DataTypeState)Activator.CreateInstance(this.GetType());
+            var clone = (DataTypeState)Activator.CreateInstance(GetType());
             return CloneChildren(clone);
         }
-        #endregion
 
         /// <summary>
         /// The abstract definition of the data type.
         /// </summary>
         public ExtensionObject DataTypeDefinition
         {
-            get
-            {
-                return m_dataTypeDefinition;
-            }
+            get => m_dataTypeDefinition;
 
             set
             {
@@ -83,9 +76,8 @@ namespace Opc.Ua
         /// <summary>
         /// The purpose of the data type.
         /// </summary>
-        public Opc.Ua.Export.DataTypePurpose Purpose { get; set; }
+        public Export.DataTypePurpose Purpose { get; set; }
 
-        #region Serialization Functions
         /// <summary>
         /// Saves the attributes from the stream.
         /// </summary>
@@ -172,9 +164,7 @@ namespace Opc.Ua
                 DataTypeDefinition = decoder.ReadExtensionObject(null);
             }
         }
-        #endregion
 
-        #region Event Callbacks
         /// <summary>
         /// Raised when the DataTypeDefinition attribute is read.
         /// </summary>
@@ -184,9 +174,7 @@ namespace Opc.Ua
         /// Raised when the DataTypeDefinition attribute is written.
         /// </summary>
         public NodeAttributeEventHandler<ExtensionObject> OnWriteDataTypeDefinition;
-        #endregion
 
-        #region Read Support Functions
         /// <summary>
         /// Reads the value for DataTypeDefinition attribute.
         /// </summary>
@@ -231,9 +219,7 @@ namespace Opc.Ua
 
             return base.ReadNonValueAttribute(context, attributeId, ref value);
         }
-        #endregion
 
-        #region Write Support Functions
         /// <summary>
         /// Write the value for DataTypeDefinition attribute.
         /// </summary>
@@ -271,10 +257,7 @@ namespace Opc.Ua
 
             return base.WriteNonValueAttribute(context, attributeId, value);
         }
-        #endregion
 
-        #region Private Fields
         private ExtensionObject m_dataTypeDefinition;
-        #endregion
     }
 }

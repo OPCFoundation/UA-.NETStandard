@@ -44,16 +44,13 @@ namespace Opc.Ua.PubSub.Transport
     /// </summary>
     internal class UdpPubSubConnection : UaPubSubConnection, IUadpDiscoveryMessages
     {
-        #region Private Fields
-        private List<UdpClient> m_publisherUdpClients = new List<UdpClient>();
-        private List<UdpClient> m_subscriberUdpClients = new List<UdpClient>();
+        private List<UdpClient> m_publisherUdpClients = [];
+        private List<UdpClient> m_subscriberUdpClients = [];
         private UdpDiscoverySubscriber m_udpDiscoverySubscriber;
         private UdpDiscoveryPublisher m_udpDiscoveryPublisher;
-        private static int s_sequenceNumber = 0;
-        private static int s_dataSetSequenceNumber = 0;
-        #endregion
+        private static int s_sequenceNumber;
+        private static int s_dataSetSequenceNumber;
 
-        #region Constructor
         /// <summary>
         ///  Create new instance of <see cref="UdpPubSubConnection"/> from <see cref="PubSubConnectionDataType"/> configuration data
         /// </summary>
@@ -66,9 +63,6 @@ namespace Opc.Ua.PubSub.Transport
 
             Initialize();
         }
-        #endregion
-
-        #region Public Properties
 
         /// <summary>
         /// Get or set the event handler
@@ -88,10 +82,8 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Get the port from configured <see cref="PubSubConnectionDataType"/>.Address
         /// </summary>
-        public int Port { get; private set; }
-        #endregion
+        public int Port { get; }
 
-        #region UaPubSubConnection - Overrides
         /// <summary>
         /// Perform specific Start tasks
         /// </summary>
@@ -143,8 +135,8 @@ namespace Opc.Ua.PubSub.Transport
                 await m_udpDiscoverySubscriber.StartAsync(MessageContext).ConfigureAwait(false);
 
                 // add handler to metaDataReceived event
-                this.Application.MetaDataReceived += MetaDataReceived;
-                this.Application.DataSetWriterConfigurationReceived += DataSetWriterConfigurationReceived;
+                Application.MetaDataReceived += MetaDataReceived;
+                Application.DataSetWriterConfigurationReceived += DataSetWriterConfigurationReceived;
             }
         }
 
@@ -179,7 +171,7 @@ namespace Opc.Ua.PubSub.Transport
                 await m_udpDiscoverySubscriber.StopAsync().ConfigureAwait(false);
 
                 // remove handler to metaDataReceived event
-                this.Application.MetaDataReceived -= MetaDataReceived;
+                Application.MetaDataReceived -= MetaDataReceived;
             }
         }
 
@@ -188,17 +180,12 @@ namespace Opc.Ua.PubSub.Transport
         /// </summary>
         public override IList<UaNetworkMessage> CreateNetworkMessages(WriterGroupDataType writerGroupConfiguration, WriterGroupPublishState state)
         {
-            var messageSettings = ExtensionObject.ToEncodeable(writerGroupConfiguration.MessageSettings)
-                as UadpWriterGroupMessageDataType;
-            if (messageSettings == null)
+            if (!(ExtensionObject.ToEncodeable(writerGroupConfiguration.MessageSettings) is UadpWriterGroupMessageDataType messageSettings))
             {
                 //Wrong configuration of writer group MessageSettings
                 return null;
             }
-            var transportSettings = ExtensionObject.ToEncodeable(writerGroupConfiguration.TransportSettings)
-                as DatagramWriterGroupTransportDataType;
-
-            if (transportSettings == null)
+            if (!(ExtensionObject.ToEncodeable(writerGroupConfiguration.TransportSettings) is DatagramWriterGroupTransportDataType transportSettings))
             {
                 //Wrong configuration of writer group TransportSettings
                 return null;
@@ -268,12 +255,11 @@ namespace Opc.Ua.PubSub.Transport
 
             networkMessages.Add(uadpNetworkMessage);
 
-
             return networkMessages;
         }
 
         /// <summary>
-        /// Create and return the list of DataSetMetaData response messages 
+        /// Create and return the list of DataSetMetaData response messages
         /// </summary>
         /// <param name="dataSetWriterIds"></param>
         /// <returns></returns>
@@ -284,10 +270,10 @@ namespace Opc.Ua.PubSub.Transport
 
             foreach (ushort dataSetWriterId in dataSetWriterIds)
             {
-                DataSetWriterDataType writer = writers.Where(w => w.DataSetWriterId == dataSetWriterId).FirstOrDefault();
+                DataSetWriterDataType writer = writers.FirstOrDefault(w => w.DataSetWriterId == dataSetWriterId);
                 if (writer != null)
                 {
-                    WriterGroupDataType writerGroup = PubSubConnectionConfiguration.WriterGroups.Where(wg => wg.DataSetWriters.Contains(writer)).FirstOrDefault();
+                    WriterGroupDataType writerGroup = PubSubConnectionConfiguration.WriterGroups.FirstOrDefault(wg => wg.DataSetWriters.Contains(writer));
                     if (writerGroup != null)
                     {
                         DataSetMetaDataType metaData = Application.DataCollector.GetPublishedDataSet(writer.DataSetName)?.DataSetMetaData;
@@ -315,9 +301,7 @@ namespace Opc.Ua.PubSub.Transport
         {
             var networkMessages = new List<UaNetworkMessage>();
 
-            IList<DataSetWriterConfigurationResponse> responses = GetDataSetWriterDiscoveryResponses(dataSetWriterIds);
-
-            foreach (DataSetWriterConfigurationResponse response in responses)
+            foreach (DataSetWriterConfigurationResponse response in GetDataSetWriterDiscoveryResponses(dataSetWriterIds))
             {
                 var networkMessage = new UadpNetworkMessage(response.DataSetWriterIds,
                     response.DataSetWriterConfig,
@@ -384,8 +368,6 @@ namespace Opc.Ua.PubSub.Transport
         {
             return true;
         }
-
-        #region IUadpDiscoveryMessages interface methods
 
         /// <summary>
         /// Set GetPublisherEndpoints callback used by the subscriber to receive PublisherEndpoints data from publisher
@@ -471,10 +453,7 @@ namespace Opc.Ua.PubSub.Transport
                 m_udpDiscoverySubscriber.SendDiscoveryRequestDataSetMetaData();
             }
         }
-        #endregion
-        #endregion
 
-        #region Private methods
         /// <summary>
         /// Initialize Connection properties from connection configuration object
         /// </summary>
@@ -537,7 +516,6 @@ namespace Opc.Ua.PubSub.Transport
             ProcessDecodedNetworkMessage(networkMessage, source.ToString());
         }
 
-
         /// <summary>
         /// Handle Receive event for an UADP channel on Subscriber Side
         /// </summary>
@@ -553,9 +531,7 @@ namespace Opc.Ua.PubSub.Transport
             }
 
             // this is what had been passed into BeginReceive as the second parameter:
-            var socket = result.AsyncState as UdpClient;
-
-            if (socket == null)
+            if (!(result.AsyncState is UdpClient socket))
             {
                 return;
             }
@@ -577,7 +553,7 @@ namespace Opc.Ua.PubSub.Transport
                         var rawDataReceivedEventArgs = new RawDataReceivedEventArgs() {
                             Message = message,
                             Source = source.Address.ToString(),
-                            TransportProtocol = this.TransportProtocol,
+                            TransportProtocol = TransportProtocol,
                             MessageMapping = MessageMapping.Uadp,
                             PubSubConnectionConfiguration = PubSubConnectionConfiguration
                         };
@@ -593,9 +569,7 @@ namespace Opc.Ua.PubSub.Transport
                         }
 
                         // call on a new thread
-                        Task.Run(() => {
-                            ProcessReceivedMessage(message, source);
-                        });
+                        Task.Run(() => ProcessReceivedMessage(message, source));
                     }
                 }
             }
@@ -621,7 +595,7 @@ namespace Opc.Ua.PubSub.Transport
         }
 
         /// <summary>
-        /// Re initializes the socket 
+        /// Re initializes the socket
         /// </summary>
         /// <param name="socket">The socket which should be reinitialized</param>
         private void Renew(UdpClient socket)
@@ -652,7 +626,7 @@ namespace Opc.Ua.PubSub.Transport
         }
 
         /// <summary>
-        /// Resets SequenceNumber 
+        /// Resets SequenceNumber
         /// </summary>
         internal static void ResetSequenceNumber()
         {
@@ -672,7 +646,6 @@ namespace Opc.Ua.PubSub.Transport
                 m_udpDiscoverySubscriber.RemoveWriterIdForDataSetMetadata(e.NetworkMessage.DataSetWriterId.Value);
             }
         }
-
 
         /// <summary>
         /// Handler for DatasetWriterConfigurationReceived event.
@@ -708,6 +681,5 @@ namespace Opc.Ua.PubSub.Transport
                 }
             }
         }
-        #endregion
     }
 }

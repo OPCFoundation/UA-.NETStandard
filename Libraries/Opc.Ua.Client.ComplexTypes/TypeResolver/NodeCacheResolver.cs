@@ -46,7 +46,6 @@ namespace Opc.Ua.Client.ComplexTypes
     /// </summary>
     public class NodeCacheResolver : IComplexTypeResolver
     {
-        #region Constructors
 #if USE_LRU_CACHE
         /// <summary>
         /// Initializes the type resolver with a session to load the custom type information.
@@ -92,9 +91,6 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 #endif
 
-        #endregion Constructors
-
-        #region IComplexTypeResolver
         /// <inheritdoc/>
         public NamespaceTable NamespaceUris => m_session.NamespaceUris;
 
@@ -438,9 +434,7 @@ namespace Opc.Ua.Client.ComplexTypes
 #endif
                 ;
         }
-        #endregion IComplexTypeResolver
 
-        #region Internal Methods
         /// <summary>
         /// Helper to load a DataDictionary by its NodeId.
         /// </summary>
@@ -495,12 +489,8 @@ namespace Opc.Ua.Client.ComplexTypes
                 // return as a byte array.
                 return values[0].Value as byte[];
             }
-            catch (ServiceResultException ex)
+            catch (ServiceResultException ex) when (ex.StatusCode == StatusCodes.BadEncodingLimitsExceeded)
             {
-                if (ex.StatusCode != StatusCodes.BadEncodingLimitsExceeded)
-                {
-                    throw;
-                }
                 // Fall back to reading the byte string in chunks.
                 try
                 {
@@ -577,9 +567,7 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             return result;
         }
-        #endregion Internal Methods
 
-        #region Private Methods
         /// <summary>
         /// Loads the dictionary identified by the node id.
         /// </summary>
@@ -848,13 +836,10 @@ namespace Opc.Ua.Client.ComplexTypes
                 ct);
         }
 #endif
-        #endregion Private Methods
 
-        #region Private Fields
 #if USE_LRU_CACHE
         private readonly ILruNodeCache m_lruNodeCache;
 #endif
         private readonly ISession m_session;
-        #endregion Private Fields
     }//namespace
 }

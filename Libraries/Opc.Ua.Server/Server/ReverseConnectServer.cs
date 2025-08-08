@@ -162,16 +162,15 @@ namespace Opc.Ua.Server
             m_connectInterval = DefaultReverseConnectInterval;
             m_connectTimeout = DefaultReverseConnectTimeout;
             m_rejectTimeout = DefaultReverseConnectRejectTimeout;
-            m_connections = new Dictionary<Uri, ReverseConnectProperty>();
+            m_connections = [];
         }
 
-        #region StandardServer overrides
         /// <inheritdoc/>
         protected override void OnServerStarted(IServerInternal server)
         {
             base.OnServerStarted(server);
 
-            UpdateConfiguration(base.Configuration);
+            UpdateConfiguration(Configuration);
             StartTimer(true);
         }
 
@@ -188,9 +187,7 @@ namespace Opc.Ua.Server
             DisposeTimer();
             base.OnServerStopping();
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// Add a reverse connection url.
         /// </summary>
@@ -252,9 +249,7 @@ namespace Opc.Ua.Server
                 return new ReadOnlyDictionary<Uri, ReverseConnectProperty>(m_connections);
             }
         }
-        #endregion
 
-        #region Private Properties
         /// <summary>
         /// Timer callback to establish new reverse connections.
         /// </summary>
@@ -282,7 +277,7 @@ namespace Opc.Ua.Server
                             try
                             {
                                 reverseConnection.LastState = ReverseConnectState.Connecting;
-                                base.CreateConnection(reverseConnection.ClientUrl,
+                                CreateConnection(reverseConnection.ClientUrl,
                                     reverseConnection.Timeout > 0 ? reverseConnection.Timeout : m_connectTimeout);
                                 Utils.LogInfo("Create Connection! [{0}][{1}]", reverseConnection.LastState, reverseConnection.ClientUrl);
                             }
@@ -438,15 +433,12 @@ namespace Opc.Ua.Server
                 }
             }
         }
-        #endregion
 
-        #region Private Fields
         private Timer m_reverseConnectTimer;
         private int m_connectInterval;
         private int m_connectTimeout;
         private int m_rejectTimeout;
         private readonly Dictionary<Uri, ReverseConnectProperty> m_connections;
-        private readonly object m_connectionsLock = new object();
-        #endregion
+        private readonly object m_connectionsLock = new();
     }
 }

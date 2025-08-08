@@ -39,14 +39,13 @@ namespace Opc.Ua.PubSub.Transport
     /// </summary>
     internal class UdpClientMulticast : UdpClient
     {
-        #region Constructor
         /// <summary>
-        /// Initializes a new instance of the <see cref="UdpClient"/> class and binds it to the specified local endpoint 
+        /// Initializes a new instance of the <see cref="UdpClient"/> class and binds it to the specified local endpoint
         /// and joins the specified multicast group
         /// </summary>
         /// <param name="localAddress">An <see cref="IPAddress"/> that represents the local address.</param>
         /// <param name="multicastAddress">The multicast <see cref="IPAddress"/> of the group you want to join.</param>
-        /// <param name="port">The port.</param>       
+        /// <param name="port">The port.</param>
         /// <exception cref="SocketException">An error occurred when accessing the socket.</exception>
         public UdpClientMulticast(IPAddress localAddress, IPAddress multicastAddress, int port) : base()
         {
@@ -87,9 +86,7 @@ namespace Opc.Ua.PubSub.Transport
             Utils.Trace("UdpClientMulticast was created for local Address: {0}:{1} and multicast address: {2}.",
                 localAddress, port, multicastAddress);
         }
-        #endregion
 
-        #region Properties
         /// <summary>
         /// The Local Address
         /// </summary>
@@ -104,6 +101,5 @@ namespace Opc.Ua.PubSub.Transport
         /// The local port
         /// </summary>
         internal int Port { get; }
-        #endregion
     }
 }

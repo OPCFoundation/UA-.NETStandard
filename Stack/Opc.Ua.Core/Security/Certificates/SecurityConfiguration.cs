@@ -20,13 +20,11 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua
 {
-    #region SecurityConfiguration Class
     /// <summary>
     /// The security configuration for the application.
     /// </summary>
     public partial class SecurityConfiguration
     {
-        #region Public Properties
         /// <summary>
         /// The security profiles which are supported for this configuration.
         /// </summary>
@@ -37,9 +35,7 @@ namespace Opc.Ua
         /// for a private key is requested.
         /// </summary>
         public ICertificatePasswordProvider CertificatePasswordProvider { get; set; }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Adds a certificate as a trusted peer.
         /// </summary>
@@ -59,25 +55,25 @@ namespace Opc.Ua
                 throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "ApplicationCertificate must be specified.");
             }
             // ensure mandatory stores are valid
-            SecurityConfiguration.ValidateStore(TrustedIssuerCertificates, nameof(TrustedIssuerCertificates));
-            SecurityConfiguration.ValidateStore(TrustedPeerCertificates, nameof(TrustedPeerCertificates));
+            ValidateStore(TrustedIssuerCertificates, nameof(TrustedIssuerCertificates));
+            ValidateStore(TrustedPeerCertificates, nameof(TrustedPeerCertificates));
 
             //ensure optional stores are valid if specified
             if (TrustedHttpsCertificates != null)
             {
-                SecurityConfiguration.ValidateStore(TrustedHttpsCertificates, nameof(TrustedHttpsCertificates));
+                ValidateStore(TrustedHttpsCertificates, nameof(TrustedHttpsCertificates));
             }
             if (HttpsIssuerCertificates != null)
             {
-                SecurityConfiguration.ValidateStore(HttpsIssuerCertificates, nameof(HttpsIssuerCertificates));
+                ValidateStore(HttpsIssuerCertificates, nameof(HttpsIssuerCertificates));
             }
             if (TrustedUserCertificates != null)
             {
-                SecurityConfiguration.ValidateStore(TrustedUserCertificates, nameof(TrustedUserCertificates));
+                ValidateStore(TrustedUserCertificates, nameof(TrustedUserCertificates));
             }
             if (UserIssuerCertificates != null)
             {
-                SecurityConfiguration.ValidateStore(UserIssuerCertificates, nameof(UserIssuerCertificates));
+                ValidateStore(UserIssuerCertificates, nameof(UserIssuerCertificates));
             }
 
             if ((TrustedHttpsCertificates != null && HttpsIssuerCertificates == null)
@@ -161,17 +157,16 @@ namespace Opc.Ua
 
             return null;
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Use the list of application certificates to build a list
         /// of supported security policies.
         /// </summary>
         private StringCollection BuildSupportedSecurityPolicies()
         {
-            var securityPolicies = new StringCollection();
-            securityPolicies.Add(SecurityPolicies.None);
+            var securityPolicies = new StringCollection {
+                SecurityPolicies.None
+            };
             foreach (CertificateIdentifier applicationCertificate in m_applicationCertificates)
             {
                 if (applicationCertificate.CertificateType == null)
@@ -229,7 +224,5 @@ namespace Opc.Ua
             }
             return result;
         }
-        #endregion
     }
-    #endregion
 }

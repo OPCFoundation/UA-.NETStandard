@@ -42,7 +42,7 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// The default instance of the factory.
         /// </summary>
-        public static new readonly TestableSessionFactory Instance = new TestableSessionFactory();
+        public static new readonly TestableSessionFactory Instance = new();
 
         /// <summary>
         /// Force use of the default instance.
@@ -51,7 +51,6 @@ namespace Opc.Ua.Client.Tests
         {
         }
 
-        #region ISessionFactory Members
         /// <inheritdoc/>
         public override Task<ISession> CreateAsync(
             ApplicationConfiguration configuration,
@@ -118,7 +117,7 @@ namespace Opc.Ua.Client.Tests
         {
             if (reverseConnectManager == null)
             {
-                return await this.CreateAsync(configuration, endpoint, updateBeforeConnect,
+                return await CreateAsync(configuration, endpoint, updateBeforeConnect,
                     checkDomain, sessionName, sessionTimeout, userIdentity, preferredLocales, ct).ConfigureAwait(false);
             }
 
@@ -166,9 +165,7 @@ namespace Opc.Ua.Client.Tests
         {
             return Session.Create(this, configuration, channel, endpoint, clientCertificate, availableEndpoints, discoveryProfileUris);
         }
-        #endregion
 
-        #region ISessionInstantiator Members
         /// <inheritdoc/>
         public override Session Create(
             ISessionChannel channel,
@@ -189,6 +186,5 @@ namespace Opc.Ua.Client.Tests
         {
             return new TestableSession(channel, configuration, endpoint, clientCertificate, availableEndpoints, discoveryProfileUris);
         }
-        #endregion
     }
 }

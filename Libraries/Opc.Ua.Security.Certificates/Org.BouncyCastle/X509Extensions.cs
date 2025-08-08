@@ -55,7 +55,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             }
             generalNames.AddRange(CreateSubjectAlternateNameDomains(domainNames));
             generalNames.AddRange(CreateSubjectAlternateNameDomains(ipAddresses));
-            byte[] rawData = new DerOctetString(new GeneralNames(generalNames.ToArray()).GetDerEncoded()).GetOctets();
+            byte[] rawData = new DerOctetString(new GeneralNames([.. generalNames]).GetDerEncoded()).GetOctets();
             return new X509Extension(Org.BouncyCastle.Asn1.X509.X509Extensions.SubjectAlternativeName.Id, rawData, false);
         }
 

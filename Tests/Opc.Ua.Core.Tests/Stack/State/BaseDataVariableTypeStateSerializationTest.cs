@@ -47,9 +47,9 @@ namespace Opc.Ua.Core.Tests.Stack.State
             Assert.AreEqual(valueRank, loadedVariable.ValueRank);
         }
 
-       [Test]
+        [Test]
         public void ValueRankPersistBaseVariableState(
-            [Values(ValueRanks.ScalarOrOneDimension, ValueRanks.Any, ValueRanks.Scalar,
+             [Values(ValueRanks.ScalarOrOneDimension, ValueRanks.Any, ValueRanks.Scalar,
             ValueRanks.OneOrMoreDimensions, ValueRanks.OneDimension, ValueRanks.TwoDimensions)] int valueRank)
         {
             // Here this type node is used just as support for the instanceNode to refer to

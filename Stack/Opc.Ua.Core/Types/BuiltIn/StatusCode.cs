@@ -93,8 +93,6 @@ namespace Opc.Ua
     public struct StatusCode : IComparable, IFormattable,
         IComparable<StatusCode>, IEquatable<StatusCode>
     {
-        #region Constructors
-
         /// <summary>
         /// Initializes the object with a numeric value.
         /// </summary>
@@ -128,10 +126,7 @@ namespace Opc.Ua
                 Code = defaultCode;
             }
         }
-        #endregion
 
-        #region Public Properties
-        #region public uint Code
         /// <summary>
         /// The entire 32-bit status value.
         /// </summary>
@@ -140,9 +135,7 @@ namespace Opc.Ua
         /// </remarks>
         [DataMember(Name = "Code", Order = 1, IsRequired = false)]
         public uint Code { get; set; }
-        #endregion
 
-        #region public uint CodeBits
         /// <summary>
         /// The 16 code bits of the status code.
         /// </summary>
@@ -163,9 +156,7 @@ namespace Opc.Ua
 
             return this;
         }
-        #endregion
 
-        #region public uint FlagBits
         /// <summary>
         /// The 16 flag bits of the status code.
         /// </summary>
@@ -186,9 +177,7 @@ namespace Opc.Ua
 
             return this;
         }
-        #endregion
 
-        #region public uint SubCode
         /// <summary>
         /// The sub-code portion of the status code.
         /// </summary>
@@ -196,13 +185,9 @@ namespace Opc.Ua
         /// The sub-code portion of the status code.
         /// </remarks>
         public uint SubCode
-        {
-            get { return Code & 0x0FFF0000; }
-            set { Code = 0x0FFF0000 & value; }
+        { get => Code & 0x0FFF0000; set => Code = 0x0FFF0000 & value;
         }
-        #endregion
 
-        #region public bool StructureChanged
         /// <summary>
         /// Set to indicate that the structure of the data value has changed.
         /// </summary>
@@ -212,17 +197,17 @@ namespace Opc.Ua
         [XmlIgnore()]
         public bool StructureChanged
         {
-            get { return (Code & s_StructureChangedBit) != 0; }
+            get => (Code & kStructureChangedBit) != 0;
 
             set
             {
                 if (value)
                 {
-                    Code |= s_StructureChangedBit;
+                    Code |= kStructureChangedBit;
                 }
                 else
                 {
-                    Code &= ~s_StructureChangedBit;
+                    Code &= ~kStructureChangedBit;
                 }
             }
         }
@@ -234,12 +219,10 @@ namespace Opc.Ua
         /// <returns>The status code with the StructureChanged bit set to the specified value.</returns>
         public StatusCode SetStructureChanged(bool structureChanged)
         {
-            this.StructureChanged = structureChanged;
+            StructureChanged = structureChanged;
             return this;
         }
-        #endregion
 
-        #region public bool SemanticsChanged
         /// <summary>
         /// Set to indicate that the semantics associated with the data value have changed.
         /// </summary>
@@ -249,17 +232,17 @@ namespace Opc.Ua
         [XmlIgnore()]
         public bool SemanticsChanged
         {
-            get { return (Code & s_SemanticsChangedBit) != 0; }
+            get => (Code & kSemanticsChangedBit) != 0;
 
             set
             {
                 if (value)
                 {
-                    Code |= s_SemanticsChangedBit;
+                    Code |= kSemanticsChangedBit;
                 }
                 else
                 {
-                    Code &= ~s_SemanticsChangedBit;
+                    Code &= ~kSemanticsChangedBit;
                 }
             }
         }
@@ -271,12 +254,10 @@ namespace Opc.Ua
         /// <returns>The status code with the SemanticsChanged bit set to the specified value.</returns>
         public StatusCode SetSemanticsChanged(bool semanticsChanged)
         {
-            this.SemanticsChanged = semanticsChanged;
+            SemanticsChanged = semanticsChanged;
             return this;
         }
-        #endregion
 
-        #region public bool HasDataValueInfo
         /// <summary>
         /// The bits that indicate the meaning of the status code
         /// </summary>
@@ -286,25 +267,22 @@ namespace Opc.Ua
         [XmlIgnore()]
         public bool HasDataValueInfo
         {
-            get { return (Code & s_DataValueInfoType) != 0; }
+            get => (Code & kDataValueInfoType) != 0;
 
             set
             {
                 if (value)
                 {
-                    Code |= s_DataValueInfoType;
+                    Code |= kDataValueInfoType;
                 }
                 else
                 {
-                    Code &= ~s_DataValueInfoType;
+                    Code &= ~kDataValueInfoType;
                     Code &= 0xFFFFFC00;
                 }
             }
         }
 
-        #endregion
-
-        #region public LimitBits LimitBits
         /// <summary>
         /// The limit bits, indicating Hi/Lo etc.
         /// </summary>
@@ -315,13 +293,13 @@ namespace Opc.Ua
         [XmlIgnore()]
         public LimitBits LimitBits
         {
-            get { return (LimitBits)(Code & s_LimitBits); }
+            get => (LimitBits)(Code & kLimitBits);
 
             set
             {
-                Code |= s_DataValueInfoType;
-                Code &= ~s_LimitBits;
-                Code |= (uint)value & s_LimitBits;
+                Code |= kDataValueInfoType;
+                Code &= ~kLimitBits;
+                Code |= (uint)value & kLimitBits;
             }
         }
 
@@ -332,12 +310,10 @@ namespace Opc.Ua
         /// <returns>The status code with the limit bits set to the specified values.</returns>
         public StatusCode SetLimitBits(LimitBits bits)
         {
-            this.LimitBits = bits;
+            LimitBits = bits;
             return this;
         }
-        #endregion
 
-        #region public bool Overflow
         /// <summary>
         /// The overflow bit.
         /// </summary>
@@ -347,19 +323,19 @@ namespace Opc.Ua
         [XmlIgnore()]
         public bool Overflow
         {
-            get { return ((Code & s_DataValueInfoType) != 0) && ((Code & s_OverflowBit) != 0); }
+            get => ((Code & kDataValueInfoType) != 0) && ((Code & kOverflowBit) != 0);
 
             set
             {
-                Code |= s_DataValueInfoType;
+                Code |= kDataValueInfoType;
 
                 if (value)
                 {
-                    Code |= s_OverflowBit;
+                    Code |= kOverflowBit;
                 }
                 else
                 {
-                    Code &= ~s_OverflowBit;
+                    Code &= ~kOverflowBit;
                 }
             }
         }
@@ -371,12 +347,10 @@ namespace Opc.Ua
         /// <returns>The status code with the overflow bit set to the specified value.</returns>
         public StatusCode SetOverflow(bool overflow)
         {
-            this.Overflow = overflow;
+            Overflow = overflow;
             return this;
         }
-        #endregion
 
-        #region public AggregateBits AggregateBits
         /// <summary>
         /// The historian bits.
         /// </summary>
@@ -387,13 +361,13 @@ namespace Opc.Ua
         [XmlIgnore()]
         public AggregateBits AggregateBits
         {
-            get { return (AggregateBits)(Code & s_AggregateBits); }
+            get => (AggregateBits)(Code & kAggregateBits);
 
             set
             {
-                Code |= s_DataValueInfoType;
-                Code &= ~s_AggregateBits;
-                Code |= (uint)value & s_AggregateBits;
+                Code |= kDataValueInfoType;
+                Code &= ~kAggregateBits;
+                Code |= (uint)value & kAggregateBits;
             }
         }
 
@@ -404,13 +378,10 @@ namespace Opc.Ua
         /// <returns>The status code with the aggregate bits set to the specified values.</returns>
         public StatusCode SetAggregateBits(AggregateBits bits)
         {
-            this.AggregateBits = bits;
+            AggregateBits = bits;
             return this;
         }
-        #endregion
-        #endregion
 
-        #region IComparable Members
         /// <summary>
         /// Compares the instance to another object.
         /// </summary>
@@ -421,9 +392,9 @@ namespace Opc.Ua
         public int CompareTo(object obj)
         {
             // compare codes
-            if (obj is StatusCode)
+            if (obj is StatusCode statusCode)
             {
-                return Code.CompareTo(((StatusCode)obj).Code);
+                return Code.CompareTo(statusCode.Code);
             }
 
             // check for null.
@@ -433,9 +404,9 @@ namespace Opc.Ua
             }
 
             // check for status code.
-            if (obj is uint)
+            if (obj is uint code)
             {
-                return Code.CompareTo((uint)obj);
+                return Code.CompareTo(code);
             }
 
             // objects not comparable.
@@ -454,9 +425,7 @@ namespace Opc.Ua
             // check for status code.
             return Code.CompareTo(other.Code);
         }
-        #endregion
 
-        #region IFormattable Members
         /// <summary>
         /// Returns the string representation of the object.
         /// </summary>
@@ -482,9 +451,7 @@ namespace Opc.Ua
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Determines if the specified object is equal to the object.
         /// </summary>
@@ -539,9 +506,7 @@ namespace Opc.Ua
 
             return buffer.ToString();
         }
-        #endregion
 
-        #region Static Members
         /// <summary>
         /// Converts a 32-bit code a StatusCode object.
         /// </summary>
@@ -728,19 +693,14 @@ namespace Opc.Ua
             return (code.Code & 0x80000000) == 0;
         }
 
-#endregion
-#region Private Members
-
-        private const uint s_AggregateBits = 0x001F;
-        private const uint s_OverflowBit = 0x0080;
-        private const uint s_LimitBits = 0x0300;
-        private const uint s_DataValueInfoType = 0x0400;
-        private const uint s_SemanticsChangedBit = 0x4000;
-        private const uint s_StructureChangedBit = 0x8000;
-        #endregion
+        private const uint kAggregateBits = 0x001F;
+        private const uint kOverflowBit = 0x0080;
+        private const uint kLimitBits = 0x0300;
+        private const uint kDataValueInfoType = 0x0400;
+        private const uint kSemanticsChangedBit = 0x4000;
+        private const uint kStructureChangedBit = 0x8000;
     }
 
-    #region LimitBits Enumeration
     /// <summary>
     /// Flags that are set to indicate the limit status of the value.
     /// </summary>
@@ -767,9 +727,7 @@ namespace Opc.Ua
         /// </summary>
         Constant = Low | High
     }
-    #endregion
 
-    #region AggregateBits Enumeration
     /// <summary>
     /// Flags that are set by the historian when returning archived values.
     /// </summary>
@@ -811,9 +769,7 @@ namespace Opc.Ua
         /// </summary>
         MultipleValues = 0x10,
     }
-    #endregion
 
-    #region StatusCodeCollection Class
     /// <summary>
     /// A collection of StatusCodes.
     /// </summary>
@@ -857,10 +813,10 @@ namespace Opc.Ua
         {
             if (values != null)
             {
-                return new StatusCodeCollection(values);
+                return [.. values];
             }
 
-            return new StatusCodeCollection();
+            return [];
         }
 
         /// <summary>
@@ -875,11 +831,10 @@ namespace Opc.Ua
             return ToStatusCodeCollection(values);
         }
 
-        #region ICloneable
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -892,11 +847,8 @@ namespace Opc.Ua
         {
             return new StatusCodeCollection(this);
         }
-        #endregion
     }
-    #endregion
 
-    #region Standard StatusCodes
     /// <summary>
     /// Defines standard status codes.
     /// </summary>
@@ -920,6 +872,4 @@ namespace Opc.Ua
         /// </summary>
         public const uint Bad = 0x80000000;
     }
-    #endregion
-
 }//namespace

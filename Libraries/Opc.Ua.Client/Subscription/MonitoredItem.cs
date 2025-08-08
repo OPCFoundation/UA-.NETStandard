@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -44,7 +44,6 @@ namespace Opc.Ua.Client
     {
         private static readonly TimeSpan s_time_epsilon = TimeSpan.FromMilliseconds(500);
 
-        #region Constructors
         /// <summary>
         /// Initializes a new instance of the <see cref="MonitoredItem"/> class.
         /// </summary>
@@ -121,7 +120,7 @@ namespace Opc.Ua.Client
                 Encoding = template.Encoding;
                 MonitoringMode = template.MonitoringMode;
                 m_samplingInterval = template.m_samplingInterval;
-                m_filter = (MonitoringFilter)Utils.Clone(template.m_filter);
+                m_filter = Utils.Clone(template.m_filter);
                 m_queueSize = template.m_queueSize;
                 m_discardOldest = template.m_discardOldest;
                 m_attributesModified = true;
@@ -178,9 +177,7 @@ namespace Opc.Ua.Client
             // assign a unique handle.
             m_clientHandle = Utils.IncrementIdentifier(ref s_globalClientHandle);
         }
-        #endregion
 
-        #region Persistent Properties
         /// <summary>
         /// A display name for the monitored item.
         /// </summary>
@@ -202,7 +199,7 @@ namespace Opc.Ua.Client
         [DataMember(Order = 3)]
         public string RelativePath
         {
-            get { return m_relativePath; }
+            get => m_relativePath;
 
             set
             {
@@ -222,7 +219,7 @@ namespace Opc.Ua.Client
         [DataMember(Order = 4)]
         public NodeClass NodeClass
         {
-            get { return m_nodeClass; }
+            get => m_nodeClass;
 
             set
             {
@@ -299,7 +296,7 @@ namespace Opc.Ua.Client
         [DataMember(Order = 9)]
         public int SamplingInterval
         {
-            get { return m_samplingInterval; }
+            get => m_samplingInterval;
 
             set
             {
@@ -318,7 +315,7 @@ namespace Opc.Ua.Client
         [DataMember(Order = 10)]
         public MonitoringFilter Filter
         {
-            get { return m_filter; }
+            get => m_filter;
 
             set
             {
@@ -336,7 +333,7 @@ namespace Opc.Ua.Client
         [DataMember(Order = 11)]
         public uint QueueSize
         {
-            get { return m_queueSize; }
+            get => m_queueSize;
 
             set
             {
@@ -355,7 +352,7 @@ namespace Opc.Ua.Client
         [DataMember(Order = 12)]
         public bool DiscardOldest
         {
-            get { return m_discardOldest; }
+            get => m_discardOldest;
 
             set
             {
@@ -373,13 +370,9 @@ namespace Opc.Ua.Client
         /// </summary>
         [DataMember(Order = 13)]
         public uint ServerId
-        {
-            get { return m_status.Id; }
-            set { m_status.Id = value; }
+        { get => m_status.Id; set => m_status.Id = value;
         }
-        #endregion
 
-        #region Dynamic Properties
         /// <summary>
         /// The subscription that owns the monitored item.
         /// </summary>
@@ -416,7 +409,7 @@ namespace Opc.Ua.Client
                 return m_resolvedNodeId;
             }
 
-            internal set { m_resolvedNodeId = value; }
+            internal set => m_resolvedNodeId = value;
         }
 
         /// <summary>
@@ -428,9 +421,7 @@ namespace Opc.Ua.Client
         /// The status associated with the monitored item.
         /// </summary>
         public MonitoredItemStatus Status => m_status;
-        #endregion
 
-        #region Cache Related Functions
         /// <summary>
         /// Returns the queue size used by the cache.
         /// </summary>
@@ -499,7 +490,7 @@ namespace Opc.Ua.Client
                     return m_dataCache.Publish();
                 }
 
-                return new List<DataValue>();
+                return [];
             }
         }
 
@@ -515,7 +506,7 @@ namespace Opc.Ua.Client
                     return m_eventCache.Publish();
                 }
 
-                return new List<EventFieldList>();
+                return [];
             }
         }
 
@@ -632,13 +623,11 @@ namespace Opc.Ua.Client
                 m_Notification?.Invoke(this, new MonitoredItemNotificationEventArgs(newValue));
             }
         }
-        #endregion
 
-        #region ICloneable Members
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -657,9 +646,7 @@ namespace Opc.Ua.Client
         {
             return new MonitoredItem(this, copyEventHandlers, copyClientHandle);
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Sets the error status for the monitored item.
         /// </summary>
@@ -809,8 +796,9 @@ namespace Opc.Ua.Client
             NodeId eventTypeId,
             QualifiedName browseName)
         {
-            var browsePath = new QualifiedNameCollection();
-            browsePath.Add(browseName);
+            var browsePath = new QualifiedNameCollection {
+                browseName
+            };
             return GetFieldValue(eventFields, eventTypeId, browsePath, Attributes.Value);
         }
 
@@ -907,7 +895,7 @@ namespace Opc.Ua.Client
         public INode GetEventType(EventFieldList eventFields)
         {
             // get event type.
-            var eventTypeId = GetFieldValue(eventFields, ObjectTypes.BaseEventType, Opc.Ua.BrowseNames.EventType) as NodeId;
+            var eventTypeId = GetFieldValue(eventFields, ObjectTypes.BaseEventType, BrowseNames.EventType) as NodeId;
 
             if (eventTypeId != null && Subscription != null && Subscription.Session != null)
             {
@@ -924,7 +912,7 @@ namespace Opc.Ua.Client
         public DateTime GetEventTime(EventFieldList eventFields)
         {
             // get event time.
-            var eventTime = GetFieldValue(eventFields, ObjectTypes.BaseEventType, Opc.Ua.BrowseNames.Time) as DateTime?;
+            var eventTime = GetFieldValue(eventFields, ObjectTypes.BaseEventType, BrowseNames.Time) as DateTime?;
 
             if (eventTime != null)
             {
@@ -984,9 +972,7 @@ namespace Opc.Ua.Client
 
             return new ServiceResult(status.StatusCode, status.DiagnosticInfo, message.StringTable);
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// To save memory the cache is by default not initialized
         /// until <see cref="SaveValueInCache(IEncodeable)"/> is called.
@@ -996,7 +982,7 @@ namespace Opc.Ua.Client
         {
             if (m_dataCache == null && m_eventCache == null)
             {
-                if ((m_nodeClass & (NodeClass.Object | NodeClass.View)) != 0)
+                if (((int)m_nodeClass & ((int)NodeClass.Object | (int)NodeClass.View)) != 0)
                 {
                     m_eventCache = new MonitoredItemEventCache(100);
                 }
@@ -1049,21 +1035,19 @@ namespace Opc.Ua.Client
         {
             EventFilter filter = filter = new EventFilter();
 
-            filter.AddSelectClause(ObjectTypes.BaseEventType, Opc.Ua.BrowseNames.EventId);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, Opc.Ua.BrowseNames.EventType);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, Opc.Ua.BrowseNames.SourceNode);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, Opc.Ua.BrowseNames.SourceName);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, Opc.Ua.BrowseNames.Time);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, Opc.Ua.BrowseNames.ReceiveTime);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, Opc.Ua.BrowseNames.LocalTime);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, Opc.Ua.BrowseNames.Message);
-            filter.AddSelectClause(ObjectTypes.BaseEventType, Opc.Ua.BrowseNames.Severity);
+            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.EventId);
+            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.EventType);
+            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.SourceNode);
+            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.SourceName);
+            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.Time);
+            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.ReceiveTime);
+            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.LocalTime);
+            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.Message);
+            filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.Severity);
 
             m_filter = filter;
         }
 
-#endregion
-#region Private Fields
         private string m_relativePath;
         private NodeId m_resolvedNodeId;
         private NodeClass m_nodeClass;
@@ -1076,21 +1060,18 @@ namespace Opc.Ua.Client
         private bool m_attributesModified;
         private static long s_globalClientHandle;
 
-        private object m_cache = new object();
+        private object m_cache = new();
         private MonitoredItemDataCache m_dataCache;
         private MonitoredItemEventCache m_eventCache;
         private IEncodeable m_lastNotification;
         private event MonitoredItemNotificationEventHandler m_Notification;
-        #endregion
     }
 
-    #region MonitoredItemEventArgs Class
     /// <summary>
     /// The event arguments provided when a new notification message arrives.
     /// </summary>
     public class MonitoredItemNotificationEventArgs : EventArgs
     {
-        #region Constructors
         /// <summary>
         /// Creates a new instance.
         /// </summary>
@@ -1098,22 +1079,17 @@ namespace Opc.Ua.Client
         {
             NotificationValue = notificationValue;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The new notification.
         /// </summary>
         public IEncodeable NotificationValue { get; }
-
-        #endregion
     }
 
     /// <summary>
     /// The delegate used to receive monitored item value notifications.
     /// </summary>
     public delegate void MonitoredItemNotificationEventHandler(MonitoredItem monitoredItem, MonitoredItemNotificationEventArgs e);
-    #endregion
 
     /// <summary>
     /// A client cache which can hold the last monitored items in a queue.
@@ -1123,7 +1099,6 @@ namespace Opc.Ua.Client
     {
         private const int kDefaultMaxCapacity = 100;
 
-        #region Constructors
         /// <summary>
         /// Constructs a cache for a monitored item.
         /// </summary>
@@ -1139,9 +1114,7 @@ namespace Opc.Ua.Client
                 m_queueSize = 1;
             }
         }
-        #endregion
 
-        #region Public Members
         /// <summary>
         /// The size of the queue to maintain.
         /// </summary>
@@ -1219,13 +1192,10 @@ namespace Opc.Ua.Client
                 m_values.Dequeue();
             }
         }
-        #endregion
 
-        #region Private Fields
         private int m_queueSize;
         private DataValue m_lastValue;
         private Queue<DataValue> m_values;
-        #endregion
     }
 
     /// <summary>
@@ -1233,7 +1203,6 @@ namespace Opc.Ua.Client
     /// </summary>
     public class MonitoredItemEventCache
     {
-        #region Constructors
         /// <summary>
         /// Constructs a cache for a monitored item.
         /// </summary>
@@ -1242,9 +1211,7 @@ namespace Opc.Ua.Client
             m_queueSize = queueSize;
             m_events = new Queue<EventFieldList>();
         }
-        #endregion
 
-        #region Public Members
         /// <summary>
         /// The size of the queue to maintain.
         /// </summary>
@@ -1306,12 +1273,9 @@ namespace Opc.Ua.Client
                 m_events.Dequeue();
             }
         }
-        #endregion
 
-        #region Private Fields
         private int m_queueSize;
         private EventFieldList m_lastEvent;
         private readonly Queue<EventFieldList> m_events;
-        #endregion
     }
 }

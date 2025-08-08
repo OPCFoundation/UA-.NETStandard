@@ -19,7 +19,6 @@ namespace Opc.Ua
     /// </summary>
     public class TransportChannelSettings
     {
-        #region Public Properties
         /// <summary>
         /// Gets or sets the description for the endpoint.
         /// </summary>
@@ -89,7 +88,5 @@ namespace Opc.Ua
         /// </remarks>
         /// <seealso cref="NamespaceUris" />
         public IEncodeableFactory Factory { get; set; }
-
-#endregion
     }
 }

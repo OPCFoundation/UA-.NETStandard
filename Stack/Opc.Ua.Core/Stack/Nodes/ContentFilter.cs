@@ -17,17 +17,15 @@ using System.Text;
 
 namespace Opc.Ua
 {
-    #region ContentFilter Class
     public partial class ContentFilter : IFormattable
     {
-        #region IFormattable Members
         /// <summary>
         /// Formats the value of the current instance using the specified format.
         /// </summary>
         /// <param name="format">The <see cref="string"/> specifying the format to use.
         /// -or-
-        /// null to use the default format defined for the type of the <see cref="System.IFormattable"/> implementation.</param>
-        /// <param name="formatProvider">The <see cref="System.IFormatProvider"/> to use to format the value.
+        /// null to use the default format defined for the type of the <see cref="IFormattable"/> implementation.</param>
+        /// <param name="formatProvider">The <see cref="IFormatProvider"/> to use to format the value.
         /// -or-
         /// null to obtain the numeric format information from the current locale setting of the operating system.</param>
         /// <returns>
@@ -39,9 +37,9 @@ namespace Opc.Ua
             {
                 var buffer = new StringBuilder();
 
-                for (int ii = 0; ii < this.Elements.Count; ii++)
+                for (int ii = 0; ii < Elements.Count; ii++)
                 {
-                    buffer.AppendFormat(formatProvider, "[{0}:{1}]", ii, this.Elements[ii]);
+                    buffer.AppendFormat(formatProvider, "[{0}:{1}]", ii, Elements[ii]);
                 }
 
                 return buffer.ToString();
@@ -49,9 +47,7 @@ namespace Opc.Ua
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Returns a <see cref="T:System.String"/> that represents the current <see cref="T:System.Object"/>.
         /// </summary>
@@ -62,7 +58,6 @@ namespace Opc.Ua
         {
             return ToString(null, null);
         }
-        #endregion
 
         /// <summary>
         /// Validates the ContentFilter.
@@ -206,7 +201,7 @@ namespace Opc.Ua
         {
             for (int ii = 0; ii < m_elements.Count; ii++)
             {
-                if (Object.ReferenceEquals(target, m_elements[ii]))
+                if (ReferenceEquals(target, m_elements[ii]))
                 {
                     return ii;
                 }
@@ -215,13 +210,11 @@ namespace Opc.Ua
             return -1;
         }
 
-        #region Result Class
         /// <summary>
         /// Stores the validation results for a ContentFilterElement.
         /// </summary>
         public class Result
         {
-            #region Public Interface
             /// <summary>
             /// Initializes the object with a result code.
             /// </summary>
@@ -251,13 +244,7 @@ namespace Opc.Ua
             /// The result for each element.
             /// </summary>
             /// <value>The element results.</value>
-            public List<ElementResult> ElementResults
-            {
-                get
-                {
-                    return m_elementResults ??= new List<ElementResult>();
-                }
-            }
+            public List<ElementResult> ElementResults => m_elementResults ??= [];
 
             /// <summary>
             /// Converts the object to an ContentFilterResult.
@@ -306,20 +293,14 @@ namespace Opc.Ua
                 return result;
             }
 
-#endregion
-#region Private Fields
             private List<ElementResult> m_elementResults;
-            #endregion
         }
-        #endregion
 
-        #region ElementResult Class
         /// <summary>
         /// Stores the validation results for a ContentFilterElement.
         /// </summary>
         public class ElementResult
         {
-            #region Public Interface
             /// <summary>
             /// Initializes the object with a result code.
             /// </summary>
@@ -349,13 +330,7 @@ namespace Opc.Ua
             /// The result for each operand.
             /// </summary>
             /// <value>The operand results.</value>
-            public List<ServiceResult> OperandResults
-            {
-                get
-                {
-                    return m_operandResults ??= new List<ServiceResult>();
-                }
-            }
+            public List<ServiceResult> OperandResults => m_operandResults ??= [];
 
             /// <summary>
             /// Converts the object to an ContentFilterElementResult.
@@ -397,26 +372,19 @@ namespace Opc.Ua
                 return result;
             }
 
-#endregion
-#region Private Fields
             private List<ServiceResult> m_operandResults;
-            #endregion
         }
-        #endregion
     }
-    #endregion
 
-    #region ContentFilterElement Class
     public partial class ContentFilterElement : IFormattable
     {
-        #region IFormattable Members
         /// <summary>
         /// Formats the value of the current instance using the specified format.
         /// </summary>
         /// <param name="format">The <see cref="string"/> specifying the format to use.
         /// -or-
-        /// null to use the default format defined for the type of the <see cref="System.IFormattable"/> implementation.</param>
-        /// <param name="formatProvider">The <see cref="System.IFormatProvider"/> to use to format the value.
+        /// null to use the default format defined for the type of the <see cref="IFormattable"/> implementation.</param>
+        /// <param name="formatProvider">The <see cref="IFormatProvider"/> to use to format the value.
         /// -or-
         /// null to obtain the numeric format information from the current locale setting of the operating system.</param>
         /// <returns>
@@ -428,13 +396,13 @@ namespace Opc.Ua
             {
                 var buffer = new StringBuilder();
 
-                buffer.AppendFormat(formatProvider, "<{0}", this.FilterOperator);
+                buffer.AppendFormat(formatProvider, "<{0}", FilterOperator);
 
-                for (int ii = 0; ii < this.FilterOperands.Count; ii++)
+                for (int ii = 0; ii < FilterOperands.Count; ii++)
                 {
-                    if (this.FilterOperands[ii] != null)
+                    if (FilterOperands[ii] != null)
                     {
-                        buffer.AppendFormat(formatProvider, ", {0}", this.FilterOperands[ii].Body);
+                        buffer.AppendFormat(formatProvider, ", {0}", FilterOperands[ii].Body);
                     }
                     else
                     {
@@ -449,9 +417,7 @@ namespace Opc.Ua
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Returns a <see cref="T:System.String"/> that represents the current <see cref="T:System.Object"/>.
         /// </summary>
@@ -462,17 +428,13 @@ namespace Opc.Ua
         {
             return ToString(null, null);
         }
-        #endregion
 
-        #region Public Members
         /// <summary>
         /// The ContentFilter that this Element is part of.
         /// </summary>
         /// <value>The parent.</value>
         public ContentFilter Parent
-        {
-            get { return m_parent; }
-            internal set { this.m_parent = value; }
+        { get => m_parent; internal set => m_parent = value;
         }
 
         /// <summary>
@@ -751,18 +713,12 @@ namespace Opc.Ua
 
             return buffer.ToString();
         }
-        #endregion
 
-        #region Private Fields
         private ContentFilter m_parent;
-        #endregion
     }
-    #endregion
 
-    #region FilterOperand Class
     public partial class FilterOperand
     {
-        #region Public Interface
         /// <summary>
         /// The ContentFilterElement this FilterOperand is contained in.
         /// The ContentFilterElement contains the operator and the operands
@@ -770,9 +726,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The parent element.</value>
         public ContentFilterElement Parent
-        {
-            get { return this.m_parent; }
-            internal set { this.m_parent = value; }
+        { get => m_parent; internal set => m_parent = value;
         }
 
         /// <summary>
@@ -795,18 +749,12 @@ namespace Opc.Ua
         {
             return Utils.Format("{0}", this);
         }
-        #endregion
 
-        #region Private Fields
         private ContentFilterElement m_parent;
-        #endregion
     }
-    #endregion
 
-    #region AttributeOperand Class
     public partial class AttributeOperand : IFormattable
     {
-        #region Constructors
         /// <summary>
         /// Constructs an operand from a value.
         /// </summary>
@@ -896,16 +844,14 @@ namespace Opc.Ua
             m_indexRange = indexRange;
             m_alias = null;
         }
-        #endregion
 
-        #region IFormattable Members
         /// <summary>
         /// Formats the value of the current instance using the specified format.
         /// </summary>
         /// <param name="format">The <see cref="string"/> specifying the format to use.
         /// -or-
-        /// null to use the default format defined for the type of the <see cref="System.IFormattable"/> implementation.</param>
-        /// <param name="formatProvider">The <see cref="System.IFormatProvider"/> to use to format the value.
+        /// null to use the default format defined for the type of the <see cref="IFormattable"/> implementation.</param>
+        /// <param name="formatProvider">The <see cref="IFormatProvider"/> to use to format the value.
         /// -or-
         /// null to obtain the numeric format information from the current locale setting of the operating system.</param>
         /// <returns>
@@ -927,9 +873,7 @@ namespace Opc.Ua
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Returns a <see cref="T:System.String"/> that represents the current <see cref="T:System.Object"/>.
         /// </summary>
@@ -940,9 +884,7 @@ namespace Opc.Ua
         {
             return ToString(null, null);
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// Whether the operand has been validated.
         /// </summary>
@@ -950,10 +892,7 @@ namespace Opc.Ua
         /// <remarks>
         /// Set when Validate() is called.
         /// </remarks>
-        public bool Validated
-        {
-            get { return m_validated; }
-        }
+        public bool Validated => m_validated;
 
         /// <summary>
         /// Stores the parsed form of the IndexRange parameter.
@@ -962,13 +901,8 @@ namespace Opc.Ua
         /// <remarks>
         /// Set when Validate() is called.
         /// </remarks>
-        public NumericRange ParsedIndexRange
-        {
-            get { return m_parsedIndexRange; }
-        }
-        #endregion
+        public NumericRange ParsedIndexRange => m_parsedIndexRange;
 
-        #region Overridden Methods
         /// <summary>
         /// Validates the operand (sets the ParsedBrowsePath and ParsedIndexRange properties).
         /// </summary>
@@ -1067,16 +1001,11 @@ namespace Opc.Ua
 
             return buffer.ToString();
         }
-        #endregion
 
-        #region Private Fields
         private bool m_validated;
         private NumericRange m_parsedIndexRange;
-        #endregion
     }
-    #endregion
 
-    #region ElementOperand Class
     public partial class ElementOperand : IFormattable
     {
         /// <summary>
@@ -1088,14 +1017,13 @@ namespace Opc.Ua
             m_index = index;
         }
 
-        #region IFormattable Members
         /// <summary>
         /// Formats the value of the current instance using the specified format.
         /// </summary>
         /// <param name="format">The <see cref="string"/> specifying the format to use.
         /// -or-
-        /// null to use the default format defined for the type of the <see cref="System.IFormattable"/> implementation.</param>
-        /// <param name="formatProvider">The <see cref="System.IFormatProvider"/> to use to format the value.
+        /// null to use the default format defined for the type of the <see cref="IFormattable"/> implementation.</param>
+        /// <param name="formatProvider">The <see cref="IFormatProvider"/> to use to format the value.
         /// -or-
         /// null to obtain the numeric format information from the current locale setting of the operating system.</param>
         /// <returns>
@@ -1110,9 +1038,7 @@ namespace Opc.Ua
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Returns a <see cref="T:System.String"/> that represents the current <see cref="T:System.Object"/>.
         /// </summary>
@@ -1123,7 +1049,6 @@ namespace Opc.Ua
         {
             return ToString(null, null);
         }
-        #endregion
 
         /// <summary>
         /// Validates the operand.
@@ -1170,9 +1095,7 @@ namespace Opc.Ua
             return Utils.Format("Element[{0}]", Index);
         }
     }
-    #endregion
 
-    #region LiteralOperand Class
     public partial class LiteralOperand : IFormattable
     {
         /// <summary>
@@ -1184,14 +1107,13 @@ namespace Opc.Ua
             m_value = new Variant(value);
         }
 
-        #region IFormattable Members
         /// <summary>
         /// Formats the value of the current instance using the specified format.
         /// </summary>
         /// <param name="format">The <see cref="string"/> specifying the format to use.
         /// -or-
-        /// null to use the default format defined for the type of the <see cref="System.IFormattable"/> implementation.</param>
-        /// <param name="formatProvider">The <see cref="System.IFormatProvider"/> to use to format the value.
+        /// null to use the default format defined for the type of the <see cref="IFormattable"/> implementation.</param>
+        /// <param name="formatProvider">The <see cref="IFormatProvider"/> to use to format the value.
         /// -or-
         /// null to obtain the numeric format information from the current locale setting of the operating system.</param>
         /// <returns>
@@ -1206,9 +1128,7 @@ namespace Opc.Ua
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Returns a <see cref="T:System.String"/> that represents the current <see cref="T:System.Object"/>.
         /// </summary>
@@ -1219,7 +1139,6 @@ namespace Opc.Ua
         {
             return ToString(null, null);
         }
-        #endregion
 
         /// <summary>
         /// Validates the operand.
@@ -1261,5 +1180,4 @@ namespace Opc.Ua
             return Utils.Format("{0}", Value);
         }
     }
-    #endregion
 }

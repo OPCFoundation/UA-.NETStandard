@@ -52,7 +52,7 @@ namespace Alarms
         {
             if (create)
             {
-                Initialize(Opc.Ua.ObjectTypes.OffNormalAlarmType, name, maxShelveTime);
+                Initialize(ObjectTypes.OffNormalAlarmType, name, maxShelveTime);
             }
         }
 
@@ -73,14 +73,9 @@ namespace Alarms
             alarm.NormalState.Value = new NodeId();
         }
 
-        #region Helpers
-
         private OffNormalAlarmState GetAlarm()
         {
             return (OffNormalAlarmState)m_alarm;
         }
-
-        #endregion
-
     }
 }

@@ -21,7 +21,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             CertificateStoreType.RegisterCertificateStoreType("testStoreType", new TestStoreType());
         }
 
-        #region Test Methods
         [Test]
         public async Task CertificateStoreTypeConfigTest()
         {
@@ -43,7 +42,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 }
             }
         }
-        #endregion Test Methods
     }
 
     internal sealed class TestStoreType : ICertificateStoreType
@@ -235,10 +233,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
         public static int InstancesCreated => s_instancesCreated;
 
-        #region data members
         internal const string StoreTypePrefix = "testStoreType:";
-        private static int s_instancesCreated = 0;
+        private static int s_instancesCreated;
         private readonly X509CertificateStore m_innerStore;
-        #endregion data members
     }
 }

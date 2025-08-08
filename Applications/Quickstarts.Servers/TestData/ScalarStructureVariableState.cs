@@ -34,7 +34,6 @@ namespace TestData
 {
     public partial class ScalarStructureVariableState : ITestDataSystemValuesGenerator
     {
-        #region Initialization
         /// <summary>
         /// Initializes the object as a collection of counters which change value on read.
         /// </summary>
@@ -70,9 +69,7 @@ namespace TestData
             InitializeVariable(context, IntegerValue);
             InitializeVariable(context, UIntegerValue);
         }
-        #endregion
 
-        #region Protected Methods
         /// <summary>
         /// Initializes the variable.
         /// </summary>
@@ -85,9 +82,7 @@ namespace TestData
             variable.AccessLevel = AccessLevel;
             variable.UserAccessLevel = UserAccessLevel;
         }
-        #endregion
 
-        #region Public Methods
         public virtual StatusCode OnGenerateValues(ISystemContext context)
         {
             if (!(context.SystemHandle is TestDataSystem system))
@@ -109,6 +104,5 @@ namespace TestData
 
             return result.StatusCode;
         }
-        #endregion
     }
 }

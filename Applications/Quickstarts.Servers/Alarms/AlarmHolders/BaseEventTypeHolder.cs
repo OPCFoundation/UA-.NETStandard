@@ -78,15 +78,9 @@ namespace Alarms
             }
         }
 
-        #region Overrides
-
         public override void SetValue(string message = "")
         {
         }
-
-        #endregion
-
-        #region Helpers
 
         private BaseEventState GetAlarm(BaseEventState alarm = null)
         {
@@ -96,10 +90,6 @@ namespace Alarms
             }
             return alarm;
         }
-
-        #endregion
-
-        #region Child Helpers
 
         protected bool IsEvent(byte[] eventId)
         {
@@ -111,8 +101,5 @@ namespace Alarms
 
             return isEvent;
         }
-
-        #endregion
-
     }
 }

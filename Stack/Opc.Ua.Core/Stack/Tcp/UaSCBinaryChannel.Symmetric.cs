@@ -11,17 +11,16 @@
 */
 
 using System;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
-using System.Diagnostics.CodeAnalysis;
-using System.Diagnostics;
 
 namespace Opc.Ua.Bindings
 {
     public partial class UaSCUaBinaryChannel
     {
-        #region Token Handling Members
         /// <summary>
         /// Returns the current security token.
         /// </summary>
@@ -105,9 +104,7 @@ namespace Opc.Ua.Bindings
 
             OnTokenActivated?.Invoke(null, null);
         }
-        #endregion
 
-        #region Symmetric Cryptography Functions
         /// <summary>
         /// Indicates that an explicit signature is not present.
         /// </summary>
@@ -369,14 +366,14 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.ECC_brainpoolP256r1:
                 case SecurityPolicies.ECC_brainpoolP384r1:
                     // create encryptors.
-                    SymmetricAlgorithm aesCbcEncryptorProvider = Aes.Create();
+                    var aesCbcEncryptorProvider = Aes.Create();
                     aesCbcEncryptorProvider.Mode = CipherMode.CBC;
                     aesCbcEncryptorProvider.Padding = PaddingMode.None;
                     aesCbcEncryptorProvider.Key = token.ClientEncryptingKey;
                     aesCbcEncryptorProvider.IV = token.ClientInitializationVector;
                     token.ClientEncryptor = aesCbcEncryptorProvider;
 
-                    SymmetricAlgorithm aesCbcDecryptorProvider = Aes.Create();
+                    var aesCbcDecryptorProvider = Aes.Create();
                     aesCbcDecryptorProvider.Mode = CipherMode.CBC;
                     aesCbcDecryptorProvider.Padding = PaddingMode.None;
                     aesCbcDecryptorProvider.Key = token.ServerEncryptingKey;
@@ -656,7 +653,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Decrypts and verifies a message chunk.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1804:RemoveUnusedLocals", MessageId = "messageType"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1804:RemoveUnusedLocals", MessageId = "messageSize")]
+        [SuppressMessage("Microsoft.Performance", "CA1804:RemoveUnusedLocals", MessageId = "messageType"), SuppressMessage("Microsoft.Performance", "CA1804:RemoveUnusedLocals", MessageId = "messageSize")]
         protected ArraySegment<byte> ReadSymmetricMessage(
             ArraySegment<byte> buffer,
             bool isRequest,
@@ -1347,9 +1344,7 @@ namespace Opc.Ua.Bindings
             iv[7] ^= (byte)((lastSequenceNumber & 0xFF000000) >> 24);
         }
 #endif
-        #endregion
 
-        #region Private Static Fields
         private static readonly byte[] s_HkdfClientLabel = Encoding.UTF8.GetBytes("opcua-client");
         private static readonly byte[] s_HkdfServerLabel = Encoding.UTF8.GetBytes("opcua-server");
         private static readonly byte[] s_HkdfAes128SignOnlyKeyLength = BitConverter.GetBytes((ushort)32);
@@ -1357,9 +1352,7 @@ namespace Opc.Ua.Bindings
         private static readonly byte[] s_HkdfAes128SignAndEncryptKeyLength = BitConverter.GetBytes((ushort)64);
         private static readonly byte[] s_HkdfAes256SignAndEncryptKeyLength = BitConverter.GetBytes((ushort)96);
         private static readonly byte[] s_HkdfChaCha20Poly1305KeyLength = BitConverter.GetBytes((ushort)76);
-        #endregion
 
-        #region Private Fields
         private ChannelToken m_currentToken;
         private ChannelToken m_previousToken;
         private ChannelToken m_renewedToken;
@@ -1368,6 +1361,5 @@ namespace Opc.Ua.Bindings
         private int m_encryptionKeySize;
         private int m_encryptionBlockSize;
         private bool m_authenticatedEncryption;
-        #endregion
     }
 }

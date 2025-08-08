@@ -21,7 +21,6 @@ namespace Opc.Ua
     /// </summary>
     public class ReadOnlyList<T> : IList<T>, IList
     {
-        #region ICollection<T> Members
         /// <summary>
         /// Wraps an existing list.
         /// </summary>
@@ -49,9 +48,7 @@ namespace Opc.Ua
 
             m_list = list ?? Array.Empty<T>();
         }
-        #endregion
 
-        #region ICollection<T> Members
         /// <summary>
         /// The number of items in the list.
         /// </summary>
@@ -101,9 +98,7 @@ namespace Opc.Ua
         {
             throw new NotSupportedException();
         }
-        #endregion
 
-        #region IList<T> Members
         /// <summary>
         /// Returns the list of the specified item in the list.
         /// </summary>
@@ -133,23 +128,15 @@ namespace Opc.Ua
         /// </summary>
         public T this[int index]
         {
-            get
-            {
-                return m_list[index];
-            }
+            get => m_list[index];
 
-            set
-            {
-                throw new NotSupportedException();
-            }
+            set => throw new NotSupportedException();
         }
-        #endregion
 
-        #region IEnumerable<T> Members
         /// <summary>
         /// Returns an enumerator for the list.
         /// </summary>
-        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+        IEnumerator IEnumerable.GetEnumerator()
         {
             return m_list.GetEnumerator();
         }
@@ -161,9 +148,7 @@ namespace Opc.Ua
         {
             return m_list.GetEnumerator();
         }
-        #endregion
 
-        #region Static Operators
         /// <summary>
         /// Creates a read-only list from a list.
         /// </summary>
@@ -183,11 +168,9 @@ namespace Opc.Ua
         {
             return new ReadOnlyList<T>(values);
         }
-        #endregion
 
-        #region IList Members
         /// <summary>
-        /// Adds an item to the <see cref="System.Collections.IList"/>.
+        /// Adds an item to the <see cref="IList"/>.
         /// </summary>
         int IList.Add(object value)
         {
@@ -195,7 +178,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Removes all items from the <see cref="System.Collections.ICollection"/>.
+        /// Removes all items from the <see cref="ICollection"/>.
         /// </summary>
         void IList.Clear()
         {
@@ -203,23 +186,23 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Determines whether the <see cref="System.Collections.IList"/> contains a specific value.
+        /// Determines whether the <see cref="IList"/> contains a specific value.
         /// </summary>
         bool IList.Contains(object value)
         {
-            return this.Contains((T)value);
+            return Contains((T)value);
         }
 
         /// <summary>
-        /// Determines the index of a specific item in the <see cref="System.Collections.IList"/>.
+        /// Determines the index of a specific item in the <see cref="IList"/>.
         /// </summary>
         int IList.IndexOf(object value)
         {
-            return this.IndexOf((T)value);
+            return IndexOf((T)value);
         }
 
         /// <summary>
-        /// Inserts an item to the <see cref="System.Collections.IList"/> at the specified index.
+        /// Inserts an item to the <see cref="IList"/> at the specified index.
         /// </summary>
         void IList.Insert(int index, object value)
         {
@@ -227,17 +210,17 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Gets a value indicating whether the <see cref="System.Collections.IList"/> has a fixed size.
+        /// Gets a value indicating whether the <see cref="IList"/> has a fixed size.
         /// </summary>
         bool IList.IsFixedSize => true;
 
         /// <summary>
-        /// Gets a value indicating whether the <see cref="System.Collections.IList"/> is read-only.
+        /// Gets a value indicating whether the <see cref="IList"/> is read-only.
         /// </summary>
         bool IList.IsReadOnly => true;
 
         /// <summary>
-        /// Removes the first occurrence of a specific object from the <see cref="System.Collections.IList"/>.
+        /// Removes the first occurrence of a specific object from the <see cref="IList"/>.
         /// </summary>
         void IList.Remove(object value)
         {
@@ -245,7 +228,7 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Removes the <see cref="System.Collections.IList"/> item at the specified index.
+        /// Removes the <see cref="IList"/> item at the specified index.
         /// </summary>
         void IList.RemoveAt(int index)
         {
@@ -257,45 +240,34 @@ namespace Opc.Ua
         /// </summary>
         object IList.this[int index]
         {
-            get
-            {
-                return this[index];
-            }
+            get => this[index];
 
-            set
-            {
-                this[index] = (T)value;
-            }
+            set => this[index] = (T)value;
         }
-        #endregion
 
-        #region ICollection Members
         /// <summary>
-        /// Copies the elements of the <see cref="System.Collections.ICollection"/> to an <see cref="System.Array"/>, starting at a particular <see cref="System.Array"/> index.
+        /// Copies the elements of the <see cref="ICollection"/> to an <see cref="Array"/>, starting at a particular <see cref="Array"/> index.
         /// </summary>
         void ICollection.CopyTo(Array array, int index)
         {
-            this.CopyTo((T[])array, index);
+            CopyTo((T[])array, index);
         }
 
         /// <summary>
-        /// Gets the number of elements contained in the <see cref="System.Collections.ICollection"/>.
+        /// Gets the number of elements contained in the <see cref="ICollection"/>.
         /// </summary>
-        int ICollection.Count => this.Count;
+        int ICollection.Count => Count;
 
         /// <summary>
-        /// Gets a value indicating whether access to the <see cref="System.Collections.ICollection"/> is synchronized (thread safe).
+        /// Gets a value indicating whether access to the <see cref="ICollection"/> is synchronized (thread safe).
         /// </summary>
         bool ICollection.IsSynchronized => false;
 
         /// <summary>
-        /// Gets an object that can be used to synchronize access to the <see cref="System.Collections.ICollection"/>.
+        /// Gets an object that can be used to synchronize access to the <see cref="ICollection"/>.
         /// </summary>
         object ICollection.SyncRoot => false;
-        #endregion
 
-        #region Private Fields
         private readonly IList<T> m_list;
-        #endregion
     }
 }

@@ -23,14 +23,13 @@ namespace Opc.Ua
     /// </summary>
     public partial class DataChangeFilter
     {
-        #region Public Methods
         /// <summary>
         /// Checks that the filter is valid.
         /// </summary>
         public ServiceResult Validate()
         {
             // check deadband type enumeration.
-            if ((int)DeadbandType is < ((int)Opc.Ua.DeadbandType.None) or > ((int)Opc.Ua.DeadbandType.Percent))
+            if ((int)DeadbandType is < ((int)Ua.DeadbandType.None) or > ((int)Ua.DeadbandType.Percent))
             {
                 return ServiceResult.Create(
                     StatusCodes.BadDeadbandFilterInvalid,
@@ -57,7 +56,7 @@ namespace Opc.Ua
             }
 
             // deadband percentage must be less than 100.
-            if ((int)DeadbandType == (int)Opc.Ua.DeadbandType.Percent && DeadbandValue > 100)
+            if ((int)DeadbandType == (int)Ua.DeadbandType.Percent && DeadbandValue > 100)
             {
                 return ServiceResult.Create(
                     StatusCodes.BadDeadbandFilterInvalid,
@@ -79,7 +78,7 @@ namespace Opc.Ua
                 return 0.0;
             }
 
-            if (datachangeFilter.DeadbandType != (uint)Opc.Ua.DeadbandType.Absolute)
+            if (datachangeFilter.DeadbandType != (uint)Ua.DeadbandType.Absolute)
             {
                 return 0.0;
             }
@@ -97,14 +96,13 @@ namespace Opc.Ua
                 return 0.0;
             }
 
-            if (datachangeFilter.DeadbandType != (uint)Opc.Ua.DeadbandType.Percent)
+            if (datachangeFilter.DeadbandType != (uint)Ua.DeadbandType.Percent)
             {
                 return 0.0;
             }
 
             return datachangeFilter.DeadbandValue;
         }
-        #endregion
     }
 
     /// <summary>
@@ -150,7 +148,6 @@ namespace Opc.Ua
         /// </summary>
         public class Result
         {
-            #region Public Interface
             /// <summary>
             /// Initializes the object.
             /// </summary>
@@ -219,18 +216,12 @@ namespace Opc.Ua
             /// <summary>
             /// The result for each select clause.
             /// </summary>
-            public List<ServiceResult> SelectClauseResults
-            {
-                get
-                {
-                    return m_selectClauseResults ??= new List<ServiceResult>();
-                }
-            }
+            public List<ServiceResult> SelectClauseResults => m_selectClauseResults ??= [];
 
             /// <summary>
             /// The results for the where clause.
             /// </summary>
-            public Opc.Ua.ContentFilter.Result WhereClauseResult { get; internal set; }
+            public ContentFilter.Result WhereClauseResult { get; internal set; }
 
             /// <summary>
             /// Converts the object to an EventFilterResult.
@@ -264,10 +255,7 @@ namespace Opc.Ua
                 return result;
             }
 
-#endregion
-#region Private Fields
             private List<ServiceResult> m_selectClauseResults;
-            #endregion
         }
 
         /// <summary>
@@ -357,7 +345,6 @@ namespace Opc.Ua
     /// </summary>
     public partial class SimpleAttributeOperand : IFormattable
     {
-        #region Constructors
         /// <summary>
         /// Creates an operand that references a component/property of a type.
         /// </summary>
@@ -366,7 +353,7 @@ namespace Opc.Ua
             QualifiedName browsePath)
         {
             m_typeDefinitionId = typeId;
-            m_browsePath = new QualifiedNameCollection();
+            m_browsePath = [];
             m_attributeId = Attributes.Value;
             m_indexRange = null;
 
@@ -381,7 +368,7 @@ namespace Opc.Ua
             IList<QualifiedName> browsePath)
         {
             m_typeDefinitionId = typeId;
-            m_browsePath = new QualifiedNameCollection(browsePath);
+            m_browsePath = [.. browsePath];
             m_attributeId = Attributes.Value;
             m_indexRange = null;
         }
@@ -395,7 +382,7 @@ namespace Opc.Ua
             IList<QualifiedName> browsePath)
         {
             m_typeDefinitionId = ExpandedNodeId.ToNodeId(typeId, context.NamespaceUris);
-            m_browsePath = new QualifiedNameCollection(browsePath);
+            m_browsePath = [.. browsePath];
             m_attributeId = Attributes.Value;
             m_indexRange = null;
         }
@@ -415,16 +402,14 @@ namespace Opc.Ua
             m_attributeId = attributeId;
             m_indexRange = indexRange;
         }
-        #endregion
 
-        #region IFormattable Members
         /// <summary>
         /// Formats the value of the current instance using the specified format.
         /// </summary>
         /// <param name="format">The <see cref="string"/> specifying the format to use.
         /// -or-
-        /// null to use the default format defined for the type of the <see cref="System.IFormattable"/> implementation.</param>
-        /// <param name="formatProvider">The <see cref="System.IFormatProvider"/> to use to format the value.
+        /// null to use the default format defined for the type of the <see cref="IFormattable"/> implementation.</param>
+        /// <param name="formatProvider">The <see cref="IFormatProvider"/> to use to format the value.
         /// -or-
         /// null to obtain the numeric format information from the current locale setting of the operating system.</param>
         /// <returns>
@@ -446,9 +431,7 @@ namespace Opc.Ua
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Returns a <see cref="T:System.String"/> that represents the current <see cref="T:System.Object"/>.
         /// </summary>
@@ -459,19 +442,14 @@ namespace Opc.Ua
         {
             return ToString(null, null);
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// Whether the operand has been validated.
         /// </summary>
         /// <remarks>
         /// Set when Validate() is called.
         /// </remarks>
-        public bool Validated
-        {
-            get { return m_validated; }
-        }
+        public bool Validated => m_validated;
 
         /// <summary>
         /// Stores the parsed form of the IndexRange parameter.
@@ -479,13 +457,8 @@ namespace Opc.Ua
         /// <remarks>
         /// Set when Validate() is called.
         /// </remarks>
-        public NumericRange ParsedIndexRange
-        {
-            get { return m_parsedIndexRange; }
-        }
-        #endregion
+        public NumericRange ParsedIndexRange => m_parsedIndexRange;
 
-        #region Overridden Methods
         /// <summary>
         /// Validates the operand (sets the ParsedBrowsePath and ParsedIndexRange properties).
         /// </summary>
@@ -566,9 +539,7 @@ namespace Opc.Ua
 
             return buffer.ToString();
         }
-        #endregion
 
-        #region Static Methods
         /// <summary>
         /// Formats a browse path.
         /// </summary>
@@ -669,11 +640,8 @@ namespace Opc.Ua
 
             return browseNames;
         }
-        #endregion
 
-        #region Private Fields
         private bool m_validated;
         private NumericRange m_parsedIndexRange;
-        #endregion              
     }
 }

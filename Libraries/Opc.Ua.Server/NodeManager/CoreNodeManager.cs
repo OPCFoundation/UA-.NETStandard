@@ -47,7 +47,6 @@ namespace Opc.Ua.Server
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling")]
     public class CoreNodeManager : INodeManager, IDisposable
     {
-        #region Constructors
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
@@ -68,9 +67,9 @@ namespace Opc.Ua.Server
 
             Server = server;
             m_nodes = new NodeTable(server.NamespaceUris, server.ServerUris, server.TypeTree);
-            m_monitoredItems = new Dictionary<uint, ISampledDataChangeMonitoredItem>();
+            m_monitoredItems = [];
             m_defaultMinimumSamplingInterval = 1000;
-            m_namespaceUris = new List<string>();
+            m_namespaceUris = [];
             m_dynamicNamespaceIndex = dynamicNamespaceIndex;
 
             // use namespace 1 if out of range.
@@ -86,9 +85,7 @@ namespace Opc.Ua.Server
                 (uint)configuration.ServerConfiguration.MaxDurableNotificationQueueSize,
                 configuration.ServerConfiguration.AvailableSamplingRates);
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -123,14 +120,11 @@ namespace Opc.Ua.Server
                 Utils.SilentDispose(m_samplingGroupManager);
             }
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// Acquires the lock on the node manager.
         /// </summary>
         public object DataLock { get; } = new object();
-        #endregion
 
         /// <summary>
         /// Imports the nodes from a dictionary of NodeState objects.
@@ -161,15 +155,8 @@ namespace Opc.Ua.Server
             }
         }
 
-        #region INodeManager Members
         /// <inheritdoc/>
-        public IEnumerable<string> NamespaceUris
-        {
-            get
-            {
-                return m_namespaceUris;
-            }
-        }
+        public IEnumerable<string> NamespaceUris => m_namespaceUris;
 
         /// <inheritdoc/>
         /// <remarks>
@@ -309,7 +296,6 @@ namespace Opc.Ua.Server
             }
         }
 
-        #region Browse
         /// <inheritdoc/>
         public void Browse(
             OperationContext context,
@@ -465,7 +451,6 @@ namespace Opc.Ua.Server
             // include reference for now.
             return true;
         }
-        #endregion
 
         /// <inheritdoc/>
         public NodeMetadata GetNodeMetadata(
@@ -490,17 +475,17 @@ namespace Opc.Ua.Server
                 var metadata = new NodeMetadata(target, target.NodeId);
 
                 // copy target attributes.
-                if ((resultMask & BrowseResultMask.NodeClass) != 0)
+                if (((int)resultMask & (int)BrowseResultMask.NodeClass) != 0)
                 {
                     metadata.NodeClass = target.NodeClass;
                 }
 
-                if ((resultMask & BrowseResultMask.BrowseName) != 0)
+                if (((int)resultMask & (int)BrowseResultMask.BrowseName) != 0)
                 {
                     metadata.BrowseName = target.BrowseName;
                 }
 
-                if ((resultMask & BrowseResultMask.DisplayName) != 0)
+                if (((int)resultMask & (int)BrowseResultMask.DisplayName) != 0)
                 {
                     metadata.DisplayName = target.DisplayName;
 
@@ -587,7 +572,7 @@ namespace Opc.Ua.Server
                 }
 
                 // look up type definition.
-                if ((resultMask & BrowseResultMask.TypeDefinition) != 0)
+                if (((int)resultMask & (int)BrowseResultMask.TypeDefinition) != 0)
                 {
                     if (target.NodeClass == NodeClass.Variable || target.NodeClass == NodeClass.Object)
                     {
@@ -597,7 +582,7 @@ namespace Opc.Ua.Server
 
                 // Set AccessRestrictions and RolePermissions
                 var node = (Node)target;
-                metadata.AccessRestrictions = (AccessRestrictionType)Enum.Parse(typeof(AccessRestrictionType), node.AccessRestrictions.ToString(CultureInfo.InvariantCulture));
+                metadata.AccessRestrictions = (AccessRestrictionType)node.AccessRestrictions;
                 metadata.RolePermissions = node.RolePermissions;
                 metadata.UserRolePermissions = node.UserRolePermissions;
 
@@ -606,9 +591,7 @@ namespace Opc.Ua.Server
                 NamespaceMetadataState namespaceMetadataState = Server.NodeManager.ConfigurationNodeManager.GetNamespaceMetadataState(namespaceUri);
                 if (namespaceMetadataState != null)
                 {
-                    metadata.DefaultAccessRestrictions = (AccessRestrictionType)Enum.ToObject(typeof(AccessRestrictionType),
-                        namespaceMetadataState.DefaultAccessRestrictions.Value);
-
+                    metadata.DefaultAccessRestrictions = (AccessRestrictionType)namespaceMetadataState.DefaultAccessRestrictions.Value;
                     metadata.DefaultRolePermissions = namespaceMetadataState.DefaultRolePermissions.Value;
                     metadata.DefaultUserRolePermissions = namespaceMetadataState.DefaultUserRolePermissions.Value;
                 }
@@ -1164,7 +1147,7 @@ namespace Opc.Ua.Server
                 }
 
                 // validate the node class.
-                if (((metadata.NodeClass & NodeClass.Object) | NodeClass.View) == 0)
+                if ((((int)metadata.NodeClass & (int)NodeClass.Object) | (int)NodeClass.View) == 0)
                 {
                     return StatusCodes.BadNotSupported;
                 }
@@ -1260,7 +1243,7 @@ namespace Opc.Ua.Server
                     }
 
                     // look up the node.
-                    ILocalNode node = this.GetLocalNode(itemToCreate.ItemToMonitor.NodeId);
+                    ILocalNode node = GetLocalNode(itemToCreate.ItemToMonitor.NodeId);
 
                     if (node == null)
                     {
@@ -1429,7 +1412,7 @@ namespace Opc.Ua.Server
                     }
 
                     // look up the node.
-                    ILocalNode node = this.GetLocalNode(item.NodeId);
+                    ILocalNode node = GetLocalNode(item.NodeId);
 
                     if (node == null)
                     {
@@ -1533,7 +1516,7 @@ namespace Opc.Ua.Server
                     }
 
                     // check if the node manager created the item.
-                    if (!Object.ReferenceEquals(this, monitoredItems[ii].NodeManager))
+                    if (!ReferenceEquals(this, monitoredItems[ii].NodeManager))
                     {
                         continue;
                     }
@@ -1550,7 +1533,7 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    if (!Object.ReferenceEquals(monitoredItem, monitoredItems[ii]))
+                    if (!ReferenceEquals(monitoredItem, monitoredItems[ii]))
                     {
                         errors[ii] = StatusCodes.BadMonitoredItemIdInvalid;
                         continue;
@@ -1655,7 +1638,7 @@ namespace Opc.Ua.Server
                     }
 
                     // check if the node manager created the item.
-                    if (!Object.ReferenceEquals(this, monitoredItems[ii].NodeManager))
+                    if (!ReferenceEquals(this, monitoredItems[ii].NodeManager))
                     {
                         continue;
                     }
@@ -1672,7 +1655,7 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    if (!Object.ReferenceEquals(monitoredItem, monitoredItems[ii]))
+                    if (!ReferenceEquals(monitoredItem, monitoredItems[ii]))
                     {
                         errors[ii] = StatusCodes.BadMonitoredItemIdInvalid;
                         continue;
@@ -1734,7 +1717,7 @@ namespace Opc.Ua.Server
                     }
 
                     // check if the node manager created the item.
-                    if (!Object.ReferenceEquals(this, monitoredItems[ii].NodeManager))
+                    if (!ReferenceEquals(this, monitoredItems[ii].NodeManager))
                     {
                         continue;
                     }
@@ -1797,7 +1780,7 @@ namespace Opc.Ua.Server
                     }
 
                     // check if the node manager created the item.
-                    if (!Object.ReferenceEquals(this, monitoredItems[ii].NodeManager))
+                    if (!ReferenceEquals(this, monitoredItems[ii].NodeManager))
                     {
                         continue;
                     }
@@ -1814,7 +1797,7 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    if (!Object.ReferenceEquals(monitoredItem, monitoredItems[ii]))
+                    if (!ReferenceEquals(monitoredItem, monitoredItems[ii]))
                     {
                         errors[ii] = StatusCodes.BadMonitoredItemIdInvalid;
                         continue;
@@ -1860,9 +1843,7 @@ namespace Opc.Ua.Server
             // update all sampling groups.
             m_samplingGroupManager.ApplyChanges();
         }
-        #endregion
 
-        #region Static Members
         /// <summary>
         /// Returns true if the node class matches the node class mask.
         /// </summary>
@@ -1875,16 +1856,12 @@ namespace Opc.Ua.Server
 
             return true;
         }
-        #endregion
 
-        #region Protected Members
         /// <summary>
         /// The server that the node manager belongs to.
         /// </summary>
         protected IServerInternal Server { get; }
-        #endregion
 
-        #region Browsing/Searching
         /// <summary>
         /// Returns an index for the NamespaceURI (Adds it to the server namespace table if it does not already exist).
         /// </summary>
@@ -2082,9 +2059,7 @@ namespace Opc.Ua.Server
             // return the set of matching targets.
             return targets;
         }
-        #endregion
 
-        #region Registering Data/Event Sources
         /// <summary>
         /// Registers a source for a node.
         /// </summary>
@@ -2115,11 +2090,7 @@ namespace Opc.Ua.Server
         public void UnregisterSource(object source)
         {
         }
-        #endregion
 
-        #region Adding/Removing Nodes
-
-        #region Apply Modelling Rules
         /// <summary>
         /// Applys the modelling rules to any existing instance.
         /// </summary>
@@ -2293,7 +2264,7 @@ namespace Opc.Ua.Server
                 }
 
                 // check if the source is a shared node.
-                bool sharedNode = Object.ReferenceEquals(instanceDeclaration, source);
+                bool sharedNode = ReferenceEquals(instanceDeclaration, source);
 
                 foreach (IReference reference in instanceDeclaration.References)
                 {
@@ -2442,7 +2413,7 @@ namespace Opc.Ua.Server
             // guard against loops (i.e. common grandparents).
             for (int ii = 0; ii < declarations.Count; ii++)
             {
-                if (Object.ReferenceEquals(declarations[ii].Node, typeDefinition))
+                if (ReferenceEquals(declarations[ii].Node, typeDefinition))
                 {
                     return;
                 }
@@ -2562,7 +2533,6 @@ namespace Opc.Ua.Server
                 BuildInstanceList(child, Utils.Format("{0}.{1}", browsePath, child.BrowseName), instances);
             }
         }
-        #endregion
 
         /// <summary>
         /// Exports a node to a nodeset.
@@ -2578,7 +2548,7 @@ namespace Opc.Ua.Server
                     throw ServiceResultException.Create(StatusCodes.BadNodeIdUnknown, "NodeId ({0}) does not exist.", nodeId);
                 }
 
-                ExportNode(node, nodeSet, (node.NodeClass & (NodeClass.Object | NodeClass.Variable)) != 0);
+                ExportNode(node, nodeSet, ((int)node.NodeClass & ((int)NodeClass.Object | (int)NodeClass.Variable)) != 0);
             }
         }
 
@@ -2856,7 +2826,6 @@ namespace Opc.Ua.Server
             }
         }
 
-        #region Add/Remove Node Support Functions
         /// <summary>
         /// Verifies that the source and the target meet the restrictions imposed by the reference type.
         /// </summary>
@@ -2884,22 +2853,22 @@ namespace Opc.Ua.Server
             // check HasComponent references.
             if (Server.TypeTree.IsTypeOf(referenceTypeId, ReferenceTypeIds.HasComponent))
             {
-                if ((sourceNodeClass & (NodeClass.Object | NodeClass.Variable | NodeClass.ObjectType | NodeClass.VariableType)) == 0)
+                if (((int)sourceNodeClass & ((int)NodeClass.Object | (int)NodeClass.Variable | (int)NodeClass.ObjectType | (int)NodeClass.VariableType)) == 0)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadReferenceNotAllowed, "Source node cannot be used with HasComponent references.");
                 }
 
-                if ((targetNodeClass & (NodeClass.Object | NodeClass.Variable | NodeClass.Method)) == 0)
+                if (((int)targetNodeClass & ((int)NodeClass.Object | (int)NodeClass.Variable | (int)NodeClass.Method)) == 0)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadReferenceNotAllowed, "Target node cannot be used with HasComponent references.");
                 }
 
-                if (targetNodeClass == NodeClass.Variable && (targetNodeClass & (NodeClass.Variable | NodeClass.VariableType)) == 0)
+                if (targetNodeClass == NodeClass.Variable && ((int)targetNodeClass & ((int)NodeClass.Variable | (int)NodeClass.VariableType)) == 0)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadReferenceNotAllowed, "A Variable must be a component of an Variable or VariableType.");
                 }
 
-                if (targetNodeClass == NodeClass.Method && (sourceNodeClass & (NodeClass.Object | NodeClass.ObjectType)) == 0)
+                if (targetNodeClass == NodeClass.Method && ((int)sourceNodeClass & ((int)NodeClass.Object | (int)NodeClass.ObjectType)) == 0)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadReferenceNotAllowed, "A Method must be a component of an Object or ObjectType.");
                 }
@@ -2914,7 +2883,7 @@ namespace Opc.Ua.Server
             // check HasSubtype references.
             if (Server.TypeTree.IsTypeOf(referenceTypeId, ReferenceTypeIds.HasSubtype))
             {
-                if ((sourceNodeClass & (NodeClass.DataType | NodeClass.ReferenceType | NodeClass.ObjectType | NodeClass.VariableType)) == 0)
+                if (((int)sourceNodeClass & ((int)NodeClass.DataType | (int)NodeClass.ReferenceType | (int)NodeClass.ObjectType | (int)NodeClass.VariableType)) == 0)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadReferenceNotAllowed, "Source node cannot be used with HasSubtype references.");
                 }
@@ -2927,10 +2896,7 @@ namespace Opc.Ua.Server
 
             // TBD - check rules for other reference types.
         }
-        #endregion
-        #endregion
 
-        #region Adding/Removing References
         /// <summary>
         /// Adds a reference between two existing nodes.
         /// </summary>
@@ -3151,7 +3117,6 @@ namespace Opc.Ua.Server
         {
             m_nodes.Attach(node);
         }
-        #endregion
 
         /// <summary>
         /// Returns a node managed by the manager with the specified node id.
@@ -3171,9 +3136,9 @@ namespace Opc.Ua.Server
                     return null;
                 }
 
-                int namespaceIndex = this.Server.NamespaceUris.GetIndex(nodeId.NamespaceUri);
+                int namespaceIndex = Server.NamespaceUris.GetIndex(nodeId.NamespaceUri);
 
-                if (namespaceIndex < 0 || nodeId.NamespaceIndex >= this.Server.NamespaceUris.Count)
+                if (namespaceIndex < 0 || nodeId.NamespaceIndex >= Server.NamespaceUris.Count)
                 {
                     return null;
                 }
@@ -3355,7 +3320,6 @@ namespace Opc.Ua.Server
             return CreateUniqueNodeId(m_dynamicNamespaceIndex);
         }
 
-        #region Private Methods
         /// <inheritdoc/>
         private object GetManagerHandle(ExpandedNodeId nodeId)
         {
@@ -3463,8 +3427,6 @@ namespace Opc.Ua.Server
             return new NodeId(Utils.IncrementIdentifier(ref m_lastId), namespaceIndex);
         }
 
-#endregion
-#region Private Fields
         private readonly NodeTable m_nodes;
         private long m_lastId;
         private readonly SamplingGroupManager m_samplingGroupManager;
@@ -3472,6 +3434,5 @@ namespace Opc.Ua.Server
         private readonly double m_defaultMinimumSamplingInterval;
         private readonly List<string> m_namespaceUris;
         private readonly ushort m_dynamicNamespaceIndex;
-        #endregion
     }
 }

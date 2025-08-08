@@ -27,10 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using NUnit.Framework;
-using NUnit.Framework.Internal;
 using System;
 using System.Buffers;
+using NUnit.Framework;
+using NUnit.Framework.Internal;
 
 namespace Opc.Ua.Buffers.Tests
 {
@@ -50,8 +50,8 @@ namespace Opc.Ua.Buffers.Tests
             var writer = new ArrayPoolBufferWriter<byte>();
 
             // Act
-            Action act = () => writer.Dispose();
-            byte[] buffer = new byte[1] { 0x23 };
+            Action act = writer.Dispose;
+            byte[] buffer = [0x23];
 
             Memory<byte> memory = writer.GetMemory(1);
             memory.Span[0] = 0x12;

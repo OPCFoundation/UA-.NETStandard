@@ -68,10 +68,10 @@ namespace Alarms
         /// </summary>
         public static BaseDataVariableState CreateVariable(NodeState parent, ushort nameSpaceIndex, string path, string name, bool boolValue = false)
         {
-            uint dataTypeIdentifier = Opc.Ua.DataTypes.Int32;
+            uint dataTypeIdentifier = DataTypes.Int32;
             if (boolValue)
             {
-                dataTypeIdentifier = Opc.Ua.DataTypes.Boolean;
+                dataTypeIdentifier = DataTypes.Boolean;
             }
             return CreateVariable(parent, nameSpaceIndex, path, name, dataTypeIdentifier);
         }
@@ -93,15 +93,15 @@ namespace Alarms
             variable.UserWriteMask = AttributeWriteMask.DisplayName | AttributeWriteMask.Description;
             switch (dataTypeIdentifier)
             {
-                case Opc.Ua.DataTypes.Boolean:
+                case DataTypes.Boolean:
                     variable.DataType = DataTypeIds.Boolean;
                     variable.Value = false;
                     break;
-                case Opc.Ua.DataTypes.Int32:
+                case DataTypes.Int32:
                     variable.DataType = DataTypeIds.Int32;
                     variable.Value = AlarmDefines.NORMAL_START_VALUE;
                     break;
-                case Opc.Ua.DataTypes.Double:
+                case DataTypes.Double:
                     variable.DataType = DataTypeIds.Double;
                     variable.Value = (double)AlarmDefines.NORMAL_START_VALUE;
                     break;
@@ -162,10 +162,10 @@ namespace Alarms
             startMethod.InputArguments.DataType = DataTypeIds.Argument;
             startMethod.InputArguments.ValueRank = ValueRanks.OneDimension;
 
-            startMethod.InputArguments.Value = new Argument[]
-            {
+            startMethod.InputArguments.Value =
+            [
                         new Argument() { Name = "UInt32 value", Description = "Runtime of Alarms in seconds.",  DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar }
-            };
+            ];
         }
     }
 }

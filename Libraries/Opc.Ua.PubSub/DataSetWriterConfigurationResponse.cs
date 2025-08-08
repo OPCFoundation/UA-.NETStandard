@@ -45,7 +45,7 @@ namespace Opc.Ua.PubSub
         public WriterGroupDataType DataSetWriterConfig { get; set; }
 
         /// <summary>
-        /// Status codes indicating the capability of the Publisher to provide 
+        /// Status codes indicating the capability of the Publisher to provide
         /// configuration information for the DataSetWriterIds.The size of the array
         /// shall match the size of the DataSetWriterIds array.
         /// </summary>

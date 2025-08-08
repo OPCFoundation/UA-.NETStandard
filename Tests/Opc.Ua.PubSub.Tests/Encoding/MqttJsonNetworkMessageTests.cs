@@ -42,10 +42,10 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Configuration;
-using PubSubEncoding = Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.PublishedData;
 using Opc.Ua.PubSub.Transport;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
+using PubSubEncoding = Opc.Ua.PubSub.Encoding;
 
 namespace Opc.Ua.PubSub.Tests.Encoding
 {
@@ -56,12 +56,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         private const ushort NamespaceIndexAllTypes = 3;
 
         private const string MqttAddressUrl = "mqtt://localhost:1883";
-        static IList<DateTime> s_publishTimes = new List<DateTime>();
+        private static List<DateTime> s_publishTimes = [];
 
-        private const string MetaDataMessageId = "MessageId";
-        private const string MetaDataMessageType = "MessageType";
-        private const string MetaDataPublisherId = "PublisherId";
-        private const string MetaDataDataSetWriterId = "DataSetWriterId";
+        internal const string MetaDataMessageId = "MessageId";
+        internal const string MetaDataMessageType = "MessageType";
+        internal const string MetaDataPublisherId = "PublisherId";
+        internal const string MetaDataDataSetWriterId = "DataSetWriterId";
 
         [Flags]
         private enum MetaDataFailOptions
@@ -191,17 +191,17 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
             MessagesHelper.LoadData(publisherApplication, NamespaceIndexAllTypes);
 
-            IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
+            IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
             Assert.IsNotNull(connection, "Pubsub first connection should not be null");
 
             // Act
-            Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
-            Assert.IsNotNull(publisherConfiguration.Connections.First().WriterGroups.First(), "publisherConfiguration first writer group of first connection should not be null");
-            IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First(), new WriterGroupPublishState());
+            Assert.IsNotNull(publisherConfiguration.Connections[0], "publisherConfiguration first connection should not be null");
+            Assert.IsNotNull(publisherConfiguration.Connections[0].WriterGroups[0], "publisherConfiguration first writer group of first connection should not be null");
+            IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections[0].WriterGroups[0], new WriterGroupPublishState());
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
             Assert.GreaterOrEqual(networkMessages.Count, 1, "connection.CreateNetworkMessages shall have at least one network message");
 
-            List<PubSubEncoding.JsonNetworkMessage> uaDataNetworkMessages = MessagesHelper.GetJsonUaDataNetworkMessages(networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>().ToList());
+            List<PubSubEncoding.JsonNetworkMessage> uaDataNetworkMessages = MessagesHelper.GetJsonUaDataNetworkMessages([.. networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>()]);
             Assert.IsNotNull(uaDataNetworkMessages, "Json ua-data entries are missing from configuration!");
 
             // set PublisherId
@@ -210,7 +210,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 uaNetworkMessage.PublisherId = publisherId.ToString();
             }
 
-            List<PubSubEncoding.JsonNetworkMessage> uaMetaDataNetworkMessages = MessagesHelper.GetJsonUaMetaDataNetworkMessages(networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>().ToList());
+            List<PubSubEncoding.JsonNetworkMessage> uaMetaDataNetworkMessages = MessagesHelper.GetJsonUaMetaDataNetworkMessages([.. networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>()]);
             Assert.IsNotNull(uaMetaDataNetworkMessages, "Json ua-metadata entries are missing from configuration!");
 
             // set PublisherId
@@ -234,8 +234,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Create subscriber application for multiple datasets
             var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
-            Assert.IsNotNull(subscriberApplication.PubSubConnections.First(), "subscriberConfiguration first connection should not be null");
-            List<DataSetReaderDataType> dataSetReaders = subscriberApplication.PubSubConnections.First().GetOperationalDataSetReaders();
+            Assert.IsNotNull(subscriberApplication.PubSubConnections[0], "subscriberConfiguration first connection should not be null");
+            List<DataSetReaderDataType> dataSetReaders = subscriberApplication.PubSubConnections[0].GetOperationalDataSetReaders();
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
             // Assert
@@ -249,7 +249,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             }
         }
 
-        // [Ignore("Temporary disabled due to changes in DataSetClassId handling on NetworkMessage")]
+        /// <summary>
+        /// [Ignore("Temporary disabled due to changes in DataSetClassId handling on NetworkMessage")]
+        /// </summary>
+        /// <param name="dataSetFieldContentMask"></param>
+        /// <param name="jsonDataSetMessageContentMask"></param>
         [Test(Description = "Validate NetworkMessageHeader & DataSetClassId")]
         public void ValidateMessageHeaderAndDataSetClassIdWithParameters(
            [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
@@ -290,15 +294,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             JsonDataSetMessageContentMask.DataSetWriterId |JsonDataSetMessageContentMask.MetaDataVersion|JsonDataSetMessageContentMask.SequenceNumber|JsonDataSetMessageContentMask.Timestamp|JsonDataSetMessageContentMask.Status)]
                 JsonDataSetMessageContentMask jsonDataSetMessageContentMask)
         {
-
-
             /*The DataSetClassId associated with the DataSets in the NetworkMessage.
             This value is optional. The presence of the value depends on the setting in the JsonNetworkMessageContentMask.
             If specified, all DataSetMessages in the NetworkMessage shall have the same DataSetClassId.
             The source is the DataSetClassId on the PublishedDataSet (see 6.2.2.2) associated with the DataSetWriters that produced the DataSetMessages.*/
 
             // Arrange
-            JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.NetworkMessageHeader
+            const JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.NetworkMessageHeader
                 | JsonNetworkMessageContentMask.DataSetClassId | JsonNetworkMessageContentMask.SingleDataSetMessage;     // add SingleDataSetMessage flag because of the special implementation od DataSetClassId that is written only in this case
 
             var dataSetMetaDataArray = new DataSetMetaDataType[]
@@ -322,15 +324,15 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
             MessagesHelper.LoadData(publisherApplication, NamespaceIndexAllTypes);
 
-            IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
+            IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
             Assert.IsNotNull(connection, "Pubsub first connection should not be null");
 
             // Act
-            Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
-            Assert.IsNotNull(publisherConfiguration.Connections.First().WriterGroups.First(), "publisherConfiguration  first writer group of first connection should not be null");
-            IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First(), new WriterGroupPublishState());
+            Assert.IsNotNull(publisherConfiguration.Connections[0], "publisherConfiguration first connection should not be null");
+            Assert.IsNotNull(publisherConfiguration.Connections[0].WriterGroups[0], "publisherConfiguration  first writer group of first connection should not be null");
+            IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections[0].WriterGroups[0], new WriterGroupPublishState());
 
-            List<PubSubEncoding.JsonNetworkMessage> uaNetworkMessages = MessagesHelper.GetJsonUaDataNetworkMessages(networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>().ToList());
+            List<PubSubEncoding.JsonNetworkMessage> uaNetworkMessages = MessagesHelper.GetJsonUaDataNetworkMessages([.. networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>()]);
             Assert.IsNotNull(uaNetworkMessages, "Json ua-data entries are missing from configuration!");
 
             // set DataSetClassId
@@ -356,19 +358,19 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Create subscriber application for multiple datasets
             var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
-            Assert.IsNotNull(subscriberApplication.PubSubConnections.First(), "subscriberConfiguration first connection should not be null");
-            List<DataSetReaderDataType> dataSetReaders = subscriberApplication.PubSubConnections.First().GetOperationalDataSetReaders();
+            Assert.IsNotNull(subscriberApplication.PubSubConnections[0], "subscriberConfiguration first connection should not be null");
+            List<DataSetReaderDataType> dataSetReaders = subscriberApplication.PubSubConnections[0].GetOperationalDataSetReaders();
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
             // Assert
             // check first consistency of ua-data network messages
-            List<PubSubEncoding.JsonNetworkMessage> uaDataNetworkMessages = MessagesHelper.GetJsonUaDataNetworkMessages(networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>().ToList());
+            List<PubSubEncoding.JsonNetworkMessage> uaDataNetworkMessages = MessagesHelper.GetJsonUaDataNetworkMessages([.. networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>()]);
             Assert.IsNotNull(uaDataNetworkMessages, "Json ua-data entries are missing from configuration!");
 
             int index = 0;
             foreach (PubSubEncoding.JsonNetworkMessage uaDataNetworkMessage in uaDataNetworkMessages)
             {
-                CompareEncodeDecode(uaDataNetworkMessage, new List<DataSetReaderDataType>() { dataSetReaders[index++] });
+                CompareEncodeDecode(uaDataNetworkMessage, [dataSetReaders[index++]]);
             }
         }
 
@@ -413,7 +415,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 JsonDataSetMessageContentMask jsonDataSetMessageContentMask)
         {
             // Arrange
-            JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.NetworkMessageHeader
+            const JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.NetworkMessageHeader
                 | JsonNetworkMessageContentMask.DataSetMessageHeader;
 
             var dataSetMetaDataArray = new DataSetMetaDataType[]
@@ -437,20 +439,20 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
             MessagesHelper.LoadData(publisherApplication, NamespaceIndexAllTypes);
 
-            IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
+            IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
             Assert.IsNotNull(connection, "Pubsub first connection should not be null");
 
             // Act
-            Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
-            Assert.IsNotNull(publisherConfiguration.Connections.First().WriterGroups.First(), "publisherConfiguration  first writer group of first connection should not be null");
-            IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First(), new WriterGroupPublishState());
+            Assert.IsNotNull(publisherConfiguration.Connections[0], "publisherConfiguration first connection should not be null");
+            Assert.IsNotNull(publisherConfiguration.Connections[0].WriterGroups[0], "publisherConfiguration  first writer group of first connection should not be null");
+            IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections[0].WriterGroups[0], new WriterGroupPublishState());
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
             Assert.GreaterOrEqual(networkMessages.Count, 1, "connection.CreateNetworkMessages shall have at least one network message");
 
-            List<PubSubEncoding.JsonNetworkMessage> uaNetworkMessages = MessagesHelper.GetJsonUaDataNetworkMessages(networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>().ToList());
+            List<PubSubEncoding.JsonNetworkMessage> uaNetworkMessages = MessagesHelper.GetJsonUaDataNetworkMessages([.. networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>()]);
             Assert.IsNotNull(uaNetworkMessages, "Json ua-data entries are missing from configuration!");
 
-            List<PubSubEncoding.JsonNetworkMessage> uaMetaDataNetworkMessages = MessagesHelper.GetJsonUaMetaDataNetworkMessages(networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>().ToList());
+            List<PubSubEncoding.JsonNetworkMessage> uaMetaDataNetworkMessages = MessagesHelper.GetJsonUaMetaDataNetworkMessages([.. networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>()]);
             Assert.IsNotNull(uaMetaDataNetworkMessages, "Json ua-metadata entries are missing from configuration!");
 
             bool hasDataSetWriterId = (jsonNetworkMessageContentMask & JsonNetworkMessageContentMask.DataSetMessageHeader) != 0
@@ -468,8 +470,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Create subscriber application for multiple datasets
             var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
-            Assert.IsNotNull(subscriberApplication.PubSubConnections.First(), "subscriberConfiguration first connection should not be null");
-            List<DataSetReaderDataType> dataSetReaders = subscriberApplication.PubSubConnections.First().GetOperationalDataSetReaders();
+            Assert.IsNotNull(subscriberApplication.PubSubConnections[0], "subscriberConfiguration first connection should not be null");
+            List<DataSetReaderDataType> dataSetReaders = subscriberApplication.PubSubConnections[0].GetOperationalDataSetReaders();
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
             // Assert
@@ -482,7 +484,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 CompareEncodeDecodeMetaData(uaMetaDataNetworkMessage);
             }
         }
-
 
         [Test(Description = "Validate NetworkMessageHeader & DataSetMessageHeader with PublisherId parameter")]
         public void ValidateNetworkAndDataSetMessageHeaderWithParameters(
@@ -526,7 +527,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             [Values(1, "abc")] object publisherId)
         {
             // Arrange
-            JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.NetworkMessageHeader
+            const JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.NetworkMessageHeader
                 | JsonNetworkMessageContentMask.DataSetMessageHeader
                 | JsonNetworkMessageContentMask.PublisherId;
 
@@ -551,20 +552,20 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
             MessagesHelper.LoadData(publisherApplication, NamespaceIndexAllTypes);
 
-            IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
+            IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
             Assert.IsNotNull(connection, "Pubsub first connection should not be null");
 
             // Act
-            Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
-            Assert.IsNotNull(publisherConfiguration.Connections.First().WriterGroups.First(), "publisherConfiguration  first writer group of first connection should not be null");
-            IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First(), new WriterGroupPublishState());
+            Assert.IsNotNull(publisherConfiguration.Connections[0], "publisherConfiguration first connection should not be null");
+            Assert.IsNotNull(publisherConfiguration.Connections[0].WriterGroups[0], "publisherConfiguration  first writer group of first connection should not be null");
+            IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections[0].WriterGroups[0], new WriterGroupPublishState());
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
             Assert.GreaterOrEqual(networkMessages.Count, 1, "connection.CreateNetworkMessages shall have at least one network message");
 
-            List<PubSubEncoding.JsonNetworkMessage> uaNetworkMessages = MessagesHelper.GetJsonUaDataNetworkMessages(networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>().ToList());
+            List<PubSubEncoding.JsonNetworkMessage> uaNetworkMessages = MessagesHelper.GetJsonUaDataNetworkMessages([.. networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>()]);
             Assert.IsNotNull(uaNetworkMessages, "Json ua-data entries are missing from configuration!");
 
-            List<PubSubEncoding.JsonNetworkMessage> uaMetaDataNetworkMessages = MessagesHelper.GetJsonUaMetaDataNetworkMessages(networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>().ToList());
+            List<PubSubEncoding.JsonNetworkMessage> uaMetaDataNetworkMessages = MessagesHelper.GetJsonUaMetaDataNetworkMessages([.. networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>()]);
             Assert.IsNotNull(uaMetaDataNetworkMessages, "Json ua-metadata entries are missing from configuration!");
 
             bool hasDataSetWriterId = (jsonNetworkMessageContentMask & JsonNetworkMessageContentMask.DataSetMessageHeader) != 0
@@ -582,8 +583,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Create subscriber application for multiple datasets
             var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
-            Assert.IsNotNull(subscriberApplication.PubSubConnections.First(), "subscriberConfiguration first connection should not be null");
-            List<DataSetReaderDataType> dataSetReaders = subscriberApplication.PubSubConnections.First().GetOperationalDataSetReaders();
+            Assert.IsNotNull(subscriberApplication.PubSubConnections[0], "subscriberConfiguration first connection should not be null");
+            List<DataSetReaderDataType> dataSetReaders = subscriberApplication.PubSubConnections[0].GetOperationalDataSetReaders();
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
             // Assert
@@ -638,7 +639,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 JsonDataSetMessageContentMask jsonDataSetMessageContentMask)
         {
             // Arrange
-            JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.DataSetMessageHeader;
+            const JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.DataSetMessageHeader;
 
             var dataSetMetaDataArray = new DataSetMetaDataType[]
             {
@@ -661,20 +662,20 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
             MessagesHelper.LoadData(publisherApplication, NamespaceIndexAllTypes);
 
-            IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
+            IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
             Assert.IsNotNull(connection, "Pubsub first connection should not be null");
 
             // Act
-            Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
-            Assert.IsNotNull(publisherConfiguration.Connections.First().WriterGroups.First(), "publisherConfiguration  first writer group of first connection should not be null");
-            IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First(), new WriterGroupPublishState());
+            Assert.IsNotNull(publisherConfiguration.Connections[0], "publisherConfiguration first connection should not be null");
+            Assert.IsNotNull(publisherConfiguration.Connections[0].WriterGroups[0], "publisherConfiguration  first writer group of first connection should not be null");
+            IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections[0].WriterGroups[0], new WriterGroupPublishState());
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
             Assert.GreaterOrEqual(networkMessages.Count, 1, "connection.CreateNetworkMessages shall have at least one network message");
 
-            List<PubSubEncoding.JsonNetworkMessage> uaNetworkMessages = MessagesHelper.GetJsonUaDataNetworkMessages(networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>().ToList());
+            List<PubSubEncoding.JsonNetworkMessage> uaNetworkMessages = MessagesHelper.GetJsonUaDataNetworkMessages([.. networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>()]);
             Assert.IsNotNull(uaNetworkMessages, "Json ua-data entries are missing from configuration!");
 
-            List<PubSubEncoding.JsonNetworkMessage> uaMetaDataNetworkMessages = MessagesHelper.GetJsonUaMetaDataNetworkMessages(networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>().ToList());
+            List<PubSubEncoding.JsonNetworkMessage> uaMetaDataNetworkMessages = MessagesHelper.GetJsonUaMetaDataNetworkMessages([.. networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>()]);
             Assert.IsNotNull(uaMetaDataNetworkMessages, "Json ua-metadata entries are missing from configuration!");
 
             bool hasDataSetWriterId = (jsonNetworkMessageContentMask & JsonNetworkMessageContentMask.DataSetMessageHeader) != 0
@@ -692,8 +693,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Create subscriber application for multiple datasets
             var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
-            Assert.IsNotNull(subscriberApplication.PubSubConnections.First(), "subscriberConfiguration first connection should not be null");
-            List<DataSetReaderDataType> dataSetReaders = subscriberApplication.PubSubConnections.First().GetOperationalDataSetReaders();
+            Assert.IsNotNull(subscriberApplication.PubSubConnections[0], "subscriberConfiguration first connection should not be null");
+            List<DataSetReaderDataType> dataSetReaders = subscriberApplication.PubSubConnections[0].GetOperationalDataSetReaders();
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
             // Assert
@@ -759,7 +760,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             // Arrange
             // mark SingleDataSetMessage message
-            jsonNetworkMessageContentMask = jsonNetworkMessageContentMask | JsonNetworkMessageContentMask.SingleDataSetMessage;
+            jsonNetworkMessageContentMask |= JsonNetworkMessageContentMask.SingleDataSetMessage;
 
             var dataSetMetaDataArray = new DataSetMetaDataType[]
            {
@@ -782,13 +783,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
             MessagesHelper.LoadData(publisherApplication, NamespaceIndexAllTypes);
 
-            IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
+            IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
             Assert.IsNotNull(connection, "Pubsub first connection should not be null");
 
             // Act
-            Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
-            Assert.IsNotNull(publisherConfiguration.Connections.First().WriterGroups.First(), "publisherConfiguration  first writer group of first connection should not be null");
-            IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First(), new WriterGroupPublishState());
+            Assert.IsNotNull(publisherConfiguration.Connections[0], "publisherConfiguration first connection should not be null");
+            Assert.IsNotNull(publisherConfiguration.Connections[0].WriterGroups[0], "publisherConfiguration  first writer group of first connection should not be null");
+            IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections[0].WriterGroups[0], new WriterGroupPublishState());
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
             Assert.GreaterOrEqual(networkMessages.Count, 1, "connection.CreateNetworkMessages shall have at least one network message");
 
@@ -807,21 +808,21 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Create subscriber application for multiple datasets
             var subscriberApplication = UaPubSubApplication.Create(subscriberConfiguration);
             Assert.IsNotNull(subscriberApplication, "subscriberApplication should not be null");
-            Assert.IsNotNull(subscriberApplication.PubSubConnections.First(), "subscriberConfiguration first connection should not be null");
-            List<DataSetReaderDataType> dataSetReaders = subscriberApplication.PubSubConnections.First().GetOperationalDataSetReaders();
+            Assert.IsNotNull(subscriberApplication.PubSubConnections[0], "subscriberConfiguration first connection should not be null");
+            List<DataSetReaderDataType> dataSetReaders = subscriberApplication.PubSubConnections[0].GetOperationalDataSetReaders();
             Assert.IsNotNull(dataSetReaders, "dataSetReaders should not be null");
 
             // Assert
             // check first consistency of ua-data network messages
-            List<PubSubEncoding.JsonNetworkMessage> uaDataNetworkMessages = MessagesHelper.GetJsonUaDataNetworkMessages(networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>().ToList());
+            List<PubSubEncoding.JsonNetworkMessage> uaDataNetworkMessages = MessagesHelper.GetJsonUaDataNetworkMessages([.. networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>()]);
             Assert.IsNotNull(uaDataNetworkMessages, "Json ua-data entries are missing from configuration!");
             int index = 0;
             foreach (PubSubEncoding.JsonNetworkMessage uaDataNetworkMessage in uaDataNetworkMessages)
             {
-                CompareEncodeDecode(uaDataNetworkMessage, new List<DataSetReaderDataType>() { dataSetReaders[index++] });
+                CompareEncodeDecode(uaDataNetworkMessage, [dataSetReaders[index++]]);
             }
 
-            List<PubSubEncoding.JsonNetworkMessage> uaMetaDataNetworkMessages = MessagesHelper.GetJsonUaMetaDataNetworkMessages(networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>().ToList());
+            List<PubSubEncoding.JsonNetworkMessage> uaMetaDataNetworkMessages = MessagesHelper.GetJsonUaMetaDataNetworkMessages([.. networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>()]);
             Assert.IsNotNull(uaMetaDataNetworkMessages, "Json ua-metadata entries are missing from configuration!");
             index = 0;
             foreach (PubSubEncoding.JsonNetworkMessage uaMetaDataNetworkMessage in uaMetaDataNetworkMessages)
@@ -834,9 +835,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public void ValidateMetaDataIsEncodedCorrectly()
         {
             // Arrange
-            JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.None;
-            JsonDataSetMessageContentMask jsonDataSetMessageContentMask = JsonDataSetMessageContentMask.None;
-            DataSetFieldContentMask dataSetFieldContentMask = DataSetFieldContentMask.None;
+            const JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.None;
+            const JsonDataSetMessageContentMask jsonDataSetMessageContentMask = JsonDataSetMessageContentMask.None;
+            const DataSetFieldContentMask dataSetFieldContentMask = DataSetFieldContentMask.None;
 
             var dataSetMetaDataArray = new DataSetMetaDataType[]
             {
@@ -862,19 +863,19 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
             MessagesHelper.LoadData(publisherApplication, NamespaceIndexAllTypes);
 
-            IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
+            IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
             Assert.IsNotNull(connection, "Pubsub first connection should not be null");
 
             var publishState = new WriterGroupPublishState();
 
             // Act
-            Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
-            Assert.IsNotNull(publisherConfiguration.Connections.First().WriterGroups.First(), "publisherConfiguration  first writer group of first connection should not be null");
-            IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First(), publishState);
+            Assert.IsNotNull(publisherConfiguration.Connections[0], "publisherConfiguration first connection should not be null");
+            Assert.IsNotNull(publisherConfiguration.Connections[0].WriterGroups[0], "publisherConfiguration  first writer group of first connection should not be null");
+            IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections[0].WriterGroups[0], publishState);
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
             Assert.GreaterOrEqual(networkMessages.Count, 1, "connection.CreateNetworkMessages shall have at least one network message");
 
-            List<PubSubEncoding.JsonNetworkMessage> uaMetaDataNetworkMessages = MessagesHelper.GetJsonUaMetaDataNetworkMessages(networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>().ToList());
+            List<PubSubEncoding.JsonNetworkMessage> uaMetaDataNetworkMessages = MessagesHelper.GetJsonUaMetaDataNetworkMessages([.. networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>()]);
             Assert.IsNotNull(uaMetaDataNetworkMessages, "Json ua-metadata entries are missing from configuration!");
 
             foreach (PubSubEncoding.JsonNetworkMessage uaMetaDataNetworkMessage in uaMetaDataNetworkMessages)
@@ -887,9 +888,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public void ValidateMetaDataUpdateTimeZeroSentAtStartup()
         {
             // Arrange
-            JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.None;
-            JsonDataSetMessageContentMask jsonDataSetMessageContentMask = JsonDataSetMessageContentMask.None;
-            DataSetFieldContentMask dataSetFieldContentMask = DataSetFieldContentMask.None;
+            const JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.None;
+            const JsonDataSetMessageContentMask jsonDataSetMessageContentMask = JsonDataSetMessageContentMask.None;
+            const DataSetFieldContentMask dataSetFieldContentMask = DataSetFieldContentMask.None;
 
             var dataSetMetaDataArray = new DataSetMetaDataType[]
             {
@@ -915,20 +916,20 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
             MessagesHelper.LoadData(publisherApplication, NamespaceIndexAllTypes);
 
-            IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
+            IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
             Assert.IsNotNull(connection, "Pubsub first connection should not be null");
 
             var publishState = new WriterGroupPublishState();
 
             // Act
-            Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
-            Assert.IsNotNull(publisherConfiguration.Connections.First().WriterGroups.First(), "publisherConfiguration  first writer group of first connection should not be null");
+            Assert.IsNotNull(publisherConfiguration.Connections[0], "publisherConfiguration first connection should not be null");
+            Assert.IsNotNull(publisherConfiguration.Connections[0].WriterGroups[0], "publisherConfiguration  first writer group of first connection should not be null");
 
-            IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First(), publishState);
+            IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections[0].WriterGroups[0], publishState);
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
             Assert.GreaterOrEqual(networkMessages.Count, 1, "connection.CreateNetworkMessages shall have at least one network message");
 
-            List<PubSubEncoding.JsonNetworkMessage> uaMetaDataNetworkMessages = MessagesHelper.GetJsonUaMetaDataNetworkMessages(networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>().ToList());
+            List<PubSubEncoding.JsonNetworkMessage> uaMetaDataNetworkMessages = MessagesHelper.GetJsonUaMetaDataNetworkMessages([.. networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>()]);
             Assert.IsNotNull(uaMetaDataNetworkMessages, "Json ua-metadata entries are missing from configuration!");
 
             // check if there are as many metadata messages as metadata were created in ARRAY
@@ -944,11 +945,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             }
 
             // get the messages again and see if there are any metadata messages
-            networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First(), publishState);
+            networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections[0].WriterGroups[0], publishState);
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
             Assert.GreaterOrEqual(networkMessages.Count, 1, "connection.CreateNetworkMessages shall have at least one network message");
 
-            uaMetaDataNetworkMessages = MessagesHelper.GetJsonUaMetaDataNetworkMessages(networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>().ToList());
+            uaMetaDataNetworkMessages = MessagesHelper.GetJsonUaMetaDataNetworkMessages([.. networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>()]);
             Assert.IsNotNull(uaMetaDataNetworkMessages, "Json ua-metadata entries are missing from configuration!");
 
             // check if there are any metadata messages. second time around there shall be no metadata messages
@@ -959,9 +960,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public void ValidateMetaDataUpdateTimeZeroSentAtMetaDataChange()
         {
             // Arrange
-            JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.None;
-            JsonDataSetMessageContentMask jsonDataSetMessageContentMask = JsonDataSetMessageContentMask.None;
-            DataSetFieldContentMask dataSetFieldContentMask = DataSetFieldContentMask.None;
+            const JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.None;
+            const JsonDataSetMessageContentMask jsonDataSetMessageContentMask = JsonDataSetMessageContentMask.None;
+            const DataSetFieldContentMask dataSetFieldContentMask = DataSetFieldContentMask.None;
 
             var dataSetMetaDataArray = new DataSetMetaDataType[]
             {
@@ -987,19 +988,19 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
             MessagesHelper.LoadData(publisherApplication, NamespaceIndexAllTypes);
 
-            IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
+            IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
             Assert.IsNotNull(connection, "Pubsub first connection should not be null");
 
             var publishState = new WriterGroupPublishState();
 
             // Act
-            Assert.IsNotNull(publisherConfiguration.Connections.First(), "publisherConfiguration first connection should not be null");
-            Assert.IsNotNull(publisherConfiguration.Connections.First().WriterGroups.First(), "publisherConfiguration  first writer group of first connection should not be null");
-            IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First(), publishState);
+            Assert.IsNotNull(publisherConfiguration.Connections[0], "publisherConfiguration first connection should not be null");
+            Assert.IsNotNull(publisherConfiguration.Connections[0].WriterGroups[0], "publisherConfiguration  first writer group of first connection should not be null");
+            IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections[0].WriterGroups[0], publishState);
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
             Assert.GreaterOrEqual(networkMessages.Count, 1, "connection.CreateNetworkMessages shall have at least one network message");
 
-            List<PubSubEncoding.JsonNetworkMessage> uaMetaDataNetworkMessages = MessagesHelper.GetJsonUaMetaDataNetworkMessages(networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>().ToList());
+            List<PubSubEncoding.JsonNetworkMessage> uaMetaDataNetworkMessages = MessagesHelper.GetJsonUaMetaDataNetworkMessages([.. networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>()]);
             Assert.IsNotNull(uaMetaDataNetworkMessages, "Json ua-metadata entries are missing from configuration!");
 
             // check if there are as many metadata messages as metadata were created in ARRAY
@@ -1015,11 +1016,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             }
 
             // get the messages again and see if there are any metadata messages
-            networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First(), publishState);
+            networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections[0].WriterGroups[0], publishState);
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
             Assert.GreaterOrEqual(networkMessages.Count, 1, "connection.CreateNetworkMessages shall have at least one network message");
 
-            uaMetaDataNetworkMessages = MessagesHelper.GetJsonUaMetaDataNetworkMessages(networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>().ToList());
+            uaMetaDataNetworkMessages = MessagesHelper.GetJsonUaMetaDataNetworkMessages([.. networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>()]);
             Assert.IsNotNull(uaMetaDataNetworkMessages, "Json ua-metadata entries are missing from configuration!");
 
             // check if there are any metadata messages. second time around there shall be no metadata messages
@@ -1035,11 +1036,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             }
 
             // get the messages again and see if there are any metadata messages
-            networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections.First().WriterGroups.First(), publishState);
+            networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections[0].WriterGroups[0], publishState);
             Assert.IsNotNull(networkMessages, "After MetaDataVersion change - connection.CreateNetworkMessages shall not return null");
             Assert.GreaterOrEqual(networkMessages.Count, 1, "After MetaDataVersion change - connection.CreateNetworkMessages shall have at least one network message");
 
-            uaMetaDataNetworkMessages = MessagesHelper.GetJsonUaMetaDataNetworkMessages(networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>().ToList());
+            uaMetaDataNetworkMessages = MessagesHelper.GetJsonUaMetaDataNetworkMessages([.. networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>()]);
             Assert.IsNotNull(uaMetaDataNetworkMessages, "After MetaDataVersion change - Json ua-metadata entries are missing from configuration!");
 
             // check if there are any metadata messages. second time around there shall be no metadata messages
@@ -1064,9 +1065,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             s_publishTimes.Clear();
             // arrange
-            JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.None;
-            JsonDataSetMessageContentMask jsonDataSetMessageContentMask = JsonDataSetMessageContentMask.None;
-            DataSetFieldContentMask dataSetFieldContentMask = DataSetFieldContentMask.None;
+            const JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.None;
+            const JsonDataSetMessageContentMask jsonDataSetMessageContentMask = JsonDataSetMessageContentMask.None;
+            const DataSetFieldContentMask dataSetFieldContentMask = DataSetFieldContentMask.None;
 
             var dataSetMetaDataArray = new DataSetMetaDataType[]
             {
@@ -1092,7 +1093,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             mockConnection.Setup(x => x.CreateDataSetMetaDataNetworkMessage(It.IsAny<WriterGroupDataType>(), It.IsAny<DataSetWriterDataType>()))
                 .Callback(() => s_publishTimes.Add(DateTime.Now));
 
-            WriterGroupDataType writerGroupDataType = publisherConfiguration.Connections.First().WriterGroups.First();
+            WriterGroupDataType writerGroupDataType = publisherConfiguration.Connections[0].WriterGroups[0];
 
             //Act
             var mqttMetaDataPublisher = new MqttMetadataPublisher(mockConnection.Object, writerGroupDataType,
@@ -1105,9 +1106,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             int faultIndex = -1;
             double faultDeviation = 0;
 
-            s_publishTimes = (from t in s_publishTimes
+            s_publishTimes = [.. (from t in s_publishTimes
                               orderby t
-                              select t).ToList();
+                              select t)];
 
             //Assert
             for (int i = 1; i < s_publishTimes.Count; i++)
@@ -1202,9 +1203,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             [Values("1", null)] string publisherId,
             [Values("1", null)] string dataSetClassId)
         {
-            JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.NetworkMessageHeader;
-            JsonDataSetMessageContentMask jsonDataSetMessageContentMask = JsonDataSetMessageContentMask.DataSetWriterId;
-            DataSetFieldContentMask dataSetFieldContentMask = DataSetFieldContentMask.None;
+            const JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.NetworkMessageHeader;
+            const JsonDataSetMessageContentMask jsonDataSetMessageContentMask = JsonDataSetMessageContentMask.DataSetWriterId;
+            const DataSetFieldContentMask dataSetFieldContentMask = DataSetFieldContentMask.None;
 
             var dataSetMetaDataArray = new DataSetMetaDataType[]
             {
@@ -1227,15 +1228,15 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(publisherApplication, "publisherApplication should not be null");
             MessagesHelper.LoadData(publisherApplication, NamespaceIndexAllTypes);
 
-            IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
+            IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
             Assert.IsNotNull(connection, "Pubsub first connection should not be null");
 
-            IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(pubSubConfiguration.Connections.First().WriterGroups.First(), new WriterGroupPublishState());
+            IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(pubSubConfiguration.Connections[0].WriterGroups[0], new WriterGroupPublishState());
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
 
             // Assert
             // check first consistency of ua-data network messages
-            List<PubSubEncoding.JsonNetworkMessage> uaDataNetworkMessages = MessagesHelper.GetJsonUaDataNetworkMessages(networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>().ToList());
+            List<PubSubEncoding.JsonNetworkMessage> uaDataNetworkMessages = MessagesHelper.GetJsonUaDataNetworkMessages([.. networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>()]);
             Assert.IsNotNull(uaDataNetworkMessages, "Json ua-data entries are missing from configuration!");
 
             foreach (PubSubEncoding.JsonNetworkMessage jsonNetworkMessage in uaDataNetworkMessages)
@@ -1302,15 +1303,15 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(publisherApplication, "publisherApplication should not be null");
             MessagesHelper.LoadData(publisherApplication, NamespaceIndexAllTypes);
 
-            IUaPubSubConnection connection = publisherApplication.PubSubConnections.First();
+            IUaPubSubConnection connection = publisherApplication.PubSubConnections[0];
             Assert.IsNotNull(connection, "Pubsub first connection should not be null");
 
-            IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(pubSubConfiguration.Connections.First().WriterGroups.First(), new WriterGroupPublishState());
+            IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(pubSubConfiguration.Connections[0].WriterGroups[0], new WriterGroupPublishState());
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
 
             // Assert
             // check first consistency of ua-data network messages
-            List<PubSubEncoding.JsonNetworkMessage> uaDataNetworkMessages = MessagesHelper.GetJsonUaDataNetworkMessages(networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>().ToList());
+            List<PubSubEncoding.JsonNetworkMessage> uaDataNetworkMessages = MessagesHelper.GetJsonUaDataNetworkMessages([.. networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>()]);
             Assert.IsNotNull(uaDataNetworkMessages, "Json ua-data entries are missing from configuration!");
 
             foreach (PubSubEncoding.JsonNetworkMessage jsonNetworkMessage in uaDataNetworkMessages)
@@ -1342,21 +1343,18 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 }
 
                 object failOptions = VerifyDataEncoding(jsonNetworkMessage);
-                if (failOptions is DataSetMessageFailOptions &&
-                   (DataSetMessageFailOptions)failOptions != DataSetMessageFailOptions.Ok)
+                if (failOptions is DataSetMessageFailOptions dmfo && dmfo != DataSetMessageFailOptions.Ok)
                 {
                     Assert.AreEqual(failOptions, DataSetMessageFailOptions.DataSetWriterId, "ValidateMissingDataSetMessagesFields should fail due to missing DataSetWriterId reason.");
                 }
             }
         }
 
-        #region Private methods
-
         /// <summary>
         /// Compare encoded/decoded network messages
         /// </summary>
         /// <param name="jsonNetworkMessage">the message to encode</param>
-        private void CompareEncodeDecodeMetaData(PubSubEncoding.JsonNetworkMessage jsonNetworkMessage)
+        private static void CompareEncodeDecodeMetaData(PubSubEncoding.JsonNetworkMessage jsonNetworkMessage)
         {
             Assert.IsTrue(jsonNetworkMessage.IsMetaDataMessage, "The received message is not a metadata message");
 
@@ -1382,7 +1380,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// </summary>
         /// <param name="jsonNetworkMessage">the message to encode</param>
         /// <param name="dataSetReaders">The list of readers used to decode</param>
-        private void CompareEncodeDecode(PubSubEncoding.JsonNetworkMessage jsonNetworkMessage, IList<DataSetReaderDataType> dataSetReaders)
+        private static void CompareEncodeDecode(PubSubEncoding.JsonNetworkMessage jsonNetworkMessage, IList<DataSetReaderDataType> dataSetReaders)
         {
             byte[] bytes = jsonNetworkMessage.Encode(ServiceMessageContext.GlobalContext);
 
@@ -1404,7 +1402,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <param name="jsonNetworkMessageEncode"></param>
         /// <param name="jsonNetworkMessageDecoded"></param>
         /// <returns></returns>
-        private void CompareData(PubSubEncoding.JsonNetworkMessage jsonNetworkMessageEncode, PubSubEncoding.JsonNetworkMessage jsonNetworkMessageDecoded)
+        private static void CompareData(PubSubEncoding.JsonNetworkMessage jsonNetworkMessageEncode, PubSubEncoding.JsonNetworkMessage jsonNetworkMessageDecoded)
         {
             JsonNetworkMessageContentMask networkMessageContentMask = jsonNetworkMessageEncode.NetworkMessageContentMask;
 
@@ -1415,7 +1413,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     jsonNetworkMessageDecoded.NetworkMessageContentMask, "NetworkMessageContentMask were not decoded correctly");
             }
 
-            #region Network Message Header
             if ((networkMessageContentMask & JsonNetworkMessageContentMask.NetworkMessageHeader) != 0)
             {
                 if ((networkMessageContentMask & JsonNetworkMessageContentMask.PublisherId) != 0)
@@ -1428,9 +1425,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     Assert.AreEqual(jsonNetworkMessageEncode.DataSetClassId, jsonNetworkMessageDecoded.DataSetClassId, "DataSetClassId was not decoded correctly");
                 }
             }
-            #endregion
 
-            #region Payload header + Payload data
             var receivedDataSetMessages = jsonNetworkMessageDecoded.DataSetMessages.ToList();
 
             Assert.IsNotNull(receivedDataSetMessages, "Received DataSetMessages is null");
@@ -1543,19 +1538,18 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     break;
                 }
             }
-            #endregion
         }
 
         /// <summary>
         /// Validate MetaData(DataSetMetaData) encoding consistency
         /// </summary>
         /// <param name="jsonNetworkMessage"></param>
-        private void ValidateMetaDataEncoding(PubSubEncoding.JsonNetworkMessage jsonNetworkMessage)
+        private static void ValidateMetaDataEncoding(PubSubEncoding.JsonNetworkMessage jsonNetworkMessage)
         {
             MetaDataFailOptions failOptions = VerifyDataSetMetaDataEncoding(jsonNetworkMessage);
             if (failOptions != MetaDataFailOptions.Ok)
             {
-                Assert.Fail($"The mandatory 'jsonNetworkMessage.{failOptions}' field is wrong or missing from decoded message.");
+                NUnit.Framework.Assert.Fail($"The mandatory 'jsonNetworkMessage.{failOptions}' field is wrong or missing from decoded message.");
             }
         }
 
@@ -1563,7 +1557,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// Verify DataSetMetaData encoding consistency
         /// </summary>
         /// <param name="jsonNetworkMessage"></param>
-        private MetaDataFailOptions VerifyDataSetMetaDataEncoding(PubSubEncoding.JsonNetworkMessage jsonNetworkMessage)
+        private static MetaDataFailOptions VerifyDataSetMetaDataEncoding(PubSubEncoding.JsonNetworkMessage jsonNetworkMessage)
         {
             if (jsonNetworkMessage.DataSetMetaData == null ||
                 jsonNetworkMessage.MessageType != MessagesHelper.UaMetaDataMessageType)
@@ -1584,10 +1578,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             object token = null;
             string jsonMessage = System.Text.Encoding.ASCII.GetString(networkMessage);
-            using (IJsonDecoder jsonDecoder = new JsonDecoder(jsonMessage, context))
+            using (var  jsonDecoder = new JsonDecoder(jsonMessage, context))
             {
-                #region Verify DataSetMetaData mandatory fields
-
                 if (jsonDecoder.ReadField(MetaDataMessageId, out token))
                 {
                     messageIdValue = jsonDecoder.ReadString(MetaDataMessageId);
@@ -1627,8 +1619,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     return MetaDataFailOptions.DataSetWriterId;
                 }
                 Assert.AreEqual(jsonNetworkMessage.DataSetWriterId, dataSetWriterIdValue, "DataSetWriterId was not decoded correctly, Encoded: {0} Decoded: {1}", jsonNetworkMessage.DataSetWriterId, dataSetWriterIdValue);
-
-                #region Verify DataSetMetaData.Metadata fields, the Metadata value is also mandatory
 
                 DataSetMetaDataType jsonDataSetMetaData = jsonNetworkMessage.DataSetMetaData;
 
@@ -1688,10 +1678,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 Assert.IsTrue(Utils.IsEqual(jsonNetworkMessage.DataSetMetaData.ConfigurationVersion, dataSetMetaData.ConfigurationVersion), "DataSetMetaData.ConfigurationVersion was not decoded correctly, Encoded: {0} Decoded: {1}",
                     Utils.Format("MajorVersion: {0}, MinorVersion: {1}", jsonNetworkMessage.DataSetMetaData.ConfigurationVersion.MajorVersion, jsonNetworkMessage.DataSetMetaData.ConfigurationVersion.MinorVersion),
                     Utils.Format("MajorVersion: {0}, MinorVersion: {1}", dataSetMetaData.ConfigurationVersion.MajorVersion, dataSetMetaData.ConfigurationVersion.MinorVersion));
-
-                #endregion
-
-                #endregion
             }
 
             return MetaDataFailOptions.Ok;
@@ -1701,22 +1687,17 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// Verify NetworkMessage encoding consistency
         /// </summary>
         /// <param name="jsonNetworkMessage"></param>
-        private void ValidateDataEncoding(PubSubEncoding.JsonNetworkMessage jsonNetworkMessage)
+        private static void ValidateDataEncoding(PubSubEncoding.JsonNetworkMessage jsonNetworkMessage)
         {
             object failOptions = VerifyDataEncoding(jsonNetworkMessage);
-            if (failOptions is NetworkMessageFailOptions)
+            switch (failOptions)
             {
-                if ((NetworkMessageFailOptions)failOptions != NetworkMessageFailOptions.Ok)
-                {
-                    Assert.Fail($"The mandatory 'jsonNetworkMessage.{failOptions}' field is wrong or missing from decoded message.");
-                }
-            }
-            if (failOptions is DataSetMessageFailOptions)
-            {
-                if ((DataSetMessageFailOptions)failOptions != DataSetMessageFailOptions.Ok)
-                {
-                    Assert.Fail($"The mandatory 'jsonDataSetMessage.{failOptions}' field is wrong or missing from decoded message.");
-                }
+                case NetworkMessageFailOptions nmfo when nmfo != NetworkMessageFailOptions.Ok:
+                    NUnit.Framework.Assert.Fail($"The mandatory 'jsonNetworkMessage.{failOptions}' field is wrong or missing from decoded message.");
+                    break;
+                case DataSetMessageFailOptions dmfo when dmfo != DataSetMessageFailOptions.Ok:
+                    NUnit.Framework.Assert.Fail($"The mandatory 'jsonDataSetMessage.{failOptions}' field is wrong or missing from decoded message.");
+                    break;
             }
         }
 
@@ -1724,7 +1705,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// Verify NetworkMessage data encoding consistency
         /// </summary>
         /// <param name="jsonNetworkMessage"></param>
-        private object VerifyDataEncoding(PubSubEncoding.JsonNetworkMessage jsonNetworkMessage)
+        private static object VerifyDataEncoding(PubSubEncoding.JsonNetworkMessage jsonNetworkMessage)
         {
             // encode network message
             byte[] networkMessage = jsonNetworkMessage.Encode(ServiceMessageContext.GlobalContext);
@@ -1733,7 +1714,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             ServiceMessageContext context = ServiceMessageContext.GlobalContext;
 
             string jsonMessage = System.Text.Encoding.ASCII.GetString(networkMessage);
-            using (IJsonDecoder jsonDecoder = new JsonDecoder(jsonMessage, context))
+            using (var  jsonDecoder = new JsonDecoder(jsonMessage, context))
             {
                 if (jsonNetworkMessage.HasNetworkMessageHeader)
                 {
@@ -1763,7 +1744,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <param name="jsonNetworkMessage"></param>
         /// <param name="jsonDecoder"></param>
         /// <returns></returns>
-        private NetworkMessageFailOptions VerifyNetworkMessageEncoding(PubSubEncoding.JsonNetworkMessage jsonNetworkMessage, IJsonDecoder jsonDecoder)
+        private static NetworkMessageFailOptions VerifyNetworkMessageEncoding(PubSubEncoding.JsonNetworkMessage jsonNetworkMessage, JsonDecoder jsonDecoder)
         {
             string messageIdValue = null;
             string messageTypeValue = null;
@@ -1771,8 +1752,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             string dataSetClassIdValue = null;
 
             object token = null;
-
-            #region Verify NetworkMessage mandatory fields
 
             if (jsonDecoder.ReadField(NetworkMessageMessageId, out token))
             {
@@ -1794,10 +1773,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             }
             Assert.AreEqual(jsonNetworkMessage.MessageType, messageTypeValue, "MessageType was not decoded correctly, Encoded: {0} Decoded: {1}", jsonNetworkMessage.MessageType, messageTypeValue);
 
-            #endregion Verify NetworkMessage mandatory fields
-
-            #region Verify NetworkMessage optional fields
-
             if (jsonDecoder.ReadField(NetworkMessagePublisherId, out token))
             {
                 publisherIdValue = jsonDecoder.ReadString(NetworkMessagePublisherId);
@@ -1810,8 +1785,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 Assert.AreEqual(jsonNetworkMessage.DataSetClassId, dataSetClassIdValue, "DataSetClassId was not decoded correctly, Encoded: {0} Decoded: {1}", jsonNetworkMessage.PublisherId, publisherIdValue);
             }
 
-            #endregion Verify NetworkMessage optional fields
-
             return NetworkMessageFailOptions.Ok;
         }
 
@@ -1821,7 +1794,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <param name="jsonNetworkMessage"></param>
         /// <param name="jsonDecoder"></param>
         /// <returns></returns>
-        private DataSetMessageFailOptions VerifyDataSetMessagesEncoding(PubSubEncoding.JsonNetworkMessage jsonNetworkMessage, IJsonDecoder jsonDecoder)
+        private static DataSetMessageFailOptions VerifyDataSetMessagesEncoding(PubSubEncoding.JsonNetworkMessage jsonNetworkMessage, JsonDecoder jsonDecoder)
         {
             ushort dataSetWriterIdValue = 0;
             uint sequenceNumberValue = 0;
@@ -1882,8 +1855,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     bool wasPushed = jsonDecoder.PushArray(JsonDecoder.RootArrayName, index++);
                     if (wasPushed)
                     {
-                        #region Verify DataSetMessages mandatory fields
-
                         if (jsonDecoder.ReadField(DataSetMessageDataSetWriterId, out token))
                         {
                             dataSetWriterIdValue = jsonDecoder.ReadUInt16(DataSetMessageDataSetWriterId);
@@ -1893,12 +1864,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                 return DataSetMessageFailOptions.DataSetWriterId;
                             }
                         }
-                        else
+                        else if ((jsonDataSetMessage.DataSetMessageContentMask & JsonDataSetMessageContentMask.DataSetWriterId) != 0)
                         {
-                            if ((jsonDataSetMessage.DataSetMessageContentMask & JsonDataSetMessageContentMask.DataSetWriterId) != 0)
-                            {
-                                return DataSetMessageFailOptions.DataSetWriterId;
-                            }
+                            return DataSetMessageFailOptions.DataSetWriterId;
                         }
 
                         if (jsonDecoder.ReadField(DataSetMessagePayload, out token))
@@ -1928,11 +1896,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                 decodedFieldValue = DecodeFieldData(jsonDecoder, field.FieldMetaData, field.FieldMetaData.Name);
                                                 Assert.IsNotNull(decodedFieldValue, "Decoded Field: {0} value should not be null", field.FieldMetaData.Name);
                                                 // ExtendedNodeId namespaceIndex workaround issue
-                                                if (decodedFieldValue is ExpandedNodeId &&
-                                                    !string.IsNullOrEmpty(((ExpandedNodeId)decodedFieldValue).NamespaceUri))
+                                                if (decodedFieldValue is ExpandedNodeId expandedNodeId1 &&
+                                                    !string.IsNullOrEmpty(expandedNodeId1.NamespaceUri))
                                                 {
                                                     // replace the namespaceUri with namespaceIndex to match the encoded value
-                                                    var expandedNodeId = Utils.Clone(decodedFieldValue) as ExpandedNodeId;
+                                                    var expandedNodeId = Utils.Clone(expandedNodeId1);
                                                     Assert.IsNotNull(expandedNodeId, "Decoded 'ExpandedNodeId' Field: {0} should not be null", field.FieldMetaData.Name);
                                                     Assert.IsNotEmpty(expandedNodeId.NamespaceUri, "Decoded 'ExpandedNodeId.NamespaceUri' Field: {0} should not be empty", field.FieldMetaData.Name);
 
@@ -1971,16 +1939,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                         }
                                                     }
 
-                                                    if ((jsonDataSetMessage.FieldContentMask & DataSetFieldContentMask.StatusCode) != 0)
+                                                    if ((jsonDataSetMessage.FieldContentMask & DataSetFieldContentMask.StatusCode) != 0 && jsonDecoder.ReadField("StatusCode", out token))
                                                     {
-                                                        if (jsonDecoder.ReadField("StatusCode", out token))
+                                                        bool wasPush3 = jsonDecoder.PushStructure("StatusCode");
+                                                        if (wasPush3)
                                                         {
-                                                            bool wasPush3 = jsonDecoder.PushStructure("StatusCode");
-                                                            if (wasPush3)
-                                                            {
-                                                                dataValue.StatusCode = jsonDecoder.ReadStatusCode("Code");
-                                                                jsonDecoder.Pop();
-                                                            }
+                                                            dataValue.StatusCode = jsonDecoder.ReadStatusCode("Code");
+                                                            jsonDecoder.Pop();
                                                         }
                                                     }
 
@@ -2005,11 +1970,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                     }
                                                     Assert.IsNotNull(dataValue.Value, "Decoded Field: {0} value should not be null", field.FieldMetaData.Name);
                                                     // ExtendedNodeId namespaceIndex workaround issue
-                                                    if (dataValue.Value is ExpandedNodeId &&
-                                                        !string.IsNullOrEmpty(((ExpandedNodeId)dataValue.Value).NamespaceUri))
+                                                    if (dataValue.Value is ExpandedNodeId expandedNodeId2 &&
+                                                        !string.IsNullOrEmpty(expandedNodeId2.NamespaceUri))
                                                     {
                                                         // replace the namespaceUri with namespaceIndex to match the encoded value
-                                                        var expandedNodeId = Utils.Clone(dataValue.Value) as ExpandedNodeId;
+                                                        var expandedNodeId = Utils.Clone(expandedNodeId2);
                                                         Assert.IsNotNull(expandedNodeId, "Decoded 'ExpandedNodeId' Field: {0} should not be null", field.FieldMetaData.Name);
                                                         Assert.IsNotEmpty(expandedNodeId.NamespaceUri, "Decoded 'ExpandedNodeId.NamespaceUri' Field: {0} should not be empty", field.FieldMetaData.Name);
 
@@ -2037,10 +2002,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                             }
                         }
 
-                        #endregion Verify DataSetMessages mandatory fields
-
-                        #region Verify DataSetMessages optional fields
-
                         if (jsonDecoder.ReadField(DataSetMessageSequenceNumber, out token))
                         {
                             sequenceNumberValue = jsonDecoder.ReadUInt32(DataSetMessageSequenceNumber);
@@ -2067,8 +2028,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                             Assert.AreEqual(jsonDataSetMessage.Status, statusValue, "jsonDataSetMessage.Timestamp was not decoded correctly, Encoded: {0} Decoded: {1}", jsonDataSetMessage.Status, statusValue);
                         }
 
-                        #endregion Verify DataSetMessages optional fields
-
                         jsonDecoder.Pop();
                     }
                 }
@@ -2084,7 +2043,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <param name="fieldMetaData"></param>
         /// <param name="fieldName"></param>
         /// <returns></returns>
-        private object DecodeFieldData(IJsonDecoder jsonDecoder, FieldMetaData fieldMetaData, string fieldName)
+        private static object DecodeFieldData(IJsonDecoder jsonDecoder, FieldMetaData fieldMetaData, string fieldName)
         {
             if (fieldMetaData.BuiltInType != 0)
             {
@@ -2100,12 +2059,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     }
                     else
                     {
-                        Assert.Warn($"JsonDataSetMessage - Decoding ValueRank = {fieldMetaData.ValueRank} not supported yet !!!");
+                        NUnit.Framework.Assert.Warn($"JsonDataSetMessage - Decoding ValueRank = {fieldMetaData.ValueRank} not supported yet !!!");
                     }
                 }
                 catch (Exception ex)
                 {
-                    Assert.Warn($"JsonDataSetMessage - Error reading element for RawData. {ex.Message}");
+                    NUnit.Framework.Assert.Warn($"JsonDataSetMessage - Error reading element for RawData. {ex.Message}");
                     return StatusCodes.BadDecodingError;
                 }
             }
@@ -2119,7 +2078,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <param name="builtInType"></param>
         /// <param name="fieldName"></param>
         /// <returns></returns>
-        private object DecodeFieldByType(IJsonDecoder jsonDecoder, byte builtInType, string fieldName)
+        private static object DecodeFieldByType(IJsonDecoder jsonDecoder, byte builtInType, string fieldName)
         {
             try
             {
@@ -2181,7 +2140,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             }
             catch (Exception)
             {
-                Assert.Warn($"JsonDataSetMessage - Error decoding field {fieldName}");
+                NUnit.Framework.Assert.Warn($"JsonDataSetMessage - Error decoding field {fieldName}");
             }
 
             return null;
@@ -2190,7 +2149,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <summary>
         /// Format and validate a JSON string.
         /// </summary>
-        private string PrettifyAndValidateJson(byte[] json)
+        private static string PrettifyAndValidateJson(byte[] json)
         {
             return PrettifyAndValidateJson(System.Text.Encoding.UTF8.GetString(json));
         }
@@ -2198,7 +2157,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <summary>
         /// Format and validate a JSON string.
         /// </summary>
-        private string PrettifyAndValidateJson(string json)
+        private static string PrettifyAndValidateJson(string json)
         {
             try
             {
@@ -2209,7 +2168,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     var jsonWriter = new JsonTextWriter(stringWriter) {
                         FloatFormatHandling = FloatFormatHandling.String,
                         Formatting = Newtonsoft.Json.Formatting.Indented,
-                        Culture = System.Globalization.CultureInfo.InvariantCulture
+                        Culture = CultureInfo.InvariantCulture
                     };
                     jsonWriter.WriteToken(jsonReader);
                     string formattedJson = stringWriter.ToString();
@@ -2220,10 +2179,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             catch (Exception ex)
             {
                 TestContext.Out.WriteLine(json);
-                Assert.Fail("Invalid json data: " + ex.Message);
+                NUnit.Framework.Assert.Fail("Invalid json data: " + ex.Message);
             }
             return json;
         }
-        #endregion
     }
 }

@@ -20,11 +20,10 @@ namespace Opc.Ua
     /// <summary>
     /// An exception thrown when a UA defined error occurs.
     /// </summary>
-    [DataContractAttribute]
-    [SerializableAttribute]
+    [DataContract]
+    [Serializable]
     public class ServiceResultException : Exception
     {
-        #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
@@ -96,9 +95,7 @@ namespace Opc.Ua
         {
             Result = status ?? new ServiceResult(StatusCodes.Bad);
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The identifier for the status code.
         /// </summary>
@@ -133,9 +130,7 @@ namespace Opc.Ua
         /// Nested error information.
         /// </summary>
         public ServiceResult InnerResult => Result.InnerResult;
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Returns a formatted string with the contents of exception.
         /// </summary>
@@ -148,9 +143,7 @@ namespace Opc.Ua
 
             return buffer.ToString();
         }
-        #endregion
 
-        #region Static Interface
         /// <summary>
         /// Creates a new instance of a ServiceResultException
         /// </summary>
@@ -184,9 +177,7 @@ namespace Opc.Ua
         {
             return new ServiceResultException(new ServiceResult(code, index, diagnosticInfos, stringTable));
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Extracts an exception message from a Result object.
         /// </summary>
@@ -205,9 +196,6 @@ namespace Opc.Ua
             return status.ToString();
         }
 
-#endregion
-
-        #region Private Constants
         /// <summary>
         /// Wraps string constants defined in the class.
         /// </summary>
@@ -215,6 +203,5 @@ namespace Opc.Ua
         {
             public const string DefaultMessage = "A UA specific error occurred.";
         }
-        #endregion
     }
 }

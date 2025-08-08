@@ -40,12 +40,9 @@ namespace Opc.Ua.PubSub.Encoding
     /// </summary>
     public class JsonDataSetMessage : UaDataSetMessage
     {
-        #region Fields
         private const string kFieldPayload = "Payload";
         private FieldTypeEncodingMask m_fieldTypeEncoding;
-        #endregion
 
-        #region Constructors
         /// <summary>
         /// Create new instance of <see cref="JsonDataSetMessage"/> with DataSet parameter
         /// </summary>
@@ -54,9 +51,7 @@ namespace Opc.Ua.PubSub.Encoding
         {
             DataSet = dataSet;
         }
-        #endregion
 
-        #region Properties
         /// <summary>
         /// Get JsonDataSetMessageContentMask
         /// The DataSetWriterMessageContentMask defines the flags for the content of the DataSetMessage header.
@@ -69,9 +64,6 @@ namespace Opc.Ua.PubSub.Encoding
         /// </summary>
         public bool HasDataSetMessageHeader { get; set; }
 
-        #endregion Properties
-
-        #region Public Methods
         /// <summary>
         /// Set DataSetFieldContentMask
         /// </summary>
@@ -169,13 +161,10 @@ namespace Opc.Ua.PubSub.Encoding
                             // the dataset was decoded
                             return;
                         }
-
                     }
                 }
             }
         }
-
-
 
         /// <summary>
         /// Attempt to decode dataset from the KeyValue pairs
@@ -202,7 +191,6 @@ namespace Opc.Ua.PubSub.Encoding
                 jsonDecoder.ReadField(null, out token);
                 payloadStructureName = null;
             }
-
 
             if (token is Dictionary<string, object> payload && dataSetReader.DataSetMetaData != null)
             {
@@ -287,16 +275,13 @@ namespace Opc.Ua.PubSub.Encoding
                                     }
                                 }
 
-                                if ((FieldContentMask & DataSetFieldContentMask.StatusCode) != 0)
+                                if ((FieldContentMask & DataSetFieldContentMask.StatusCode) != 0 && jsonDecoder.ReadField("StatusCode", out token))
                                 {
-                                    if (jsonDecoder.ReadField("StatusCode", out token))
+                                    bool wasPush3 = jsonDecoder.PushStructure("StatusCode");
+                                    if (wasPush3)
                                     {
-                                        bool wasPush3 = jsonDecoder.PushStructure("StatusCode");
-                                        if (wasPush3)
-                                        {
-                                            dataValue.StatusCode = jsonDecoder.ReadStatusCode("Code");
-                                            jsonDecoder.Pop();
-                                        }
+                                        dataValue.StatusCode = jsonDecoder.ReadStatusCode("Code");
+                                        jsonDecoder.Pop();
                                     }
                                 }
 
@@ -378,14 +363,12 @@ namespace Opc.Ua.PubSub.Encoding
             // build the dataset object
             var dataSet = new DataSet(dataSetMetaData?.Name);
             dataSet.DataSetMetaData = dataSetMetaData;
-            dataSet.Fields = dataFields.ToArray();
+            dataSet.Fields = [.. dataFields];
             dataSet.DataSetWriterId = DataSetWriterId;
             dataSet.SequenceNumber = SequenceNumber;
             return dataSet;
         }
-        #endregion
 
-        #region Private Encode Methods
         /// <summary>
         /// Encode DataSet message header
         /// </summary>
@@ -522,9 +505,6 @@ namespace Opc.Ua.PubSub.Encoding
             }
 #pragma warning restore CS0618 // Type or member is obsolete
         }
-        #endregion
-
-        #region Private Decode Methods
 
         /// <summary>
         /// Decode RawData type
@@ -564,44 +544,29 @@ namespace Opc.Ua.PubSub.Encoding
         private void DecodeDataSetMessageHeader(IJsonDecoder jsonDecoder)
         {
             object token = null;
-            if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.DataSetWriterId) != 0)
+            if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.DataSetWriterId) != 0 && jsonDecoder.ReadField(nameof(DataSetWriterId), out token))
             {
-                if (jsonDecoder.ReadField(nameof(DataSetWriterId), out token))
-                {
-                    DataSetWriterId = jsonDecoder.ReadUInt16(nameof(DataSetWriterId));
-                }
+                DataSetWriterId = jsonDecoder.ReadUInt16(nameof(DataSetWriterId));
             }
 
-            if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.SequenceNumber) != 0)
+            if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.SequenceNumber) != 0 && jsonDecoder.ReadField(nameof(SequenceNumber), out token))
             {
-                if (jsonDecoder.ReadField(nameof(SequenceNumber), out token))
-                {
-                    SequenceNumber = jsonDecoder.ReadUInt32(nameof(SequenceNumber));
-                }
+                SequenceNumber = jsonDecoder.ReadUInt32(nameof(SequenceNumber));
             }
 
-            if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.MetaDataVersion) != 0)
+            if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.MetaDataVersion) != 0 && jsonDecoder.ReadField(nameof(MetaDataVersion), out token))
             {
-                if (jsonDecoder.ReadField(nameof(MetaDataVersion), out token))
-                {
-                    MetaDataVersion = jsonDecoder.ReadEncodeable(nameof(MetaDataVersion), typeof(ConfigurationVersionDataType)) as ConfigurationVersionDataType;
-                }
+                MetaDataVersion = jsonDecoder.ReadEncodeable(nameof(MetaDataVersion), typeof(ConfigurationVersionDataType)) as ConfigurationVersionDataType;
             }
 
-            if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.Timestamp) != 0)
+            if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.Timestamp) != 0 && jsonDecoder.ReadField(nameof(Timestamp), out token))
             {
-                if (jsonDecoder.ReadField(nameof(Timestamp), out token))
-                {
-                    Timestamp = jsonDecoder.ReadDateTime(nameof(Timestamp));
-                }
+                Timestamp = jsonDecoder.ReadDateTime(nameof(Timestamp));
             }
 
-            if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.Status) != 0)
+            if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.Status) != 0 && jsonDecoder.ReadField(nameof(Status), out token))
             {
-                if (jsonDecoder.ReadField(nameof(Status), out token))
-                {
-                    Status = jsonDecoder.ReadStatusCode(nameof(Status));
-                }
+                Status = jsonDecoder.ReadStatusCode(nameof(Status));
             }
         }
 
@@ -675,6 +640,5 @@ namespace Opc.Ua.PubSub.Encoding
 
             return null;
         }
-        #endregion
     }
 }

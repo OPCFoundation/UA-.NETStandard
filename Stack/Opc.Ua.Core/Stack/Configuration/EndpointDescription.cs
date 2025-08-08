@@ -22,7 +22,6 @@ namespace Opc.Ua
     /// </summary>
     public partial class EndpointDescription
     {
-        #region Constructors
         /// <summary>
         /// Creates an endpoint configuration from a url.
         /// </summary>
@@ -45,9 +44,7 @@ namespace Opc.Ua
             SecurityMode = MessageSecurityMode.None;
             SecurityPolicyUri = SecurityPolicies.None;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The encodings supported by the configuration.
         /// </summary>
@@ -76,13 +73,8 @@ namespace Opc.Ua
         /// The proxy url to use when connecting to the endpoint.
         /// </summary>
         public Uri ProxyUrl
-        {
-            get { return m_proxyUrl; }
-            set { m_proxyUrl = value; }
+        { get => m_proxyUrl; set => m_proxyUrl = value;
         }
-        #endregion
-
-        #region Public Methods
 
         /// <summary>
         /// Finds the user token policy with the specified id and securtyPolicyUri
@@ -190,10 +182,7 @@ namespace Opc.Ua
             // The first token with unspecified security policy follows / no policy
             return unspecifiedSecPolicy;
         }
-        #endregion
 
-        #region Private Fields
         private Uri m_proxyUrl;
-        #endregion
     }
 }

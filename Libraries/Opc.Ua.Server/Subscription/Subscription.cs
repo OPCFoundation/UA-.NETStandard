@@ -29,9 +29,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using Microsoft.Extensions.Logging;
-using System.Linq;
 
 namespace Opc.Ua.Server
 {
@@ -40,7 +40,6 @@ namespace Opc.Ua.Server
     /// </summary>
     public class Subscription : ISubscription
     {
-        #region Constructors
         /// <summary>
         /// Initializes the object.
         /// </summary>
@@ -80,14 +79,14 @@ namespace Opc.Ua.Server
             m_lifetimeCounter = 0;
             m_waitingForPublish = false;
             m_maxMessageCount = maxMessageCount;
-            m_sentMessages = new List<NotificationMessage>();
+            m_sentMessages = [];
             m_supportsDurable = m_server.MonitoredItemQueueFactory.SupportsDurableQueues;
             m_isDurable = false;
 
-            m_monitoredItems = new Dictionary<uint, LinkedListNode<IMonitoredItem>>();
+            m_monitoredItems = [];
             m_itemsToCheck = new LinkedList<IMonitoredItem>();
             m_itemsToPublish = new LinkedList<IMonitoredItem>();
-            m_itemsToTrigger = new Dictionary<uint, List<ITriggeredMonitoredItem>>();
+            m_itemsToTrigger = [];
 
             // m_itemsReadyToPublish         = new Queue<IMonitoredItem>();
             // m_itemsNotificationsAvailable = new LinkedList<IMonitoredItem>();
@@ -168,10 +167,10 @@ namespace Opc.Ua.Server
             m_sequenceNumber = storedSubscription.SequenceNumber;
             m_lastSentMessage = storedSubscription.LastSentMessage;
 
-            m_monitoredItems = new Dictionary<uint, LinkedListNode<IMonitoredItem>>();
+            m_monitoredItems = [];
             m_itemsToCheck = new LinkedList<IMonitoredItem>();
             m_itemsToPublish = new LinkedList<IMonitoredItem>();
-            m_itemsToTrigger = new Dictionary<uint, List<ITriggeredMonitoredItem>>();
+            m_itemsToTrigger = [];
 
             // initialize diagnostics.
             Diagnostics = new SubscriptionDiagnosticsDataType {
@@ -216,9 +215,7 @@ namespace Opc.Ua.Server
 
             RestoreMonitoredItems(storedSubscription.MonitoredItems);
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -249,16 +246,11 @@ namespace Opc.Ua.Server
                 }
             }
         }
-        #endregion
 
-        #region ISubscription Members
         /// <summary>
         /// The session that owns the monitored item.
         /// </summary>
-        public ISession Session
-        {
-            get { return m_session; }
-        }
+        public ISession Session => m_session;
 
         /// <summary>
         /// The unique identifier assigned to the subscription.
@@ -268,10 +260,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The subscriptions owner identity.
         /// </summary>
-        public IUserIdentity EffectiveIdentity
-        {
-            get { return (m_session != null) ? m_session.EffectiveIdentity : m_savedOwnerIdentity; }
-        }
+        public IUserIdentity EffectiveIdentity => (m_session != null) ? m_session.EffectiveIdentity : m_savedOwnerIdentity;
 
         /// <summary>
         /// Queues an item that is ready to publish.
@@ -298,9 +287,7 @@ namespace Opc.Ua.Server
             }
             */
         }
-        #endregion
 
-        #region Public Interface
         /// <summary>
         /// The identifier for the session that owns the subscription.
         /// </summary>
@@ -328,13 +315,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets the lock that must be acquired before accessing the contents of the Diagnostics property.
         /// </summary>
-        public object DiagnosticsLock
-        {
-            get
-            {
-                return Diagnostics;
-            }
-        }
+        public object DiagnosticsLock => Diagnostics;
 
         /// <summary>
         /// Gets the lock that must be acquired before updating the contents of the Diagnostics property.
@@ -388,13 +369,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The priority assigned to the subscription.
         /// </summary>
-        public byte Priority
-        {
-            get
-            {
-                return m_priority;
-            }
-        }
+        public byte Priority => m_priority;
 
         /// <summary>
         /// Deletes the subscription.
@@ -428,7 +403,7 @@ namespace Opc.Ua.Server
 
                     DeleteMonitoredItems(
                         context,
-                        new UInt32Collection(m_monitoredItems.Keys),
+                        [.. m_monitoredItems.Keys],
                         true,
                         out results,
                         out diagnosticInfos);
@@ -869,7 +844,7 @@ namespace Opc.Ua.Server
             // check if a keep alive should be sent if there is no data.
             bool keepAliveIfNoData = m_keepAliveCounter >= m_maxKeepAliveCount;
 
-            availableSequenceNumbers = new UInt32Collection();
+            availableSequenceNumbers = [];
 
             moreNotifications = false;
 
@@ -1340,15 +1315,15 @@ namespace Opc.Ua.Server
 
             // allocate results.
             bool diagnosticsExist = false;
-            addResults = new StatusCodeCollection();
+            addResults = [];
             addDiagnosticInfos = null;
-            removeResults = new StatusCodeCollection();
+            removeResults = [];
             removeDiagnosticInfos = null;
 
             if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
             {
-                addDiagnosticInfos = new DiagnosticInfoCollection();
-                removeDiagnosticInfos = new DiagnosticInfoCollection();
+                addDiagnosticInfos = [];
+                removeDiagnosticInfos = [];
             }
 
             // build list of items to modify.
@@ -1373,7 +1348,7 @@ namespace Opc.Ua.Server
 
                 if (!m_itemsToTrigger.TryGetValue(triggeringItemId, out triggeredItems))
                 {
-                    m_itemsToTrigger[triggeringItemId] = triggeredItems = new List<ITriggeredMonitoredItem>();
+                    m_itemsToTrigger[triggeringItemId] = triggeredItems = [];
                 }
 
                 // remove old links.
@@ -1546,7 +1521,7 @@ namespace Opc.Ua.Server
 
             m_server.NodeManager.CreateMonitoredItems(
             context,
-            this.Id,
+            Id,
             m_publishingInterval,
             timestampsToReturn,
             itemsToCreate,
@@ -1830,7 +1805,7 @@ namespace Opc.Ua.Server
                     // update diagnostics.
                     if (ServiceResult.IsGood(error))
                     {
-                        Subscription.ModifyItemSamplingInterval(originalSamplingIntervals[ii], result.RevisedSamplingInterval, monitoredItems[ii].MonitoringMode);
+                        ModifyItemSamplingInterval(originalSamplingIntervals[ii], result.RevisedSamplingInterval, monitoredItems[ii].MonitoringMode);
                     }
 
                     if (filterResults[ii] != null)
@@ -2460,9 +2435,6 @@ namespace Opc.Ua.Server
                 IsDurable = IsDurable,
             };
         }
-        #endregion
-
-        #region Private Methods
 
         /// <summary>
         /// Restore MonitoredItems after a Server restart
@@ -2480,7 +2452,7 @@ namespace Opc.Ua.Server
             }
 
             m_server.NodeManager.RestoreMonitoredItems(
-                 storedMonitoredItems.ToList(),
+                 [.. storedMonitoredItems],
                  monitoredItems,
                  m_savedOwnerIdentity);
 
@@ -2531,7 +2503,7 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
             }
 
-            if (!Object.ReferenceEquals(context.Session, m_session))
+            if (!ReferenceEquals(context.Session, m_session))
             {
                 throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid, "Subscription belongs to a different session.");
             }
@@ -2603,10 +2575,8 @@ namespace Opc.Ua.Server
                     break;
             }
         }
-        #endregion
 
-        #region Private Fields
-        private readonly object m_lock = new object();
+        private readonly object m_lock = new();
         private readonly IServerInternal m_server;
         private ISession m_session;
         private IUserIdentity m_savedOwnerIdentity;
@@ -2633,6 +2603,5 @@ namespace Opc.Ua.Server
         private readonly Dictionary<uint, List<ITriggeredMonitoredItem>> m_itemsToTrigger;
         private readonly bool m_supportsDurable;
         private bool m_isDurable;
-        #endregion
     }
 }

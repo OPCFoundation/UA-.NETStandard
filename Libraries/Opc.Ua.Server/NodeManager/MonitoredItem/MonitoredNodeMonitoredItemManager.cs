@@ -46,7 +46,7 @@ namespace Opc.Ua.Server
             CustomNodeManager2 nodeManager)
         {
             m_nodeManager = nodeManager;
-            MonitoredNodes = new NodeIdDictionary<MonitoredNode2>();
+            MonitoredNodes = [];
             MonitoredItems = new ConcurrentDictionary<uint, IMonitoredItem>();
         }
         /// <inheritdoc/>

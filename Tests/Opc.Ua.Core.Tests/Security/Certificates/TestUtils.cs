@@ -41,12 +41,12 @@ namespace Opc.Ua.Core.Tests
     {
         public static string[] EnumerateTestAssets(string searchPattern)
         {
-            string assetsPath = Utils.GetAbsoluteDirectoryPath ("Assets", true, true, false);
+            string assetsPath = Utils.GetAbsoluteDirectoryPath("Assets", true, true, false);
             if (assetsPath != null)
             {
-                return Directory.EnumerateFiles(assetsPath, searchPattern).ToArray();
+                return [.. Directory.EnumerateFiles(assetsPath, searchPattern)];
             }
-            return Array.Empty<string>();
+            return [];
         }
 
         /// <summary>

@@ -37,7 +37,6 @@ namespace TestData
 {
     public partial class TestDataObjectState
     {
-        #region Initialization
         /// <summary>
         /// Initializes the object as a collection of counters which change value on read.
         /// </summary>
@@ -47,9 +46,7 @@ namespace TestData
 
             GenerateValues.OnCall = OnGenerateValues;
         }
-        #endregion
 
-        #region Protected Methods
         /// <summary>
         /// Initialzies the variable as a counter.
         /// </summary>
@@ -192,7 +189,7 @@ namespace TestData
                     "GenerateValuesEventType",
                     "en-US",
                     "New values generated for test source '{0}'.",
-                    this.DisplayName);
+                    DisplayName);
 
                 e.Initialize(
                     context,
@@ -268,6 +265,5 @@ namespace TestData
                 return new ServiceResult(e);
             }
         }
-#endregion
     }
 }

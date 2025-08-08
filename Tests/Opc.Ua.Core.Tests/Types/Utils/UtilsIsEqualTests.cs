@@ -155,8 +155,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void UtilsIsEqualObjectCompareTest()
         {
-            bool result;
-            result = UtilsIsEqualGenericByteArrayCompare();
+            bool result = UtilsIsEqualGenericByteArrayCompare();
             Assert.True(result);
             result = UtilsIsEqualByteArrayCompare();
             Assert.True(result);
@@ -180,12 +179,12 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             Assert.AreEqual(Utils.IsEqual(m_bufferA, (object)m_bufferB), Utils.IsEqual(m_bufferA, m_bufferB));
             Assert.AreEqual(Utils.IsEqual(null, (object)m_bufferB), Utils.IsEqual(null, m_bufferB));
             Assert.AreEqual(Utils.IsEqual(m_bufferA, (object)null), Utils.IsEqual(m_bufferA, null));
-            Assert.AreEqual(Utils.IsEqual(null, null), Utils.IsEqual(null, (byte[])null));
+            Assert.AreEqual(Utils.IsEqual(null, null), Utils.IsEqual(null, null));
 
             Assert.AreEqual(Utils.IsEqual(m_bufferA, (object)m_bufferB), Utils.IsEqual(m_bufferA, m_bufferB));
             Assert.AreEqual(Utils.IsEqual(null, (object)m_bufferB), Utils.IsEqual(null, m_bufferB));
             Assert.AreEqual(Utils.IsEqual(m_bufferA, (object)null), Utils.IsEqual(m_bufferA, null));
-            Assert.AreEqual(Utils.IsEqual(null, (object)null), Utils.IsEqual(null, null));
+            Assert.AreEqual(Utils.IsEqual(null, null), Utils.IsEqual(null, null));
 
             Assert.AreEqual(Utils.IsEqual(m_bufferA, (object)m_bufferB), Utils.IsEqual(m_bufferA, (IEnumerable)m_bufferB));
             Assert.AreEqual(Utils.IsEqual(null, (object)m_bufferB), Utils.IsEqual(null, (IEnumerable)m_bufferB));
@@ -199,7 +198,6 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             Assert.AreEqual(Utils.IsEqual(i, m_bufferB), Utils.IsEqual(i, m_bufferB));
         }
 
-        #region Test Setup
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
@@ -215,9 +213,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void OneTimeTearDown()
         {
         }
-        #endregion
 
-        #region Benchmark Setup
         /// <summary>
         /// Set up some variables for benchmarks.
         /// </summary>
@@ -239,37 +235,33 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void GlobalCleanup()
         {
         }
-        #endregion
 
-        #region IsEqualByteArray
         /// <summary>
         /// Checks if two byte[] values are equal.
         /// </summary>
         public static bool IsEqual(byte[] value1, byte[] value2)
         {
             // check for reference equality.
-            if (Object.ReferenceEquals(value1, value2))
+            if (ReferenceEquals(value1, value2))
             {
                 return true;
             }
 
-            if (Object.ReferenceEquals(value1, null) || Object.ReferenceEquals(value2, null))
+            if (ReferenceEquals(value1, null) || ReferenceEquals(value2, null))
             {
                 return false;
             }
 
             return value1.SequenceEqual(value2);
         }
-        #endregion
 
-        #region IsEqual up to 1.4.372.106
         /// <summary>
         /// For backward comparison the original generic version of IsEqual up to release 1.4.372.106.
         /// </summary>
         public static bool IsEqualGeneric(object value1, object value2)
         {
             // check for reference equality.
-            if (Object.ReferenceEquals(value1, value2))
+            if (ReferenceEquals(value1, value2))
             {
                 return true;
             }
@@ -429,12 +421,9 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             // check for objects that override the Equals function.
             return value1.Equals(value2);
         }
-        #endregion
 
-        #region Private Fields
         private Random m_random;
         private byte[] m_bufferA;
         private byte[] m_bufferB;
-        #endregion
     }
 }

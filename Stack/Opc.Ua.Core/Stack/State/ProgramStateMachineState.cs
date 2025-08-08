@@ -12,16 +12,15 @@
 
 using System;
 using System.Collections.Generic;
-using System.Xml;
 using System.IO;
 using System.Reflection;
+using System.Xml;
 using Opc.Ua;
 
 namespace Opc.Ua
 {
     public partial class ProgramStateMachineState
     {
-        #region Initialization
         /// <summary>
         /// Initializes the object as a collection of counters which change value on read.
         /// </summary>
@@ -32,59 +31,48 @@ namespace Opc.Ua
             UpdateStateVariable(context, Objects.ProgramStateMachineType_Ready, CurrentState);
             UpdateTransitionVariable(context, 0, LastTransition);
         }
-        #endregion
 
-        #region Overridden Members
         /// <summary>
         /// The table of states belonging to the state machine.
         /// </summary>
-        protected override ElementInfo[] StateTable
-        {
-            get { return s_StateTable; }
-        }
+        protected override ElementInfo[] StateTable => s_StateTable;
 
         /// <summary>
         /// A table of valid states.
         /// </summary>
-        private readonly ElementInfo[] s_StateTable = new ElementInfo[]
-        {
-            new ElementInfo(Objects.ProgramStateMachineType_Ready, BrowseNames.Ready, 1),
-            new ElementInfo(Objects.ProgramStateMachineType_Running, BrowseNames.Running, 2),
-            new ElementInfo(Objects.ProgramStateMachineType_Suspended, BrowseNames.Suspended, 3),
-            new ElementInfo(Objects.ProgramStateMachineType_Halted, BrowseNames.Halted, 4)
-        };
+        private static readonly ElementInfo[] s_StateTable =
+        [
+            new(Objects.ProgramStateMachineType_Ready, BrowseNames.Ready, 1),
+            new(Objects.ProgramStateMachineType_Running, BrowseNames.Running, 2),
+            new(Objects.ProgramStateMachineType_Suspended, BrowseNames.Suspended, 3),
+            new(Objects.ProgramStateMachineType_Halted, BrowseNames.Halted, 4)
+        ];
 
         /// <summary>
         /// The table of transitions belonging to the state machine.
         /// </summary>
-        protected override ElementInfo[] TransitionTable
-        {
-            get { return s_TransitionTable; }
-        }
+        protected override ElementInfo[] TransitionTable => s_TransitionTable;
 
         /// <summary>
         /// A table of valid transitions.
         /// </summary>
-        private readonly ElementInfo[] s_TransitionTable = new ElementInfo[]
-        {
-            new ElementInfo(Objects.ProgramStateMachineType_HaltedToReady, BrowseNames.HaltedToReady, 1),
-            new ElementInfo(Objects.ProgramStateMachineType_ReadyToRunning, BrowseNames.ReadyToRunning, 2),
-            new ElementInfo(Objects.ProgramStateMachineType_RunningToHalted, BrowseNames.RunningToHalted, 3),
-            new ElementInfo(Objects.ProgramStateMachineType_RunningToReady, BrowseNames.RunningToReady, 4),
-            new ElementInfo(Objects.ProgramStateMachineType_RunningToSuspended, BrowseNames.RunningToSuspended, 5),
-            new ElementInfo(Objects.ProgramStateMachineType_SuspendedToRunning, BrowseNames.SuspendedToRunning, 6),
-            new ElementInfo(Objects.ProgramStateMachineType_SuspendedToHalted, BrowseNames.SuspendedToHalted, 7),
-            new ElementInfo(Objects.ProgramStateMachineType_SuspendedToReady, BrowseNames.SuspendedToReady, 8),
-            new ElementInfo(Objects.ProgramStateMachineType_ReadyToHalted, BrowseNames.ReadyToHalted, 9)
-        };
+        private readonly ElementInfo[] s_TransitionTable =
+        [
+            new(Objects.ProgramStateMachineType_HaltedToReady, BrowseNames.HaltedToReady, 1),
+            new(Objects.ProgramStateMachineType_ReadyToRunning, BrowseNames.ReadyToRunning, 2),
+            new(Objects.ProgramStateMachineType_RunningToHalted, BrowseNames.RunningToHalted, 3),
+            new(Objects.ProgramStateMachineType_RunningToReady, BrowseNames.RunningToReady, 4),
+            new(Objects.ProgramStateMachineType_RunningToSuspended, BrowseNames.RunningToSuspended, 5),
+            new(Objects.ProgramStateMachineType_SuspendedToRunning, BrowseNames.SuspendedToRunning, 6),
+            new(Objects.ProgramStateMachineType_SuspendedToHalted, BrowseNames.SuspendedToHalted, 7),
+            new(Objects.ProgramStateMachineType_SuspendedToReady, BrowseNames.SuspendedToReady, 8),
+            new(Objects.ProgramStateMachineType_ReadyToHalted, BrowseNames.ReadyToHalted, 9)
+        ];
 
         /// <summary>
         /// The mapping between transitions and their from and to states.
         /// </summary>
-        protected override uint[,] TransitionMappings
-        {
-            get { return s_TransitionMappings; }
-        }
+        protected override uint[,] TransitionMappings => s_TransitionMappings;
 
         /// <summary>
         /// A table of the to and from states for the transitions.
@@ -105,10 +93,7 @@ namespace Opc.Ua
         /// <summary>
         /// The mapping between causes, the current state and a transition.
         /// </summary>
-        protected override uint[,] CauseMappings
-        {
-            get { return s_CauseMappings; }
-        }
+        protected override uint[,] CauseMappings => s_CauseMappings;
 
         /// <summary>
         /// A table of transitions for the available causes.
@@ -177,10 +162,7 @@ namespace Opc.Ua
 
             return null;
         }
-        #endregion
 
-        #region Protected Methods
-        #region Start Cause Handlers
         /// <summary>
         /// Checks whether the start method is executable.
         /// </summary>
@@ -216,9 +198,7 @@ namespace Opc.Ua
         {
             return DoCause(context, method, Methods.ProgramStateMachineType_Start, inputArguments, outputArguments);
         }
-        #endregion
 
-        #region Suspend Cause Handlers
         /// <summary>
         /// Checks whether the suspend method is executable.
         /// </summary>
@@ -254,9 +234,7 @@ namespace Opc.Ua
         {
             return DoCause(context, method, Methods.ProgramStateMachineType_Suspend, inputArguments, outputArguments);
         }
-        #endregion
 
-        #region Resume Cause Handlers
         /// <summary>
         /// Checks whether the resume method is executable.
         /// </summary>
@@ -292,9 +270,7 @@ namespace Opc.Ua
         {
             return DoCause(context, method, Methods.ProgramStateMachineType_Resume, inputArguments, outputArguments);
         }
-        #endregion
 
-        #region Halt Cause Handlers
         /// <summary>
         /// Checks whether the halt method is executable.
         /// </summary>
@@ -330,9 +306,7 @@ namespace Opc.Ua
         {
             return DoCause(context, method, Methods.ProgramStateMachineType_Halt, inputArguments, outputArguments);
         }
-        #endregion
 
-        #region Reset Cause Handlers
         /// <summary>
         /// Checks whether the reset method is executable.
         /// </summary>
@@ -368,7 +342,5 @@ namespace Opc.Ua
         {
             return DoCause(context, method, Methods.ProgramStateMachineType_Reset, inputArguments, outputArguments);
         }
-        #endregion
-        #endregion
     }
 }

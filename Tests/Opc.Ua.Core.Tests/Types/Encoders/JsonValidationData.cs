@@ -54,8 +54,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     return ExpectedNonReversible ?? ExpectedReversible;
                 case JsonEncodingType.Reversible:
                     return ExpectedReversible;
-                default:
                 case JsonEncodingType.Compact:
+                default:
                     return ExpectedCompact;
             }
         }
@@ -80,7 +80,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
             return $"{BuiltInType}:{Instance}" + (IncludeDefaultValue ? ":Default" : "");
         }
-    };
+    }
 
     public class JsonValidationDataCollection : List<JsonValidationData>
     {
@@ -89,7 +89,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public JsonValidationDataCollection(int capacity) : base(capacity) { }
         public static JsonValidationDataCollection ToJsonValidationDataCollection(JsonValidationData[] values)
         {
-            return values != null ? new JsonValidationDataCollection(values) : new JsonValidationDataCollection();
+            return values != null ? [.. values] : [];
         }
 
         public void Add(

@@ -115,7 +115,6 @@ namespace Opc.Ua.Bindings
         private const string kAuthorizationKey = "Authorization";
         private const string kBearerKey = "Bearer";
 
-        #region Constructors
         /// <summary>
         /// Initializes a new instance of the <see cref="HttpsTransportListener"/> class.
         /// </summary>
@@ -123,9 +122,7 @@ namespace Opc.Ua.Bindings
         {
             UriScheme = uriScheme;
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -149,9 +146,7 @@ namespace Opc.Ua.Bindings
                 m_host = null;
             }
         }
-        #endregion
 
-        #region ITransportListener Members
         /// <inheritdoc/>
         public string UriScheme { get; }
 
@@ -249,9 +244,7 @@ namespace Opc.Ua.Bindings
         {
             // intentionally not implemented
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Gets the URL for the listener's endpoint.
         /// </summary>
@@ -328,9 +321,7 @@ namespace Opc.Ua.Bindings
         {
             Dispose();
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Handles requests arriving from a channel.
         /// </summary>
@@ -551,9 +542,7 @@ namespace Opc.Ua.Bindings
 
             return true;
         }
-        #endregion
 
-        #region Private Fields
         private string m_listenerId;
         private Uri m_uri;
         private string m_discovery;
@@ -564,6 +553,5 @@ namespace Opc.Ua.Bindings
         private IWebHost m_host;
         private CertificateTypesProvider m_serverCertProvider;
         private bool m_mutualTlsEnabled;
-        #endregion
     }
 }

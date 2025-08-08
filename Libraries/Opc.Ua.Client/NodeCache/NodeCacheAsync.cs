@@ -92,11 +92,11 @@ namespace Opc.Ua.Client
             // check for null.
             if (nodeIds == null || nodeIds.Count == 0)
             {
-                return new List<INode>();
+                return [];
             }
 
             int count = nodeIds.Count;
-            IList<INode> nodes = new List<INode>(count);
+            var nodes = new List<INode>(count);
             var fetchNodeIds = new ExpandedNodeIdCollection();
 
             int ii;
@@ -167,7 +167,6 @@ namespace Opc.Ua.Client
             return nodes;
         }
 
-        #region ITypeTable Methods
         /// <inheritdoc/>
         public async Task<NodeId> FindSuperTypeAsync(ExpandedNodeId typeId, CancellationToken ct)
         {
@@ -209,9 +208,7 @@ namespace Opc.Ua.Client
                 m_cacheLock.ExitReadLock();
             }
         }
-        #endregion
 
-        #region INodeCache Methods
         /// <inheritdoc/>
         public async Task<Node> FetchNodeAsync(ExpandedNodeId nodeId, CancellationToken ct)
         {
@@ -274,7 +271,7 @@ namespace Opc.Ua.Client
             int count = nodeIds.Count;
             if (count == 0)
             {
-                return new List<Node>();
+                return [];
             }
 
             var localIds = new NodeIdCollection(
@@ -338,7 +335,7 @@ namespace Opc.Ua.Client
             bool includeSubtypes,
             CancellationToken ct)
         {
-            IList<INode> targets = new List<INode>();
+            IList<INode> targets = [];
 
             if (!(await FindAsync(nodeId, ct).ConfigureAwait(false) is Node source))
             {
@@ -380,7 +377,7 @@ namespace Opc.Ua.Client
             bool includeSubtypes,
             CancellationToken ct)
         {
-            IList<INode> targets = new List<INode>();
+            IList<INode> targets = [];
             if (nodeIds.Count == 0 || referenceTypeIds.Count == 0)
             {
                 return targets;
@@ -451,7 +448,6 @@ namespace Opc.Ua.Client
                 subType = superType;
             }
         }
-        #endregion
     }
 }
 #endif

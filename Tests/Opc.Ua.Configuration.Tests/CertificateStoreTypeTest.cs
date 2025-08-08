@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
@@ -64,7 +63,6 @@ namespace Opc.Ua.Configuration.Tests
             Directory.Delete(m_tempPath, true);
         }
 
-        #region Test Methods
         [Test]
         public async Task CertificateStoreTypeNoConfigTest()
         {
@@ -115,10 +113,8 @@ namespace Opc.Ua.Configuration.Tests
                 Assert.IsTrue(instancesCreatedWhileOpeningAuthRootStore < TestCertStore.InstancesCreated);
             }
         }
-        #endregion Test Methods
 
-        #region Private Methods
-        private void OpenCertStore(CertificateTrustList trustList)
+        private static void OpenCertStore(CertificateTrustList trustList)
         {
             using (ICertificateStore trustListStore = trustList.OpenStore())
             {
@@ -127,11 +123,8 @@ namespace Opc.Ua.Configuration.Tests
                 trustListStore.Close();
             }
         }
-        #endregion
 
-        #region Private Members
         private string m_tempPath;
-        #endregion
     }
 
     internal sealed class TestStoreType : ICertificateStoreType
@@ -325,9 +318,7 @@ namespace Opc.Ua.Configuration.Tests
 
         public static int InstancesCreated => s_instancesCreated;
 
-        #region Private Members
-        private static int s_instancesCreated = 0;
+        private static int s_instancesCreated;
         private readonly DirectoryCertificateStore m_innerStore;
-        #endregion 
     }
 }

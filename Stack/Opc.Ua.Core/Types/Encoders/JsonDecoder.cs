@@ -27,7 +27,6 @@ namespace Opc.Ua
     /// </summary>
     public class JsonDecoder : IJsonDecoder
     {
-        #region Public Fields
         /// <summary>
         /// The name of the Root array if the json is defined as an array
         /// </summary>
@@ -37,9 +36,7 @@ namespace Opc.Ua
         /// If TRUE then the NamespaceUris and ServerUris tables are updated with new URIs read from the JSON stream.
         /// </summary>
         public bool UpdateNamespaceTable { get; set; }
-        #endregion
 
-        #region Private Fields
         private JsonTextReader m_reader;
         private readonly Dictionary<string, object> m_root;
         private readonly Stack<object> m_stack;
@@ -49,16 +46,14 @@ namespace Opc.Ua
         /// <summary>
         /// JSON encoded value of: “9999-12-31T23:59:59Z”
         /// </summary>
-        private readonly DateTime m_dateTimeMaxJsonValue = new DateTime(3155378975990000000);
+        private readonly DateTime m_dateTimeMaxJsonValue = new(3155378975990000000);
         private enum JTokenNullObject
         {
             Undefined = 0,
             Object = 1,
             Array = 2
         }
-        #endregion
 
-        #region Constructors
         /// <summary>
         /// Create a JSON decoder to decode a string.
         /// </summary>
@@ -106,9 +101,7 @@ namespace Opc.Ua
         {
             m_reader = null;
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Decodes a session-less message from a buffer.
         /// </summary>
@@ -124,7 +117,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(context));
             }
 
-            using (IJsonDecoder decoder = new JsonDecoder(UTF8Encoding.UTF8.GetString(buffer), context))
+            using (var  decoder = new JsonDecoder(Encoding.UTF8.GetString(buffer), context))
             {
                 // decode the actual message.
                 var message = new SessionLessServiceMessage();
@@ -136,7 +129,7 @@ namespace Opc.Ua
         /// <summary>
         /// Decodes a message from a buffer.
         /// </summary>
-        public static IEncodeable DecodeMessage(byte[] buffer, System.Type expectedType, IServiceMessageContext context)
+        public static IEncodeable DecodeMessage(byte[] buffer, Type expectedType, IServiceMessageContext context)
         {
             return DecodeMessage(new ArraySegment<byte>(buffer), expectedType, context);
         }
@@ -144,7 +137,7 @@ namespace Opc.Ua
         /// <summary>
         /// Decodes a message from a buffer.
         /// </summary>
-        public static IEncodeable DecodeMessage(ArraySegment<byte> buffer, System.Type expectedType, IServiceMessageContext context)
+        public static IEncodeable DecodeMessage(ArraySegment<byte> buffer, Type expectedType, IServiceMessageContext context)
         {
             if (context == null)
             {
@@ -161,7 +154,7 @@ namespace Opc.Ua
                     buffer.Count);
             }
 
-            using (var decoder = new JsonDecoder(UTF8Encoding.UTF8.GetString(buffer.Array, buffer.Offset, buffer.Count), context))
+            using (var decoder = new JsonDecoder(Encoding.UTF8.GetString(buffer.Array, buffer.Offset, buffer.Count), context))
             {
                 return decoder.DecodeMessage(expectedType);
             }
@@ -170,7 +163,7 @@ namespace Opc.Ua
         /// <summary>
         /// Decodes an object from a buffer.
         /// </summary>
-        public IEncodeable DecodeMessage(System.Type expectedType)
+        public IEncodeable DecodeMessage(Type expectedType)
         {
             StringCollection namespaceUris = ReadStringArray("NamespaceUris");
             StringCollection serverUris = ReadStringArray("ServerUris");
@@ -289,9 +282,7 @@ namespace Opc.Ua
         {
             return null;
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -312,9 +303,7 @@ namespace Opc.Ua
                 m_reader = null;
             }
         }
-        #endregion
 
-        #region IDecoder Members
         /// <summary>
         /// The type of encoding being used.
         /// </summary>
@@ -503,7 +492,7 @@ namespace Opc.Ua
 
             if (value == null)
             {
-                return JsonDecoder.ReadEnumeratedString<int>(token, int.TryParse);
+                return ReadEnumeratedString<int>(token, int.TryParse);
             }
 
             if (value is < int.MinValue or > int.MaxValue)
@@ -530,7 +519,7 @@ namespace Opc.Ua
 
             if (value == null)
             {
-                return JsonDecoder.ReadEnumeratedString<uint>(token, uint.TryParse);
+                return ReadEnumeratedString<uint>(token, uint.TryParse);
             }
 
             if (value is < uint.MinValue or > uint.MaxValue)
@@ -819,10 +808,10 @@ namespace Opc.Ua
 
             if (token is not string value)
             {
-                return Array.Empty<byte>();
+                return [];
             }
 
-            byte[] bytes = JsonDecoder.SafeConvertFromBase64String(value);
+            byte[] bytes = SafeConvertFromBase64String(value);
 
             if (Context.MaxByteStringLength > 0 && Context.MaxByteStringLength < bytes.Length)
             {
@@ -956,7 +945,7 @@ namespace Opc.Ua
                             return new NodeId(ReadGuid("Id"), namespaceIndex);
                     }
                 }
-                return JsonDecoder.DefaultNodeId(idType, namespaceIndex);
+                return DefaultNodeId(idType, namespaceIndex);
             }
             finally
             {
@@ -1082,7 +1071,7 @@ namespace Opc.Ua
                     }
                 }
 
-                return new ExpandedNodeId(JsonDecoder.DefaultNodeId(idType, namespaceIndex), namespaceUri, serverIndex);
+                return new ExpandedNodeId(DefaultNodeId(idType, namespaceIndex), namespaceUri, serverIndex);
             }
             finally
             {
@@ -1284,7 +1273,7 @@ namespace Opc.Ua
 
                         try
                         {
-                            return new Variant(new Matrix(array.Value as Array, builtInType, dimensions.ToArray()));
+                            return new Variant(new Matrix(array.Value as Array, builtInType, [.. dimensions]));
                         }
                         catch (ArgumentException e)
                         {
@@ -1453,7 +1442,7 @@ namespace Opc.Ua
                 if (encoding == ExtensionObjectEncoding.Binary)
                 {
                     byte[] bytes = ReadByteString(inlineValues ? "UaBody" : "Body");
-                    return new ExtensionObject(typeId, bytes ?? Array.Empty<byte>());
+                    return new ExtensionObject(typeId, bytes ?? []);
                 }
 
                 if (encoding == ExtensionObjectEncoding.Xml)
@@ -1530,7 +1519,7 @@ namespace Opc.Ua
         /// <param name="systemType">The system type of the encodeable object to be read</param>
         /// <param name="encodeableTypeId">The TypeId for the <see cref="IEncodeable"/> instance that will be read.</param>
         /// <returns>An <see cref="IEncodeable"/> object that was read from the stream.</returns>
-        public IEncodeable ReadEncodeable(string fieldName, System.Type systemType, ExpandedNodeId encodeableTypeId = null)
+        public IEncodeable ReadEncodeable(string fieldName, Type systemType, ExpandedNodeId encodeableTypeId = null)
         {
             if (systemType == null)
             {
@@ -1579,7 +1568,7 @@ namespace Opc.Ua
         /// <summary>
         ///  Reads an enumerated value from the stream.
         /// </summary>
-        public Enum ReadEnumerated(string fieldName, System.Type enumType)
+        public Enum ReadEnumerated(string fieldName, Type enumType)
         {
             if (enumType == null)
             {
@@ -1683,7 +1672,7 @@ namespace Opc.Ua
             string value = ReadString(fieldName);
             if (value != null)
             {
-                return JsonDecoder.SafeConvertFromBase64String(value);
+                return SafeConvertFromBase64String(value);
             }
 
             if (!ReadArrayField(fieldName, out token))
@@ -2386,7 +2375,7 @@ namespace Opc.Ua
         /// <param name="systemType">The system type of the encodeable objects to be read object</param>
         /// <param name="encodeableTypeId">The TypeId for the <see cref="IEncodeable"/> instances that will be read.</param>
         /// <returns>An <see cref="IEncodeable"/> array that was read from the stream.</returns>
-        public Array ReadEncodeableArray(string fieldName, System.Type systemType, ExpandedNodeId encodeableTypeId = null)
+        public Array ReadEncodeableArray(string fieldName, Type systemType, ExpandedNodeId encodeableTypeId = null)
         {
             if (systemType == null)
             {
@@ -2422,7 +2411,7 @@ namespace Opc.Ua
         /// <summary>
         /// Reads an enumerated value array from the stream.
         /// </summary>
-        public Array ReadEnumeratedArray(string fieldName, System.Type enumType)
+        public Array ReadEnumeratedArray(string fieldName, Type enumType)
         {
             if (enumType == null)
             {
@@ -2569,7 +2558,7 @@ namespace Opc.Ua
 
                     try
                     {
-                        var matrix2 = new Matrix(array2, builtInType, dimensions2.ToArray());
+                        var matrix2 = new Matrix(array2, builtInType, [.. dimensions2]);
                         return matrix2.ToArray();
                     }
                     catch (ArgumentException e)
@@ -2615,70 +2604,70 @@ namespace Opc.Ua
                     switch (builtInType)
                     {
                         case BuiltInType.Boolean:
-                            matrix = new Matrix(elements.Cast<bool>().ToArray(), builtInType, dimensions.ToArray());
+                            matrix = new Matrix(elements.Cast<bool>().ToArray(), builtInType, [.. dimensions]);
                             break;
                         case BuiltInType.SByte:
-                            matrix = new Matrix(elements.Cast<sbyte>().ToArray(), builtInType, dimensions.ToArray());
+                            matrix = new Matrix(elements.Cast<sbyte>().ToArray(), builtInType, [.. dimensions]);
                             break;
                         case BuiltInType.Byte:
-                            matrix = new Matrix(elements.Cast<byte>().ToArray(), builtInType, dimensions.ToArray());
+                            matrix = new Matrix(elements.Cast<byte>().ToArray(), builtInType, [.. dimensions]);
                             break;
                         case BuiltInType.Int16:
-                            matrix = new Matrix(elements.Cast<short>().ToArray(), builtInType, dimensions.ToArray());
+                            matrix = new Matrix(elements.Cast<short>().ToArray(), builtInType, [.. dimensions]);
                             break;
                         case BuiltInType.UInt16:
-                            matrix = new Matrix(elements.Cast<ushort>().ToArray(), builtInType, dimensions.ToArray());
+                            matrix = new Matrix(elements.Cast<ushort>().ToArray(), builtInType, [.. dimensions]);
                             break;
                         case BuiltInType.Int32:
-                            matrix = new Matrix(elements.Cast<int>().ToArray(), builtInType, dimensions.ToArray());
+                            matrix = new Matrix(elements.Cast<int>().ToArray(), builtInType, [.. dimensions]);
                             break;
                         case BuiltInType.UInt32:
-                            matrix = new Matrix(elements.Cast<uint>().ToArray(), builtInType, dimensions.ToArray());
+                            matrix = new Matrix(elements.Cast<uint>().ToArray(), builtInType, [.. dimensions]);
                             break;
                         case BuiltInType.Int64:
-                            matrix = new Matrix(elements.Cast<long>().ToArray(), builtInType, dimensions.ToArray());
+                            matrix = new Matrix(elements.Cast<long>().ToArray(), builtInType, [.. dimensions]);
                             break;
                         case BuiltInType.UInt64:
-                            matrix = new Matrix(elements.Cast<ulong>().ToArray(), builtInType, dimensions.ToArray());
+                            matrix = new Matrix(elements.Cast<ulong>().ToArray(), builtInType, [.. dimensions]);
                             break;
                         case BuiltInType.Float:
-                            matrix = new Matrix(elements.Cast<float>().ToArray(), builtInType, dimensions.ToArray());
+                            matrix = new Matrix(elements.Cast<float>().ToArray(), builtInType, [.. dimensions]);
                             break;
                         case BuiltInType.Double:
-                            matrix = new Matrix(elements.Cast<double>().ToArray(), builtInType, dimensions.ToArray());
+                            matrix = new Matrix(elements.Cast<double>().ToArray(), builtInType, [.. dimensions]);
                             break;
                         case BuiltInType.String:
-                            matrix = new Matrix(elements.Cast<string>().ToArray(), builtInType, dimensions.ToArray());
+                            matrix = new Matrix(elements.Cast<string>().ToArray(), builtInType, [.. dimensions]);
                             break;
                         case BuiltInType.DateTime:
-                            matrix = new Matrix(elements.Cast<DateTime>().ToArray(), builtInType, dimensions.ToArray());
+                            matrix = new Matrix(elements.Cast<DateTime>().ToArray(), builtInType, [.. dimensions]);
                             break;
                         case BuiltInType.Guid:
-                            matrix = new Matrix(elements.Cast<Uuid>().ToArray(), builtInType, dimensions.ToArray());
+                            matrix = new Matrix(elements.Cast<Uuid>().ToArray(), builtInType, [.. dimensions]);
                             break;
                         case BuiltInType.ByteString:
-                            matrix = new Matrix(elements.Cast<byte[]>().ToArray(), builtInType, dimensions.ToArray());
+                            matrix = new Matrix(elements.Cast<byte[]>().ToArray(), builtInType, [.. dimensions]);
                             break;
                         case BuiltInType.XmlElement:
-                            matrix = new Matrix(elements.Cast<XmlElement>().ToArray(), builtInType, dimensions.ToArray());
+                            matrix = new Matrix(elements.Cast<XmlElement>().ToArray(), builtInType, [.. dimensions]);
                             break;
                         case BuiltInType.NodeId:
-                            matrix = new Matrix(elements.Cast<NodeId>().ToArray(), builtInType, dimensions.ToArray());
+                            matrix = new Matrix(elements.Cast<NodeId>().ToArray(), builtInType, [.. dimensions]);
                             break;
                         case BuiltInType.ExpandedNodeId:
-                            matrix = new Matrix(elements.Cast<ExpandedNodeId>().ToArray(), builtInType, dimensions.ToArray());
+                            matrix = new Matrix(elements.Cast<ExpandedNodeId>().ToArray(), builtInType, [.. dimensions]);
                             break;
                         case BuiltInType.StatusCode:
-                            matrix = new Matrix(elements.Cast<StatusCode>().ToArray(), builtInType, dimensions.ToArray());
+                            matrix = new Matrix(elements.Cast<StatusCode>().ToArray(), builtInType, [.. dimensions]);
                             break;
                         case BuiltInType.QualifiedName:
-                            matrix = new Matrix(elements.Cast<QualifiedName>().ToArray(), builtInType, dimensions.ToArray());
+                            matrix = new Matrix(elements.Cast<QualifiedName>().ToArray(), builtInType, [.. dimensions]);
                             break;
                         case BuiltInType.LocalizedText:
-                            matrix = new Matrix(elements.Cast<LocalizedText>().ToArray(), builtInType, dimensions.ToArray());
+                            matrix = new Matrix(elements.Cast<LocalizedText>().ToArray(), builtInType, [.. dimensions]);
                             break;
                         case BuiltInType.DataValue:
-                            matrix = new Matrix(elements.Cast<DataValue>().ToArray(), builtInType, dimensions.ToArray());
+                            matrix = new Matrix(elements.Cast<DataValue>().ToArray(), builtInType, [.. dimensions]);
                             break;
                         case BuiltInType.Enumeration:
                         {
@@ -2690,11 +2679,11 @@ namespace Opc.Ua
                                 {
                                     newElements.SetValue(Convert.ChangeType(element, systemType, CultureInfo.InvariantCulture), ii++);
                                 }
-                                matrix = new Matrix(newElements, builtInType, dimensions.ToArray());
+                                matrix = new Matrix(newElements, builtInType, [.. dimensions]);
                             }
                             else
                             {
-                                matrix = new Matrix(elements.Cast<int>().ToArray(), builtInType, dimensions.ToArray());
+                                matrix = new Matrix(elements.Cast<int>().ToArray(), builtInType, [.. dimensions]);
                             }
                             break;
                         }
@@ -2707,17 +2696,17 @@ namespace Opc.Ua
                                 {
                                     newElements.SetValue(Convert.ChangeType(elements[i], systemType, CultureInfo.InvariantCulture), i);
                                 }
-                                matrix = new Matrix(newElements, builtInType, dimensions.ToArray());
+                                matrix = new Matrix(newElements, builtInType, [.. dimensions]);
                                 break;
                             }
-                            matrix = new Matrix(elements.Cast<Variant>().ToArray(), builtInType, dimensions.ToArray());
+                            matrix = new Matrix(elements.Cast<Variant>().ToArray(), builtInType, [.. dimensions]);
                             break;
                         }
                         case BuiltInType.ExtensionObject:
-                            matrix = new Matrix(elements.Cast<ExtensionObject>().ToArray(), builtInType, dimensions.ToArray());
+                            matrix = new Matrix(elements.Cast<ExtensionObject>().ToArray(), builtInType, [.. dimensions]);
                             break;
                         case BuiltInType.DiagnosticInfo:
-                            matrix = new Matrix(elements.Cast<DiagnosticInfo>().ToArray(), builtInType, dimensions.ToArray());
+                            matrix = new Matrix(elements.Cast<DiagnosticInfo>().ToArray(), builtInType, [.. dimensions]);
                             break;
                         default:
                         {
@@ -2728,7 +2717,7 @@ namespace Opc.Ua
                                 {
                                     newElements.SetValue(Convert.ChangeType(elements[i], systemType, CultureInfo.InvariantCulture), i);
                                 }
-                                matrix = new Matrix(newElements, builtInType, dimensions.ToArray());
+                                matrix = new Matrix(newElements, builtInType, [.. dimensions]);
                                 break;
                             }
 
@@ -2836,7 +2825,7 @@ namespace Opc.Ua
 
                         if (index >= 0)
                         {
-                            mask |= (uint)(1<<index);
+                            mask |= (uint)(1 << index);
                         }
                     }
                 }
@@ -2846,9 +2835,7 @@ namespace Opc.Ua
 
             return 0;
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Push the specified structure on the Read Stack
         /// </summary>
@@ -2901,9 +2888,7 @@ namespace Opc.Ua
         {
             m_stack.Pop();
         }
-        #endregion
 
-        #region Private Methods
         private ushort ToNamespaceIndex(string uri)
         {
             int index = Context.NamespaceUris.GetIndex(uri);
@@ -3418,7 +3403,7 @@ namespace Opc.Ua
                     return new NodeId(0U, namespaceIndex);
 
                 case IdType.Opaque:
-                    return new NodeId(Array.Empty<byte>(), namespaceIndex);
+                    return new NodeId([], namespaceIndex);
 
                 case IdType.String:
                     return new NodeId("", namespaceIndex);
@@ -3526,6 +3511,5 @@ namespace Opc.Ua
             }
             m_nestingLevel++;
         }
-        #endregion
     }
 }

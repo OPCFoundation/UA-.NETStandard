@@ -61,7 +61,6 @@ namespace Opc.Ua
         bool IsEqual(IEncodeable encodeable);
     }
 
-    #region IEncodeableCollection
     /// <summary>
     /// A collection of encodeable objects.
     /// </summary>
@@ -97,10 +96,10 @@ namespace Opc.Ua
         {
             if (values != null)
             {
-                return new IEncodeableCollection(values);
+                return [.. values];
             }
 
-            return new IEncodeableCollection();
+            return [];
         }
 
         /// <summary>
@@ -113,7 +112,6 @@ namespace Opc.Ua
             return ToIEncodeableCollection(values);
         }
     }
-    #endregion
 
     /// <summary>
     /// Defines extensions to support the JSON encoding.

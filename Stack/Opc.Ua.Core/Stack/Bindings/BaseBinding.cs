@@ -17,7 +17,6 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public abstract class BaseBinding
     {
-        #region Constructors
         /// <summary>
         /// Initializes the binding.
         /// </summary>
@@ -37,14 +36,10 @@ namespace Opc.Ua.Bindings
                 NamespaceUris = namespaceUris
             };
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The message context to use with the binding.
         /// </summary>
         public IServiceMessageContext MessageContext { get; set; }
-
-        #endregion
     }
 }

@@ -177,8 +177,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 JsonEncoder_StreamLeaveOpen(arraySegmentStream);
                 // get buffers and return them to buffer manager
-                BufferCollection buffers = arraySegmentStream.GetBuffers("writer");
-                foreach (System.ArraySegment<byte> buffer in buffers)
+                foreach (System.ArraySegment<byte> buffer in arraySegmentStream.GetBuffers("writer"))
                 {
                     m_bufferManager.ReturnBuffer(buffer.Array, "testreturn");
                 }
@@ -201,15 +200,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 JsonEncoder_StreamLeaveOpen(arraySegmentStream);
                 // get buffers and return them to buffer manager
-                BufferCollection buffers = arraySegmentStream.GetBuffers("writer");
-                foreach (System.ArraySegment<byte> buffer in buffers)
+                foreach (System.ArraySegment<byte> buffer in arraySegmentStream.GetBuffers("writer"))
                 {
                     m_bufferManager.ReturnBuffer(buffer.Array, "testreturn");
                 }
             }
         }
 
-        #region Private Methods
         private void TestStreamEncode(MemoryStream memoryStream, bool toArray)
         {
             using (var jsonEncoder = new JsonEncoder(m_context, false, false, memoryStream, true, StreamSize))
@@ -259,17 +256,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 Assert.AreEqual(length2, result.Length);
             }
         }
-        #endregion
 
-        #region Test Setup
         [OneTimeSetUp]
         public new void OneTimeSetUp() => base.OneTimeSetUp();
 
         [OneTimeTearDown]
         public new void OneTimeTearDown() => base.OneTimeTearDown();
-        #endregion
 
-        #region Benchmark Setup
         /// <summary>
         /// Set up some variables for benchmarks.
         /// </summary>
@@ -281,6 +274,5 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// </summary>
         [GlobalCleanup]
         public new void GlobalCleanup() => base.GlobalCleanup();
-        #endregion
     }
 }

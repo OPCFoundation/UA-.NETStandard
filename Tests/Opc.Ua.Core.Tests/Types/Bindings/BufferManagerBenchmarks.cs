@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2023 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -174,7 +174,7 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
             try
             {
                 m_readerWriterLockSlim.EnterReadLock();
-                readValue = maxBufferSize;
+                readValue = m_maxBufferSize;
             }
             finally
             {
@@ -187,16 +187,12 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
         public void Lock()
         {
             int readValue;
-            lock(m_lock)
+            lock (m_lock)
             {
-                readValue = maxBufferSize;
+                readValue = m_maxBufferSize;
             }
         }
 
-        #region Private Methods
-        #endregion
-
-        #region Test Setup
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
@@ -215,9 +211,7 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
             m_arrayPoolShared = null;
             m_bufferManager = null;
         }
-        #endregion
 
-        #region Benchmark Setup
         /// <summary>
         /// Set up some variables for benchmarks.
         /// </summary>
@@ -242,17 +236,14 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
             m_arrayPoolShared = null;
             m_bufferManager = null;
         }
-        #endregion
 
-        #region Private Fields
-        byte[][] m_bufferArray;
-        ArrayPool<byte> m_arrayPoolTooSmall;
-        ArrayPool<byte> m_arrayPool;
-        ArrayPool<byte> m_arrayPoolShared;
-        BufferManager m_bufferManager;
-        readonly int maxBufferSize = 1234;
-        readonly ReaderWriterLockSlim m_readerWriterLockSlim = new ReaderWriterLockSlim();
-        readonly object m_lock = new object();
-        #endregion
+        private byte[][] m_bufferArray;
+        private ArrayPool<byte> m_arrayPoolTooSmall;
+        private ArrayPool<byte> m_arrayPool;
+        private ArrayPool<byte> m_arrayPoolShared;
+        private BufferManager m_bufferManager;
+        private readonly int m_maxBufferSize = 1234;
+        private readonly ReaderWriterLockSlim m_readerWriterLockSlim = new();
+        private readonly object m_lock = new();
     }
 }

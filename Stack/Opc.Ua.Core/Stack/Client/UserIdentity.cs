@@ -24,7 +24,6 @@ namespace Opc.Ua
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class UserIdentity : IUserIdentity
     {
-        #region Constructors
         /// <summary>
         /// Initializes the object as an anonymous user.
         /// </summary>
@@ -125,9 +124,7 @@ namespace Opc.Ua
         {
             Initialize(new AnonymousIdentityToken());
         }
-        #endregion
 
-        #region IUserIdentity Members
         /// <summary>
         /// Gets or sets the UserIdentityToken PolicyId associated with the UserIdentity.
         /// </summary>
@@ -136,9 +133,7 @@ namespace Opc.Ua
         /// </remarks>
         [DataMember(Name = "PolicyId", IsRequired = false, Order = 10)]
         public string PolicyId
-        {
-            get { return m_token.PolicyId; }
-            set { m_token.PolicyId = value; }
+        { get => m_token.PolicyId; set => m_token.PolicyId = value;
         }
 
         /// <inheritdoc/>
@@ -153,21 +148,12 @@ namespace Opc.Ua
         public XmlQualifiedName IssuedTokenType { get; private set; }
 
         /// <inheritdoc/>
-        public bool SupportsSignatures
-        {
-            get
-            {
-                return false;
-            }
-        }
+        public bool SupportsSignatures => false;
 
         /// <summary>
         ///  Get or sets the list of granted role ids associated to the UserIdentity.
         /// </summary>
-        public NodeIdCollection GrantedRoleIds
-        {
-            get { return m_grantedRoleIds; }
-        }
+        public NodeIdCollection GrantedRoleIds => m_grantedRoleIds;
 
         /// <inheritdoc/>
         public UserIdentityToken GetIdentityToken()
@@ -175,9 +161,7 @@ namespace Opc.Ua
             // check for null and return anonymous.
             return m_token ?? new AnonymousIdentityToken();
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Initializes the object with a UA identity token
         /// </summary>
@@ -188,7 +172,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(token));
             }
 
-            m_grantedRoleIds = new NodeIdCollection();
+            m_grantedRoleIds = [];
             m_token = token;
 
             if (token is UserNameIdentityToken usernameToken)
@@ -225,7 +209,7 @@ namespace Opc.Ua
                     }
 
                     TokenType = UserTokenType.IssuedToken;
-                    IssuedTokenType = new XmlQualifiedName("", Opc.Ua.Profiles.JwtUserToken);
+                    IssuedTokenType = new XmlQualifiedName("", Profiles.JwtUserToken);
                     DisplayName = "JWT";
                     return;
                 }
@@ -256,26 +240,19 @@ namespace Opc.Ua
             token.Certificate = certificate;
             Initialize(token);
         }
-        #endregion
 
-        #region Private Fields
         private UserIdentityToken m_token;
         private NodeIdCollection m_grantedRoleIds;
-        #endregion
     }
 
-    #region ImpersonationContext Class
     /// <summary>
     /// Stores information about the user that is currently being impersonated.
     /// </summary>
     public class ImpersonationContext
     {
-        #region Public Members
         /// <summary>
         /// The security principal being impersonated.
         /// </summary>
         public IPrincipal Principal { get; set; }
-        #endregion
     }
-    #endregion
 }

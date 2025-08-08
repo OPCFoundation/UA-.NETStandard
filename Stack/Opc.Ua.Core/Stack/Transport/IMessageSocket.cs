@@ -132,7 +132,6 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public interface IMessageSocket : IDisposable
     {
-        #region Connect/Disconnect Handling
         /// <summary>
         /// Gets the socket handle.
         /// </summary>
@@ -144,7 +143,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <exception cref="System.Net.Sockets.SocketException">An error occurred when attempting to access the socket.
         /// See the Remarks section for more information.</exception>
-        /// <exception cref="System.ObjectDisposedException">The Socket has been closed.</exception>
+        /// <exception cref="ObjectDisposedException">The Socket has been closed.</exception>
         /// <returns>The System.Net.EndPoint that the Socket is using for communications.</returns>
         EndPoint LocalEndpoint { get; }
 
@@ -153,7 +152,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <exception cref="System.Net.Sockets.SocketException">An error occurred when attempting to access the socket.
         /// See the Remarks section for more information.</exception>
-        /// <exception cref="System.ObjectDisposedException">The Socket has been closed.</exception>
+        /// <exception cref="ObjectDisposedException">The Socket has been closed.</exception>
         /// <returns>The System.Net.EndPoint that the Socket is using for communications.</returns>
         EndPoint RemoteEndpoint { get; }
 
@@ -174,9 +173,7 @@ namespace Opc.Ua.Bindings
         /// Forcefully closes the socket.
         /// </summary>
         void Close();
-        #endregion
 
-        #region Read Handling
         /// <summary>
         /// Starts reading messages from the socket.
         /// </summary>
@@ -186,21 +183,16 @@ namespace Opc.Ua.Bindings
         /// Changes the sink used to report reads.
         /// </summary>
         void ChangeSink(IMessageSink sink);
-        #endregion
 
-        #region Write Handling
         /// <summary>
         /// Sends a buffer.
         /// </summary>
         bool SendAsync(IMessageSocketAsyncEventArgs args);
-        #endregion
 
-        #region Event factory
         /// <summary>
         /// Get the message socket event args.
         /// </summary>
         IMessageSocketAsyncEventArgs MessageSocketEventArgs();
-        #endregion
     }
 
     /// <summary>

@@ -24,7 +24,6 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class TcpListenerChannel : UaSCUaBinaryChannel
     {
-        #region Constructors
         /// <summary>
         /// Attaches the object to an existing socket.
         /// </summary>
@@ -40,9 +39,7 @@ namespace Opc.Ua.Bindings
         {
             Listener = listener;
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
@@ -50,9 +47,7 @@ namespace Opc.Ua.Bindings
         {
             base.Dispose(disposing);
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// The channel name used in trace output.
         /// </summary>
@@ -168,9 +163,7 @@ namespace Opc.Ua.Bindings
         /// Has the channel been used in a session
         /// </summary>
         public bool UsedBySession { get; protected set; }
-        #endregion
 
-        #region Error Handling Functions
         /// <summary>
         /// Handles a socket error.
         /// </summary>
@@ -519,9 +512,7 @@ namespace Opc.Ua.Bindings
         {
             m_responseRequired = responseRequired;
         }
-        #endregion
 
-        #region Connect/Reconnect Sequence
         /// <summary>
         /// Returns a new token id.
         /// </summary>
@@ -529,9 +520,7 @@ namespace Opc.Ua.Bindings
         {
             return Utils.IncrementIdentifier(ref m_lastTokenId);
         }
-        #endregion
 
-        #region Protected Functions
         /// <summary>
         /// The channel request event handler.
         /// </summary>
@@ -552,15 +541,12 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected ReportAuditCertificateEventHandler ReportAuditCertificateEvent => m_reportAuditCertificateEvent;
 
-#endregion
-#region Private Fields
         private bool m_responseRequired;
         private TcpChannelRequestEventHandler m_requestReceived;
         private ReportAuditOpenSecureChannelEventHandler m_reportAuditOpenSecureChannelEvent;
         private ReportAuditCloseSecureChannelEventHandler m_reportAuditCloseSecureChannelEvent;
         private ReportAuditCertificateEventHandler m_reportAuditCertificateEvent;
         private long m_lastTokenId;
-        #endregion
     }
 
     /// <summary>

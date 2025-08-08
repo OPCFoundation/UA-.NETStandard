@@ -120,7 +120,6 @@ namespace Opc.Ua
     /// </summary>
     public class FilterContext : IOperationContext
     {
-        #region Constructors
         /// <summary>
         /// Initializes the context.
         /// </summary>
@@ -178,9 +177,7 @@ namespace Opc.Ua
             m_context = null;
             m_preferredLocales = preferredLocales;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The namespace table to use when evaluating filters.
         /// </summary>
@@ -192,9 +189,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The type tree.</value>
         public ITypeTable TypeTree { get; }
-        #endregion
 
-        #region IOperationContext Members
         /// <summary>
         /// The identifier for the session (null if multiple sessions are associated with the operation).
         /// </summary>
@@ -331,10 +326,7 @@ namespace Opc.Ua
             }
         }
 
-#endregion
-#region Private Fields
         private readonly IOperationContext m_context;
         private readonly IList<string> m_preferredLocales;
-        #endregion
     }
 }

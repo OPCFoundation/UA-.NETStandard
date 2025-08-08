@@ -16,14 +16,14 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Net;
 using System.Linq;
+using System.Net;
+using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
-using System.Net.Sockets;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
@@ -33,7 +33,6 @@ namespace Opc.Ua
     /// </summary>
     public class ServerBase : IServerBase
     {
-        #region Constructors
         /// <summary>
         /// Initializes object with default values.
         /// </summary>
@@ -41,15 +40,13 @@ namespace Opc.Ua
         {
             m_messageContext = new ServiceMessageContext();
             m_serverError = new ServiceResult(StatusCodes.BadServerHalted);
-            ServiceHosts = new List<ServiceHost>();
-            TransportListeners = new List<ITransportListener>();
+            ServiceHosts = [];
+            TransportListeners = [];
             m_endpoints = null;
             m_requestQueue = new RequestQueue(this, 10, 100, 1000);
             m_userTokenPolicyId = 0;
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -91,9 +88,7 @@ namespace Opc.Ua
                 Utils.SilentDispose(m_requestQueue);
             }
         }
-        #endregion
 
-        #region IServerBase Members
         /// <summary>
         /// The message context to use with the service.
         /// </summary>
@@ -102,15 +97,9 @@ namespace Opc.Ua
         /// </value>
         public IServiceMessageContext MessageContext
         {
-            get
-            {
-                return (IServiceMessageContext)m_messageContext;
-            }
+            get => (IServiceMessageContext)m_messageContext;
 
-            set
-            {
-                Interlocked.Exchange(ref m_messageContext, value);
-            }
+            set => Interlocked.Exchange(ref m_messageContext, value);
         }
 
         /// <summary>
@@ -119,15 +108,9 @@ namespace Opc.Ua
         /// <value>The object that combines the status code and diagnostic info structures.</value>
         public ServiceResult ServerError
         {
-            get
-            {
-                return (ServiceResult)m_serverError;
-            }
+            get => (ServiceResult)m_serverError;
 
-            set
-            {
-                Interlocked.Exchange(ref m_serverError, value);
-            }
+            set => Interlocked.Exchange(ref m_serverError, value);
         }
 
         /// <summary>
@@ -140,10 +123,10 @@ namespace Opc.Ua
 
             if (endpoints != null)
             {
-                return new EndpointDescriptionCollection(endpoints);
+                return [.. endpoints];
             }
 
-            return new EndpointDescriptionCollection();
+            return [];
         }
 
         /// <summary>
@@ -169,7 +152,6 @@ namespace Opc.Ua
             return false;
         }
 
-        #region IAuditEventCallback Members
         /// <inheritdoc/>
         public virtual void ReportAuditOpenSecureChannelEvent(
             string globalChannelId,
@@ -196,11 +178,7 @@ namespace Opc.Ua
         {
             // raise the audit certificate
         }
-        #endregion
 
-        #endregion
-
-        #region Public Methods
         /// <summary>
         /// Raised when the status of a monitored connection changes.
         /// </summary>
@@ -369,7 +347,7 @@ namespace Opc.Ua
         /// </summary>
         protected void InitializeBaseAddresses(ApplicationConfiguration configuration)
         {
-            BaseAddresses = new List<BaseAddress>();
+            BaseAddresses = [];
 
             StringCollection sourceBaseAddresses = null;
             StringCollection sourceAlternateAddresses = null;
@@ -403,7 +381,7 @@ namespace Opc.Ua
 
                         if (alternateUrl.Scheme == address.Url.Scheme)
                         {
-                            (address.AlternateUrls ??= new List<Uri>()).Add(alternateUrl);
+                            (address.AlternateUrls ??= []).Add(alternateUrl);
                         }
                     }
                 }
@@ -634,9 +612,7 @@ namespace Opc.Ua
                 }
             }
         }
-        #endregion
 
-        #region BaseAddress Class
         /// <summary>
         /// Stores information about a base address.
         /// </summary>
@@ -662,9 +638,7 @@ namespace Opc.Ua
             /// </summary>
             public Uri DiscoveryUrl { get; set; }
         }
-        #endregion
 
-        #region Protected Properties
         /// <summary>
         /// Gets the list of base addresses supported by the server.
         /// </summary>
@@ -681,15 +655,9 @@ namespace Opc.Ua
         /// <value>The identifier for an X509 certificate.</value>
         public CertificateValidator CertificateValidator
         {
-            get
-            {
-                return (CertificateValidator)m_certificateValidator;
-            }
+            get => (CertificateValidator)m_certificateValidator;
 
-            private set
-            {
-                m_certificateValidator = value;
-            }
+            private set => m_certificateValidator = value;
         }
 
         /// <summary>
@@ -704,15 +672,9 @@ namespace Opc.Ua
         /// <value>The properties of the current server instance.</value>
         protected ServerProperties ServerProperties
         {
-            get
-            {
-                return (ServerProperties)m_serverProperties;
-            }
+            get => (ServerProperties)m_serverProperties;
 
-            private set
-            {
-                m_serverProperties = value;
-            }
+            private set => m_serverProperties = value;
         }
 
         /// <summary>
@@ -721,15 +683,9 @@ namespace Opc.Ua
         /// <value>Object that stores the configurable configuration information for a UA application</value>
         protected ApplicationConfiguration Configuration
         {
-            get
-            {
-                return (ApplicationConfiguration)m_configuration;
-            }
+            get => (ApplicationConfiguration)m_configuration;
 
-            private set
-            {
-                m_configuration = value;
-            }
+            private set => m_configuration = value;
         }
 
         /// <summary>
@@ -738,15 +694,9 @@ namespace Opc.Ua
         /// <value>Object that contains a description for the ApplicationDescription DataType.</value>
         protected ApplicationDescription ServerDescription
         {
-            get
-            {
-                return (ApplicationDescription)m_serverDescription;
-            }
+            get => (ApplicationDescription)m_serverDescription;
 
-            private set
-            {
-                m_serverDescription = value;
-            }
+            private set => m_serverDescription = value;
         }
 
         /// <summary>
@@ -765,9 +715,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The transport listeners.</value>
         protected List<ITransportListener> TransportListeners { get; }
-        #endregion
 
-        #region Protected Methods
         /// <summary>
         /// Returns the service contract to use.
         /// </summary>
@@ -944,7 +892,7 @@ namespace Opc.Ua
                 }
 
                 // substitute the computer name for any local IP if an IP is used by client.
-                IPAddress[] addresses = Array.Empty<IPAddress>();
+                IPAddress[] addresses = [];
                 try
                 {
                     addresses = Utils.GetHostAddresses(computerName);
@@ -1444,7 +1392,7 @@ namespace Opc.Ua
         {
             serverDescription = null;
             endpoints = null;
-            return new List<ServiceHost>();
+            return [];
         }
 
         /// <summary>
@@ -1482,15 +1430,12 @@ namespace Opc.Ua
         {
             request.CallSynchronously();
         }
-        #endregion
 
-        #region RequestQueue Class
         /// <summary>
         /// Manages a queue of requests.
         /// </summary>
         protected class RequestQueue : IDisposable
         {
-            #region Constructors
             /// <summary>
             /// Initializes a new instance of the <see cref="RequestQueue"/> class.
             /// </summary>
@@ -1524,9 +1469,7 @@ namespace Opc.Ua
                     Math.Max(maxThreadCount, m_maxThreadCount),
                     Math.Max(maxCompletionPortThreads, m_maxThreadCount));
             }
-            #endregion
 
-            #region IDisposable Members
             /// <summary>
             /// Frees any unmanaged resources.
             /// </summary>
@@ -1556,9 +1499,7 @@ namespace Opc.Ua
 #endif
                 }
             }
-            #endregion
 
-            #region Public Members
             /// <summary>
             /// Schedules an incoming request.
             /// </summary>
@@ -1661,9 +1602,7 @@ namespace Opc.Ua
                 });
 #endif
             }
-            #endregion
 
-            #region Private Methods
 #if THREAD_SCHEDULER
             /// <summary>
             /// Processes the requests in the request queue.
@@ -1712,9 +1651,7 @@ namespace Opc.Ua
                 }
             }
 #endif
-            #endregion
 
-            #region Private Fields
             private readonly ServerBase m_server;
             private bool m_stopped;
             private int m_activeThreadCount;
@@ -1722,16 +1659,13 @@ namespace Opc.Ua
             private readonly int m_minThreadCount;
             private readonly int m_maxRequestCount;
 #if THREAD_SCHEDULER
-            private readonly object m_lock = new object();
+            private readonly object m_lock = new();
             private readonly Queue<IEndpointIncomingRequest> m_queue;
             private int m_totalThreadCount;
 #endif
-            #endregion
 
         }
-        #endregion
 
-        #region Private Fields
         private object m_messageContext;
         private object m_serverError;
         private object m_certificateValidator;
@@ -1744,6 +1678,5 @@ namespace Opc.Ua
         /// identifier for the UserTokenPolicy should be unique within the context of a single Server
         /// </summary>
         private int m_userTokenPolicyId;
-        #endregion
     }
 }

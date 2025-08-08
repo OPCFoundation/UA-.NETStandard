@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -34,14 +34,12 @@ using System.Threading.Tasks;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Client;
 
-
 namespace Opc.Ua.Gds.Tests
 {
-
     public class ServerConfigurationPushTestClient
     {
         public ServerPushConfigurationClient PushClient => m_client;
-        public static bool AutoAccept = false;
+        public static bool AutoAccept { get; set; }
 
         public ServerConfigurationPushTestClient(bool autoAccept)
         {
@@ -145,7 +143,6 @@ namespace Opc.Ua.Gds.Tests
                 m_client = null;
                 pushClient.Disconnect();
             }
-
         }
 
         public string ReadLogFile()
@@ -170,16 +167,14 @@ namespace Opc.Ua.Gds.Tests
         }
 
         private ServerPushConfigurationClient m_client;
-
     }
 
     /// <summary>
     /// Stores the configuration the data access node manager.
     /// </summary>
-    [DataContract(Namespace = Opc.Ua.Namespaces.OpcUaConfig)]
+    [DataContract(Namespace = Ua.Namespaces.OpcUaConfig)]
     public class ServerConfigurationPushTestClientConfiguration
     {
-        #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
@@ -192,7 +187,7 @@ namespace Opc.Ua.Gds.Tests
         /// Initializes the object during deserialization.
         /// </summary>
         [OnDeserializing()]
-        private void Initialize(StreamingContext context)
+        private static void Initialize(StreamingContext context)
         {
             Initialize();
         }
@@ -200,12 +195,10 @@ namespace Opc.Ua.Gds.Tests
         /// <summary>
         /// Sets private members to default values.
         /// </summary>
-        private void Initialize()
+        private static void Initialize()
         {
         }
-        #endregion
 
-        #region Public
         [DataMember(Order = 1, IsRequired = true)]
         public string ServerUrl { get; set; }
         [DataMember(Order = 2)]
@@ -218,9 +211,5 @@ namespace Opc.Ua.Gds.Tests
         public string SysAdminPassword { get; set; }
         [DataMember(Order = 6, IsRequired = true)]
         public string TempStorePath { get; set; }
-        #endregion
-
-        #region Private Members
-        #endregion
     }
 }

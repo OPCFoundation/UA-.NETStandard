@@ -129,7 +129,6 @@ csharp_style_expression_bodied_properties                                     = 
 csharp_style_expression_bodied_lambdas                                        = true:silent
 csharp_style_expression_bodied_local_functions                                = false:silent
 
-
 #Style - expression level options
 csharp_prefer_braces                                                          = true:silent
 csharp_style_deconstructed_variable_declaration                               = true : suggestion
@@ -177,6 +176,8 @@ dotnet_style_prefer_inferred_anonymous_type_member_names                      = 
 dotnet_style_prefer_auto_properties                                           = true : silent
 dotnet_style_prefer_conditional_expression_over_assignment                    = true : suggestion
 dotnet_style_prefer_conditional_expression_over_return                        = false
+
+csharp_style_unused_value_expression_statement_preference                     = unused_local_variable
 
 # 'using' directive preferences
 csharp_using_directive_placement                                              = outside_namespace:suggestion
@@ -351,6 +352,9 @@ dotnet_diagnostic.CA1721.severity                                             = 
 # CA2014: Do not use stackalloc in loops
 dotnet_diagnostic.CA2014.severity                                             = error
 
+# IDE0058: Expression value is never used
+dotnet_diagnostic.IDE0058.severity                                            = silent
+
 # IDE0290: Use primary constructor
 csharp_style_prefer_primary_constructors                                      = false
 # IDE0045: Convert to conditional expression
@@ -385,11 +389,9 @@ dotnet_diagnostic.RCS1160.severity                                            = 
 dotnet_diagnostic.RCS1174.severity                                            = warning
 dotnet_diagnostic.RCS1181.severity                                            = suggestion
 dotnet_diagnostic.RCS1091.severity                                            = suggestion
+dotnet_diagnostic.RCS1261.severity                                            = none
 
 # exclude generated code
-
-# RCS1261: Resource can be disposed asynchronously
-dotnet_diagnostic.RCS1261.severity = none
 
 [**/Generated/*.cs]
 generated_code = true

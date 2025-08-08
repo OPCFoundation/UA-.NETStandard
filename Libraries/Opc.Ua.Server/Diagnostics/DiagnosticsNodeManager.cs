@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -41,7 +41,6 @@ namespace Opc.Ua.Server
     /// </summary>
     public class DiagnosticsNodeManager : CustomNodeManager2
     {
-        #region Constructors
         /// <summary>
         /// Initializes the node manager.
         /// </summary>
@@ -51,26 +50,22 @@ namespace Opc.Ua.Server
         :
             base(server, configuration)
         {
-            this.AliasRoot = "Core";
+            AliasRoot = "Core";
 
-            string[] namespaceUris = new string[2];
-            namespaceUris[0] = Namespaces.OpcUa;
-            namespaceUris[1] = Namespaces.OpcUa + "Diagnostics";
+            string[] namespaceUris = [Namespaces.OpcUa, Namespaces.OpcUa + "Diagnostics"];
             SetNamespaces(namespaceUris);
 
             m_namespaceIndex = Server.NamespaceUris.GetIndexOrAppend(namespaceUris[1]);
             m_lastUsedId = DateTime.UtcNow.Ticks & 0x7FFFFFFF;
-            m_sessions = new List<SessionDiagnosticsData>();
-            m_subscriptions = new List<SubscriptionDiagnosticsData>();
+            m_sessions = [];
+            m_subscriptions = [];
             m_diagnosticsEnabled = true;
             m_doScanBusy = false;
-            m_sampledItems = new List<ISampledDataChangeMonitoredItem>();
+            m_sampledItems = [];
             m_minimumSamplingInterval = 100;
             m_durableSubscriptionsEnabled = configuration.ServerConfiguration?.DurableSubscriptionsEnabled ?? false;
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
@@ -90,9 +85,7 @@ namespace Opc.Ua.Server
 
             base.Dispose(disposing);
         }
-        #endregion
 
-        #region INodeIdFactory Members
         /// <summary>
         /// Creates the NodeId for the specified node.
         /// </summary>
@@ -104,9 +97,7 @@ namespace Opc.Ua.Server
             uint id = Utils.IncrementIdentifier(ref m_lastUsedId);
             return new NodeId(id, m_namespaceIndex);
         }
-        #endregion
 
-        #region INodeManager Members
         /// <summary>
         /// Does any initialization required before the address space can be used.
         /// </summary>
@@ -167,7 +158,7 @@ namespace Opc.Ua.Server
                     {
                         foreach (Argument argument in outputArgumentsValue)
                         {
-                            argument.ArrayDimensions = new UInt32Collection { 0 };
+                            argument.ArrayDimensions = [0];
                         }
 
                         getMonitoredItemsOutputArguments.ClearChangeMasks(SystemContext, false);
@@ -507,7 +498,7 @@ namespace Opc.Ua.Server
             NodeId objectId,
             uint subscriptionId)
         {
-            var systemContext = context as ServerSystemContext ?? this.SystemContext;
+            var systemContext = context as ServerSystemContext ?? SystemContext;
 
             Server.ConditionRefresh(systemContext.OperationContext, subscriptionId);
 
@@ -524,7 +515,7 @@ namespace Opc.Ua.Server
             uint subscriptionId,
             uint monitoredItemId)
         {
-            var systemContext = context as ServerSystemContext ?? this.SystemContext;
+            var systemContext = context as ServerSystemContext ?? SystemContext;
 
             Server.ConditionRefresh2(systemContext.OperationContext, subscriptionId, monitoredItemId);
 
@@ -541,14 +532,14 @@ namespace Opc.Ua.Server
                 return false;
             }
 
-            if (!DiagnosticsNodeManager.IsDiagnosticsStructureNode(node))
+            if (!IsDiagnosticsStructureNode(node))
             {
                 if (!(node is BaseInstanceState instance))
                 {
                     return false;
                 }
 
-                return DiagnosticsNodeManager.IsDiagnosticsStructureNode(instance.Parent);
+                return IsDiagnosticsStructureNode(instance.Parent);
             }
 
             return true;
@@ -727,7 +718,7 @@ namespace Opc.Ua.Server
                 // must ensure the first update gets sent.
                 diagnosticsValue.Value = null;
                 diagnosticsValue.Error = StatusCodes.BadWaitingForInitialData;
-                diagnosticsValue.CopyPolicy = Opc.Ua.VariableCopyPolicy.Never;
+                diagnosticsValue.CopyPolicy = VariableCopyPolicy.Never;
                 diagnosticsValue.OnBeforeRead = OnBeforeReadDiagnostics;
                 // Hook the OnReadUserRolePermissions callback to control which user roles can access the services on this node
                 diagnosticsNode.OnReadUserRolePermissions = OnReadUserRolePermissions;
@@ -842,7 +833,7 @@ namespace Opc.Ua.Server
                 // must ensure the first update gets sent.
                 diagnosticsValue.Value = null;
                 diagnosticsValue.Error = StatusCodes.BadWaitingForInitialData;
-                diagnosticsValue.CopyPolicy = Opc.Ua.VariableCopyPolicy.Never;
+                diagnosticsValue.CopyPolicy = VariableCopyPolicy.Never;
                 diagnosticsValue.OnBeforeRead = OnBeforeReadDiagnostics;
 
                 // initialize security diagnostics node.
@@ -859,7 +850,7 @@ namespace Opc.Ua.Server
                 // must ensure the first update gets sent.
                 securityDiagnosticsValue.Value = null;
                 securityDiagnosticsValue.Error = StatusCodes.BadWaitingForInitialData;
-                securityDiagnosticsValue.CopyPolicy = Opc.Ua.VariableCopyPolicy.Never;
+                securityDiagnosticsValue.CopyPolicy = VariableCopyPolicy.Never;
                 securityDiagnosticsValue.OnBeforeRead = OnBeforeReadDiagnostics;
 
                 // save the session.
@@ -945,7 +936,7 @@ namespace Opc.Ua.Server
 
                 // wrap diagnostics in a thread safe object.
                 var diagnosticsValue = new SubscriptionDiagnosticsValue(diagnosticsNode, diagnostics, Lock);
-                diagnosticsValue.CopyPolicy = Opc.Ua.VariableCopyPolicy.Never;
+                diagnosticsValue.CopyPolicy = VariableCopyPolicy.Never;
                 diagnosticsValue.OnBeforeRead = OnBeforeReadDiagnostics;
 
                 // must ensure the first update gets sent.
@@ -1193,7 +1184,7 @@ namespace Opc.Ua.Server
 
             if ((context != null) && (sessionArray?[index] != null))
             {
-                DiagnosticsNodeManager.FilterOutUnAuthorized(sessionArray, newValue.SessionId, context, index);
+                FilterOutUnAuthorized(sessionArray, newValue.SessionId, context, index);
             }
 
             // check for changes.
@@ -1250,7 +1241,7 @@ namespace Opc.Ua.Server
 
             if ((context != null) && (sessionArray?[index] != null))
             {
-                DiagnosticsNodeManager.FilterOutUnAuthorized(sessionArray, newValue.SessionId, context, index);
+                FilterOutUnAuthorized(sessionArray, newValue.SessionId, context, index);
             }
 
             // check for changes.
@@ -1307,7 +1298,7 @@ namespace Opc.Ua.Server
 
             if ((context != null) && (subscriptionArray?[index] != null))
             {
-                DiagnosticsNodeManager.FilterOutUnAuthorized(subscriptionArray, newValue.SessionId, context, index);
+                FilterOutUnAuthorized(subscriptionArray, newValue.SessionId, context, index);
             }
 
             // check for changes.
@@ -1353,7 +1344,7 @@ namespace Opc.Ua.Server
         private static void FilterOutUnAuthorized<T>(IList<T> list, NodeId sessionId, ISystemContext context, int index)
         {
             if ((sessionId != context.SessionId) &&
-                    !DiagnosticsNodeManager.HasApplicationSecureAdminAccess(context))
+                    !HasApplicationSecureAdminAccess(context))
             {
                 list[index] = default;
             }
@@ -1376,33 +1367,33 @@ namespace Opc.Ua.Server
             if ((node.NodeId == VariableIds.Server_ServerDiagnostics_ServerDiagnosticsSummary) ||
                  (node.NodeId == VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray))
             {
-                adminUser = DiagnosticsNodeManager.HasApplicationSecureAdminAccess(context);
+                adminUser = HasApplicationSecureAdminAccess(context);
             }
             else
             {
                 adminUser = (node.NodeId == context.SessionId) ||
-                            DiagnosticsNodeManager.HasApplicationSecureAdminAccess(context);
+                            HasApplicationSecureAdminAccess(context);
             }
 
             if (adminUser)
             {
-                IEnumerable<RolePermissionType> rolePermissionTypes = from roleId in m_kWellKnownRoles
-                                          select new RolePermissionType() {
-                                              RoleId = roleId,
-                                              Permissions = (uint)(PermissionType.Browse | PermissionType.Read | PermissionType.ReadRolePermissions | PermissionType.Write)
-                                          };
+                IEnumerable<RolePermissionType> rolePermissionTypes = from roleId in s_kWellKnownRoles
+                                                                      select new RolePermissionType() {
+                                                                          RoleId = roleId,
+                                                                          Permissions = (uint)(PermissionType.Browse | PermissionType.Read | PermissionType.ReadRolePermissions | PermissionType.Write)
+                                                                      };
 
-                value = new RolePermissionTypeCollection(rolePermissionTypes);
+                value = [.. rolePermissionTypes];
             }
             else
             {
-                IEnumerable<RolePermissionType> rolePermissionTypes = from roleId in m_kWellKnownRoles
-                                          select new RolePermissionType() {
-                                              RoleId = roleId,
-                                              Permissions = (uint)PermissionType.None
-                                          };
+                IEnumerable<RolePermissionType> rolePermissionTypes = from roleId in s_kWellKnownRoles
+                                                                      select new RolePermissionType() {
+                                                                          RoleId = roleId,
+                                                                          Permissions = (uint)PermissionType.None
+                                                                      };
 
-                value = new RolePermissionTypeCollection(rolePermissionTypes);
+                value = [.. rolePermissionTypes];
             }
             return ServiceResult.Good;
         }
@@ -1462,7 +1453,7 @@ namespace Opc.Ua.Server
                         SessionDiagnosticsData diagnostics = m_sessions[ii];
                         UpdateSessionDiagnostics(context, diagnostics, sessionArray, ii);
                     }
-                    sessionArray = sessionArray.Where(s => s != null).ToArray();
+                    sessionArray = [.. sessionArray.Where(s => s != null)];
 
                     value = sessionArray;
                 }
@@ -1475,7 +1466,7 @@ namespace Opc.Ua.Server
                     {
                         UpdateSessionSecurityDiagnostics(context, m_sessions[ii], sessionSecurityArray, ii);
                     }
-                    sessionSecurityArray = sessionSecurityArray.Where(s => s != null).ToArray();
+                    sessionSecurityArray = [.. sessionSecurityArray.Where(s => s != null)];
 
                     value = sessionSecurityArray;
                 }
@@ -1488,7 +1479,7 @@ namespace Opc.Ua.Server
                     {
                         UpdateSubscriptionDiagnostics(context, m_subscriptions[ii], subscriptionArray, ii);
                     }
-                    subscriptionArray = subscriptionArray.Where(s => s != null).ToArray();
+                    subscriptionArray = [.. subscriptionArray.Where(s => s != null)];
 
                     value = subscriptionArray;
                 }
@@ -1649,7 +1640,7 @@ user.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin);
 
                             if (subscriptionsNode != null && (subscriptionsNode.Value == null || StatusCode.IsBad(subscriptionsNode.StatusCode) || subscriptionsChanged))
                             {
-                                subscriptionsNode.Value = subscriptionDiagnosticsArray.ToArray();
+                                subscriptionsNode.Value = [.. subscriptionDiagnosticsArray];
                                 subscriptionsNode.ClearChangeMasks(SystemContext, false);
                             }
                         }
@@ -1697,9 +1688,9 @@ user.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin);
             }
 
             // check if diagnostics collection needs to be turned one.
-            if (DiagnosticsNodeManager.IsDiagnosticsNode(handle.Node))
+            if (IsDiagnosticsNode(handle.Node))
             {
-                monitoredItem.AlwaysReportUpdates = DiagnosticsNodeManager.IsDiagnosticsStructureNode(handle.Node);
+                monitoredItem.AlwaysReportUpdates = IsDiagnosticsStructureNode(handle.Node);
 
                 if (monitoredItem.MonitoringMode != MonitoringMode.Disabled)
                 {
@@ -1727,7 +1718,7 @@ user.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin);
             ISampledDataChangeMonitoredItem monitoredItem)
         {
             // check if diagnostics collection needs to be turned off.
-            if (DiagnosticsNodeManager.IsDiagnosticsNode(handle.Node) && monitoredItem.MonitoringMode != MonitoringMode.Disabled)
+            if (IsDiagnosticsNode(handle.Node) && monitoredItem.MonitoringMode != MonitoringMode.Disabled)
             {
                 m_diagnosticsMonitoringCount--;
 
@@ -1793,15 +1784,13 @@ user.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin);
                 m_diagnosticsScanTimer = new Timer(DoScan, null, 1000, 1000);
             }
         }
-        #endregion
 
-        #region Node Access Functions
 #if V1_Methods
         /// <summary>
         /// Returns an index for the NamespaceURI (Adds it to the server namespace table if it does not already exist).
         /// </summary>
         /// <remarks>
-        /// Returns the server's default index (1) if the namespaceUri is empty or null. 
+        /// Returns the server's default index (1) if the namespaceUri is empty or null.
         /// </remarks>
         public ushort GetNamespaceIndex(string namespaceUri)
         {
@@ -1824,7 +1813,7 @@ user.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin);
         {
             return null;
         }
-    
+
         public ILocalNode GetLocalNode(NodeId nodeId)
         {
             return null;
@@ -1860,7 +1849,7 @@ user.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin);
 
         public void DeleteNode(NodeId nodeId, bool deleteChildren, bool silent)
         {
-        }       
+        }
 
         public ILocalNode ReferenceSharedNode(
             ILocalNode source,
@@ -1879,7 +1868,7 @@ user.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin);
         {
             return null;
         }
-        
+
         public NodeId CreateUniqueNodeId()
         {
             return null;
@@ -1904,7 +1893,7 @@ user.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin);
         {
             return null;
         }
-                
+
         public NodeId CreateVariable(
             NodeId parentId,
             NodeId referenceTypeId,
@@ -1935,9 +1924,7 @@ user.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin);
             return null;
         }
 #endif
-        #endregion
 
-        #region SessionDiagnosticsData Class
         /// <summary>
         /// Stores the callback information for a session diagnostics structures.
         /// </summary>
@@ -1963,9 +1950,7 @@ user.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin);
             public SessionSecurityDiagnosticsValue SecurityValue;
             public NodeValueSimpleEventHandler SecurityUpdateCallback;
         }
-        #endregion
 
-        #region SubscriptionDiagnosticsData Class
         /// <summary>
         /// Stores the callback information for a subscription diagnostics structure.
         /// </summary>
@@ -1982,9 +1967,7 @@ user.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin);
             public SubscriptionDiagnosticsValue Value;
             public NodeValueSimpleEventHandler UpdateCallback;
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Creates a new sampled item.
         /// </summary>
@@ -2005,7 +1988,7 @@ user.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin);
         {
             for (int ii = 0; ii < m_sampledItems.Count; ii++)
             {
-                if (Object.ReferenceEquals(monitoredItem, m_sampledItems[ii]))
+                if (ReferenceEquals(monitoredItem, m_sampledItems[ii]))
                 {
                     m_sampledItems.RemoveAt(ii);
                     break;
@@ -2071,9 +2054,7 @@ user.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin);
                 Utils.LogError(e, "Unexpected error during diagnostics scan.");
             }
         }
-        #endregion
 
-        #region Private Fields
         private readonly ushort m_namespaceIndex;
         private long m_lastUsedId;
         private Timer m_diagnosticsScanTimer;
@@ -2091,10 +2072,8 @@ user.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin);
         private readonly List<ISampledDataChangeMonitoredItem> m_sampledItems;
         private readonly double m_minimumSamplingInterval;
         private HistoryServerCapabilitiesState m_historyCapabilities;
-        #endregion
 
-        #region Private Readonly Fields
-        private static readonly NodeId[] m_kWellKnownRoles = {
+        private static readonly NodeId[] s_kWellKnownRoles = [
             ObjectIds.WellKnownRole_Anonymous,
             ObjectIds.WellKnownRole_AuthenticatedUser,
             ObjectIds.WellKnownRole_ConfigureAdmin,
@@ -2102,7 +2081,6 @@ user.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin);
             ObjectIds.WellKnownRole_Observer,
             ObjectIds.WellKnownRole_Operator,
             ObjectIds.WellKnownRole_SecurityAdmin,
-            ObjectIds.WellKnownRole_Supervisor };
-        #endregion
+            ObjectIds.WellKnownRole_Supervisor ];
     }
 }

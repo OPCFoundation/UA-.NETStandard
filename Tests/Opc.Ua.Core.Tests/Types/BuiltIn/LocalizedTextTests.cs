@@ -37,7 +37,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.AreEqual("Hello", localizedText.Translations["en-US"]);
             Assert.AreEqual("Hallo", localizedText.Translations["de-DE"]);
 
-            const string expectedJson = "{\"t\":[[\"en-US\",\"Hello\"],[\"de-DE\",\"Hallo\"]]}";
+            const string expectedJson = /*lang=json,strict*/ "{\"t\":[[\"en-US\",\"Hello\"],[\"de-DE\",\"Hallo\"]]}";
             Assert.AreEqual(expectedJson, localizedText.Text);
         }
 
@@ -82,7 +82,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         {
             // Arrange
             const string mulLocale = "mul";
-            const string jsonText = "{\"t\":[[\"en-US\",\"Hello\"],[\"de-DE\",\"Hallo\"],[\"fr-FR\",\"Bonjour\"]]}";
+            const string jsonText = /*lang=json,strict*/ "{\"t\":[[\"en-US\",\"Hello\"],[\"de-DE\",\"Hallo\"],[\"fr-FR\",\"Bonjour\"]]}";
 
             // Act
             var localizedText = new LocalizedText(mulLocale, jsonText);
@@ -98,14 +98,20 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.AreEqual("Bonjour", localizedText.Translations["fr-FR"]);
         }
 
-        private static readonly string[] preferredLocales = new[] { "en-US", "de-DE" };
+        private static readonly string[] s_preferredLocales = ["en-US", "de-DE"];
+        private static readonly string[] s_preferredLocalesArray = ["en-GB", "de-DE"];
+        private static readonly string[] s_preferredLocalesArray0 = ["en-GB"];
+        private static readonly string[] s_preferredLocalesArray1 = ["mul", "en-GB"];
+        private static readonly string[] s_preferredLocalesArray2 = ["mul"];
+        private static readonly string[] s_preferredLocalesArray3 = ["mul", "fr-FR"];
+        private static readonly string[] s_preferredLocalesArray4 = ["en-GB", "en-US"];
 
         [Test]
         public void LocalizedText_MulLocale_ReturnsPreferredTranslations()
         {
             // Arrange
             const string mulLocale = "mul";
-            const string jsonText = "{\"t\":[[\"en-US\",\"Hello\"],[\"de-DE\",\"Hallo\"],[\"fr-FR\",\"Bonjour\"]]}";
+            const string jsonText = /*lang=json,strict*/ "{\"t\":[[\"en-US\",\"Hello\"],[\"de-DE\",\"Hallo\"],[\"fr-FR\",\"Bonjour\"]]}";
 
             // Act
             var localizedText = new LocalizedText(mulLocale, jsonText);
@@ -114,27 +120,27 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.IsTrue(localizedText.IsMultiLanguage, "Should be mul locale");
 
             //found locale returned
-            LocalizedText singleUS = localizedText.FilterByPreferredLocales(preferredLocales);
+            LocalizedText singleUS = localizedText.FilterByPreferredLocales(s_preferredLocales);
             Assert.AreEqual("en-US", singleUS.Locale, "Locale should be 'en-US'");
             Assert.AreEqual("Hello", singleUS.Text, "Text should be 'Hello'");
 
             //found locale returned
-            LocalizedText singleDE = localizedText.FilterByPreferredLocales(new[] { "en-GB", "de-DE" });
+            LocalizedText singleDE = localizedText.FilterByPreferredLocales(s_preferredLocalesArray);
             Assert.AreEqual("de-DE", singleDE.Locale, "Locale should be 'de-DE'");
             Assert.AreEqual("Hallo", singleDE.Text, "Text should be 'Hallo'");
 
             //first locale returned
-            LocalizedText singleFR = localizedText.FilterByPreferredLocales(new[] { "en-GB" });
+            LocalizedText singleFR = localizedText.FilterByPreferredLocales(s_preferredLocalesArray0);
             Assert.AreEqual("en-US", singleFR.Locale, "Locale should be 'en-US'");
             Assert.AreEqual("Hello", singleFR.Text, "Text should be 'Hello'");
 
             // Default locale returned
-            LocalizedText mulGB = localizedText.FilterByPreferredLocales(new[] { "mul", "en-GB" });
+            LocalizedText mulGB = localizedText.FilterByPreferredLocales(s_preferredLocalesArray1);
             Assert.AreEqual("en-US", mulGB.Locale, "Locale should be 'en-US'");
             Assert.AreEqual("Hello", mulGB.Text, "Text should be 'Hello'");
 
             // All locales returned
-            LocalizedText mul = localizedText.FilterByPreferredLocales(new[] { "mul" });
+            LocalizedText mul = localizedText.FilterByPreferredLocales(s_preferredLocalesArray2);
             Assert.IsTrue(mul.IsMultiLanguage, "Should be mul locale");
             Assert.AreEqual(3, mul.Translations.Count, "Translations should have 3 entries");
             Assert.AreEqual("Hello", mul.Translations["en-US"]);
@@ -142,7 +148,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.AreEqual("Bonjour", mul.Translations["fr-FR"]);
 
             //matching locale returned
-            LocalizedText mulFr = localizedText.FilterByPreferredLocales(new[] { "mul", "fr-FR" });
+            LocalizedText mulFr = localizedText.FilterByPreferredLocales(s_preferredLocalesArray3);
             Assert.AreEqual("fr-FR", mulFr.Locale, "Locale should be 'fr-FR'");
             Assert.AreEqual("Bonjour", mulFr.Text, "Text should be 'Bonjour'");
         }
@@ -157,17 +163,17 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.IsFalse(localizedText.IsMultiLanguage, "Should be mul locale");
 
             //found locale returned
-            LocalizedText singleDE = localizedText.FilterByPreferredLocales(preferredLocales);
+            LocalizedText singleDE = localizedText.FilterByPreferredLocales(s_preferredLocales);
             Assert.AreEqual("de-DE", singleDE.Locale, "Locale should be 'de-DE'");
             Assert.AreEqual("Hallo", singleDE.Text, "Text should be 'Hallo'");
 
             //nonexisting locale, default locale returned
-            LocalizedText singleUS = localizedText.FilterByPreferredLocales(new[] { "en-GB", "en-US" });
+            LocalizedText singleUS = localizedText.FilterByPreferredLocales(s_preferredLocalesArray4);
             Assert.AreEqual("de-DE", singleUS.Locale, "Locale should be 'de-DE'");
             Assert.AreEqual("Hallo", singleUS.Text, "Text should be 'Hallo'");
 
             // Default locale returned
-            LocalizedText mulGB = localizedText.FilterByPreferredLocales(new[] { "mul", "en-GB" });
+            LocalizedText mulGB = localizedText.FilterByPreferredLocales(s_preferredLocalesArray1);
             Assert.AreEqual("de-DE", mulGB.Locale, "Locale should be 'de-DE'");
             Assert.AreEqual("Hallo", mulGB.Text, "Text should be 'Hallo'");
         }
@@ -177,7 +183,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         {
             // Arrange
             const string mulLocale = "mul";
-            const string jsonText = "{\"t\":[[\"en-US\"],[\"de-DE\",\"Hallo\", \"fr-FR\"],[]]}";
+            const string jsonText = /*lang=json,strict*/ "{\"t\":[[\"en-US\"],[\"de-DE\",\"Hallo\", \"fr-FR\"],[]]}";
 
             // Act
             var localizedText = new LocalizedText(mulLocale, jsonText);
@@ -193,7 +199,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         {
             // Arrange
             const string mulLocale = "mul";
-            const string jsonText = "{\"t\":[[\"en-US\",\"Hello\"],[\"de-DE\",\"Hallo\"],[\"fr-FR\",\"Bonjour\"]]}";
+            const string jsonText = /*lang=json,strict*/ "{\"t\":[[\"en-US\",\"Hello\"],[\"de-DE\",\"Hallo\"],[\"fr-FR\",\"Bonjour\"]]}";
 
             // Act
             var localizedText = new LocalizedText(mulLocale, jsonText);

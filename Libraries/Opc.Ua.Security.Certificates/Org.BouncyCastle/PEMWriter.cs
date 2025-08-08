@@ -47,7 +47,6 @@ namespace Opc.Ua.Security.Certificates
     {
 #if !NETSTANDARD2_1 && !NET5_0_OR_GREATER
 
-        #region Public Methods
         /// <summary>
         /// Returns a byte array containing the private key in PEM format.
         /// </summary>
@@ -142,7 +141,7 @@ namespace Opc.Ua.Security.Certificates
             }
             return false;
         }
-        #endregion
+
 #endif
     }
 }

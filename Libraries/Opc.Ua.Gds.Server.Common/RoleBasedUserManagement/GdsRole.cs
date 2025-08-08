@@ -60,12 +60,10 @@ namespace Opc.Ua.Gds.Server
     /// </summary>
     public class GdsRoleBasedIdentity : RoleBasedIdentity
     {
-        private readonly NodeId m_applicationId;
-
         public GdsRoleBasedIdentity(IUserIdentity identity, IEnumerable<Role> roles, NodeId applicationId)
      : base(identity, roles)
         {
-            m_applicationId = applicationId;
+            ApplicationId = applicationId;
         }
 
         public GdsRoleBasedIdentity(IUserIdentity identity, IEnumerable<Role> roles)
@@ -75,9 +73,6 @@ namespace Opc.Ua.Gds.Server
         /// <summary>
         /// The applicationId in case the ApplicationSelfAdminPrivilege is used
         /// </summary>
-        public NodeId ApplicationId
-        {
-            get { return m_applicationId; }
-        }
+        public NodeId ApplicationId { get; }
     }
 }

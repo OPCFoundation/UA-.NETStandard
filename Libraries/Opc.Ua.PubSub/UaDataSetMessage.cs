@@ -37,7 +37,6 @@ namespace Opc.Ua.PubSub
     /// </summary>
     public abstract class UaDataSetMessage
     {
-        #region Fields
         // Configuration Major and Major current version (VersionTime)
         /// <summary>
         /// Default value for Configured MetaDataVersion.MajorVersion
@@ -47,9 +46,7 @@ namespace Opc.Ua.PubSub
         /// Default value for Configured MetaDataVersion.MinorVersion
         /// </summary>
         protected const uint kDefaultConfigMinorVersion = 0;
-        #endregion
 
-        #region Constructor
         /// <summary>
         /// Create new instance of <see cref="UaDataSetMessage"/>
         /// </summary>
@@ -62,9 +59,7 @@ namespace Opc.Ua.PubSub
                 MinorVersion = kDefaultConfigMinorVersion
             };
         }
-        #endregion
 
-        #region Properties
         /// <summary>
         /// Get DataSet
         /// </summary>
@@ -111,22 +106,13 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Checks if the MetadataMajorVersion has changed depending on the value of DataSetDecodeErrorReason
         /// </summary>
-        public bool IsMetadataMajorVersionChange
-        {
-            get
-            {
-                return DecodeErrorReason == DataSetDecodeErrorReason.MetadataMajorVersion;
-            }
-        }
-        #endregion
+        public bool IsMetadataMajorVersionChange => DecodeErrorReason == DataSetDecodeErrorReason.MetadataMajorVersion;
 
-        #region Methods
         /// <summary>
         /// Set DataSetFieldContentMask
         /// </summary>
         /// <param name="fieldContentMask">The new <see cref="DataSetFieldContentMask"/> for this dataset</param>
         public abstract void SetFieldContentMask(DataSetFieldContentMask fieldContentMask);
-        #endregion
 
         /// <summary>
         /// Validates the MetadataVersion against a given ConfigurationVersionDataType
@@ -135,12 +121,9 @@ namespace Opc.Ua.PubSub
         /// <returns>NoError if validation passes or the cause of the failure</returns>
         protected DataSetDecodeErrorReason ValidateMetadataVersion(ConfigurationVersionDataType configurationVersionDataType)
         {
-            if (MetaDataVersion.MajorVersion != kDefaultConfigMajorVersion)
+            if (MetaDataVersion.MajorVersion != kDefaultConfigMajorVersion && MetaDataVersion.MajorVersion != configurationVersionDataType.MajorVersion)
             {
-                if (MetaDataVersion.MajorVersion != configurationVersionDataType.MajorVersion)
-                {
-                    return DataSetDecodeErrorReason.MetadataMajorVersion;
-                }
+                return DataSetDecodeErrorReason.MetadataMajorVersion;
             }
 
             return DataSetDecodeErrorReason.NoError;

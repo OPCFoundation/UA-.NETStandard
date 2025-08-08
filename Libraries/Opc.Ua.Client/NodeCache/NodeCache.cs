@@ -41,7 +41,6 @@ namespace Opc.Ua.Client
     /// </summary>
     public partial class NodeCache : INodeCache, IDisposable
     {
-        #region Constructors
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
@@ -58,9 +57,7 @@ namespace Opc.Ua.Client
             m_uaTypesLoaded = false;
             m_cacheLock = new ReaderWriterLockSlim();
         }
-        #endregion
 
-        #region IDisposable
         /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
@@ -79,9 +76,7 @@ namespace Opc.Ua.Client
             Dispose(disposing: true);
             GC.SuppressFinalize(this);
         }
-        #endregion
 
-        #region INodeTable Members
         /// <inheritdoc/>
         public NamespaceTable NamespaceUris => m_session.NamespaceUris;
 
@@ -147,11 +142,11 @@ namespace Opc.Ua.Client
             // check for null.
             if (nodeIds == null || nodeIds.Count == 0)
             {
-                return new List<INode>();
+                return [];
             }
 
             int count = nodeIds.Count;
-            IList<INode> nodes = new List<INode>(count);
+            var nodes = new List<INode>(count);
             var fetchNodeIds = new ExpandedNodeIdCollection();
 
             int ii;
@@ -309,9 +304,7 @@ namespace Opc.Ua.Client
 
             return hits;
         }
-        #endregion
 
-        #region ITypeTable Methods
         /// <inheritdoc/>
         public bool IsKnown(ExpandedNodeId typeId)
         {
@@ -731,9 +724,7 @@ namespace Opc.Ua.Client
 
             return NodeId.Null;
         }
-        #endregion
 
-        #region INodeCache Methods
         /// <inheritdoc/>
         public void LoadUaDefinedTypes(ISystemContext context)
         {
@@ -843,7 +834,7 @@ namespace Opc.Ua.Client
             int count = nodeIds.Count;
             if (count == 0)
             {
-                return new List<Node>();
+                return [];
             }
 
             var localIds = new NodeIdCollection(
@@ -933,7 +924,7 @@ namespace Opc.Ua.Client
             bool isInverse,
             bool includeSubtypes)
         {
-            IList<INode> targets = new List<INode>();
+            IList<INode> targets = [];
 
             if (!(Find(nodeId) is Node source))
             {
@@ -972,7 +963,7 @@ namespace Opc.Ua.Client
             bool isInverse,
             bool includeSubtypes)
         {
-            IList<INode> targets = new List<INode>();
+            IList<INode> targets = [];
             if (nodeIds.Count == 0 || referenceTypeIds.Count == 0)
             {
                 return targets;
@@ -1121,9 +1112,7 @@ namespace Opc.Ua.Client
 
             return typeId;
         }
-        #endregion
 
-        #region Private Methods
         private void InternalWriteLockedAttach(ILocalNode node)
         {
             m_cacheLock.EnterWriteLock();
@@ -1137,14 +1126,11 @@ namespace Opc.Ua.Client
                 m_cacheLock.ExitWriteLock();
             }
         }
-        #endregion
 
-        #region Private Fields
-        private readonly ReaderWriterLockSlim m_cacheLock = new ReaderWriterLockSlim();
+        private readonly ReaderWriterLockSlim m_cacheLock = new();
         private ISession m_session;
         private readonly TypeTable m_typeTree;
         private readonly NodeTable m_nodes;
         private bool m_uaTypesLoaded;
-        #endregion
     }
 }

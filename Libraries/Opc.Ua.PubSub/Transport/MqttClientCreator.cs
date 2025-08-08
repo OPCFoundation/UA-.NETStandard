@@ -39,13 +39,11 @@ namespace Opc.Ua.PubSub.Transport
 {
     internal static class MqttClientCreator
     {
-        #region Private
 #if !NET8_0_OR_GREATER
-        private static readonly Lazy<MqttFactory> s_mqttClientFactory = new Lazy<MqttFactory>(() => new MqttFactory());
+        private static readonly Lazy<MqttFactory> s_mqttClientFactory = new(() => new MqttFactory());
 #else
-        private static readonly Lazy<MqttClientFactory> s_mqttClientFactory = new Lazy<MqttClientFactory>(() => new MqttClientFactory());
+        private static readonly Lazy<MqttClientFactory> s_mqttClientFactory = new(() => new MqttClientFactory());
 #endif
-#endregion
 
         /// <summary>
         /// The method which returns an MQTT client
@@ -65,7 +63,6 @@ namespace Opc.Ua.PubSub.Transport
             // Hook the receiveMessageHandler in case we deal with a subscriber
             if ((receiveMessageHandler != null) && (topicFilter != null))
             {
-
                 mqttClient.ApplicationMessageReceivedAsync += receiveMessageHandler;
                 mqttClient.ConnectedAsync += async e => {
                     Utils.Trace("{0} Connected to MQTTBroker", mqttClient?.Options?.ClientId);

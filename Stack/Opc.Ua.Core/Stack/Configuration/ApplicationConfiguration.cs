@@ -26,7 +26,6 @@ namespace Opc.Ua
 	/// </summary>
 	public class ApplicationConfigurationSection
     {
-        #region IConfigurationSectionHandler Members
         /// <summary>
         /// Creates the configuration object from the configuration section.
         /// </summary>
@@ -34,7 +33,7 @@ namespace Opc.Ua
         /// <param name="configContext">The configuration context object.</param>
         /// <param name="section">The section as XML node.</param>
         /// <returns>The created section handler object.</returns>
-        public object Create(object parent, object configContext, System.Xml.XmlNode section)
+        public object Create(object parent, object configContext, XmlNode section)
         {
             if (section == null)
             {
@@ -54,7 +53,6 @@ namespace Opc.Ua
                 return serializer.ReadObject(reader) as ConfigurationLocation;
             }
         }
-        #endregion
     }
 
     /// <summary>
@@ -63,15 +61,12 @@ namespace Opc.Ua
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
     public class ConfigurationLocation
     {
-        #region Persistent Properties
         /// <summary>
         /// Gets or sets the relative or absolute path to the configuration file.
         /// </summary>
         /// <value>The file path.</value>
         [DataMember(IsRequired = true, Order = 0)]
         public string FilePath { get; set; }
-
-        #endregion
     }
 
     /// <summary>
@@ -79,7 +74,6 @@ namespace Opc.Ua
     /// </summary>
     public partial class ApplicationConfiguration
     {
-        #region Public Methods
         /// <summary>
         /// Gets the file that was used to load the configuration.
         /// </summary>
@@ -90,9 +84,7 @@ namespace Opc.Ua
         /// Gets or sets the certificate validator which is configured to use.
         /// </summary>
         public CertificateValidator CertificateValidator
-        {
-            get { return m_certificateValidator; }
-            set { m_certificateValidator = value; }
+        { get => m_certificateValidator; set => m_certificateValidator = value;
         }
 
         /// <summary>
@@ -103,29 +95,29 @@ namespace Opc.Ua
         {
             var baseAddresses = new StringCollection();
 
-            if (this.ServerConfiguration != null)
+            if (ServerConfiguration != null)
             {
-                if (this.ServerConfiguration.BaseAddresses != null)
+                if (ServerConfiguration.BaseAddresses != null)
                 {
-                    baseAddresses.AddRange(this.ServerConfiguration.BaseAddresses);
+                    baseAddresses.AddRange(ServerConfiguration.BaseAddresses);
                 }
 
-                if (this.ServerConfiguration.AlternateBaseAddresses != null)
+                if (ServerConfiguration.AlternateBaseAddresses != null)
                 {
-                    baseAddresses.AddRange(this.ServerConfiguration.AlternateBaseAddresses);
+                    baseAddresses.AddRange(ServerConfiguration.AlternateBaseAddresses);
                 }
             }
 
-            if (this.DiscoveryServerConfiguration != null)
+            if (DiscoveryServerConfiguration != null)
             {
-                if (this.DiscoveryServerConfiguration.BaseAddresses != null)
+                if (DiscoveryServerConfiguration.BaseAddresses != null)
                 {
-                    baseAddresses.AddRange(this.DiscoveryServerConfiguration.BaseAddresses);
+                    baseAddresses.AddRange(DiscoveryServerConfiguration.BaseAddresses);
                 }
 
-                if (this.DiscoveryServerConfiguration.AlternateBaseAddresses != null)
+                if (DiscoveryServerConfiguration.AlternateBaseAddresses != null)
                 {
-                    baseAddresses.AddRange(this.DiscoveryServerConfiguration.AlternateBaseAddresses);
+                    baseAddresses.AddRange(DiscoveryServerConfiguration.AlternateBaseAddresses);
                 }
             }
 
@@ -306,7 +298,7 @@ namespace Opc.Ua
         /// <returns>Application configuration</returns>
         public static Task<ApplicationConfiguration> LoadAsync(FileInfo file, ApplicationType applicationType, Type systemType)
         {
-            return ApplicationConfiguration.LoadAsync(file, applicationType, systemType, true);
+            return LoadAsync(file, applicationType, systemType, true);
         }
 
         /// <summary>
@@ -466,7 +458,7 @@ namespace Opc.Ua
             settings.CloseOutput = true;
 
             using (Stream ostrm = File.Open(filePath, FileMode.Create, FileAccess.ReadWrite))
-            using (XmlWriter writer = XmlDictionaryWriter.Create(ostrm, settings))
+            using (XmlWriter writer = XmlWriter.Create(ostrm, settings))
             {
                 var serializer = new DataContractSerializer(GetType());
                 serializer.WriteObject(writer, this);
@@ -559,7 +551,7 @@ namespace Opc.Ua
                 m_serverConfiguration.PublishingResolution = 50;
             }
 
-            await m_certificateValidator.UpdateAsync(this.SecurityConfiguration).ConfigureAwait(false);
+            await m_certificateValidator.UpdateAsync(SecurityConfiguration).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -597,7 +589,7 @@ namespace Opc.Ua
 
                 if (!Utils.IsPathRooted(filePath))
                 {
-                    var sourceFile = new FileInfo(this.SourceFilePath);
+                    var sourceFile = new FileInfo(SourceFilePath);
                     filePath = Utils.Format("{0}{1}{2}", sourceFile.DirectoryName, Path.DirectorySeparatorChar, filePath);
                 }
             }
@@ -664,16 +656,13 @@ namespace Opc.Ua
         {
             Utils.UpdateExtension<T>(ref m_extensions, elementName, value);
         }
-#endregion
     }
 
-    #region TraceConfiguration Class
     /// <summary>
     /// Specifies parameters used for tracing.
     /// </summary>
     public partial class TraceConfiguration
     {
-        #region Public Methods
         /// <summary>
         /// Applies the trace settings to the current process.
         /// </summary>
@@ -691,17 +680,13 @@ namespace Opc.Ua
                 Utils.SetTraceOutput(Utils.TraceOutput.DebugAndFile);
             }
         }
-        #endregion
     }
-    #endregion
 
-    #region ServerBaseConfiguration Class
     /// <summary>
     /// Specifies the configuration for a server application.
     /// </summary>
     public partial class ServerBaseConfiguration
     {
-        #region Public Methods
         /// <summary>
         /// Validates the configuration.
         /// </summary>
@@ -712,17 +697,13 @@ namespace Opc.Ua
                 m_securityPolicies.Add(new ServerSecurityPolicy());
             }
         }
-        #endregion
     }
-    #endregion
 
-    #region ServerConfiguration Class
     /// <summary>
     /// Specifies the configuration for a server application.
     /// </summary>
     public partial class ServerConfiguration : ServerBaseConfiguration
     {
-        #region Public Methods
         /// <summary>
         /// Validates the configuration.
         /// </summary>
@@ -735,17 +716,13 @@ namespace Opc.Ua
                 m_userTokenPolicies.Add(new UserTokenPolicy());
             }
         }
-        #endregion
     }
-    #endregion
 
-    #region ClientConfiguration Class
     /// <summary>
     /// The configuration for a client application.
     /// </summary>
     public partial class ClientConfiguration
     {
-        #region Public Methods
         /// <summary>
         /// Validates the configuration.
         /// </summary>
@@ -756,7 +733,5 @@ namespace Opc.Ua
                 WellKnownDiscoveryUrls.AddRange(Utils.DiscoveryUrls);
             }
         }
-        #endregion
     }
-    #endregion
 }

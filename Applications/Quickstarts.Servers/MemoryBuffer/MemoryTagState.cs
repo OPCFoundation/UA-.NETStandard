@@ -29,10 +29,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Xml;
 using System.IO;
 using System.Reflection;
 using System.Threading;
+using System.Xml;
 using Opc.Ua;
 using Opc.Ua.Server;
 
@@ -40,7 +40,6 @@ namespace MemoryBuffer
 {
     public partial class MemoryTagState
     {
-        #region Constructors
         /// <summary>
         /// Initializes a memory tag for a buffer.
         /// </summary>
@@ -56,7 +55,7 @@ namespace MemoryBuffer
             Description = null;
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;
-            ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent;
+            ReferenceTypeId = ReferenceTypeIds.HasComponent;
             TypeDefinitionId = new NodeId(VariableTypes.MemoryTagType, parent.TypeDefinitionId.NamespaceIndex);
             ModellingRuleId = null;
             NumericId = offet;
@@ -74,20 +73,12 @@ namespace MemoryBuffer
 
             m_offset = offet;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The offset of the tag address in the memory buffer.
         /// </summary>
-        public uint Offset
-        {
-            get { return m_offset; }
-        }
-        #endregion
+        public uint Offset => m_offset;
 
-        #region Private Fields
         private readonly uint m_offset;
-        #endregion
     }
 }

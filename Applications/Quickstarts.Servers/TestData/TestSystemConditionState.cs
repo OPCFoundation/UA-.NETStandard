@@ -29,27 +29,24 @@
 
 using System;
 using System.Collections.Generic;
-using System.Xml;
 using System.IO;
 using System.Reflection;
+using System.Xml;
 using Opc.Ua;
 
 namespace TestData
 {
     public partial class TestSystemConditionState
     {
-        #region Initialization
         /// <summary>
         /// Initializes the object as a collection of counters which change value on read.
         /// </summary>
         protected override void OnAfterCreate(ISystemContext context, NodeState node)
         {
             base.OnAfterCreate(context, node);
-            this.MonitoredNodeCount.OnSimpleReadValue = OnReadMonitoredNodeCount;
+            MonitoredNodeCount.OnSimpleReadValue = OnReadMonitoredNodeCount;
         }
-        #endregion
 
-        #region Protected Methods
         /// <summary>
         /// Reads the value for the MonitoredNodeCount.
         /// </summary>
@@ -66,6 +63,5 @@ namespace TestData
             value = system.MonitoredNodeCount;
             return ServiceResult.Good;
         }
-        #endregion
     }
 }

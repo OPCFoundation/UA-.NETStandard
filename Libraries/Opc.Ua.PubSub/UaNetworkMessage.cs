@@ -41,16 +41,11 @@ namespace Opc.Ua.PubSub
     {
         private ushort m_dataSetWriterId;
 
-        #region Public Events
-
         /// <summary>
         /// The Default event for an error encountered during decoding the dataset messages
         /// </summary>
         public event EventHandler<DataSetDecodeErrorEventArgs> DataSetDecodeErrorOccurred;
 
-        #endregion
-
-        #region Protected Fields
         /// <summary>
         /// The DataSetMetaData
         /// </summary>
@@ -60,9 +55,7 @@ namespace Opc.Ua.PubSub
         /// List of DataSet messages
         /// </summary>
         protected List<UaDataSetMessage> m_uaDataSetMessages;
-        #endregion
 
-        #region Constructor
         /// <summary>
         /// Create instance of <see cref="UaNetworkMessage"/>.
         /// </summary>
@@ -81,12 +74,10 @@ namespace Opc.Ua.PubSub
         protected UaNetworkMessage(WriterGroupDataType writerGroupConfiguration, DataSetMetaDataType metadata)
         {
             WriterGroupConfiguration = writerGroupConfiguration;
-            m_uaDataSetMessages = new List<UaDataSetMessage>();
+            m_uaDataSetMessages = [];
             m_metadata = metadata;
         }
-        #endregion
 
-        #region Properties
         /// <summary>
         /// Get and Set WriterGroupId
         /// </summary>
@@ -112,49 +103,29 @@ namespace Opc.Ua.PubSub
                 return (m_dataSetWriterId != 0) ? m_dataSetWriterId : null;
             }
 
-            set
-            {
-                m_dataSetWriterId = (value != null) ? value.Value : (ushort)0;
-            }
+            set => m_dataSetWriterId = value ?? 0;
         }
 
         /// <summary>
         /// DataSet messages
         /// </summary>
-        public List<UaDataSetMessage> DataSetMessages
-        {
-            get
-            {
-                return m_uaDataSetMessages;
-            }
-        }
+        public List<UaDataSetMessage> DataSetMessages => m_uaDataSetMessages;
 
         /// <summary>
         /// DataSetMetaData messages
         /// </summary>
-        public DataSetMetaDataType DataSetMetaData
-        {
-            get
-            {
-                return m_metadata;
-            }
-        }
+        public DataSetMetaDataType DataSetMetaData => m_metadata;
 
         /// <summary>
         /// TRUE if it is a metadata message.
         /// </summary>
-        public bool IsMetaDataMessage
-        {
-            get { return m_metadata != null; }
-        }
+        public bool IsMetaDataMessage => m_metadata != null;
 
         /// <summary>
         /// Get the writer group configuration for this network message
         /// </summary>
         internal WriterGroupDataType WriterGroupConfiguration { get; set; }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Encodes the object and returns the resulting byte array.
         /// </summary>
@@ -175,9 +146,7 @@ namespace Opc.Ua.PubSub
         /// <param name="message"></param>
         /// <param name="dataSetReaders"></param>
         public abstract void Decode(IServiceMessageContext messageContext, byte[] message, IList<DataSetReaderDataType> dataSetReaders);
-        #endregion
 
-        #region Protected Methods
         /// <summary>
         /// The DataSetDecodeErrorOccurred event handler
         /// </summary>
@@ -186,7 +155,5 @@ namespace Opc.Ua.PubSub
         {
             DataSetDecodeErrorOccurred?.Invoke(this, e);
         }
-        #endregion
-
     }
 }

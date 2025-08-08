@@ -77,7 +77,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             var systemContext = new SystemContext() { NamespaceUris = serviceMessageContext.NamespaceUris };
 
             var testNodeState = new BaseObjectState(null);
-            
+
             testNodeState.Create(
                 new SystemContext() { NamespaceUris = serviceMessageContext.NamespaceUris },
                 new NodeId("TestNode", 7),
@@ -116,7 +116,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 notifierTargets.CompleteAdding();
             }, cancellationToken);
 
-            foreach(NodeState target in notifierTargets.GetConsumingEnumerable(cancellationToken))
+            foreach (NodeState target in notifierTargets.GetConsumingEnumerable(cancellationToken))
             {
                 testNodeState.RemoveNotifier(systemContext, target, false);
             }

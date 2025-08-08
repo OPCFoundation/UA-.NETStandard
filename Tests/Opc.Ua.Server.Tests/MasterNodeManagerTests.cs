@@ -43,7 +43,6 @@ namespace Opc.Ua.Server.Tests
     [Parallelizable]
     public class MasterNodeManagerTests
     {
-        #region Test Methods
         /// <summary>
         /// Test for registering a namespace manager for a namespace
         /// not contained in the server's namespace table
@@ -59,7 +58,7 @@ namespace Opc.Ua.Server.Tests
                 const string ns = "http://test.org/UA/Data/";
 
                 var nodeManager = new Mock<INodeManager>();
-                nodeManager.Setup(x => x.NamespaceUris).Returns(new List<string>());
+                nodeManager.Setup(x => x.NamespaceUris).Returns([]);
 
                 //-- Act
                 StandardServer server = await fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
@@ -168,7 +167,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.Contains(ns, server.CurrentInstance.NamespaceUris.ToArray());
                 INodeManager[] registeredManagers = sut.NamespaceManagers[server.CurrentInstance.NamespaceUris.GetIndex(ns)];
                 Assert.AreEqual(totalManagers - 1, registeredManagers.Length);
-                Assert.That(registeredManagers, Has.No.Member(nodeManagerToRemove));
+                NUnit.Framework.Assert.That(registeredManagers, Has.No.Member(nodeManagerToRemove));
             }
             finally
             {
@@ -241,11 +240,11 @@ namespace Opc.Ua.Server.Tests
                 const string originalNs = "http://test.org/UA/Data/";
 
                 var originalNodeManager = new Mock<INodeManager>();
-                originalNodeManager.Setup(x => x.NamespaceUris).Returns(new List<string> { originalNs });
+                originalNodeManager.Setup(x => x.NamespaceUris).Returns([originalNs]);
 
                 const string newNs = "http://test.org/UA/Data/Instance";
                 var newNodeManager = new Mock<INodeManager>();
-                newNodeManager.Setup(x => x.NamespaceUris).Returns(new List<string> { originalNs, newNs });
+                newNodeManager.Setup(x => x.NamespaceUris).Returns([originalNs, newNs]);
 
                 //-- Act
                 StandardServer server = await fixture.StartAsync(TestContext.Out).ConfigureAwait(false);
@@ -258,7 +257,7 @@ namespace Opc.Ua.Server.Tests
 
                 //-- Assert
                 Assert.IsFalse(result);
-                Assert.That(server.CurrentInstance.NamespaceUris.ToArray(), Has.No.Member(newNs));
+                NUnit.Framework.Assert.That(server.CurrentInstance.NamespaceUris.ToArray(), Has.No.Member(newNs));
 
                 Assert.Contains(originalNs, server.CurrentInstance.NamespaceUris.ToArray());
                 INodeManager[] registeredManagers = sut.NamespaceManagers[server.CurrentInstance.NamespaceUris.GetIndex(originalNs)];
@@ -270,6 +269,5 @@ namespace Opc.Ua.Server.Tests
                 await fixture.StopAsync().ConfigureAwait(false);
             }
         }
-        #endregion
     }
 }

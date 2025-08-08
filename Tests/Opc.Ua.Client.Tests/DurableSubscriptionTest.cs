@@ -57,7 +57,6 @@ namespace Opc.Ua.Client.Tests
     {
         public readonly uint MillisecondsPerHour = 3600 * 1000;
 
-        #region Test Setup
         /// <summary>
         /// Set up a Server and a Client instance.
         /// </summary>
@@ -69,7 +68,7 @@ namespace Opc.Ua.Client.Tests
             // create a new session for every test
             SingleSession = false;
             MaxChannelCount = 1000;
-            return base.OneTimeSetUpAsync(writer: null, securityNone: true);
+            return OneTimeSetUpAsync(writer: null, securityNone: true);
         }
 
         override public async Task CreateReferenceServerFixture(
@@ -104,10 +103,10 @@ namespace Opc.Ua.Client.Tests
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.UserName));
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.Certificate));
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
-                new UserTokenPolicy(UserTokenType.IssuedToken) { IssuedTokenType = Opc.Ua.Profiles.JwtUserToken });
+                new UserTokenPolicy(UserTokenType.IssuedToken) { IssuedTokenType = Profiles.JwtUserToken });
 
             ReferenceServer = await ServerFixture.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
-            ReferenceServer.TokenValidator = this.TokenValidator;
+            ReferenceServer.TokenValidator = TokenValidator;
             ServerFixturePort = ServerFixture.Port;
         }
 
@@ -144,7 +143,7 @@ namespace Opc.Ua.Client.Tests
                 }
                 catch (Exception e)
                 {
-                    Assert.Ignore($"OneTimeSetup failed to create session, tests skipped. Error: {e.Message}");
+                    NUnit.Framework.Assert.Ignore($"OneTimeSetup failed to create session, tests skipped. Error: {e.Message}");
                 }
             }
             if (ServerFixture == null)
@@ -165,9 +164,6 @@ namespace Opc.Ua.Client.Tests
         {
             return base.TearDown();
         }
-        #endregion
-
-        #region Tests
 
         [Test, Order(100)]
         [TestCase(900, 100u, 100u, 10000u, 3600u, 83442u, TestName = "Test Lifetime Over Maximum")]
@@ -248,14 +244,14 @@ namespace Opc.Ua.Client.Tests
             subscription.AddItem(mi);
 
             IList<MonitoredItem> result = await subscription.CreateItemsAsync().ConfigureAwait(false);
-            Assert.That(ServiceResult.IsGood(result[0].Status.Error), Is.True);
-            Assert.That(result[0].Status.QueueSize, Is.EqualTo(expectedRevisedQueueSize));
+            NUnit.Framework.Assert.That(ServiceResult.IsGood(result[0].Status.Error), Is.True);
+            NUnit.Framework.Assert.That(result[0].Status.QueueSize, Is.EqualTo(expectedRevisedQueueSize));
 
             mi.QueueSize = queueSize + 1;
 
             IList<MonitoredItem> resultModify = await subscription.ModifyItemsAsync().ConfigureAwait(false);
-            Assert.That(ServiceResult.IsGood(resultModify[0].Status.Error), Is.True);
-            Assert.That(resultModify[0].Status.QueueSize, Is.EqualTo(expectedModifiedQueueSize));
+            NUnit.Framework.Assert.That(ServiceResult.IsGood(resultModify[0].Status.Error), Is.True);
+            NUnit.Framework.Assert.That(resultModify[0].Status.QueueSize, Is.EqualTo(expectedModifiedQueueSize));
 
             Assert.True(subscription.GetMonitoredItems(out _, out _));
 
@@ -290,9 +286,9 @@ namespace Opc.Ua.Client.Tests
             subscription.AddItem(mi);
 
             IList<MonitoredItem> result = subscription.CreateItems();
-            Assert.That(ServiceResult.IsGood(result[0].Status.Error), Is.True);
+            NUnit.Framework.Assert.That(ServiceResult.IsGood(result[0].Status.Error), Is.True);
 
-            Assert.Throws<ServiceResultException>(() => Session.Call(ObjectIds.Server,
+            NUnit.Framework.Assert.Throws<ServiceResultException>(() => Session.Call(ObjectIds.Server,
                     MethodIds.Server_SetSubscriptionDurable,
                     id, 1));
 
@@ -315,7 +311,7 @@ namespace Opc.Ua.Client.Tests
 
             Assert.True(Session.RemoveSubscription(subscription));
 
-            Assert.Throws<ServiceResultException>(() => Session.Call(ObjectIds.Server,
+            NUnit.Framework.Assert.Throws<ServiceResultException>(() => Session.Call(ObjectIds.Server,
                     MethodIds.Server_SetSubscriptionDurable,
                     id, 1));
         }
@@ -328,7 +324,7 @@ namespace Opc.Ua.Client.Tests
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-                Assert.Ignore("Timing on mac OS causes issues");
+                NUnit.Framework.Assert.Ignore("Timing on mac OS causes issues");
             }
 
             const int publishingInterval = 100;
@@ -379,7 +375,7 @@ namespace Opc.Ua.Client.Tests
             {
                 if (nodeId.IdType == IdType.String)
                 {
-                    valueTimeStamps.Add(nodeId, new List<DateTime>());
+                    valueTimeStamps.Add(nodeId, []);
                     var monitoredItem = new MonitoredItem(subscription.DefaultItem) {
                         StartNodeId = nodeId,
                         SamplingInterval = 1000,
@@ -449,10 +445,10 @@ namespace Opc.Ua.Client.Tests
 
                 const double tolerance = 1500;
 
-                TestContext.Out.WriteLine("Session StartTime at {0}", DurableSubscriptionTest.DateTimeMs(startTime));
-                TestContext.Out.WriteLine("Session Closed at {0}", DurableSubscriptionTest.DateTimeMs(closeTime));
-                TestContext.Out.WriteLine("Restart at {0}", DurableSubscriptionTest.DateTimeMs(restartTime));
-                TestContext.Out.WriteLine("Completion at {0}", DurableSubscriptionTest.DateTimeMs(completionTime));
+                TestContext.Out.WriteLine("Session StartTime at {0}", DateTimeMs(startTime));
+                TestContext.Out.WriteLine("Session Closed at {0}", DateTimeMs(closeTime));
+                TestContext.Out.WriteLine("Restart at {0}", DateTimeMs(restartTime));
+                TestContext.Out.WriteLine("Completion at {0}", DateTimeMs(completionTime));
 
                 // Validate
                 foreach (KeyValuePair<NodeId, List<DateTime>> pair in valueTimeStamps)
@@ -464,7 +460,7 @@ namespace Opc.Ua.Client.Tests
                         DateTime timestamp = pair.Value[index];
 
                         TimeSpan timeSpan = timestamp - previous;
-                        TestContext.Out.WriteLine($"Node: {pair.Key} Index: {index} Time: {DurableSubscriptionTest.DateTimeMs(timestamp)} Previous: {DurableSubscriptionTest.DateTimeMs(previous)} Timespan {timeSpan.TotalMilliseconds.ToString("000.", CultureInfo.InvariantCulture)}");
+                        TestContext.Out.WriteLine($"Node: {pair.Key} Index: {index} Time: {DateTimeMs(timestamp)} Previous: {DateTimeMs(previous)} Timespan {timeSpan.TotalMilliseconds.ToString("000.", CultureInfo.InvariantCulture)}");
 
                         Assert.Less(Math.Abs(timeSpan.TotalMilliseconds), tolerance,
                             $"Node: {pair.Key} Index: {index} Timespan {timeSpan.TotalMilliseconds} ");
@@ -499,9 +495,6 @@ namespace Opc.Ua.Client.Tests
             return modifiedValues;
         }
 
-        #endregion
-
-        #region Helpers
         private async Task<TestableSubscription> CreateDurableSubscriptionAsync()
         {
             var subscription = new TestableSubscription(Session.DefaultSubscription) {
@@ -669,7 +662,7 @@ namespace Opc.Ua.Client.Tests
                 new SimpleAttributeOperand() {
                     AttributeId = Attributes.Value,
                     TypeDefinitionId = ObjectTypeIds.BaseEventType,
-                    BrowsePath = new QualifiedNameCollection(new QualifiedName[] { "EventType" })
+                    BrowsePath = [.. new QualifiedName[] { "EventType" }]
                 },
                 new LiteralOperand {
                     Value = new Variant(new NodeId(ObjectTypeIds.BaseEventType))
@@ -684,14 +677,13 @@ namespace Opc.Ua.Client.Tests
                 SamplingInterval = -1,
                 Filter =
                         new EventFilter {
-                            SelectClauses = new SimpleAttributeOperandCollection(
-                            new SimpleAttributeOperand[] {
-                                new SimpleAttributeOperand{
+                            SelectClauses = [.. new SimpleAttributeOperand[] {
+                                new() {
                                     AttributeId = Attributes.Value,
                                     TypeDefinitionId = ObjectTypeIds.BaseEventType,
-                                    BrowsePath = new QualifiedNameCollection(new QualifiedName[] { BrowseNames.Message})
+                                    BrowsePath = [.. new QualifiedName[] { BrowseNames.Message}]
                                 }
-                            }),
+                            }],
                             WhereClause = whereClause,
                         },
                 DiscardOldest = true,
@@ -704,7 +696,5 @@ namespace Opc.Ua.Client.Tests
             return dateTime.ToLongTimeString() + "." +
                 dateTime.Millisecond.ToString("D3", CultureInfo.InvariantCulture);
         }
-
-        #endregion
     }
 }

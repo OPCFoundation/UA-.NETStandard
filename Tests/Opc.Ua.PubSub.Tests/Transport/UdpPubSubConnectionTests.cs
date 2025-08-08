@@ -46,7 +46,6 @@ namespace Opc.Ua.PubSub.Tests.Transport
     [TestFixture(Description = "Tests for UdpPubSubConnection class")]
     public partial class UdpPubSubConnectionTests
     {
-        #region Fields
         private const int kEstimatedPublishingTime = 10000;
 
         private const string kUdpUrlFormat = "{0}://{1}:4840";
@@ -81,9 +80,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
         private UdpPubSubConnection m_udpPublisherConnection;
 
         private ManualResetEvent m_shutdownEvent;
-        //private UdpAddressesType m_udpAddressesType = UdpAddressesType.Unicast;
-        #endregion
-
+        /// <summary>
+        /// private UdpAddressesType m_udpAddressesType = UdpAddressesType.Unicast;
+        /// </summary>
         [OneTimeSetUp()]
         public void MyTestInitialize()
         {
@@ -99,7 +98,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             // Get publisher connection
             Assert.IsNotNull(m_publisherConfiguration.Connections, "m_publisherConfiguration.Connections should not be null");
             Assert.IsNotEmpty(m_publisherConfiguration.Connections, "m_publisherConfiguration.Connections should not be empty");
-            m_udpPublisherConnection = m_uaPublisherApplication.PubSubConnections.First() as UdpPubSubConnection;
+            m_udpPublisherConnection = m_uaPublisherApplication.PubSubConnections[0] as UdpPubSubConnection;
             Assert.IsNotNull(m_udpPublisherConnection, "m_uadpPublisherConnection should not be null");
         }
 
@@ -118,14 +117,13 @@ namespace Opc.Ua.PubSub.Tests.Transport
             //Assert
             Assert.IsNotNull(m_udpPublisherConnection, "The UADP connection from standard configuration is invalid.");
             PubSubConnectionDataType connectionConfiguration = m_udpPublisherConnection.PubSubConnectionConfiguration;
-            PubSubConnectionDataType originalConnectionConfiguration = m_publisherConfiguration.Connections.First();
+            PubSubConnectionDataType originalConnectionConfiguration = m_publisherConfiguration.Connections[0];
             Assert.IsNotNull(connectionConfiguration, "The UADP connection configuration from UADP connection object is invalid.");
             Assert.AreEqual(originalConnectionConfiguration.Name, connectionConfiguration.Name, "The connection configuration Name is invalid.");
             Assert.AreEqual(originalConnectionConfiguration.PublisherId, connectionConfiguration.PublisherId, "The connection configuration PublisherId is invalid.");
             Assert.AreEqual(originalConnectionConfiguration.Address, connectionConfiguration.Address, "The connection configuration Address is invalid.");
             Assert.AreEqual(originalConnectionConfiguration.Enabled, connectionConfiguration.Enabled, "The connection configuration Enabled is invalid.");
             Assert.AreEqual(originalConnectionConfiguration.TransportProfileUri, connectionConfiguration.TransportProfileUri, "The connection configuration TransportProfileUri is invalid.");
-
         }
 
         [Test(Description = "Validate Application value")]
@@ -159,7 +157,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             Assert.IsNotNull(m_udpPublisherConnection, "The UADP connection from standard configuration is invalid.");
 
             //Arrange
-            WriterGroupDataType writerGroup0 = m_udpPublisherConnection.PubSubConnectionConfiguration.WriterGroups.First();
+            WriterGroupDataType writerGroup0 = m_udpPublisherConnection.PubSubConnectionConfiguration.WriterGroups[0];
             var messageSettings = ExtensionObject.ToEncodeable(writerGroup0.MessageSettings)
                 as UadpWriterGroupMessageDataType;
 
@@ -168,7 +166,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             IList<UaNetworkMessage> networkMessages = m_udpPublisherConnection.CreateNetworkMessages(writerGroup0, new WriterGroupPublishState());
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
-            UaNetworkMessage networkMessagesNetworkType = networkMessages.FirstOrDefault(net => net.IsMetaDataMessage == false);
+            UaNetworkMessage networkMessagesNetworkType = networkMessages.FirstOrDefault(net => !net.IsMetaDataMessage);
             Assert.IsNotNull(networkMessagesNetworkType, "connection.CreateNetworkMessages shall return only one network message");
 
             var networkMessage0 = networkMessagesNetworkType as UadpNetworkMessage;
@@ -189,7 +187,6 @@ namespace Opc.Ua.PubSub.Tests.Transport
             //validate flags
             Assert.AreEqual((uint)networkMessage0.NetworkMessageContentMask, messageSettings.NetworkMessageContentMask,
                 "UadpNetworkMessage.messageSettings.NetworkMessageContentMask is not valid.");
-
         }
 
         [Test(Description = "Validate CreateNetworkMessage SequenceNumber increment")]
@@ -197,7 +194,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         {
             Assert.IsNotNull(m_udpPublisherConnection, "The UADP connection from standard configuration is invalid.");
             //Arrange
-            WriterGroupDataType writerGroup0 = m_udpPublisherConnection.PubSubConnectionConfiguration.WriterGroups.First();
+            WriterGroupDataType writerGroup0 = m_udpPublisherConnection.PubSubConnectionConfiguration.WriterGroups[0];
 
             //Act
             UdpPubSubConnection.ResetSequenceNumber();
@@ -206,7 +203,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 // Create network message
                 IList<UaNetworkMessage> networkMessages = m_udpPublisherConnection.CreateNetworkMessages(writerGroup0, new WriterGroupPublishState());
                 Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
-                UaNetworkMessage networkMessagesNetworkType = networkMessages.FirstOrDefault(net => net.IsMetaDataMessage == false);
+                UaNetworkMessage networkMessagesNetworkType = networkMessages.FirstOrDefault(net => !net.IsMetaDataMessage);
                 Assert.IsNotNull(networkMessagesNetworkType, "connection.CreateNetworkMessages shall return only one network message");
 
                 var networkMessage = networkMessagesNetworkType as UadpNetworkMessage;
@@ -219,13 +216,12 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 //validate dataset message sequence number
                 Assert.IsNotNull(networkMessage.DataSetMessages, "CreateNetworkMessage did not return an UadpNetworkMessage.UadpDataSetMessages.");
                 Assert.IsTrue(networkMessage.DataSetMessages.Count == 3, "CreateNetworkMessage did not return 3 UadpNetworkMessage.UadpDataSetMessages.");
-                Assert.AreEqual(((UadpDataSetMessage)networkMessage.DataSetMessages[0]).SequenceNumber, i * 3 + 1, "UadpNetworkMessage.UadpDataSetMessages[0].SequenceNumber for message {0} is not {1}.", i + 1, i * 3 + 1);
-                Assert.AreEqual(((UadpDataSetMessage)networkMessage.DataSetMessages[1]).SequenceNumber, i * 3 + 2, "UadpNetworkMessage.UadpDataSetMessages[1].SequenceNumber for message {0} is not {1}.", i + 1, i * 3 + 2);
-                Assert.AreEqual(((UadpDataSetMessage)networkMessage.DataSetMessages[2]).SequenceNumber, i * 3 + 3, "UadpNetworkMessage.UadpDataSetMessages[2].SequenceNumber for message {0} is not {1}.", i + 1, i * 3 + 3);
+                Assert.AreEqual(((UadpDataSetMessage)networkMessage.DataSetMessages[0]).SequenceNumber, (i * 3) + 1, "UadpNetworkMessage.UadpDataSetMessages[0].SequenceNumber for message {0} is not {1}.", i + 1, (i * 3) + 1);
+                Assert.AreEqual(((UadpDataSetMessage)networkMessage.DataSetMessages[1]).SequenceNumber, (i * 3) + 2, "UadpNetworkMessage.UadpDataSetMessages[1].SequenceNumber for message {0} is not {1}.", i + 1, (i * 3) + 2);
+                Assert.AreEqual(((UadpDataSetMessage)networkMessage.DataSetMessages[2]).SequenceNumber, (i * 3) + 3, "UadpNetworkMessage.UadpDataSetMessages[2].SequenceNumber for message {0} is not {1}.", i + 1, (i * 3) + 3);
             }
         }
 
-        #region Public methods
         /// <summary>
         /// Get localhost address reference
         /// </summary>
@@ -240,15 +236,12 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 activeIp = firstActiveIPAddr.ToString();
             }
 
-            NetworkInterface[] interfaces = NetworkInterface.GetAllNetworkInterfaces();
-
-            foreach (NetworkInterface nic in interfaces)
+            foreach (NetworkInterface nic in NetworkInterface.GetAllNetworkInterfaces())
             {
                 if (nic.NetworkInterfaceType != NetworkInterfaceType.Loopback &&
                     nic.OperationalStatus == OperationalStatus.Up)
                 {
-                    UnicastIPAddressInformationCollection addreses = nic.GetIPProperties().UnicastAddresses;
-                    foreach (UnicastIPAddressInformation addr in addreses)
+                    foreach (UnicastIPAddressInformation addr in nic.GetIPProperties().UnicastAddresses)
                     {
                         if (addr.Address.ToString().Contains(activeIp, StringComparison.Ordinal))
                         {
@@ -262,9 +255,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
             return null;
         }
-        #endregion
 
-        #region Private methods
         /// <summary>
         /// Data received handler
         /// </summary>
@@ -303,7 +294,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         /// </summary>
         /// <param name="ipAddress"></param>
         /// <returns></returns>
-        private bool IsHostAddress(string ipAddress)
+        private static bool IsHostAddress(string ipAddress)
         {
             string hostName = Dns.GetHostName();
             foreach (IPAddress address in Dns.GetHostEntry(hostName).AddressList)
@@ -344,7 +335,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     }
                 }
             }
-            return addresses.ToArray();
+            return [.. addresses];
         }
 
         /// <summary>
@@ -381,10 +372,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
             catch
             {
             }
-            Assert.Inconclusive("First active NIC was not found.");
+            NUnit.Framework.Assert.Inconclusive("First active NIC was not found.");
 
             return null;
         }
-#endregion
     }
 }

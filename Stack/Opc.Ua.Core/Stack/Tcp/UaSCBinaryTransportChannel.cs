@@ -25,7 +25,6 @@ namespace Opc.Ua.Bindings
     {
         private const int kChannelCloseDefault = 1_000;
 
-        #region Constructors
         /// <summary>
         /// Create a transport channel from a message socket factory.
         /// </summary>
@@ -34,9 +33,7 @@ namespace Opc.Ua.Bindings
         {
             m_messageSocketFactory = messageSocketFactory;
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -57,19 +54,11 @@ namespace Opc.Ua.Bindings
                 Utils.SilentDispose(channel);
             }
         }
-        #endregion
 
-        #region IMessageSocketChannel Members
         /// <summary>
         /// Returns the channel's underlying message socket if connected / available.
         /// </summary>
-        public IMessageSocket Socket
-        {
-            get { return m_channel?.Socket; }
-        }
-        #endregion
-
-        #region ITransportChannel Members
+        public IMessageSocket Socket => m_channel?.Socket;
 
         /// <summary>
         /// Called when the token changes
@@ -106,10 +95,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         ///  Gets the channel's current security token.
         /// </summary>
-        public ChannelToken CurrentToken
-        {
-            get { return m_channel?.CurrentToken; }
-        }
+        public ChannelToken CurrentToken => m_channel?.CurrentToken;
 
         /// <summary>
         /// Gets or sets the default timeout for requests send via the channel.
@@ -171,7 +157,7 @@ namespace Opc.Ua.Bindings
                 Interlocked.Exchange(ref m_channel, CreateChannel(null));
 
                 // begin connect operation.
-                return m_channel.BeginConnect(this.m_url, OperationTimeout, callback, callbackData);
+                return m_channel.BeginConnect(m_url, OperationTimeout, callback, callbackData);
             }
         }
 
@@ -493,10 +479,8 @@ namespace Opc.Ua.Bindings
                 (current, previous) => m_OnTokenActivated?.Invoke(this, current, previous);
             return channel;
         }
-        #endregion
 
-        #region Private Fields
-        private readonly object m_lock = new object();
+        private readonly object m_lock = new();
         private Uri m_url;
         private TransportChannelSettings m_settings;
         private ChannelQuotas m_quotas;
@@ -504,6 +488,5 @@ namespace Opc.Ua.Bindings
         private UaSCUaBinaryClientChannel m_channel;
         private event ChannelTokenActivatedEventHandler m_OnTokenActivated;
         private readonly IMessageSocketFactory m_messageSocketFactory;
-        #endregion
     }
 }

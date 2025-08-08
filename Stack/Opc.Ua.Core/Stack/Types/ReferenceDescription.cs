@@ -18,13 +18,11 @@ using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua
 {
-    #region ReferenceDescription Class
     /// <summary>
     /// A reference returned in browse operation.
     /// </summary>
     public partial class ReferenceDescription : IFormattable
     {
-        #region IFormattable Members
         /// <summary>
         /// Returns the string representation of the object.
         /// </summary>
@@ -55,9 +53,7 @@ namespace Opc.Ua
         {
             return ToString(null, null);
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Sets the reference type for the reference.
         /// </summary>
@@ -131,22 +127,14 @@ namespace Opc.Ua
                 m_typeDefinition = null;
             }
         }
-        #endregion
 
-        #region Supporting Properties and Methods
         /// <summary>
         /// True if the reference filter has not been applied.
         /// </summary>
         public bool Unfiltered
-        {
-            get { return m_unfiltered; }
-            set { m_unfiltered = value; }
+        { get => m_unfiltered; set => m_unfiltered = value;
         }
-        #endregion
 
-        #region Private Fields
         private bool m_unfiltered;
-        #endregion
     }
-    #endregion
 }

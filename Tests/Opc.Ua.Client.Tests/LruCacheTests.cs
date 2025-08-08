@@ -164,11 +164,11 @@ namespace Opc.Ua.Client.Tests
                 .Verifiable(Times.Exactly(3));
             var nodeCache = new LruNodeCache(context.Object);
 
-            _ = Assert.ThrowsAsync<ServiceResultException>(
+            _ = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(
                 async () => await nodeCache.GetNodeAsync(id, default).ConfigureAwait(false));
-            _ = Assert.ThrowsAsync<ServiceResultException>(
+            _ = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(
                 async () => await nodeCache.GetNodeAsync(id, default).ConfigureAwait(false));
-            _ = Assert.ThrowsAsync<ServiceResultException>(
+            _ = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(
                 async () => await nodeCache.GetNodeAsync(id, default).ConfigureAwait(false));
             context.Verify();
         }
@@ -700,7 +700,7 @@ namespace Opc.Ua.Client.Tests
             var nodeCache = new LruNodeCache(context.Object);
 
             // Act && Assert
-            _ = Assert.ThrowsAsync<ServiceResultException>(async () => await nodeCache.GetValueAsync(id, default).ConfigureAwait(false));
+            _ = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () => await nodeCache.GetValueAsync(id, default).ConfigureAwait(false));
             context.Verify();
         }
 

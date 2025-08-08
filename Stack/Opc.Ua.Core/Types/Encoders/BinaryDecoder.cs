@@ -26,7 +26,6 @@ namespace Opc.Ua
     /// </summary>
     public class BinaryDecoder : IDecoder
     {
-        #region Constructor
         /// <summary>
         /// Creates a decoder that reads from a memory buffer.
         /// </summary>
@@ -58,7 +57,7 @@ namespace Opc.Ua
         /// </summary>
         public BinaryDecoder(Stream stream, IServiceMessageContext context, bool leaveOpen = false)
         {
-            BinaryDecoder.ValidateStreamRequirements(stream);
+            ValidateStreamRequirements(stream);
             m_reader = new BinaryReader(stream, Encoding.UTF8, leaveOpen);
             Initialize(context);
         }
@@ -72,9 +71,7 @@ namespace Opc.Ua
             m_nestingLevel = 0;
             m_encodeablesRecovered = 0;
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -95,9 +92,7 @@ namespace Opc.Ua
                 m_reader = null;
             }
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Initializes the tables used to map namespace and server uris during decoding.
         /// </summary>
@@ -157,7 +152,7 @@ namespace Opc.Ua
         /// <summary>
         /// Decodes a message from a stream.
         /// </summary>
-        public static IEncodeable DecodeMessage(Stream stream, System.Type expectedType, IServiceMessageContext context)
+        public static IEncodeable DecodeMessage(Stream stream, Type expectedType, IServiceMessageContext context)
         {
             if (stream == null)
             {
@@ -242,7 +237,7 @@ namespace Opc.Ua
         /// <summary>
         /// Decodes an object from a buffer.
         /// </summary>
-        public IEncodeable DecodeMessage(System.Type expectedType)
+        public IEncodeable DecodeMessage(Type expectedType)
         {
             int start = Position;
 
@@ -295,9 +290,7 @@ namespace Opc.Ua
 
             return true;
         }
-        #endregion
 
-        #region IDecoder Members
         /// <summary>
         /// The type of encoding being used.
         /// </summary>
@@ -794,7 +787,7 @@ namespace Opc.Ua
         /// <param name="systemType">The system type of the encodeable object to be read</param>
         /// <param name="encodeableTypeId">The TypeId for the <see cref="IEncodeable"/> instance that will be read.</param>
         /// <returns>An <see cref="IEncodeable"/> object that was read from the stream.</returns>
-        public IEncodeable ReadEncodeable(string fieldName, System.Type systemType, ExpandedNodeId encodeableTypeId = null)
+        public IEncodeable ReadEncodeable(string fieldName, Type systemType, ExpandedNodeId encodeableTypeId = null)
         {
             if (systemType == null)
             {
@@ -834,7 +827,7 @@ namespace Opc.Ua
         /// <summary>
         ///  Reads an enumerated value from the stream.
         /// </summary>
-        public Enum ReadEnumerated(string fieldName, System.Type enumType)
+        public Enum ReadEnumerated(string fieldName, Type enumType)
         {
             return (Enum)Enum.ToObject(enumType, SafeReadInt32());
         }
@@ -1396,7 +1389,7 @@ namespace Opc.Ua
         /// <param name="systemType">The system type of the encodeable objects to be read object</param>
         /// <param name="encodeableTypeId">The TypeId for the <see cref="IEncodeable"/> instances that will be read.</param>
         /// <returns>An <see cref="IEncodeable"/> array that was read from the stream.</returns>
-        public Array ReadEncodeableArray(string fieldName, System.Type systemType, ExpandedNodeId encodeableTypeId = null)
+        public Array ReadEncodeableArray(string fieldName, Type systemType, ExpandedNodeId encodeableTypeId = null)
         {
             int length = ReadArrayLength();
 
@@ -1418,7 +1411,7 @@ namespace Opc.Ua
         /// <summary>
         /// Reads an enumerated value array from the stream.
         /// </summary>
-        public Array ReadEnumeratedArray(string fieldName, System.Type enumType)
+        public Array ReadEnumeratedArray(string fieldName, Type enumType)
         {
             int length = ReadArrayLength();
 
@@ -1567,7 +1560,7 @@ namespace Opc.Ua
                         elements = newElements;
                     }
 
-                    return new Matrix(elements, builtInType, dimensions.ToArray()).ToArray();
+                    return new Matrix(elements, builtInType, [.. dimensions]).ToArray();
                 }
                 throw ServiceResultException.Create(StatusCodes.BadDecodingError,
                     "Unexpected null or empty Dimensions for multidimensional matrix.");
@@ -1584,9 +1577,7 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public uint ReadEncodingMask(IList<string> masks) => ReadUInt32("EncodingMask");
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Reads a DiagnosticInfo from the stream.
         /// Limits the InnerDiagnosticInfo nesting level.
@@ -2138,7 +2129,7 @@ namespace Opc.Ua
                 if (systemType != null && extension.Body != null)
                 {
                     var element = extension.Body as XmlElement;
-                    using (var xmlDecoder = new XmlDecoder(element, this.Context))
+                    using (var xmlDecoder = new XmlDecoder(element, Context))
                     {
                         try
                         {
@@ -2340,7 +2331,7 @@ namespace Opc.Ua
                                 "ArrayDimensions not specified when ArrayDimensions encoding bit was set in Variant object.");
                         }
 
-                        int[] dimensionsArray = dimensions.ToArray();
+                        int[] dimensionsArray = [.. dimensions];
                         (bool valid, int matrixLength) = Matrix.ValidateDimensions(dimensionsArray, length, Context.MaxArrayLength);
 
                         if (!valid || (matrixLength != length))
@@ -2499,7 +2490,7 @@ namespace Opc.Ua
         {
             if (length == 0)
             {
-                return Array.Empty<byte>();
+                return [];
             }
 
             byte[] bytes = m_reader.ReadBytes(length);
@@ -2547,7 +2538,7 @@ namespace Opc.Ua
             }
             catch (EndOfStreamException)
             {
-                throw BinaryDecoder.CreateDecodingError(nameof(ReadBoolean), functionName);
+                throw CreateDecodingError(nameof(ReadBoolean), functionName);
             }
         }
 
@@ -2564,7 +2555,7 @@ namespace Opc.Ua
             }
             catch (EndOfStreamException)
             {
-                throw BinaryDecoder.CreateDecodingError(nameof(ReadSByte), functionName);
+                throw CreateDecodingError(nameof(ReadSByte), functionName);
             }
         }
 
@@ -2581,7 +2572,7 @@ namespace Opc.Ua
             }
             catch (EndOfStreamException)
             {
-                throw BinaryDecoder.CreateDecodingError(nameof(ReadByte), functionName);
+                throw CreateDecodingError(nameof(ReadByte), functionName);
             }
         }
 
@@ -2598,7 +2589,7 @@ namespace Opc.Ua
             }
             catch (EndOfStreamException)
             {
-                throw BinaryDecoder.CreateDecodingError(nameof(ReadInt16), functionName);
+                throw CreateDecodingError(nameof(ReadInt16), functionName);
             }
         }
 
@@ -2615,7 +2606,7 @@ namespace Opc.Ua
             }
             catch (EndOfStreamException)
             {
-                throw BinaryDecoder.CreateDecodingError(nameof(ReadUInt16), functionName);
+                throw CreateDecodingError(nameof(ReadUInt16), functionName);
             }
         }
 
@@ -2632,7 +2623,7 @@ namespace Opc.Ua
             }
             catch (EndOfStreamException)
             {
-                throw BinaryDecoder.CreateDecodingError(nameof(ReadInt32), functionName);
+                throw CreateDecodingError(nameof(ReadInt32), functionName);
             }
         }
 
@@ -2649,7 +2640,7 @@ namespace Opc.Ua
             }
             catch (EndOfStreamException)
             {
-                throw BinaryDecoder.CreateDecodingError(nameof(ReadUInt32), functionName);
+                throw CreateDecodingError(nameof(ReadUInt32), functionName);
             }
         }
 
@@ -2666,7 +2657,7 @@ namespace Opc.Ua
             }
             catch (EndOfStreamException)
             {
-                throw BinaryDecoder.CreateDecodingError(nameof(ReadInt64), functionName);
+                throw CreateDecodingError(nameof(ReadInt64), functionName);
             }
         }
 
@@ -2683,7 +2674,7 @@ namespace Opc.Ua
             }
             catch (EndOfStreamException)
             {
-                throw BinaryDecoder.CreateDecodingError(nameof(ReadUInt64), functionName);
+                throw CreateDecodingError(nameof(ReadUInt64), functionName);
             }
         }
 
@@ -2700,7 +2691,7 @@ namespace Opc.Ua
             }
             catch (EndOfStreamException)
             {
-                throw BinaryDecoder.CreateDecodingError(nameof(ReadFloat), functionName);
+                throw CreateDecodingError(nameof(ReadFloat), functionName);
             }
         }
 
@@ -2717,7 +2708,7 @@ namespace Opc.Ua
             }
             catch (EndOfStreamException)
             {
-                throw BinaryDecoder.CreateDecodingError(nameof(ReadDouble), functionName);
+                throw CreateDecodingError(nameof(ReadDouble), functionName);
             }
         }
 
@@ -2727,7 +2718,7 @@ namespace Opc.Ua
         /// <param name="dataTypeName">The datatype which reached the end of the stream.</param>
         /// <param name="functionName">The property which tried to read the datatype.</param>
         /// <exception cref="ServiceResultException"> with <see cref="StatusCodes.BadDecodingError"/></exception>
-        static ServiceResultException CreateDecodingError(string dataTypeName, string functionName)
+        private static ServiceResultException CreateDecodingError(string dataTypeName, string functionName)
         {
             return ServiceResultException.Create(StatusCodes.BadDecodingError,
                 "Reading {0} in {1} reached end of stream.", dataTypeName, functionName);
@@ -2762,15 +2753,12 @@ namespace Opc.Ua
                 throw new ArgumentException("Stream must be seekable and readable.");
             }
         }
-        #endregion
 
-        #region Private Fields
         private BinaryReader m_reader;
         private IServiceMessageContext m_context;
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;
         private uint m_nestingLevel;
         private uint m_encodeablesRecovered;
-        #endregion
     }
 }

@@ -32,17 +32,10 @@ using System;
 namespace Opc.Ua.PubSub
 {
     /// <summary>
-    /// Class that contains data related to DataSetDecodeErrorOccurred event 
+    /// Class that contains data related to DataSetDecodeErrorOccurred event
     /// </summary>
     public class DataSetDecodeErrorEventArgs : EventArgs
     {
-        #region Private members
-        private DataSetDecodeErrorReason m_dataSetDecodeErrorReason;
-        private UaNetworkMessage m_networkMessage;
-        private DataSetReaderDataType m_dataSetReader;
-        #endregion
-
-        #region Constructor
         /// <summary>
         /// Constructor
         /// </summary>
@@ -51,56 +44,23 @@ namespace Opc.Ua.PubSub
         /// <param name="dataSetReader"></param>
         public DataSetDecodeErrorEventArgs(DataSetDecodeErrorReason dataSetDecodeErrorReason, UaNetworkMessage networkMessage, DataSetReaderDataType dataSetReader)
         {
-            m_dataSetDecodeErrorReason = dataSetDecodeErrorReason;
-            m_networkMessage = networkMessage;
-            m_dataSetReader = dataSetReader;
+            DecodeErrorReason = dataSetDecodeErrorReason;
+            UaNetworkMessage = networkMessage;
+            DataSetReader = dataSetReader;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The reason for triggering the DataSetDecodeErrorOccurred event
         /// </summary>
-        public DataSetDecodeErrorReason DecodeErrorReason
-        {
-            get
-            {
-                return m_dataSetDecodeErrorReason;
-            }
-            set
-            {
-                m_dataSetDecodeErrorReason = value;
-            }
-        }
+        public DataSetDecodeErrorReason DecodeErrorReason { get; set; }
 
         /// <summary>
         /// The DataSetMessage on which the decoding operated
         /// </summary>
-        public UaNetworkMessage UaNetworkMessage
-        {
-            get
-            {
-                return m_networkMessage;
-            }
-            set
-            {
-                m_networkMessage = value;
-            }
-        }
+        public UaNetworkMessage UaNetworkMessage { get; set; }
         /// <summary>
         /// The DataSetReader used by the decoding operation
         /// </summary>
-        public DataSetReaderDataType DataSetReader
-        {
-            get
-            {
-                return m_dataSetReader;
-            }
-            set
-            {
-                m_dataSetReader = value;
-            }
-        }
-        #endregion
+        public DataSetReaderDataType DataSetReader { get; set; }
     }
 }

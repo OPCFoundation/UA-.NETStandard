@@ -12,16 +12,15 @@
 
 using System;
 using System.Collections.Generic;
-using System.Xml;
 using System.IO;
 using System.Reflection;
+using System.Xml;
 using Opc.Ua;
 
 namespace Opc.Ua
 {
     public partial class FiniteStateMachineState
     {
-        #region Initialization
         /// <summary>
         /// Initializes the object as a collection of counters which change value on read.
         /// </summary>
@@ -37,9 +36,7 @@ namespace Opc.Ua
                 ElementNamespaceIndex = (ushort)index;
             }
         }
-        #endregion
 
-        #region ElementInfo Class
         /// <summary>
         /// Stores information about a statemachine element.
         /// </summary>
@@ -70,65 +67,44 @@ namespace Opc.Ua
             /// </summary>
             public uint Number { get; }
         }
-        #endregion
 
-        #region Protected Members
         /// <summary>
         /// The namespace index used to qualify the element browse names and node ids.
         /// </summary>
         protected ushort ElementNamespaceIndex
-        {
-            get { return m_elementNamespaceIndex; }
-            set { m_elementNamespaceIndex = value; }
+        { get => m_elementNamespaceIndex; set => m_elementNamespaceIndex = value;
         }
 
         /// <summary>
         /// The table of states belonging to the state machine.
         /// </summary>
-        protected virtual string ElementNamespaceUri
-        {
-            get { return Namespaces.OpcUa; }
-        }
+        protected virtual string ElementNamespaceUri => Namespaces.OpcUa;
 
         /// <summary>
         /// The table of states belonging to the state machine.
         /// </summary>
-        protected virtual ElementInfo[] StateTable
-        {
-            get { return null; }
-        }
+        protected virtual ElementInfo[] StateTable => null;
 
         /// <summary>
         /// The table of transitions belonging to the state machine.
         /// </summary>
-        protected virtual ElementInfo[] TransitionTable
-        {
-            get { return null; }
-        }
+        protected virtual ElementInfo[] TransitionTable => null;
 
         /// <summary>
         /// The mapping between transitions and their from and to states.
         /// </summary>
-        protected virtual uint[,] TransitionMappings
-        {
-            get { return null; }
-        }
+        protected virtual uint[,] TransitionMappings => null;
 
         /// <summary>
         /// The mapping between causes, the current state and a transition.
         /// </summary>
-        protected virtual uint[,] CauseMappings
-        {
-            get { return null; }
-        }
+        protected virtual uint[,] CauseMappings => null;
 
         /// <summary>
         /// The last state that the machine was in.
         /// </summary>
         protected FiniteStateVariableState LastState
-        {
-            get { return m_lastState; }
-            set { m_lastState = value; }
+        { get => m_lastState; set => m_lastState = value;
         }
 
         /// <summary>
@@ -379,9 +355,7 @@ namespace Opc.Ua
                 }
             }
         }
-        #endregion
 
-        #region Event Callbacks
         /// <summary>
         /// Raised to check whether the current user is allowed to execute the command.
         /// </summary>
@@ -396,16 +370,12 @@ namespace Opc.Ua
         /// Raises after a transition occurs. Errors are ignored.
         /// </summary>
         public StateMachineTransitionHandler OnAfterTransition;
-        #endregion
 
-        #region Public Interface
         /// <summary>
         /// If true transition events will not be produced by the state machine.
         /// </summary>
         public bool SuppressTransitionEvents
-        {
-            get { return m_suppressTransitionEvents; }
-            set { m_suppressTransitionEvents = value; }
+        { get => m_suppressTransitionEvents; set => m_suppressTransitionEvents = value;
         }
 
         /// <summary>
@@ -529,7 +499,7 @@ namespace Opc.Ua
             finally
             {
                 // report the event.
-                if (this.AreEventsMonitored)
+                if (AreEventsMonitored)
                 {
                     AuditUpdateStateEventState e = CreateAuditEvent(context, causeMethod, causeId);
                     UpdateAuditEvent(context, causeMethod, inputArguments, causeId, e, result);
@@ -573,7 +543,7 @@ namespace Opc.Ua
                 "en-US",
                 "The {0} method called was on the {1} state machine.",
                 causeMethod.DisplayName,
-                this.GetDisplayPath(3, '.'));
+                GetDisplayPath(3, '.'));
 
             e.Initialize(
                 context,
@@ -714,7 +684,7 @@ namespace Opc.Ua
                 outputArguments);
 
             // report the event.
-            if (this.AreEventsMonitored && !m_suppressTransitionEvents)
+            if (AreEventsMonitored && !m_suppressTransitionEvents)
             {
                 TransitionEventState e = CreateTransitionEvent(context, transitionId, causeId);
 
@@ -757,7 +727,7 @@ namespace Opc.Ua
                 "StateTransition",
                 "en-US",
                 "The {0} state machine moved to the {1} state.",
-                this.GetDisplayPath(3, '.'),
+                GetDisplayPath(3, '.'),
                 CurrentState.Value);
 
             e.Initialize(
@@ -770,14 +740,11 @@ namespace Opc.Ua
             e.SetChildValue(context, BrowseNames.ToState, CurrentState, false);
             e.SetChildValue(context, BrowseNames.Transition, LastTransition, false);
         }
-        #endregion
 
-        #region Private Fields
         private ushort m_elementNamespaceIndex;
         private FiniteStateVariableState m_lastState;
         private uint m_causeId;
         private bool m_suppressTransitionEvents;
-        #endregion
     }
 
     /// <summary>

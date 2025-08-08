@@ -12,16 +12,15 @@
 
 using System;
 using System.Collections.Generic;
-using System.Xml;
 using System.IO;
 using System.Reflection;
+using System.Xml;
 using Opc.Ua;
 
 namespace Opc.Ua
 {
     public partial class BaseEventState
     {
-        #region Initialization
         /// <summary>
         /// Initializes a new event.
         /// </summary>
@@ -73,13 +72,11 @@ namespace Opc.Ua
             m_message = new PropertyState<LocalizedText>(this);
             m_message.Value = message;
         }
-        #endregion
 
-        #region ICloneable Members
         /// <inheritdoc/>
         public override object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -90,11 +87,9 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
-            var clone = (BaseEventState)Activator.CreateInstance(this.GetType());
+            var clone = (BaseEventState)Activator.CreateInstance(GetType());
             return CloneChildren(clone);
         }
-        #endregion
-
     }
 
     /// <summary>

@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -50,7 +50,6 @@ namespace Opc.Ua.Gds.Server
         private readonly NodeId m_defaultHttpsGroupId;
         private readonly NodeId m_defaultUserTokenGroupId;
 
-        #region Constructors
         /// <summary>
         /// Initializes the node manager.
         /// </summary>
@@ -64,42 +63,34 @@ namespace Opc.Ua.Gds.Server
             )
             : base(server, configuration)
         {
-            var namespaceUris = new List<string>
-            {
+            NamespaceUris =
+            [
                 "http://opcfoundation.org/UA/GDS/applications/",
-                Opc.Ua.Gds.Namespaces.OpcUaGds
-            };
-            NamespaceUris = namespaceUris;
+                Namespaces.OpcUaGds
+            ];
 
             SystemContext.NodeIdFactory = this;
 
             m_configuration = configuration;
             // get the configuration for the node manager.
-            m_globalDiscoveryServerConfiguration = configuration.ParseExtension<GlobalDiscoveryServerConfiguration>();
+            m_globalDiscoveryServerConfiguration = configuration.ParseExtension<GlobalDiscoveryServerConfiguration>() ?? new GlobalDiscoveryServerConfiguration();
 
             // use suitable defaults if no configuration exists.
-            if (m_globalDiscoveryServerConfiguration == null)
+
+            if (!string.IsNullOrEmpty(m_globalDiscoveryServerConfiguration.DefaultSubjectNameContext) && m_globalDiscoveryServerConfiguration.DefaultSubjectNameContext[0] != ',')
             {
-                m_globalDiscoveryServerConfiguration = new GlobalDiscoveryServerConfiguration();
+                m_globalDiscoveryServerConfiguration.DefaultSubjectNameContext = "," + m_globalDiscoveryServerConfiguration.DefaultSubjectNameContext;
             }
 
-            if (!string.IsNullOrEmpty(m_globalDiscoveryServerConfiguration.DefaultSubjectNameContext))
-            {
-                if (m_globalDiscoveryServerConfiguration.DefaultSubjectNameContext[0] != ',')
-                {
-                    m_globalDiscoveryServerConfiguration.DefaultSubjectNameContext = "," + m_globalDiscoveryServerConfiguration.DefaultSubjectNameContext;
-                }
-            }
-
-            m_defaultApplicationGroupId = ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup, Server.NamespaceUris);
-            m_defaultHttpsGroupId = ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultHttpsGroup, Server.NamespaceUris);
-            m_defaultUserTokenGroupId = ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultUserTokenGroup, Server.NamespaceUris);
+            m_defaultApplicationGroupId = ExpandedNodeId.ToNodeId(ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup, Server.NamespaceUris);
+            m_defaultHttpsGroupId = ExpandedNodeId.ToNodeId(ObjectIds.Directory_CertificateGroups_DefaultHttpsGroup, Server.NamespaceUris);
+            m_defaultUserTokenGroupId = ExpandedNodeId.ToNodeId(ObjectIds.Directory_CertificateGroups_DefaultUserTokenGroup, Server.NamespaceUris);
 
             m_autoApprove = autoApprove;
             m_database = database;
             m_request = request;
             m_certificateGroupFactory = certificateGroup;
-            m_certificateGroups = new Dictionary<NodeId, ICertificateGroup>();
+            m_certificateGroups = [];
 
             try
             {
@@ -130,11 +121,9 @@ namespace Opc.Ua.Gds.Server
                 Utils.LogInfo("Database Initialized!");
             }
 
-            Server.MessageContext.Factory.AddEncodeableTypes(typeof(Opc.Ua.Gds.ObjectIds).GetTypeInfo().Assembly);
+            Server.MessageContext.Factory.AddEncodeableTypes(typeof(ObjectIds).GetTypeInfo().Assembly);
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
@@ -145,9 +134,7 @@ namespace Opc.Ua.Gds.Server
                 // TBD
             }
         }
-        #endregion
 
-        #region INodeIdFactory Members
         /// <summary>
         /// Creates the NodeId for the specified node.
         /// </summary>
@@ -162,9 +149,7 @@ namespace Opc.Ua.Gds.Server
 
             return node.NodeId;
         }
-        #endregion
 
-        #region Private Methods
         private NodeId GetTrustListId(NodeId certificateGroupId)
         {
             if (NodeId.IsNull(certificateGroupId))
@@ -188,45 +173,15 @@ namespace Opc.Ua.Gds.Server
             ICertificateGroup certificateGroup = null;
             if (m_certificateGroups.TryGetValue(certificateGroupId, out certificateGroup))
             {
-                if (!NodeId.IsNull(certificateTypeId))
+                if (!NodeId.IsNull(certificateTypeId) && !certificateGroup.CertificateTypes.Contains(certificateTypeId))
                 {
-                    if (!certificateGroup.CertificateTypes.Contains(certificateTypeId))
-                    {
-                        return null;
-                    }
+                    return null;
                 }
                 return certificateGroup.UpdateRequired;
             }
 
             return null;
         }
-
-        private ICertificateGroup GetCertificateGroup(NodeId certificateGroupId)
-        {
-            foreach (ICertificateGroup certificateGroup in m_certificateGroups.Values)
-            {
-                if (certificateGroupId == certificateGroup.Id)
-                {
-                    return certificateGroup;
-                }
-            }
-
-            return null;
-        }
-
-        private ICertificateGroup GetCertificateGroup(string id)
-        {
-            foreach (ICertificateGroup certificateGroup in m_certificateGroups.Values)
-            {
-                if (id == certificateGroup.Configuration.Id)
-                {
-                    return certificateGroup;
-                }
-            }
-
-            return null;
-        }
-
 
         private ICertificateGroup GetGroupForCertificate(byte[] certificate)
         {
@@ -285,12 +240,12 @@ namespace Opc.Ua.Gds.Server
         {
             if (string.IsNullOrEmpty(certificateGroupConfiguration.SubjectName))
             {
-                throw new ArgumentNullException("SubjectName not specified");
+                throw new ArgumentNullException(nameof(certificateGroupConfiguration), "SubjectName not specified");
             }
 
             if (string.IsNullOrEmpty(certificateGroupConfiguration.BaseStorePath))
             {
-                throw new ArgumentNullException("BaseStorePath not specified");
+                throw new ArgumentNullException(nameof(certificateGroupConfiguration), "BaseStorePath not specified");
             }
 
             ICertificateGroup certificateGroup = m_certificateGroupFactory.Create(
@@ -303,16 +258,14 @@ namespace Opc.Ua.Gds.Server
 
             return certificateGroup;
         }
-        #endregion
 
-        #region INodeManager Members
         /// <summary>
         /// Does any initialization required before the address space can be used.
         /// </summary>
         /// <remarks>
         /// The externalReferences is an out parameter that allows the node manager to link to nodes
         /// in other node managers. For example, the 'Objects' node is managed by the CoreNodeManager and
-        /// should have a reference to the root folder node(s) exposed by this node manager.  
+        /// should have a reference to the root folder node(s) exposed by this node manager.
         /// </remarks>
         public override void CreateAddressSpace(IDictionary<NodeId, IList<IReference>> externalReferences)
         {
@@ -342,8 +295,8 @@ namespace Opc.Ua.Gds.Server
 #endif
                 };
 
-                m_database.NamespaceIndex = this.NamespaceIndexes[0];
-                m_request.NamespaceIndex = this.NamespaceIndexes[0];
+                m_database.NamespaceIndex = NamespaceIndexes[0];
+                m_request.NamespaceIndex = NamespaceIndexes[0];
 
                 foreach (CertificateGroupConfiguration certificateGroupConfiguration in m_globalDiscoveryServerConfiguration.CertificateGroups)
                 {
@@ -382,9 +335,7 @@ namespace Opc.Ua.Gds.Server
         /// </summary>
         protected override NodeState AddBehaviourToPredefinedNode(ISystemContext context, NodeState predefinedNode)
         {
-            var passiveNode = predefinedNode as BaseObjectState;
-
-            if (passiveNode == null)
+            if (!(predefinedNode is BaseObjectState passiveNode))
             {
                 return predefinedNode;
             }
@@ -398,14 +349,13 @@ namespace Opc.Ua.Gds.Server
 
             switch ((uint)typeId.Identifier)
             {
-                case Opc.Ua.Gds.ObjectTypes.CertificateDirectoryType:
-                {
-                    if (passiveNode is Opc.Ua.Gds.CertificateDirectoryState)
+                case ObjectTypes.CertificateDirectoryType:
+                    if (passiveNode is CertificateDirectoryState)
                     {
                         break;
                     }
 
-                    var activeNode = new Opc.Ua.Gds.CertificateDirectoryState(passiveNode.Parent);
+                    var activeNode = new CertificateDirectoryState(passiveNode.Parent);
 
                     activeNode.RevokeCertificate = new RevokeCertificateMethodState(passiveNode);
                     activeNode.CheckRevocationStatus = new CheckRevocationStatusMethodState(passiveNode);
@@ -430,11 +380,11 @@ namespace Opc.Ua.Gds.Server
                     activeNode.GetCertificates.OnCall = new GetCertificatesMethodStateMethodCallHandler(OnGetCertificates);
                     if (m_certificateGroups.TryGetValue(m_defaultApplicationGroupId, out ICertificateGroup applicationCertificateGroup))
                     {
-                        activeNode.CertificateGroups.DefaultApplicationGroup.CertificateTypes.Value = applicationCertificateGroup.CertificateTypes.ToArray();
+                        activeNode.CertificateGroups.DefaultApplicationGroup.CertificateTypes.Value = [.. applicationCertificateGroup.CertificateTypes];
                     }
                     else
                     {
-                        activeNode.CertificateGroups.DefaultApplicationGroup.CertificateTypes.Value = new NodeId[] { Ua.ObjectTypeIds.ApplicationCertificateType };
+                        activeNode.CertificateGroups.DefaultApplicationGroup.CertificateTypes.Value = [Ua.ObjectTypeIds.ApplicationCertificateType];
                     }
                     activeNode.CertificateGroups.DefaultApplicationGroup.TrustList.LastUpdateTime.Value = DateTime.UtcNow;
                     activeNode.CertificateGroups.DefaultApplicationGroup.TrustList.Writable.Value = false;
@@ -442,22 +392,22 @@ namespace Opc.Ua.Gds.Server
 
                     if (m_certificateGroups.TryGetValue(m_defaultHttpsGroupId, out ICertificateGroup httpsCertificateGroup))
                     {
-                        activeNode.CertificateGroups.DefaultHttpsGroup.CertificateTypes.Value = httpsCertificateGroup.CertificateTypes.ToArray();
+                        activeNode.CertificateGroups.DefaultHttpsGroup.CertificateTypes.Value = [.. httpsCertificateGroup.CertificateTypes];
                     }
                     else
                     {
-                        activeNode.CertificateGroups.DefaultHttpsGroup.CertificateTypes.Value = new NodeId[] { Opc.Ua.ObjectTypeIds.HttpsCertificateType };
+                        activeNode.CertificateGroups.DefaultHttpsGroup.CertificateTypes.Value = [Ua.ObjectTypeIds.HttpsCertificateType];
                     }
                     activeNode.CertificateGroups.DefaultHttpsGroup.TrustList.LastUpdateTime.Value = DateTime.UtcNow;
                     activeNode.CertificateGroups.DefaultHttpsGroup.TrustList.Writable.Value = false;
                     activeNode.CertificateGroups.DefaultHttpsGroup.TrustList.UserWritable.Value = false;
                     if (m_certificateGroups.TryGetValue(m_defaultUserTokenGroupId, out ICertificateGroup userTokenCertificateGroup))
                     {
-                        activeNode.CertificateGroups.DefaultUserTokenGroup.CertificateTypes.Value = userTokenCertificateGroup.CertificateTypes.ToArray();
+                        activeNode.CertificateGroups.DefaultUserTokenGroup.CertificateTypes.Value = [.. userTokenCertificateGroup.CertificateTypes];
                     }
                     else
                     {
-                        activeNode.CertificateGroups.DefaultUserTokenGroup.CertificateTypes.Value = new NodeId[] { Opc.Ua.ObjectTypeIds.UserCredentialCertificateType };
+                        activeNode.CertificateGroups.DefaultUserTokenGroup.CertificateTypes.Value = [Ua.ObjectTypeIds.UserCredentialCertificateType];
                     }
                     activeNode.CertificateGroups.DefaultUserTokenGroup.TrustList.LastUpdateTime.Value = DateTime.UtcNow;
                     activeNode.CertificateGroups.DefaultUserTokenGroup.TrustList.Writable.Value = false;
@@ -470,7 +420,6 @@ namespace Opc.Ua.Gds.Server
                     }
 
                     return activeNode;
-                }
             }
 
             return predefinedNode;
@@ -489,7 +438,6 @@ namespace Opc.Ua.Gds.Server
             ref DateTime lastCounterResetTime,
             ref ServerOnNetwork[] servers)
         {
-
             Utils.LogInfo("QueryServers: {0} {1}", applicationUri, applicationName);
 
             servers = m_database.QueryServers(
@@ -551,7 +499,7 @@ namespace Opc.Ua.Gds.Server
 
             if (applicationId != null)
             {
-                object[] inputArguments = new object[] { application, applicationId };
+                object[] inputArguments = [application, applicationId];
                 Server.ReportApplicationRegistrationChangedAuditEvent(context, objectId, method, inputArguments);
             }
 
@@ -577,7 +525,7 @@ namespace Opc.Ua.Gds.Server
 
             m_database.RegisterApplication(application);
 
-            object[] inputArguments = new object[] { application };
+            object[] inputArguments = [application];
             Server.ReportApplicationRegistrationChangedAuditEvent(context, objectId, method, inputArguments);
 
             return ServiceResult.Good;
@@ -598,12 +546,9 @@ namespace Opc.Ua.Gds.Server
                 try
                 {
                     byte[] certificate;
-                    if (m_database.GetApplicationCertificate(applicationId, certType.Value, out certificate))
+                    if (m_database.GetApplicationCertificate(applicationId, certType.Value, out certificate) && certificate != null)
                     {
-                        if (certificate != null)
-                        {
-                            RevokeCertificateAsync(certificate).Wait();
-                        }
+                        RevokeCertificateAsync(certificate).Wait();
                     }
                 }
                 catch
@@ -614,7 +559,7 @@ namespace Opc.Ua.Gds.Server
 
             m_database.UnregisterApplication(applicationId);
 
-            object[] inputArguments = new object[] { applicationId };
+            object[] inputArguments = [applicationId];
             Server.ReportApplicationRegistrationChangedAuditEvent(context, objectId, method, inputArguments);
 
             return ServiceResult.Good;
@@ -683,7 +628,7 @@ namespace Opc.Ua.Gds.Server
             NodeId applicationId,
             ref ApplicationRecordDataType application)
         {
-            AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.AuthenticatedUserOrSelfAdmin, applicationId); ;
+            AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.AuthenticatedUserOrSelfAdmin, applicationId);
             Utils.LogInfo("OnGetApplication: {0}", applicationId);
             application = m_database.GetApplication(applicationId);
             return ServiceResult.Good;
@@ -841,13 +786,13 @@ namespace Opc.Ua.Gds.Server
                 }
             }
 
-            certificates = certificatesList.ToArray();
-            certificateTypeIds = certificateTypeIdsList.ToArray();
+            certificates = [.. certificatesList];
+            certificateTypeIds = [.. certificateTypeIdsList];
 
             return ServiceResult.Good;
         }
 
-        private ServiceResult CheckHttpsDomain(ApplicationRecordDataType application, string commonName)
+        private static ServiceResult CheckHttpsDomain(ApplicationRecordDataType application, string commonName)
         {
             if (application.ApplicationType == ApplicationType.Client)
             {
@@ -864,13 +809,10 @@ namespace Opc.Ua.Gds.Server
                     {
                         var url = new Uri(discoveryUrl);
 
-                        if (url.Scheme == Utils.UriSchemeHttps)
+                        if (url.Scheme == Utils.UriSchemeHttps && Utils.AreDomainsEqual(commonName, url.DnsSafeHost))
                         {
-                            if (Utils.AreDomainsEqual(commonName, url.DnsSafeHost))
-                            {
-                                found = true;
-                                break;
-                            }
+                            found = true;
+                            break;
                         }
                     }
                 }
@@ -884,7 +826,7 @@ namespace Opc.Ua.Gds.Server
             return ServiceResult.Good;
         }
 
-        private string GetDefaultHttpsDomain(ApplicationRecordDataType application)
+        private static string GetDefaultHttpsDomain(ApplicationRecordDataType application)
         {
             if (application.DiscoveryUrls != null)
             {
@@ -905,7 +847,7 @@ namespace Opc.Ua.Gds.Server
             throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Cannot issue HTTPS certificates to server applications without a HTTPS discovery URL.");
         }
 
-        private string GetDefaultUserToken()
+        private static string GetDefaultUserToken()
         {
             return "USER";
         }
@@ -925,18 +867,15 @@ namespace Opc.Ua.Gds.Server
                     builder.Append(',');
                 }
 
-                if (field.StartsWith("CN=", StringComparison.Ordinal))
+                if (field.StartsWith("CN=", StringComparison.Ordinal) && certificateGroup.Id == m_defaultHttpsGroupId)
                 {
-                    if (certificateGroup.Id == m_defaultHttpsGroupId)
-                    {
-                        ServiceResult error = CheckHttpsDomain(application, field[3..]);
+                    ServiceResult error = CheckHttpsDomain(application, field[3..]);
 
-                        if (StatusCode.IsBad(error.StatusCode))
-                        {
-                            builder.Append("CN=");
-                            builder.Append(GetDefaultHttpsDomain(application));
-                            continue;
-                        }
+                    if (StatusCode.IsBad(error.StatusCode))
+                    {
+                        builder.Append("CN=");
+                        builder.Append(GetDefaultHttpsDomain(application));
+                        continue;
                     }
                 }
 
@@ -945,18 +884,15 @@ namespace Opc.Ua.Gds.Server
                 builder.Append(field);
             }
 
-            if (!contextFound)
+            if (!contextFound && !string.IsNullOrEmpty(m_globalDiscoveryServerConfiguration.DefaultSubjectNameContext))
             {
-                if (!string.IsNullOrEmpty(m_globalDiscoveryServerConfiguration.DefaultSubjectNameContext))
-                {
-                    builder.Append(m_globalDiscoveryServerConfiguration.DefaultSubjectNameContext);
-                }
+                builder.Append(m_globalDiscoveryServerConfiguration.DefaultSubjectNameContext);
             }
 
             return builder.ToString();
         }
 
-        private string[] GetDefaultDomainNames(ApplicationRecordDataType application)
+        private static string[] GetDefaultDomainNames(ApplicationRecordDataType application)
         {
             var names = new List<string>();
 
@@ -985,7 +921,7 @@ namespace Opc.Ua.Gds.Server
                 }
             }
 
-            return names.ToArray();
+            return [.. names];
         }
 
         private ServiceResult OnStartNewKeyPairRequest(
@@ -1001,7 +937,7 @@ namespace Opc.Ua.Gds.Server
             string privateKeyPassword,
             ref NodeId requestId)
         {
-            object[] inputArguments = new object[] { applicationId, certificateGroupId, certificateTypeId, subjectName, domainNames, privateKeyFormat, privateKeyPassword };
+            object[] inputArguments = [applicationId, certificateGroupId, certificateTypeId, subjectName, domainNames, privateKeyFormat, privateKeyPassword];
             Server.ReportCertificateRequestedAuditEvent(context, objectId, method, inputArguments, certificateGroupId, certificateTypeId);
 
             AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.CertificateAuthorityAdminOrSelfAdmin, applicationId);
@@ -1015,7 +951,7 @@ namespace Opc.Ua.Gds.Server
 
             if (NodeId.IsNull(certificateGroupId))
             {
-                certificateGroupId = ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup, Server.NamespaceUris);
+                certificateGroupId = ExpandedNodeId.ToNodeId(ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup, Server.NamespaceUris);
             }
 
             ICertificateGroup certificateGroup = null;
@@ -1033,7 +969,7 @@ namespace Opc.Ua.Gds.Server
             }
             else
             {
-                certificateTypeId = certificateGroup.CertificateTypes.First();
+                certificateTypeId = certificateGroup.CertificateTypes[0];
             }
 
             string certificateTypeNameId;
@@ -1134,7 +1070,7 @@ namespace Opc.Ua.Gds.Server
 
             if (NodeId.IsNull(certificateGroupId))
             {
-                certificateGroupId = ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup, Server.NamespaceUris);
+                certificateGroupId = ExpandedNodeId.ToNodeId(ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup, Server.NamespaceUris);
             }
 
             ICertificateGroup certificateGroup = null;
@@ -1152,7 +1088,7 @@ namespace Opc.Ua.Gds.Server
             }
             else
             {
-                certificateTypeId = certificateGroup.CertificateTypes.First();
+                certificateTypeId = certificateGroup.CertificateTypes[0];
             }
 
             string certificateTypeNameId;
@@ -1160,7 +1096,6 @@ namespace Opc.Ua.Gds.Server
             {
                 return new ServiceResult(StatusCodes.BadInvalidArgument, "The CertificateType is invalid.");
             }
-
 
             // verify the CSR integrity for the application
             certificateGroup.VerifySigningRequestAsync(
@@ -1247,17 +1182,13 @@ namespace Opc.Ua.Gds.Server
                 return new ServiceResult(StatusCodes.BadInvalidArgument, "The CertificateGroupId does not refer to a supported certificate group.");
             }
 
-            NodeId certificateTypeNodeId;
-            certificateTypeNodeId = m_certTypeMap.Where(
+            NodeId certificateTypeNodeId = m_certTypeMap.Where(
                 pair => pair.Value.Equals(certificateTypeId, StringComparison.OrdinalIgnoreCase))
                 .Select(pair => pair.Key).SingleOrDefault();
 
-            if (!NodeId.IsNull(certificateTypeNodeId))
+            if (!NodeId.IsNull(certificateTypeNodeId) && !certificateGroup.CertificateTypes.Any(certificateType => Server.TypeTree.IsTypeOf(certificateType, certificateTypeNodeId)))
             {
-                if (!certificateGroup.CertificateTypes.Any(certificateType => Server.TypeTree.IsTypeOf(certificateType, certificateTypeNodeId)))
-                {
-                    return new ServiceResult(StatusCodes.BadInvalidArgument, "The CertificateTypeId is not supported by the certificateGroup.");
-                }
+                return new ServiceResult(StatusCodes.BadInvalidArgument, "The CertificateTypeId is not supported by the certificateGroup.");
             }
 
             // distinguish cert creation at approval/complete time
@@ -1338,7 +1269,6 @@ namespace Opc.Ua.Gds.Server
 
                     certificate = newKeyPair.Certificate;
                     privateKey = newKeyPair.PrivateKey;
-
                 }
 
                 signedCertificate = certificate.RawData;
@@ -1365,7 +1295,7 @@ namespace Opc.Ua.Gds.Server
 
             m_request.AcceptRequest(requestId, signedCertificate);
 
-            object[] inputArguments = new object[] { applicationId, requestId, signedCertificate, privateKey, issuerCertificates };
+            object[] inputArguments = [applicationId, requestId, signedCertificate, privateKey, issuerCertificates];
             Server.ReportCertificateDeliveredAuditEvent(context, objectId, method, inputArguments);
 
             return ServiceResult.Good;
@@ -1393,7 +1323,7 @@ namespace Opc.Ua.Gds.Server
                 NodeId key = certificateGroup.Key;
                 certificateGroupIdList.Add(key);
             }
-            certificateGroupIds = certificateGroupIdList.ToArray();
+            certificateGroupIds = [.. certificateGroupIdList];
 
             return ServiceResult.Good;
         }
@@ -1482,7 +1412,7 @@ namespace Opc.Ua.Gds.Server
         {
             lock (Lock)
             {
-                // quickly exclude nodes that are not in the namespace. 
+                // quickly exclude nodes that are not in the namespace.
                 if (!IsNodeIdInNamespace(nodeId))
                 {
                     return null;
@@ -1491,12 +1421,9 @@ namespace Opc.Ua.Gds.Server
                 NodeState node = null;
 
                 // check cache (the cache is used because the same node id can appear many times in a single request).
-                if (cache != null)
+                if (cache != null && cache.TryGetValue(nodeId, out node))
                 {
-                    if (cache.TryGetValue(nodeId, out node))
-                    {
-                        return new NodeHandle(nodeId, node);
-                    }
+                    return new NodeHandle(nodeId, node);
                 }
 
                 // look up predefined node.
@@ -1557,12 +1484,7 @@ namespace Opc.Ua.Gds.Server
             handle.Validated = true;
             return handle.Node;
         }
-        #endregion
 
-        #region Overridden Methods
-        #endregion
-
-        #region Private Methods
         /// <summary>
         /// Generates a new node id.
         /// </summary>
@@ -1574,19 +1496,19 @@ namespace Opc.Ua.Gds.Server
         protected void SetCertificateGroupNodes(ICertificateGroup certificateGroup)
         {
             certificateGroup.DefaultTrustList = null;
-            if (certificateGroup.CertificateTypes.Contains(Opc.Ua.ObjectTypeIds.HttpsCertificateType))
+            if (certificateGroup.CertificateTypes.Contains(Ua.ObjectTypeIds.HttpsCertificateType))
             {
                 certificateGroup.Id = m_defaultHttpsGroupId;
-                certificateGroup.DefaultTrustList = (TrustListState)FindPredefinedNode(ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultHttpsGroup_TrustList, Server.NamespaceUris), typeof(TrustListState));
+                certificateGroup.DefaultTrustList = (TrustListState)FindPredefinedNode(ExpandedNodeId.ToNodeId(ObjectIds.Directory_CertificateGroups_DefaultHttpsGroup_TrustList, Server.NamespaceUris), typeof(TrustListState));
             }
-            else if (certificateGroup.CertificateTypes.Contains(Opc.Ua.ObjectTypeIds.UserCredentialCertificateType))
+            else if (certificateGroup.CertificateTypes.Contains(Ua.ObjectTypeIds.UserCredentialCertificateType))
             {
                 certificateGroup.Id = m_defaultUserTokenGroupId;
-                certificateGroup.DefaultTrustList = (TrustListState)FindPredefinedNode(ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultUserTokenGroup_TrustList, Server.NamespaceUris), typeof(TrustListState));
+                certificateGroup.DefaultTrustList = (TrustListState)FindPredefinedNode(ExpandedNodeId.ToNodeId(ObjectIds.Directory_CertificateGroups_DefaultUserTokenGroup_TrustList, Server.NamespaceUris), typeof(TrustListState));
             }
-            else if (certificateGroup.CertificateTypes.Any(certificateType => Utils.IsEqual(certificateType, Opc.Ua.ObjectTypeIds.ApplicationCertificateType) ||
-                    Utils.IsEqual(certificateType, Opc.Ua.ObjectTypeIds.RsaMinApplicationCertificateType) ||
-                    Utils.IsEqual(certificateType, Opc.Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)
+            else if (certificateGroup.CertificateTypes.Any(certificateType => Utils.IsEqual(certificateType, Ua.ObjectTypeIds.ApplicationCertificateType) ||
+                    Utils.IsEqual(certificateType, Ua.ObjectTypeIds.RsaMinApplicationCertificateType) ||
+                    Utils.IsEqual(certificateType, Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)
 
 #if ECC_SUPPORT
                     || Utils.IsEqual(certificateType, Ua.ObjectTypeIds.EccApplicationCertificateType)
@@ -1602,7 +1524,7 @@ namespace Opc.Ua.Gds.Server
                 ))
             {
                 certificateGroup.Id = m_defaultApplicationGroupId;
-                certificateGroup.DefaultTrustList = (TrustListState)FindPredefinedNode(ExpandedNodeId.ToNodeId(Opc.Ua.Gds.ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup_TrustList, Server.NamespaceUris), typeof(TrustListState));
+                certificateGroup.DefaultTrustList = (TrustListState)FindPredefinedNode(ExpandedNodeId.ToNodeId(ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup_TrustList, Server.NamespaceUris), typeof(TrustListState));
             }
             else
             {
@@ -1620,15 +1542,12 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
-        #region AuthorizationHelpers
         private void HasTrustListAccess(ISystemContext context, CertificateStoreIdentifier trustedStore)
         {
             AuthorizationHelper.HasTrustListAccess(context, trustedStore, m_certTypeMap, m_database);
         }
-        #endregion
 
-
-        private ServiceResult VerifyApprovedState(CertificateRequestState state)
+        private static ServiceResult VerifyApprovedState(CertificateRequestState state)
         {
             switch (state)
             {
@@ -1643,9 +1562,7 @@ namespace Opc.Ua.Gds.Server
             }
             return null;
         }
-        #endregion
 
-        #region Private Fields
         private readonly bool m_autoApprove;
         private uint m_nextNodeId;
         private readonly ApplicationConfiguration m_configuration;
@@ -1655,6 +1572,5 @@ namespace Opc.Ua.Gds.Server
         private readonly ICertificateGroup m_certificateGroupFactory;
         private readonly Dictionary<NodeId, ICertificateGroup> m_certificateGroups;
         private Dictionary<NodeId, string> m_certTypeMap;
-        #endregion
     }
 }

@@ -38,7 +38,6 @@ namespace Opc.Ua.Gds.Client
     /// </summary>
     public class ServerCapabilities : IEnumerable<ServerCapability>
     {
-        #region Constructors
         /// <summary>
         /// Initializes a new instance of the <see cref="ServerCapabilities"/> class.
         /// </summary>
@@ -46,9 +45,7 @@ namespace Opc.Ua.Gds.Client
         {
             Load();
         }
-        #endregion
 
-        #region IEnumerable Members
         public IEnumerator<ServerCapability> GetEnumerator()
         {
             if (m_capabilities == null)
@@ -61,11 +58,9 @@ namespace Opc.Ua.Gds.Client
 
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
         {
-            return this.GetEnumerator();
+            return GetEnumerator();
         }
-        #endregion
 
-        #region Public Members
         /// <summary>
         /// Loads the default set of server capability identifiers.
         /// </summary>
@@ -84,11 +79,11 @@ namespace Opc.Ua.Gds.Client
 
             if (istrm == null)
             {
-                foreach (string resourceName in typeof(Opc.Ua.ObjectIds).Assembly.GetManifestResourceNames())
+                foreach (string resourceName in typeof(Ua.ObjectIds).Assembly.GetManifestResourceNames())
                 {
                     if (resourceName.EndsWith("ServerCapabilities.csv", StringComparison.OrdinalIgnoreCase))
                     {
-                        istrm = typeof(Opc.Ua.ObjectIds).Assembly.GetManifestResourceStream(resourceName);
+                        istrm = typeof(Ua.ObjectIds).Assembly.GetManifestResourceStream(resourceName);
                         break;
                     }
                 }
@@ -126,27 +121,21 @@ namespace Opc.Ua.Gds.Client
         /// <returns>The server capability, if found. NULL if it does not exist.</returns>
         public ServerCapability Find(string id)
         {
-            if (id != null)
+            if (id != null && m_capabilities != null)
             {
-                if (m_capabilities != null)
+                foreach (ServerCapability capability in m_capabilities)
                 {
-                    foreach (ServerCapability capability in m_capabilities)
+                    if (capability.Id == id)
                     {
-                        if (capability.Id == id)
-                        {
-                            return capability;
-                        }
+                        return capability;
                     }
                 }
             }
 
             return null;
         }
-        #endregion
 
-        #region Private Fields
         private List<ServerCapability> m_capabilities;
-        #endregion
     }
 
     /// <summary>
@@ -199,7 +188,6 @@ namespace Opc.Ua.Gds.Client
             return string.Format(formatProvider, "[{0}] {1}", Id, Description);
         }
 
-        #region Well Known Identifiers
         /// <summary>
         /// No information is available.
         /// </summary>
@@ -239,6 +227,5 @@ namespace Opc.Ua.Gds.Client
         /// The server supports the device integration (DI) information model.
         /// </summary>
         public const string DI = "DI";
-        #endregion
     }
 }

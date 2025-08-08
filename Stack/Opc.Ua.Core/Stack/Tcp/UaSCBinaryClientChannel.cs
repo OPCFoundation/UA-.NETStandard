@@ -27,7 +27,6 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class UaSCUaBinaryClientChannel : UaSCUaBinaryChannel
     {
-        #region Constructors
         /// <summary>
         /// Creates a channel for a client.
         /// </summary>
@@ -46,7 +45,7 @@ namespace Opc.Ua.Bindings
                 bufferManager,
                 quotas,
                 serverCertificate,
-                (endpoint != null) ? new EndpointDescriptionCollection(new EndpointDescription[] { endpoint }) : null,
+                (endpoint != null) ? [.. new EndpointDescription[] { endpoint }] : null,
                 (endpoint != null) ? endpoint.SecurityMode : MessageSecurityMode.None,
                 (endpoint != null) ? endpoint.SecurityPolicyUri : SecurityPolicies.None)
         {
@@ -80,9 +79,7 @@ namespace Opc.Ua.Bindings
             EndpointDescription = endpoint;
             m_url = new Uri(endpoint.EndpointUrl);
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
@@ -105,9 +102,7 @@ namespace Opc.Ua.Bindings
 
             base.Dispose(disposing);
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Creates a connection with the server.
         /// </summary>
@@ -295,7 +290,7 @@ namespace Opc.Ua.Bindings
                 {
                     if (m_queuedOperations == null)
                     {
-                        m_queuedOperations = new List<QueuedOperation>();
+                        m_queuedOperations = [];
                     }
                     firstCall = m_queuedOperations.Count == 0;
                 }
@@ -377,9 +372,7 @@ namespace Opc.Ua.Bindings
 
             return operation.MessageBody as IServiceResponse;
         }
-        #endregion
 
-        #region Connect/Reconnect Sequence
         /// <summary>
         /// Sends a Hello message.
         /// </summary>
@@ -669,23 +662,23 @@ namespace Opc.Ua.Bindings
                     throw new ServiceResultException(StatusCodes.BadNonceInvalid);
                 }
 
-                string implementation = string.Format(CultureInfo.InvariantCulture, g_ImplementationString, m_socketFactory.Implementation);
+                string implementation = string.Format(CultureInfo.InvariantCulture, s_ImplementationString, m_socketFactory.Implementation);
 
                 // log security information.
                 if (State == TcpChannelState.Opening)
                 {
-                    Opc.Ua.Security.Audit.SecureChannelCreated(
+                    Security.Audit.SecureChannelCreated(
                         implementation,
-                        this.m_url.ToString(),
+                        m_url.ToString(),
                         Utils.Format("{0}", channelId),
-                        this.EndpointDescription,
-                        this.ClientCertificate,
+                        EndpointDescription,
+                        ClientCertificate,
                         serverCertificate,
                         BinaryEncodingSupport.Required);
                 }
                 else
                 {
-                    Opc.Ua.Security.Audit.SecureChannelRenewed(
+                    Security.Audit.SecureChannelRenewed(
                         implementation,
                         Utils.Format("{0}", channelId));
                 }
@@ -732,9 +725,6 @@ namespace Opc.Ua.Bindings
             Shutdown(new ServiceResult(StatusCodes.BadResponseTooLarge));
         }
 
-        #endregion
-
-        #region Event Handlers
         /// <summary>
         /// Handles a socket error.
         /// </summary>
@@ -1099,9 +1089,7 @@ namespace Opc.Ua.Bindings
                 }
             }
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Parses the response return from the server.
         /// </summary>
@@ -1317,7 +1305,7 @@ namespace Opc.Ua.Bindings
                 return;
             }
 
-            if (Object.ReferenceEquals(m_handshakeOperation, operation))
+            if (ReferenceEquals(m_handshakeOperation, operation))
             {
                 m_handshakeOperation = null;
             }
@@ -1377,7 +1365,7 @@ namespace Opc.Ua.Bindings
                         }
                     }
 
-                    if (this.CurrentToken == null)
+                    if (CurrentToken == null)
                     {
                         request.Operation.Fault(StatusCodes.BadConnectionClosed, "Could not send request because connection is closed.");
                         continue;
@@ -1431,9 +1419,7 @@ namespace Opc.Ua.Bindings
 
             return operation;
         }
-        #endregion
 
-        #region Message Processing
         /// <summary>
         /// Processes an Error message received over the socket.
         /// </summary>
@@ -1607,9 +1593,7 @@ namespace Opc.Ua.Bindings
                 chunksToProcess?.Release(BufferManager, "ProcessResponseMessage");
             }
         }
-        #endregion
 
-        #region Private Fields
         private Uri m_url;
         private Uri m_via;
         private long m_lastRequestId;
@@ -1625,7 +1609,6 @@ namespace Opc.Ua.Bindings
         private readonly AsyncCallback m_handshakeComplete;
         private List<QueuedOperation> m_queuedOperations;
         private readonly Random m_random;
-        private readonly string g_ImplementationString = "UA.NETStandard ClientChannel {0} " + Utils.GetAssemblyBuildNumber();
-        #endregion
+        private static readonly string s_ImplementationString = "UA.NETStandard ClientChannel {0} " + Utils.GetAssemblyBuildNumber();
     }
 }

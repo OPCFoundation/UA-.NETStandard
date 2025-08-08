@@ -22,32 +22,25 @@ namespace Opc.Ua
     /// </summary>
     public partial class HistoryReadValueId
     {
-        #region Supporting Properties and Methods
         /// <summary>
         /// A handle assigned to the item during processing.
         /// </summary>
         public object Handle
-        {
-            get { return m_handle; }
-            set { m_handle = value; }
+        { get => m_handle; set => m_handle = value;
         }
 
         /// <summary>
         /// Whether the value has been processed.
         /// </summary>
         public bool Processed
-        {
-            get { return m_processed; }
-            set { m_processed = value; }
+        { get => m_processed; set => m_processed = value;
         }
 
         /// <summary>
         /// Stores the parsed form of the index range parameter.
         /// </summary>
         public NumericRange ParsedIndexRange
-        {
-            get { return m_parsedIndexRange; }
-            set { m_parsedIndexRange = value; }
+        { get => m_parsedIndexRange; set => m_parsedIndexRange = value;
         }
 
         /// <summary>
@@ -90,12 +83,9 @@ namespace Opc.Ua
             // passed basic validation.
             return null;
         }
-        #endregion
 
-        #region Private Fields
         private object m_handle;
         private bool m_processed;
         private NumericRange m_parsedIndexRange;
-        #endregion
     }
 }

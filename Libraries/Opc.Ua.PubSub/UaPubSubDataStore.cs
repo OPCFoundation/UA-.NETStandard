@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -37,24 +37,19 @@ namespace Opc.Ua.PubSub
     /// </summary>
     public class UaPubSubDataStore : IUaPubSubDataStore
     {
-        #region Private Fields
-        private readonly object m_lock = new object();
+        private readonly object m_lock = new();
         private readonly Dictionary<NodeId, Dictionary<uint, DataValue>> m_store;
-        #endregion
 
-        #region Constructor
         /// <summary>
         /// Create new instance of <see cref="UaPubSubDataStore"/>
         /// </summary>
         public UaPubSubDataStore()
         {
-            m_store = new Dictionary<NodeId, Dictionary<uint, DataValue>>();
+            m_store = [];
         }
-        #endregion
 
-        #region Read/Write Public Methods
         /// <summary>
-        /// Write a value to the DataStore. 
+        /// Write a value to the DataStore.
         /// The value is identified by node NodeId.
         /// </summary>
         /// <param name="nodeId">NodeId identifier for value that will be stored.</param>
@@ -69,7 +64,7 @@ namespace Opc.Ua.PubSub
         {
             if (nodeId == null)
             {
-                throw new ArgumentException(nameof(nodeId));
+                throw new ArgumentException(null, nameof(nodeId));
             }
 
             lock (m_lock)
@@ -80,19 +75,18 @@ namespace Opc.Ua.PubSub
                     SourceTimestamp = timestamp ?? DateTime.UtcNow
                 };
 
-                if (!m_store.ContainsKey(nodeId))
+                if (!m_store.TryGetValue(nodeId, out Dictionary<uint, DataValue> dictionary))
                 {
-                    var dictionary = new Dictionary<uint, DataValue>();
-                    dictionary.Add(Attributes.Value, dv);
+                    dictionary = [];
                     m_store.Add(nodeId, dictionary);
                 }
 
-                m_store[nodeId][Attributes.Value] = dv;
+                dictionary[Attributes.Value] = dv;
             }
         }
 
         /// <summary>
-        /// Write a DataValue to the DataStore. 
+        /// Write a DataValue to the DataStore.
         /// The DataValue is identified by node NodeId and Attribute.
         /// </summary>
         /// <param name="nodeId">NodeId identifier for DataValue that will be stored</param>
@@ -102,7 +96,7 @@ namespace Opc.Ua.PubSub
         {
             if (nodeId == null)
             {
-                throw new ArgumentException(nameof(nodeId));
+                throw new ArgumentException(null, nameof(nodeId));
             }
             if (attributeId == 0)
             {
@@ -110,18 +104,19 @@ namespace Opc.Ua.PubSub
             }
             if (!Attributes.IsValid(attributeId))
             {
-                throw new ArgumentException(nameof(attributeId));
+                throw new ArgumentException(null, nameof(attributeId));
             }
             lock (m_lock)
             {
-                if (m_store.ContainsKey(nodeId))
+                if (m_store.TryGetValue(nodeId, out Dictionary<uint, DataValue> value))
                 {
-                    m_store[nodeId][attributeId] = dataValue;
+                    value[attributeId] = dataValue;
                 }
                 else
                 {
-                    var dictionary = new Dictionary<uint, DataValue>();
-                    dictionary.Add(attributeId, dataValue);
+                    var dictionary = new Dictionary<uint, DataValue> {
+                        { attributeId, dataValue }
+                    };
                     m_store.Add(nodeId, dictionary);
                 }
             }
@@ -138,7 +133,7 @@ namespace Opc.Ua.PubSub
             // todo find out why the deltaFrame parameter is not used
             if (nodeId == null)
             {
-                throw new ArgumentException(nameof(nodeId));
+                throw new ArgumentException(null, nameof(nodeId));
             }
             if (attributeId == 0)
             {
@@ -146,16 +141,14 @@ namespace Opc.Ua.PubSub
             }
             if (!Attributes.IsValid(attributeId))
             {
-                throw new ArgumentException(nameof(attributeId));
+                throw new ArgumentException(null, nameof(attributeId));
             }
             lock (m_lock)
             {
-                if (m_store.ContainsKey(nodeId))
+                if (m_store.TryGetValue(nodeId, out Dictionary<uint, DataValue> dictionary) &&
+                    dictionary.TryGetValue(attributeId, out DataValue value))
                 {
-                    if (m_store[nodeId].ContainsKey(attributeId))
-                    {
-                        return m_store[nodeId][attributeId];
-                    }
+                    return value;
                 }
             }
             return null;
@@ -167,6 +160,5 @@ namespace Opc.Ua.PubSub
         public void UpdateMetaData(PublishedDataSetDataType publishedDataSet)
         {
         }
-        #endregion
     }
 }

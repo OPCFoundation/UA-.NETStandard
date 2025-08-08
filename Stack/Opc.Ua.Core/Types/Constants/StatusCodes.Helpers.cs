@@ -19,7 +19,6 @@ namespace Opc.Ua
     /// </summary>
     public static partial class StatusCodes
     {
-        #region Static Helper Functions
         /// <summary>
 		/// Returns the browse name for the attribute.
 		/// </summary>
@@ -70,6 +69,5 @@ namespace Opc.Ua
 
             return 0;
         }
-        #endregion
     }
 }

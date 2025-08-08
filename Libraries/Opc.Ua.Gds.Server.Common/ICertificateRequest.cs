@@ -166,6 +166,5 @@ namespace Opc.Ua.Gds.Server
             out string[] domainNames,
             out string privateKeyFormat,
             out string privateKeyPassword);
-
     }
 }

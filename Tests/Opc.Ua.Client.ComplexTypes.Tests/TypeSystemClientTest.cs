@@ -42,7 +42,6 @@ using Quickstarts;
 using Quickstarts.ReferenceServer;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
-
 namespace Opc.Ua.Client.ComplexTypes.Tests
 {
     /// <summary>
@@ -54,20 +53,19 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
     public class TypeSystemClientTest : IUAClient
     {
         public ISession Session => m_session;
+        private ServerFixture<ReferenceServer> m_serverFixture;
+        private ClientFixture m_clientFixture;
+        private ReferenceServer m_server;
+        private ISession m_session;
+        private readonly string m_uriScheme;
+        private string m_pkiRoot;
+        private Uri m_url;
 
-        const int kMaxReferences = 100;
-        const int kMaxTimeout = 10000;
-        ServerFixture<ReferenceServer> m_serverFixture;
-        ClientFixture m_clientFixture;
-        ReferenceServer m_server;
-        ISession m_session;
-        readonly string m_uriScheme;
-        string m_pkiRoot;
-        Uri m_url;
-
-        // for test that fetched and browsed node count match
-        int m_fetchedNodesCount;
-        int m_browsedNodesCount;
+        /// <summary>
+        /// for test that fetched and browsed node count match
+        /// </summary>
+        private int m_fetchedNodesCount;
+        private int m_browsedNodesCount;
 
         public TypeSystemClientTest()
         {
@@ -79,7 +77,6 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             m_uriScheme = uriScheme;
         }
 
-        #region Test Setup
         /// <summary>
         /// Set up a Server and a Client instance.
         /// </summary>
@@ -126,7 +123,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             }
             catch (Exception e)
             {
-                Assert.Ignore($"OneTimeSetup failed to create session, tests skipped. Error: {e.Message}");
+                NUnit.Framework.Assert.Ignore($"OneTimeSetup failed to create session, tests skipped. Error: {e.Message}");
             }
         }
 
@@ -154,9 +151,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         {
             m_serverFixture.SetTraceOutput(TestContext.Out);
         }
-        #endregion
 
-        #region Test Methods
         [Test, Order(100)]
         [TestCase(false, false, false)]
         [TestCase(true, false, false)]
@@ -236,8 +231,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
 
             await samples.LoadTypeSystemAsync(m_session).ConfigureAwait(false);
 
-            IList<INode> allNodes = null;
-            allNodes = await samples.FetchAllNodesNodeCacheAsync(
+            IList<INode> allNodes = await samples.FetchAllNodesNodeCacheAsync(
                 this, Objects.RootFolder, true, false, false).ConfigureAwait(false);
 
             TestContext.Out.WriteLine("References: {0}", allNodes.Count);
@@ -264,7 +258,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 DataValue value = values[ii];
                 NodeId variableId = variableIds[ii];
                 var variableExpandedNodeId = NodeId.ToExpandedNodeId(variableId, m_session.NamespaceUris);
-                var variableNode = allNodes.Where(n => n.NodeId == variableId).FirstOrDefault() as VariableNode;
+                var variableNode = allNodes.FirstOrDefault(n => n.NodeId == variableId) as VariableNode;
                 if (variableNode != null &&
                     variableNode.DataType.NamespaceIndex != 0)
                 {
@@ -290,7 +284,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                         if (testFailed)
                         {
                             TestContext.Out.WriteLine("-- Variable: {0} complex type unavailable --> {1}", variableNode.NodeId, variableNode.DataType);
-                            (_, _) = await samples.ReadAllValuesAsync(this, new NodeIdCollection() { variableId }).ConfigureAwait(false);
+                            (_, _) = await samples.ReadAllValuesAsync(this, [variableId]).ConfigureAwait(false);
                         }
                         else
                         {
@@ -306,7 +300,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                         {
                             testFailed = true;
                             TestContext.Out.WriteLine("Variable: {0} type is decoded as ExtensionObject --> {1}", variableNode, value.Value);
-                            (_, _) = await samples.ReadAllValuesAsync(this, new NodeIdCollection() { variableId }).ConfigureAwait(false);
+                            (_, _) = await samples.ReadAllValuesAsync(this, [variableId]).ConfigureAwait(false);
                         }
                         continue;
                     }
@@ -321,7 +315,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                             {
                                 testFailed = true;
                                 TestContext.Out.WriteLine("Variable: {0} type is decoded as ExtensionObject --> {1}", variableNode, valueItem);
-                                (_, _) = await samples.ReadAllValuesAsync(this, new NodeIdCollection() { variableId }).ConfigureAwait(false);
+                                (_, _) = await samples.ReadAllValuesAsync(this, [variableId]).ConfigureAwait(false);
                             }
                         }
                     }
@@ -330,7 +324,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
 
             if (testFailed)
             {
-                Assert.Fail("Test failed, unknown or undecodable complex type detected. See log for information.");
+                NUnit.Framework.Assert.Fail("Test failed, unknown or undecodable complex type detected. See log for information.");
             }
         }
 
@@ -339,7 +333,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         {
             if (m_browsedNodesCount < 0 || m_fetchedNodesCount < 0)
             {
-                Assert.Ignore("The browse or fetch test did not run.");
+                NUnit.Framework.Assert.Ignore("The browse or fetch test did not run.");
             }
             Assert.AreEqual(m_fetchedNodesCount, m_browsedNodesCount);
         }
@@ -431,8 +425,6 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             Assert.AreEqual(complexType["NumberValue"], new Variant((uint)3210));
             Assert.AreEqual(complexType["IntegerValue"], new Variant((long)54321));
             Assert.AreEqual(complexType["UIntegerValue"], new Variant((ulong)12345));
-
         }
-        #endregion
     }
 }

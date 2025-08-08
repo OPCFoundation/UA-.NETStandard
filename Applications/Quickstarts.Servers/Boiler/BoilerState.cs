@@ -36,7 +36,6 @@ namespace Boiler
 {
     public partial class BoilerState
     {
-        #region Initialization
         /// <summary>
         /// Initializes the object as a collection of counters which change value on read.
         /// </summary>
@@ -44,12 +43,10 @@ namespace Boiler
         {
             base.OnAfterCreate(context, node);
 
-            this.Simulation.OnAfterTransition = OnControlSimulation;
+            Simulation.OnAfterTransition = OnControlSimulation;
             m_random = new Random();
         }
-        #endregion
 
-        #region IDisposeable Methods
         /// <summary>
         /// Cleans up when the object is disposed.
         /// </summary>
@@ -61,9 +58,7 @@ namespace Boiler
                 m_simulationTimer = null;
             }
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Changes the state of the simulation.
         /// </summary>
@@ -84,7 +79,7 @@ namespace Boiler
                         m_simulationTimer = null;
                     }
 
-                    uint updateRate = this.Simulation.UpdateRate.Value;
+                    uint updateRate = Simulation.UpdateRate.Value;
 
                     if (updateRate < 100)
                     {
@@ -230,7 +225,7 @@ namespace Boiler
             try
             {
                 // adjust level.
-                m_drum.LevelIndicator.Output.Value = BoilerState.Adjust(
+                m_drum.LevelIndicator.Output.Value = Adjust(
                     m_drum.LevelIndicator.Output.Value,
                     m_levelController.SetPoint.Value,
                     0.1,
@@ -238,22 +233,22 @@ namespace Boiler
 
                 // calculate inputs for custom controller. 
                 m_customController.Input1.Value = m_levelController.UpdateMeasurement(m_drum.LevelIndicator.Output);
-                m_customController.Input2.Value = BoilerState.GetPercentage(m_inputPipe.FlowTransmitter1.Output);
-                m_customController.Input3.Value = BoilerState.GetPercentage(m_outputPipe.FlowTransmitter2.Output);
+                m_customController.Input2.Value = GetPercentage(m_inputPipe.FlowTransmitter1.Output);
+                m_customController.Input3.Value = GetPercentage(m_outputPipe.FlowTransmitter2.Output);
 
                 // calculate output for custom controller. 
                 m_customController.ControlOut.Value = (m_customController.Input1.Value + m_customController.Input3.Value - m_customController.Input2.Value) / 2;
 
                 // update flow controller set point.
-                m_flowController.SetPoint.Value = BoilerState.GetValue((m_customController.ControlOut.Value + 1) / 2, m_inputPipe.FlowTransmitter1.Output.EURange.Value);
+                m_flowController.SetPoint.Value = GetValue((m_customController.ControlOut.Value + 1) / 2, m_inputPipe.FlowTransmitter1.Output.EURange.Value);
 
                 double error = m_flowController.UpdateMeasurement(m_inputPipe.FlowTransmitter1.Output);
 
                 // adjust the input valve.
-                m_inputPipe.Valve.Input.Value = BoilerState.Adjust(m_inputPipe.Valve.Input.Value, (error > 0) ? 100 : 0, 10, null);
+                m_inputPipe.Valve.Input.Value = Adjust(m_inputPipe.Valve.Input.Value, (error > 0) ? 100 : 0, 10, null);
 
                 // adjust the input flow.
-                m_inputPipe.FlowTransmitter1.Output.Value = BoilerState.Adjust(
+                m_inputPipe.FlowTransmitter1.Output.Value = Adjust(
                     m_inputPipe.FlowTransmitter1.Output.Value,
                     m_flowController.SetPoint.Value,
                     0.6,
@@ -264,19 +259,16 @@ namespace Boiler
                 m_inputPipe.FlowTransmitter1.Output.Value = RoundAndPerturb(m_inputPipe.FlowTransmitter1.Output.Value, 3);
                 m_outputPipe.FlowTransmitter2.Output.Value = RoundAndPerturb(m_outputPipe.FlowTransmitter2.Output.Value, 3);
 
-                this.ClearChangeMasks(m_simulationContext, true);
+                ClearChangeMasks(m_simulationContext, true);
             }
             catch (Exception e)
             {
                 Utils.LogError(e, "Unexpected error during boiler simulation.");
             }
         }
-        #endregion
 
-        #region Private Fields
         private ISystemContext m_simulationContext;
         private Timer m_simulationTimer;
         private Random m_random;
-        #endregion
     }
 }

@@ -28,7 +28,6 @@ namespace Opc.Ua
     /// </summary>
     public class BinaryEncoder : IEncoder
     {
-        #region Constructor
         /// <summary>
         /// Creates an encoder that writes to a memory buffer.
         /// </summary>
@@ -77,9 +76,7 @@ namespace Opc.Ua
             m_leaveOpen = leaveOpen;
             m_nestingLevel = 0;
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -110,9 +107,7 @@ namespace Opc.Ua
                 }
             }
         }
-        #endregion
 
-        #region Public Members
         /// <summary>
         /// Initializes the tables used to map namespace and server uris during encoding.
         /// </summary>
@@ -181,15 +176,9 @@ namespace Opc.Ua
         /// </summary>
         public int Position
         {
-            get
-            {
-                return (int)m_writer.BaseStream.Position;
-            }
+            get => (int)m_writer.BaseStream.Position;
 
-            set
-            {
-                m_writer.Seek(value, SeekOrigin.Begin);
-            }
+            set => m_writer.Seek(value, SeekOrigin.Begin);
         }
 
         /// <summary>
@@ -357,9 +346,7 @@ namespace Opc.Ua
                 WriteString(null, stringTable.GetString(ii));
             }
         }
-        #endregion
 
-        #region IEncoder Members
         /// <summary>
         /// The type of encoding being used.
         /// </summary>
@@ -1063,7 +1050,7 @@ namespace Opc.Ua
             // must pre-encode and then write the bytes.
             else
             {
-                using (var encoder = new BinaryEncoder(this.Context))
+                using (var encoder = new BinaryEncoder(Context))
                 {
                     encoder.WriteEncodeable(null, encodeable, null);
                     bytes = encoder.CloseAndReturnBuffer();
@@ -1075,7 +1062,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes an encodeable object to the stream.
         /// </summary>
-        public void WriteEncodeable(string fieldName, IEncodeable value, System.Type systemType)
+        public void WriteEncodeable(string fieldName, IEncodeable value, Type systemType)
         {
             CheckAndIncrementNestingLevel();
 
@@ -1588,7 +1575,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes an encodeable object array to the stream.
         /// </summary>
-        public void WriteEncodeableArray(string fieldName, IList<IEncodeable> values, System.Type systemType)
+        public void WriteEncodeableArray(string fieldName, IList<IEncodeable> values, Type systemType)
         {
             // write length.
             if (WriteArrayLength(values))
@@ -1606,7 +1593,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes an enumerated value array to the stream.
         /// </summary>
-        public void WriteEnumeratedArray(string fieldName, Array values, System.Type systemType)
+        public void WriteEnumeratedArray(string fieldName, Array values, Type systemType)
         {
             // write length.
             if (WriteArrayLength(values))
@@ -2081,11 +2068,9 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public void WriteEncodingMask(uint encodingMask) => WriteUInt32("EncodingMask", encodingMask);
-        #endregion
 
-        #region Private Methods
 #if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
-        #endif
+#endif
 
         /// <summary>
         /// Writes a DiagnosticInfo to the stream.
@@ -2199,16 +2184,16 @@ namespace Opc.Ua
         /// <summary>
         /// Writes an object array to the stream (converts to Variant first).
         /// </summary>
-        private void WriteObjectArray(string fieldName, IList<object> values)
+        private void WriteObjectArray(string fieldName, object[] values)
         {
             // write length.
-            if (WriteArrayLength(values))
+            if (WriteArrayLength((Array)values))
             {
                 return;
             }
 
             // write contents.
-            for (int ii = 0; ii < values.Count; ii++)
+            for (int ii = 0; ii < values.Length; ii++)
             {
                 WriteVariant(null, new Variant(values[ii]));
             }
@@ -2571,19 +2556,15 @@ namespace Opc.Ua
             }
             m_nestingLevel++;
         }
-        #endregion
 
-        #region Private Fields
         private Stream m_ostrm;
         private BinaryWriter m_writer;
         private readonly bool m_leaveOpen;
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;
         private uint m_nestingLevel;
-        #endregion
     }
 
-    #region Internal Enumerations
     /// <summary>
     /// The possible values for the node id encoding byte.
     /// </summary>
@@ -2657,5 +2638,4 @@ namespace Opc.Ua
         ArrayDimensions = 0x40,
         Array = 0x80
     }
-    #endregion
 }

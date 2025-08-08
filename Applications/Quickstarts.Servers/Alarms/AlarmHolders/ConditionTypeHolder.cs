@@ -77,7 +77,7 @@ namespace Alarms
             alarm.Retain.Value = false;
 
             alarm.SetEnableState(SystemContext, true);
-            alarm.Quality.Value = Opc.Ua.StatusCodes.Good;
+            alarm.Quality.Value = StatusCodes.Good;
             alarm.LastSeverity.Value = AlarmDefines.INACTIVE_SEVERITY;
             alarm.Severity.Value = AlarmDefines.INACTIVE_SEVERITY;
             alarm.Comment.Value = new LocalizedText("en", "");
@@ -123,8 +123,6 @@ namespace Alarms
             }
         }
 
-        #region Overrides
-
         public override void SetValue(string message = "")
         {
             ConditionState alarm = GetAlarm();
@@ -146,10 +144,6 @@ namespace Alarms
                 ReportEvent();
             }
         }
-
-        #endregion
-
-        #region Child Helpers
 
         public void ReportEvent(ConditionState alarm = null)
         {
@@ -250,10 +244,6 @@ namespace Alarms
             return shouldEvent;
         }
 
-        #endregion
-
-        #region Helpers
-
         private ConditionState GetAlarm(BaseEventState alarm = null)
         {
             if (alarm == null)
@@ -280,9 +270,6 @@ namespace Alarms
             return " Requested Event " + Utils.ToHexString(eventId);
         }
 
-        #endregion
-
-        #region Method Handlers 
         public ServiceResult OnEnableDisableAlarm(
             ISystemContext context,
             ConditionState condition,
@@ -362,7 +349,5 @@ namespace Alarms
         {
             return true;
         }
-
-        #endregion
     }
 }

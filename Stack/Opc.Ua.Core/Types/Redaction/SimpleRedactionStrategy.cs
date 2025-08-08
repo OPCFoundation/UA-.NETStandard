@@ -90,7 +90,7 @@ namespace Opc.Ua.Types.Redaction
 
             if (value is Exception exception)
             {
-                return SimpleRedactionStrategy.RedactException(exception);
+                return RedactException(exception);
             }
 
             string valueString = value.ToString();

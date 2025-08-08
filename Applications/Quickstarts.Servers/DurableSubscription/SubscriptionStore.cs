@@ -40,12 +40,12 @@ namespace Quickstarts.Servers
 {
     public class SubscriptionStore : ISubscriptionStore
     {
-        private static readonly JsonSerializerSettings s_settings = new JsonSerializerSettings {
+        private static readonly JsonSerializerSettings s_settings = new() {
             TypeNameHandling = TypeNameHandling.All,
             Converters = { new ExtensionObjectConverter(), new NumericRangeConverter() },
         };
         private static readonly string s_storage_path = Path.Combine(Environment.CurrentDirectory, "Durable Subscriptions");
-        private const string s_filename = "subscriptionsStore.txt";
+        private const string kFilename = "subscriptionsStore.txt";
         private readonly DurableMonitoredItemQueueFactory m_durableMonitoredItemQueueFactory;
 
         public SubscriptionStore(IServerInternal server)
@@ -64,7 +64,7 @@ namespace Quickstarts.Servers
                     Directory.CreateDirectory(s_storage_path);
                 }
 
-                File.WriteAllText(Path.Combine(s_storage_path, s_filename), result);
+                File.WriteAllText(Path.Combine(s_storage_path, kFilename), result);
 
                 if (m_durableMonitoredItemQueueFactory != null)
                 {
@@ -82,7 +82,7 @@ namespace Quickstarts.Servers
 
         public RestoreSubscriptionResult RestoreSubscriptions()
         {
-            string filePath = Path.Combine(s_storage_path, s_filename);
+            string filePath = Path.Combine(s_storage_path, kFilename);
             try
             {
                 if (File.Exists(filePath))
@@ -166,7 +166,7 @@ namespace Quickstarts.Servers
 
         public void OnSubscriptionRestoreComplete(Dictionary<uint, uint[]> createdSubscriptions)
         {
-            string filePath = Path.Combine(s_storage_path, s_filename);
+            string filePath = Path.Combine(s_storage_path, kFilename);
 
             //remove old file
             if (File.Exists(filePath))

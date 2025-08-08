@@ -73,8 +73,6 @@ namespace Alarms
             base.Initialize(alarmTypeIdentifier, name, maxTimeShelved);
         }
 
-        #region Overrides
-
         public override void SetValue(string message = "")
         {
             bool active = m_alarmController.IsBooleanActive();
@@ -87,8 +85,5 @@ namespace Alarms
 
             base.SetValue(message);
         }
-
-        #endregion
-
     }
 }

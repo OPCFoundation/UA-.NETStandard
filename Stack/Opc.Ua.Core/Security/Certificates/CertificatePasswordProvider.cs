@@ -12,7 +12,6 @@
 
 namespace Opc.Ua
 {
-    #region ICertificatePasswordProvider Interface
     /// <summary>
     /// An interface for a password provider for certificate private keys.
     /// </summary>
@@ -24,9 +23,7 @@ namespace Opc.Ua
         /// <param name="certificateIdentifier">The certificate identifier for which the password is needed.</param>
         string GetPassword(CertificateIdentifier certificateIdentifier);
     }
-    #endregion
 
-    #region CertificatePasswordProvider
     /// <summary>
     /// The default certificate password provider implementation.
     /// </summary>
@@ -51,5 +48,4 @@ namespace Opc.Ua
 
         private readonly string m_password;
     }
-    #endregion
 }

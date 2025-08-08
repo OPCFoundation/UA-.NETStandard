@@ -65,7 +65,6 @@ namespace Opc.Ua.Client
     /// </summary>
     public interface ISession : ISessionClient
     {
-        #region Events
         /// <summary>
         /// Raised when a keep alive arrives from the server or an error is detected.
         /// </summary>
@@ -125,9 +124,7 @@ namespace Opc.Ua.Client
         /// a new server nonce, a new locale etc.
         /// </remarks>
         event EventHandler SessionConfigurationChanged;
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The factory which was used to create the session.
         /// </summary>
@@ -301,16 +298,12 @@ namespace Opc.Ua.Client
         /// Continuation Points in the ManagedBrowse(Async) methods
         /// </summary>
         ContinuationPointPolicy ContinuationPointPolicy { get; set; }
-        #endregion
 
-        #region Delegates and Events
         /// <summary>
         /// Raised before a reconnect operation completes.
         /// </summary>
         event RenewUserIdentityEventHandler RenewUserIdentity;
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Reconnects to the server after a network failure.
         /// </summary>
@@ -731,9 +724,7 @@ namespace Opc.Ua.Client
         /// <param name="ct">The cancellation token for the request.</param>
         Task<(DataValueCollection, IList<ServiceResult>)> ReadValuesAsync(IList<NodeId> nodeIds, CancellationToken ct = default);
 #endif
-        #endregion
 
-        #region Close Methods
         /// <summary>
         /// Disconnects from the server and frees any network resources with the specified timeout.
         /// </summary>
@@ -765,9 +756,7 @@ namespace Opc.Ua.Client
         /// </summary>
         Task<StatusCode> CloseAsync(int timeout, bool closeChannel, CancellationToken ct = default);
 #endif
-        #endregion
 
-        #region Subscription Methods
         /// <summary>
         /// Adds a subscription to the session.
         /// </summary>
@@ -839,9 +828,7 @@ namespace Opc.Ua.Client
         /// <param name="ct">The cancellation token for the request.</param>
         Task<bool> TransferSubscriptionsAsync(SubscriptionCollection subscriptions, bool sendInitialValues, CancellationToken ct = default);
 #endif
-        #endregion
 
-        #region Browse Methods
         /// <summary>
         /// Invokes the Browse service.
         /// </summary>
@@ -902,9 +889,7 @@ namespace Opc.Ua.Client
             IAsyncResult result,
             out byte[] continuationPoint,
             out ReferenceDescriptionCollection references);
-        #endregion
 
-        #region BrowseNext Methods
         /// <summary>
         /// Invokes the BrowseNext service.
         /// </summary>
@@ -932,9 +917,6 @@ namespace Opc.Ua.Client
             IAsyncResult result,
             out byte[] revisedContinuationPoint,
             out ReferenceDescriptionCollection references);
-        #endregion
-
-        #region ManagedBrowse methods
 
         /// <summary>
         /// Execute browse and, if necessary, browse next in one service call.
@@ -976,9 +958,7 @@ namespace Opc.Ua.Client
             );
 
 #endif
-        #endregion ManagedBrowse methods
 
-        #region Call Methods
         /// <summary>
         /// Calls the specified method and returns the output arguments.
         /// </summary>
@@ -999,9 +979,7 @@ namespace Opc.Ua.Client
         /// <returns>The list of output argument values.</returns>
         Task<IList<object>> CallAsync(NodeId objectId, NodeId methodId, CancellationToken ct = default, params object[] args);
 #endif
-        #endregion
 
-        #region Publish Methods
         /// <summary>
         /// Sends an additional publish request.
         /// </summary>
@@ -1033,7 +1011,7 @@ namespace Opc.Ua.Client
         /// </summary>
         Task<(bool, IList<ServiceResult>)> ResendDataAsync(IEnumerable<Subscription> subscriptions, CancellationToken ct = default);
 #endif
-        #endregion
+
     }
 
     /// <summary>

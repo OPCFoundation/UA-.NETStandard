@@ -26,7 +26,6 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class ArraySegmentStream : MemoryStream
     {
-        #region Constructors
         /// <summary>
         /// Attaches the stream to a set of buffers
         /// </summary>
@@ -57,7 +56,7 @@ namespace Opc.Ua.Bindings
             int start,
             int count)
         {
-            m_buffers = new BufferCollection();
+            m_buffers = [];
 
             m_bufferManager = bufferManager;
             m_bufferSize = bufferSize;
@@ -77,9 +76,7 @@ namespace Opc.Ua.Bindings
             : this(bufferManager, bufferManager.MaxSuggestedBufferSize, 0, bufferManager.MaxSuggestedBufferSize)
         {
         }
-        #endregion
 
-        #region IDisposable
         /// <inheritdoc/>
         protected override void Dispose(bool disposing)
         {
@@ -99,9 +96,7 @@ namespace Opc.Ua.Bindings
 
             base.Dispose(disposing);
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Returns ownership of the buffers stored in the stream.
         /// </summary>
@@ -154,26 +149,15 @@ namespace Opc.Ua.Bindings
 
             return new BufferSequence(m_bufferManager, owner, firstSegment, sequence);
         }
-        #endregion
-
-        #region Overridden Methods
-        /// <inheritdoc/>
-        public override bool CanRead
-        {
-            get { return m_buffers != null; }
-        }
 
         /// <inheritdoc/>
-        public override bool CanSeek
-        {
-            get { return m_buffers != null; }
-        }
+        public override bool CanRead => m_buffers != null;
 
         /// <inheritdoc/>
-        public override bool CanWrite
-        {
-            get { return m_buffers != null && m_bufferManager != null; }
-        }
+        public override bool CanSeek => m_buffers != null;
+
+        /// <inheritdoc/>
+        public override bool CanWrite => m_buffers != null && m_bufferManager != null;
 
         /// <inheritdoc/>
         public override void Flush()
@@ -182,23 +166,14 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
-        public override long Length
-        {
-            get { return GetAbsoluteLength(); }
-        }
+        public override long Length => GetAbsoluteLength();
 
         /// <inheritdoc/>
         public override long Position
         {
-            get
-            {
-                return GetAbsolutePosition();
-            }
+            get => GetAbsolutePosition();
 
-            set
-            {
-                Seek(value, SeekOrigin.Begin);
-            }
+            set => Seek(value, SeekOrigin.Begin);
         }
 
         /// <inheritdoc/>
@@ -487,7 +462,7 @@ namespace Opc.Ua.Bindings
             int absoluteLength = GetAbsoluteLength();
             if (absoluteLength == 0)
             {
-                return Array.Empty<byte>();
+                return [];
             }
 
 #if NET6_0_OR_GREATER
@@ -506,9 +481,7 @@ namespace Opc.Ua.Bindings
 
             return buffer;
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Update the current buffer count.
         /// </summary>
@@ -627,9 +600,7 @@ namespace Opc.Ua.Bindings
             m_endOfLastBuffer = 0;
             SetCurrentBuffer(0);
         }
-        #endregion
 
-        #region Private Fields
         private int m_bufferIndex;
         private ArraySegment<byte> m_currentBuffer;
         private int m_currentPosition;
@@ -639,6 +610,5 @@ namespace Opc.Ua.Bindings
         private readonly int m_count;
         private readonly int m_bufferSize;
         private int m_endOfLastBuffer;
-        #endregion
     }
 }

@@ -43,7 +43,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The default instance of the factory.
         /// </summary>
-        public static readonly DefaultSessionFactory Instance = new DefaultSessionFactory();
+        public static readonly DefaultSessionFactory Instance = new();
 
         /// <summary>
         /// Force use of the default instance.
@@ -52,7 +52,6 @@ namespace Opc.Ua.Client
         {
         }
 
-        #region ISessionFactory Members
         /// <inheritdoc/>
         public virtual Task<ISession> CreateAsync(
             ApplicationConfiguration configuration,
@@ -119,7 +118,7 @@ namespace Opc.Ua.Client
         {
             if (reverseConnectManager == null)
             {
-                return await this.CreateAsync(configuration, endpoint, updateBeforeConnect,
+                return await CreateAsync(configuration, endpoint, updateBeforeConnect,
                     checkDomain, sessionName, sessionTimeout, userIdentity, preferredLocales, ct).ConfigureAwait(false);
             }
 
@@ -211,9 +210,7 @@ namespace Opc.Ua.Client
             }
             return await Session.RecreateAsync(template, transportChannel, ct).ConfigureAwait(false);
         }
-        #endregion
 
-        #region ISessionInstantiator Members
         /// <inheritdoc/>
         public virtual Session Create(
             ISessionChannel channel,
@@ -234,6 +231,5 @@ namespace Opc.Ua.Client
         {
             return new Session(channel, configuration, endpoint, clientCertificate, availableEndpoints, discoveryProfileUris);
         }
-        #endregion
     }
 }

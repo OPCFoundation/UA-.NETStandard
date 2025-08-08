@@ -56,7 +56,6 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         {
         }
 
-        #region Test Setup
         /// <summary>
         /// Set up a Server and a Client instance.
         /// </summary>
@@ -123,9 +122,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         {
             return base.TearDown();
         }
-        #endregion
 
-        #region Benchmark Setup
         /// <summary>
         /// Global Setup for benchmarks.
         /// </summary>
@@ -143,9 +140,6 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         {
             base.GlobalCleanup();
         }
-        #endregion
-
-        #region Test Methods
 
         [Test, Order(100)]
         public async Task ReadDictionaryByteStringAsync()
@@ -175,9 +169,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                     readValueId
                 };
 
-                ServiceResultException x = NUnit.Framework.Assert.Throws<ServiceResultException>(() => {
-                    _ = theSession.Read(null, 0, TimestampsToReturn.Neither, nodesToRead, out DataValueCollection results, out DiagnosticInfoCollection diagnosticInfos);
-                });
+                ServiceResultException x = NUnit.Framework.Assert.Throws<ServiceResultException>(() => _ = theSession.Read(null, 0, TimestampsToReturn.Neither, nodesToRead, out DataValueCollection results, out DiagnosticInfoCollection diagnosticInfos));
 
                 Assert.AreEqual(StatusCodes.BadEncodingLimitsExceeded, x.StatusCode);
 
@@ -203,16 +195,13 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             }
         }
 
-        #endregion // Test Methods
-        #region // helper methods
-
         /// <summary>
         /// Load the data dictionary from the server.
         /// </summary>
         /// <param name="session"></param>
         /// <param name="dictionaryNode"></param>
         /// <returns></returns>
-        public async Task<DataDictionary> LoadDataDictionaryAsync(ISession session, ReferenceDescription dictionaryNode)
+        public Task<DataDictionary> LoadDataDictionaryAsync(ISession session, ReferenceDescription dictionaryNode)
         {
             // check if the dictionary has already been loaded.
             var dictionaryId = ExpandedNodeId.ToNodeId(dictionaryNode.NodeId, session.NamespaceUris);
@@ -220,8 +209,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             var nodeCacheResolver = new NodeCacheResolver(session);
 
             // load the dictionary.
-            DataDictionary dictionary = await nodeCacheResolver.LoadDictionaryAsync(dictionaryId, dictionaryNode.ToString()).ConfigureAwait(false);
-            return dictionary;
+            return nodeCacheResolver.LoadDictionaryAsync(dictionaryId, dictionaryNode.ToString());
         }
 
         /// <summary>
@@ -249,12 +237,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 throw new Exception("cannot read the id of the test dictionary");
             }
             ReferenceDescription referenceDescription = results[0].References.FirstOrDefault(a => a.BrowseName.Name == "TestData");
-            var result = ExpandedNodeId.ToNodeId(referenceDescription.NodeId, Session.NamespaceUris);
-            return result;
-
-
+            return ExpandedNodeId.ToNodeId(referenceDescription.NodeId, Session.NamespaceUris);
         }
-        #endregion // helper methods
-
     }
 }

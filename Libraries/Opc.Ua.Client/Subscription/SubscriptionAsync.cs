@@ -42,7 +42,6 @@ namespace Opc.Ua.Client
     /// </summary>
     public partial class Subscription
     {
-        #region Public Async Methods (TPL)
         /// <summary>
         /// Creates a subscription on the server and adds all monitored items.
         /// </summary>
@@ -94,7 +93,7 @@ namespace Opc.Ua.Client
             }
 
             // nothing to do if not created.
-            if (!this.Created)
+            if (!Created)
             {
                 return;
             }
@@ -357,11 +356,11 @@ namespace Opc.Ua.Client
 
             if (m_deletedItems.Count == 0)
             {
-                return new List<MonitoredItem>();
+                return [];
             }
 
             List<MonitoredItem> itemsToDelete = m_deletedItems;
-            m_deletedItems = new List<MonitoredItem>();
+            m_deletedItems = [];
 
             var monitoredItemIds = new UInt32Collection();
 
@@ -433,7 +432,7 @@ namespace Opc.Ua.Client
 
             // update results.
             var errors = new List<ServiceResult>();
-            bool noErrors = Subscription.UpdateMonitoringMode(
+            bool noErrors = UpdateMonitoringMode(
                 monitoredItems, errors, results,
                 response.DiagnosticInfos, response.ResponseHeader,
                 monitoringMode);
@@ -458,12 +457,13 @@ namespace Opc.Ua.Client
         {
             VerifySubscriptionState(true);
 
-            var methodsToCall = new CallMethodRequestCollection();
-            methodsToCall.Add(new CallMethodRequest() {
-                ObjectId = ObjectTypeIds.ConditionType,
-                MethodId = MethodIds.ConditionType_ConditionRefresh,
-                InputArguments = new VariantCollection() { new Variant(m_id) }
-            });
+            var methodsToCall = new CallMethodRequestCollection {
+                new CallMethodRequest() {
+                    ObjectId = ObjectTypeIds.ConditionType,
+                    MethodId = MethodIds.ConditionType_ConditionRefresh,
+                    InputArguments = [new Variant(m_id)]
+                }
+            };
 
             CallResponse response = await m_session.CallAsync(
                 null,
@@ -479,22 +479,21 @@ namespace Opc.Ua.Client
         {
             VerifySubscriptionState(true);
 
-            var methodsToCall = new CallMethodRequestCollection();
-            methodsToCall.Add(new CallMethodRequest() {
-                ObjectId = ObjectTypeIds.ConditionType,
-                MethodId = MethodIds.ConditionType_ConditionRefresh2,
-                InputArguments = new VariantCollection() {
+            var methodsToCall = new CallMethodRequestCollection {
+                new CallMethodRequest() {
+                    ObjectId = ObjectTypeIds.ConditionType,
+                    MethodId = MethodIds.ConditionType_ConditionRefresh2,
+                    InputArguments = [
                     new Variant(m_id),
-                    new Variant( monitoredItemId ) }
-            });
+                    new Variant( monitoredItemId ) ]
+                }
+            };
 
             CallResponse response = await m_session.CallAsync(
                 null,
                 methodsToCall,
                 ct).ConfigureAwait(false);
         }
-
-        #endregion
     }
 }
 #endif

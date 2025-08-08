@@ -27,21 +27,22 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-
 using System;
 
 namespace Opc.Ua.PubSub.Configuration
 {
     /// <summary>
-    /// Helper class that calculates the ConfigurationVersion for MetaData 
+    /// Helper class that calculates the ConfigurationVersion for MetaData
     /// </summary>
     public static class ConfigurationVersionUtils
     {
-        // The epoch date is midnight UTC (00:00) on January 1, 2000.
-        private static readonly DateTime kEpochDate = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        /// <summary>
+        /// The epoch date is midnight UTC (00:00) on January 1, 2000.
+        /// </summary>
+        private static readonly DateTime kEpochDate = new(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
         /// <summary>
-        /// Analyze and decide the right ConfigurationVersion for new MetaData 
+        /// Analyze and decide the right ConfigurationVersion for new MetaData
         /// </summary>
         /// <param name="oldMetaData">The historical MetaData to be compared against the new MetaData</param>
         /// <param name="newMetaData">The new MetaData </param>
@@ -116,7 +117,6 @@ namespace Opc.Ua.PubSub.Configuration
                 MinorVersion = newMetaData.ConfigurationVersion.MinorVersion,
                 MajorVersion = newMetaData.ConfigurationVersion.MajorVersion
             };
-
         }
 
         /// <summary>

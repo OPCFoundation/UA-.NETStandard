@@ -37,7 +37,6 @@ namespace Boiler
 {
     public partial class BoilerStateMachineState
     {
-        #region Initialization
         /// <summary>
         /// Initializes the object as a collection of counters which change value on read.
         /// </summary>
@@ -65,6 +64,5 @@ namespace Boiler
             Reset.OnReadExecutable = IsResetExecutable;
             Reset.OnReadUserExecutable = IsResetUserExecutable;
         }
-        #endregion
     }
 }

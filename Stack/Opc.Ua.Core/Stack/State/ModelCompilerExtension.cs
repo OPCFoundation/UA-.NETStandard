@@ -12,9 +12,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
-using System.IO;
 using System.Threading.Tasks;
 
 namespace Opc.Ua
@@ -65,7 +65,7 @@ namespace Opc.Ua
             DateTime lastModified,
             bool outputRedundantNames)
         {
-            var nodeSet = new Opc.Ua.Export.UANodeSet();
+            var nodeSet = new Export.UANodeSet();
 
             if (lastModified != DateTime.MinValue)
             {
@@ -88,7 +88,7 @@ namespace Opc.Ua
 
             if (model != null)
             {
-                nodeSet.Models = new Export.ModelTableEntry[] { model };
+                nodeSet.Models = [model];
             }
 
             for (int ii = 0; ii < s_AliasesToUse.Length; ii++)
@@ -96,7 +96,7 @@ namespace Opc.Ua
                 nodeSet.AddAlias(context, s_AliasesToUse[ii].Alias, s_AliasesToUse[ii].NodeId);
             }
 
-            for (int ii = 0; ii < this.Count; ii++)
+            for (int ii = 0; ii < Count; ii++)
             {
                 nodeSet.Export(context, this[ii], outputRedundantNames);
             }

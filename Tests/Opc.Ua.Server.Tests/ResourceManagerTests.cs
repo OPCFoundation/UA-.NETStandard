@@ -26,7 +26,7 @@ namespace Opc.Ua.Server.Tests
             var defaultText = new LocalizedText("en-US", "Hello");
 
             //Act
-            LocalizedText resultText = resourceManager.Translate(new List<string> { "en-US", "de-DE" }, defaultText);
+            LocalizedText resultText = resourceManager.Translate(["en-US", "de-DE"], defaultText);
 
             // Assert
             Assert.AreEqual(defaultText, resultText);
@@ -39,7 +39,7 @@ namespace Opc.Ua.Server.Tests
             var defaultText = new LocalizedText("greeting", "en-US", "Hello");
 
             //Act
-            LocalizedText resultText = resourceManager.Translate(new List<string> { "en-US", "de-DE" }, defaultText);
+            LocalizedText resultText = resourceManager.Translate(["en-US", "de-DE"], defaultText);
 
             // Assert
             Assert.AreEqual(defaultText, resultText);
@@ -53,7 +53,7 @@ namespace Opc.Ua.Server.Tests
             resourceManager.Add("greeting", "en-US", "Hello {0}");
 
             //Act
-            LocalizedText resultText = resourceManager.Translate(new List<string> { "en-US", "de-DE" }, "greeting", "Hello {0}", "User");
+            LocalizedText resultText = resourceManager.Translate(["en-US", "de-DE"], "greeting", "Hello {0}", "User");
 
             // Assert
             Assert.AreEqual("Hello User", resultText.Text);
@@ -73,7 +73,7 @@ namespace Opc.Ua.Server.Tests
             var defaultText = new LocalizedText("greeting", translations);
 
             //Act
-            LocalizedText resultText = resourceManager.Translate(new List<string> { "mul", "de-DE", "en-US" }, defaultText);
+            LocalizedText resultText = resourceManager.Translate(["mul", "de-DE", "en-US"], defaultText);
 
             // Assert
             Assert.AreEqual(defaultText, resultText);
@@ -93,7 +93,7 @@ namespace Opc.Ua.Server.Tests
             var defaultText = new LocalizedText("greeting", translations);
 
             //Act
-            LocalizedText resultText = resourceManager.Translate(new List<string> { "mul", "de-DE", "en-US" }, defaultText);
+            LocalizedText resultText = resourceManager.Translate(["mul", "de-DE", "en-US"], defaultText);
 
             // Assert
             Assert.AreEqual("{\"t\":[[\"en-US\",\"Hello\"],[\"de-DE\",\"Hallo\"]]}", resultText.Text);
@@ -108,7 +108,7 @@ namespace Opc.Ua.Server.Tests
             var defaultText = new LocalizedText("greeting", "en-US", "Hello");
 
             //Act
-            LocalizedText resultText = resourceManager.Translate(new List<string> { "mul", "de-DE", "en-US" }, defaultText);
+            LocalizedText resultText = resourceManager.Translate(["mul", "de-DE", "en-US"], defaultText);
 
             // Assert
             Assert.AreEqual(defaultText, resultText);
@@ -138,7 +138,7 @@ namespace Opc.Ua.Server.Tests
             resourceManager.Add("greeting", "fr-FR", "Bonjour");
 
             //Act
-            LocalizedText resultText = resourceManager.Translate(new List<string> { "mul", "de-DE", "en-US" }, defaultText);
+            LocalizedText resultText = resourceManager.Translate(["mul", "de-DE", "en-US"], defaultText);
 
             // Assert
             Assert.AreEqual("{\"t\":[[\"en-US\",\"Hello\"],[\"de-DE\",\"Hallo\"]]}", resultText.Text);
@@ -154,7 +154,7 @@ namespace Opc.Ua.Server.Tests
             resourceManager.Add("greeting", "en-US", "Hello");
 
             //Act
-            LocalizedText resultText = resourceManager.Translate(new List<string> { "mul", "de-DE", "en-US" }, "greeting", null);
+            LocalizedText resultText = resourceManager.Translate(["mul", "de-DE", "en-US"], "greeting", null);
 
             // Assert
             Assert.AreEqual("{\"t\":[[\"de-DE\",\"Hallo\"],[\"en-US\",\"Hello\"]]}", resultText.Text);
@@ -170,7 +170,7 @@ namespace Opc.Ua.Server.Tests
             resourceManager.Add("greeting", "en-US", "Hello");
 
             //Act
-            LocalizedText resultText = resourceManager.Translate(new List<string> { "mul" }, "greeting", null);
+            LocalizedText resultText = resourceManager.Translate(["mul"], "greeting", null);
 
             // Assert
             Assert.AreEqual("{\"t\":[[\"de-DE\",\"Hallo\"],[\"en-US\",\"Hello\"]]}", resultText.Text);
@@ -186,7 +186,7 @@ namespace Opc.Ua.Server.Tests
             resourceManager.Add("greeting", "en-US", "Hello {0}");
 
             //Act
-            LocalizedText resultText = resourceManager.Translate(new List<string> { "mul" }, "greeting", null, "User");
+            LocalizedText resultText = resourceManager.Translate(["mul"], "greeting", null, "User");
 
             // Assert
             Assert.AreEqual("{\"t\":[[\"de-DE\",\"Hallo User\"],[\"en-US\",\"Hello User\"]]}", resultText.Text);

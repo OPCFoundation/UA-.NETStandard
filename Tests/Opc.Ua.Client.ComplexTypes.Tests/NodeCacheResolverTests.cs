@@ -55,14 +55,11 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         {
         }
 
-        #region DataPointSources
         public static readonly NodeId[] TypeSystems = [
             ObjectIds.OPCBinarySchema_TypeSystem,
             ObjectIds.XmlSchema_TypeSystem
         ];
-        #endregion
 
-        #region Test Setup
         /// <summary>
         /// Set up a Server and a Client instance.
         /// </summary>
@@ -99,15 +96,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         {
             return base.TearDown();
         }
-        #endregion
-
-        #region Test Methods
 
         [Test, Order(100)]
         public async Task LoadStandardDataTypeSystemAsync()
         {
             var nodeResolver = new NodeCacheResolver(Session);
-            ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(async () => {
+            ServiceResultException sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () => {
                 System.Collections.Generic.IReadOnlyDictionary<NodeId, DataDictionary> t = await nodeResolver.LoadDataTypeSystem(ObjectIds.ObjectAttributes_Encoding_DefaultJson).ConfigureAwait(false);
             });
             Assert.AreEqual((StatusCode)StatusCodes.BadNodeIdInvalid, (StatusCode)sre.StatusCode);
@@ -145,7 +139,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 DataDictionary dictionaryToLoad = await nodeResolver.LoadDictionaryAsync(dictionaryId, r.BrowseName.Name).ConfigureAwait(false);
 
                 // internal API for testing only
-                byte[] dictionary = await  nodeResolver.ReadDictionaryAsync(dictionaryId).ConfigureAwait(false);
+                byte[] dictionary = await nodeResolver.ReadDictionaryAsync(dictionaryId).ConfigureAwait(false);
                 // TODO: workaround known issues in the Xml type system.
                 // https://mantis.opcfoundation.org/view.php?id=7393
                 if (dataTypeSystem.Equals(ObjectIds.XmlSchema_TypeSystem))
@@ -156,7 +150,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                     }
                     catch (Exception ex)
                     {
-                        Assert.Inconclusive(ex.Message);
+                        NUnit.Framework.Assert.Inconclusive(ex.Message);
                     }
                 }
                 else
@@ -165,7 +159,5 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 }
             }
         }
-
-        #endregion
     }
 }

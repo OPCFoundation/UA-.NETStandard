@@ -25,7 +25,6 @@ namespace Opc.Ua
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class ServiceResult
     {
-        #region Constructors
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
@@ -399,9 +398,7 @@ namespace Opc.Ua
                 }
             }
         }
-        #endregion
 
-        #region Static Interface
         /// <summary>
         /// A result representing a good status.
         /// </summary>
@@ -646,9 +643,7 @@ namespace Opc.Ua
 
             return buffer.ToString();
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The status code associated with the result.
         /// </summary>
@@ -659,9 +654,7 @@ namespace Opc.Ua
         /// </summary>
         [DataMember(Order = 1)]
         public StatusCode StatusCode
-        {
-            get { return Code; }
-            private set { Code = value.Code; }
+        { get => Code; private set => Code = value.Code;
         }
 
         /// <summary>
@@ -693,9 +686,7 @@ namespace Opc.Ua
         /// </summary>
         [DataMember(Order = 6)]
         public ServiceResult InnerResult { get; private set; }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Converts the value to a human readable string.
         /// </summary>
@@ -772,9 +763,7 @@ namespace Opc.Ua
 
             return buffer.ToString();
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Looks up a string in a string table.
         /// </summary>
@@ -806,7 +795,5 @@ namespace Opc.Ua
 
             return string.Empty;
         }
-
-#endregion
     }
 }

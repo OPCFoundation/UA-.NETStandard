@@ -29,9 +29,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Security.Principal;
 using System.Text;
 using System.Threading;
-using System.Security.Principal;
 
 namespace Opc.Ua.Server
 {
@@ -40,7 +40,6 @@ namespace Opc.Ua.Server
     /// </summary>
     public class EventManager : IDisposable
     {
-        #region Constructors
         /// <summary>
         /// Creates a new instance of a sampling group.
         /// </summary>
@@ -52,13 +51,11 @@ namespace Opc.Ua.Server
             }
 
             m_server = server;
-            m_monitoredItems = new Dictionary<uint, IEventMonitoredItem>();
+            m_monitoredItems = [];
             m_maxEventQueueSize = maxQueueSize;
             m_maxDurableEventQueueSize = maxDurableQueueSize;
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -89,9 +86,7 @@ namespace Opc.Ua.Server
                 }
             }
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Reports an event.
         /// </summary>
@@ -177,7 +172,7 @@ namespace Opc.Ua.Server
                 storedMonitoredItem.QueueSize = CalculateRevisedQueueSize(storedMonitoredItem.IsDurable, storedMonitoredItem.QueueSize);
 
                 // create the monitored item.
-                IEventMonitoredItem monitoredItem = new MonitoredItem(
+                var monitoredItem = new MonitoredItem(
                     m_server,
                     nodeManager,
                     handle,
@@ -267,14 +262,11 @@ namespace Opc.Ua.Server
                 return [.. m_monitoredItems.Values];
             }
         }
-        #endregion
 
-        #region Private Fields
-        private readonly object m_lock = new object();
+        private readonly object m_lock = new();
         private readonly IServerInternal m_server;
         private readonly Dictionary<uint, IEventMonitoredItem> m_monitoredItems;
         private readonly uint m_maxEventQueueSize;
         private readonly uint m_maxDurableEventQueueSize;
-        #endregion
     }
 }

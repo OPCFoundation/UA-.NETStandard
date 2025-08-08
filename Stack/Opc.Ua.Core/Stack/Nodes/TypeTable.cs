@@ -21,7 +21,6 @@ namespace Opc.Ua
     /// </summary>
     public class TypeTable : ITypeTable
     {
-        #region Constructors
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
@@ -29,13 +28,11 @@ namespace Opc.Ua
         public TypeTable(NamespaceTable namespaceUris)
         {
             m_namespaceUris = namespaceUris;
-            m_referenceTypes = new SortedDictionary<QualifiedName, TypeInfo>();
-            m_nodes = new NodeIdDictionary<TypeInfo>();
-            m_encodings = new NodeIdDictionary<TypeInfo>();
+            m_referenceTypes = [];
+            m_nodes = [];
+            m_encodings = [];
         }
-        #endregion
 
-        #region ITypeTable Methods
         /// <inheritdoc/>
         public bool IsKnown(ExpandedNodeId typeId)
         {
@@ -376,7 +373,7 @@ namespace Opc.Ua
             }
 
             // get the actual datatype.
-            NodeId actualTypeId = Opc.Ua.TypeInfo.GetDataTypeId(value);
+            NodeId actualTypeId = Ua.TypeInfo.GetDataTypeId(value);
 
             // value is valid if the expected datatype is same as or a supertype of the actual datatype
             // for example: expected datatype of 'Integer' matches an actual datatype of 'UInt32'.
@@ -456,9 +453,7 @@ namespace Opc.Ua
                 return typeInfo.NodeId;
             }
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Removes all types from the tree.
         /// </summary>
@@ -623,7 +618,7 @@ namespace Opc.Ua
 
                 if (typeInfo.Encodings == null)
                 {
-                    typeInfo.Encodings = new NodeId[] { localId };
+                    typeInfo.Encodings = [localId];
                 }
                 else
                 {
@@ -751,9 +746,7 @@ namespace Opc.Ua
                 }
             }
         }
-        #endregion
 
-        #region TypeInfo Class
         /// <summary>
         /// Stores the information about an indexed type.
         /// </summary>
@@ -800,7 +793,7 @@ namespace Opc.Ua
                 {
                     if (SubTypes == null)
                     {
-                        SubTypes = new NodeIdDictionary<TypeInfo>();
+                        SubTypes = [];
                     }
 
                     SubTypes[subType.NodeId] = subType;
@@ -838,14 +831,11 @@ namespace Opc.Ua
                 nodeIds.AddRange(SubTypes.Keys);
             }
         }
-        #endregion
 
-        #region Private Fields
-        private readonly object m_lock = new object();
+        private readonly object m_lock = new();
         private readonly NamespaceTable m_namespaceUris;
         private readonly SortedDictionary<QualifiedName, TypeInfo> m_referenceTypes;
         private readonly NodeIdDictionary<TypeInfo> m_nodes;
         private readonly NodeIdDictionary<TypeInfo> m_encodings;
-        #endregion
     }
 }

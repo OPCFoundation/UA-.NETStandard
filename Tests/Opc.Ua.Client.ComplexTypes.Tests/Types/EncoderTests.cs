@@ -47,7 +47,6 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         public IServiceMessageContext EncoderContext;
         public Dictionary<StructureType, (ExpandedNodeId, Type)> TypeDictionary;
 
-        #region Test Setup
         [OneTimeSetUp]
         protected new void OneTimeSetUp()
         {
@@ -60,7 +59,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             EncoderContext.NamespaceUris.Append("urn:This:is:another:namespace");
             EncoderContext.NamespaceUris.Append(Namespaces.OpcUaEncoderTests);
             // create only a single type per structure type, tests can activate
-            TypeDictionary = new Dictionary<StructureType, (ExpandedNodeId, Type)>();
+            TypeDictionary = [];
             CreateComplexTypes(EncoderContext, TypeDictionary, "");
         }
 
@@ -78,9 +77,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         protected new void TearDown()
         {
         }
-        #endregion Test Setup
 
-        #region Test Methods
         /// <summary>
         /// Verify encode and decode of a structured type.
         /// </summary>
@@ -188,7 +185,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             var extensionObject = new ExtensionObject(emittedType);
 
-            var keyValuePair = new Opc.Ua.KeyValuePair();
+            var keyValuePair = new KeyValuePair();
             keyValuePair.Key = "AKEY";
             keyValuePair.Value = extensionObject;
 
@@ -215,6 +212,5 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 _ = Newtonsoft.Json.JsonConvert.SerializeObject(extensionObject);
             }
         }
-        #endregion Test Methods
     }
 }

@@ -47,7 +47,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         public DataTypeNotFoundException()
         {
-            NodeIds = new ExpandedNodeIdCollection();
+            NodeIds = [];
         }
 
         /// <summary>
@@ -56,7 +56,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <param name="message"></param>
         public DataTypeNotFoundException(string message) : base(message)
         {
-            NodeIds = new ExpandedNodeIdCollection();
+            NodeIds = [];
         }
 
         /// <summary>
@@ -66,7 +66,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <param name="innerException"></param>
         public DataTypeNotFoundException(string message, Exception innerException) : base(message, innerException)
         {
-            NodeIds = new ExpandedNodeIdCollection();
+            NodeIds = [];
         }
 
         /// <summary>

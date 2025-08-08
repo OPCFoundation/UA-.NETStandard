@@ -49,8 +49,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     {
         public EncodingTypeGroup(EncodingType encoderType, JsonEncodingType jsonEncodingType = JsonEncodingType.Reversible)
         {
-            this.EncoderType = encoderType;
-            this.JsonEncodingType = jsonEncodingType;
+            EncoderType = encoderType;
+            JsonEncodingType = jsonEncodingType;
         }
 
         public EncodingType EncoderType { get; }
@@ -75,13 +75,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     [Parallelizable]
     public class EncoderTests : EncoderCommon
     {
-        #region DataPointSources
         [DatapointSource]
-        public int[] ArrayLength = new int[] { 1, 5, 100 };
-        private static readonly int[] value = new int[] {1, 2, 3, 4, 5 };
-        #endregion
+        public int[] ArrayLength = [1, 5, 100];
+        private static readonly int[] s_value = [1, 2, 3, 4, 5];
+        private static readonly string[] s_valueArray = ["1", "2", "3", "4", "5"];
+        private static readonly int[] s_valueArray0 = [2, 3, 10];
 
-        #region Test Methods
         /// <summary>
         /// Verify encode and decode of a default built in type
         /// value as Variant in a DataValue.
@@ -159,7 +158,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     default:
                         break;
                 }
-            };
+            }
             EncodeDecode(encoderType, jsonEncodingType, builtInType, MemoryStreamType.ArraySegmentStream, randomData);
         }
 
@@ -197,8 +196,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
-            Array boundaryValues = DataGenerator.GetRandomArray(builtInType, true, 10, true);
-            foreach (object boundaryValue in boundaryValues)
+            foreach (object boundaryValue in DataGenerator.GetRandomArray(builtInType, true, 10, true))
             {
                 EncodeDecode(encoderType, jsonEncodingType, builtInType, MemoryStreamType.MemoryStream, boundaryValue);
             }
@@ -382,23 +380,23 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             var variant = new VariantCollection {
                 new Variant(4L),
                 new Variant("test"),
-                new Variant(value),
+                new Variant(s_value),
                 new Variant(new long[] {1, 2, 3, 4, 5 }),
-                new Variant(new string[] {"1", "2", "3", "4", "5" }),
+                new Variant(s_valueArray),
                 //TODO: works as expected, but the expected need to be tweaked for the Int32 result
                 //new Variant(new TestEnumType[] { TestEnumType.One, TestEnumType.Two, TestEnumType.Hundred }),
-                new Variant(new int[] { 2, 3, 10 }, new TypeInfo(BuiltInType.Enumeration, 1))
+                new Variant(s_valueArray0, new TypeInfo(BuiltInType.Enumeration, 1))
             };
             EncodeDecodeDataValue(encoderType, jsonEncodingType, BuiltInType.Variant, MemoryStreamType.ArraySegmentStream, variant);
         }
 
-        private string WriteByteStringData(IEncoder encoder)
+        private static string WriteByteStringData(IEncoder encoder)
         {
-            encoder.WriteByteString("ByteString1", new byte[] { 0, 1, 2, 3, 4, 5 }, 1, 3);
+            encoder.WriteByteString("ByteString1", [0, 1, 2, 3, 4, 5], 1, 3);
             encoder.WriteByteString("ByteString2", null);
             encoder.WriteByteString("ByteString3", null, 1, 2);
 #if SPAN_SUPPORT
-            var span = new ReadOnlySpan<byte>(new byte[] { 0, 1, 2, 3, 4, 5 }, 1, 3);
+            var span = new ReadOnlySpan<byte>([0, 1, 2, 3, 4, 5], 1, 3);
             encoder.WriteByteString("ByteString4", span);
 
             var nullspan = new ReadOnlySpan<byte>(null);
@@ -411,7 +409,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.IsTrue(defaultspan.IsEmpty);
             Assert.IsTrue(defaultspan == ReadOnlySpan<byte>.Empty);
 
-            ReadOnlySpan<byte> emptyspan = Array.Empty<byte>();
+            ReadOnlySpan<byte> emptyspan = [];
             encoder.WriteByteString("ByteString7", emptyspan);
             Assert.IsTrue(emptyspan.IsEmpty);
             Assert.IsTrue(emptyspan != ReadOnlySpan<byte>.Empty);
@@ -419,7 +417,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             return encoder.CloseAndReturnText();
         }
 
-        private void ReadByteStringData(IDecoder decoder)
+        private static void ReadByteStringData(IDecoder decoder)
         {
             byte[] result = decoder.ReadByteString("ByteString1");
             Assert.AreEqual(new byte[] { 1, 2, 3 }, result);
@@ -446,7 +444,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using (var stream = new MemoryStream())
             {
                 string text;
-                using (IEncoder encoder = new BinaryEncoder(stream, new ServiceMessageContext(), true))
+                using (var  encoder = new BinaryEncoder(stream, new ServiceMessageContext(), true))
                 {
                     text = WriteByteStringData(encoder);
                 }
@@ -467,7 +465,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
                 using (var writer = XmlWriter.Create(stream, settings))
-                using (IEncoder encoder = new XmlEncoder(new XmlQualifiedName("ByteStrings", Namespaces.OpcUaXsd), writer, new ServiceMessageContext()))
+                using (var  encoder = new XmlEncoder(new XmlQualifiedName("ByteStrings", Namespaces.OpcUaXsd), writer, new ServiceMessageContext()))
                 {
                     string text = WriteByteStringData(encoder);
                 }
@@ -487,7 +485,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using (var stream = new MemoryStream())
             {
                 string text;
-                using (IEncoder encoder = new JsonEncoder(new ServiceMessageContext(), true, false, stream, true))
+                using (var  encoder = new JsonEncoder(new ServiceMessageContext(), true, false, stream, true))
                 {
                     text = WriteByteStringData(encoder);
                 }
@@ -548,7 +546,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             byte[] buffer;
             using (MemoryStream encoderStream = CreateEncoderMemoryStream(MemoryStreamType.MemoryStream))
             {
-                using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, type, jsonEncodingType, false))
+                using (var  encoder = CreateEncoder(encoderType, Context, encoderStream, type, jsonEncodingType, false))
                 {
                     encoder.WriteArray(builtInType.ToString(), randomData, ValueRanks.OneDimension, builtInType);
                 }
@@ -564,7 +562,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             object result;
             using (var decoderStream = new MemoryStream(buffer))
-            using (IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, type))
+            using (var  decoder = CreateDecoder(encoderType, Context, decoderStream, type))
             {
                 result = decoder.ReadArray(builtInType.ToString(), ValueRanks.OneDimension, builtInType);
             }
@@ -675,7 +673,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             byte[] buffer;
             using (MemoryStream encoderStream = CreateEncoderMemoryStream(MemoryStreamType.MemoryStream))
             {
-                using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, type, jsonEncodingType))
+                using (var  encoder = CreateEncoder(encoderType, Context, encoderStream, type, jsonEncodingType))
                 {
                     encoder.WriteArray(builtInType.ToString(), matrix, matrix.TypeInfo.ValueRank, builtInType);
                 }
@@ -691,7 +689,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             object result;
             using (var decoderStream = new MemoryStream(buffer))
-            using (IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, type))
+            using (var  decoder = CreateDecoder(encoderType, Context, decoderStream, type))
             {
                 result = decoder.ReadArray(builtInType.ToString(), matrix.TypeInfo.ValueRank, builtInType);
             }
@@ -770,11 +768,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             byte[] buffer;
             using (MemoryStream encoderStream = CreateEncoderMemoryStream(MemoryStreamType.MemoryStream))
             {
-                using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, typeof(DataValue), jsonEncodingType))
+                using (var  encoder = CreateEncoder(encoderType, Context, encoderStream, typeof(DataValue), jsonEncodingType))
                 {
                     if (encoderType == EncodingType.Json && jsonEncodingType == JsonEncodingType.NonReversible)
                     {
-                        ServiceResultException sre = Assert.Throws<ServiceResultException>(() => encoder.WriteDataValue("DataValue", expected));
+                        ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() => encoder.WriteDataValue("DataValue", expected));
                         Assert.AreEqual(StatusCodes.BadEncodingLimitsExceeded, sre.StatusCode);
                         return;
                     }
@@ -795,14 +793,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
 
             using (var decoderStream = new MemoryStream(buffer))
-            using (IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, typeof(DataValue)))
+            using (var  decoder = CreateDecoder(encoderType, Context, decoderStream, typeof(DataValue)))
             {
                 // check such matrix cannot be initialized when decoding from Binary format
                 // the exception is thrown before trying to construct the Matrix
-                ServiceResultException sre = Assert.Throws<ServiceResultException>(
-                    () => {
-                        decoder.ReadDataValue("DataValue");
-                    });
+                ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(
+                    () => decoder.ReadDataValue("DataValue"));
                 Assert.AreEqual((StatusCode)StatusCodes.BadDecodingError, (StatusCode)sre.StatusCode, sre.Message);
             }
         }
@@ -846,11 +842,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             byte[] buffer;
             using (MemoryStream encoderStream = CreateEncoderMemoryStream(MemoryStreamType.ArraySegmentStream))
             {
-                using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, typeof(DataValue), jsonEncodingType))
+                using (var  encoder = CreateEncoder(encoderType, Context, encoderStream, typeof(DataValue), jsonEncodingType))
                 {
                     if (encoderType == EncodingType.Json && jsonEncodingType == JsonEncodingType.NonReversible)
                     {
-                        ServiceResultException sre = Assert.Throws<ServiceResultException>(() => encoder.WriteDataValue("DataValue", expected));
+                        ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() => encoder.WriteDataValue("DataValue", expected));
                         Assert.AreEqual(StatusCodes.BadEncodingLimitsExceeded, sre.StatusCode);
                         return;
                     }
@@ -871,14 +867,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
 
             using (var decoderStream = new MemoryStream(buffer))
-            using (IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, typeof(DataValue)))
+            using (var  decoder = CreateDecoder(encoderType, Context, decoderStream, typeof(DataValue)))
             {
                 // check such matrix cannot be initialized when decoding from Json format
                 // the exception is thrown while trying to construct the Matrix
-                ServiceResultException sre = Assert.Throws<ServiceResultException>(
-                    () => {
-                        decoder.ReadDataValue("DataValue");
-                    });
+                ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(
+                    () => decoder.ReadDataValue("DataValue"));
 
                 Assert.AreEqual((StatusCode)StatusCodes.BadDecodingError, (StatusCode)sre.StatusCode, sre.Message);
             }
@@ -925,16 +919,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             byte[] buffer;
             using (MemoryStream encoderStream = CreateEncoderMemoryStream(MemoryStreamType.RecyclableMemoryStream))
             {
-                using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, type, jsonEncodingType))
+                using (var  encoder = CreateEncoder(encoderType, Context, encoderStream, type, jsonEncodingType))
                 {
                     switch (encoderType)
                     {
                         case EncodingType.Json:
                             // check such matrix cannot be initialized when encoded into Json format
                             // the exception is thrown while trying to WriteStructureMatrix into the arrray
-                            NUnit.Framework.Assert.Throws<ServiceResultException>(() => {
-                                encoder.WriteArray(builtInType.ToString(), matrix, matrix.TypeInfo.ValueRank, builtInType);
-                            });
+                            NUnit.Framework.Assert.Throws<ServiceResultException>(() => encoder.WriteArray(builtInType.ToString(), matrix, matrix.TypeInfo.ValueRank, builtInType));
                             return;
                     }
                     encoder.WriteArray(builtInType.ToString(), matrix, matrix.TypeInfo.ValueRank, builtInType);
@@ -950,12 +942,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
 
             using (var decoderStream = new MemoryStream(buffer))
-            using (IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, type))
+            using (var  decoder = CreateDecoder(encoderType, Context, decoderStream, type))
             {
-                ServiceResultException sre = Assert.Throws<ServiceResultException>(
-                    () => {
-                        decoder.ReadArray(builtInType.ToString(), matrix.TypeInfo.ValueRank, builtInType);
-                    });
+                ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(
+                    () => decoder.ReadArray(builtInType.ToString(), matrix.TypeInfo.ValueRank, builtInType));
 
                 Assert.AreEqual((StatusCode)StatusCodes.BadEncodingLimitsExceeded, (StatusCode)sre.StatusCode, sre.Message);
             }
@@ -984,12 +974,5 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.NotNull(NodeId.Null);
             Assert.True(NodeId.Null.IsNullNodeId);
         }
-        #endregion
-
-        #region Private Methods
-        #endregion
-
-        #region Private Fields
-        #endregion
     }
 }

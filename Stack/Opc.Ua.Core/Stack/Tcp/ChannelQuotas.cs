@@ -17,7 +17,6 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class ChannelQuotas
     {
-        #region Constructors
         /// <summary>
         /// Creates an object with default values.
         /// </summary>
@@ -29,9 +28,7 @@ namespace Opc.Ua.Bindings
             ChannelLifetime = TcpMessageLimits.DefaultChannelLifetime;
             SecurityTokenLifetime = TcpMessageLimits.DefaultSecurityTokenLifeTime;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The context to use when encoding/decoding messages.
         /// </summary>
@@ -61,7 +58,5 @@ namespace Opc.Ua.Bindings
         /// The default lifetime for a security token in milliseconds.
         /// </summary>
         public int SecurityTokenLifetime { get; set; }
-
-        #endregion
     }
 }

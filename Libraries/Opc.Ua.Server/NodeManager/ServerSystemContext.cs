@@ -36,9 +36,8 @@ namespace Opc.Ua.Server
     /// <summary>
     /// A generic implementation for ISystemContext interface.
     /// </summary>
-    public class ServerSystemContext : Opc.Ua.SystemContext
+    public class ServerSystemContext : SystemContext
     {
-        #region Constructors
         /// <summary>
         /// Initializes a new instance of the <see cref="SystemContext"/> class.
         /// </summary>
@@ -82,17 +81,13 @@ namespace Opc.Ua.Server
             TypeTable = server.TypeTree;
             EncodeableFactory = server.Factory;
         }
-        #endregion
 
-        #region Public Members
         /// <summary>
         /// The operation context associated with system context.
         /// </summary>
         /// <value>The operation context.</value>
         public new OperationContext OperationContext
-        {
-            get { return base.OperationContext as OperationContext; }
-            set { base.OperationContext = value; }
+        { get => base.OperationContext as OperationContext; set => base.OperationContext = value;
         }
 
         /// <summary>
@@ -177,6 +172,5 @@ namespace Opc.Ua.Server
 
             return copy;
         }
-        #endregion
     }
 }

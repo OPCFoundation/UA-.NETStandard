@@ -12,18 +12,17 @@
 
 using System;
 using System.Collections.Generic;
-using System.Xml;
-using System.Text;
 using System.IO;
 using System.Reflection;
+using System.Text;
 using System.Threading;
+using System.Xml;
 using Opc.Ua;
 
 namespace Opc.Ua
 {
     public partial class NonExclusiveLimitAlarmState
     {
-        #region Public Methods
         /// <summary>
         /// Sets the limit state of the condition.
         /// </summary>
@@ -33,24 +32,24 @@ namespace Opc.Ua
             ISystemContext context,
             LimitAlarmStates limit)
         {
-            if (this.HighState != null)
+            if (HighState != null)
             {
-                UpdateState(this.HighState, (limit & LimitAlarmStates.High) != 0 || (limit & LimitAlarmStates.HighHigh) != 0);
+                UpdateState(HighState, (limit & LimitAlarmStates.High) != 0 || (limit & LimitAlarmStates.HighHigh) != 0);
             }
 
-            if (this.HighHighState != null)
+            if (HighHighState != null)
             {
-                UpdateState(this.HighHighState, (limit & LimitAlarmStates.HighHigh) != 0);
+                UpdateState(HighHighState, (limit & LimitAlarmStates.HighHigh) != 0);
             }
 
-            if (this.LowState != null)
+            if (LowState != null)
             {
-                UpdateState(this.LowState, (limit & LimitAlarmStates.Low) != 0 || (limit & LimitAlarmStates.LowLow) != 0);
+                UpdateState(LowState, (limit & LimitAlarmStates.Low) != 0 || (limit & LimitAlarmStates.LowLow) != 0);
             }
 
-            if (this.LowLowState != null)
+            if (LowLowState != null)
             {
-                UpdateState(this.LowLowState, (limit & LimitAlarmStates.LowLow) != 0);
+                UpdateState(LowLowState, (limit & LimitAlarmStates.LowLow) != 0);
             }
 
             // select an appropriate effective display name for the active state.
@@ -96,9 +95,7 @@ namespace Opc.Ua
             SetActiveEffectiveSubState(context, new LocalizedText(displayName), DateTime.UtcNow);
             UpdateEffectiveState(context);
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Updates the state.
         /// </summary>
@@ -131,6 +128,5 @@ namespace Opc.Ua
                 limit.TransitionTime.Value = DateTime.UtcNow;
             }
         }
-        #endregion
     }
 }

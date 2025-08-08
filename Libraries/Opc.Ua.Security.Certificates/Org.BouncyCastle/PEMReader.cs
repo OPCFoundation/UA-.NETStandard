@@ -45,7 +45,6 @@ namespace Opc.Ua.Security.Certificates
     /// </summary>
     public static class PEMReader
     {
-        #region Public Methods
         /// <summary>
         /// Checks if the PEM data contains a private key.
         /// </summary>
@@ -56,7 +55,7 @@ namespace Opc.Ua.Security.Certificates
             using (var ms = new MemoryStream(pemDataBlob))
             using (var reader = new StreamReader(ms, Encoding.UTF8, true))
             {
-                var pemReader = new Org.BouncyCastle.OpenSsl.PemReader(reader);
+                var pemReader = new PemReader(reader);
                 try
                 {
                     object pemObject = pemReader.ReadObject();
@@ -68,12 +67,12 @@ namespace Opc.Ua.Security.Certificates
                             return true;
                         }
                         // Check for direct private key parameters
-                        if (pemObject is Org.BouncyCastle.Crypto.Parameters.RsaPrivateCrtKeyParameters)
+                        if (pemObject is RsaPrivateCrtKeyParameters)
                         {
                             return true;
                         }
 #if NET472_OR_GREATER
-                        if (pemObject is Org.BouncyCastle.Crypto.Parameters.ECPrivateKeyParameters)
+                        if (pemObject is ECPrivateKeyParameters)
                         {
                             return true;
                         }
@@ -102,7 +101,7 @@ namespace Opc.Ua.Security.Certificates
             using (var ms = new MemoryStream(pemDataBlob))
             using (var reader = new StreamReader(ms, Encoding.UTF8, true))
             {
-                var pemReader = new Org.BouncyCastle.OpenSsl.PemReader(reader);
+                var pemReader = new PemReader(reader);
                 int certCount = 0;
                 try
                 {
@@ -163,9 +162,6 @@ namespace Opc.Ua.Security.Certificates
             }
         }
 
-        #endregion
-
-        #region Private
         /// <summary>
         /// Import a private key from PEM.
         /// </summary>
@@ -173,17 +169,17 @@ namespace Opc.Ua.Security.Certificates
             byte[] pemDataBlob,
             string password = null)
         {
-            Org.BouncyCastle.OpenSsl.PemReader pemReader;
+            PemReader pemReader;
             using (var pemStreamReader = new StreamReader(new MemoryStream(pemDataBlob), Encoding.UTF8, true))
             {
                 if (string.IsNullOrEmpty(password))
                 {
-                    pemReader = new Org.BouncyCastle.OpenSsl.PemReader(pemStreamReader);
+                    pemReader = new PemReader(pemStreamReader);
                 }
                 else
                 {
                     var pwFinder = new Password(password.ToCharArray());
-                    pemReader = new Org.BouncyCastle.OpenSsl.PemReader(pemStreamReader, pwFinder);
+                    pemReader = new PemReader(pemStreamReader, pwFinder);
                 }
 
                 AsymmetricAlgorithm key = null;
@@ -269,9 +265,6 @@ namespace Opc.Ua.Security.Certificates
         }
 #endif
 
-        #endregion
-
-        #region Internal class
         /// <summary>
         /// Wrapper for a password string.
         /// </summary>
@@ -283,7 +276,7 @@ namespace Opc.Ua.Security.Certificates
             public Password(
                 char[] word)
             {
-                this.m_password = (char[])word.Clone();
+                m_password = (char[])word.Clone();
             }
 
             public char[] GetPassword()
@@ -291,7 +284,6 @@ namespace Opc.Ua.Security.Certificates
                 return (char[])m_password.Clone();
             }
         }
-        #endregion
     }
 }
 #endif

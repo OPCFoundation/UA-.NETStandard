@@ -37,7 +37,6 @@ namespace Opc.Ua.PubSub.Tests.Configuration
     [Parallelizable]
     public class UaPubSubDataStoreTests
     {
-        #region WritePublishedDataItem
         [Test(Description = "Validate WritePublishedDataItem call with different values")]
 
         public void ValidateWritePublishedDataItem(
@@ -64,7 +63,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var dataStore = new UaPubSubDataStore();
 
             //Assert
-            Assert.Throws(typeof(ArgumentException), () => dataStore.WritePublishedDataItem(null));
+            NUnit.Framework.Assert.Throws<ArgumentException>(() => dataStore.WritePublishedDataItem(null));
         }
 
         [Test(Description = "Validate WritePublishedDataItem call with invalid Attribute")]
@@ -74,12 +73,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var dataStore = new UaPubSubDataStore();
 
             //Assert
-            Assert.Throws(typeof(ArgumentException),
-                () => dataStore.WritePublishedDataItem(new NodeId("ns=0;i=2253"), Attributes.AccessLevelEx + 1));
+            NUnit.Framework.Assert.Throws<ArgumentException>(() => dataStore.WritePublishedDataItem(new NodeId("ns=0;i=2253"), Attributes.AccessLevelEx + 1));
         }
-        #endregion
 
-        #region ReadPublishedDataItem
         [Test(Description = "Validate ReadPublishedDataItem call for non existing node id")]
         public void ValidateReadPublishedDataItem()
         {
@@ -101,7 +97,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var dataStore = new UaPubSubDataStore();
 
             //Assert
-            Assert.Throws(typeof(ArgumentException), () => dataStore.ReadPublishedDataItem(null));
+            NUnit.Framework.Assert.Throws<ArgumentException>(() => dataStore.ReadPublishedDataItem(null));
         }
 
         [Test(Description = "Validate ReadPublishedDataItem call with invalid Attribute")]
@@ -110,9 +106,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             //Arrange
             var dataStore = new UaPubSubDataStore();
             //Assert
-            Assert.Throws(typeof(ArgumentException),
-                () => dataStore.ReadPublishedDataItem(new NodeId("ns=0;i=2253"), Attributes.AccessLevelEx + 1));
+            NUnit.Framework.Assert.Throws<ArgumentException>(() => dataStore.ReadPublishedDataItem(new NodeId("ns=0;i=2253"), Attributes.AccessLevelEx + 1));
         }
-        #endregion
     }
 }

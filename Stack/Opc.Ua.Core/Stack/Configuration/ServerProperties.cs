@@ -19,7 +19,6 @@ namespace Opc.Ua
 	/// </summary>
 	public class ServerProperties
     {
-        #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
@@ -31,12 +30,10 @@ namespace Opc.Ua
             SoftwareVersion = string.Empty;
             BuildNumber = string.Empty;
             BuildDate = DateTime.MinValue;
-            DatatypeAssemblies = new StringCollection();
-            SoftwareCertificates = new SignedSoftwareCertificateCollection();
+            DatatypeAssemblies = [];
+            SoftwareCertificates = [];
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The unique identifier for the product.
         /// </summary>
@@ -76,7 +73,5 @@ namespace Opc.Ua
         /// The software certificates granted to the server.
         /// </summary>
         public SignedSoftwareCertificateCollection SoftwareCertificates { get; }
-
-#endregion
     }
 }

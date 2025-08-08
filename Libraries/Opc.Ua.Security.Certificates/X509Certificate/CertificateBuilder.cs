@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -35,7 +35,6 @@ using System.Linq;
 using System.Numerics;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-
 #if NET472_OR_GREATER
 using Org.BouncyCastle.Asn1;
 using Org.BouncyCastle.Asn1.X509;
@@ -43,6 +42,8 @@ using Org.BouncyCastle.Asn1.X9;
 using Org.BouncyCastle.Math.EC;
 using Opc.Ua.Security.Certificates.BouncyCastle;
 #endif
+using ECCurve = System.Security.Cryptography.ECCurve;
+using X509Extension = System.Security.Cryptography.X509Certificates.X509Extension;
 
 namespace Opc.Ua.Security.Certificates
 {
@@ -51,7 +52,6 @@ namespace Opc.Ua.Security.Certificates
     /// </summary>
     public sealed class CertificateBuilder : CertificateBuilderBase
     {
-        #region Constructors
         /// <summary>
         /// Create a Certificate builder.
         /// </summary>
@@ -83,9 +83,7 @@ namespace Opc.Ua.Security.Certificates
             : base(subjectName)
         {
         }
-        #endregion
 
-        #region Public Methods
         /// <inheritdoc/>
         public override X509Certificate2 CreateForRSA()
         {
@@ -111,7 +109,7 @@ namespace Opc.Ua.Security.Certificates
             CreateX509Extensions(request, false);
 
             X509Certificate2 signedCert;
-            byte[] serialNumber = m_serialNumber.Reverse().ToArray();
+            byte[] serialNumber = [.. m_serialNumber.Reverse()];
             if (IssuerCAKeyCert != null)
             {
                 using (RSA rsaIssuerKey = IssuerCAKeyCert.GetRSAPrivateKey())
@@ -172,7 +170,7 @@ namespace Opc.Ua.Security.Certificates
                 generator,
                 NotBefore,
                 NotAfter,
-                m_serialNumber.Reverse().ToArray()
+                [.. m_serialNumber.Reverse()]
                 );
 
             return (rsaKeyPair == null) ? signedCert : signedCert.CopyWithPrivateKey(rsaKeyPair);
@@ -198,7 +196,7 @@ namespace Opc.Ua.Security.Certificates
             ECDsa publicKey = m_ecdsaPublicKey;
             if (publicKey == null)
             {
-                key = ECDsa.Create((System.Security.Cryptography.ECCurve)m_curve);
+                key = ECDsa.Create((ECCurve)m_curve);
                 publicKey = key;
             }
 
@@ -206,7 +204,7 @@ namespace Opc.Ua.Security.Certificates
 
             CreateX509Extensions(request, true);
 
-            byte[] serialNumber = m_serialNumber.Reverse().ToArray();
+            byte[] serialNumber = [.. m_serialNumber.Reverse()];
 
             X509Certificate2 cert;
             if (IssuerCAKeyCert != null)
@@ -255,7 +253,7 @@ namespace Opc.Ua.Security.Certificates
             ECDsa publicKey = m_ecdsaPublicKey;
             if (publicKey == null)
             {
-                key = ECDsa.Create((System.Security.Cryptography.ECCurve)m_curve);
+                key = ECDsa.Create((ECCurve)m_curve);
                 publicKey = key;
             }
 
@@ -268,7 +266,7 @@ namespace Opc.Ua.Security.Certificates
                 generator,
                 NotBefore,
                 NotAfter,
-                m_serialNumber.Reverse().ToArray()
+                [.. m_serialNumber.Reverse()]
                 );
 
             // return a X509Certificate2
@@ -318,7 +316,7 @@ namespace Opc.Ua.Security.Certificates
                     // Explicit parameters
                     byte[] a = X509Utils.PadWithLeadingZeros(domainParameters.Curve.A.ToBigInteger().ToByteArrayUnsigned(), keySizeBytes);
                     byte[] b = X509Utils.PadWithLeadingZeros(domainParameters.Curve.B.ToBigInteger().ToByteArrayUnsigned(), keySizeBytes);
-                    ecParameters.Curve = BouncyCastle.X509Utils.IdentifyEccCurveByCoefficients(a,b);
+                    ecParameters.Curve = X509Utils.IdentifyEccCurveByCoefficients(a, b);
                 }
 
                 byte[] x = X509Utils.PadWithLeadingZeros(q.AffineXCoord.ToBigInteger().ToByteArrayUnsigned(), keySizeBytes);
@@ -362,7 +360,7 @@ namespace Opc.Ua.Security.Certificates
             try
             {
 #if NET472_OR_GREATER
-                m_rsaPublicKey = BouncyCastle.X509Utils.SetRSAPublicKey(publicKey);
+                m_rsaPublicKey = X509Utils.SetRSAPublicKey(publicKey);
                 bytes = publicKey.Length;
 #else
                 m_rsaPublicKey = RSA.Create();
@@ -380,9 +378,7 @@ namespace Opc.Ua.Security.Certificates
             }
             return this;
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Create some defaults needed to build the certificate.
         /// </summary>
@@ -424,7 +420,7 @@ namespace Opc.Ua.Security.Certificates
             // Authority Key Identifier
             if (m_extensions.FindExtension<X509AuthorityKeyIdentifierExtension>() == null)
             {
-                System.Security.Cryptography.X509Certificates.X509Extension authorityKeyIdentifier = IssuerCAKeyCert != null
+                X509Extension authorityKeyIdentifier = IssuerCAKeyCert != null
                     ? IssuerCAKeyCert.BuildAuthorityKeyIdentifier()
                     : new X509AuthorityKeyIdentifierExtension(
                         ski.SubjectKeyIdentifier.FromHexString(),
@@ -470,16 +466,16 @@ namespace Opc.Ua.Security.Certificates
 
             if (!m_isCA && !forECDsa && m_extensions.FindExtension<X509EnhancedKeyUsageExtension>() == null)
             {
-                // Enhanced key usage 
+                // Enhanced key usage
                 request.CertificateExtensions.Add(
                 new X509EnhancedKeyUsageExtension(
-                    new OidCollection {
+                    [
                             new Oid(Oids.ServerAuthentication),
                             new Oid(Oids.ClientAuthentication)
-                    }, true));
+                    ], true));
             }
 
-            foreach (System.Security.Cryptography.X509Certificates.X509Extension extension in m_extensions)
+            foreach (X509Extension extension in m_extensions)
             {
                 request.CertificateExtensions.Add(extension);
             }
@@ -507,8 +503,6 @@ namespace Opc.Ua.Security.Certificates
                 return new X509BasicConstraintsExtension(m_isCA, false, 0, true);
             }
         }
-        #endregion
-
     }
 }
 #endif

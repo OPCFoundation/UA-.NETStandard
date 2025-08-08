@@ -19,7 +19,6 @@ namespace Opc.Ua
     /// </summary>
     public class TraceEventArgs : EventArgs
     {
-        #region Constructors
         /// <summary>
         /// Initializes a new instance of the TraceEventArgs class.
         /// </summary>
@@ -36,9 +35,7 @@ namespace Opc.Ua
             Exception = exception;
             Arguments = args;
         }
-        #endregion Constructors
 
-        #region Public Properties
         /// <summary>
         /// Gets the trace mask.
         /// </summary>
@@ -63,6 +60,5 @@ namespace Opc.Ua
         /// Gets the exception.
         /// </summary>
         public Exception Exception { get; }
-        #endregion Public Properties
     }
 }

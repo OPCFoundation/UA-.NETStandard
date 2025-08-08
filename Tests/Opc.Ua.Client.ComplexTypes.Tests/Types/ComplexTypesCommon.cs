@@ -44,7 +44,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
     /// <summary>
     /// Sample custom types
     /// </summary>
-    public static partial class Namespaces
+    public static class Namespaces
     {
         /// <summary>
         /// The URI for the OpcUa namespace (.NET code namespace is 'Opc.Ua').
@@ -76,7 +76,6 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         protected ComplexTypeBuilder m_complexTypeBuilder;
         protected int m_nodeIdCount;
 
-        #region Test Setup
         [OneTimeSetUp]
         protected new void OneTimeSetUp()
         {
@@ -104,9 +103,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         protected new void TearDown()
         {
         }
-        #endregion Test Setup
 
-        #region DataPointSources
         public class StructureFieldParameter : IFormattable
         {
             public StructureFieldParameter(StructureField structureField)
@@ -125,13 +122,16 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         }
 
         [DatapointSource]
-        public StructureType[] StructureTypes = (StructureType[])Enum.GetValues(typeof(StructureType));
+        public StructureType[] StructureTypes =
+#if NET8_0_OR_GREATER
+            Enum.GetValues<StructureType>();
+#else
+            (StructureType[])Enum.GetValues(typeof(StructureType));
+#endif
 
         [DatapointSource]
-        public StructureFieldParameter[] StructureField = GetAllBuiltInTypesFields().Select(s => new StructureFieldParameter(s)).ToArray();
-        #endregion DataPointSources
+        public StructureFieldParameter[] StructureField = [.. GetAllBuiltInTypesFields().Select(s => new StructureFieldParameter(s))];
 
-        #region Public Methods
         public Type BuildComplexTypeWithAllBuiltInTypes(
             StructureType structureType, string testFunc)
         {
@@ -188,7 +188,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         public static StructureFieldCollection GetAllBuiltInTypesFields()
         {
             var collection = new StructureFieldCollection();
-            foreach (BuiltInType builtInType in EncoderCommon.BuiltInTypes)
+            foreach (BuiltInType builtInType in BuiltInTypes)
             {
                 if (builtInType == BuiltInType.Null ||
                     builtInType == BuiltInType.Variant ||
@@ -261,7 +261,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                             newObj = ExtensionObject.Null;
                             break;
                         default:
-                            Assert.Fail("Unknown null default value");
+                            NUnit.Framework.Assert.Fail("Unknown null default value");
                             break;
                     }
                 }
@@ -296,7 +296,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             byte[] buffer;
             using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
-                using (IEncoder encoder = CreateEncoder(encoderType, encoderContext, encoderStream, typeof(DataValue), jsonEncodingType))
+                using (var  encoder = CreateEncoder(encoderType, encoderContext, encoderStream, typeof(DataValue), jsonEncodingType))
                 {
                     encoder.WriteExtensionObject("ExtensionObject", expected);
                 }
@@ -315,7 +315,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             }
 
             using (var decoderStream = new MemoryStream(buffer))
-            using (IDecoder decoder = CreateDecoder(encoderType, encoderContext, decoderStream, typeof(DataValue)))
+            using (var  decoder = CreateDecoder(encoderType, encoderContext, decoderStream, typeof(DataValue)))
             {
                 ExtensionObject result = decoder.ReadExtensionObject("ExtensionObject");
                 TestContext.Out.WriteLine("Result:");
@@ -336,9 +336,5 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         {
             return new ExtensionObject(nodeId, data);
         }
-        #endregion Public Methods
-
-        #region Private Field
-        #endregion Private Field
     }
 }

@@ -55,7 +55,6 @@ namespace Opc.Ua.Security.Certificates
     /// </summary>
     public sealed class CertificateBuilder : CertificateBuilderBase
     {
-        #region Constructors
         /// <summary>
         /// Create a Certificate builder.
         /// </summary>
@@ -87,9 +86,7 @@ namespace Opc.Ua.Security.Certificates
             : base(subjectName)
         {
         }
-        #endregion
 
-        #region Public Methods
         /// <inheritdoc/>
         public override X509Certificate2 CreateForRSA()
         {
@@ -217,7 +214,7 @@ namespace Opc.Ua.Security.Certificates
                 var alternateName = new X509SubjectAltNameExtension(san, san.Critical);
 
                 string applicationUri = null;
-                domainNames ??= new List<string>();
+                domainNames ??= [];
                 if (alternateName != null)
                 {
                     if (alternateName.Uris.Count > 0)
@@ -255,12 +252,12 @@ namespace Opc.Ua.Security.Certificates
 
                 if (generalNames.Count > 0)
                 {
-                    IList<DerObjectIdentifier> oids = new List<DerObjectIdentifier>();
+                    IList<DerObjectIdentifier> oids = [];
                     IList<Org.BouncyCastle.Asn1.X509.X509Extension> values
-                        = new List<Org.BouncyCastle.Asn1.X509.X509Extension>();
+                        = [];
                     oids.Add(Org.BouncyCastle.Asn1.X509.X509Extensions.SubjectAlternativeName);
                     values.Add(new Org.BouncyCastle.Asn1.X509.X509Extension(false,
-                        new DerOctetString(new GeneralNames(generalNames.ToArray()).GetDerEncoded())));
+                        new DerOctetString(new GeneralNames([.. generalNames]).GetDerEncoded())));
                     var attribute = new Org.BouncyCastle.Asn1.Pkcs.AttributePkcs(Org.BouncyCastle.Asn1.Pkcs.PkcsObjectIdentifiers.Pkcs9AtExtensionRequest,
                         new DerSet(new Org.BouncyCastle.Asn1.X509.X509Extensions(oids, values)));
                     attributes = new DerSet(attribute);
@@ -275,9 +272,7 @@ namespace Opc.Ua.Security.Certificates
                 return pkcs10CertificationRequest.GetEncoded();
             }
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Create a new serial number and validate lifetime.
         /// </summary>
@@ -322,7 +317,7 @@ namespace Opc.Ua.Security.Certificates
             cg.SetNotAfter(NotAfter.ToUniversalTime());
 
             // serial number
-            cg.SetSerialNumber(new BigInteger(1, m_serialNumber.Reverse().ToArray()));
+            cg.SetSerialNumber(new BigInteger(1, [.. m_serialNumber.Reverse()]));
         }
 
         /// <summary>
@@ -368,7 +363,7 @@ namespace Opc.Ua.Security.Certificates
             else
             {
                 issuerPublicKey = subjectPublicKey;
-                issuerSerialNumber = new BigInteger(1, m_serialNumber.Reverse().ToArray());
+                issuerSerialNumber = new BigInteger(1, [.. m_serialNumber.Reverse()]);
             }
 
             // Authority Key Identifier
@@ -400,8 +395,8 @@ namespace Opc.Ua.Security.Certificates
                 {
                     cg.AddExtension(Org.BouncyCastle.Asn1.X509.X509Extensions.ExtendedKeyUsage, true,
                     new ExtendedKeyUsage(new List<DerObjectIdentifier>() {
-                    new DerObjectIdentifier(Oids.ServerAuthentication), // server auth
-                    new DerObjectIdentifier(Oids.ClientAuthentication), // client auth
+                    new(Oids.ServerAuthentication), // server auth
+                    new(Oids.ClientAuthentication), // client auth
                     }));
                 }
             }
@@ -539,13 +534,10 @@ namespace Opc.Ua.Security.Certificates
                 m_serialNumber[m_serialNumberLength - 1] &= 0x7f;
             }
         }
-        #endregion
 
-        #region Private Fields
         private X509Name m_issuerDN;
         private X509Name m_issuerIssuerAKI;
         private X509Name m_subjectDN;
-        #endregion
     }
 }
 #endif

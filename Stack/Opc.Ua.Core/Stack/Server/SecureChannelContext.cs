@@ -19,7 +19,6 @@ namespace Opc.Ua
     /// </summary>
     public class SecureChannelContext
     {
-        #region Constructors
         /// <summary>
         /// Initializes a new instance with the specified property values.
         /// </summary>
@@ -41,7 +40,7 @@ namespace Opc.Ua
         /// </summary>
         protected SecureChannelContext()
         {
-            SecureChannelContext context = SecureChannelContext.Current;
+            SecureChannelContext context = Current;
 
             if (context != null)
             {
@@ -50,9 +49,7 @@ namespace Opc.Ua
                 MessageEncoding = context.MessageEncoding;
             }
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// TThe unique identifier for the secure channel.
         /// </summary>
@@ -70,30 +67,19 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The message encoding.</value>
         public RequestEncoding MessageEncoding { get; }
-        #endregion
 
-        #region Static Members
         /// <summary>
         /// The active secure channel for the thread.
         /// </summary>
         /// <value>The current secure channel context.</value>
         public static SecureChannelContext Current
         {
-            get
-            {
-                return s_Dataslot.Value;
-            }
+            get => s_Dataslot.Value;
 
-            set
-            {
-                s_Dataslot.Value = value;
-            }
+            set => s_Dataslot.Value = value;
         }
 
-#endregion
-#region Private Fields
-        private static readonly ThreadLocal<SecureChannelContext> s_Dataslot = new ThreadLocal<SecureChannelContext>();
-        #endregion
+        private static readonly ThreadLocal<SecureChannelContext> s_Dataslot = new();
     }
 
     /// <summary>

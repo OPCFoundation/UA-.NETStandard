@@ -29,16 +29,15 @@
 
 using System;
 using System.Collections.Generic;
-using System.Xml;
 using System.IO;
 using System.Reflection;
+using System.Xml;
 using Opc.Ua;
 
 namespace TestData
 {
     public partial class UserArrayValueObjectState
     {
-        #region Initialization
         /// <summary>
         /// Initializes the object as a collection of counters which change value on read.
         /// </summary>
@@ -46,32 +45,30 @@ namespace TestData
         {
             base.OnAfterCreate(context, node);
 
-            InitializeVariable(context, BooleanValue, TestData.Variables.UserArrayValueObjectType_BooleanValue);
-            InitializeVariable(context, SByteValue, TestData.Variables.UserArrayValueObjectType_SByteValue);
-            InitializeVariable(context, ByteValue, TestData.Variables.UserArrayValueObjectType_ByteValue);
-            InitializeVariable(context, Int16Value, TestData.Variables.UserArrayValueObjectType_Int16Value);
-            InitializeVariable(context, UInt16Value, TestData.Variables.UserArrayValueObjectType_UInt16Value);
-            InitializeVariable(context, Int32Value, TestData.Variables.UserArrayValueObjectType_Int32Value);
-            InitializeVariable(context, UInt32Value, TestData.Variables.UserArrayValueObjectType_UInt32Value);
-            InitializeVariable(context, Int64Value, TestData.Variables.UserArrayValueObjectType_Int64Value);
-            InitializeVariable(context, UInt64Value, TestData.Variables.UserArrayValueObjectType_UInt64Value);
-            InitializeVariable(context, FloatValue, TestData.Variables.UserArrayValueObjectType_FloatValue);
-            InitializeVariable(context, DoubleValue, TestData.Variables.UserArrayValueObjectType_DoubleValue);
-            InitializeVariable(context, StringValue, TestData.Variables.UserArrayValueObjectType_StringValue);
-            InitializeVariable(context, DateTimeValue, TestData.Variables.UserArrayValueObjectType_DateTimeValue);
-            InitializeVariable(context, GuidValue, TestData.Variables.UserArrayValueObjectType_GuidValue);
-            InitializeVariable(context, ByteStringValue, TestData.Variables.UserArrayValueObjectType_ByteStringValue);
-            InitializeVariable(context, XmlElementValue, TestData.Variables.UserArrayValueObjectType_XmlElementValue);
-            InitializeVariable(context, NodeIdValue, TestData.Variables.UserArrayValueObjectType_NodeIdValue);
-            InitializeVariable(context, ExpandedNodeIdValue, TestData.Variables.UserArrayValueObjectType_ExpandedNodeIdValue);
-            InitializeVariable(context, QualifiedNameValue, TestData.Variables.UserArrayValueObjectType_QualifiedNameValue);
-            InitializeVariable(context, LocalizedTextValue, TestData.Variables.UserArrayValueObjectType_LocalizedTextValue);
-            InitializeVariable(context, StatusCodeValue, TestData.Variables.UserArrayValueObjectType_StatusCodeValue);
-            InitializeVariable(context, VariantValue, TestData.Variables.UserArrayValueObjectType_VariantValue);
+            InitializeVariable(context, BooleanValue, Variables.UserArrayValueObjectType_BooleanValue);
+            InitializeVariable(context, SByteValue, Variables.UserArrayValueObjectType_SByteValue);
+            InitializeVariable(context, ByteValue, Variables.UserArrayValueObjectType_ByteValue);
+            InitializeVariable(context, Int16Value, Variables.UserArrayValueObjectType_Int16Value);
+            InitializeVariable(context, UInt16Value, Variables.UserArrayValueObjectType_UInt16Value);
+            InitializeVariable(context, Int32Value, Variables.UserArrayValueObjectType_Int32Value);
+            InitializeVariable(context, UInt32Value, Variables.UserArrayValueObjectType_UInt32Value);
+            InitializeVariable(context, Int64Value, Variables.UserArrayValueObjectType_Int64Value);
+            InitializeVariable(context, UInt64Value, Variables.UserArrayValueObjectType_UInt64Value);
+            InitializeVariable(context, FloatValue, Variables.UserArrayValueObjectType_FloatValue);
+            InitializeVariable(context, DoubleValue, Variables.UserArrayValueObjectType_DoubleValue);
+            InitializeVariable(context, StringValue, Variables.UserArrayValueObjectType_StringValue);
+            InitializeVariable(context, DateTimeValue, Variables.UserArrayValueObjectType_DateTimeValue);
+            InitializeVariable(context, GuidValue, Variables.UserArrayValueObjectType_GuidValue);
+            InitializeVariable(context, ByteStringValue, Variables.UserArrayValueObjectType_ByteStringValue);
+            InitializeVariable(context, XmlElementValue, Variables.UserArrayValueObjectType_XmlElementValue);
+            InitializeVariable(context, NodeIdValue, Variables.UserArrayValueObjectType_NodeIdValue);
+            InitializeVariable(context, ExpandedNodeIdValue, Variables.UserArrayValueObjectType_ExpandedNodeIdValue);
+            InitializeVariable(context, QualifiedNameValue, Variables.UserArrayValueObjectType_QualifiedNameValue);
+            InitializeVariable(context, LocalizedTextValue, Variables.UserArrayValueObjectType_LocalizedTextValue);
+            InitializeVariable(context, StatusCodeValue, Variables.UserArrayValueObjectType_StatusCodeValue);
+            InitializeVariable(context, VariantValue, Variables.UserArrayValueObjectType_VariantValue);
         }
-        #endregion
 
-        #region Protected Methods
         /// <summary>
         /// Handles the generate values method.
         /// </summary>
@@ -112,6 +109,5 @@ namespace TestData
 
             return base.OnGenerateValues(context, method, objectId, count);
         }
-        #endregion
     }
 }

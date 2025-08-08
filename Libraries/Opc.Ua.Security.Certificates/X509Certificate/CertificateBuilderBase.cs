@@ -28,10 +28,10 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using System.Linq;
-using System.Collections.Generic;
 
 namespace Opc.Ua.Security.Certificates
 {
@@ -57,7 +57,6 @@ namespace Opc.Ua.Security.Certificates
         , ICertificateBuilderCreateForECDsaAny
 #endif
     {
-        #region Constructors
         /// <summary>
         /// Initialize a Certificate builder.
         /// </summary>
@@ -85,11 +84,9 @@ namespace Opc.Ua.Security.Certificates
             m_notAfter = NotBefore.AddMonths(X509Defaults.LifeTime);
             m_hashAlgorithmName = X509Defaults.HashAlgorithmName;
             m_serialNumberLength = X509Defaults.SerialNumberLengthMin;
-            m_extensions = new X509ExtensionCollection();
+            m_extensions = [];
         }
-        #endregion
 
-        #region IX509Certificate Interface
         /// <inheritdoc/>
         public X500DistinguishedName SubjectName { get; }
 
@@ -113,9 +110,7 @@ namespace Opc.Ua.Security.Certificates
 
         /// <inheritdoc/>
         public X509ExtensionCollection Extensions => m_extensions;
-        #endregion
 
-        #region Public Methods
         /// <inheritdoc/>
         public abstract X509Certificate2 CreateForRSA();
 
@@ -295,10 +290,9 @@ namespace Opc.Ua.Security.Certificates
             m_issuerName = issuerCertificate.SubjectName;
             return this;
         }
-        #endregion
 
 #if ECC_SUPPORT
-        #region Private methods
+
         /// <summary>
         /// Set the hash algorithm depending on the curve size
         /// </summary>
@@ -318,10 +312,9 @@ namespace Opc.Ua.Security.Certificates
                 SetHashAlgorithm(HashAlgorithmName.SHA512);
             }
         }
-        #endregion
+
 #endif
 
-        #region Protected Methods
         /// <summary>
         /// The issuer CA certificate.
         /// </summary>
@@ -360,9 +353,7 @@ namespace Opc.Ua.Security.Certificates
             // A compliant certificate uses a positive serial number.
             m_serialNumber[m_serialNumberLength - 1] &= 0x7F;
         }
-        #endregion
 
-        #region Protected Fields
         /// <summary>
         /// If the certificate is a CA.
         /// </summary>
@@ -405,14 +396,11 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         private protected ECCurve? m_curve;
 #endif
-        #endregion
 
-        #region Private Fields
         private X509Certificate2 m_issuerCAKeyCert;
         private DateTime m_notBefore;
         private DateTime m_notAfter;
         private HashAlgorithmName m_hashAlgorithmName;
         private X500DistinguishedName m_issuerName;
-        #endregion
     }
 }

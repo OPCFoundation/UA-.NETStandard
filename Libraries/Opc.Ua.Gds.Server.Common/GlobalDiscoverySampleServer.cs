@@ -29,12 +29,12 @@
 
 using System;
 using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
-using Opc.Ua.Server;
-using Opc.Ua.Gds.Server.Database;
-using Opc.Ua.Server.UserDatabase;
 using System.Linq;
+using System.Security.Cryptography.X509Certificates;
+using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Security.Certificates;
+using Opc.Ua.Server;
+using Opc.Ua.Server.UserDatabase;
 
 namespace Opc.Ua.Gds.Server
 {
@@ -42,13 +42,16 @@ namespace Opc.Ua.Gds.Server
     /// Implements a sample Global Discovery Server.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Each server instance must have one instance of a StandardServer object which is
     /// responsible for reading the configuration file, creating the endpoints and dispatching
     /// incoming requests to the appropriate handler.
-    /// 
+    /// </para>
+    /// <para>
     /// This sub-class specifies non-configurable metadata such as Product Name and initializes
     /// the ApplicationNodeManager which provides access to the data exposed by the Global Discovery Server.
-    /// 
+    /// </para>
+    ///
     /// </remarks>
     public class GlobalDiscoverySampleServer : StandardServer
     {
@@ -69,7 +72,6 @@ namespace Opc.Ua.Gds.Server
             m_createStandardUsers = createStandardUsers;
         }
 
-        #region Overridden Methods
         /// <summary>
         /// Called after the server has been started.
         /// </summary>
@@ -80,7 +82,6 @@ namespace Opc.Ua.Gds.Server
             //ToDo delete this code in a production environment as this creates hardcoded passwords
             if (m_createStandardUsers)
             {
-
                 RegisterDefaultUsers();
             }
             // request notifications when the user identity is changed. all valid users are accepted by default.
@@ -106,7 +107,7 @@ namespace Opc.Ua.Gds.Server
             };
 
             // create master node manager.
-            return new MasterNodeManager(server, configuration, null, nodeManagers.ToArray());
+            return new MasterNodeManager(server, configuration, null, [.. nodeManagers]);
         }
 
         /// <summary>
@@ -117,7 +118,7 @@ namespace Opc.Ua.Gds.Server
         /// </remarks>
         protected override ServerProperties LoadServerProperties()
         {
-            var properties = new ServerProperties {
+            return new ServerProperties {
                 ManufacturerName = "Some Company Inc",
                 ProductName = "Global Discovery Server",
                 ProductUri = "http://somecompany.com/GlobalDiscoveryServer",
@@ -125,8 +126,6 @@ namespace Opc.Ua.Gds.Server
                 BuildNumber = Utils.GetAssemblyBuildNumber(),
                 BuildDate = Utils.GetAssemblyTimestamp()
             };
-
-            return properties;
         }
 
         /// <summary>
@@ -151,7 +150,7 @@ namespace Opc.Ua.Gds.Server
                     throw new ServiceResultException(new ServiceResult(
                         StatusCodes.BadUserAccessDenied,
                         "NoWriteAllowed",
-                        Opc.Ua.Gds.Namespaces.OpcUaGds,
+                        Namespaces.OpcUaGds,
                         new LocalizedText(info)));
                 }
 
@@ -196,15 +195,12 @@ namespace Opc.Ua.Gds.Server
         {
             // check for a user name token
             var userNameToken = args.NewIdentity as UserNameIdentityToken;
-            if (userNameToken != null)
+            if (userNameToken != null && VerifyPassword(userNameToken))
             {
-                if (VerifyPassword(userNameToken))
-                {
-                    IEnumerable<Role> roles = m_userDatabase.GetUserRoles(userNameToken.UserName);
+                IEnumerable<Role> roles = m_userDatabase.GetUserRoles(userNameToken.UserName);
 
-                    args.Identity = new GdsRoleBasedIdentity(new UserIdentity(userNameToken), roles);
-                    return;
-                }
+                args.Identity = new GdsRoleBasedIdentity(new UserIdentity(userNameToken), roles);
+                return;
             }
 
             // check for x509 user token.
@@ -217,22 +213,19 @@ namespace Opc.Ua.Gds.Server
                 // role = GdsRole.ApplicationAdmin;
 
                 Utils.LogInfo("X509 Token Accepted: {0} as {1}", args.Identity.DisplayName, Role.AuthenticatedUser);
-                args.Identity = new GdsRoleBasedIdentity(new UserIdentity(x509Token), new List<Role> { Role.AuthenticatedUser });
+                args.Identity = new GdsRoleBasedIdentity(new UserIdentity(x509Token), [Role.AuthenticatedUser]);
                 return;
             }
 
             //check if applicable for application self admin privilege
-            if (session.ClientCertificate != null)
+            if (session.ClientCertificate != null && VerifiyApplicationRegistered(session))
             {
-                if (VerifiyApplicationRegistered(session))
-                {
-                    ImpersonateAsApplicationSelfAdmin(session, args);
-                }
+                ImpersonateAsApplicationSelfAdmin(session, args);
             }
         }
 
         /// <summary>
-        /// Verifies if an Application is registered with the provided certificate at at the GDS
+        /// Verifies if an Application is registered with the provided certificate at the GDS
         /// </summary>
         /// <param name="session">the session</param>
         /// <returns></returns>
@@ -245,11 +238,7 @@ namespace Opc.Ua.Gds.Server
             X509Utils.DoesUrlMatchCertificate(applicationInstanceCertificate, applicationUri);
 
             //get access to GDS configuration section to find out ApplicationCertificatesStorePath
-            GlobalDiscoveryServerConfiguration configuration = Configuration.ParseExtension<GlobalDiscoveryServerConfiguration>();
-            if (configuration == null)
-            {
-                configuration = new GlobalDiscoveryServerConfiguration();
-            }
+            GlobalDiscoveryServerConfiguration configuration = Configuration.ParseExtension<GlobalDiscoveryServerConfiguration>() ?? new GlobalDiscoveryServerConfiguration();
             //check if application certificate is in the Store of the GDS
             var certificateStoreIdentifier = new CertificateStoreIdentifier(configuration.ApplicationCertificatesStorePath);
             using (ICertificateStore ApplicationsStore = certificateStoreIdentifier.OpenStore())
@@ -270,8 +259,7 @@ namespace Opc.Ua.Gds.Server
             certificateStoreIdentifier = new CertificateStoreIdentifier(configuration.AuthoritiesStorePath);
             using (ICertificateStore AuthoritiesStore = certificateStoreIdentifier.OpenStore())
             {
-                X509CRLCollection crls = AuthoritiesStore.EnumerateCRLsAsync().Result;
-                foreach (X509CRL crl in crls)
+                foreach (X509CRL crl in AuthoritiesStore.EnumerateCRLsAsync().Result)
                 {
                     if (crl.IsRevoked(applicationInstanceCertificate))
                     {
@@ -336,12 +324,12 @@ namespace Opc.Ua.Gds.Server
         /// </summary>
         private void RegisterDefaultUsers()
         {
-            m_userDatabase.CreateUser("sysadmin", "demo", new List<Role> { GdsRole.CertificateAuthorityAdmin, GdsRole.DiscoveryAdmin, Role.SecurityAdmin, Role.ConfigureAdmin });
-            m_userDatabase.CreateUser("appadmin", "demo", new List<Role> { Role.AuthenticatedUser, GdsRole.CertificateAuthorityAdmin, GdsRole.DiscoveryAdmin });
-            m_userDatabase.CreateUser("appuser", "demo", new List<Role> { Role.AuthenticatedUser });
+            m_userDatabase.CreateUser("sysadmin", "demo", [GdsRole.CertificateAuthorityAdmin, GdsRole.DiscoveryAdmin, Role.SecurityAdmin, Role.ConfigureAdmin]);
+            m_userDatabase.CreateUser("appadmin", "demo", [Role.AuthenticatedUser, GdsRole.CertificateAuthorityAdmin, GdsRole.DiscoveryAdmin]);
+            m_userDatabase.CreateUser("appuser", "demo", [Role.AuthenticatedUser]);
 
-            m_userDatabase.CreateUser("DiscoveryAdmin", "demo", new List<Role> { Role.AuthenticatedUser, GdsRole.DiscoveryAdmin });
-            m_userDatabase.CreateUser("CertificateAuthorityAdmin", "demo", new List<Role> { Role.AuthenticatedUser, GdsRole.CertificateAuthorityAdmin });
+            m_userDatabase.CreateUser("DiscoveryAdmin", "demo", [Role.AuthenticatedUser, GdsRole.DiscoveryAdmin]);
+            m_userDatabase.CreateUser("CertificateAuthorityAdmin", "demo", [Role.AuthenticatedUser, GdsRole.CertificateAuthorityAdmin]);
         }
 
         /// <summary>
@@ -361,20 +349,16 @@ namespace Opc.Ua.Gds.Server
             NodeId applicationId = application.FirstOrDefault().ApplicationId;
             Utils.LogInfo("Application {0} accepted based on ApplicationInstanceCertificate as ApplicationSelfAdmin",
                 applicationUri);
-            args.Identity = new GdsRoleBasedIdentity(new UserIdentity(), new List<Role> { GdsRole.ApplicationSelfAdmin }, applicationId);
+            args.Identity = new GdsRoleBasedIdentity(new UserIdentity(), [GdsRole.ApplicationSelfAdmin], applicationId);
             return;
         }
 
-        #endregion
-
-        #region Private Fields
-        private readonly Dictionary<uint, ImpersonationContext> m_contexts = new Dictionary<uint, ImpersonationContext>();
-        private readonly IApplicationsDatabase m_database = null;
-        private readonly ICertificateRequest m_request = null;
-        private readonly ICertificateGroup m_certificateGroup = null;
-        private readonly IUserDatabase m_userDatabase = null;
+        private readonly Dictionary<uint, ImpersonationContext> m_contexts = [];
+        private readonly IApplicationsDatabase m_database;
+        private readonly ICertificateRequest m_request;
+        private readonly ICertificateGroup m_certificateGroup;
+        private readonly IUserDatabase m_userDatabase;
         private readonly bool m_autoApprove;
         private readonly bool m_createStandardUsers;
-        #endregion 
     }
 }

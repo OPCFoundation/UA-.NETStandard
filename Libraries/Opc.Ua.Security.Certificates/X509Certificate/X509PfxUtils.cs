@@ -43,7 +43,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Internal random number generator.
         /// </summary>
-        private static readonly Random s_rnd = new Random(0x62541);
+        private static readonly Random s_rnd = new(0x62541);
 
         /// <summary>
         /// The size of the block used to test a sign or encrypt operation.
@@ -162,10 +162,10 @@ namespace Opc.Ua.Security.Certificates
             // By default keys are not persisted
             defaultStorageSet |= X509KeyStorageFlags.Exportable;
 
-            X509KeyStorageFlags[] storageFlags = {
+            X509KeyStorageFlags[] storageFlags = [
                 defaultStorageSet | X509KeyStorageFlags.MachineKeySet,
                 defaultStorageSet | X509KeyStorageFlags.UserKeySet
-            };
+            ];
 
             // try some combinations of storage flags, support is platform dependent
             foreach (X509KeyStorageFlags flag in storageFlags)

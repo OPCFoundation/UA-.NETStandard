@@ -25,7 +25,6 @@ namespace Opc.Ua
     /// </summary>
     public class XmlEncoder : IEncoder
     {
-        #region Constructors
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
@@ -49,7 +48,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with a system type to encode and a XML writer.
         /// </summary>
-        public XmlEncoder(System.Type systemType, XmlWriter writer, IServiceMessageContext context)
+        public XmlEncoder(Type systemType, XmlWriter writer, IServiceMessageContext context)
         :
             this(EncodeableFactory.GetXmlName(systemType), writer, context)
         {
@@ -125,9 +124,7 @@ namespace Opc.Ua
 
             PushNamespace(namespaceUri);
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Initializes the tables used to map namespace and server uris during encoding.
         /// </summary>
@@ -233,9 +230,7 @@ namespace Opc.Ua
 
             return null;
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -257,9 +252,7 @@ namespace Opc.Ua
                 m_writer = null;
             }
         }
-        #endregion
 
-        #region IEncoder Members
         /// <summary>
         /// The type of encoding being used.
         /// </summary>
@@ -779,9 +772,9 @@ namespace Opc.Ua
                 {
                     PushNamespace(Namespaces.OpcUaXsd);
 
-                        m_writer.WriteStartElement("Value", Namespaces.OpcUaXsd);
-                        WriteVariantContents(value.Value, value.TypeInfo);
-                        m_writer.WriteEndElement();
+                    m_writer.WriteStartElement("Value", Namespaces.OpcUaXsd);
+                    WriteVariantContents(value.Value, value.TypeInfo);
+                    m_writer.WriteEndElement();
 
                     PopNamespace();
 
@@ -896,7 +889,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes an encodeable object to the stream.
         /// </summary>
-        public void WriteEncodeable(string fieldName, IEncodeable value, System.Type systemType)
+        public void WriteEncodeable(string fieldName, IEncodeable value, Type systemType)
         {
             CheckAndIncrementNestingLevel();
 
@@ -1695,7 +1688,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes an encodeable object array to the stream.
         /// </summary>
-        public void WriteEncodeableArray(string fieldName, IList<IEncodeable> values, System.Type systemType)
+        public void WriteEncodeableArray(string fieldName, IList<IEncodeable> values, Type systemType)
         {
             if (BeginField(fieldName, values == null, true, true))
             {
@@ -1737,7 +1730,7 @@ namespace Opc.Ua
         /// <summary>
         /// Writes an enumerated value array to the stream.
         /// </summary>
-        public void WriteEnumeratedArray(string fieldName, Array values, System.Type systemType)
+        public void WriteEnumeratedArray(string fieldName, Array values, Type systemType)
         {
             if (BeginField(fieldName, values == null, true, true))
             {
@@ -1776,9 +1769,7 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public void WriteEncodingMask(uint encodingMask) => WriteUInt32("EncodingMask", encodingMask);
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Writes the contents of an Variant to the stream.
         /// </summary>
@@ -1998,7 +1989,7 @@ namespace Opc.Ua
             }
 
             // encode extension object in xml.
-            XmlQualifiedName xmlName = EncodeableFactory.GetXmlName(encodeable, this.Context);
+            XmlQualifiedName xmlName = EncodeableFactory.GetXmlName(encodeable, Context);
             m_writer.WriteStartElement(xmlName.Name, xmlName.Namespace);
             encodeable.Encode(this);
             m_writer.WriteEndElement();
@@ -2207,9 +2198,7 @@ namespace Opc.Ua
                 m_nestingLevel--;
             }
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Writes a DataValue array to the stream.
         /// </summary>
@@ -2291,9 +2280,7 @@ namespace Opc.Ua
             }
             m_nestingLevel++;
         }
-        #endregion
 
-        #region Private Fields
         private StringBuilder m_destination;
         private XmlWriter m_writer;
         private Stack<string> m_namespaces;
@@ -2301,6 +2288,5 @@ namespace Opc.Ua
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;
         private uint m_nestingLevel;
-        #endregion
     }
 }

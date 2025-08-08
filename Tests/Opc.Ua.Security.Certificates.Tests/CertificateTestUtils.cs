@@ -37,7 +37,6 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Security.Certificates.Tests
 {
-    #region KeyHashPair Helper
     public class KeyHashPair : IFormattable
     {
         public KeyHashPair(ushort keySize, HashAlgorithmName hashAlgorithmName)
@@ -79,7 +78,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         public KeyHashPairCollection(int capacity) : base(capacity) { }
         public static KeyHashPairCollection ToJsonValidationDataCollection(KeyHashPair[] values)
         {
-            return values != null ? new KeyHashPairCollection(values) : new KeyHashPairCollection();
+            return values != null ? [.. values] : [];
         }
 
         public void Add(ushort keySize, HashAlgorithmName hashAlgorithmName)
@@ -87,10 +86,9 @@ namespace Opc.Ua.Security.Certificates.Tests
             Add(new KeyHashPair(keySize, hashAlgorithmName));
         }
     }
-    #endregion
 
 #if ECC_SUPPORT
-    #region ECCurveHashPair Helper
+
     public class ECCurveHashPair : IFormattable
     {
         public ECCurveHashPair(ECCurve curve, HashAlgorithmName hashAlgorithmName)
@@ -140,7 +138,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         public ECCurveHashPairCollection(int capacity) : base(capacity) { }
         public static ECCurveHashPairCollection ToJsonValidationDataCollection(ECCurveHashPair[] values)
         {
-            return values != null ? new ECCurveHashPairCollection(values) : new ECCurveHashPairCollection();
+            return values != null ? [.. values] : [];
         }
 
         public void Add(ECCurve curve, HashAlgorithmName hashAlgorithmName)
@@ -148,10 +146,9 @@ namespace Opc.Ua.Security.Certificates.Tests
             Add(new ECCurveHashPair(curve, hashAlgorithmName));
         }
     }
-    #endregion
+
 #endif
 
-    #region CRL Asset Helpers
     /// <summary>
     /// A CRL as test asset.
     /// </summary>
@@ -204,9 +201,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             return $"{file}";
         }
     }
-    #endregion
 
-    #region TestUtils
     /// <summary>
     /// Test helpers.
     /// </summary>
@@ -236,5 +231,4 @@ namespace Opc.Ua.Security.Certificates.Tests
             return stringBuilder.ToString();
         }
     }
-    #endregion
 }

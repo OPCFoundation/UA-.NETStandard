@@ -34,10 +34,9 @@ namespace Opc.Ua.Gds.Client
     /// <summary>
     /// Stores the configuration the data access node manager.
     /// </summary>
-    [DataContract(Namespace = Opc.Ua.Gds.Namespaces.OpcUaGds + "Configuration.xsd")]
+    [DataContract(Namespace = Namespaces.OpcUaGds + "Configuration.xsd")]
     public class GlobalDiscoveryClientConfiguration
     {
-        #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
@@ -50,7 +49,7 @@ namespace Opc.Ua.Gds.Client
         /// Initializes the object during deserialization.
         /// </summary>
         [OnDeserializing()]
-        private void Initialize(StreamingContext context)
+        private static void Initialize(StreamingContext context)
         {
             Initialize();
         }
@@ -58,20 +57,14 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Sets private members to default values.
         /// </summary>
-        private void Initialize()
+        private static void Initialize()
         {
         }
-        #endregion
 
-        #region Public
         [DataMember(Order = 1)]
         public string GlobalDiscoveryServerUrl { get; set; }
 
         [DataMember(Order = 2)]
         public string ExternalEditor { get; set; }
-        #endregion
-
-        #region Private Members
-        #endregion
     }
 }

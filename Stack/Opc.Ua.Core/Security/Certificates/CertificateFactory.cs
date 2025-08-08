@@ -26,7 +26,6 @@ namespace Opc.Ua
     /// </summary>
     public static class CertificateFactory
     {
-        #region Public Constants
         /// <summary>
         /// The default key size for RSA certificates in bits.
         /// </summary>
@@ -46,9 +45,7 @@ namespace Opc.Ua
         /// The default lifetime of certificates in months.
         /// </summary>
         public static readonly ushort DefaultLifeTime = 12;
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Creates a certificate from a buffer with DER encoded certificate.
         /// </summary>
@@ -88,12 +85,12 @@ namespace Opc.Ua
                 return null;
             }
 
-            lock (m_certificatesLock)
+            lock (s_certificatesLock)
             {
                 X509Certificate2 cachedCertificate = null;
 
                 // check for existing cached certificate.
-                if (m_certificates.TryGetValue(certificate.Thumbprint, out cachedCertificate))
+                if (s_certificates.TryGetValue(certificate.Thumbprint, out cachedCertificate))
                 {
                     // cached certificate might be disposed, if so do not return but try to update value in the cache
                     if (cachedCertificate.Handle != IntPtr.Zero)
@@ -102,7 +99,7 @@ namespace Opc.Ua
                     }
                     else
                     {
-                        m_certificates.Remove(certificate.Thumbprint);
+                        s_certificates.Remove(certificate.Thumbprint);
                     }
                 }
 
@@ -119,11 +116,11 @@ namespace Opc.Ua
                 }
 
                 // update the cache.
-                m_certificates[certificate.Thumbprint] = certificate;
+                s_certificates[certificate.Thumbprint] = certificate;
 
-                if (m_certificates.Count > 100)
+                if (s_certificates.Count > 100)
                 {
-                    Utils.LogWarning("Certificate cache has {0} certificates in it.", m_certificates.Count);
+                    Utils.LogWarning("Certificate cache has {0} certificates in it.", s_certificates.Count);
                 }
             }
             return certificate;
@@ -238,7 +235,7 @@ namespace Opc.Ua
             }
 
             CrlBuilder crlBuilder = CrlBuilder.Create(issuerCertificate.SubjectName)
-                .AddRevokedCertificates(crlRevokedList.Values.ToList())
+                .AddRevokedCertificates([.. crlRevokedList.Values])
                 .SetThisUpdate(thisUpdate)
                 .SetNextUpdate(nextUpdate)
                 .AddCRLExtension(issuerCertificate.BuildAuthorityKeyIdentifier())
@@ -288,7 +285,7 @@ namespace Opc.Ua
                 request = new CertificateRequest(certificate.SubjectName, eCDsaPublicKey, Oids.GetHashAlgorithmName(certificate.SignatureAlgorithm.Value));
             }
             X509SubjectAltNameExtension alternateName = certificate.FindExtension<X509SubjectAltNameExtension>();
-            domainNames ??= new List<string>();
+            domainNames ??= [];
             if (alternateName != null)
             {
                 foreach (string name in alternateName.DomainNames)
@@ -475,8 +472,7 @@ namespace Opc.Ua
             }
         }
 #endif
-#endregion
-        #region Private Methods
+
         /// <summary>
         /// Sets the parameters to suitable defaults.
         /// </summary>
@@ -538,8 +534,7 @@ namespace Opc.Ua
             // ensure at least one host name.
             if (domainNames == null || domainNames.Count == 0)
             {
-                domainNames = new List<string>();
-                domainNames.Add(Utils.GetHostName());
+                domainNames = [Utils.GetHostName()];
             }
 
             // create the application uri.
@@ -585,9 +580,8 @@ namespace Opc.Ua
                 }
             }
         }
-        #endregion
 
-        private static readonly Dictionary<string, X509Certificate2> m_certificates = new Dictionary<string, X509Certificate2>();
-        private static readonly object m_certificatesLock = new object();
+        private static readonly Dictionary<string, X509Certificate2> s_certificates = [];
+        private static readonly object s_certificatesLock = new();
     }
 }

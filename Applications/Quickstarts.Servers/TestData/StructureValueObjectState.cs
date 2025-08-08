@@ -33,7 +33,6 @@ namespace TestData
 {
     public partial class StructureValueObjectState
     {
-        #region Initialization
         /// <summary>
         /// Initializes the object with structures.
         /// </summary>
@@ -41,12 +40,10 @@ namespace TestData
         {
             base.OnAfterCreate(context, node);
 
-            InitializeVariable(context, ScalarStructure, TestData.Variables.StructureValueObjectType_ScalarStructure);
-            InitializeVariable(context, VectorStructure, TestData.Variables.StructureValueObjectType_VectorStructure);
+            InitializeVariable(context, ScalarStructure, Variables.StructureValueObjectType_ScalarStructure);
+            InitializeVariable(context, VectorStructure, Variables.StructureValueObjectType_VectorStructure);
         }
-        #endregion
 
-        #region Protected Methods
         /// <summary>
         /// Handles the generate values method.
         /// </summary>
@@ -66,6 +63,5 @@ namespace TestData
 
             return base.OnGenerateValues(context, method, objectId, count);
         }
-        #endregion
     }
 }

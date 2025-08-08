@@ -19,12 +19,9 @@ namespace Opc.Ua
     /// </summary>
     public sealed class Tracing
     {
-        #region Private Members
-        private static readonly object s_syncRoot = new object();
+        private static readonly object s_syncRoot = new();
         private static Tracing s_instance;
-        #endregion Private Members
 
-        #region Singleton Instance
         /// <summary>
         /// Private constructor.
         /// </summary>
@@ -60,16 +57,12 @@ namespace Opc.Ua
                 return s_instance;
             }
         }
-        #endregion Singleton Instance
 
-        #region Public Events
         /// <summary>
         /// Occurs when a trace call is made.
         /// </summary>
         public event EventHandler<TraceEventArgs> TraceEventHandler;
-        #endregion Public Events
 
-        #region Internal Members
         internal void RaiseTraceEvent(TraceEventArgs eventArgs)
         {
             if (TraceEventHandler != null)
@@ -84,6 +77,5 @@ namespace Opc.Ua
                 }
             }
         }
-        #endregion
     }
 }

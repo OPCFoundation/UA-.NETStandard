@@ -19,23 +19,23 @@ namespace Opc.Ua.Security.Certificates
 {
     internal sealed class RSAPkcs1X509SignatureGenerator : X509SignatureGenerator
     {
-        private readonly RSA _key;
+        private readonly RSA m_key;
 
         internal RSAPkcs1X509SignatureGenerator(RSA key)
         {
             Debug.Assert(key != null);
 
-            _key = key;
+            m_key = key;
         }
 
         public override byte[] SignData(byte[] data, HashAlgorithmName hashAlgorithm)
         {
-            return _key.SignData(data, hashAlgorithm, RSASignaturePadding.Pkcs1);
+            return m_key.SignData(data, hashAlgorithm, RSASignaturePadding.Pkcs1);
         }
 
         protected override PublicKey BuildPublicKey()
         {
-            return BuildPublicKey(_key);
+            return BuildPublicKey(m_key);
         }
 
         internal static PublicKey BuildPublicKey(RSA rsa)
@@ -50,7 +50,7 @@ namespace Opc.Ua.Security.Certificates
                 //
                 // This is due to one version of the ASN.1 not including OPTIONAL, and that was
                 // the version that got predominately implemented for RSA. Now it's convention.
-                new AsnEncodedData(oid, new byte[] { 0x05, 0x00 }),
+                new AsnEncodedData(oid, [0x05, 0x00]),
                 new AsnEncodedData(oid, ExportRSAPublicKey(rsa)));
         }
 

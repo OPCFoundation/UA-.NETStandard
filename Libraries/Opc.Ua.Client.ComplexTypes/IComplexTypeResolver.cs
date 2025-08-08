@@ -148,6 +148,5 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <param name="ct"></param>
         /// <returns>The immediate supertype identifier for <paramref name="typeId"/></returns>
         Task<NodeId> FindSuperTypeAsync(NodeId typeId, CancellationToken ct = default);
-
     }
 }//namespace

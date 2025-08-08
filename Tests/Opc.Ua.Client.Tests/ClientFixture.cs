@@ -30,9 +30,6 @@
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
@@ -77,7 +74,6 @@ namespace Opc.Ua.Client.Tests
             SessionFactory = DefaultSessionFactory.Instance;
         }
 
-        #region Public Methods
         /// <inheritdoc/>
         public void Dispose()
         {
@@ -390,7 +386,7 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         public void SetTraceOutputLevel(LogLevel logLevel = LogLevel.Debug)
         {
-            if(m_traceLogger != null)
+            if (m_traceLogger != null)
             {
                 m_traceLogger.MinimumLogLevel = logLevel;
             }
@@ -439,9 +435,7 @@ namespace Opc.Ua.Client.Tests
             ActivityListener?.Dispose();
             ActivityListener = null;
         }
-        #endregion
 
-        #region Private Methods
         private void Session_KeepAlive(ISession session, KeepAliveEventArgs e)
         {
             if (ServiceResult.IsBad(e.Status))
@@ -449,6 +443,5 @@ namespace Opc.Ua.Client.Tests
                 Utils.LogError("Session '{0}' keep alive error: {1}", session.SessionName, e.Status);
             }
         }
-        #endregion
     }
 }

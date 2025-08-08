@@ -67,7 +67,6 @@ namespace Opc.Ua
         private const string kMulLocale = "mul";
         private const string kMulLocaleDictionaryKey = "t";
 
-        #region Constructors
         /// <summary>
         /// Initializes the object with the default values.
         /// </summary>
@@ -226,9 +225,7 @@ namespace Opc.Ua
                 TranslationInfo = new TranslationInfo(key, XmlEncodedLocale, XmlEncodedText);
             }
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The locale used to create the text.
         /// </summary>
@@ -334,9 +331,7 @@ namespace Opc.Ua
         /// Returns true if this LocalizedText uses the "mul" special locale.
         /// </summary>
         public bool IsMultiLanguage => string.Equals(XmlEncodedLocale, kMulLocale, StringComparison.OrdinalIgnoreCase);
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Returns true if the objects are equal.
         /// </summary>
@@ -346,7 +341,7 @@ namespace Opc.Ua
         /// <param name="obj">The object to compare to this</param>
         public override bool Equals(object obj)
         {
-            if (Object.ReferenceEquals(this, obj))
+            if (ReferenceEquals(this, obj))
             {
                 return true;
             }
@@ -374,12 +369,12 @@ namespace Opc.Ua
         /// <param name="value2">The second value to compare</param>
         public static bool operator ==(LocalizedText value1, LocalizedText value2)
         {
-            if (!Object.ReferenceEquals(value1, null))
+            if (!ReferenceEquals(value1, null))
             {
                 return value1.Equals(value2);
             }
 
-            return Object.ReferenceEquals(value2, null);
+            return ReferenceEquals(value2, null);
         }
 
         /// <summary>
@@ -392,12 +387,12 @@ namespace Opc.Ua
         /// <param name="value2">The second value to compare</param>
         public static bool operator !=(LocalizedText value1, LocalizedText value2)
         {
-            if (!Object.ReferenceEquals(value1, null))
+            if (!ReferenceEquals(value1, null))
             {
                 return !value1.Equals(value2);
             }
 
-            return !Object.ReferenceEquals(value2, null);
+            return !ReferenceEquals(value2, null);
         }
 
         /// <summary>
@@ -432,9 +427,7 @@ namespace Opc.Ua
         {
             return ToString(null, null);
         }
-        #endregion
 
-        #region IFormattable Members
         /// <summary>
         /// Returns the string representation of the object.
         /// </summary>
@@ -448,18 +441,16 @@ namespace Opc.Ua
         {
             if (format == null)
             {
-                return string.Format(formatProvider, "{0}", this.XmlEncodedText);
+                return string.Format(formatProvider, "{0}", XmlEncodedText);
             }
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
         }
-        #endregion
 
-        #region ICloneable Members
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -473,9 +464,7 @@ namespace Opc.Ua
             // this object cannot be altered after it is created so no new allocation is necessary.
             return this;
         }
-        #endregion
 
-        #region Static Methods
         /// <summary>
         /// Converts a string to a localized text.
         /// </summary>
@@ -517,9 +506,7 @@ namespace Opc.Ua
 
             return string.IsNullOrEmpty(value.XmlEncodedText);
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Returns a LocalizedText filtered by the preferred locales according to OPC UA Part 4 rules for 'mul' and 'qst'. (https://reference.opcfoundation.org/Core/Part4/v105/docs/5.4)
         /// </summary>
@@ -587,9 +574,7 @@ namespace Opc.Ua
                 }
             }
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Ecodes the translations to a JSON string according to the format specified in https://reference.opcfoundation.org/Core/Part3/v105/docs/8.5
         /// </summary>
@@ -608,7 +593,7 @@ namespace Opc.Ua
             var t = new List<object[]>();
             foreach (KeyValuePair<string, string> kvp in translations)
             {
-                t.Add(new object[] { kvp.Key, kvp.Value });
+                t.Add([kvp.Key, kvp.Value]);
             }
 
             return JsonConvert.SerializeObject(new Dictionary<string, object> { { kMulLocaleDictionaryKey, t } });
@@ -618,7 +603,7 @@ namespace Opc.Ua
         /// If this is a "mul" locale, returns a dictionary of locale/text pairs from the JSON Text.
         /// Otherwise, returns null.
         /// </summary>
-        private IReadOnlyDictionary<string, string> DecodeMulLocale()
+        private ReadOnlyDictionary<string, string> DecodeMulLocale()
         {
             if (!IsMultiLanguage || string.IsNullOrWhiteSpace(XmlEncodedText))
             {
@@ -654,13 +639,9 @@ namespace Opc.Ua
             return new ReadOnlyDictionary<string, string>(result);
         }
 
-#endregion
-#region Private Fields
         private IReadOnlyDictionary<string, string> m_translations;
-        #endregion
     }
 
-    #region LocalizedTextCollection Class
     /// <summary>
     /// A collection of LocalizedText objects.
     /// </summary>
@@ -707,10 +688,10 @@ namespace Opc.Ua
         {
             if (values != null)
             {
-                return new LocalizedTextCollection(values);
+                return [.. values];
             }
 
-            return new LocalizedTextCollection();
+            return [];
         }
 
         /// <summary>
@@ -724,13 +705,11 @@ namespace Opc.Ua
         {
             return ToLocalizedTextCollection(values);
         }
-        #endregion
 
-        #region ICloneable
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -741,15 +720,14 @@ namespace Opc.Ua
         /// </remarks>
         public new object MemberwiseClone()
         {
-            var clone = new LocalizedTextCollection(this.Count);
+            var clone = new LocalizedTextCollection(Count);
 
             foreach (LocalizedText element in this)
             {
-                clone.Add((LocalizedText)Utils.Clone(element));
+                clone.Add(Utils.Clone(element));
             }
 
             return clone;
         }
-        #endregion
     }//class
 }//namespace

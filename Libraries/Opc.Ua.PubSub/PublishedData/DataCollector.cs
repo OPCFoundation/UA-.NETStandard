@@ -33,16 +33,13 @@ using System.Collections.Generic;
 namespace Opc.Ua.PubSub.PublishedData
 {
     /// <summary>
-    /// Class specialized in collecting published data 
+    /// Class specialized in collecting published data
     /// </summary>
     public class DataCollector
     {
-        #region Private Fields
         private readonly Dictionary<string, PublishedDataSetDataType> m_publishedDataSetsByName;
         private readonly IUaPubSubDataStore m_dataStore;
-        #endregion
 
-        #region Constructor
         /// <summary>
         /// Create new instance of <see cref="DataCollector"/>.
         /// </summary>
@@ -50,11 +47,9 @@ namespace Opc.Ua.PubSub.PublishedData
         public DataCollector(IUaPubSubDataStore dataStore)
         {
             m_dataStore = dataStore;
-            m_publishedDataSetsByName = new Dictionary<string, PublishedDataSetDataType>();
+            m_publishedDataSetsByName = [];
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Validates a <see cref="PublishedDataSetDataType"/> configuration object.
         /// </summary>
@@ -64,20 +59,17 @@ namespace Opc.Ua.PubSub.PublishedData
         {
             if (publishedDataSet == null)
             {
-                throw new ArgumentException(nameof(publishedDataSet));
+                throw new ArgumentException(null, nameof(publishedDataSet));
             }
             if (publishedDataSet.DataSetMetaData == null)
             {
                 Utils.Trace(Utils.TraceMasks.Error, "The DataSetMetaData field is null.");
                 return false;
             }
-            if (ExtensionObject.ToEncodeable(publishedDataSet.DataSetSource) is PublishedDataItemsDataType publishedDataItems && publishedDataItems.PublishedData != null)
+            if (ExtensionObject.ToEncodeable(publishedDataSet.DataSetSource) is PublishedDataItemsDataType publishedDataItems && publishedDataItems.PublishedData != null && publishedDataItems.PublishedData.Count != publishedDataSet.DataSetMetaData.Fields.Count)
             {
-                if (publishedDataItems.PublishedData.Count != publishedDataSet.DataSetMetaData.Fields.Count)
-                {
-                    Utils.Trace(Utils.TraceMasks.Error, "The DataSetSource.Count is different from DataSetMetaData.Fields.Count.");
-                    return false;
-                }
+                Utils.Trace(Utils.TraceMasks.Error, "The DataSetSource.Count is different from DataSetMetaData.Fields.Count.");
+                return false;
             }
 
             return true;
@@ -90,7 +82,7 @@ namespace Opc.Ua.PubSub.PublishedData
         {
             if (publishedDataSet == null)
             {
-                throw new ArgumentException(nameof(publishedDataSet));
+                throw new ArgumentException(null, nameof(publishedDataSet));
             }
             // validate publishedDataSet
             if (ValidatePublishedDataSet(publishedDataSet))
@@ -112,7 +104,7 @@ namespace Opc.Ua.PubSub.PublishedData
         {
             if (publishedDataSet == null)
             {
-                throw new ArgumentException(nameof(publishedDataSet));
+                throw new ArgumentException(null, nameof(publishedDataSet));
             }
             m_publishedDataSetsByName.Remove(publishedDataSet.Name);
         }
@@ -134,7 +126,6 @@ namespace Opc.Ua.PubSub.PublishedData
                 {
                     var dataSet = new DataSet(dataSetName);
                     dataSet.DataSetMetaData = publishedDataSet.DataSetMetaData;
-
 
                     if (ExtensionObject.ToEncodeable(publishedDataSet.DataSetSource) is PublishedDataItemsDataType publishedDataItems && publishedDataItems.PublishedData != null && publishedDataItems.PublishedData.Count > 0)
                     {
@@ -179,7 +170,7 @@ namespace Opc.Ua.PubSub.PublishedData
                                 }
                                 else
                                 {
-                                    dataValue = Utils.Clone(dataValue) as DataValue;
+                                    dataValue = Utils.Clone(dataValue);
 
                                     //check StatusCode and return SubstituteValue if possible
                                     if (dataValue.StatusCode == StatusCodes.Bad && publishedVariable.SubstituteValue != Variant.Null)
@@ -191,20 +182,13 @@ namespace Opc.Ua.PubSub.PublishedData
 
                                 dataValue.ServerTimestamp = DateTime.UtcNow;
 
-                                #region FieldMetaData -> MaxStringLength size validation
-
                                 Field field = dataSet.Fields[i];
                                 Variant variant = dataValue.WrappedValue;
 
                                 bool shouldBringToConstraints(uint givenStrlen)
                                 {
-                                    if (field.FieldMetaData.MaxStringLength > 0 &&
-                                        givenStrlen > field.FieldMetaData.MaxStringLength)
-                                    {
-                                        return true;
-                                    }
-
-                                    return false;
+                                    return field.FieldMetaData.MaxStringLength > 0 &&
+                                        givenStrlen > field.FieldMetaData.MaxStringLength;
                                 }
 
                                 switch ((BuiltInType)field.FieldMetaData.BuiltInType)
@@ -266,7 +250,6 @@ namespace Opc.Ua.PubSub.PublishedData
                                     default:
                                         break;
                                 }
-                                #endregion
 
                                 dataSet.Fields[i].Value = dataValue;
                             }
@@ -293,7 +276,7 @@ namespace Opc.Ua.PubSub.PublishedData
         {
             if (dataSetName == null)
             {
-                throw new ArgumentException(nameof(dataSetName));
+                throw new ArgumentException(null, nameof(dataSetName));
             }
 
             if (m_publishedDataSetsByName.TryGetValue(dataSetName, out PublishedDataSetDataType value))
@@ -302,7 +285,5 @@ namespace Opc.Ua.PubSub.PublishedData
             }
             return null;
         }
-
-        #endregion
     }
 }

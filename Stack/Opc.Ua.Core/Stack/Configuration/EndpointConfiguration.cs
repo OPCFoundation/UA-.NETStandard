@@ -20,7 +20,6 @@ namespace Opc.Ua
     /// </summary>
     public partial class EndpointConfiguration
     {
-        #region Constructors
         /// <summary>
         /// Creates an instance of a configuration with reasonable default values.
         /// </summary>
@@ -68,23 +67,15 @@ namespace Opc.Ua
                 SecurityTokenLifetime = applicationConfiguration.TransportQuotas.SecurityTokenLifetime
             };
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The maximum nesting level accepted while encoding or decoding objects.
         /// </summary>
         public int MaxEncodingNestingLevels
         {
-            get
-            {
-                return m_maxEncodingNestingLevels <= 0 ? DefaultEncodingLimits.MaxEncodingNestingLevels : m_maxEncodingNestingLevels;
-            }
+            get => m_maxEncodingNestingLevels <= 0 ? DefaultEncodingLimits.MaxEncodingNestingLevels : m_maxEncodingNestingLevels;
 
-            set
-            {
-                m_maxEncodingNestingLevels = value;
-            }
+            set => m_maxEncodingNestingLevels = value;
         }
 
         /// <summary>
@@ -93,22 +84,12 @@ namespace Opc.Ua
         /// </summary>
         public int MaxDecoderRecoveries
         {
-            get
-            {
-                return m_maxDecoderRecoveries;
-            }
+            get => m_maxDecoderRecoveries;
 
-            set
-            {
-                m_maxDecoderRecoveries = value;
-            }
+            set => m_maxDecoderRecoveries = value;
         }
-        #endregion
 
-        #region Private Fields
-        int m_maxEncodingNestingLevels;
-        int m_maxDecoderRecoveries;
-        #endregion
-
+        private int m_maxEncodingNestingLevels;
+        private int m_maxDecoderRecoveries;
     }
 }

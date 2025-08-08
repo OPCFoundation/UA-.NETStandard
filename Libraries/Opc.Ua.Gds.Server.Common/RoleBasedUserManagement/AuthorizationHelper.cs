@@ -39,12 +39,12 @@ namespace Opc.Ua.Gds.Server
 {
     internal static class AuthorizationHelper
     {
-        internal static List<Role> AuthenticatedUser { get; } = new List<Role> { Role.AuthenticatedUser };
-        internal static List<Role> DiscoveryAdmin { get; } = new List<Role> { GdsRole.DiscoveryAdmin };
-        internal static List<Role> DiscoveryAdminOrSelfAdmin { get; } = new List<Role> { GdsRole.DiscoveryAdmin, GdsRole.ApplicationSelfAdmin };
-        internal static List<Role> AuthenticatedUserOrSelfAdmin { get; } = new List<Role> { Role.AuthenticatedUser, GdsRole.ApplicationSelfAdmin };
-        internal static List<Role> CertificateAuthorityAdminOrSelfAdmin { get; } = new List<Role> { GdsRole.CertificateAuthorityAdmin, GdsRole.ApplicationSelfAdmin };
-        internal static List<Role> CertificateAuthorityAdmin { get; } = new List<Role> { GdsRole.CertificateAuthorityAdmin };
+        internal static List<Role> AuthenticatedUser { get; } = [Role.AuthenticatedUser];
+        internal static List<Role> DiscoveryAdmin { get; } = [GdsRole.DiscoveryAdmin];
+        internal static List<Role> DiscoveryAdminOrSelfAdmin { get; } = [GdsRole.DiscoveryAdmin, GdsRole.ApplicationSelfAdmin];
+        internal static List<Role> AuthenticatedUserOrSelfAdmin { get; } = [Role.AuthenticatedUser, GdsRole.ApplicationSelfAdmin];
+        internal static List<Role> CertificateAuthorityAdminOrSelfAdmin { get; } = [GdsRole.CertificateAuthorityAdmin, GdsRole.ApplicationSelfAdmin];
+        internal static List<Role> CertificateAuthorityAdmin { get; } = [GdsRole.CertificateAuthorityAdmin];
 
         /// <summary>
         /// Checks if the current session (context) has one of the requested roles. If <see cref="GdsRole.ApplicationSelfAdmin"/> is allowed the applicationId needs to be specified
@@ -108,12 +108,9 @@ namespace Opc.Ua.Gds.Server
         public static void HasAuthenticatedSecureChannel(ISystemContext context)
         {
             var operationContext = (context as SystemContext)?.OperationContext as OperationContext;
-            if (operationContext != null)
+            if (operationContext != null && operationContext.ChannelContext?.EndpointDescription?.SecurityMode != MessageSecurityMode.SignAndEncrypt)
             {
-                if (operationContext.ChannelContext?.EndpointDescription?.SecurityMode != MessageSecurityMode.SignAndEncrypt)
-                {
-                    throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Method has to be called from an authenticated secure channel.");
-                }
+                throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Method has to be called from an authenticated secure channel.");
             }
         }
         private static bool HasRole(IUserIdentity userIdentity, IEnumerable<Role> roles)

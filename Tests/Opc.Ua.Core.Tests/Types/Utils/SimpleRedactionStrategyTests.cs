@@ -84,8 +84,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             var strategy = new SimpleRedactionStrategy(0, -1);
 
-            string original = new string('a', 200);
-            string expected = new string('*', 200);
+            string original = new('a', 200);
+            string expected = new('*', 200);
 
             string result = strategy.Redact(original);
 

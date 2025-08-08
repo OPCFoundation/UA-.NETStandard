@@ -67,7 +67,7 @@ namespace System
         /// </summary>
         public static bool EndsWith(this string target, char value)
         {
-            return target.Length != 0 && target[target.Length - 1] == value;
+            return target.Length != 0 && target[^1] == value;
         }
 
         /// <summary>

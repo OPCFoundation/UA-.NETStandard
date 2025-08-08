@@ -63,7 +63,6 @@ namespace Opc.Ua.Server
     /// </summary>
     public static class AuditEvents
     {
-        #region Report Audit Events
         /// <summary>
         /// Report Audit event
         /// </summary>
@@ -1564,9 +1563,7 @@ namespace Opc.Ua.Server
                 Utils.LogError(ex, "Error while reporting TrustListUpdateRequestedAuditEvent event.");
             }
         }
-        #endregion Report Audit Events
 
-        #region Private helpers
         /// <summary>
         /// Initialize the properties of an AuditUpdateEventState.
         /// </summary>
@@ -1636,6 +1633,5 @@ namespace Opc.Ua.Server
             // set AuditSessionEventType 
             e.SetChildValue(systemContext, BrowseNames.SessionId, session?.Id, false);
         }
-        #endregion
     }
 }

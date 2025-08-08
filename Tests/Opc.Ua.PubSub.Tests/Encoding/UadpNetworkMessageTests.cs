@@ -27,15 +27,15 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using NUnit.Framework;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using Opc.Ua.PubSub.PublishedData;
 using System.IO;
-using DataSet = Opc.Ua.PubSub.PublishedData.DataSet;
+using System.Linq;
+using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
+using Opc.Ua.PubSub.PublishedData;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
+using DataSet = Opc.Ua.PubSub.PublishedData.DataSet;
 
 namespace Opc.Ua.PubSub.Tests.Encoding
 {
@@ -58,8 +58,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         public const ushort NamespaceIndexSimple = 2;
         public const ushort NamespaceIndexAllTypes = 3;
         public const ushort NamespaceIndexMassTest = 4;
-
-        private const uint kNetworkMessageContentMask = 0x3ff;
 
         [OneTimeSetUp()]
         public void MyTestInitialize()
@@ -192,8 +190,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Assert
             CompareEncodeDecode(uaNetworkMessage);
         }
-
-
 
         [Test(Description = "Validate WriterGroupId")]
         public void ValidateWriterGroupIdWithVariantType(
@@ -446,8 +442,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             CompareEncodeDecode(uaNetworkMessage);
         }
 
-        #region Private Methods
-
         /// <summary>
         /// Load RawData data type into datasets
         /// </summary>
@@ -455,7 +449,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             Assert.IsNotNull(m_publisherApplication, "m_publisherApplication should not be null");
 
-            #region DataSet Simple
             // DataSet 'Simple' fill with data
             var booleanValue = new DataValue(new Variant(true));
             m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId("BoolToggle", NamespaceIndexSimple), Attributes.Value, booleanValue);
@@ -465,9 +458,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId("Int32Fast", NamespaceIndexSimple), Attributes.Value, scalarInt32YValue);
             var dateTimeValue = new DataValue(new Variant(DateTime.UtcNow));
             m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId("DateTime", NamespaceIndexSimple), Attributes.Value, dateTimeValue);
-            #endregion
 
-            #region DataSet AllTypes
             // DataSet 'AllTypes' fill with data
             var allTypesBooleanValue = new DataValue(new Variant(false));
             m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId("BoolToggle", NamespaceIndexAllTypes), Attributes.Value, allTypesBooleanValue);
@@ -487,9 +478,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId("Float", NamespaceIndexAllTypes), Attributes.Value, floatValue);
             var doubleValue = new DataValue(new Variant((double)1100));
             m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId("Double", NamespaceIndexAllTypes), Attributes.Value, doubleValue);
-            #endregion
-
-            #region DataSet MassTest
 
             // DataSet 'MassTest' fill with data
             for (uint index = 0; index < 100; index++)
@@ -498,7 +486,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId(Utils.Format("Mass_{0}", index), NamespaceIndexMassTest),
                     Attributes.Value, value);
             }
-            #endregion
         }
 
         /// <summary>
@@ -534,9 +521,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             IList<UaNetworkMessage> networkMessages = m_firstPublisherConnection.CreateNetworkMessages(m_firstWriterGroup, new WriterGroupPublishState());
             // filter out the metadata message
-            networkMessages = (from m in networkMessages
+            networkMessages = [.. (from m in networkMessages
                                where !m.IsMetaDataMessage
-                               select m).ToList();
+                               select m)];
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
             Assert.AreEqual(1, networkMessages.Count, "connection.CreateNetworkMessages shall return only one network message");
 
@@ -576,13 +563,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             InvalidCompare(uadpNetworkMessage, uaNetworkMessageDecoded);
         }
 
-
         /// <summary>
         /// Invalid compare network messages options (special case for PublisherId
         /// </summary>
         /// <param name="uadpNetworkMessageEncode"></param>
         /// <param name="uadpNetworkMessageDecoded"></param>
-        private void InvalidCompare(UadpNetworkMessage uadpNetworkMessageEncode, UadpNetworkMessage uadpNetworkMessageDecoded)
+        private static void InvalidCompare(UadpNetworkMessage uadpNetworkMessageEncode, UadpNetworkMessage uadpNetworkMessageDecoded)
         {
             UadpNetworkMessageContentMask networkMessageContentMask = uadpNetworkMessageEncode.NetworkMessageContentMask;
 
@@ -606,7 +592,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <param name="uadpNetworkMessageEncode"></param>
         /// <param name="uadpNetworkMessageDecoded"></param>
         /// <returns></returns>
-        private void Compare(UadpNetworkMessage uadpNetworkMessageEncode, UadpNetworkMessage uadpNetworkMessageDecoded)
+        private static void Compare(UadpNetworkMessage uadpNetworkMessageEncode, UadpNetworkMessage uadpNetworkMessageDecoded)
         {
             UadpNetworkMessageContentMask networkMessageContentMask = uadpNetworkMessageEncode.NetworkMessageContentMask;
 
@@ -619,7 +605,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             // Verify flags
             Assert.AreEqual(uadpNetworkMessageEncode.UADPFlags, uadpNetworkMessageDecoded.UADPFlags, "UADPFlags were not decoded correctly");
 
-            #region Network Message Header
             if ((networkMessageContentMask & UadpNetworkMessageContentMask.PublisherId) != 0)
             {
                 Assert.AreEqual(uadpNetworkMessageEncode.PublisherId, uadpNetworkMessageDecoded.PublisherId, "PublisherId was not decoded correctly");
@@ -629,9 +614,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             {
                 Assert.AreEqual(uadpNetworkMessageEncode.DataSetClassId, uadpNetworkMessageDecoded.DataSetClassId, "DataSetClassId was not decoded correctly");
             }
-            #endregion
 
-            #region Group Message Header
             if ((networkMessageContentMask & (UadpNetworkMessageContentMask.GroupHeader |
                                               UadpNetworkMessageContentMask.WriterGroupId |
                                               UadpNetworkMessageContentMask.GroupVersion |
@@ -660,9 +643,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             {
                 Assert.AreEqual(uadpNetworkMessageEncode.SequenceNumber, uadpNetworkMessageDecoded.SequenceNumber, "SequenceNumber was not decoded correctly");
             }
-            #endregion
-
-            #region Payload header + Payload data
 
             if ((networkMessageContentMask & UadpNetworkMessageContentMask.PayloadHeader) != 0)
             {
@@ -763,9 +743,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                     }
                 }
             }
-            #endregion
 
-            #region Extended network message header
             if ((networkMessageContentMask & UadpNetworkMessageContentMask.Timestamp) != 0)
             {
                 Assert.AreEqual(uadpNetworkMessageEncode.Timestamp, uadpNetworkMessageDecoded.Timestamp, "Timestamp was not decoded correctly");
@@ -775,24 +753,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             {
                 Assert.AreEqual(uadpNetworkMessageEncode.PicoSeconds, uadpNetworkMessageDecoded.PicoSeconds, "PicoSeconds was not decoded correctly");
             }
-
-            #endregion
         }
-
-        /// <summary>
-        /// Read All bytes from a given stream
-        /// </summary>
-        /// <param name="stream"></param>
-        /// <returns></returns>
-        private byte[] ReadBytes(Stream stream)
-        {
-            stream.Position = 0;
-            using (var ms = new MemoryStream())
-            {
-                stream.CopyTo(ms);
-                return ms.ToArray();
-            }
-        }
-        #endregion
     }
 }

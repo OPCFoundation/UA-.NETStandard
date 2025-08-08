@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -91,10 +91,10 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         /// <summary>
         /// Signs a Bouncy Castle digest stream with the .Net X509SignatureGenerator.
         /// </summary>
-        class X509StreamCalculator : IStreamCalculator<IBlockResult>
+        internal class X509StreamCalculator : IStreamCalculator<IBlockResult>
         {
-            private readonly X509SignatureGenerator _generator;
-            private readonly HashAlgorithmName _hashAlgorithm;
+            private readonly X509SignatureGenerator m_generator;
+            private readonly HashAlgorithmName m_hashAlgorithm;
 
             /// <summary>
             /// Ctor for the stream calculator.
@@ -106,8 +106,8 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
                 HashAlgorithmName hashAlgorithm)
             {
                 Stream = new MemoryStream();
-                _generator = generator;
-                _hashAlgorithm = hashAlgorithm;
+                m_generator = generator;
+                m_hashAlgorithm = hashAlgorithm;
             }
 
             /// <summary>
@@ -126,8 +126,8 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
                 }
 
                 byte[] digest = memStream.ToArray();
-                byte[] signature = _generator.SignData(digest, _hashAlgorithm);
-                return new Org.BouncyCastle.Crypto.SimpleBlockResult(signature);
+                byte[] signature = m_generator.SignData(digest, m_hashAlgorithm);
+                return new SimpleBlockResult(signature);
             }
         }
     }

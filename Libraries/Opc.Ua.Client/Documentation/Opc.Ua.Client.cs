@@ -36,6 +36,6 @@ namespace Opc.Ua.Client
     /// later use.
     /// </summary>
     ///<exclude/>
-    [System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
+    [System.Runtime.CompilerServices.CompilerGenerated()]
     public class NamespaceDoc;
 }

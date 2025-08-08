@@ -19,7 +19,6 @@ namespace Opc.Ua
     /// </summary>
     public partial class SessionChannel
     {
-        #region Constructors
         /// <summary>
         /// Creates a new transport channel that supports the ISessionChannel service contract.
         /// </summary>
@@ -97,6 +96,5 @@ namespace Opc.Ua
                 clientCertificateChain,
                 messageContext);
         }
-        #endregion
     }
 }

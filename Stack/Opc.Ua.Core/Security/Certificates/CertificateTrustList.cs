@@ -16,7 +16,6 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua
 {
-    #region CertificateTrustList Class
     /// <summary>
     /// A list of trusted certificates.
     /// </summary>
@@ -43,8 +42,6 @@ namespace Opc.Ua
     /// </remarks>
     public partial class CertificateTrustList : CertificateStoreIdentifier
     {
-        #region Public Methods
-
         /// <summary>
         /// Returns the certificates in the trust list.
         /// </summary>
@@ -62,7 +59,7 @@ namespace Opc.Ua
         {
             var collection = new X509Certificate2Collection();
 
-            if (!string.IsNullOrEmpty(this.StorePath))
+            if (!string.IsNullOrEmpty(StorePath))
             {
                 ICertificateStore store = null;
                 try
@@ -78,7 +75,7 @@ namespace Opc.Ua
                 }
                 catch (Exception)
                 {
-                    Utils.LogError("Could not load certificates from store: {0}.", this.StorePath);
+                    Utils.LogError("Could not load certificates from store: {0}.", StorePath);
                 }
                 finally
                 {
@@ -98,7 +95,5 @@ namespace Opc.Ua
 
             return collection;
         }
-        #endregion
     }
-    #endregion
 }

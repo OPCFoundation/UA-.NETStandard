@@ -21,16 +21,13 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public sealed class ChannelToken : IDisposable
     {
-        #region Constructors
         /// <summary>
         /// Creates an object with default values.
         /// </summary>
         public ChannelToken()
         {
         }
-        #endregion
 
-        #region IDisposable
         /// <summary>
         /// The private version of the Dispose.
         /// </summary>
@@ -71,9 +68,7 @@ namespace Opc.Ua.Bindings
             Dispose(disposing: true);
             GC.SuppressFinalize(this);
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The id assigned to the channel that the token belongs to.
         /// </summary>
@@ -91,7 +86,7 @@ namespace Opc.Ua.Bindings
 
         /// <summary>
         /// When the token was created (refers to the local tick count).
-        /// Used for calculation of renewals. Uses <see cref="Opc.Ua.HiResClock.TickCount"/>.
+        /// Used for calculation of renewals. Uses <see cref="HiResClock.TickCount"/>.
         /// </summary>
         public int CreatedAtTickCount { get; set; }
 
@@ -103,24 +98,12 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Whether the token has expired.
         /// </summary>
-        public bool Expired
-        {
-            get
-            {
-                return (HiResClock.TickCount - CreatedAtTickCount) > Lifetime;
-            }
-        }
+        public bool Expired => (HiResClock.TickCount - CreatedAtTickCount) > Lifetime;
 
         /// <summary>
         /// Whether the token should be activated in case a new one is already created.
         /// </summary>
-        public bool ActivationRequired
-        {
-            get
-            {
-                return (HiResClock.TickCount - CreatedAtTickCount) > (int)Math.Round(Lifetime * TcpMessageLimits.TokenActivationPeriod);
-            }
-        }
+        public bool ActivationRequired => (HiResClock.TickCount - CreatedAtTickCount) > (int)Math.Round(Lifetime * TcpMessageLimits.TokenActivationPeriod);
 
         /// <summary>
         /// The nonce provided by the client.
@@ -190,9 +173,6 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public HMAC ServerHmac { get; set; }
 
-#endregion
-#region Private Fields
         private bool m_disposed;
-        #endregion
     }
 }

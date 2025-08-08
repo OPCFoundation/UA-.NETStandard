@@ -28,12 +28,12 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Security.Cryptography.X509Certificates;
-using System.Globalization;
-using System.Threading.Tasks;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Security.Cryptography.X509Certificates;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server
 {
@@ -42,7 +42,6 @@ namespace Opc.Ua.Server
     /// </summary>
     public class SessionManager : ISessionManager
     {
-        #region Constructors
         /// <summary>
         /// Initializes the manager with its configuration.
         /// </summary>
@@ -75,9 +74,7 @@ namespace Opc.Ua.Server
             // create a event to signal shutdown.
             m_shutdownEvent = new ManualResetEvent(true);
         }
-        #endregion
 
-        #region IDisposable Members        
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -95,7 +92,7 @@ namespace Opc.Ua.Server
             if (disposing)
             {
                 // create snapshot of all sessions
-                KeyValuePair<NodeId, ISession>[] sessions = m_sessions.ToArray();
+                KeyValuePair<NodeId, ISession>[] sessions = [.. m_sessions];
                 m_sessions.Clear();
 
                 foreach (KeyValuePair<NodeId, ISession> sessionKeyValue in sessions)
@@ -106,9 +103,7 @@ namespace Opc.Ua.Server
                 m_shutdownEvent.Set();
             }
         }
-        #endregion
 
-        #region Public Interface
         /// <summary>
         /// Starts the session manager.
         /// </summary>
@@ -501,9 +496,7 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(e, StatusCodes.BadUnexpectedError);
             }
         }
-        #endregion
 
-        #region Protected Methods
         /// <summary>
         /// Creates a new instance of a session.
         /// </summary>
@@ -576,9 +569,7 @@ namespace Opc.Ua.Server
                 }
             }
         }
-#endregion
 
-#region Private Methods
         /// <summary>
         /// Periodically checks if the sessions have timed out.
         /// </summary>
@@ -629,10 +620,8 @@ namespace Opc.Ua.Server
                 Utils.LogError(e, "Server - Session Monitor Thread Exited Unexpectedly");
             }
         }
-        #endregion
 
-#region Private Fields
-        private readonly object m_lock = new object();
+        private readonly object m_lock = new();
         private readonly IServerInternal m_server;
         private readonly NodeIdDictionary<ISession> m_sessions;
         private long m_lastSessionId;
@@ -646,16 +635,14 @@ namespace Opc.Ua.Server
         private readonly int m_maxBrowseContinuationPoints;
         private readonly int m_maxHistoryContinuationPoints;
 
-        private readonly object m_eventLock = new object();
+        private readonly object m_eventLock = new();
         private event SessionEventHandler m_sessionCreated;
         private event SessionEventHandler m_sessionActivated;
         private event SessionEventHandler m_sessionClosing;
         private event SessionEventHandler m_sessionChannelKeepAlive;
         private event ImpersonateEventHandler m_impersonateUser;
         private event EventHandler<ValidateSessionLessRequestEventArgs> m_validateSessionLessRequest;
-#endregion
 
-#region ISessionManager Members
         /// <inheritdoc/>
         public event SessionEventHandler SessionCreated
         {
@@ -795,6 +782,5 @@ namespace Opc.Ua.Server
             }
             return null;
         }
-#endregion
     }
 }

@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -37,16 +37,13 @@ namespace Opc.Ua.Server
     /// <remarks>This class is thread safe.</remarks>
     public class ContinuationPoint : IDisposable
     {
-        #region Constructors
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
         public ContinuationPoint()
         {
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -66,9 +63,7 @@ namespace Opc.Ua.Server
                 Utils.SilentDispose(Data);
             }
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// A unique identifier for the continuation point.
         /// </summary>
@@ -138,50 +133,32 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Whether the ReferenceTypeId should be returned in the result.
         /// </summary>
-        public bool ReferenceTypeIdRequired
-        {
-            get { return (ResultMask & BrowseResultMask.ReferenceTypeId) != 0; }
-        }
+        public bool ReferenceTypeIdRequired => ((int)ResultMask & (int)BrowseResultMask.ReferenceTypeId) != 0;
 
         /// <summary>
         /// Whether the IsForward flag should be returned in the result.
         /// </summary>
-        public bool IsForwardRequired
-        {
-            get { return (ResultMask & BrowseResultMask.IsForward) != 0; }
-        }
+        public bool IsForwardRequired => ((int)ResultMask & (int)BrowseResultMask.IsForward) != 0;
 
         /// <summary>
         /// Whether the NodeClass should be returned in the result.
         /// </summary>
-        public bool NodeClassRequired
-        {
-            get { return (ResultMask & BrowseResultMask.NodeClass) != 0; }
-        }
+        public bool NodeClassRequired => ((int)ResultMask & (int)BrowseResultMask.NodeClass) != 0;
 
         /// <summary>
         /// Whether the BrowseName should be returned in the result.
         /// </summary>
-        public bool BrowseNameRequired
-        {
-            get { return (ResultMask & BrowseResultMask.BrowseName) != 0; }
-        }
+        public bool BrowseNameRequired => ((int)ResultMask & (int)BrowseResultMask.BrowseName) != 0;
 
         /// <summary>
         /// Whether the DisplayName should be returned in the result.
         /// </summary>
-        public bool DisplayNameRequired
-        {
-            get { return (ResultMask & BrowseResultMask.DisplayName) != 0; }
-        }
+        public bool DisplayNameRequired => ((int)ResultMask & (int)BrowseResultMask.DisplayName) != 0;
 
         /// <summary>
         /// Whether the TypeDefinition should be returned in the result.
         /// </summary>
-        public bool TypeDefinitionRequired
-        {
-            get { return (ResultMask & BrowseResultMask.TypeDefinition) != 0; }
-        }
+        public bool TypeDefinitionRequired => ((int)ResultMask & (int)BrowseResultMask.TypeDefinition) != 0;
 
         /// <summary>
         /// False if it is not necessary to read the attributes a target node.
@@ -198,10 +175,8 @@ namespace Opc.Ua.Server
                     return true;
                 }
 
-                return (ResultMask & (BrowseResultMask.NodeClass | BrowseResultMask.BrowseName | BrowseResultMask.DisplayName | BrowseResultMask.TypeDefinition)) != 0;
+                return ((int)ResultMask & ((int)BrowseResultMask.NodeClass | (int)BrowseResultMask.BrowseName | (int)BrowseResultMask.DisplayName | (int)BrowseResultMask.TypeDefinition)) != 0;
             }
         }
-
-#endregion
     }
 }

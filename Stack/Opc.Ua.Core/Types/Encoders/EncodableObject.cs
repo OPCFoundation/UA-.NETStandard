@@ -23,7 +23,6 @@ namespace Opc.Ua
     [DataContract(Name = "EncodeableObject", Namespace = Namespaces.OpcUaXsd)]
     public abstract class EncodeableObject : IEncodeable
     {
-        #region IEncodeable Methods
         /// <inheritdoc/>
         public abstract ExpandedNodeId TypeId { get; }
 
@@ -46,9 +45,7 @@ namespace Opc.Ua
         {
             throw new NotImplementedException("Subclass must implement this method.");
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Applies the data encoding to the value.
         /// </summary>
@@ -154,12 +151,12 @@ namespace Opc.Ua
         {
             if (useXml)
             {
-                XmlElement body = EncodeableObject.EncodeXml(encodeable, context);
+                XmlElement body = EncodeXml(encodeable, context);
                 return new ExtensionObject(encodeable.XmlEncodingId, body);
             }
             else
             {
-                byte[] body = EncodeableObject.EncodeBinary(encodeable, context);
+                byte[] body = EncodeBinary(encodeable, context);
                 return new ExtensionObject(encodeable.BinaryEncodingId, body);
             }
         }
@@ -195,13 +192,11 @@ namespace Opc.Ua
                 return encoder.CloseAndReturnBuffer();
             }
         }
-        #endregion
 
-        #region ICloneable
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -211,6 +206,5 @@ namespace Opc.Ua
         {
             return base.MemberwiseClone();
         }
-        #endregion
     }
 }

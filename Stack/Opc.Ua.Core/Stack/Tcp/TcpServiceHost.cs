@@ -77,7 +77,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 bool sendCertificateChain = instanceCertificateTypesProvider.SendCertificateChain;
-                ITransportListener listener = this.Create();
+                ITransportListener listener = Create();
                 if (listener != null)
                 {
                     var listenerEndpoints = new EndpointDescriptionCollection();
@@ -114,7 +114,7 @@ namespace Opc.Ua.Bindings
                 }
             }
 
-            hosts[hostName] = serverBase.CreateServiceHost(serverBase, uris.ToArray());
+            hosts[hostName] = serverBase.CreateServiceHost(serverBase, [.. uris]);
 
             return endpoints;
         }

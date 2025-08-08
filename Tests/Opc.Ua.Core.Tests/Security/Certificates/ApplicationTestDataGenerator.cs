@@ -38,18 +38,16 @@ namespace Opc.Ua.Core.Tests
     public class ApplicationTestDataGenerator
     {
         private readonly int m_randomStart = 1;
-        private readonly RandomSource m_randomSource;
-        private readonly DataGenerator m_dataGenerator;
 
         public ApplicationTestDataGenerator(int randomStart)
         {
             m_randomStart = randomStart;
-            m_randomSource = new RandomSource(randomStart);
-            m_dataGenerator = new DataGenerator(m_randomSource);
+            RandomSource = new RandomSource(randomStart);
+            DataGenerator = new DataGenerator(RandomSource);
         }
 
-        public RandomSource RandomSource => m_randomSource;
-        public DataGenerator DataGenerator => m_dataGenerator;
+        public RandomSource RandomSource { get; }
+        public DataGenerator DataGenerator { get; }
 
         public IList<ApplicationTestData> ApplicationTestSet(int count)
         {
@@ -65,18 +63,18 @@ namespace Opc.Ua.Core.Tests
         private ApplicationTestData RandomApplicationTestData()
         {
             // TODO: set to discoveryserver
-            var appType = (ApplicationType)m_randomSource.NextInt32((int)ApplicationType.ClientAndServer);
-            string pureAppName = m_dataGenerator.GetRandomString("en");
+            var appType = (ApplicationType)RandomSource.NextInt32((int)ApplicationType.ClientAndServer);
+            string pureAppName = DataGenerator.GetRandomString("en");
             pureAppName = Regex.Replace(pureAppName, @"[^\w\d\s]", "");
             string pureAppUri = Regex.Replace(pureAppName, @"[^\w\d]", "");
             string appName = "UA " + pureAppName;
             StringCollection domainNames = RandomDomainNames();
             string localhost = domainNames[0];
-            string privateKeyFormat = m_randomSource.NextInt32(1) == 0 ? "PEM" : "PFX";
+            string privateKeyFormat = RandomSource.NextInt32(1) == 0 ? "PEM" : "PFX";
             string appUri = ("urn:localhost:opcfoundation.org:" + pureAppUri.ToLower()).Replace("localhost", localhost, StringComparison.Ordinal);
             string prodUri = "http://opcfoundation.org/UA/" + pureAppUri;
             var discoveryUrls = new StringCollection();
-            int port = (m_dataGenerator.GetRandomInt16() & 0x1fff) + 50000;
+            int port = (DataGenerator.GetRandomInt16() & 0x1fff) + 50000;
             switch (appType)
             {
                 case ApplicationType.Client:
@@ -94,20 +92,19 @@ namespace Opc.Ua.Core.Tests
                     discoveryUrls = RandomDiscoveryUrl(domainNames, port, pureAppUri);
                     break;
             }
-            var testData = new ApplicationTestData {
+            return new ApplicationTestData {
                 ApplicationName = appName,
                 ApplicationUri = appUri,
                 DomainNames = domainNames,
                 Subject = Utils.Format("CN={0},O=OPC Foundation,DC={1}", appName, localhost),
                 PrivateKeyFormat = privateKeyFormat
             };
-            return testData;
         }
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "SYSLIB1045:Convert to 'GeneratedRegexAttribute'.", Justification = "Test")]
         private string RandomLocalHost()
         {
-            string localhost = Regex.Replace(m_dataGenerator.GetRandomSymbol("en").Trim().ToLower(), @"[^\w\d]", "");
+            string localhost = Regex.Replace(DataGenerator.GetRandomSymbol("en").Trim().ToLower(), @"[^\w\d]", "");
             if (localhost.Length >= 12)
             {
                 localhost = localhost[..12];
@@ -117,7 +114,7 @@ namespace Opc.Ua.Core.Tests
 
         private string[] RandomDomainNames()
         {
-            int count = m_randomSource.NextInt32(8) + 1;
+            int count = RandomSource.NextInt32(8) + 1;
             string[] result = new string[count];
             for (int i = 0; i < count; i++)
             {
@@ -131,7 +128,7 @@ namespace Opc.Ua.Core.Tests
             var result = new StringCollection();
             foreach (string name in domainNames)
             {
-                int random = m_randomSource.NextInt32(7);
+                int random = RandomSource.NextInt32(7);
                 if ((result.Count == 0) || (random & 1) == 0)
                 {
                     result.Add(Utils.Format("opc.tcp://{0}:{1}/{2}", name, port++.ToString(CultureInfo.InvariantCulture), appUri));

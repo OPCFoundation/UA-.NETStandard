@@ -53,13 +53,13 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         [Test(Description = "Validate Create call with null path")]
         public void ValidateUaPubSubApplicationCreateNullFilePath()
         {
-            Assert.Throws<ArgumentNullException>(() => UaPubSubApplication.Create((string)null), "Calling Create with null parameter shall throw error");
+            NUnit.Framework.Assert.Throws<ArgumentNullException>(() => UaPubSubApplication.Create((string)null), "Calling Create with null parameter shall throw error");
         }
 
         [Test(Description = "Validate Create call with null PubSubConfigurationDataType")]
         public void ValidateUaPubSubApplicationCreateNullPubSubConfigurationDataType()
         {
-            Assert.DoesNotThrow(() => UaPubSubApplication.Create((PubSubConfigurationDataType)null), "Calling Create with null parameter shall not throw error");
+            NUnit.Framework.Assert.DoesNotThrow(() => UaPubSubApplication.Create((PubSubConfigurationDataType)null), "Calling Create with null parameter shall not throw error");
         }
 
         [Test(Description = "Validate Create call")]
@@ -79,10 +79,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             {
                 Assert.IsTrue(publisher != null, "connection.Publishers[{0}] is null", index);
                 Assert.IsTrue(publisher.PubSubConnection == connection, "connection.Publishers[{0}].PubSubConnection is not set correctly", index);
-                Assert.IsTrue(publisher.WriterGroupConfiguration.WriterGroupId == m_pubSubConfiguration.Connections.First().WriterGroups[index].WriterGroupId, "connection.Publishers[{0}].WriterGroupConfiguration is not set correctly", index);
+                Assert.IsTrue(publisher.WriterGroupConfiguration.WriterGroupId == m_pubSubConfiguration.Connections[0].WriterGroups[index].WriterGroupId, "connection.Publishers[{0}].WriterGroupConfiguration is not set correctly", index);
                 index++;
             }
         }
-
     }
 }

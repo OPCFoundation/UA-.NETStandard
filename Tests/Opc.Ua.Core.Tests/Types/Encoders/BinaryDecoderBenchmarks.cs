@@ -126,17 +126,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
         }
 
-        #region Private Methods
-        private void TestStreamDecode(MemoryStream memoryStream)
-        {
-            using (var binaryDecoder = new BinaryDecoder(memoryStream, m_context))
-            {
-                TestDecoding(binaryDecoder);
-                TestDecoding(binaryDecoder);
-                binaryDecoder.Close();
-            }
-        }
-
         private void BinaryDecoder_Stream(MemoryStream memoryStream)
         {
             using (var binaryDecoder = new BinaryDecoder(memoryStream, m_context))
@@ -146,9 +135,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 binaryDecoder.Close();
             }
         }
-        #endregion
 
-        #region Test Setup
         [OneTimeSetUp]
         public new void OneTimeSetUp()
         {
@@ -161,9 +148,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             base.OneTimeTearDown();
         }
-        #endregion
 
-        #region Benchmark Setup
         /// <summary>
         /// Set up some variables for benchmarks.
         /// </summary>
@@ -182,9 +167,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             base.GlobalCleanup();
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Initialize encoded data.
         /// </summary>
@@ -230,7 +213,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 m_encodedBufferList = memoryStream.GetBuffers("writer");
             }
         }
-        #endregion
 
         private byte[] m_encodedByteArray;
         private BufferCollection m_encodedBufferList;

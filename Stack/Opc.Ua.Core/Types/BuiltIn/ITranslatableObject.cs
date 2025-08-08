@@ -72,7 +72,6 @@ namespace Opc.Ua
     /// </summary>
     public class TranslationInfo
     {
-        #region Constructors
         /// <summary>
         /// Creates an empty object.
         /// </summary>
@@ -125,9 +124,7 @@ namespace Opc.Ua
             Text = format;
             Args = args;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The key used to look up translations.
         /// </summary>
@@ -148,7 +145,5 @@ namespace Opc.Ua
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
         public object[] Args { get; set; }
-
-        #endregion
     }
 }

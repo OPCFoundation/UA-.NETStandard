@@ -45,7 +45,6 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class ActiveClient
     {
-        #region Properties
         /// <summary>
         /// Time of the last recorded problematic action
         /// </summary>
@@ -60,8 +59,6 @@ namespace Opc.Ua.Bindings
         /// Ticks until the client is Blocked
         /// </summary>
         public int BlockedUntilTicks { get; set; }
-
-        #endregion
     }
 
     /// <summary>
@@ -69,13 +66,12 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public sealed class ActiveClientTracker : IDisposable
     {
-        #region Public
         /// <summary>
         /// Constructor
         /// </summary>
         public ActiveClientTracker()
         {
-            m_cleanupTimer = new Timer(CleanupExpiredEntries, null, m_kCleanupIntervalMs, m_kCleanupIntervalMs);
+            m_cleanupTimer = new Timer(CleanupExpiredEntries, null, kCleanupIntervalMs, kCleanupIntervalMs);
         }
 
         /// <summary>
@@ -119,19 +115,19 @@ namespace Opc.Ua.Bindings
                     // Elapsed time since last recorded action
                     int elapsedSinceLastRecAction = currentTicks - existingEntry.LastActionTicks;
 
-                    if (elapsedSinceLastRecAction <= m_kActionsIntervalMs)
+                    if (elapsedSinceLastRecAction <= kActionsIntervalMs)
                     {
                         existingEntry.ActiveActionCount++;
 
-                        if (existingEntry.ActiveActionCount > m_kNrActionsTillBlock)
+                        if (existingEntry.ActiveActionCount > kNrActionsTillBlock)
                         {
                             // Block the IP
-                            existingEntry.BlockedUntilTicks = currentTicks + m_kBlockDurationMs;
+                            existingEntry.BlockedUntilTicks = currentTicks + kBlockDurationMs;
                             Utils.LogError("RemoteClient IPAddress: {0} blocked for {1} ms due to exceeding {2} actions under {3} ms ",
                                 ipAddress.ToString(),
-                                m_kBlockDurationMs,
-                                m_kNrActionsTillBlock,
-                                m_kActionsIntervalMs);
+                                kBlockDurationMs,
+                                kNrActionsTillBlock,
+                                kActionsIntervalMs);
                         }
                     }
                     else
@@ -155,9 +151,6 @@ namespace Opc.Ua.Bindings
             m_cleanupTimer?.Dispose();
         }
 
-        #endregion
-        #region Private methods
-
         /// <summary>
         /// Periodically cleans up expired active client entries to avoid memory leak and unblock clients whose duration has expired.
         /// </summary>
@@ -178,19 +171,19 @@ namespace Opc.Ua.Bindings
                     rClient.ActiveActionCount = 0;
                     Utils.LogDebug("Active Client with IP {0} is now unblocked, blocking duration of {1} ms has been exceeded",
                         clientIp.ToString(),
-                        m_kBlockDurationMs);
+                        kBlockDurationMs);
                 }
 
                 // Remove clients that haven't had any potential problematic actions in the last m_kEntryExpirationMs interval
                 int elapsedSinceBadActionTicks = currentTicks - rClient.LastActionTicks;
-                if (elapsedSinceBadActionTicks > m_kEntryExpirationMs)
+                if (elapsedSinceBadActionTicks > kEntryExpirationMs)
                 {
                     // Even if TryRemove fails it will most probably succeed at the next execution
                     if (m_activeClients.TryRemove(clientIp, out _))
                     {
                         Utils.LogDebug("Active Client with IP {0} is not tracked any longer, hasn't had actions for more than {1} ms",
                             clientIp.ToString(),
-                            m_kEntryExpirationMs);
+                            kEntryExpirationMs);
                     }
                 }
             }
@@ -215,25 +208,22 @@ namespace Opc.Ua.Bindings
             return diff > 0;
         }
 
-        #endregion
-        #region Private members
-        private readonly ConcurrentDictionary<IPAddress, ActiveClient> m_activeClients = new ConcurrentDictionary<IPAddress, ActiveClient>();
+        private readonly ConcurrentDictionary<IPAddress, ActiveClient> m_activeClients = new();
 
-        private const int m_kActionsIntervalMs = 10_000;
-        private const int m_kNrActionsTillBlock = 3;
+        private const int kActionsIntervalMs = 10_000;
+        private const int kNrActionsTillBlock = 3;
 
         /// <summary>
         /// 30 seconds
         /// </summary>
-        private const int m_kBlockDurationMs = 30_000;
-        private const int m_kCleanupIntervalMs = 15_000;
+        private const int kBlockDurationMs = 30_000;
+        private const int kCleanupIntervalMs = 15_000;
         /// <summary>
         /// 10 minutes
         /// </summary>
-        private const int m_kEntryExpirationMs = 600_000;
+        private const int kEntryExpirationMs = 600_000;
 
         private readonly Timer m_cleanupTimer;
-        #endregion
     }
 
     /// <summary>
@@ -244,9 +234,8 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The limit of queued connections for the listener socket..
         /// </summary>
-        const int kSocketBacklog = 10;
+        private const int kSocketBacklog = 10;
 
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -286,7 +275,7 @@ namespace Opc.Ua.Bindings
 
                     if (m_channels != null)
                     {
-                        KeyValuePair<uint, TcpListenerChannel>[] channels = m_channels.ToArray();
+                        KeyValuePair<uint, TcpListenerChannel>[] channels = [.. m_channels];
                         m_channels.Clear();
                         m_channels = null;
                         foreach (KeyValuePair<uint, TcpListenerChannel> channelKeyValue in channels)
@@ -297,9 +286,7 @@ namespace Opc.Ua.Bindings
                 }
             }
         }
-        #endregion
 
-        #region ITransportListener Members
         /// <summary>
         /// The URI scheme handled by the listener.
         /// </summary>
@@ -400,9 +387,7 @@ namespace Opc.Ua.Bindings
                 // ignore errors for calls with invalid channel id
             }
         }
-        #endregion
 
-        #region ITcpChannelListener
         /// <summary>
         /// Gets the URL for the listener's endpoint.
         /// </summary>
@@ -522,9 +507,7 @@ namespace Opc.Ua.Bindings
                 Utils.SilentDispose(channel);
             }
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Starts listening at the specified port.
         /// </summary>
@@ -726,9 +709,7 @@ namespace Opc.Ua.Bindings
                 }
             }
         }
-        #endregion
 
-        #region Internal
         /// <summary>
         /// Mark a remote endpoint as potential problematic
         /// </summary>
@@ -738,9 +719,7 @@ namespace Opc.Ua.Bindings
             Utils.LogDebug("MarkClientAsPotentialProblematic address: {0} ", remoteEndpoint.ToString());
             m_activeClientTracker?.AddClientAction(remoteEndpoint);
         }
-        #endregion
 
-        #region Socket Event Handler
         /// <summary>
         /// Handles a new connection.
         /// </summary>
@@ -785,10 +764,10 @@ namespace Opc.Ua.Bindings
                         // before reaching m_maxChannelCount
                         if (m_maxChannelCount > 0 && m_maxChannelCount == channelCount)
                         {
-                            KeyValuePair<uint, TcpListenerChannel>[] snapshot = channels.ToArray();
+                            KeyValuePair<uint, TcpListenerChannel>[] snapshot = [.. channels];
 
                             // Identify channels without established sessions
-                            KeyValuePair<uint, TcpListenerChannel>[] nonSessionChannels = snapshot.Where(ch => !ch.Value.UsedBySession).ToArray();
+                            KeyValuePair<uint, TcpListenerChannel>[] nonSessionChannels = [.. snapshot.Where(ch => !ch.Value.UsedBySession)];
 
                             if (nonSessionChannels.Length != 0)
                             {
@@ -927,16 +906,12 @@ namespace Opc.Ua.Bindings
                 Utils.LogInfo("TCPLISTENER: {0} channels finished IdleCleanup.", channels.Count);
             }
         }
-        #endregion
 
-        #region Public Fields
         /// <summary>
         /// The maximum number of secure channels
         /// </summary>
         public int MaxChannelCount => m_maxChannelCount;
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Handles requests arriving from a channel.
         /// </summary>
@@ -1065,10 +1040,8 @@ namespace Opc.Ua.Bindings
             // wraps at Int32.MaxValue back to 1
             return (uint)Utils.IncrementIdentifier(ref m_lastChannelId);
         }
-        #endregion
 
-        #region Private Fields
-        private readonly object m_lock = new object();
+        private readonly object m_lock = new();
         private string m_listenerId;
         private Uri m_uri;
         private EndpointDescriptionCollection m_descriptions;
@@ -1086,7 +1059,6 @@ namespace Opc.Ua.Bindings
         private int m_maxChannelCount;
 
         private ActiveClientTracker m_activeClientTracker;
-        #endregion
     }
 
     /// <summary>

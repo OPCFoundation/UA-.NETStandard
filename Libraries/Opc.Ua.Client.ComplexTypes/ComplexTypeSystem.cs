@@ -51,8 +51,10 @@ namespace Opc.Ua.Client.ComplexTypes
     /// </remarks>
     public class ComplexTypeSystem
     {
-        // an internal limit to prevent the retry
-        // datatype loader mechanism to loop forever
+        /// <summary>
+        /// an internal limit to prevent the retry
+        /// datatype loader mechanism to loop forever
+        /// </summary>
         internal const int MaxLoopCount = 100;
 
         /// <summary>
@@ -60,7 +62,6 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         public NodeIdDictionary<DataDictionary> DataTypeSystem => m_complexTypeResolver.DataTypeSystem;
 
-        #region Constructors
         /// <summary>
         /// Initializes the type system with a session to load the custom types.
         /// </summary>
@@ -105,9 +106,7 @@ namespace Opc.Ua.Client.ComplexTypes
             m_complexTypeResolver = complexTypeResolver;
             m_complexTypeBuilderFactory = complexTypeBuilderFactory;
         }
-        #endregion Constructors
 
-        #region Public Members
         /// <summary>
         /// Load a single custom type with subtypes.
         /// </summary>
@@ -329,9 +328,7 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             m_dataTypeDefinitionCache.Clear();
         }
-        #endregion Public Members
 
-        #region Internal Properties
         /// <summary>
         /// Disable the use of DataTypeDefinition to create the complex type definition.
         /// </summary>
@@ -341,9 +338,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Disable the use of DataType Dictionaries to create the complex type definition.
         /// </summary>
         internal bool DisableDataTypeDictionary { get; set; } = false;
-        #endregion Internal Properties
 
-        #region Private Members
         /// <summary>
         /// Load listed custom types from dictionaries
         /// into the sessions system type factory.
@@ -767,7 +762,6 @@ namespace Opc.Ua.Client.ComplexTypes
                 {
                     break;
                 }
-
             } while (retryAddStructType);
 
             // all types loaded
@@ -1134,11 +1128,11 @@ namespace Opc.Ua.Client.ComplexTypes
 
             if (field.ValueRank == ValueRanks.OneDimension)
             {
-                fieldType = fieldType.MakeArrayType();
+                return fieldType.MakeArrayType();
             }
             else if (field.ValueRank >= ValueRanks.TwoDimensions)
             {
-                fieldType = fieldType.MakeArrayType(field.ValueRank);
+                return fieldType.MakeArrayType(field.ValueRank);
             }
 
             return fieldType;
@@ -1247,9 +1241,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
             }
         }
-        #endregion Private Members
 
-        #region Private Fields
         private IComplexTypeResolver m_complexTypeResolver;
         private IComplexTypeFactory m_complexTypeBuilderFactory;
         private readonly NodeIdDictionary<DataTypeDefinition> m_dataTypeDefinitionCache = [];
@@ -1258,6 +1250,5 @@ namespace Opc.Ua.Client.ComplexTypes
             BrowseNames.DefaultXml,
             BrowseNames.DefaultJson
         ];
-        #endregion Private Fields
     }
 }//namespace

@@ -29,39 +29,37 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using Opc.Ua.PubSub.Encoding;
-using System.Linq;
 
 namespace Opc.Ua.PubSub.Transport
 {
     /// <summary>
-    /// Class responsible to manage the UDP Discovery Request/Response messages for a <see cref="UdpPubSubConnection"/> entity as a publisher. 
+    /// Class responsible to manage the UDP Discovery Request/Response messages for a <see cref="UdpPubSubConnection"/> entity as a publisher.
     /// </summary>
     internal class UdpDiscoveryPublisher : UdpDiscovery
     {
-        #region Private fields 
-        // Minimum response interval
+        /// <summary>
+        /// Minimum response interval
+        /// </summary>
         private const int kMinimumResponseInterval = 500;
 
-        // The list that will store the WriterIds that shall be set as DataSetMetaData Response message
+        /// <summary>
+        /// The list that will store the WriterIds that shall be set as DataSetMetaData Response message
+        /// </summary>
         private readonly List<ushort> m_metadataWriterIdsToSend;
-        #endregion
 
-        #region Constructor
         /// <summary>
         /// Create new instance of <see cref="UdpDiscoveryPublisher"/>
         /// </summary>
         /// <param name="udpConnection"></param>
         public UdpDiscoveryPublisher(UdpPubSubConnection udpConnection) : base(udpConnection)
         {
-            m_metadataWriterIdsToSend = new List<ushort>();
+            m_metadataWriterIdsToSend = [];
         }
-        #endregion
-
-        #region Public Methods
 
         /// <summary>
         /// Implementation of StartAsync for the Publisher Discovery
@@ -89,9 +87,7 @@ namespace Opc.Ua.PubSub.Transport
                 }
             }
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Handle Receive event for an UADP channel on Discovery channel
         /// </summary>
@@ -99,9 +95,7 @@ namespace Opc.Ua.PubSub.Transport
         private void OnUadpDiscoveryReceive(IAsyncResult result)
         {
             // this is what had been passed into BeginReceive as the second parameter:
-            var socket = result.AsyncState as UdpClient;
-
-            if (socket == null)
+            if (!(result.AsyncState is UdpClient socket))
             {
                 return;
             }
@@ -120,9 +114,7 @@ namespace Opc.Ua.PubSub.Transport
                     if (message.Length > 1)
                     {
                         // call on a new thread
-                        Task.Run(() => {
-                            ProcessReceivedMessageDiscovery(message, source);
-                        });
+                        Task.Run(() => ProcessReceivedMessageDiscovery(message, source));
                     }
                 }
             }
@@ -148,7 +140,7 @@ namespace Opc.Ua.PubSub.Transport
         }
 
         /// <summary>
-        /// Process the bytes received from UADP discovery channel 
+        /// Process the bytes received from UADP discovery channel
         /// </summary>
         private void ProcessReceivedMessageDiscovery(byte[] messageBytes, IPEndPoint source)
         {
@@ -179,13 +171,11 @@ namespace Opc.Ua.PubSub.Transport
 
                 Task.Run(SendResponseDataSetMetaData).ConfigureAwait(false);
             }
-
             else if (networkMessage.UADPNetworkMessageType == UADPNetworkMessageType.DiscoveryRequest
                     && networkMessage.UADPDiscoveryType == UADPNetworkMessageDiscoveryType.PublisherEndpoint)
             {
                 Task.Run(SendResponsePublisherEndpoints).ConfigureAwait(false);
             }
-
             else if (networkMessage.UADPNetworkMessageType == UADPNetworkMessageType.DiscoveryRequest
                 && networkMessage.UADPDiscoveryType == UADPNetworkMessageDiscoveryType.DataSetWriterConfiguration
                 && networkMessage.DataSetWriterIds != null)
@@ -193,7 +183,6 @@ namespace Opc.Ua.PubSub.Transport
                 Task.Run(SendResponseDataSetWriterConfiguration).ConfigureAwait(false);
             }
         }
-
 
         /// <summary>
         /// Sends a DataSetMetaData discovery response message
@@ -205,9 +194,7 @@ namespace Opc.Ua.PubSub.Transport
             {
                 if (m_metadataWriterIdsToSend.Count > 0)
                 {
-                    IList<UaNetworkMessage> responseMessages = m_udpConnection.CreateDataSetMetaDataNetworkMessages(m_metadataWriterIdsToSend.ToArray());
-
-                    foreach (UaNetworkMessage message in responseMessages)
+                    foreach (UaNetworkMessage message in m_udpConnection.CreateDataSetMetaDataNetworkMessages([.. m_metadataWriterIdsToSend]))
                     {
                         Utils.Trace("UdpDiscoveryPublisher.SendResponseDataSetMetaData before sending message for DataSetWriterId:{0}", message.DataSetWriterId);
 
@@ -226,7 +213,7 @@ namespace Opc.Ua.PubSub.Transport
             await Task.Delay(kMinimumResponseInterval).ConfigureAwait(false);
             lock (m_lock)
             {
-                IList<ushort> dataSetWriterIdsToSend = new List<ushort>();
+                IList<ushort> dataSetWriterIdsToSend = [];
                 if (GetDataSetWriterIds != null)
                 {
                     dataSetWriterIdsToSend = GetDataSetWriterIds.Invoke(m_udpConnection.Application);
@@ -235,7 +222,7 @@ namespace Opc.Ua.PubSub.Transport
                 if (dataSetWriterIdsToSend.Count > 0)
                 {
                     IList<UaNetworkMessage> responsesMessages = m_udpConnection.CreateDataSetWriterCofigurationMessage(
-                        dataSetWriterIdsToSend.ToArray());
+                        [.. dataSetWriterIdsToSend]);
 
                     foreach (UaNetworkMessage responsesMessage in responsesMessages)
                     {
@@ -256,14 +243,14 @@ namespace Opc.Ua.PubSub.Transport
 
             lock (m_lock)
             {
-                IList<EndpointDescription> publisherEndpointsToSend = new List<EndpointDescription>();
+                IList<EndpointDescription> publisherEndpointsToSend = [];
                 if (GetPublisherEndpoints != null)
                 {
                     publisherEndpointsToSend = GetPublisherEndpoints.Invoke();
                 }
 
                 UaNetworkMessage message = m_udpConnection.CreatePublisherEndpointsNetworkMessage(
-                    publisherEndpointsToSend.ToArray(),
+                    [.. publisherEndpointsToSend],
                     publisherEndpointsToSend.Count > 0 ? StatusCodes.Good : StatusCodes.BadNotFound,
                     m_udpConnection.PubSubConnectionConfiguration.PublisherId.Value);
 
@@ -274,7 +261,7 @@ namespace Opc.Ua.PubSub.Transport
         }
 
         /// <summary>
-        /// Re initializes the socket 
+        /// Re initializes the socket
         /// </summary>
         /// <param name="socket">The socket which should be reinitialized</param>
         private void Renew(UdpClient socket)
@@ -303,12 +290,9 @@ namespace Opc.Ua.PubSub.Transport
                 newsocket.BeginReceive(OnUadpDiscoveryReceive, newsocket);
             }
         }
-        #endregion
-
-        #region Public Properties
 
         /// <summary>
-        /// The GetPublisherEndpoints event callback reference to store the EndpointDescription[] to be set as PublisherEndpoints Response message 
+        /// The GetPublisherEndpoints event callback reference to store the EndpointDescription[] to be set as PublisherEndpoints Response message
         /// </summary>
         public GetPublisherEndpointsEventHandler GetPublisherEndpoints { get; set; }
 
@@ -316,7 +300,5 @@ namespace Opc.Ua.PubSub.Transport
         ///  The GetDataSetWriterIds event callback reference to store the DataSetWriter ids to be set as PublisherEndpoints Response message
         /// </summary>
         public GetDataSetWriterIdsEventHandler GetDataSetWriterIds { get; set; }
-
-        #endregion
     }
 }

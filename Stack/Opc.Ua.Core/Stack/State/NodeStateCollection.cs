@@ -25,7 +25,6 @@ namespace Opc.Ua
     /// </summary>
     public partial class NodeStateCollection : List<NodeState>
     {
-        #region Constructors
         /// <summary>
         /// Initializes a new instance of the <see cref="NodeStateCollection"/> class.
         /// </summary>
@@ -51,9 +50,7 @@ namespace Opc.Ua
         public NodeStateCollection(IEnumerable<NodeState> collection) : base(collection)
         {
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Writes the collection to a stream using the NodeSet schema.
         /// </summary>
@@ -61,7 +58,7 @@ namespace Opc.Ua
         {
             var nodeTable = new NodeTable(context.NamespaceUris, context.ServerUris, null);
 
-            for (int ii = 0; ii < this.Count; ii++)
+            for (int ii = 0; ii < Count; ii++)
             {
                 this[ii].Export(context, nodeTable);
             }
@@ -82,7 +79,6 @@ namespace Opc.Ua
             }
         }
 
-        #region Well-Known Aliases
         /// <summary>
         /// Stores a well known alias.
         /// </summary>
@@ -101,62 +97,61 @@ namespace Opc.Ua
         /// <summary>
         /// The list of aliases to use.
         /// </summary>
-        private readonly AliasToUse[] s_AliasesToUse = new AliasToUse[]
-        {
-            new AliasToUse(BrowseNames.Boolean, DataTypeIds.Boolean),
-            new AliasToUse(BrowseNames.SByte, DataTypeIds.SByte),
-            new AliasToUse(BrowseNames.Byte, DataTypeIds.Byte),
-            new AliasToUse(BrowseNames.Int16, DataTypeIds.Int16),
-            new AliasToUse(BrowseNames.UInt16, DataTypeIds.UInt16),
-            new AliasToUse(BrowseNames.Int32, DataTypeIds.Int32),
-            new AliasToUse(BrowseNames.UInt32, DataTypeIds.UInt32),
-            new AliasToUse(BrowseNames.Int64, DataTypeIds.Int64),
-            new AliasToUse(BrowseNames.UInt64, DataTypeIds.UInt64),
-            new AliasToUse(BrowseNames.Float, DataTypeIds.Float),
-            new AliasToUse(BrowseNames.Double, DataTypeIds.Double),
-            new AliasToUse(BrowseNames.DateTime, DataTypeIds.DateTime),
-            new AliasToUse(BrowseNames.String, DataTypeIds.String),
-            new AliasToUse(BrowseNames.ByteString, DataTypeIds.ByteString),
-            new AliasToUse(BrowseNames.Guid, DataTypeIds.Guid),
-            new AliasToUse(BrowseNames.XmlElement, DataTypeIds.XmlElement),
-            new AliasToUse(BrowseNames.NodeId, DataTypeIds.NodeId),
-            new AliasToUse(BrowseNames.ExpandedNodeId, DataTypeIds.ExpandedNodeId),
-            new AliasToUse(BrowseNames.QualifiedName, DataTypeIds.QualifiedName),
-            new AliasToUse(BrowseNames.LocalizedText, DataTypeIds.LocalizedText),
-            new AliasToUse(BrowseNames.StatusCode, DataTypeIds.StatusCode),
-            new AliasToUse(BrowseNames.Structure, DataTypeIds.Structure),
-            new AliasToUse(BrowseNames.Number, DataTypeIds.Number),
-            new AliasToUse(BrowseNames.Integer, DataTypeIds.Integer),
-            new AliasToUse(BrowseNames.UInteger, DataTypeIds.UInteger),
-            new AliasToUse(BrowseNames.HasComponent, ReferenceTypeIds.HasComponent),
-            new AliasToUse(BrowseNames.HasProperty, ReferenceTypeIds.HasProperty),
-            new AliasToUse(BrowseNames.Organizes, ReferenceTypeIds.Organizes),
-            new AliasToUse(BrowseNames.HasEventSource, ReferenceTypeIds.HasEventSource),
-            new AliasToUse(BrowseNames.HasNotifier, ReferenceTypeIds.HasNotifier),
-            new AliasToUse(BrowseNames.HasSubtype, ReferenceTypeIds.HasSubtype),
-            new AliasToUse(BrowseNames.HasTypeDefinition, ReferenceTypeIds.HasTypeDefinition),
-            new AliasToUse(BrowseNames.HasModellingRule, ReferenceTypeIds.HasModellingRule),
-            new AliasToUse(BrowseNames.HasEncoding, ReferenceTypeIds.HasEncoding),
-            new AliasToUse(BrowseNames.HasDescription, ReferenceTypeIds.HasDescription),
-            new AliasToUse(BrowseNames.HasCause, ReferenceTypeIds.HasCause),
-            new AliasToUse(BrowseNames.ToState, ReferenceTypeIds.ToState),
-            new AliasToUse(BrowseNames.FromState, ReferenceTypeIds.FromState),
-            new AliasToUse(BrowseNames.HasEffect, ReferenceTypeIds.HasEffect),
-            new AliasToUse(BrowseNames.HasTrueSubState, ReferenceTypeIds.HasTrueSubState),
-            new AliasToUse(BrowseNames.HasFalseSubState, ReferenceTypeIds.HasFalseSubState),
-            new AliasToUse(BrowseNames.HasDictionaryEntry, ReferenceTypeIds.HasDictionaryEntry),
-            new AliasToUse(BrowseNames.HasCondition, ReferenceTypeIds.HasCondition),
-            new AliasToUse(BrowseNames.HasGuard, ReferenceTypeIds.HasGuard),
-            new AliasToUse(BrowseNames.HasAddIn, ReferenceTypeIds.HasAddIn),
-            new AliasToUse(BrowseNames.HasInterface, ReferenceTypeIds.HasInterface),
-            new AliasToUse(BrowseNames.GeneratesEvent, ReferenceTypeIds.GeneratesEvent),
-            new AliasToUse(BrowseNames.AlwaysGeneratesEvent, ReferenceTypeIds.AlwaysGeneratesEvent),
-            new AliasToUse(BrowseNames.HasOrderedComponent, ReferenceTypeIds.HasOrderedComponent),
-            new AliasToUse(BrowseNames.HasAlarmSuppressionGroup, ReferenceTypeIds.HasAlarmSuppressionGroup),
-            new AliasToUse(BrowseNames.AlarmGroupMember, ReferenceTypeIds.AlarmGroupMember),
-            new AliasToUse(BrowseNames.AlarmSuppressionGroupMember, ReferenceTypeIds.AlarmSuppressionGroupMember)
-        };
-        #endregion
+        private static readonly AliasToUse[] s_AliasesToUse =
+        [
+            new(BrowseNames.Boolean, DataTypeIds.Boolean),
+            new(BrowseNames.SByte, DataTypeIds.SByte),
+            new(BrowseNames.Byte, DataTypeIds.Byte),
+            new(BrowseNames.Int16, DataTypeIds.Int16),
+            new(BrowseNames.UInt16, DataTypeIds.UInt16),
+            new(BrowseNames.Int32, DataTypeIds.Int32),
+            new(BrowseNames.UInt32, DataTypeIds.UInt32),
+            new(BrowseNames.Int64, DataTypeIds.Int64),
+            new(BrowseNames.UInt64, DataTypeIds.UInt64),
+            new(BrowseNames.Float, DataTypeIds.Float),
+            new(BrowseNames.Double, DataTypeIds.Double),
+            new(BrowseNames.DateTime, DataTypeIds.DateTime),
+            new(BrowseNames.String, DataTypeIds.String),
+            new(BrowseNames.ByteString, DataTypeIds.ByteString),
+            new(BrowseNames.Guid, DataTypeIds.Guid),
+            new(BrowseNames.XmlElement, DataTypeIds.XmlElement),
+            new(BrowseNames.NodeId, DataTypeIds.NodeId),
+            new(BrowseNames.ExpandedNodeId, DataTypeIds.ExpandedNodeId),
+            new(BrowseNames.QualifiedName, DataTypeIds.QualifiedName),
+            new(BrowseNames.LocalizedText, DataTypeIds.LocalizedText),
+            new(BrowseNames.StatusCode, DataTypeIds.StatusCode),
+            new(BrowseNames.Structure, DataTypeIds.Structure),
+            new(BrowseNames.Number, DataTypeIds.Number),
+            new(BrowseNames.Integer, DataTypeIds.Integer),
+            new(BrowseNames.UInteger, DataTypeIds.UInteger),
+            new(BrowseNames.HasComponent, ReferenceTypeIds.HasComponent),
+            new(BrowseNames.HasProperty, ReferenceTypeIds.HasProperty),
+            new(BrowseNames.Organizes, ReferenceTypeIds.Organizes),
+            new(BrowseNames.HasEventSource, ReferenceTypeIds.HasEventSource),
+            new(BrowseNames.HasNotifier, ReferenceTypeIds.HasNotifier),
+            new(BrowseNames.HasSubtype, ReferenceTypeIds.HasSubtype),
+            new(BrowseNames.HasTypeDefinition, ReferenceTypeIds.HasTypeDefinition),
+            new(BrowseNames.HasModellingRule, ReferenceTypeIds.HasModellingRule),
+            new(BrowseNames.HasEncoding, ReferenceTypeIds.HasEncoding),
+            new(BrowseNames.HasDescription, ReferenceTypeIds.HasDescription),
+            new(BrowseNames.HasCause, ReferenceTypeIds.HasCause),
+            new(BrowseNames.ToState, ReferenceTypeIds.ToState),
+            new(BrowseNames.FromState, ReferenceTypeIds.FromState),
+            new(BrowseNames.HasEffect, ReferenceTypeIds.HasEffect),
+            new(BrowseNames.HasTrueSubState, ReferenceTypeIds.HasTrueSubState),
+            new(BrowseNames.HasFalseSubState, ReferenceTypeIds.HasFalseSubState),
+            new(BrowseNames.HasDictionaryEntry, ReferenceTypeIds.HasDictionaryEntry),
+            new(BrowseNames.HasCondition, ReferenceTypeIds.HasCondition),
+            new(BrowseNames.HasGuard, ReferenceTypeIds.HasGuard),
+            new(BrowseNames.HasAddIn, ReferenceTypeIds.HasAddIn),
+            new(BrowseNames.HasInterface, ReferenceTypeIds.HasInterface),
+            new(BrowseNames.GeneratesEvent, ReferenceTypeIds.GeneratesEvent),
+            new(BrowseNames.AlwaysGeneratesEvent, ReferenceTypeIds.AlwaysGeneratesEvent),
+            new(BrowseNames.HasOrderedComponent, ReferenceTypeIds.HasOrderedComponent),
+            new(BrowseNames.HasAlarmSuppressionGroup, ReferenceTypeIds.HasAlarmSuppressionGroup),
+            new(BrowseNames.AlarmGroupMember, ReferenceTypeIds.AlarmGroupMember),
+            new(BrowseNames.AlarmSuppressionGroupMember, ReferenceTypeIds.AlarmSuppressionGroupMember)
+        ];
 
         /// <summary>
         /// Writes the collection to a stream using the Opc.Ua.Schema.UANodeSet schema.
@@ -171,7 +166,7 @@ namespace Opc.Ua
         /// </summary>
         public void SaveAsNodeSet2(ISystemContext context, Stream ostrm, string version)
         {
-            var nodeSet = new Opc.Ua.Export.UANodeSet();
+            var nodeSet = new Export.UANodeSet();
             nodeSet.LastModified = DateTime.UtcNow;
             nodeSet.LastModifiedSpecified = true;
 
@@ -180,7 +175,7 @@ namespace Opc.Ua
                 nodeSet.AddAlias(context, s_AliasesToUse[ii].Alias, s_AliasesToUse[ii].NodeId);
             }
 
-            for (int ii = 0; ii < this.Count; ii++)
+            for (int ii = 0; ii < Count; ii++)
             {
                 nodeSet.Export(context, this[ii], true);
             }
@@ -218,7 +213,7 @@ namespace Opc.Ua
                     encoder.SaveStringTable("NamespaceUris", "NamespaceUri", context.NamespaceUris);
                     encoder.SaveStringTable("ServerUris", "ServerUri", context.ServerUris);
 
-                    for (int ii = 0; ii < this.Count; ii++)
+                    for (int ii = 0; ii < Count; ii++)
                     {
                         NodeState state = this[ii];
 
@@ -249,9 +244,9 @@ namespace Opc.Ua
                 encoder.SaveStringTable(context.NamespaceUris);
                 encoder.SaveStringTable(context.ServerUris);
 
-                encoder.WriteInt32(null, this.Count);
+                encoder.WriteInt32(null, Count);
 
-                for (int ii = 0; ii < this.Count; ii++)
+                for (int ii = 0; ii < Count; ii++)
                 {
                     NodeState state = this[ii];
                     state.SaveAsBinary(context, encoder);
@@ -327,7 +322,7 @@ namespace Opc.Ua
                 for (int ii = 0; ii < count; ii++)
                 {
                     var state = NodeState.LoadNode(context, decoder);
-                    this.Add(state);
+                    Add(state);
                 }
             }
         }
@@ -393,7 +388,7 @@ namespace Opc.Ua
 
                 while (state != null)
                 {
-                    this.Add(state);
+                    Add(state);
 
                     state = NodeState.LoadNode(context, decoder);
                 }
@@ -469,7 +464,6 @@ namespace Opc.Ua
 
             LoadFromBinary(context, istrm, updateTables);
         }
-        #endregion
     }
 
     /// <summary>
@@ -574,7 +568,7 @@ namespace Opc.Ua
 
             if (m_types == null)
             {
-                m_types = new NodeIdDictionary<Type>();
+                m_types = [];
             }
 
             m_types[typeDefinitionId] = type;

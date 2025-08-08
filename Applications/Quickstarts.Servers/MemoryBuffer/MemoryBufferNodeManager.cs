@@ -29,16 +29,16 @@
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Diagnostics;
-using System.Xml;
-using System.IO;
-using System.Threading;
-using Opc.Ua;
-using Opc.Ua.Server;
-using Opc.Ua.Sample;
-using System.Reflection;
 using System.Globalization;
+using System.IO;
+using System.Reflection;
+using System.Text;
+using System.Threading;
+using System.Xml;
+using Opc.Ua;
+using Opc.Ua.Sample;
+using Opc.Ua.Server;
 
 namespace MemoryBuffer
 {
@@ -50,20 +50,14 @@ namespace MemoryBuffer
         /// <inheritdoc/>
         public INodeManager Create(IServerInternal server, ApplicationConfiguration configuration)
         {
-            return new MemoryBufferNodeManager(server, configuration, NamespacesUris.ToArray());
+            return new MemoryBufferNodeManager(server, configuration, [.. NamespacesUris]);
         }
 
         /// <inheritdoc/>
-        public StringCollection NamespacesUris
-        {
-            get
-            {
-                return new StringCollection {
+        public StringCollection NamespacesUris => [
                     Namespaces.MemoryBuffer,
                     Namespaces.MemoryBuffer + "/Instance"
-                };
-            }
-        }
+                ];
     }
 
     /// <summary>
@@ -71,7 +65,6 @@ namespace MemoryBuffer
     /// </summary>
     public class MemoryBufferNodeManager : SampleNodeManager
     {
-        #region Constructors
         /// <summary>
         /// Initializes the node manager.
         /// </summary>
@@ -88,11 +81,9 @@ namespace MemoryBuffer
 
             // use suitable defaults if no configuration exists.
 
-            m_buffers = new Dictionary<string, MemoryBufferState>();
+            m_buffers = [];
         }
-        #endregion
 
-        #region INodeManager Members
         /// <summary>
         /// Does any initialization required before the address space can be used.
         /// </summary>
@@ -153,7 +144,7 @@ namespace MemoryBuffer
         protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
         {
             var predefinedNodes = new NodeStateCollection();
-            predefinedNodes.LoadFromBinaryResource(context, "Quickstarts.Servers.MemoryBuffer.MemoryBuffer.PredefinedNodes.uanodes", this.GetType().GetTypeInfo().Assembly, true);
+            predefinedNodes.LoadFromBinaryResource(context, "Quickstarts.Servers.MemoryBuffer.MemoryBuffer.PredefinedNodes.uanodes", GetType().GetTypeInfo().Assembly, true);
             return predefinedNodes;
         }
 
@@ -557,11 +548,8 @@ namespace MemoryBuffer
 
             return ServiceResult.Good;
         }
-        #endregion
 
-        #region Private Fields
         private readonly MemoryBufferConfiguration m_configuration;
         private readonly Dictionary<string, MemoryBufferState> m_buffers;
-        #endregion
     }
 }

@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -29,7 +29,6 @@
 
 using System;
 using System.Buffers;
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
 namespace Opc.Ua.Buffers
@@ -40,22 +39,22 @@ namespace Opc.Ua.Buffers
     /// </summary>
     public sealed class ArrayPoolBufferWriter<T> : IBufferWriter<T>, IDisposable
     {
-        private const int DefaultChunkSize = 256;
-        private const int MaxChunkSize = 65536;
-        private readonly bool _clearArray;
-        private int _chunkSize;
-        private readonly int _maxChunkSize;
-        private T[] _currentBuffer;
-        private ArrayPoolBufferSegment<T> _firstSegment;
-        private ArrayPoolBufferSegment<T> _nextSegment;
-        private int _offset;
-        private bool _disposed;
+        private const int kDefaultChunkSize = 256;
+        private const int kMaxChunkSize = 65536;
+        private readonly bool m_clearArray;
+        private int m_chunkSize;
+        private readonly int m_maxChunkSize;
+        private T[] m_currentBuffer;
+        private ArrayPoolBufferSegment<T> m_firstSegment;
+        private ArrayPoolBufferSegment<T> m_nextSegment;
+        private int m_offset;
+        private bool m_disposed;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ArrayPoolBufferWriter{T}"/> class.
         /// </summary>
         public ArrayPoolBufferWriter()
-            : this(false, DefaultChunkSize, MaxChunkSize)
+            : this(false, kDefaultChunkSize, kMaxChunkSize)
         {
         }
 
@@ -72,36 +71,36 @@ namespace Opc.Ua.Buffers
         /// </summary>
         public ArrayPoolBufferWriter(bool clearArray, int defaultChunksize, int maxChunkSize)
         {
-            _firstSegment = _nextSegment = null;
-            _offset = 0;
-            _clearArray = clearArray;
-            _chunkSize = defaultChunksize;
-            _maxChunkSize = maxChunkSize;
-            _currentBuffer = Array.Empty<T>();
-            _disposed = false;
+            m_firstSegment = m_nextSegment = null;
+            m_offset = 0;
+            m_clearArray = clearArray;
+            m_chunkSize = defaultChunksize;
+            m_maxChunkSize = maxChunkSize;
+            m_currentBuffer = [];
+            m_disposed = false;
         }
 
         /// <inheritdoc/>
         public void Dispose()
         {
-            if (_firstSegment != null)
+            if (m_firstSegment != null)
             {
-                ArrayPoolBufferSegment<T> segment = _firstSegment;
+                ArrayPoolBufferSegment<T> segment = m_firstSegment;
                 while (segment != null)
                 {
-                    segment.Return(_clearArray);
+                    segment.Return(m_clearArray);
                     segment = (ArrayPoolBufferSegment<T>)segment.Next;
                 }
 
-                _firstSegment = _nextSegment = null;
+                m_firstSegment = m_nextSegment = null;
             }
-            _disposed = true;
+            m_disposed = true;
         }
 
         /// <inheritdoc/>
         public void Advance(int count)
         {
-            if (_disposed)
+            if (m_disposed)
             {
                 throw new ObjectDisposedException(nameof(ArrayPoolBufferWriter<T>));
             }
@@ -111,12 +110,12 @@ namespace Opc.Ua.Buffers
                 throw new ArgumentOutOfRangeException(nameof(count), $"{nameof(count)} must be non-negative.");
             }
 
-            if (_offset + count > _currentBuffer.Length)
+            if (m_offset + count > m_currentBuffer.Length)
             {
-                throw new InvalidOperationException($"Cannot advance past the end of the buffer, which has a size of {_currentBuffer.Length}.");
+                throw new InvalidOperationException($"Cannot advance past the end of the buffer, which has a size of {m_currentBuffer.Length}.");
             }
 
-            _offset += count;
+            m_offset += count;
         }
 
         /// <inheritdoc/>
@@ -128,7 +127,7 @@ namespace Opc.Ua.Buffers
             }
 
             int remainingSpace = CheckAndAllocateBuffer(sizeHint);
-            return _currentBuffer.AsMemory(_offset, remainingSpace);
+            return m_currentBuffer.AsMemory(m_offset, remainingSpace);
         }
 
         /// <inheritdoc/>
@@ -140,7 +139,7 @@ namespace Opc.Ua.Buffers
             }
 
             int remainingSpace = CheckAndAllocateBuffer(sizeHint);
-            return _currentBuffer.AsSpan(_offset, remainingSpace);
+            return m_currentBuffer.AsSpan(m_offset, remainingSpace);
         }
 
         /// <summary>
@@ -150,64 +149,64 @@ namespace Opc.Ua.Buffers
         /// </summary>
         public ReadOnlySequence<T> GetReadOnlySequence()
         {
-            if (_disposed)
+            if (m_disposed)
             {
                 throw new ObjectDisposedException(nameof(ArrayPoolBufferWriter<T>));
             }
 
             AddSegment();
 
-            if (_firstSegment == null || _nextSegment == null)
+            if (m_firstSegment == null || m_nextSegment == null)
             {
                 return ReadOnlySequence<T>.Empty;
             }
 
-            return new ReadOnlySequence<T>(_firstSegment, 0, _nextSegment, _nextSegment.Memory.Length);
+            return new ReadOnlySequence<T>(m_firstSegment, 0, m_nextSegment, m_nextSegment.Memory.Length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void AddSegment()
         {
-            if (_offset > 0)
+            if (m_offset > 0)
             {
-                if (_firstSegment == null)
+                if (m_firstSegment == null)
                 {
-                    _firstSegment = _nextSegment = new ArrayPoolBufferSegment<T>(_currentBuffer, 0, _offset);
+                    m_firstSegment = m_nextSegment = new ArrayPoolBufferSegment<T>(m_currentBuffer, 0, m_offset);
                 }
                 else
                 {
-                    _nextSegment = _nextSegment.Append(_currentBuffer, 0, _offset);
+                    m_nextSegment = m_nextSegment.Append(m_currentBuffer, 0, m_offset);
                 }
             }
-            else if (_currentBuffer.Length > 0)
+            else if (m_currentBuffer.Length > 0)
             {
-                ArrayPool<T>.Shared.Return(_currentBuffer, _clearArray);
+                ArrayPool<T>.Shared.Return(m_currentBuffer, m_clearArray);
             }
 
-            _offset = 0;
-            _currentBuffer = Array.Empty<T>();
+            m_offset = 0;
+            m_currentBuffer = [];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int CheckAndAllocateBuffer(int sizeHint)
         {
-            if (_disposed)
+            if (m_disposed)
             {
                 throw new ObjectDisposedException(nameof(ArrayPoolBufferWriter<T>));
             }
 
-            int remainingSpace = _currentBuffer.Length - _offset;
+            int remainingSpace = m_currentBuffer.Length - m_offset;
             if (remainingSpace < sizeHint || sizeHint == 0)
             {
                 AddSegment();
 
-                remainingSpace = Math.Max(sizeHint, _chunkSize);
-                _currentBuffer = ArrayPool<T>.Shared.Rent(remainingSpace);
-                _offset = 0;
+                remainingSpace = Math.Max(sizeHint, m_chunkSize);
+                m_currentBuffer = ArrayPool<T>.Shared.Rent(remainingSpace);
+                m_offset = 0;
 
-                if (_chunkSize < _maxChunkSize)
+                if (m_chunkSize < m_maxChunkSize)
                 {
-                    _chunkSize *= 2;
+                    m_chunkSize *= 2;
                 }
             }
 

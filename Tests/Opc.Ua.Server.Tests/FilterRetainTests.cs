@@ -31,11 +31,11 @@ namespace Opc.Ua.Server.Tests
         private SystemContext m_systemContext;
         private FilterContext m_filterContext;
 
-        private readonly LocalizedText InService = new LocalizedText("en", "In Service");
-        private readonly LocalizedText OutOfService = new LocalizedText("en", "Out of Service");
-        private readonly LocalizedText Unsuppressed = new LocalizedText("en-US", "Unsuppressed");
+        internal static readonly LocalizedText InService = new("en", "In Service");
+        internal static readonly LocalizedText OutOfService = new("en", "Out of Service");
+        internal static readonly LocalizedText Unsuppressed = new("en-US", "Unsuppressed");
 
-        private readonly LocalizedText Active = new LocalizedText("en-US", "Active");
+        internal static readonly LocalizedText Active = new("en-US", "Active");
 
         [Test]
         [TestCase(false, Description = "Should not pass filter")]
@@ -209,7 +209,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         [TestCase(false, Description = "Should not pass filter")]
         [TestCase(true, Description = "Should pass filter")]
-        public void SpecB14( bool supportsFilteredRetain )
+        public void SpecB14(bool supportsFilteredRetain)
         {
             // https://reference.opcfoundation.org/Core/Part9/v105/docs/B.1.4
 
@@ -223,7 +223,7 @@ namespace Opc.Ua.Server.Tests
 
             FilterContext filterContext = GetFilterContext();
             var filter = new EventFilter();
-            filter.SelectClauses = FilterRetainTests.GetSelectFields();
+            filter.SelectClauses = GetSelectFields();
             filter.WhereClause = GetStateFilter();
             filter.Validate(filterContext);
 
@@ -241,7 +241,7 @@ namespace Opc.Ua.Server.Tests
             // 2 Placed Out of Service
             Debug.WriteLine("// 2 Placed Out of Service");
             alarm.OutOfServiceState.Value = OutOfService;
-            if ( !supportsFilteredRetain )
+            if (!supportsFilteredRetain)
             {
                 expected = false;
             }
@@ -280,7 +280,7 @@ namespace Opc.Ua.Server.Tests
             Debug.WriteLine("// 8 Alarm goes inactive");
             alarm.SetLimitState(systemContext, LimitAlarmStates.Inactive);
             alarm.Retain.Value = false;
-            if ( !supportsFilteredRetain )
+            if (!supportsFilteredRetain)
             {
                 expected = false;
             }
@@ -347,7 +347,7 @@ namespace Opc.Ua.Server.Tests
             const BindingFlags eFlags = BindingFlags.Instance | BindingFlags.NonPublic;
             MethodInfo methodInfo = typeof(MonitoredItem).GetMethod("CanSendFilteredAlarm", eFlags);
             Debug.WriteLine("Expecting " + expected.ToString());
-            object result = methodInfo.Invoke(monitoredItem, new object[] { context, filter, eventSnapshot });
+            object result = methodInfo.Invoke(monitoredItem, [context, filter, eventSnapshot]);
 
             Assert.That(result, Is.Not.Null);
             Assert.That(result.GetType().Name, Is.EqualTo("Boolean"));
@@ -382,14 +382,14 @@ namespace Opc.Ua.Server.Tests
 
             var desiredEventFields = new Dictionary<int, QualifiedNameCollection>();
             int eventIndexCounter = 0;
-            desiredEventFields.Add(eventIndexCounter++, new QualifiedNameCollection(new QualifiedName[] { BrowseNames.EventId }));
-            desiredEventFields.Add(eventIndexCounter++, new QualifiedNameCollection(new QualifiedName[] { BrowseNames.EventType }));
-            desiredEventFields.Add(eventIndexCounter++, new QualifiedNameCollection(new QualifiedName[] { BrowseNames.Time }));
-            desiredEventFields.Add(eventIndexCounter++, new QualifiedNameCollection(new QualifiedName[] { BrowseNames.ActiveState }));
-            desiredEventFields.Add(eventIndexCounter++, new QualifiedNameCollection(new QualifiedName[] { BrowseNames.Message }));
-            desiredEventFields.Add(eventIndexCounter++, new QualifiedNameCollection(new QualifiedName[] { BrowseNames.LimitState, BrowseNames.CurrentState }));
-            desiredEventFields.Add(eventIndexCounter++, new QualifiedNameCollection(new QualifiedName[] { BrowseNames.LimitState, BrowseNames.CurrentState, BrowseNames.Id }));
-            desiredEventFields.Add(eventIndexCounter++, new QualifiedNameCollection(new QualifiedName[] { BrowseNames.LimitState, BrowseNames.LastTransition }));
+            desiredEventFields.Add(eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.EventId }]);
+            desiredEventFields.Add(eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.EventType }]);
+            desiredEventFields.Add(eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.Time }]);
+            desiredEventFields.Add(eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.ActiveState }]);
+            desiredEventFields.Add(eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.Message }]);
+            desiredEventFields.Add(eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.LimitState, BrowseNames.CurrentState }]);
+            desiredEventFields.Add(eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.LimitState, BrowseNames.CurrentState, BrowseNames.Id }]);
+            desiredEventFields.Add(eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.LimitState, BrowseNames.LastTransition }]);
 
             foreach (QualifiedNameCollection desiredEventField in desiredEventFields.Values)
             {
@@ -414,8 +414,8 @@ namespace Opc.Ua.Server.Tests
             var filter = new EventFilter();
             if (addClauses)
             {
-                filter.SelectClauses = FilterRetainTests.GetSelectFields();
-                filter.WhereClause = FilterRetainTests.GetHighOnlyFilter();
+                filter.SelectClauses = GetSelectFields();
+                filter.WhereClause = GetHighOnlyFilter();
             }
             filter.Validate(GetFilterContext());
             return filter;
@@ -428,14 +428,14 @@ namespace Opc.Ua.Server.Tests
             var eventLevel = new SimpleAttributeOperand() {
                 AttributeId = Attributes.Value,
                 TypeDefinitionId = ObjectTypeIds.ExclusiveLevelAlarmType,
-                BrowsePath = new QualifiedNameCollection(new QualifiedName[] {
+                BrowsePath = [.. new QualifiedName[] {
                     BrowseNames.LimitState,
                     BrowseNames.CurrentState,
-                    BrowseNames.Id })
+                    BrowseNames.Id }]
             };
 
             var desiredEventLevel = new LiteralOperand();
-            desiredEventLevel.Value = new Variant(new NodeId(Opc.Ua.Objects.ExclusiveLimitStateMachineType_High));
+            desiredEventLevel.Value = new Variant(new NodeId(Objects.ExclusiveLimitStateMachineType_High));
 
             whereClause.Push(FilterOperator.Equals, new FilterOperand[] { eventLevel, desiredEventLevel });
 
@@ -446,13 +446,11 @@ namespace Opc.Ua.Server.Tests
         {
             var whereClause = new ContentFilter();
 
-            #region OutofServerState Index 2
-
             var notOutOfServiceState = new SimpleAttributeOperand() {
                 AttributeId = Attributes.Value,
                 TypeDefinitionId = null,
-                BrowsePath = new QualifiedNameCollection(new QualifiedName[] {
-                    BrowseNames.OutOfServiceState })
+                BrowsePath = [.. new QualifiedName[] {
+                    BrowseNames.OutOfServiceState }]
             };
 
             var desiredOutOfServiceValue = new LiteralOperand();
@@ -462,15 +460,11 @@ namespace Opc.Ua.Server.Tests
                 notOutOfServiceState,
                 desiredOutOfServiceValue });
 
-            #endregion
-
-            #region SuppressedState Index 1
-
             var notSuppressed = new SimpleAttributeOperand() {
                 AttributeId = Attributes.Value,
                 TypeDefinitionId = null,
-                BrowsePath = new QualifiedNameCollection(new QualifiedName[] {
-                    BrowseNames.SuppressedState })
+                BrowsePath = [.. new QualifiedName[] {
+                    BrowseNames.SuppressedState }]
             };
 
             var desiredSuppressedValue = new LiteralOperand();
@@ -480,19 +474,13 @@ namespace Opc.Ua.Server.Tests
                 notSuppressed,
                 desiredSuppressedValue });
 
-            #endregion
-
 #if AddActiveState
-
-            #region Add Active State
-
-            #region Active Index 0
 
             var activeState = new SimpleAttributeOperand() {
                 AttributeId = Attributes.Value,
                 TypeDefinitionId = null,
-                BrowsePath = new QualifiedNameCollection(new QualifiedName[] {
-                    BrowseNames.ActiveState })
+                BrowsePath = [.. new QualifiedName[] {
+                    BrowseNames.ActiveState }]
             };
 
             var activeValue = new LiteralOperand();
@@ -502,18 +490,15 @@ namespace Opc.Ua.Server.Tests
                 activeState,
                 activeValue });
 
-            #endregion
-
             whereClause.Push(FilterOperator.And, new ElementOperand[] {
-                new ElementOperand(1),
-                new ElementOperand(2) });
+                new(1),
+                new(2) });
 
-            #endregion
 #endif
 
             whereClause.Push(FilterOperator.And, new ElementOperand[] {
-                new ElementOperand(0),
-                new ElementOperand(1) });
+                new(0),
+                new(1) });
 
             return whereClause;
         }
@@ -524,7 +509,7 @@ namespace Opc.Ua.Server.Tests
             {
                 m_systemContext = new SystemContext();
                 m_systemContext.NamespaceUris = new NamespaceTable();
-                m_systemContext.NamespaceUris.Append(Opc.Ua.Namespaces.OpcUa);
+                m_systemContext.NamespaceUris.Append(Namespaces.OpcUa);
                 var typeTable = new TypeTable(m_systemContext.NamespaceUris);
                 typeTable.AddSubtype(ObjectTypeIds.BaseObjectType, null);
                 typeTable.AddSubtype(ObjectTypeIds.BaseEventType, ObjectTypeIds.BaseObjectType);

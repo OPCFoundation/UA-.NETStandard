@@ -39,7 +39,6 @@ namespace Opc.Ua.PubSub.Encoding
     /// </summary>
     public class JsonNetworkMessage : UaNetworkMessage
     {
-        #region Fields
         private const string kDataSetMessageType = "ua-data";
         private const string kMetaDataMessageType = "ua-metadata";
         private const string kFieldMessages = "Messages";
@@ -47,13 +46,11 @@ namespace Opc.Ua.PubSub.Encoding
         private const string kFieldReplyTo = "ReplyTo";
 
         private JSONNetworkMessageType m_jsonNetworkMessageType;
-        #endregion
 
-        #region Constructor
         /// <summary>
         /// Create new instance of <see cref="JsonNetworkMessage"/>
         /// </summary>
-        public JsonNetworkMessage() : this(null, new List<JsonDataSetMessage>())
+        public JsonNetworkMessage() : this(null, [])
         {
         }
 
@@ -63,7 +60,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="writerGroupConfiguration">The <see cref="WriterGroupDataType"/> configuration object that produced this message.</param>
         /// <param name="jsonDataSetMessages"><see cref="JsonDataSetMessage"/> list as input</param>
         public JsonNetworkMessage(WriterGroupDataType writerGroupConfiguration, List<JsonDataSetMessage> jsonDataSetMessages)
-            : base(writerGroupConfiguration, jsonDataSetMessages?.ConvertAll<UaDataSetMessage>(x => x) ?? new List<UaDataSetMessage>())
+            : base(writerGroupConfiguration, jsonDataSetMessages?.ConvertAll<UaDataSetMessage>(x => x) ?? [])
         {
             MessageId = Guid.NewGuid().ToString();
             MessageType = kDataSetMessageType;
@@ -84,9 +81,7 @@ namespace Opc.Ua.PubSub.Encoding
 
             m_jsonNetworkMessageType = JSONNetworkMessageType.DataSetMetaData;
         }
-        #endregion
 
-        #region Properties
         /// <summary>
         /// NetworkMessageContentMask contains the mask that will be used to check NetworkMessage options selected for usage
         /// </summary>
@@ -95,37 +90,18 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Get flag that indicates if message has network message header
         /// </summary>
-        public bool HasNetworkMessageHeader
-        {
-            get
-            {
-                return (NetworkMessageContentMask & JsonNetworkMessageContentMask.NetworkMessageHeader) != 0;
-            }
-        }
+        public bool HasNetworkMessageHeader => (NetworkMessageContentMask & JsonNetworkMessageContentMask.NetworkMessageHeader) != 0;
 
         /// <summary>
         /// Flag that indicates if the Network message contains a single dataset message
         /// </summary>
-        public bool HasSingleDataSetMessage
-        {
-            get
-            {
-                return (NetworkMessageContentMask & JsonNetworkMessageContentMask.SingleDataSetMessage) != 0;
-            }
-        }
+        public bool HasSingleDataSetMessage => (NetworkMessageContentMask & JsonNetworkMessageContentMask.SingleDataSetMessage) != 0;
 
         /// <summary>
         /// Flag that indicates if the Network message dataSets have header
         /// </summary>
-        public bool HasDataSetMessageHeader
-        {
-            get
-            {
-                return (NetworkMessageContentMask & JsonNetworkMessageContentMask.DataSetMessageHeader) != 0;
-            }
-        }
+        public bool HasDataSetMessageHeader => (NetworkMessageContentMask & JsonNetworkMessageContentMask.DataSetMessageHeader) != 0;
 
-        #region NetworkMessage Header
         /// <summary>
         /// A globally unique identifier for the message.
         /// This value is mandatory.
@@ -152,12 +128,6 @@ namespace Opc.Ua.PubSub.Encoding
         /// Get and Set ReplyTo
         /// </summary>
         public string ReplyTo { get; set; }
-
-        #endregion
-
-        #endregion
-
-        #region Public Methods
 
         /// <summary>
         /// Set network message content mask
@@ -195,7 +165,7 @@ namespace Opc.Ua.PubSub.Encoding
         {
             bool topLevelIsArray = !HasNetworkMessageHeader && !HasSingleDataSetMessage && !IsMetaDataMessage;
 
-            using (IJsonEncoder encoder = new JsonEncoder(messageContext, true, topLevelIsArray, stream))
+            using (var encoder = new JsonEncoder(messageContext, true, topLevelIsArray, stream))
             {
                 if (IsMetaDataMessage)
                 {
@@ -260,7 +230,7 @@ namespace Opc.Ua.PubSub.Encoding
         {
             string json = System.Text.Encoding.UTF8.GetString(message);
 
-            using (IJsonDecoder jsonDecoder = new JsonDecoder(json, context))
+            using (var  jsonDecoder = new JsonDecoder(json, context))
             {
                 // 1. decode network message header (PublisherId & DataSetClassId)
                 DecodeNetworkMessageHeader(jsonDecoder);
@@ -277,10 +247,6 @@ namespace Opc.Ua.PubSub.Encoding
             }
         }
 
-
-        #endregion
-
-        #region Private Methods - Encoding
         /// <summary>
         /// Encodes the object in a binary stream.
         /// </summary>
@@ -288,7 +254,7 @@ namespace Opc.Ua.PubSub.Encoding
         {
             if (jsonEncoder == null)
             {
-                throw new ArgumentException(nameof(jsonEncoder));
+                throw new ArgumentException(null, nameof(jsonEncoder));
             }
 
             if (HasNetworkMessageHeader)
@@ -314,16 +280,13 @@ namespace Opc.Ua.PubSub.Encoding
                     jsonEncoder.WriteString(nameof(PublisherId), PublisherId);
                 }
 
-                if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.DataSetClassId) != 0)
+                if ((NetworkMessageContentMask & JsonNetworkMessageContentMask.DataSetClassId) != 0 && HasSingleDataSetMessage)
                 {
-                    if (HasSingleDataSetMessage)
-                    {
-                        var jsonDataSetMessage = DataSetMessages[0] as JsonDataSetMessage;
+                    var jsonDataSetMessage = DataSetMessages[0] as JsonDataSetMessage;
 
-                        if (jsonDataSetMessage?.DataSet?.DataSetMetaData?.DataSetClassId != null)
-                        {
-                            jsonEncoder.WriteString(nameof(DataSetClassId), jsonDataSetMessage.DataSet.DataSetMetaData.DataSetClassId.ToString());
-                        }
+                    if (jsonDataSetMessage?.DataSet?.DataSetMetaData?.DataSetClassId != null)
+                    {
+                        jsonEncoder.WriteString(nameof(DataSetClassId), jsonDataSetMessage.DataSet.DataSetMetaData.DataSetClassId.ToString());
                     }
                 }
             }
@@ -383,15 +346,11 @@ namespace Opc.Ua.PubSub.Encoding
             }
         }
 
-        #endregion
-
-        #region Private Methods - Decoding
-
         /// <summary>
         /// Encode Network Message Header
         /// </summary>
         /// <param name="jsonDecoder"></param>
-        private void DecodeNetworkMessageHeader(IJsonDecoder jsonDecoder)
+        private void DecodeNetworkMessageHeader(JsonDecoder jsonDecoder)
         {
             object token = null;
             if (jsonDecoder.ReadField(nameof(MessageId), out token))
@@ -456,7 +415,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// Decode the jsonDecoder content as a MetaData message
         /// </summary>
         /// <param name="jsonDecoder"></param>
-        private void DecodeMetaDataMessage(IJsonDecoder jsonDecoder)
+        private void DecodeMetaDataMessage(JsonDecoder jsonDecoder)
         {
             try
             {
@@ -475,7 +434,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="jsonDecoder"></param>
         /// <param name="dataSetReaders"></param>
         /// <returns></returns>
-        private void DecodeSubscribedDataSets(IJsonDecoder jsonDecoder, IList<DataSetReaderDataType> dataSetReaders)
+        private void DecodeSubscribedDataSets(JsonDecoder jsonDecoder, IList<DataSetReaderDataType> dataSetReaders)
         {
             if (dataSetReaders == null || dataSetReaders.Count == 0)
             {
@@ -534,7 +493,7 @@ namespace Opc.Ua.PubSub.Encoding
                     {
                         // this is a SingleDataSetMessage encoded as the content of Messages
                         jsonDecoder.PushStructure(kFieldMessages);
-                        messagesList = new List<object>();
+                        messagesList = [];
                     }
                     else
                     {
@@ -549,7 +508,7 @@ namespace Opc.Ua.PubSub.Encoding
                 else
                 {
                     // this is a SingleDataSetMessage encoded as the content json
-                    messagesList = new List<object>();
+                    messagesList = [];
                 }
                 if (messagesList != null)
                 {
@@ -594,6 +553,5 @@ namespace Opc.Ua.PubSub.Encoding
                 Utils.Trace(ex, "JsonNetworkMessage.DecodeSubscribedDataSets");
             }
         }
-        #endregion
     }
 }

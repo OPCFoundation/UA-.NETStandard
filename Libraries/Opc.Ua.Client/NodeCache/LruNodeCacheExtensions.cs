@@ -135,9 +135,9 @@ namespace Opc.Ua
         public static async Task<BuiltInType> GetBuiltInTypeAsync(this ILruNodeCache cache, NodeId datatypeId, CancellationToken ct = default)
         {
             NodeId typeId = datatypeId;
-            while (!Opc.Ua.NodeId.IsNull(typeId))
+            while (!NodeId.IsNull(typeId))
             {
-                if (typeId != null && typeId.NamespaceIndex == 0 && typeId.IdType == Opc.Ua.IdType.Numeric)
+                if (typeId != null && typeId.NamespaceIndex == 0 && typeId.IdType == IdType.Numeric)
                 {
                     var id = (BuiltInType)(int)(uint)typeId.Identifier;
                     if (id is > BuiltInType.Null and <= BuiltInType.Enumeration and not BuiltInType.DiagnosticInfo)

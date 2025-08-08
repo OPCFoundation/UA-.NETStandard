@@ -20,7 +20,6 @@ namespace Opc.Ua
     /// </summary>
     public class AsyncResultBase : IAsyncResult, IDisposable
     {
-        #region Constructors
         /// <summary>
         /// Initializes a new instance of the <see cref="AsyncResultBase"/> class.
         /// </summary>
@@ -56,9 +55,7 @@ namespace Opc.Ua
                 }
             }
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -89,9 +86,7 @@ namespace Opc.Ua
                 }
             }
         }
-        #endregion
 
-        #region Public Members
         /// <summary>
         /// An object used to synchronize access to the result object.
         /// </summary>
@@ -148,7 +143,7 @@ namespace Opc.Ua
         {
             try
             {
-                WaitHandle waitHandle = null;
+                ManualResetEvent waitHandle = null;
 
                 int timeout = Timeout.Infinite;
 
@@ -253,9 +248,7 @@ namespace Opc.Ua
             // invoke callback.
             m_callback?.Invoke(this);
         }
-        #endregion
 
-        #region Private Members
         /// <summary>
         /// Called to dispose the timer.
         /// </summary>
@@ -320,9 +313,7 @@ namespace Opc.Ua
                 Utils.LogTrace(e, "Unexpected error handling timeout for ChannelAsyncResult operation.");
             }
         }
-        #endregion
 
-        #region IAsyncResult Members
         /// <summary>
         /// Gets a user-defined object that qualifies or contains information about an asynchronous operation.
         /// </summary>
@@ -360,14 +351,11 @@ namespace Opc.Ua
         /// </summary>
         /// <returns>true if the operation is complete; otherwise, false.</returns>
         public bool IsCompleted { get; private set; }
-        #endregion
 
-        #region Private Fields
         private readonly AsyncCallback m_callback;
         private ManualResetEvent m_waitHandle;
         private readonly DateTime m_deadline;
         private Timer m_timer;
         private CancellationTokenSource m_cts;
-        #endregion
     }
 }

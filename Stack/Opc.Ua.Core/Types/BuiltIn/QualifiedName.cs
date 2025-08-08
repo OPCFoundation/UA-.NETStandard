@@ -43,7 +43,6 @@ namespace Opc.Ua
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class QualifiedName : ICloneable, IFormattable, IComparable
     {
-        #region Constructors
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
@@ -101,9 +100,7 @@ namespace Opc.Ua
             XmlEncodedNamespaceIndex = namespaceIndex;
             XmlEncodedName = name;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The index of the namespace that qualifies the name.
         /// </summary>
@@ -129,9 +126,7 @@ namespace Opc.Ua
         /// </summary>
         [DataMember(Name = "Name", Order = 2)]
         internal string XmlEncodedName { get; set; }
-        #endregion
 
-        #region IComparable Members
         /// <summary>
         /// Compares two QualifiedNames.
         /// </summary>
@@ -143,12 +138,12 @@ namespace Opc.Ua
         /// </returns>
         public int CompareTo(object obj)
         {
-            if (Object.ReferenceEquals(obj, null))
+            if (ReferenceEquals(obj, null))
             {
                 return -1;
             }
 
-            if (Object.ReferenceEquals(this, obj))
+            if (ReferenceEquals(this, obj))
             {
                 return 0;
             }
@@ -179,7 +174,7 @@ namespace Opc.Ua
         /// <returns>The result of the operator.</returns>
         public static bool operator >(QualifiedName value1, QualifiedName value2)
         {
-            if (!Object.ReferenceEquals(value1, null))
+            if (!ReferenceEquals(value1, null))
             {
                 return value1.CompareTo(value2) > 0;
             }
@@ -195,16 +190,14 @@ namespace Opc.Ua
         /// <returns>The result of the operator.</returns>
         public static bool operator <(QualifiedName value1, QualifiedName value2)
         {
-            if (!Object.ReferenceEquals(value1, null))
+            if (!ReferenceEquals(value1, null))
             {
                 return value1.CompareTo(value2) < 0;
             }
 
             return true;
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Returns a suitable hash value for the instance.
         /// </summary>
@@ -230,12 +223,12 @@ namespace Opc.Ua
         /// <param name="obj">The object to compare to this/me</param>
         public override bool Equals(object obj)
         {
-            if (Object.ReferenceEquals(obj, null))
+            if (ReferenceEquals(obj, null))
             {
                 return false;
             }
 
-            if (Object.ReferenceEquals(this, obj))
+            if (ReferenceEquals(this, obj))
             {
                 return true;
             }
@@ -263,12 +256,12 @@ namespace Opc.Ua
         /// <param name="value2">The second value to compare</param>
         public static bool operator ==(QualifiedName value1, QualifiedName value2)
         {
-            if (!Object.ReferenceEquals(value1, null))
+            if (!ReferenceEquals(value1, null))
             {
                 return value1.Equals(value2);
             }
 
-            return Object.ReferenceEquals(value2, null);
+            return ReferenceEquals(value2, null);
         }
 
         /// <summary>
@@ -281,12 +274,12 @@ namespace Opc.Ua
         /// <param name="value2">The second value to compare</param>
         public static bool operator !=(QualifiedName value1, QualifiedName value2)
         {
-            if (!Object.ReferenceEquals(value1, null))
+            if (!ReferenceEquals(value1, null))
             {
                 return !value1.Equals(value2);
             }
 
-            return !Object.ReferenceEquals(value2, null);
+            return !ReferenceEquals(value2, null);
         }
 
         /// <summary>
@@ -299,9 +292,7 @@ namespace Opc.Ua
         {
             return ToString(null, null);
         }
-        #endregion
 
-        #region IFormattable Members
         /// <summary>
         /// Returns the string representation of the object.
         /// </summary>
@@ -319,7 +310,7 @@ namespace Opc.Ua
 
                 var builder = new StringBuilder(capacity + 10);
 
-                if (this.XmlEncodedNamespaceIndex == 0)
+                if (XmlEncodedNamespaceIndex == 0)
                 {
                     // prepend the namespace index if the name contains a colon.
                     if (XmlEncodedName != null)
@@ -348,13 +339,11 @@ namespace Opc.Ua
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
         }
-        #endregion
 
-        #region ICloneable Members
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -368,9 +357,7 @@ namespace Opc.Ua
             // this object cannot be altered after it is created so no new allocation is necessary.
             return this;
         }
-        #endregion
 
-        #region Static Methods
         /// <summary>
         /// Converts an expanded node id to a node id using a namespace table.
         /// </summary>
@@ -379,7 +366,7 @@ namespace Opc.Ua
             // check for null.
             if (string.IsNullOrEmpty(name))
             {
-                return QualifiedName.Null;
+                return Null;
             }
 
             // return a name using the default namespace.
@@ -437,7 +424,7 @@ namespace Opc.Ua
             // check for null.
             if (string.IsNullOrEmpty(text))
             {
-                return QualifiedName.Null;
+                return Null;
             }
 
             // extract local namespace index.
@@ -482,7 +469,7 @@ namespace Opc.Ua
             // check for null.
             if (string.IsNullOrEmpty(text))
             {
-                return QualifiedName.Null;
+                return Null;
             }
 
             string originalText = text;
@@ -619,11 +606,8 @@ namespace Opc.Ua
         /// Returns an instance of a null QualifiedName.
         /// </summary>
         public static QualifiedName Null { get; } = new QualifiedName();
-
-#endregion
     }
 
-    #region QualifiedNameCollection Class
     /// <summary>
     /// A collection of QualifiedName objects.
     /// </summary>
@@ -670,10 +654,10 @@ namespace Opc.Ua
         {
             if (values != null)
             {
-                return new QualifiedNameCollection(values);
+                return [.. values];
             }
 
-            return new QualifiedNameCollection();
+            return [];
         }
 
         /// <summary>
@@ -688,11 +672,10 @@ namespace Opc.Ua
             return ToQualifiedNameCollection(values);
         }
 
-        #region ICloneable
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -703,16 +686,14 @@ namespace Opc.Ua
         /// </remarks>
         public new object MemberwiseClone()
         {
-            var clone = new QualifiedNameCollection(this.Count);
+            var clone = new QualifiedNameCollection(Count);
 
             foreach (QualifiedName element in this)
             {
-                clone.Add((QualifiedName)Utils.Clone(element));
+                clone.Add(Utils.Clone(element));
             }
 
             return clone;
         }
-        #endregion
     }//class
-    #endregion
 }//namespace

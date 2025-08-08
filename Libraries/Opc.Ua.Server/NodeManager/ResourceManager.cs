@@ -40,7 +40,6 @@ namespace Opc.Ua.Server
     /// </summary>
     public class ResourceManager : IDisposable, ITranslationManager
     {
-        #region Constructors
         /// <summary>
         /// Initializes the resource manager with the server instance that owns it.
         /// </summary>
@@ -57,11 +56,9 @@ namespace Opc.Ua.Server
             }
 
             m_server = server;
-            m_translationTables = new List<TranslationTable>();
+            m_translationTables = [];
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// May be called by the application to clean up resources.
         /// </summary>
@@ -81,9 +78,7 @@ namespace Opc.Ua.Server
                 // nothing to do at this time.
             }
         }
-        #endregion
 
-        #region ITranslationManager Members
         /// <inheritdoc/>
         public virtual LocalizedText Translate(IList<string> preferredLocales, string key, string text, params object[] args)
         {
@@ -151,9 +146,7 @@ namespace Opc.Ua.Server
                 result.AdditionalInfo,
                 Translate(preferredLocales, result.InnerResult));
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Returns the locales supported by the resource manager.
         /// </summary>
@@ -252,7 +245,7 @@ namespace Opc.Ua.Server
 
                 if (m_statusCodeMapping == null)
                 {
-                    m_statusCodeMapping = new Dictionary<uint, TranslationInfo>();
+                    m_statusCodeMapping = [];
                 }
 
                 if (string.IsNullOrEmpty(locale) || locale == "en-US")
@@ -277,7 +270,7 @@ namespace Opc.Ua.Server
 
                     if (m_symbolicIdMapping == null)
                     {
-                        m_symbolicIdMapping = new Dictionary<XmlQualifiedName, TranslationInfo>();
+                        m_symbolicIdMapping = [];
                     }
 
                     if (string.IsNullOrEmpty(locale) || locale == "en-US")
@@ -299,13 +292,10 @@ namespace Opc.Ua.Server
 
                 if (id != null)
                 {
-                    this.Add(id.Value, "en-US", field.Name);
+                    Add(id.Value, "en-US", field.Name);
                 }
             }
         }
-        #endregion
-
-        #region Protected Methods
 
         /// <summary>
         /// Translates the text provided.
@@ -346,9 +336,9 @@ namespace Opc.Ua.Server
             if (isMultilanguageRequested)
             {
 #if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
-                Dictionary<string, string> translations = defaultText?.Translations != null ? new Dictionary<string, string>(defaultText.Translations) : new Dictionary<string, string>();
+                Dictionary<string, string> translations = defaultText?.Translations != null ? new Dictionary<string, string>(defaultText.Translations) : [];
 #else
-                Dictionary<string, string> translations = defaultText?.Translations != null ? new Dictionary<string, string>(defaultText.Translations.ToDictionary(s => s.Key, s => s.Value)) : new Dictionary<string, string>();
+                Dictionary<string, string> translations = defaultText?.Translations != null ? new Dictionary<string, string>(defaultText.Translations.ToDictionary(s => s.Key, s => s.Value)) : [];
 #endif
                 // If only mul/qst is requested, return all available translations for the key.
                 if (preferredLocales.Count == 1)
@@ -382,7 +372,7 @@ namespace Opc.Ua.Server
                     {
                         for (int i = 1; i < preferredLocales.Count; i++)
                         {
-                            string translation = FindBestTranslation(new List<string>() { preferredLocales[i] }, info.Key ?? info.Text, out CultureInfo culture);
+                            string translation = FindBestTranslation([preferredLocales[i]], info.Key ?? info.Text, out CultureInfo culture);
 
                             if (translation != null)
                             {
@@ -456,16 +446,14 @@ namespace Opc.Ua.Server
                 return finalText;
             }
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Stores the translations for a locale.
         /// </summary>
         private class TranslationTable
         {
             public CultureInfo Locale;
-            public SortedDictionary<string, string> Translations = new SortedDictionary<string, string>();
+            public SortedDictionary<string, string> Translations = [];
         }
 
         /// <summary>
@@ -621,15 +609,12 @@ namespace Opc.Ua.Server
 
             return symbolicId;
         }
-        #endregion
 
-        #region Private Fields
-        private readonly object m_lock = new object();
+        private readonly object m_lock = new();
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
         private readonly IServerInternal m_server;
         private readonly List<TranslationTable> m_translationTables;
         private Dictionary<uint, TranslationInfo> m_statusCodeMapping;
         private Dictionary<XmlQualifiedName, TranslationInfo> m_symbolicIdMapping;
-        #endregion
     }
 }

@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -47,22 +47,19 @@ namespace Opc.Ua.Configuration.Tests
     [Parallelizable]
     public class ApplicationInstanceTests
     {
-        #region Test Constants
         public const string ApplicationName = "UA Configuration Test";
         public const string ApplicationUri = "urn:localhost:opcfoundation.org:ConfigurationTest";
         public const string ProductUri = "http://opcfoundation.org/UA/ConfigurationTest";
         public const string SubjectName = "CN=UA Configuration Test, O=OPC Foundation, C=US, S=Arizona";
         public const string EndpointUrl = "opc.tcp://localhost:51000";
-        #endregion
 
-        #region Test Setup
         /// <summary>
         /// Test setup.
         /// </summary>
         [SetUp]
         public void SetUp()
         {
-            // pki directory root for test runs. 
+            // pki directory root for test runs.
             m_pkiRoot = Path.GetTempPath() + Path.GetRandomFileName() + Path.DirectorySeparatorChar;
         }
 
@@ -74,15 +71,13 @@ namespace Opc.Ua.Configuration.Tests
         {
             try
             {
-                // pki directory root for test runs. 
+                // pki directory root for test runs.
                 Directory.Delete(m_pkiRoot, true);
             }
             catch
             { }
         }
-        #endregion
 
-        #region Test Methods
         /// <summary>
         /// Load a file configuration.
         /// </summary>
@@ -93,7 +88,7 @@ namespace Opc.Ua.Configuration.Tests
                 ApplicationName = ApplicationName
             };
             Assert.NotNull(applicationInstance);
-            string configPath = Opc.Ua.Utils.GetAbsoluteFilePath("Opc.Ua.Configuration.Tests.Config.xml", true, false, false);
+            string configPath = Utils.GetAbsoluteFilePath("Opc.Ua.Configuration.Tests.Config.xml", true, false, false);
             Assert.NotNull(configPath);
             ApplicationConfiguration applicationConfiguration = await applicationInstance.LoadApplicationConfiguration(configPath, true).ConfigureAwait(false);
             Assert.NotNull(applicationConfiguration);
@@ -108,7 +103,7 @@ namespace Opc.Ua.Configuration.Tests
                 ApplicationName = ApplicationName
             };
             Assert.NotNull(applicationInstance);
-            
+
             CertificateIdentifierCollection applicationCerts = ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                 SubjectName,
                 CertificateStoreType.Directory,
@@ -116,7 +111,7 @@ namespace Opc.Ua.Configuration.Tests
 
             ApplicationConfiguration config = await applicationInstance.Build(ApplicationUri, ProductUri)
                 .AsClient()
-                .AddSecurityConfiguration(applicationCerts,m_pkiRoot)
+                .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
                 .Create().ConfigureAwait(false);
             Assert.NotNull(config);
             bool certOK = await applicationInstance.CheckApplicationInstanceCertificates(true).ConfigureAwait(false);
@@ -135,10 +130,10 @@ namespace Opc.Ua.Configuration.Tests
                 CertificateStoreType.Directory,
                 m_pkiRoot);
 
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
                await applicationInstance.Build(ApplicationUri, ProductUri)
-                   .AsServer(new string[] { EndpointUrl })
-                   .AddSecurityConfiguration(applicationCerts,m_pkiRoot)
+                   .AsServer([EndpointUrl])
+                   .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
                    .Create()
                    .ConfigureAwait(false)
             );
@@ -147,17 +142,17 @@ namespace Opc.Ua.Configuration.Tests
                 ApplicationName = ApplicationName,
                 ApplicationType = ApplicationType.DiscoveryServer
             };
-            Assert.ThrowsAsync<ArgumentException>(async () =>
+            NUnit.Framework.Assert.ThrowsAsync<ArgumentException>(async () =>
                await applicationInstance.Build(ApplicationUri, ProductUri)
                    .AsClient()
-                   .AddSecurityConfiguration(applicationCerts,m_pkiRoot)
+                   .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
                    .Create()
                    .ConfigureAwait(false)
             );
-            Assert.ThrowsAsync<ArgumentException>(async () =>
+            NUnit.Framework.Assert.ThrowsAsync<ArgumentException>(async () =>
                await applicationInstance.Build(ApplicationUri, ProductUri)
-                   .AsServer(new string[] { EndpointUrl })
-                   .AddSecurityConfiguration(applicationCerts,m_pkiRoot)
+                   .AsServer([EndpointUrl])
+                   .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
                    .Create()
                    .ConfigureAwait(false)
             );
@@ -168,8 +163,8 @@ namespace Opc.Ua.Configuration.Tests
             };
 
             ApplicationConfiguration config = await applicationInstance.Build(ApplicationUri, ProductUri)
-                .AsServer(new string[] { EndpointUrl })
-                .AddSecurityConfiguration(applicationCerts,m_pkiRoot)
+                .AsServer([EndpointUrl])
+                .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
                 .Create()
                 .ConfigureAwait(false);
             Assert.AreEqual(ApplicationType.Server, applicationInstance.ApplicationType);
@@ -182,7 +177,7 @@ namespace Opc.Ua.Configuration.Tests
 
             await applicationInstance.Build(ApplicationUri, ProductUri)
                 .AsClient()
-                .AddSecurityConfiguration(applicationCerts,m_pkiRoot)
+                .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
                 .Create()
                 .ConfigureAwait(false);
             Assert.AreEqual(ApplicationType.Client, applicationInstance.ApplicationType);
@@ -192,38 +187,38 @@ namespace Opc.Ua.Configuration.Tests
                 ApplicationName = ApplicationName
             };
             // invalid use, use AddUnsecurePolicyNone instead
-            Assert.ThrowsAsync<ArgumentException>(async () =>
+            NUnit.Framework.Assert.ThrowsAsync<ArgumentException>(async () =>
                await applicationInstance.Build(ApplicationUri, ProductUri)
-                   .AsServer(new string[] { EndpointUrl })
+                   .AsServer([EndpointUrl])
                    .AddPolicy(MessageSecurityMode.None, SecurityPolicies.None)
-                   .AddSecurityConfiguration(applicationCerts,m_pkiRoot)
+                   .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
                    .Create()
                    .ConfigureAwait(false)
             );
             // invalid mix sign / none
-            Assert.ThrowsAsync<ArgumentException>(async () =>
+            NUnit.Framework.Assert.ThrowsAsync<ArgumentException>(async () =>
                await applicationInstance.Build(ApplicationUri, ProductUri)
-                   .AsServer(new string[] { EndpointUrl })
+                   .AsServer([EndpointUrl])
                    .AddPolicy(MessageSecurityMode.Sign, SecurityPolicies.None)
                    .AddSecurityConfiguration(applicationCerts)
                    .Create()
                    .ConfigureAwait(false)
             );
             // invalid policy
-            Assert.ThrowsAsync<ArgumentException>(async () =>
+            NUnit.Framework.Assert.ThrowsAsync<ArgumentException>(async () =>
                await applicationInstance.Build(ApplicationUri, ProductUri)
-                   .AsServer(new string[] { EndpointUrl })
+                   .AsServer([EndpointUrl])
                    .AddPolicy(MessageSecurityMode.Sign, "123")
-                   .AddSecurityConfiguration(applicationCerts,m_pkiRoot)
+                   .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
                    .Create()
                    .ConfigureAwait(false)
             );
             // invalid user token policy
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            NUnit.Framework.Assert.ThrowsAsync<ArgumentNullException>(async () =>
                await applicationInstance.Build(ApplicationUri, ProductUri)
-                   .AsServer(new string[] { EndpointUrl })
+                   .AsServer([EndpointUrl])
                    .AddUserTokenPolicy(null)
-                   .AddSecurityConfiguration(applicationCerts,m_pkiRoot)
+                   .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
                    .Create()
                    .ConfigureAwait(false)
             );
@@ -244,7 +239,7 @@ namespace Opc.Ua.Configuration.Tests
 
             ApplicationConfiguration config = await applicationInstance.Build(ApplicationUri, ProductUri)
                 .SetOperationTimeout(10000)
-                .AsServer(new string[] { EndpointUrl })
+                .AsServer([EndpointUrl])
                 .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
                 .Create().ConfigureAwait(false);
             Assert.NotNull(config);
@@ -267,7 +262,7 @@ namespace Opc.Ua.Configuration.Tests
 
             ApplicationConfiguration config = await applicationInstance.Build(ApplicationUri, ProductUri)
                 .SetTransportQuotas(new TransportQuotas() { OperationTimeout = 10000 })
-                .AsServer(new string[] { EndpointUrl })
+                .AsServer([EndpointUrl])
                 .AddSignPolicies()
                 .AddSignAndEncryptPolicies()
                 .AddUnsecurePolicyNone()
@@ -309,7 +304,7 @@ namespace Opc.Ua.Configuration.Tests
 
             ApplicationConfiguration config = await applicationInstance.Build(ApplicationUri, ProductUri)
                 .SetMaxBufferSize(32768)
-                .AsServer(new string[] { EndpointUrl })
+                .AsServer([EndpointUrl])
                 .AddUnsecurePolicyNone()
                 .AddSignPolicies()
                 .AddSignAndEncryptPolicies()
@@ -334,21 +329,21 @@ namespace Opc.Ua.Configuration.Tests
             // this test fails on macOS, ignore
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-                Assert.Ignore("X509Store trust lists not supported on mac OS.");
+                NUnit.Framework.Assert.Ignore("X509Store trust lists not supported on mac OS.");
             }
 #endif
             var applicationInstance = new ApplicationInstance() {
                 ApplicationName = ApplicationName
             };
             Assert.NotNull(applicationInstance);
-            
+
             CertificateIdentifierCollection applicationCerts = ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                 SubjectName,
                 CertificateStoreType.Directory,
                 m_pkiRoot);
 
             ApplicationConfiguration config = await applicationInstance.Build(ApplicationUri, ProductUri)
-                .AsServer(new string[] { EndpointUrl })
+                .AsServer([EndpointUrl])
                 .AddUnsecurePolicyNone()
                 .AddSignAndEncryptPolicies()
                 .AddUserTokenPolicy(UserTokenType.UserName)
@@ -399,7 +394,7 @@ namespace Opc.Ua.Configuration.Tests
                 m_pkiRoot);
 
             ApplicationConfiguration config = await applicationInstance.Build(ApplicationUri, ProductUri)
-                .AsServer(new string[] { EndpointUrl, "opc.https://localhost:51001" }, new string[] { "opc.tcp://192.168.1.100:51000" })
+                .AsServer([EndpointUrl, "opc.https://localhost:51001"], s_alternateBaseAddresses)
                 .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
                 .SetAddAppCertToTrustedStore(true)
                 .Create().ConfigureAwait(false);
@@ -418,7 +413,7 @@ namespace Opc.Ua.Configuration.Tests
             IssuerNotYetValid,
             KeySize1024,
             HostName
-        };
+        }
 
         /// <summary>
         /// Test to verify that an existing cert with suppressible issues
@@ -433,7 +428,7 @@ namespace Opc.Ua.Configuration.Tests
         [TestCase(InvalidCertType.KeySize1024, true, false)]
         public async Task TestInvalidAppCertDoNotRecreate(InvalidCertType certType, bool server, bool suppress)
         {
-            // pki directory root for test runs. 
+            // pki directory root for test runs.
             string pkiRoot = Path.GetTempPath() + Path.GetRandomFileName() + Path.DirectorySeparatorChar;
 
             var applicationInstance = new ApplicationInstance() { ApplicationName = ApplicationName };
@@ -448,7 +443,7 @@ namespace Opc.Ua.Configuration.Tests
             if (server)
             {
                 config = await applicationInstance.Build(ApplicationUri, ProductUri)
-                    .AsServer(new string[] { "opc.tcp://localhost:12345/Configuration" })
+                    .AsServer(s_baseAddresses)
                     .AddSecurityConfiguration(applicationCerts, pkiRoot)
                     .Create().ConfigureAwait(false);
             }
@@ -490,7 +485,7 @@ namespace Opc.Ua.Configuration.Tests
                 }
                 else
                 {
-                    ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    ServiceResultException sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
                         await applicationInstance.CheckApplicationInstanceCertificates(true).ConfigureAwait(false));
                     Assert.AreEqual(StatusCodes.BadConfigurationError, sre.StatusCode);
                 }
@@ -512,14 +507,14 @@ namespace Opc.Ua.Configuration.Tests
         //TODO [TestCase(InvalidCertType.KeySize1024, true, false)]
         public async Task TestInvalidAppCertChainDoNotRecreate(InvalidCertType certType, bool server, bool suppress)
         {
-            // pki directory root for test runs. 
+            // pki directory root for test runs.
             string pkiRoot = Path.GetTempPath() + Path.GetRandomFileName() + Path.DirectorySeparatorChar;
 
             var applicationInstance = new ApplicationInstance() {
                 ApplicationName = ApplicationName
             };
             Assert.NotNull(applicationInstance);
-            
+
             CertificateIdentifierCollection applicationCerts = ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                 SubjectName,
                 CertificateStoreType.Directory,
@@ -529,7 +524,7 @@ namespace Opc.Ua.Configuration.Tests
             if (server)
             {
                 config = await applicationInstance.Build(ApplicationUri, ProductUri)
-                    .AsServer(new string[] { "opc.tcp://localhost:12345/Configuration" })
+                    .AsServer(s_baseAddresses)
                     .AddSecurityConfiguration(applicationCerts, pkiRoot)
                     .Create().ConfigureAwait(false);
             }
@@ -583,7 +578,7 @@ namespace Opc.Ua.Configuration.Tests
                 }
                 else
                 {
-                    ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    ServiceResultException sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
                         await applicationInstance.CheckApplicationInstanceCertificates(true).ConfigureAwait(false));
                     Assert.AreEqual(StatusCodes.BadConfigurationError, sre.StatusCode);
                 }
@@ -603,7 +598,7 @@ namespace Opc.Ua.Configuration.Tests
             };
             ApplicationConfiguration configuration = await applicationInstance.Build(ApplicationUri, ProductUri)
                 .SetOperationTimeout(10000)
-                .AsServer(new string[] { EndpointUrl })
+                .AsServer([EndpointUrl])
                 .AddSecurityConfiguration(SubjectName, m_pkiRoot)
                 .Create().ConfigureAwait(false);
 
@@ -617,7 +612,6 @@ namespace Opc.Ua.Configuration.Tests
                 .SetCAConstraint(-1)
                 .CreateForRSA())
             {
-
                 //Act
                 await applicationInstance.AddOwnCertificateToTrustedStoreAsync(cert, new CancellationToken()).ConfigureAwait(false);
                 ICertificateStore store = configuration.SecurityConfiguration.TrustedPeerCertificates.OpenStore();
@@ -634,7 +628,7 @@ namespace Opc.Ua.Configuration.Tests
         [Theory]
         public async Task TestDisableCertificateAutoCreationAsync(bool server, bool disableCertificateAutoCreation)
         {
-            // pki directory root for test runs. 
+            // pki directory root for test runs.
             string pkiRoot = Path.GetTempPath() + Path.GetRandomFileName() + Path.DirectorySeparatorChar;
 
             var applicationInstance = new ApplicationInstance() {
@@ -651,7 +645,7 @@ namespace Opc.Ua.Configuration.Tests
             if (server)
             {
                 config = await applicationInstance.Build(ApplicationUri, ProductUri)
-                    .AsServer(new string[] { "opc.tcp://localhost:12345/Configuration" })
+                    .AsServer(s_baseAddressesArray)
                     .AddSecurityConfiguration(applicationCerts, pkiRoot)
                     .Create().ConfigureAwait(false);
             }
@@ -669,7 +663,7 @@ namespace Opc.Ua.Configuration.Tests
 
             if (disableCertificateAutoCreation)
             {
-                ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await applicationInstance.CheckApplicationInstanceCertificates(true).ConfigureAwait(false));
                 Assert.AreEqual(StatusCodes.BadConfigurationError, sre.StatusCode);
             }
@@ -679,16 +673,14 @@ namespace Opc.Ua.Configuration.Tests
                 Assert.True(certOK);
             }
         }
-        #endregion
 
-        #region Private Methods
-        private X509Certificate2 CreateInvalidCert(InvalidCertType certType)
+        private static X509Certificate2 CreateInvalidCert(InvalidCertType certType)
         {
             // reasonable defaults
             DateTime notBefore = DateTime.Today.AddDays(-30);
             DateTime notAfter = DateTime.Today.AddDays(30);
             ushort keySize = CertificateFactory.DefaultKeySize;
-            string[] domainNames = new string[] { Utils.GetHostName() };
+            string[] domainNames = [Utils.GetHostName()];
             switch (certType)
             {
                 case InvalidCertType.Expired:
@@ -703,7 +695,7 @@ namespace Opc.Ua.Configuration.Tests
                     keySize = 1024;
                     break;
                 case InvalidCertType.HostName:
-                    domainNames = new string[] { "myhost", "1.2.3.4" };
+                    domainNames = ["myhost", "1.2.3.4"];
                     break;
                 default:
                     break;
@@ -720,7 +712,7 @@ namespace Opc.Ua.Configuration.Tests
                 .CreateForRSA();
         }
 
-        private X509Certificate2Collection CreateInvalidCertChain(InvalidCertType certType)
+        private static X509Certificate2Collection CreateInvalidCertChain(InvalidCertType certType)
         {
             // reasonable defaults
             DateTime notBefore = DateTime.Today.AddYears(-1);
@@ -728,7 +720,7 @@ namespace Opc.Ua.Configuration.Tests
             DateTime issuerNotBefore = notBefore;
             DateTime issuerNotAfter = notAfter;
             ushort keySize = CertificateFactory.DefaultKeySize;
-            string[] domainNames = new string[] { Utils.GetHostName() };
+            string[] domainNames = [Utils.GetHostName()];
             switch (certType)
             {
                 case InvalidCertType.Expired:
@@ -747,20 +739,19 @@ namespace Opc.Ua.Configuration.Tests
                     keySize = 1024;
                     break;
                 case InvalidCertType.HostName:
-                    domainNames = new string[] { "myhost", "1.2.3.4" };
+                    domainNames = ["myhost", "1.2.3.4"];
                     break;
                 default:
                     break;
             }
 
-            string rootCASubjectName = "CN=Root CA Test, O=OPC Foundation, C=US, S=Arizona";
+            const string rootCASubjectName = "CN=Root CA Test, O=OPC Foundation, C=US, S=Arizona";
             using (X509Certificate2 rootCA = CertificateFactory.CreateCertificate(rootCASubjectName)
                 .SetNotBefore(issuerNotBefore)
                 .SetNotAfter(issuerNotAfter)
                 .SetCAConstraint(-1)
                 .CreateForRSA())
             {
-
                 X509Certificate2 appCert = CertificateFactory.CreateCertificate(
                     ApplicationUri,
                     ApplicationName,
@@ -772,18 +763,16 @@ namespace Opc.Ua.Configuration.Tests
                     .SetRSAKeySize(keySize)
                     .CreateForRSA();
 
-                var result = new X509Certificate2Collection {
+                return [
                     appCert,
                     X509CertificateLoader.LoadCertificate(rootCA.RawData)
-                };
-
-                return result;
+                ];
             }
         }
-        #endregion
 
-        #region Private Fields
-        string m_pkiRoot;
-        #endregion
+        private string m_pkiRoot;
+        private static readonly string[] s_alternateBaseAddresses = ["opc.tcp://192.168.1.100:51000"];
+        private static readonly string[] s_baseAddresses = ["opc.tcp://localhost:12345/Configuration"];
+        private static readonly string[] s_baseAddressesArray = ["opc.tcp://localhost:12345/Configuration"];
     }
 }

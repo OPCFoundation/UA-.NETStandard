@@ -41,7 +41,6 @@ namespace Opc.Ua.Security.Certificates
     /// </summary>
     public static partial class PEMWriter
     {
-        #region Public Methods
         /// <summary>
         /// Returns a byte array containing the CRL in PEM format.
         /// </summary>
@@ -210,9 +209,7 @@ namespace Opc.Ua.Security.Certificates
             return false;
         }
 #endif
-        #endregion
 
-        #region Private Methods
         private static byte[] EncodeAsPEM(byte[] content, string contentType)
         {
             if (content == null)
@@ -256,6 +253,5 @@ namespace Opc.Ua.Security.Certificates
                 return Encoding.ASCII.GetBytes(textWriter.ToString());
             }
         }
-        #endregion
     }
 }

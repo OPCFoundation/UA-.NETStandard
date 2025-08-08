@@ -47,12 +47,12 @@ namespace Opc.Ua.PubSub.Configuration
         public uint ConfigurationObjectId { get; set; }
 
         /// <summary>
-        /// New <see cref="PubSubState"/> 
+        /// New <see cref="PubSubState"/>
         /// </summary>
         public PubSubState NewState { get; set; }
 
         /// <summary>
-        /// Old <see cref="PubSubState"/> 
+        /// Old <see cref="PubSubState"/>
         /// </summary>
         public PubSubState OldState { get; set; }
     }

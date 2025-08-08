@@ -11,9 +11,9 @@
 */
 
 using System;
-using System.Text;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Text;
 using Opc.Ua.Security.Certificates;
 
 #if CURVE25519
@@ -36,8 +36,6 @@ namespace Opc.Ua
     /// </summary>
     public static class EccUtils
     {
-        #region Public constants
-
         /// <summary>
         /// The name of the NIST P-256 curve.
         /// </summary>
@@ -55,16 +53,10 @@ namespace Opc.Ua
         /// </summary>
         public const string BrainpoolP384r1 = nameof(BrainpoolP384r1);
 
-        #endregion
-
-        #region Private constants
-
-        private const string NistP256KeyParameters = "06-08-2A-86-48-CE-3D-03-01-07";
-        private const string NistP384KeyParameters = "06-05-2B-81-04-00-22";
-        private const string BrainpoolP256r1KeyParameters = "06-09-2B-24-03-03-02-08-01-01-07";
-        private const string BrainpoolP384r1KeyParameters = "06-09-2B-24-03-03-02-08-01-01-0B";
-
-        #endregion
+        internal const string NistP256KeyParameters = "06-08-2A-86-48-CE-3D-03-01-07";
+        internal const string NistP384KeyParameters = "06-05-2B-81-04-00-22";
+        internal const string BrainpoolP256r1KeyParameters = "06-09-2B-24-03-03-02-08-01-01-07";
+        internal const string BrainpoolP384r1KeyParameters = "06-09-2B-24-03-03-02-08-01-01-0B";
 
         /// <summary>
         /// Returns true if the certificate is an ECC certificate.
@@ -273,22 +265,22 @@ namespace Opc.Ua
             {
                 case NistP256KeyParameters:
                     ecParameters.Curve = ECCurve.NamedCurves.nistP256;
-                    securityPolicyUris = new string[] { SecurityPolicies.ECC_nistP256 };
+                    securityPolicyUris = [SecurityPolicies.ECC_nistP256];
                     break;
 
                 case NistP384KeyParameters:
                     ecParameters.Curve = ECCurve.NamedCurves.nistP384;
-                    securityPolicyUris = new string[] { SecurityPolicies.ECC_nistP384, SecurityPolicies.ECC_nistP256 };
+                    securityPolicyUris = [SecurityPolicies.ECC_nistP384, SecurityPolicies.ECC_nistP256];
                     break;
 
                 case BrainpoolP256r1KeyParameters:
                     ecParameters.Curve = ECCurve.NamedCurves.brainpoolP256r1;
-                    securityPolicyUris = new string[] { SecurityPolicies.ECC_brainpoolP256r1 };
+                    securityPolicyUris = [SecurityPolicies.ECC_brainpoolP256r1];
                     break;
 
                 case BrainpoolP384r1KeyParameters:
                     ecParameters.Curve = ECCurve.NamedCurves.brainpoolP384r1;
-                    securityPolicyUris = new string[] { SecurityPolicies.ECC_brainpoolP384r1, SecurityPolicies.ECC_brainpoolP256r1 };
+                    securityPolicyUris = [SecurityPolicies.ECC_brainpoolP384r1, SecurityPolicies.ECC_brainpoolP256r1];
                     break;
 
                 default:
@@ -492,7 +484,7 @@ namespace Opc.Ua
                 return true;
             }
 #endif
-            using (ECDsa ecdsa = EccUtils.GetPublicKey(signingCertificate))
+            using (ECDsa ecdsa = GetPublicKey(signingCertificate))
             {
                 return ecdsa.VerifyData(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count, signature, algorithm);
             }
@@ -718,7 +710,7 @@ namespace Opc.Ua
 
                 notvalid |= plaintext[start + ii] ^ (paddingSize & 0xFF);
             }
-            
+
             if (notvalid != 0)
             {
                 throw new ServiceResultException(StatusCodes.BadNonceInvalid);
@@ -1045,7 +1037,7 @@ namespace Opc.Ua
                     X509Certificate2Collection senderCertificateChain = Utils.ParseCertificateChainBlob(senderCertificate);
 
                     SenderCertificate = senderCertificateChain[0];
-                    SenderIssuerCertificates = new X509Certificate2Collection();
+                    SenderIssuerCertificates = [];
 
                     for (int ii = 1; ii < senderCertificateChain.Count; ii++)
                     {
@@ -1216,7 +1208,7 @@ namespace Opc.Ua
                 return true;
             }
 #endif
-            using (ECDsa ecdsa = EccUtils.GetPublicKey(signingCertificate))
+            using (ECDsa ecdsa = GetPublicKey(signingCertificate))
             {
                 return ecdsa.VerifyData(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count, signature, algorithm);
             }
@@ -1354,11 +1346,9 @@ namespace Opc.Ua
                 case SecurityPolicies.ECC_brainpoolP256r1:
                     return HashAlgorithmName.SHA256;
 
-
                 case SecurityPolicies.ECC_nistP384:
                 case SecurityPolicies.ECC_brainpoolP384r1:
                     return HashAlgorithmName.SHA384;
-
 
                 case SecurityPolicies.None:
                 case SecurityPolicies.ECC_curve25519:

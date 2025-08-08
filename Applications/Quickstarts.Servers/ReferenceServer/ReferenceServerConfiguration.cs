@@ -37,7 +37,6 @@ namespace Quickstarts.ReferenceServer
     [DataContract(Namespace = Namespaces.ReferenceServer)]
     public class ReferenceServerConfiguration
     {
-        #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
@@ -61,15 +60,11 @@ namespace Quickstarts.ReferenceServer
         private static void Initialize()
         {
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// Whether the user dialog for accepting invalid certificates should be displayed.
         /// </summary>
         [DataMember(Order = 1)]
         public bool ShowCertificateValidationDialog { get; set; }
-
-        #endregion
     }
 }

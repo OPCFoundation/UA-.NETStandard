@@ -37,7 +37,6 @@ namespace TestData
     [DataContract(Namespace = Namespaces.TestData)]
     public class TestDataNodeManagerConfiguration
     {
-        #region Constructors
         /// <summary>
         /// The default constructor.
         /// </summary>
@@ -63,9 +62,7 @@ namespace TestData
             SaveFilePath = null;
             MaxQueueSize = 100;
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The path to the file that stores state of the node manager.
         /// </summary>
@@ -83,7 +80,5 @@ namespace TestData
         /// </summary>
         [DataMember(Order = 3)]
         public uint NextUnusedId { get; set; }
-
-        #endregion
     }
 }

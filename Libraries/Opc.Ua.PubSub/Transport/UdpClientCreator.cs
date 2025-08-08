@@ -219,14 +219,14 @@ namespace Opc.Ua.PubSub.Transport
                 if (pubSubContext == UsedInContext.Publisher || pubSubContext == UsedInContext.Discovery)
                 {
                     //try to send 1 byte for target IP
-                    udpClient.Send(new byte[] { 0 }, 1, configuredEndpoint);
+                    udpClient.Send([0], 1, configuredEndpoint);
                 }
 
                 // On Windows Only since Linux does not support this
                 if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
                 {
                     // Disable exceptions raised by ICMP Port Unreachable messages
-                    udpClient.Client.IOControl((IOControlCode)SIO_UDP_CONNRESET, new byte[] { 0, 0, 0, 0 }, null);
+                    udpClient.Client.IOControl((IOControlCode)SIO_UDP_CONNRESET, [0, 0, 0, 0], null);
                 }
             }
             catch (Exception ex)

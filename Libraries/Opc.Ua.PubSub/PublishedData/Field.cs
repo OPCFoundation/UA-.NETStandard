@@ -37,17 +37,17 @@ namespace Opc.Ua.PubSub.PublishedData
     public class Field : ICloneable
     {
         /// <summary>
-        /// Get/Set Value 
+        /// Get/Set Value
         /// </summary>
         public DataValue Value { get; set; }
 
         /// <summary>
-        /// Get/Set Target NodeId 
+        /// Get/Set Target NodeId
         /// </summary>
         public NodeId TargetNodeId { get; set; }
 
         /// <summary>
-        /// Get/Set target attribute 
+        /// Get/Set target attribute
         /// </summary>
         public uint TargetAttribute { get; set; }
 
@@ -56,11 +56,10 @@ namespace Opc.Ua.PubSub.PublishedData
         /// </summary>
         public FieldMetaData FieldMetaData { get; internal set; }
 
-        #region ICloneable method
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -69,23 +68,16 @@ namespace Opc.Ua.PubSub.PublishedData
         public new object MemberwiseClone()
         {
             var copy = base.MemberwiseClone() as Field;
-            if (Value != null)
+            if (Value != null && copy != null)
             {
-                if (copy != null)
-                {
-                    copy.Value = Value.Clone() as DataValue;
-                }
+                copy.Value = Value.Clone() as DataValue;
             }
 
-            if (FieldMetaData != null)
+            if (FieldMetaData != null && copy != null)
             {
-                if (copy != null)
-                {
-                    copy.FieldMetaData = FieldMetaData.Clone() as FieldMetaData;
-                }
+                copy.FieldMetaData = FieldMetaData.Clone() as FieldMetaData;
             }
             return copy;
         }
-        #endregion
     }
 }

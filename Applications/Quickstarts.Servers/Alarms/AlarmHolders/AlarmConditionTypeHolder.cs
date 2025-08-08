@@ -52,7 +52,7 @@ namespace Alarms
         {
             if (create)
             {
-                Initialize(Opc.Ua.ObjectTypes.AlarmConditionType, name, maxShelveTime);
+                Initialize(ObjectTypes.AlarmConditionType, name, maxShelveTime);
             }
         }
 
@@ -129,8 +129,6 @@ namespace Alarms
             alarm.AudibleSound = null;
             alarm.AudibleEnabled = null;
         }
-
-        #region Overrides
 
         public override void SetValue(string message = "")
         {
@@ -225,10 +223,6 @@ namespace Alarms
             return update;
         }
 
-        #endregion
-
-        #region Helpers
-
         private AlarmConditionState GetAlarm(BaseEventState alarm = null)
         {
             if (alarm == null)
@@ -237,10 +231,6 @@ namespace Alarms
             }
             return (AlarmConditionState)alarm;
         }
-
-        #endregion
-
-        #region Methods
 
         private ServiceResult OnShelve(
             ISystemContext context,
@@ -289,7 +279,5 @@ namespace Alarms
 
             return ServiceResult.Good;
         }
-
-        #endregion
     }
 }

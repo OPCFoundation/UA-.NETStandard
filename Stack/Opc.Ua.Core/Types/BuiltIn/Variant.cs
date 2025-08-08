@@ -37,7 +37,6 @@ namespace Opc.Ua
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public struct Variant : ICloneable, IFormattable, IEquatable<Variant>
     {
-        #region Constructors
         /// <summary>
         /// Creates a deep copy of the value.
         /// </summary>
@@ -87,13 +86,13 @@ namespace Opc.Ua
                 return;
             }
 
-            System.Diagnostics.Debug.Assert(
+            Debug.Assert(
                 sanityCheck.BuiltInType == m_typeInfo.BuiltInType,
                 Utils.Format("{0} != {1}",
                 sanityCheck.BuiltInType,
                 typeInfo.BuiltInType));
 
-            System.Diagnostics.Debug.Assert(
+            Debug.Assert(
                 sanityCheck.ValueRank == m_typeInfo.ValueRank,
                 Utils.Format("{0} != {1}",
                 sanityCheck.ValueRank,
@@ -764,9 +763,7 @@ namespace Opc.Ua
             m_typeInfo = TypeInfo.Arrays.Variant;
             Set(value);
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The value stored in the object.
         /// </summary>
@@ -842,18 +839,14 @@ namespace Opc.Ua
         /// The value stored -as <see cref="object"/>- within the Variant object.
         /// </remarks>
         public object Value
-        {
-            get { return m_value; }
-            set { Set(value, TypeInfo.Construct(value)); }
+        { get => m_value; set => Set(value, TypeInfo.Construct(value));
         }
 
         /// <summary>
         /// The type information for the matrix.
         /// </summary>
         public TypeInfo TypeInfo => m_typeInfo;
-        #endregion
 
-        #region IFormattable Members
         /// <summary>
         /// Returns the string representation of the object.
         /// </summary>
@@ -909,7 +902,7 @@ namespace Opc.Ua
             if (m_typeInfo.BuiltInType == BuiltInType.ByteString && m_typeInfo.ValueRank < 0)
             {
                 byte[] bytes = (byte[])value;
-                Variant.AppendByteString(buffer, bytes, formatProvider);
+                AppendByteString(buffer, bytes, formatProvider);
                 return;
             }
 
@@ -932,14 +925,14 @@ namespace Opc.Ua
                     if (array.Length > 0)
                     {
                         byte[] bytes = (byte[])array.GetValue(0);
-                        Variant.AppendByteString(buffer, bytes, formatProvider);
+                        AppendByteString(buffer, bytes, formatProvider);
                     }
 
                     for (int ii = 1; ii < array.Length; ii++)
                     {
                         buffer.Append('|');
                         byte[] bytes = (byte[])array.GetValue(ii);
-                        Variant.AppendByteString(buffer, bytes, formatProvider);
+                        AppendByteString(buffer, bytes, formatProvider);
                     }
                 }
                 else
@@ -962,13 +955,11 @@ namespace Opc.Ua
             // let the object format itself.
             buffer.AppendFormat(formatProvider, "{0}", value);
         }
-        #endregion
 
-        #region ICloneable Members
         /// <inheritdoc/>
         public object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -979,11 +970,9 @@ namespace Opc.Ua
         /// </remarks>
         public new object MemberwiseClone()
         {
-            return new Variant(Utils.Clone(this.Value));
+            return new Variant(Utils.Clone(Value));
         }
-        #endregion
 
-        #region Static Operators
         /// <summary>
         /// Returns true if the objects are not equal.
         /// </summary>
@@ -1553,30 +1542,20 @@ namespace Opc.Ua
         {
             return Utils.IsEqual(m_value, other.m_value);
         }
-        #endregion
 
-        #region Static Fields
         /// <summary>
         /// An constant containing a null Variant structure.
         /// </summary>
         /// <remarks>
         /// An constant containing a null Variant structure.
         /// </remarks>
-        public static readonly Variant Null = new Variant();
+        public static readonly Variant Null = new();
 
         /// <summary>
         /// Returns if the Variant is a Null value.
         /// </summary>
-        public bool IsNull
-        {
-            get
-            {
-                return this.m_value == null;
-            }
-        }
-        #endregion
+        public bool IsNull => m_value == null;
 
-        #region Overridden Methods
         /// <summary>
         /// Determines if the specified object is equal to the object.
         /// </summary>
@@ -1600,7 +1579,7 @@ namespace Opc.Ua
         /// </summary>
         public override int GetHashCode()
         {
-            if (this.m_value != null)
+            if (m_value != null)
             {
                 return m_value.GetHashCode();
             }
@@ -1615,9 +1594,7 @@ namespace Opc.Ua
         {
             return ToString(null, null);
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Initializes the object with a bool value.
         /// </summary>
@@ -2280,9 +2257,7 @@ namespace Opc.Ua
 
             m_typeInfo = TypeInfo.Arrays.Variant;
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Stores a scalar value in the variant.
         /// </summary>
@@ -2527,15 +2502,11 @@ namespace Opc.Ua
                    StatusCodes.BadNotSupported,
                    Utils.Format("Arrays of the type '{0}' cannot be stored in a Variant object.", value.GetType().FullName));
         }
-        #endregion
 
-        #region Private Members
         private object m_value;
         private TypeInfo m_typeInfo;
-        #endregion
     }
 
-    #region VariantCollection Class
     /// <summary>
     /// A collection of Variant objects.
     /// </summary>
@@ -2575,10 +2546,10 @@ namespace Opc.Ua
         {
             if (values != null)
             {
-                return new VariantCollection(values);
+                return [.. values];
             }
 
-            return new VariantCollection();
+            return [];
         }
 
         /// <summary>
@@ -2593,11 +2564,10 @@ namespace Opc.Ua
             return ToVariantCollection(values);
         }
 
-        #region ICloneable
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -2605,7 +2575,7 @@ namespace Opc.Ua
         /// </summary>
         public new object MemberwiseClone()
         {
-            var clone = new VariantCollection(this.Count);
+            var clone = new VariantCollection(Count);
 
             foreach (Variant element in this)
             {
@@ -2614,8 +2584,5 @@ namespace Opc.Ua
 
             return clone;
         }
-        #endregion
     }//class
-    #endregion
-
 }//namespace

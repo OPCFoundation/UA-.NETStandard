@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -51,29 +51,29 @@ namespace Opc.Ua.Client
     [EventSource(Name = "OPC-UA-Client", Guid = "8CFA469E-18C6-480F-9B74-B005DACDE3D3")]
     internal class OpcUaClientEventSource : EventSource
     {
-        private const int SubscriptionStateId = 1;
-        private const int NotificationId = SubscriptionStateId + 1;
-        private const int NotificationReceivedId = NotificationId + 1;
-        private const int PublishStartId = NotificationReceivedId + 1;
-        private const int PublishStopId = PublishStartId + 1;
+        internal const int SubscriptionStateId = 1;
+        internal const int NotificationId = SubscriptionStateId + 1;
+        internal const int NotificationReceivedId = NotificationId + 1;
+        internal const int PublishStartId = NotificationReceivedId + 1;
+        internal const int PublishStopId = PublishStartId + 1;
 
         /// <summary>
         /// The client messages.
         /// </summary>
-        private const string SubscriptionStateMessage = "Subscription {0}, Id={1}, LastNotificationTime={2:HH:mm:ss}, GoodPublishRequestCount={3}, PublishingInterval={4}, KeepAliveCount={5}, PublishingEnabled={6}, MonitoredItemCount={7}";
-        private const string NotificationMessage = "Notification: ClientHandle={0}, Value={1}";
-        private const string NotificationReceivedMessage = "NOTIFICATION RECEIVED: SubId={0}, SeqNo={1}";
-        private const string PublishStartMessage = "PUBLISH #{0} SENT";
-        private const string PublishStopMessage = "PUBLISH #{0} RECEIVED";
+        internal const string SubscriptionStateMessage = "Subscription {0}, Id={1}, LastNotificationTime={2:HH:mm:ss}, GoodPublishRequestCount={3}, PublishingInterval={4}, KeepAliveCount={5}, PublishingEnabled={6}, MonitoredItemCount={7}";
+        internal const string NotificationMessage = "Notification: ClientHandle={0}, Value={1}";
+        internal const string NotificationReceivedMessage = "NOTIFICATION RECEIVED: SubId={0}, SeqNo={1}";
+        internal const string PublishStartMessage = "PUBLISH #{0} SENT";
+        internal const string PublishStopMessage = "PUBLISH #{0} RECEIVED";
 
         /// <summary>
         /// The Client Event Ids used for event messages, when calling ILogger.
         /// </summary>
-        private readonly EventId SubscriptionStateMessageEventId = new EventId(TraceMasks.Operation, nameof(SubscriptionState));
-        private readonly EventId NotificationEventId = new EventId(TraceMasks.Operation, nameof(Notification));
-        private readonly EventId NotificationReceivedEventId = new EventId(TraceMasks.Operation, nameof(NotificationReceived));
-        private readonly EventId PublishStartEventId = new EventId(TraceMasks.ServiceDetail, nameof(PublishStart));
-        private readonly EventId PublishStopEventId = new EventId(TraceMasks.ServiceDetail, nameof(PublishStop));
+        internal readonly EventId SubscriptionStateMessageEventId = new(TraceMasks.Operation, nameof(SubscriptionState));
+        internal readonly EventId NotificationEventId = new(TraceMasks.Operation, nameof(Notification));
+        internal readonly EventId NotificationReceivedEventId = new(TraceMasks.Operation, nameof(NotificationReceived));
+        internal readonly EventId PublishStartEventId = new(TraceMasks.ServiceDetail, nameof(PublishStart));
+        internal readonly EventId PublishStopEventId = new(TraceMasks.ServiceDetail, nameof(PublishStop));
 
         /// <summary>
         /// The state of the client subscription.
@@ -87,9 +87,9 @@ namespace Opc.Ua.Client
                 WriteEvent(SubscriptionStateId, context, id, lastNotificationTime, goodPublishRequestCount,
                     currentPublishingInterval, currentKeepAliveCount, currentPublishingEnabled, monitoredItemCount);
             }
-            else if (Utils.Logger.IsEnabled(LogLevel.Information))
+            else if (Logger.IsEnabled(LogLevel.Information))
             {
-                Utils.LogInfo(SubscriptionStateMessageEventId, SubscriptionStateMessage,
+                LogInfo(SubscriptionStateMessageEventId, SubscriptionStateMessage,
                     context, id, lastNotificationTime, goodPublishRequestCount,
                     currentPublishingInterval, currentKeepAliveCount, currentPublishingEnabled, monitoredItemCount);
             }
@@ -114,9 +114,9 @@ namespace Opc.Ua.Client
             {
                 WriteEvent(NotificationReceivedId, subscriptionId, sequenceNumber);
             }
-            else if (Utils.Logger.IsEnabled(LogLevel.Trace))
+            else if (Logger.IsEnabled(LogLevel.Trace))
             {
-                Utils.LogTrace(NotificationReceivedEventId, NotificationReceivedMessage,
+                LogTrace(NotificationReceivedEventId, NotificationReceivedMessage,
                     subscriptionId, sequenceNumber);
             }
         }
@@ -131,9 +131,9 @@ namespace Opc.Ua.Client
             {
                 WriteEvent(PublishStartId, requestHandle);
             }
-            else if (Utils.Logger.IsEnabled(LogLevel.Trace))
+            else if (Logger.IsEnabled(LogLevel.Trace))
             {
-                Utils.LogTrace(PublishStartEventId, PublishStartMessage, requestHandle);
+                LogTrace(PublishStartEventId, PublishStartMessage, requestHandle);
             }
         }
 
@@ -147,9 +147,9 @@ namespace Opc.Ua.Client
             {
                 WriteEvent(PublishStopId, requestHandle);
             }
-            else if (Utils.Logger.IsEnabled(LogLevel.Trace))
+            else if (Logger.IsEnabled(LogLevel.Trace))
             {
-                Utils.LogTrace(PublishStopEventId, PublishStopMessage, requestHandle);
+                LogTrace(PublishStopEventId, PublishStopMessage, requestHandle);
             }
         }
 
@@ -160,15 +160,15 @@ namespace Opc.Ua.Client
         public void NotificationValue(uint clientHandle, Variant wrappedValue)
         {
             // expensive operation, only enable if tracemask set
-            if ((Utils.TraceMask & Utils.TraceMasks.OperationDetail) != 0)
+            if ((TraceMask & TraceMasks.OperationDetail) != 0)
             {
                 if (IsEnabled())
                 {
                     Notification((int)clientHandle, wrappedValue.ToString());
                 }
-                else if (Utils.Logger.IsEnabled(LogLevel.Trace))
+                else if (Logger.IsEnabled(LogLevel.Trace))
                 {
-                    Utils.LogTrace(NotificationEventId, NotificationMessage,
+                    LogTrace(NotificationEventId, NotificationMessage,
                         clientHandle, wrappedValue);
                 }
             }

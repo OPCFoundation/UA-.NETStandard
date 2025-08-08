@@ -38,7 +38,6 @@ namespace Opc.Ua.Client.ComplexTypes
     /// </summary>
     public static class DataTypeDefinitionExtension
     {
-        #region Public Extensions
         /// <summary>
         /// Convert a binary schema type definition to a
         /// StructureDefinition.
@@ -90,13 +89,10 @@ namespace Opc.Ua.Client.ComplexTypes
                 }
 
                 if (field.TypeName.Namespace is Namespaces.OpcBinarySchema or
-                    Namespaces.OpcUa)
+                    Namespaces.OpcUa && field.TypeName.Name == "Bit")
                 {
-                    if (field.TypeName.Name == "Bit")
-                    {
-                        hasBitField = true;
-                        continue;
-                    }
+                    hasBitField = true;
+                    continue;
                 }
                 if (field.Length != 0)
                 {
@@ -182,7 +178,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 if (field.LengthField != null)
                 {
                     // handle array length
-                    StructureField lastField = structureDefinition.Fields.Last();
+                    StructureField lastField = structureDefinition.Fields[^1];
                     if (lastField.Name != field.LengthField)
                     {
                         throw new DataTypeNotSupportedException(
@@ -340,22 +336,13 @@ namespace Opc.Ua.Client.ComplexTypes
 
             return enumDefinition;
         }
-        #endregion Public Extensions
 
-        #region Private Methods
         /// <summary>
         /// Test for special Bit type used in the binary schema structure definition.
         /// </summary>
         private static bool IsXmlBitType(this XmlQualifiedName typeName)
         {
-            if (typeName.Namespace is Namespaces.OpcBinarySchema or Namespaces.OpcUa)
-            {
-                if (typeName.Name == "Bit")
-                {
-                    return true;
-                }
-            }
-            return false;
+            return typeName.Namespace is Namespaces.OpcBinarySchema or Namespaces.OpcUa && typeName.Name == "Bit";
         }
 
         /// <summary>
@@ -394,6 +381,5 @@ namespace Opc.Ua.Client.ComplexTypes
                 return referenceId;
             }
         }
-        #endregion Private Methods
     }
 }//namespace

@@ -23,7 +23,6 @@ namespace Opc.Ua
     [DataContract(Namespace = Namespaces.OpcUaXsd)]
     public class Matrix : ICloneable, IFormattable
     {
-        #region Constructors
         /// <summary>
         /// Initializes the matrix with a multidimensional array.
         /// </summary>
@@ -70,16 +69,14 @@ namespace Opc.Ua
             }
             else
             {
-                Dimensions = new int[] { elements.Length };
+                Dimensions = [elements.Length];
             }
 
             TypeInfo = new TypeInfo(builtInType, Dimensions.Length);
 
             SanityCheckArrayElements(Elements, builtInType);
         }
-        #endregion
 
-        #region Public Members
         /// <summary>
         /// The elements of the matrix.
         /// </summary>
@@ -133,9 +130,7 @@ namespace Opc.Ua
                 throw ServiceResultException.Create(StatusCodes.BadEncodingLimitsExceeded, oom.Message);
             }
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Determines if the specified object is equal to the object.
         /// </summary>
@@ -144,7 +139,7 @@ namespace Opc.Ua
         /// </remarks>
         public override bool Equals(object obj)
         {
-            if (Object.ReferenceEquals(this, obj))
+            if (ReferenceEquals(this, obj))
             {
                 return true;
             }
@@ -185,9 +180,7 @@ namespace Opc.Ua
             }
             return hash.ToHashCode();
         }
-        #endregion
 
-        #region IFormattable Members
         /// <summary>
         /// Returns the string representation of the object.
         /// </summary>
@@ -225,13 +218,11 @@ namespace Opc.Ua
 
             throw new FormatException(Utils.Format("Invalid format string: '{0}'.", format));
         }
-        #endregion
 
-        #region ICloneable Members
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -242,11 +233,9 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
-            return new Matrix((Array)Utils.Clone(Elements), TypeInfo.BuiltInType, (int[])Utils.Clone(Dimensions));
+            return new Matrix(Utils.Clone(Elements), TypeInfo.BuiltInType, Utils.Clone(Dimensions));
         }
-        #endregion
 
-        #region Private Methods
         /// <summary>
         /// Debug.Assert if the elements are assigned a valid BuiltInType.
         /// </summary>
@@ -265,9 +254,6 @@ namespace Opc.Ua
 #endif
         }
 
-#endregion
-
-        #region Validation Methods
         /// <summary>
         /// A function that performs a validation on a given index into the dimensions array
         /// </summary>
@@ -276,7 +262,6 @@ namespace Opc.Ua
         /// <returns>The validation result</returns>
         public delegate bool ValidateDimensionsFunction(int idx, Int32Collection dimensions);
 
-        #region Public Static
         /// <summary>
         /// Validate the dimensions of a given matrix.
         /// As a side effect will bring to 0 negative dimensions.
@@ -359,9 +344,7 @@ namespace Opc.Ua
         {
             return ValidateDimensions(dimensions, maxArrayLength: 0, customValidation: null);
         }
-        #endregion
 
-        #region Private Static
         /// <summary>
         /// Validate the dimensions of a matrix against a given validation function.
         /// Throws ArgumentException if dimensions overflow and ServiceResultException if maxArrayLength is exceeded
@@ -409,7 +392,5 @@ namespace Opc.Ua
 
             return (valid, flatLength);
         }
-        #endregion
-        #endregion
     }
 }

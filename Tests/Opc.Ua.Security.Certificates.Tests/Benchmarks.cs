@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -40,16 +40,16 @@ namespace Opc.Ua.Security.Certificates.Tests
     [MemoryDiagnoser]
     public class Benchmarks
     {
-        X509Certificate2 m_issuerCert;
-        IX509CRL m_issuerCrl;
-        X509CRL m_x509Crl;
-        X509Certificate2 m_certificate;
-        byte[] m_randomByteArray;
-        byte[] m_encryptedByteArray;
-        byte[] m_signature;
-        RSA m_rsaPrivateKey;
-        RSA m_rsaPublicKey;
-        private static readonly string[] domainNames = new string[] { "mypc", "mypc.opcfoundation.org", "192.168.1.100" };
+        private X509Certificate2 m_issuerCert;
+        private IX509CRL m_issuerCrl;
+        private X509CRL m_x509Crl;
+        private X509Certificate2 m_certificate;
+        private byte[] m_randomByteArray;
+        private byte[] m_encryptedByteArray;
+        private byte[] m_signature;
+        private RSA m_rsaPrivateKey;
+        private RSA m_rsaPublicKey;
+        private static readonly string[] domainNames = ["mypc", "mypc.opcfoundation.org", "192.168.1.100"];
 
         /// <summary>
         /// Setup variables for running benchmarks.
@@ -208,7 +208,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         public void CreateCRL()
         {
             // little endian byte array as serial number?
-            byte[] serial = new byte[] { 1, 2, 3 };
+            byte[] serial = [1, 2, 3];
             var revokedarray = new RevokedCertificate(serial);
 
             CrlBuilder crlBuilder = CrlBuilder.Create(m_issuerCert.SubjectName, HashAlgorithmName.SHA256)

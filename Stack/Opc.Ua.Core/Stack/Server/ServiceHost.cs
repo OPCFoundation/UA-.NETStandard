@@ -35,7 +35,6 @@ namespace Opc.Ua
     /// </summary>
     public class ServiceHost : IServiceHostBase, IDisposable
     {
-        #region Constructors
         /// <summary>
         /// Initializes the service host.
         /// </summary>
@@ -48,9 +47,7 @@ namespace Opc.Ua
             m_endpointType = endpointType;
             m_addresses = addresses;
         }
-        #endregion
 
-        #region IDisposable Members
         /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
@@ -70,14 +67,10 @@ namespace Opc.Ua
                 Close();
             }
         }
-        #endregion
 
-        #region IServerHostBase Members
         /// <inheritdoc/>
         public IServerBase Server => m_server;
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Called when the service host is opened.
         /// </summary>
@@ -105,12 +98,9 @@ namespace Opc.Ua
         /// State of the service host.
         /// </summary>
         public ServiceHostState State { get; private set; }
-        #endregion
 
-        #region Private Fields
         private readonly ServerBase m_server;
         private readonly Type m_endpointType;
         private readonly Uri[] m_addresses;
-        #endregion
     }
 }

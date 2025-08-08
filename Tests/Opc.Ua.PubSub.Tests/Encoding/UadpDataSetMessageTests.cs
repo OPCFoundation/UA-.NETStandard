@@ -27,12 +27,12 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using NUnit.Framework;
-using Opc.Ua.PubSub.PublishedData;
 using System;
-using System.Linq;
 using System.IO;
+using System.Linq;
+using NUnit.Framework;
 using Opc.Ua.PubSub.Encoding;
+using Opc.Ua.PubSub.PublishedData;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.PubSub.Tests.Encoding
@@ -260,7 +260,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var uaDataSetMessageDecoded = new UadpDataSetMessage();
             using (var decoder = new BinaryDecoder(bytes, messageContextEncode))
             {
-
                 // Make sure the reader MajorVersion and MinorVersion are the same with the ones on the dataset message
                 var reader = (DataSetReaderDataType)m_firstDataSetReaderType.MemberwiseClone();
                 reader.DataSetMetaData.ConfigurationVersion.MajorVersion = versionValue;
@@ -437,7 +436,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             var uaDataSetMessageDecoded = new UadpDataSetMessage();
             using (var decoder = new BinaryDecoder(bytes, messageContextEncode))
             {
-
                 // Make sure the reader MajorVersion differ and MinorVersion differ
                 var reader = (DataSetReaderDataType)m_firstDataSetReaderType.MemberwiseClone();
                 reader.DataSetMetaData.ConfigurationVersion.MajorVersion = uadpDataSetMessage.MetaDataVersion.MajorVersion + 1;
@@ -483,8 +481,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             CompareEncodeDecode(uadpDataSetMessage);
         }
 
-        #region Private Methods
-
         /// <summary>
         /// Load Variant data type into datasets
         /// </summary>
@@ -492,7 +488,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             Assert.IsNotNull(m_publisherApplication, "m_publisherApplication should not be null");
 
-            #region DataSet Simple
             // DataSet 'Simple' fill with data
             var booleanValue = new DataValue(new Variant(true), StatusCodes.Good);
             m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId("BoolToggle", kNamespaceIndexSimple), Attributes.Value, booleanValue);
@@ -502,7 +497,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId("Int32Fast", kNamespaceIndexSimple), Attributes.Value, scalarInt32YValue);
             var dateTimeValue = new DataValue(new Variant(DateTime.UtcNow), StatusCodes.Good);
             m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId("DateTime", kNamespaceIndexSimple), Attributes.Value, dateTimeValue);
-            #endregion
         }
 
         /// <summary>
@@ -544,9 +538,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             System.Collections.Generic.IList<UaNetworkMessage> networkMessages = m_firstPublisherConnection.CreateNetworkMessages(m_firstWriterGroup, new WriterGroupPublishState());
             // filter out the metadata message
-            networkMessages = (from m in networkMessages
+            networkMessages = [.. (from m in networkMessages
                                where !m.IsMetaDataMessage
-                               select m).ToList();
+                               select m)];
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
             Assert.AreEqual(1, networkMessages.Count, "connection.CreateNetworkMessages shall return only one network message");
 
@@ -555,7 +549,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(uaNetworkMessage, "networkMessageEncode should not be null");
 
             // read first dataset message
-            UaDataSetMessage[] uadpDataSetMessages = uaNetworkMessage.DataSetMessages.ToArray();
+            UaDataSetMessage[] uadpDataSetMessages = [.. uaNetworkMessage.DataSetMessages];
             Assert.IsNotEmpty(uadpDataSetMessages, "uadpDataSetMessages collection should not be empty");
 
             UaDataSetMessage uadpDataSetMessage = uadpDataSetMessages[0];
@@ -593,14 +587,13 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             CompareUadpDataSetMessages(uadpDataSetMessage, uaDataSetMessageDecoded);
         }
 
-
         /// <summary>
         /// Compare dataset messages options
         /// </summary>
         /// <param name="uadpDataSetMessageEncode"></param>
         /// <param name="uadpDataSetMessageDecoded"></param>
         /// <returns></returns>
-        private void CompareUadpDataSetMessages(UadpDataSetMessage uadpDataSetMessageEncode, UadpDataSetMessage uadpDataSetMessageDecoded)
+        private static void CompareUadpDataSetMessages(UadpDataSetMessage uadpDataSetMessageEncode, UadpDataSetMessage uadpDataSetMessageDecoded)
         {
             DataSet dataSetDecoded = uadpDataSetMessageDecoded.DataSet;
             UadpDataSetMessageContentMask dataSetMessageContentMask = uadpDataSetMessageEncode.DataSetMessageContentMask;
@@ -669,7 +662,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// </summary>
         /// <param name="stream"></param>
         /// <returns></returns>
-        private byte[] ReadBytes(Stream stream)
+        private static byte[] ReadBytes(MemoryStream stream)
         {
             stream.Position = 0;
             using (var ms = new MemoryStream())
@@ -678,6 +671,5 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 return ms.ToArray();
             }
         }
-        #endregion
     }
 }

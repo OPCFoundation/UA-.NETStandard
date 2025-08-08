@@ -21,17 +21,14 @@ namespace Opc.Ua
     /// <remarks>This class is thread safe.</remarks>
     public class ViewTable
     {
-        #region Constructors
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
         public ViewTable()
         {
-            m_views = new Dictionary<NodeId, ViewNode>();
+            m_views = [];
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Determines whether a node id is a valid view id.
         /// </summary>
@@ -170,11 +167,8 @@ namespace Opc.Ua
                 m_views.Remove(viewId);
             }
         }
-        #endregion
 
-        #region Private Fields
-        private readonly object m_lock = new object();
+        private readonly object m_lock = new();
         private readonly Dictionary<NodeId, ViewNode> m_views;
-        #endregion
     }
 }

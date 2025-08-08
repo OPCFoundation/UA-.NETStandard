@@ -36,16 +36,15 @@ namespace Opc.Ua.PubSub.Transport
     /// </summary>
     public class MqttMetadataPublisher
     {
-        #region Private Fields
         private readonly IMqttPubSubConnection m_parentConnection;
         private readonly WriterGroupDataType m_writerGroup;
         private readonly DataSetWriterDataType m_dataSetWriter;
 
-        // the component that triggers the publish messages
+        /// <summary>
+        /// the component that triggers the publish messages
+        /// </summary>
         private readonly IntervalRunner m_intervalRunner;
-        #endregion
 
-        #region Constructor
         /// <summary>
         /// Create new instance of <see cref="MqttMetadataPublisher"/>.
         /// </summary>
@@ -57,9 +56,6 @@ namespace Opc.Ua.PubSub.Transport
             m_dataSetWriter = dataSetWriter;
             m_intervalRunner = new IntervalRunner(dataSetWriter.DataSetWriterId, metaDataUpdateTime, CanPublish, PublishMessage);
         }
-        #endregion
-
-        #region Public Methods
 
         /// <summary>
         /// Starts the publisher and makes it ready to send data.
@@ -82,9 +78,6 @@ namespace Opc.Ua.PubSub.Transport
                 m_dataSetWriter.DataSetWriterId);
         }
 
-        #endregion
-
-        #region Private Methods
         /// <summary>
         /// Decide if the DataSetWriter can publish metadata
         /// </summary>
@@ -116,15 +109,12 @@ namespace Opc.Ua.PubSub.Transport
                 Utils.Trace(e, "MqttMetadataPublisher.PublishMessages");
             }
         }
-        #endregion
 
         /// <summary>
         /// Holds state of MetaData
         /// </summary>
         public class MetaDataState
         {
-            #region Constructor
-
             /// <summary>
             /// Create new instance of <see cref="MetaDataState"/>
             /// </summary>
@@ -140,10 +130,6 @@ namespace Opc.Ua.PubSub.Transport
 
                 MetaDataUpdateTime = transport?.MetaDataUpdateTime ?? 0;
             }
-
-            #endregion
-
-            #region Properties
 
             /// <summary>
             /// The DataSetWriter associated with this MetadataState object
@@ -164,8 +150,6 @@ namespace Opc.Ua.PubSub.Transport
             /// The configured interval when the metadata shall be sent
             /// </summary>
             public double MetaDataUpdateTime { get; set; }
-
-            #endregion
 
             /// <summary>
             /// Get the next publish interval

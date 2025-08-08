@@ -52,7 +52,6 @@ namespace Quickstarts.ReferenceServer
     /// </remarks>
     public class ReferenceServer : ReverseConnectServer
     {
-        #region Properties
         public ITokenValidator TokenValidator { get; set; }
 
         /// <summary>
@@ -61,9 +60,6 @@ namespace Quickstarts.ReferenceServer
         /// </summary>
         public bool UseSamplingGroupsInReferenceNodeManager { get; set; }
 
-        #endregion
-
-        #region Overridden Methods
         /// <summary>
         /// Creates the node managers for the server.
         /// </summary>
@@ -76,10 +72,11 @@ namespace Quickstarts.ReferenceServer
         {
             Utils.LogInfo(Utils.TraceMasks.StartStop, "Creating the Reference Server Node Manager.");
 
-            IList<INodeManager> nodeManagers = new List<INodeManager>();
-
-            // create the custom node manager.
-            nodeManagers.Add(new ReferenceNodeManager(server, configuration, UseSamplingGroupsInReferenceNodeManager));
+            IList<INodeManager> nodeManagers =
+            [
+                // create the custom node manager.
+                new ReferenceNodeManager(server, configuration, UseSamplingGroupsInReferenceNodeManager),
+            ];
 
             foreach (INodeManagerFactory nodeManagerFactory in NodeManagerFactories)
             {
@@ -87,7 +84,7 @@ namespace Quickstarts.ReferenceServer
             }
 
             // create master node manager.
-            return new MasterNodeManager(server, configuration, null, nodeManagers.ToArray());
+            return new MasterNodeManager(server, configuration, null, [.. nodeManagers]);
         }
 
         protected override IMonitoredItemQueueFactory CreateMonitoredItemQueueFactory(IServerInternal server, ApplicationConfiguration configuration)
@@ -205,23 +202,21 @@ namespace Quickstarts.ReferenceServer
             if (description.SecurityPolicyUri == SecurityPolicies.Aes256_Sha256_RsaPss &&
                 description.SecurityMode == MessageSecurityMode.SignAndEncrypt)
             {
-                return new UserTokenPolicyCollection(policies.Where(u => u.TokenType != UserTokenType.Certificate));
+                return [.. policies.Where(u => u.TokenType != UserTokenType.Certificate)];
             }
             else if (description.SecurityPolicyUri == SecurityPolicies.Aes128_Sha256_RsaOaep &&
                 description.SecurityMode == MessageSecurityMode.Sign)
             {
-                return new UserTokenPolicyCollection(policies.Where(u => u.TokenType != UserTokenType.Anonymous));
+                return [.. policies.Where(u => u.TokenType != UserTokenType.Anonymous)];
             }
             else if (description.SecurityPolicyUri == SecurityPolicies.Aes128_Sha256_RsaOaep &&
                 description.SecurityMode == MessageSecurityMode.SignAndEncrypt)
             {
-                return new UserTokenPolicyCollection(policies.Where(u => u.TokenType != UserTokenType.UserName));
+                return [.. policies.Where(u => u.TokenType != UserTokenType.UserName)];
             }
             return policies;
         }
-        #endregion
 
-        #region User Validation Functions
         /// <summary>
         /// Creates the objects used to validate the user identity tokens supported by the server.
         /// </summary>
@@ -276,7 +271,7 @@ namespace Quickstarts.ReferenceServer
                 VerifyUserTokenCertificate(x509Token.Certificate);
                 // set AuthenticatedUser role for accepted certificate authentication
                 args.Identity = new RoleBasedIdentity(new UserIdentity(x509Token),
-                    new List<Role>() { Role.AuthenticatedUser });
+                    [Role.AuthenticatedUser]);
                 Utils.LogInfo(Utils.TraceMasks.Security, "X509 Token Accepted: {0}", args.Identity?.DisplayName);
 
                 return;
@@ -285,7 +280,7 @@ namespace Quickstarts.ReferenceServer
             // check for issued identity token.
             if (args.NewIdentity is IssuedIdentityToken issuedToken)
             {
-                args.Identity = this.VerifyIssuedToken(issuedToken);
+                args.Identity = VerifyIssuedToken(issuedToken);
 
                 // set AuthenticatedUser role for accepted identity token
                 args.Identity.GrantedRoleIds.Add(ObjectIds.WellKnownRole_AuthenticatedUser);
@@ -298,7 +293,7 @@ namespace Quickstarts.ReferenceServer
             {
                 // allow anonymous authentication and set Anonymous role for this authentication
                 args.Identity = new RoleBasedIdentity(new UserIdentity(),
-                    new List<Role>() { Role.Anonymous });
+                    [Role.Anonymous]);
                 return;
             }
 
@@ -353,7 +348,7 @@ namespace Quickstarts.ReferenceServer
                     new LocalizedText(info)));
             }
             return new RoleBasedIdentity(new UserIdentity(userNameToken),
-                   new List<Role>() { Role.AuthenticatedUser });
+                   [Role.AuthenticatedUser]);
         }
 
         /// <summary>
@@ -408,7 +403,7 @@ namespace Quickstarts.ReferenceServer
 
         private IUserIdentity VerifyIssuedToken(IssuedIdentityToken issuedToken)
         {
-            if (this.TokenValidator == null)
+            if (TokenValidator == null)
             {
                 Utils.LogWarning(Utils.TraceMasks.Security, "No TokenValidator is specified.");
                 return null;
@@ -418,7 +413,7 @@ namespace Quickstarts.ReferenceServer
                 if (issuedToken.IssuedTokenType == IssuedTokenType.JWT)
                 {
                     Utils.LogDebug(Utils.TraceMasks.Security, "VerifyIssuedToken: ValidateToken");
-                    return this.TokenValidator.ValidateToken(issuedToken);
+                    return TokenValidator.ValidateToken(issuedToken);
                 }
                 else
                 {
@@ -444,14 +439,11 @@ namespace Quickstarts.ReferenceServer
                 throw new ServiceResultException(new ServiceResult(
                     result,
                     info.Key,
-                    this.LoadServerProperties().ProductUri,
+                    LoadServerProperties().ProductUri,
                     new LocalizedText(info)));
             }
         }
-        #endregion
 
-        #region Private Fields
         private ICertificateValidator m_userCertificateValidator;
-        #endregion
     }
 }

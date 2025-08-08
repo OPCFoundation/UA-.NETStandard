@@ -20,7 +20,6 @@ namespace Opc.Ua
     /// </summary>
     public class ViewState : NodeState
     {
-        #region Constructors
         /// <summary>
         /// Initializes the instance with its default attribute values.
         /// </summary>
@@ -37,9 +36,7 @@ namespace Opc.Ua
         {
             return new ViewState();
         }
-        #endregion
 
-        #region Initialization
         /// <summary>
         /// Initializes the instance with the default values.
         /// </summary>
@@ -69,13 +66,11 @@ namespace Opc.Ua
 
             base.Initialize(context, source);
         }
-        #endregion
 
-        #region ICloneable Members
         /// <inheritdoc/>
         public override object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -86,21 +81,16 @@ namespace Opc.Ua
         /// </returns>
         public new object MemberwiseClone()
         {
-            var clone = (ViewState)Activator.CreateInstance(this.GetType());
+            var clone = (ViewState)Activator.CreateInstance(GetType());
             return CloneChildren(clone);
         }
-        #endregion
 
-        #region Public Members
         /// <summary>
         /// The inverse name for the reference.
         /// </summary>
         public byte EventNotifier
         {
-            get
-            {
-                return m_eventNotifier;
-            }
+            get => m_eventNotifier;
 
             set
             {
@@ -118,10 +108,7 @@ namespace Opc.Ua
         /// </summary>
         public bool ContainsNoLoops
         {
-            get
-            {
-                return m_containsNoLoops;
-            }
+            get => m_containsNoLoops;
 
             set
             {
@@ -133,9 +120,7 @@ namespace Opc.Ua
                 m_containsNoLoops = value;
             }
         }
-        #endregion
 
-        #region Event Callbacks
         /// <summary>
         /// Raised when the EventNotifier attribute is read.
         /// </summary>
@@ -155,9 +140,7 @@ namespace Opc.Ua
         /// Raised when the ContainsNoLoops attribute is written.
         /// </summary>
         public NodeAttributeEventHandler<bool> OnWriteContainsNoLoops;
-        #endregion
 
-        #region Serialization Functions
         /// <summary>
         /// Exports a copy of the node to a node table.
         /// </summary>
@@ -169,8 +152,8 @@ namespace Opc.Ua
 
             if (node is ViewNode viewNode)
             {
-                viewNode.EventNotifier = this.EventNotifier;
-                viewNode.ContainsNoLoops = this.ContainsNoLoops;
+                viewNode.EventNotifier = EventNotifier;
+                viewNode.ContainsNoLoops = ContainsNoLoops;
             }
         }
 
@@ -285,9 +268,7 @@ namespace Opc.Ua
                 m_containsNoLoops = decoder.ReadBoolean(null);
             }
         }
-        #endregion
 
-        #region Read Support Functions
         /// <summary>
         /// Reads the value for any non-value attribute.
         /// </summary>
@@ -337,9 +318,7 @@ namespace Opc.Ua
 
             return base.ReadNonValueAttribute(context, attributeId, ref value);
         }
-        #endregion
 
-        #region Write Support Functions
         /// <summary>
         /// Write the value for any non-value attribute.
         /// </summary>
@@ -413,11 +392,8 @@ namespace Opc.Ua
 
             return base.WriteNonValueAttribute(context, attributeId, value);
         }
-        #endregion
 
-        #region Private Fields
         private byte m_eventNotifier;
         private bool m_containsNoLoops;
-        #endregion
     }
 }

@@ -20,7 +20,6 @@ namespace Opc.Ua
     /// </summary>
     public class ReverseConnectHost
     {
-        #region Constructors
         /// <summary>
         /// Creates a new reverse listener host for a client.
         /// </summary>
@@ -48,9 +47,7 @@ namespace Opc.Ua
             m_onConnectionWaiting = OnConnectionWaiting;
             m_onConnectionStatusChanged = OnConnectionStatusChanged;
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// The Url which is used by the transport listener.
         /// </summary>
@@ -101,12 +98,9 @@ namespace Opc.Ua
             m_listener.ConnectionStatusChanged -= m_onConnectionStatusChanged;
             m_listener.Close();
         }
-        #endregion
 
-        #region Private Fields
         private ITransportListener m_listener;
         private ConnectionWaitingHandlerAsync m_onConnectionWaiting;
         private EventHandler<ConnectionStatusEventArgs> m_onConnectionStatusChanged;
-        #endregion
     }
 }

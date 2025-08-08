@@ -22,7 +22,6 @@ namespace Opc.Ua
     /// </summary>
     public partial class CertificateStoreIdentifier : IFormattable, ICloneable
     {
-        #region Constructors
         /// <summary>
         /// Ctor of a certificate store.
         /// </summary>
@@ -55,13 +54,11 @@ namespace Opc.Ua
             StoreType = storeType;
             m_noPrivateKeys = noPrivateKeys;
         }
-        #endregion
 
-        #region ICloneable
         /// <inheritdoc/>
         public virtual object Clone()
         {
-            return this.MemberwiseClone();
+            return MemberwiseClone();
         }
 
         /// <summary>
@@ -71,16 +68,14 @@ namespace Opc.Ua
         {
             return base.MemberwiseClone();
         }
-        #endregion
 
-        #region IFormattable Members
         /// <summary>
         /// Formats the value of the current instance using the specified format.
         /// </summary>
         /// <param name="format">The <see cref="string"/> specifying the format to use.
         /// -or-
-        /// null to use the default format defined for the type of the <see cref="System.IFormattable"/> implementation.</param>
-        /// <param name="formatProvider">The <see cref="System.IFormatProvider"/> to use to format the value.
+        /// null to use the default format defined for the type of the <see cref="IFormattable"/> implementation.</param>
+        /// <param name="formatProvider">The <see cref="IFormatProvider"/> to use to format the value.
         /// -or-
         /// null to obtain the numeric format information from the current locale setting of the operating system.</param>
         /// <returns>
@@ -95,9 +90,7 @@ namespace Opc.Ua
 
             return ToString();
         }
-        #endregion
 
-        #region Overridden Methods
         /// <summary>
         /// Returns a <see cref="string"/> that represents the current <see cref="object"/>.
         /// </summary>
@@ -106,16 +99,14 @@ namespace Opc.Ua
         /// </returns>
         public override string ToString()
         {
-            if (string.IsNullOrEmpty(this.StoreType))
+            if (string.IsNullOrEmpty(StoreType))
             {
-                return Utils.Format("{0}", this.StorePath);
+                return Utils.Format("{0}", StorePath);
             }
 
-            return Utils.Format("[{0}]{1}", this.StoreType, this.StorePath);
+            return Utils.Format("[{0}]{1}", StoreType, StorePath);
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The path to the default PKI Root.
         /// </summary>
@@ -139,13 +130,9 @@ namespace Opc.Ua
         /// Options that can be used to suppress certificate validation errors.
         /// </summary>
         public CertificateValidationOptions ValidationOptions
-        {
-            get { return m_validationOptions; }
-            set { m_validationOptions = value; }
+        { get => m_validationOptions; set => m_validationOptions = value;
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Detects the type of store represented by the path.
         /// </summary>
@@ -228,9 +215,9 @@ namespace Opc.Ua
 
             // determine if the store configuration changed
             if (store != null &&
-                (store.StoreType != this.StoreType ||
-                 store.StorePath != this.StorePath ||
-                 store.NoPrivateKeys != this.m_noPrivateKeys))
+                (store.StoreType != StoreType ||
+                 store.StorePath != StorePath ||
+                 store.NoPrivateKeys != m_noPrivateKeys))
             {
                 ICertificateStore previousStore = Interlocked.CompareExchange(ref m_store, null, store);
                 previousStore?.Dispose();
@@ -238,9 +225,9 @@ namespace Opc.Ua
             }
 
             // create and open the store
-            if (store == null && !string.IsNullOrEmpty(this.StoreType) && !string.IsNullOrEmpty(this.StorePath))
+            if (store == null && !string.IsNullOrEmpty(StoreType) && !string.IsNullOrEmpty(StorePath))
             {
-                store = CreateStore(this.StoreType);
+                store = CreateStore(StoreType);
                 ICertificateStore currentStore = Interlocked.CompareExchange(ref m_store, store, null);
                 if (currentStore != null)
                 {
@@ -249,19 +236,15 @@ namespace Opc.Ua
                 }
             }
 
-            store?.Open(this.StorePath, m_noPrivateKeys);
+            store?.Open(StorePath, m_noPrivateKeys);
 
             return store;
         }
-        #endregion
 
-        #region Private Variables
         private ICertificateStore m_store;
         private readonly bool m_noPrivateKeys;
-        #endregion
     }
 
-    #region CertificateStoreType Class
     /// <summary>
     /// The type of certificate store.
     /// </summary>
@@ -269,10 +252,9 @@ namespace Opc.Ua
     {
         static CertificateStoreType()
         {
-            s_registeredStoreTypes = new Dictionary<string, ICertificateStoreType>();
+            s_registeredStoreTypes = [];
         }
 
-        #region Public Methods
         /// <summary>
         /// Registers a new certificate store type that con be specified in config files.
         /// </summary>
@@ -282,9 +264,7 @@ namespace Opc.Ua
         {
             s_registeredStoreTypes.Add(storeTypeName, storeType);
         }
-        #endregion
 
-        #region Internal Methods
         /// <summary>
         /// Returns the registered type for a custom certificate store.
         /// </summary>
@@ -301,9 +281,7 @@ namespace Opc.Ua
         /// Returns the collection of registered certificate store keys.
         /// </summary>
         public static IReadOnlyCollection<string> RegisteredStoreTypeNames => s_registeredStoreTypes.Keys;
-        #endregion 
 
-        #region Data Members
         /// <summary>
         /// A windows certificate store.
         /// </summary>
@@ -313,11 +291,7 @@ namespace Opc.Ua
         /// A directory certificate store.
         /// </summary>
         public const string Directory = "Directory";
-        #endregion
 
-        #region Static Members
         private static readonly Dictionary<string, ICertificateStoreType> s_registeredStoreTypes;
-        #endregion
     }
-    #endregion
 }

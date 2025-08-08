@@ -25,7 +25,6 @@ namespace Opc.Ua.Schema
     /// </summary>
     public class SchemaValidator
     {
-        #region Constructors
         /// <summary>
         /// Intializes the object with default values.
         /// </summary>
@@ -55,9 +54,7 @@ namespace Opc.Ua.Schema
             LoadedFiles = new Dictionary<string, object>();
             ImportFiles = importFiles ?? new Dictionary<string, byte[]>();
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The file that was validated.
         /// </summary>
@@ -77,9 +74,7 @@ namespace Opc.Ua.Schema
         /// A table of import files.
         /// </summary>
         public IDictionary<string, byte[]> ImportFiles { get; }
-        #endregion
 
-        #region Protected Methods
         /// <summary>
         /// Returns true if the QName is null.
         /// </summary>
@@ -294,9 +289,7 @@ namespace Opc.Ua.Schema
                 }
             }
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Returns the schema for the specified type (returns the entire schema if null).
         /// </summary>
@@ -304,7 +297,5 @@ namespace Opc.Ua.Schema
         {
             return null;
         }
-
-#endregion
     }
 }

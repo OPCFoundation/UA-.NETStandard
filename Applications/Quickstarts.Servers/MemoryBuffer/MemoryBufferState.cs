@@ -29,19 +29,18 @@
 
 using System;
 using System.Collections.Generic;
-using System.Xml;
+using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Threading;
+using System.Xml;
 using Opc.Ua;
 using Opc.Ua.Server;
-using System.Diagnostics;
 
 namespace MemoryBuffer
 {
     public partial class MemoryBufferState
     {
-        #region Constructors
         /// <summary>
         /// Initializes the buffer from the configuration.
         /// </summary>
@@ -68,7 +67,7 @@ namespace MemoryBuffer
                 }
             }
 
-            this.SymbolicName = name;
+            SymbolicName = name;
 
             BuiltInType elementType = BuiltInType.UInt32;
 
@@ -81,51 +80,32 @@ namespace MemoryBuffer
 
             CreateBuffer(elementType, count);
         }
-        #endregion
 
-        #region Public Properties
         /// <summary>
         /// The server that the buffer belongs to.
         /// </summary>
-        public IServerInternal Server
-        {
-            get { return m_server; }
-        }
+        public IServerInternal Server => m_server;
 
         /// <summary>
         /// The node manager that the buffer belongs to.
         /// </summary>
-        public INodeManager NodeManager
-        {
-            get { return m_nodeManager; }
-        }
+        public INodeManager NodeManager => m_nodeManager;
 
         /// <summary>
         /// The built-in type for the values stored in the buffer.
         /// </summary>
-        public BuiltInType ElementType
-        {
-            get { return m_elementType; }
-        }
+        public BuiltInType ElementType => m_elementType;
 
         /// <summary>
         /// The size of each element in the buffer.
         /// </summary>
-        public uint ElementSize
-        {
-            get { return (uint)m_elementSize; }
-        }
+        public uint ElementSize => (uint)m_elementSize;
 
         /// <summary>
         /// The rate at which the buffer is scanned.
         /// </summary>
-        public int MaximumScanRate
-        {
-            get { return m_maximumScanRate; }
-        }
-        #endregion
+        public int MaximumScanRate => m_maximumScanRate;
 
-        #region Public Methods
         /// <summary>
         /// Initializes the buffer with enough space to hold the specified number of elements.
         /// </summary>
@@ -394,9 +374,7 @@ namespace MemoryBuffer
                 return Variant.Null;
             }
         }
-        #endregion
 
-        #region Monitoring Support Functions
         /// <summary>
         /// Initializes the instance with the context for the node being monitored.
         /// </summary>
@@ -408,7 +386,7 @@ namespace MemoryBuffer
             {
                 m_server = server;
                 m_nodeManager = nodeManager;
-                m_nonValueMonitoredItems = new Dictionary<uint, MemoryBufferMonitoredItem>();
+                m_nonValueMonitoredItems = [];
             }
         }
 
@@ -542,7 +520,7 @@ namespace MemoryBuffer
         /// <summary>
         /// Scans the buffer and updates every other element.
         /// </summary>
-        void DoScan(object state)
+        private void DoScan(object state)
         {
             DateTime start1 = DateTime.UtcNow;
 
@@ -594,7 +572,7 @@ namespace MemoryBuffer
 
                         for (int ii = 0; ii < monitoredItems.Length; ii++)
                         {
-                            if (Object.ReferenceEquals(monitoredItems[ii], monitoredItem))
+                            if (ReferenceEquals(monitoredItems[ii], monitoredItem))
                             {
                                 index = ii;
                                 break;
@@ -656,12 +634,12 @@ namespace MemoryBuffer
             }
         }
 
-        void ScanTimer_Tick(object sender, EventArgs e)
+        private void ScanTimer_Tick(object sender, EventArgs e)
         {
             DoScan(null);
         }
 
-        void PublishTimer_Tick(object sender, EventArgs e)
+        private void PublishTimer_Tick(object sender, EventArgs e)
         {
             DateTime start1 = DateTime.UtcNow;
 
@@ -684,10 +662,8 @@ namespace MemoryBuffer
                 Utils.LogInfo("{0} ****** PUBLISH DELAY ({1}ms) ******", nameof(MemoryBufferState), delta1);
             }
         }
-        #endregion
 
-        #region Private Fields
-        private readonly object m_dataLock = new object();
+        private readonly object m_dataLock = new();
         private IServerInternal m_server;
         private INodeManager m_nodeManager;
         private MemoryBufferMonitoredItem[][] m_monitoringTable;
@@ -700,6 +676,5 @@ namespace MemoryBuffer
         private Timer m_scanTimer;
         private int m_updateCount;
         private int m_itemCount;
-        #endregion
     }
 }

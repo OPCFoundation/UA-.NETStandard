@@ -17,6 +17,6 @@ namespace Opc.Ua.Schema.Xml
     /// XML schemas used to describe the data types provided by a UA Server.
     /// </summary>
     ///<exclude/>
-    [System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
+    [System.Runtime.CompilerServices.CompilerGenerated()]
     public class NamespaceDoc;
 }

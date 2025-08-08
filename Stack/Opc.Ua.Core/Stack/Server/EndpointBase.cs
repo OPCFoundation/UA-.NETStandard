@@ -22,13 +22,12 @@ namespace Opc.Ua
 	/// </summary>
     public abstract class EndpointBase : IEndpointBase, ITransportListenerCallback
     {
-        #region Constructors
         /// <summary>
         /// Initializes the object when it is created by the WCF framework.
         /// </summary>
         protected EndpointBase()
         {
-            SupportedServices = new Dictionary<ExpandedNodeId, ServiceDefinition>();
+            SupportedServices = [];
 
             try
             {
@@ -63,7 +62,7 @@ namespace Opc.Ua
             m_host = host;
             m_server = host.Server;
 
-            SupportedServices = new Dictionary<ExpandedNodeId, ServiceDefinition>();
+            SupportedServices = [];
         }
 
         /// <summary>
@@ -79,11 +78,9 @@ namespace Opc.Ua
             m_host = null;
             m_server = server;
 
-            SupportedServices = new Dictionary<ExpandedNodeId, ServiceDefinition>();
+            SupportedServices = [];
         }
-        #endregion
 
-        #region ITransportListenerCallback Members
         /// <summary>
         /// Begins processing a request received via a binary encoded channel.
         /// </summary>
@@ -152,9 +149,6 @@ namespace Opc.Ua
             return m_server.TryGetSecureChannelIdForAuthenticationToken(authenticationToken, out channelId);
         }
 
-        #endregion
-
-        #region IAuditEventCallback Members
         /// <inheritdoc/>
         public void ReportAuditOpenSecureChannelEvent(
             string globalChannelId,
@@ -182,9 +176,7 @@ namespace Opc.Ua
             // trigger the reporting of OpenSecureChannelAuditEvent
             ServerForContext?.ReportAuditCertificateEvent(clientCertificate, exception);
         }
-        #endregion
 
-        #region TracingContext Members
         /// <summary>
         /// Activity Source Name.
         /// </summary>
@@ -194,7 +186,7 @@ namespace Opc.Ua
         /// Activity Source static instance.
         /// </summary>
         public static ActivitySource ActivitySource => s_activitySource.Value;
-        private static readonly Lazy<ActivitySource> s_activitySource = new Lazy<ActivitySource>(() => new ActivitySource(ActivitySourceName, "1.0.0"));
+        private static readonly Lazy<ActivitySource> s_activitySource = new(() => new ActivitySource(ActivitySourceName, "1.0.0"));
 
         /// <summary>
         /// Tries to extract the trace details from the AdditionalParametersType.
@@ -242,9 +234,7 @@ namespace Opc.Ua
             activityContext = default;
             return false;
         }
-        #endregion
 
-        #region Public Methods
         /// <summary>
         /// Dispatches an incoming binary encoded request.
         /// </summary>
@@ -272,9 +262,7 @@ namespace Opc.Ua
                 return CreateFault(incoming, e);
             }
         }
-        #endregion
 
-        #region IEndpointBase Members
 #if OPCUA_USE_SYNCHRONOUS_ENDPOINTS
         /// <summary>
         /// Dispatches an incoming binary encoded request.
@@ -384,13 +372,7 @@ namespace Opc.Ua
         /// Returns the host associated with the current context.
         /// </summary>
         /// <value>The host associated with the current context.</value>
-        protected IServiceHostBase HostForContext
-        {
-            get
-            {
-                return m_host ??= GetHostForContext();
-            }
-        }
+        protected IServiceHostBase HostForContext => m_host ??= GetHostForContext();
 
         /// <summary>
         /// Returns the host associated with the current context.
@@ -407,13 +389,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The server object from the operation context.</value>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1721:PropertyNamesShouldNotMatchGetMethods")]
-        protected IServerBase ServerForContext
-        {
-            get
-            {
-                return m_server ??= GetServerForContext();
-            }
-        }
+        protected IServerBase ServerForContext => m_server ??= GetServerForContext();
 
         /// <summary>
         /// Gets the server object from the operation context.
@@ -438,9 +414,7 @@ namespace Opc.Ua
 
             return server;
         }
-        #endregion
 
-        #region Protected Methods
         /// <summary>
         /// Find the endpoint description for the endpoint.
         /// </summary>
@@ -595,9 +569,7 @@ namespace Opc.Ua
         protected virtual void OnResponseFaultSent(Exception fault)
         {
         }
-        #endregion
 
-        #region ServiceDefinition Class
         /// <summary>
         /// Stores the definition of a service supported by the server.
         /// </summary>
@@ -626,10 +598,7 @@ namespace Opc.Ua
             /// The system type of the request object.
             /// </summary>
             /// <value>The type of the response.</value>
-            public Type ResponseType
-            {
-                get { return RequestType; }
-            }
+            public Type ResponseType => RequestType;
 
             /// <summary>
             /// Processes the request.
@@ -641,24 +610,19 @@ namespace Opc.Ua
                 return m_InvokeService?.Invoke(request);
             }
 
-#region Private Fields
             private readonly InvokeServiceEventHandler m_InvokeService;
-            #endregion
         }
 
         /// <summary>
         /// A delegate used to dispatch incoming service requests.
         /// </summary>
         protected delegate IServiceResponse InvokeServiceEventHandler(IServiceRequest request);
-        #endregion
 
-        #region ProcessRequestAsyncResult Class
         /// <summary>
         /// An AsyncResult object when handling an asynchronous request.
         /// </summary>
         protected class ProcessRequestAsyncResult : AsyncResultBase, IEndpointIncomingRequest
         {
-            #region Constructors
             /// <summary>
             /// Initializes a new instance of the <see cref="ProcessRequestAsyncResult"/> class.
             /// </summary>
@@ -676,26 +640,18 @@ namespace Opc.Ua
             {
                 m_endpoint = endpoint;
             }
-            #endregion
 
-            #region IEndpointIncomingRequest Members
             /// <summary>
             /// Gets the request.
             /// </summary>
             /// <value>The request.</value>
-            public IServiceRequest Request
-            {
-                get { return m_request; }
-            }
+            public IServiceRequest Request => m_request;
 
             /// <summary>
             /// Gets the secure channel context associated with the request.
             /// </summary>
             /// <value>The secure channel context.</value>
-            public SecureChannelContext SecureChannelContext
-            {
-                get { return m_context; }
-            }
+            public SecureChannelContext SecureChannelContext => m_context;
 
             /// <summary>
             /// Gets or sets the call data associated with the request.
@@ -736,9 +692,7 @@ namespace Opc.Ua
                 // operation completed.
                 OperationCompleted();
             }
-            #endregion
 
-            #region Public Members
             /// <summary>
             /// Begins processing an incoming request.
             /// </summary>
@@ -859,9 +813,7 @@ namespace Opc.Ua
 
                 return null;
             }
-            #endregion
 
-            #region Private Members
             /// <summary>
             /// Saves an exception as response.
             /// </summary>
@@ -870,11 +822,11 @@ namespace Opc.Ua
             {
                 try
                 {
-                    return EndpointBase.CreateFault(m_request, e);
+                    return CreateFault(m_request, e);
                 }
                 catch (Exception e2)
                 {
-                    return EndpointBase.CreateFault(null, e2);
+                    return CreateFault(null, e2);
                 }
             }
 
@@ -922,22 +874,16 @@ namespace Opc.Ua
                 // report completion.
                 OperationCompleted();
             }
-            #endregion
 
-            #region Private Fields
             private readonly EndpointBase m_endpoint;
             private SecureChannelContext m_context;
             private IServiceRequest m_request;
             private IServiceResponse m_response;
             private ServiceDefinition m_service;
             private Exception m_error;
-            #endregion
         }
 
-#endregion
-#region Private Fields
         private IServiceHostBase m_host;
         private IServerBase m_server;
-        #endregion
     }
 }
