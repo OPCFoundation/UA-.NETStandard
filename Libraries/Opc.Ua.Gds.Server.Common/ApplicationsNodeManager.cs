@@ -715,7 +715,7 @@ namespace Opc.Ua.Gds.Server
                 {
                     try
                     {
-                        chain.ChainPolicy.ExtraStore.AddRange(store.Enumerate().GetAwaiter().GetResult());
+                        chain.ChainPolicy.ExtraStore.AddRange(store.EnumerateAsync().GetAwaiter().GetResult());
                     }
                     finally
                     {
@@ -1356,7 +1356,7 @@ namespace Opc.Ua.Gds.Server
             var certificateStoreIdentifier = new CertificateStoreIdentifier(m_globalDiscoveryServerConfiguration.ApplicationCertificatesStorePath);
             using (ICertificateStore store = certificateStoreIdentifier.OpenStore())
             {
-                store?.Add(certificate).Wait();
+                store?.AddAsync(certificate).Wait();
             }
 
             m_database.SetApplicationCertificate(applicationId, m_certTypeMap[certificateTypeNodeId], signedCertificate);

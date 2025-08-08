@@ -70,30 +70,30 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 using (var x509Store = new X509CertificateStore())
                 {
                     x509Store.Open(certStore);
-                    X509Certificate2Collection collection = await x509Store.Enumerate().ConfigureAwait(false);
+                    X509Certificate2Collection collection = await x509Store.EnumerateAsync().ConfigureAwait(false);
                     foreach (X509Certificate2 cert in collection)
                     {
                         if (X509Utils.CompareDistinguishedName(X509StoreSubject, cert.Subject))
                         {
-                            await x509Store.Delete(cert.Thumbprint).ConfigureAwait(false);
+                            await x509Store.DeleteAsync(cert.Thumbprint).ConfigureAwait(false);
                         }
                         if (X509Utils.CompareDistinguishedName(X509StoreSubject2, cert.Issuer))
                         {
-                            await x509Store.Delete(cert.Thumbprint).ConfigureAwait(false);
+                            await x509Store.DeleteAsync(cert.Thumbprint).ConfigureAwait(false);
                         }
                     }
                     if (x509Store.SupportsCRLs)
                     {
-                        X509CRLCollection crls = x509Store.EnumerateCRLs().Result;
+                        X509CRLCollection crls = x509Store.EnumerateCRLsAsync().Result;
                         foreach (X509CRL crl in crls)
                         {
                             if (X509Utils.CompareDistinguishedName(X509StoreSubject, crl.Issuer))
                             {
-                                await x509Store.DeleteCRL(crl).ConfigureAwait(false);
+                                await x509Store.DeleteCRLAsync(crl).ConfigureAwait(false);
                             }
                             if (X509Utils.CompareDistinguishedName(X509StoreSubject2, crl.Issuer))
                             {
-                                await x509Store.DeleteCRL(crl).ConfigureAwait(false);
+                                await x509Store.DeleteCRLAsync(crl).ConfigureAwait(false);
                             }
                         }
                     }
@@ -136,7 +136,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 using (var x509Store = new X509CertificateStore())
                 {
                     x509Store.Open(storePath);
-                    await x509Store.Delete(publicKey.Thumbprint).ConfigureAwait(false);
+                    await x509Store.DeleteAsync(publicKey.Thumbprint).ConfigureAwait(false);
                 }
             }
         }
@@ -201,7 +201,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 using (ICertificateStore store = Opc.Ua.CertificateStoreIdentifier.CreateStore(storeType))
                 {
                     store.Open(storePath, false);
-                    await store.Delete(publicKey.Thumbprint).ConfigureAwait(false);
+                    await store.DeleteAsync(publicKey.Thumbprint).ConfigureAwait(false);
                 }
             }
         }
@@ -235,7 +235,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 //Add Test PEM Chain
                 File.Copy(TestUtils.EnumerateTestAssets("Test_chain.pem").First(), certPath + Path.DirectorySeparatorChar + "Test_chain.pem");
 
-                X509Certificate2Collection certificates = await store.Enumerate().ConfigureAwait(false);
+                X509Certificate2Collection certificates = await store.EnumerateAsync().ConfigureAwait(false);
 
                 Assert.AreEqual(3, certificates.Count);
 
@@ -243,21 +243,21 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 File.WriteAllBytes(privatePath + Path.DirectorySeparatorChar + "Test_chain.pem", DecryptKeyPairPemBase64());
 
                 //refresh store to obtain private key
-                await store.Enumerate().ConfigureAwait(false);
+                await store.EnumerateAsync().ConfigureAwait(false);
 
                 //Load private key
-                X509Certificate2 cert = await store.LoadPrivateKey("14A630438BF775E19169D3279069BBF20419EF84", null, null, null, null).ConfigureAwait(false);
+                X509Certificate2 cert = await store.LoadPrivateKeyAsync("14A630438BF775E19169D3279069BBF20419EF84", null, null, null, null).ConfigureAwait(false);
 
                 Assert.NotNull(cert);
                 Assert.True(cert.HasPrivateKey);
 
                 // remove leaf cert
-                await store.Delete("14A630438BF775E19169D3279069BBF20419EF84").ConfigureAwait(false);
+                await store.DeleteAsync("14A630438BF775E19169D3279069BBF20419EF84").ConfigureAwait(false);
 
                 //remove private key
                 File.Delete(privatePath + Path.DirectorySeparatorChar + "Test_chain.pem");
 
-                certificates = await store.Enumerate().ConfigureAwait(false);
+                certificates = await store.EnumerateAsync().ConfigureAwait(false);
 
                 Assert.AreEqual(2, certificates.Count);
                 Assert.IsEmpty(certificates.Find(X509FindType.FindByThumbprint, "14A630438BF775E19169D3279069BBF20419EF84", false));
@@ -297,19 +297,19 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 // Add leaf cert with private key
                 File.WriteAllBytes(certPath + Path.DirectorySeparatorChar + "Test_keyPair.pem", DecryptKeyPairPemBase64());
 
-                X509Certificate2Collection certificates = await store.Enumerate().ConfigureAwait(false);
+                X509Certificate2Collection certificates = await store.EnumerateAsync().ConfigureAwait(false);
 
                 Assert.AreEqual(1, certificates.Count);
 
                 Assert.NotNull(certificates.Find(X509FindType.FindByThumbprint, "14A630438BF775E19169D3279069BBF20419EF84", false));
                 //Load private key
-                X509Certificate2 cert = await store.LoadPrivateKey("14A630438BF775E19169D3279069BBF20419EF84", null, null, null, null).ConfigureAwait(false);
+                X509Certificate2 cert = await store.LoadPrivateKeyAsync("14A630438BF775E19169D3279069BBF20419EF84", null, null, null, null).ConfigureAwait(false);
 
                 Assert.NotNull(cert);
                 Assert.True(cert.HasPrivateKey);
 
                 // remove leaf cert
-                await store.Delete("14A630438BF775E19169D3279069BBF20419EF84").ConfigureAwait(false);
+                await store.DeleteAsync("14A630438BF775E19169D3279069BBF20419EF84").ConfigureAwait(false);
 
                 //ensure private key is removed
                 Assert.False(File.Exists(certPath + Path.DirectorySeparatorChar + "Test_keyPair.pem"));
@@ -350,7 +350,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
                     Assert.False(x509Store.SupportsCRLs);
-                    Assert.Throws<ServiceResultException>(() => x509Store.EnumerateCRLs());
+                    Assert.Throws<ServiceResultException>(() => x509Store.EnumerateCRLsAsync());
                 }
                 else
                 {
@@ -377,15 +377,15 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 Assert.True(x509Store.SupportsCRLs);
 
                 //add issuer to store
-                await x509Store.Add(GetTestCert()).ConfigureAwait(false);
+                await x509Store.AddAsync(GetTestCert()).ConfigureAwait(false);
                 //add Crl
                 var crlBuilder = CrlBuilder.Create(GetTestCert().SubjectName);
                 crlBuilder.AddRevokedCertificate(GetTestCert());
                 var crl = new X509CRL(crlBuilder.CreateForRSA(GetTestCert()));
-                await x509Store.AddCRL(crl).ConfigureAwait(false);
+                await x509Store.AddCRLAsync(crl).ConfigureAwait(false);
 
                 //enumerate Crls
-                X509CRLCollection crls = await x509Store.EnumerateCRLs().ConfigureAwait(false);
+                X509CRLCollection crls = await x509Store.EnumerateCRLsAsync().ConfigureAwait(false);
 
                 Assert.AreEqual(1, crls.Count);
                 Assert.AreEqual(crl.RawData, crls[0].RawData);
@@ -393,7 +393,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     crls[0].RevokedCertificates.First().SerialNumber);
 
                 //TestRevocation
-                StatusCode statusCode = await x509Store.IsRevoked(GetTestCert(), GetTestCert()).ConfigureAwait(false);
+                StatusCode statusCode = await x509Store.IsRevokedAsync(GetTestCert(), GetTestCert()).ConfigureAwait(false);
                 Assert.AreEqual((StatusCode)StatusCodes.BadCertificateRevoked, statusCode);
             }
         }
@@ -413,25 +413,25 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 x509Store.Open(storePath);
                 //enumerate Crls
-                X509CRL crl = (await x509Store.EnumerateCRLs().ConfigureAwait(false)).First();
+                X509CRL crl = (await x509Store.EnumerateCRLsAsync().ConfigureAwait(false)).First();
 
                 //Test Revocation before adding cert
-                StatusCode statusCode = await x509Store.IsRevoked(GetTestCert(), GetTestCert2()).ConfigureAwait(false);
+                StatusCode statusCode = await x509Store.IsRevokedAsync(GetTestCert(), GetTestCert2()).ConfigureAwait(false);
                 Assert.AreEqual((StatusCode)StatusCodes.Good, statusCode);
 
                 var crlBuilder = CrlBuilder.Create(crl);
 
                 crlBuilder.AddRevokedCertificate(GetTestCert2());
                 var updatedCrl = new X509CRL(crlBuilder.CreateForRSA(GetTestCert()));
-                await x509Store.AddCRL(updatedCrl).ConfigureAwait(false);
+                await x509Store.AddCRLAsync(updatedCrl).ConfigureAwait(false);
 
-                X509CRLCollection crls = await x509Store.EnumerateCRLs().ConfigureAwait(false);
+                X509CRLCollection crls = await x509Store.EnumerateCRLsAsync().ConfigureAwait(false);
 
                 Assert.AreEqual(1, crls.Count);
 
                 Assert.AreEqual(2, crls[0].RevokedCertificates.Count);
                 //Test Revocation after adding cert
-                StatusCode statusCode2 = await x509Store.IsRevoked(GetTestCert(), GetTestCert2()).ConfigureAwait(false);
+                StatusCode statusCode2 = await x509Store.IsRevokedAsync(GetTestCert(), GetTestCert2()).ConfigureAwait(false);
                 Assert.AreEqual((StatusCode)StatusCodes.BadCertificateRevoked, statusCode2);
             }
         }
@@ -451,15 +451,15 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 x509Store.Open(storePath);
                 //add issuer to store
-                await x509Store.Add(GetTestCert2()).ConfigureAwait(false);
+                await x509Store.AddAsync(GetTestCert2()).ConfigureAwait(false);
                 //add Crl
                 var crlBuilder = CrlBuilder.Create(GetTestCert2().SubjectName);
                 crlBuilder.AddRevokedCertificate(GetTestCert2());
                 var crl = new X509CRL(crlBuilder.CreateForRSA(GetTestCert2()));
-                await x509Store.AddCRL(crl).ConfigureAwait(false);
+                await x509Store.AddCRLAsync(crl).ConfigureAwait(false);
 
                 //enumerate Crls
-                X509CRLCollection crls = await x509Store.EnumerateCRLs().ConfigureAwait(false);
+                X509CRLCollection crls = await x509Store.EnumerateCRLsAsync().ConfigureAwait(false);
 
                 Assert.AreEqual(2, crls.Count);
                 Assert.NotNull(crls.SingleOrDefault(c => c.Issuer == crl.Issuer));
@@ -482,23 +482,23 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 x509Store.Open(storePath);
 
                 //Delete first crl with revoked certificates
-                X509CRL crl = (await x509Store.EnumerateCRLs().ConfigureAwait(false)).Single(c => c.Issuer == X509StoreSubject);
-                await x509Store.DeleteCRL(crl).ConfigureAwait(false);
+                X509CRL crl = (await x509Store.EnumerateCRLsAsync().ConfigureAwait(false)).Single(c => c.Issuer == X509StoreSubject);
+                await x509Store.DeleteCRLAsync(crl).ConfigureAwait(false);
 
-                X509CRLCollection crlsAfterFirstDelete = await x509Store.EnumerateCRLs().ConfigureAwait(false);
+                X509CRLCollection crlsAfterFirstDelete = await x509Store.EnumerateCRLsAsync().ConfigureAwait(false);
 
                 //check the right crl was deleted
                 Assert.AreEqual(1, crlsAfterFirstDelete.Count);
                 Assert.Null(crlsAfterFirstDelete.FirstOrDefault(c => c == crl));
 
                 //make shure IsRevoked can't find crl anymore
-                StatusCode statusCode = await x509Store.IsRevoked(GetTestCert(), GetTestCert()).ConfigureAwait(false);
+                StatusCode statusCode = await x509Store.IsRevokedAsync(GetTestCert(), GetTestCert()).ConfigureAwait(false);
                 Assert.AreEqual((StatusCode)StatusCodes.BadCertificateRevocationUnknown, statusCode);
 
                 //Delete second (empty) crl from store
-                await x509Store.DeleteCRL(crlsAfterFirstDelete.First()).ConfigureAwait(false);
+                await x509Store.DeleteCRLAsync(crlsAfterFirstDelete.First()).ConfigureAwait(false);
 
-                X509CRLCollection crlsAfterSecondDelete = await x509Store.EnumerateCRLs().ConfigureAwait(false);
+                X509CRLCollection crlsAfterSecondDelete = await x509Store.EnumerateCRLsAsync().ConfigureAwait(false);
 
                 //make shure no crls remain in store
                 Assert.AreEqual(0, crlsAfterSecondDelete.Count);
@@ -530,9 +530,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 x509Store.Open(storePath);
                 if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
-                    Assert.ThrowsAsync<ServiceResultException>(() => x509Store.AddCRL(new X509CRL()));
-                    Assert.ThrowsAsync<ServiceResultException>(() => x509Store.EnumerateCRLs());
-                    Assert.ThrowsAsync<ServiceResultException>(() => x509Store.DeleteCRL(new X509CRL()));
+                    Assert.ThrowsAsync<ServiceResultException>(() => x509Store.AddCRLAsync(new X509CRL()));
+                    Assert.ThrowsAsync<ServiceResultException>(() => x509Store.EnumerateCRLsAsync());
+                    Assert.ThrowsAsync<ServiceResultException>(() => x509Store.DeleteCRLAsync(new X509CRL()));
                 }
                 else
                 {

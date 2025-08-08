@@ -296,17 +296,17 @@ namespace Opc.Ua.Gds.Tests
 
         public static async Task CleanupTrustList(ICertificateStore store, bool dispose = true)
         {
-            System.Security.Cryptography.X509Certificates.X509Certificate2Collection certs = await store.Enumerate().ConfigureAwait(false);
+            System.Security.Cryptography.X509Certificates.X509Certificate2Collection certs = await store.EnumerateAsync().ConfigureAwait(false);
             foreach (System.Security.Cryptography.X509Certificates.X509Certificate2 cert in certs)
             {
-                await store.Delete(cert.Thumbprint).ConfigureAwait(false);
+                await store.DeleteAsync(cert.Thumbprint).ConfigureAwait(false);
             }
             if (store.SupportsCRLs)
             {
-                Security.Certificates.X509CRLCollection crls = await store.EnumerateCRLs().ConfigureAwait(false);
+                Security.Certificates.X509CRLCollection crls = await store.EnumerateCRLsAsync().ConfigureAwait(false);
                 foreach (Security.Certificates.X509CRL crl in crls)
                 {
-                    await store.DeleteCRL(crl).ConfigureAwait(false);
+                    await store.DeleteCRLAsync(crl).ConfigureAwait(false);
                 }
             }
             if (dispose)

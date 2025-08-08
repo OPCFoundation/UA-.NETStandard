@@ -58,17 +58,17 @@ namespace Opc.Ua.Core.Tests
         {
             if (store != null)
             {
-                System.Security.Cryptography.X509Certificates.X509Certificate2Collection certs = await store.Enumerate().ConfigureAwait(false);
+                System.Security.Cryptography.X509Certificates.X509Certificate2Collection certs = await store.EnumerateAsync().ConfigureAwait(false);
                 foreach (System.Security.Cryptography.X509Certificates.X509Certificate2 cert in certs)
                 {
-                    await store.Delete(cert.Thumbprint).ConfigureAwait(false);
+                    await store.DeleteAsync(cert.Thumbprint).ConfigureAwait(false);
                 }
                 if (store.SupportsCRLs)
                 {
-                    Ua.Security.Certificates.X509CRLCollection crls = await store.EnumerateCRLs().ConfigureAwait(false);
+                    Ua.Security.Certificates.X509CRLCollection crls = await store.EnumerateCRLsAsync().ConfigureAwait(false);
                     foreach (Ua.Security.Certificates.X509CRL crl in crls)
                     {
-                        await store.DeleteCRL(crl).ConfigureAwait(false);
+                        await store.DeleteCRLAsync(crl).ConfigureAwait(false);
                     }
                 }
                 if (dispose)

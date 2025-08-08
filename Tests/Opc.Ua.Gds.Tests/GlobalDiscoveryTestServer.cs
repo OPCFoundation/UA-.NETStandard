@@ -79,7 +79,7 @@ namespace Opc.Ua.Gds.Tests
                 {
                     using (ICertificateStore store = Config.SecurityConfiguration.ApplicationCertificate.OpenStore())
                     {
-                        await store.Delete(thumbprint).ConfigureAwait(false);
+                        await store.DeleteAsync(thumbprint).ConfigureAwait(false);
                     }
                 }
 

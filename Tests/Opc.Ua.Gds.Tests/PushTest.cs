@@ -864,12 +864,12 @@ namespace Opc.Ua.Gds.Tests
             try
             {
                 store = trustList.OpenStore();
-                X509CRLCollection storeCrls = await store.EnumerateCRLs().ConfigureAwait(false);
+                X509CRLCollection storeCrls = await store.EnumerateCRLsAsync().ConfigureAwait(false);
                 foreach (X509CRL crl in storeCrls)
                 {
                     if (!updatedCrls.Remove(crl))
                     {
-                        if (!await store.DeleteCRL(crl).ConfigureAwait(false))
+                        if (!await store.DeleteCRLAsync(crl).ConfigureAwait(false))
                         {
                             result = false;
                         }
@@ -877,7 +877,7 @@ namespace Opc.Ua.Gds.Tests
                 }
                 foreach (X509CRL crl in updatedCrls)
                 {
-                    await store.AddCRL(crl).ConfigureAwait(false);
+                    await store.AddCRLAsync(crl).ConfigureAwait(false);
                 }
             }
             catch
@@ -900,12 +900,12 @@ namespace Opc.Ua.Gds.Tests
             try
             {
                 store = trustList.OpenStore();
-                X509Certificate2Collection storeCerts = await store.Enumerate().ConfigureAwait(false);
+                X509Certificate2Collection storeCerts = await store.EnumerateAsync().ConfigureAwait(false);
                 foreach (X509Certificate2 cert in storeCerts)
                 {
                     if (!updatedCerts.Contains(cert))
                     {
-                        if (!store.Delete(cert.Thumbprint).Result)
+                        if (!store.DeleteAsync(cert.Thumbprint).Result)
                         {
                             result = false;
                         }
@@ -917,7 +917,7 @@ namespace Opc.Ua.Gds.Tests
                 }
                 foreach (X509Certificate2 cert in updatedCerts)
                 {
-                    await store.Add(cert).ConfigureAwait(false);
+                    await store.AddAsync(cert).ConfigureAwait(false);
                 }
             }
             catch
@@ -977,18 +977,18 @@ namespace Opc.Ua.Gds.Tests
             {
                 using (ICertificateStore store = storeIdentifier.OpenStore())
                 {
-                    X509Certificate2Collection storeCerts = store.Enumerate().Result;
+                    X509Certificate2Collection storeCerts = store.EnumerateAsync().Result;
                     foreach (X509Certificate2 cert in storeCerts)
                     {
-                        if (!store.Delete(cert.Thumbprint).Result)
+                        if (!store.DeleteAsync(cert.Thumbprint).Result)
                         {
                             result = false;
                         }
                     }
-                    X509CRLCollection storeCrls = store.EnumerateCRLs().Result;
+                    X509CRLCollection storeCrls = store.EnumerateCRLsAsync().Result;
                     foreach (X509CRL crl in storeCrls)
                     {
-                        if (!store.DeleteCRL(crl).Result)
+                        if (!store.DeleteCRLAsync(crl).Result)
                         {
                             result = false;
                         }

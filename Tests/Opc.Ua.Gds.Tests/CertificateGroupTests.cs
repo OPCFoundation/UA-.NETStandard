@@ -60,7 +60,7 @@ namespace Opc.Ua.Gds.Tests
             var certificateStoreIdentifier = new CertificateStoreIdentifier(configuration.TrustedListPath);
             using (ICertificateStore trustedStore = certificateStoreIdentifier.OpenStore())
             {
-                X509Certificate2Collection certs = await trustedStore.FindByThumbprint(certificate.Thumbprint).ConfigureAwait(false);
+                X509Certificate2Collection certs = await trustedStore.FindByThumbprintAsync(certificate.Thumbprint).ConfigureAwait(false);
                 Assert.IsTrue(certs.Count == 1);
             }
         }
@@ -81,9 +81,9 @@ namespace Opc.Ua.Gds.Tests
             Assert.NotNull(certificate);
             using (ICertificateStore trustedStore = applicatioConfiguration.SecurityConfiguration.TrustedIssuerCertificates.OpenStore())
             {
-                X509Certificate2Collection certs = await trustedStore.FindByThumbprint(certificate.Thumbprint).ConfigureAwait(false);
+                X509Certificate2Collection certs = await trustedStore.FindByThumbprintAsync(certificate.Thumbprint).ConfigureAwait(false);
                 Assert.IsTrue(certs.Count == 1);
-                X509CRLCollection crls = await trustedStore.EnumerateCRLs(certificate).ConfigureAwait(false);
+                X509CRLCollection crls = await trustedStore.EnumerateCRLsAsync(certificate).ConfigureAwait(false);
                 Assert.AreEqual(1, crls.Count);
             }
 
@@ -91,9 +91,9 @@ namespace Opc.Ua.Gds.Tests
             Assert.NotNull(certificateUpdated);
             using (ICertificateStore trustedStore = applicatioConfiguration.SecurityConfiguration.TrustedIssuerCertificates.OpenStore())
             {
-                X509Certificate2Collection certs = await trustedStore.FindByThumbprint(certificate.Thumbprint).ConfigureAwait(false);
+                X509Certificate2Collection certs = await trustedStore.FindByThumbprintAsync(certificate.Thumbprint).ConfigureAwait(false);
                 Assert.IsTrue(certs.Count == 1);
-                X509CRLCollection crls = await trustedStore.EnumerateCRLs(certificateUpdated).ConfigureAwait(false);
+                X509CRLCollection crls = await trustedStore.EnumerateCRLsAsync(certificateUpdated).ConfigureAwait(false);
                 Assert.AreEqual(1, crls.Count);
             }
         }

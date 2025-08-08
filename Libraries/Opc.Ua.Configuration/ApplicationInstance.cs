@@ -956,7 +956,7 @@ namespace Opc.Ua.Configuration
                     {
                         try
                         {
-                            bool deleted = await store.Delete(thumbprint).ConfigureAwait(false);
+                            bool deleted = await store.DeleteAsync(thumbprint).ConfigureAwait(false);
                             if (deleted)
                             {
                                 Utils.LogInfo(TraceMasks.Security, "Application Instance Certificate [{0}] deleted from trusted store.", thumbprint);
@@ -975,7 +975,7 @@ namespace Opc.Ua.Configuration
             {
                 using (ICertificateStore store = id.OpenStore())
                 {
-                    bool deleted = await store.Delete(certificate.Thumbprint).ConfigureAwait(false);
+                    bool deleted = await store.DeleteAsync(certificate.Thumbprint).ConfigureAwait(false);
                     if (deleted)
                     {
                         Utils.LogCertificate(TraceMasks.Security, "Application certificate and private key deleted.", certificate);
@@ -1026,7 +1026,7 @@ namespace Opc.Ua.Configuration
                 try
                 {
                     // check if it already exists.
-                    X509Certificate2Collection existingCertificates = await store.FindByThumbprint(certificate.Thumbprint).ConfigureAwait(false);
+                    X509Certificate2Collection existingCertificates = await store.FindByThumbprintAsync(certificate.Thumbprint).ConfigureAwait(false);
 
                     if (existingCertificates.Count > 0)
                     {
@@ -1038,7 +1038,7 @@ namespace Opc.Ua.Configuration
                     List<string> subjectName = X509Utils.ParseDistinguishedName(certificate.Subject);
 
                     // check for old certificate.
-                    X509Certificate2Collection certificates = await store.Enumerate().ConfigureAwait(false);
+                    X509Certificate2Collection certificates = await store.EnumerateAsync().ConfigureAwait(false);
 
                     for (int ii = 0; ii < certificates.Count; ii++)
                     {
@@ -1065,7 +1065,7 @@ namespace Opc.Ua.Configuration
                             if (deleteCert)
                             {
                                 Utils.LogCertificate("Delete Certificate from trusted store.", certificate);
-                                await store.Delete(certificates[ii].Thumbprint).ConfigureAwait(false);
+                                await store.DeleteAsync(certificates[ii].Thumbprint).ConfigureAwait(false);
                                 break;
                             }
                         }
@@ -1074,7 +1074,7 @@ namespace Opc.Ua.Configuration
                     // add new certificate.
                     X509Certificate2 publicKey = X509CertificateLoader.LoadCertificate(certificate.RawData);
 
-                    await store.Add(publicKey).ConfigureAwait(false);
+                    await store.AddAsync(publicKey).ConfigureAwait(false);
 
                     Utils.LogInfo("Added application certificate to trusted peer store.");
                 }

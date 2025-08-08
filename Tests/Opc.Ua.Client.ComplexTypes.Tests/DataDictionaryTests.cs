@@ -241,6 +241,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             };
             var browseDescriptions = new BrowseDescriptionCollection() { browseDescription };
 
+            Assert.NotNull(Session, "Client not connected to Server.");
             _ = Session.Browse(null, null, 0, browseDescriptions, out BrowseResultCollection results, out DiagnosticInfoCollection diagnosticInfos);
 
             if (results[0] == null || results[0].StatusCode != StatusCodes.Good)

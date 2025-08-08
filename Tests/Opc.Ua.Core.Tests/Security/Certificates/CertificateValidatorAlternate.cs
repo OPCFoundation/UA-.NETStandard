@@ -122,8 +122,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             // create cert validator for test, add trusted root cert
             m_validator = TemporaryCertValidator.Create();
-            await m_validator.TrustedStore.Add(m_rootCert).ConfigureAwait(false);
-            await m_validator.TrustedStore.AddCRL(m_rootCrl).ConfigureAwait(false);
+            await m_validator.TrustedStore.AddAsync(m_rootCert).ConfigureAwait(false);
+            await m_validator.TrustedStore.AddCRLAsync(m_rootCrl).ConfigureAwait(false);
             m_certValidator = m_validator.Update();
 
             // create a root with same serial number but modified Subject / key pair
@@ -342,8 +342,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 // validate cert chain
                 using (var validator = TemporaryCertValidator.Create())
                 {
-                    await validator.IssuerStore.Add(rootCert).ConfigureAwait(false);
-                    await validator.TrustedStore.Add(subCACert).ConfigureAwait(false);
+                    await validator.IssuerStore.AddAsync(rootCert).ConfigureAwait(false);
+                    await validator.TrustedStore.AddAsync(subCACert).ConfigureAwait(false);
                     CertificateValidator certValidator = validator.Update();
                     certValidator.Validate(leafCert);
                 }
@@ -365,8 +365,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 // validate using cert chain in issuer and trusted store
                 using (var validator = TemporaryCertValidator.Create())
                 {
-                    await validator.IssuerStore.Add(rootReverseCert).ConfigureAwait(false);
-                    await validator.TrustedStore.Add(subCACert).ConfigureAwait(false);
+                    await validator.IssuerStore.AddAsync(rootReverseCert).ConfigureAwait(false);
+                    await validator.TrustedStore.AddAsync(subCACert).ConfigureAwait(false);
                     CertificateValidator certValidator = validator.Update();
                     ServiceResultException result = Assert.Throws<ServiceResultException>(() => certValidator.Validate(collection));
 

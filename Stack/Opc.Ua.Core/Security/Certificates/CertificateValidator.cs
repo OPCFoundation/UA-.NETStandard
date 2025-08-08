@@ -912,7 +912,7 @@ namespace Opc.Ua
                         if (store != null)
                         {
                             // number of certs for history + current chain
-                            await store.AddRejected(certificateChain, m_maxRejectedCertificates).ConfigureAwait(false);
+                            await store.AddRejectedAsync(certificateChain, m_maxRejectedCertificates).ConfigureAwait(false);
                         }
                     }
                     finally
@@ -958,7 +958,7 @@ namespace Opc.Ua
                 {
                     try
                     {
-                        X509Certificate2Collection trusted = await store.FindByThumbprint(certificate.Thumbprint).ConfigureAwait(false);
+                        X509Certificate2Collection trusted = await store.FindByThumbprintAsync(certificate.Thumbprint).ConfigureAwait(false);
 
                         for (int ii = 0; ii < trusted.Count; ii++)
                         {
@@ -1095,7 +1095,7 @@ namespace Opc.Ua
                         return (null, null);
                     }
 
-                    X509Certificate2Collection certificates = await store.Enumerate().ConfigureAwait(false);
+                    X509Certificate2Collection certificates = await store.EnumerateAsync().ConfigureAwait(false);
 
                     for (int ii = 0; ii < certificates.Count; ii++)
                     {
@@ -1114,7 +1114,7 @@ namespace Opc.Ua
 
                                 if (checkRecovationStatus)
                                 {
-                                    StatusCode status = await store.IsRevoked(issuer, certificate).ConfigureAwait(false);
+                                    StatusCode status = await store.IsRevokedAsync(issuer, certificate).ConfigureAwait(false);
 
                                     if (StatusCode.IsBad(status) && status != StatusCodes.BadNotSupported)
                                     {
