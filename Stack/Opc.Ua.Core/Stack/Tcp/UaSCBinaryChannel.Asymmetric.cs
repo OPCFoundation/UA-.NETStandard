@@ -856,7 +856,7 @@ namespace Opc.Ua.Bindings
                     throw ServiceResultException.Create(StatusCodes.BadCertificateInvalid, "The receiver has no matching certificate for the selected profile.");
                 }
 
-                if (receiverCertificate.Thumbprint.Equals(GetThumbprintString(thumbprintData), StringComparison.OrdinalIgnoreCase))
+                if (!receiverCertificate.Thumbprint.Equals(GetThumbprintString(thumbprintData), StringComparison.OrdinalIgnoreCase))
                 {
                     throw ServiceResultException.Create(StatusCodes.BadCertificateInvalid, "The receiver's certificate thumbprint is not valid.");
                 }

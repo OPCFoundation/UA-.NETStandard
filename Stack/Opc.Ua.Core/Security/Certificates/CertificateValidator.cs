@@ -1265,8 +1265,6 @@ namespace Opc.Ua
                         case X509ChainStatusFlags.NotTimeValid:
                         case X509ChainStatusFlags.NotTimeNested:
                         case X509ChainStatusFlags.NoError:
-                            break;
-
                         // by design, the trust root is not in the default store
                         case X509ChainStatusFlags.UntrustedRoot:
                             break;
@@ -1302,8 +1300,6 @@ namespace Opc.Ua
                         case X509ChainStatusFlags.InvalidNameConstraints:
                         case X509ChainStatusFlags.InvalidPolicyConstraints:
                         case X509ChainStatusFlags.NoIssuanceChainPolicy:
-
-                        // unexpected error status
                         default:
                             Utils.LogError("Unexpected status {0} processing certificate chain.", chainStatus.Status);
                             goto case X509ChainStatusFlags.NotSignatureValid;

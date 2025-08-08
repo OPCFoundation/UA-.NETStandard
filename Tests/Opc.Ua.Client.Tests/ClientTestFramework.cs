@@ -190,16 +190,14 @@ namespace Opc.Ua.Client.Tests
             bool securityNone,
             TextWriter writer)
         {
-            {
-                // start Ref server
-                ServerFixture = new ServerFixture<ReferenceServer>(enableTracing, disableActivityLogging) {
-                    UriScheme = UriScheme,
-                    SecurityNone = securityNone,
-                    AutoAccept = true,
-                    AllNodeManagers = true,
-                    OperationLimits = true
-                };
-            }
+            // start Ref server
+            ServerFixture = new ServerFixture<ReferenceServer>(enableTracing, disableActivityLogging) {
+                UriScheme = UriScheme,
+                SecurityNone = securityNone,
+                AutoAccept = true,
+                AllNodeManagers = true,
+                OperationLimits = true
+            };
 
             if (writer != null)
             {
@@ -288,6 +286,16 @@ namespace Opc.Ua.Client.Tests
                 await Task.Delay(100).ConfigureAwait(false);
             }
             Utils.SilentDispose(ClientFixture);
+
+            // Clean up pki
+            try
+            {
+                if (!string.IsNullOrEmpty(PkiRoot) && Directory.Exists(PkiRoot))
+                {
+                    Directory.Delete(PkiRoot, true);
+                }
+            }
+            catch { }
         }
 
         /// <summary>
