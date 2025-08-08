@@ -2221,7 +2221,7 @@ namespace Opc.Ua.Server
                 // build list of items to refresh.
                 foreach (LinkedListNode<IMonitoredItem> monitoredItem in m_monitoredItems.Values)
                 {
-                    var eventMonitoredItem = monitoredItem.Value as MonitoredItem;
+                    IEventMonitoredItem eventMonitoredItem = monitoredItem.Value as IEventMonitoredItem;
 
                     if (eventMonitoredItem != null && eventMonitoredItem.EventFilter != null)
                     {
@@ -2252,7 +2252,7 @@ namespace Opc.Ua.Server
                 // build list of items to refresh.
                 if (m_monitoredItems.TryGetValue(monitoredItemId, out LinkedListNode<IMonitoredItem> monitoredItem))
                 {
-                    var eventMonitoredItem = monitoredItem.Value as MonitoredItem;
+                    IEventMonitoredItem eventMonitoredItem = monitoredItem.Value as IEventMonitoredItem;
 
                     if (eventMonitoredItem != null && eventMonitoredItem.EventFilter != null)
                     {
@@ -2312,7 +2312,7 @@ namespace Opc.Ua.Server
                 // build list of items to refresh.
                 foreach (IEventMonitoredItem monitoredItem in monitoredItems)
                 {
-                    var eventMonitoredItem = monitoredItem as MonitoredItem;
+                    IEventMonitoredItem eventMonitoredItem = monitoredItem;
 
                     if (eventMonitoredItem != null && eventMonitoredItem.EventFilter != null)
                     {
@@ -2364,7 +2364,7 @@ namespace Opc.Ua.Server
                 // send refresh end event.
                 for (int ii = 0; ii < monitoredItems.Count; ii++)
                 {
-                    var monitoredItem = monitoredItems[ii] as MonitoredItem;
+                    IEventMonitoredItem monitoredItem = monitoredItems[ii];
 
                     if (monitoredItem.EventFilter != null)
                     {

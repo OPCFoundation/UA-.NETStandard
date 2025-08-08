@@ -422,19 +422,38 @@ namespace Opc.Ua.Security
         /// <summary>
         /// Gets the certificate associated with the identifier.
         /// </summary>
+        [Obsolete("Use FindAsync()")]
         public Task<X509Certificate2> Find()
         {
+            return FindAsync();
+        }
+
+
+        /// <summary>
+        /// Gets the certificate associated with the identifier.
+        /// </summary>
+        public Task<X509Certificate2> FindAsync()
+        {
             Opc.Ua.CertificateIdentifier output = SecuredApplication.FromCertificateIdentifier(this);
-            return output.Find(false);
+            return output.FindAsync(false);
         }
 
         /// <summary>
         /// Gets the certificate associated with the identifier.
         /// </summary>
+        [Obsolete("Use FindAsync(needPrivateKey)")]
         public Task<X509Certificate2> Find(bool needPrivateKey)
         {
+            return FindAsync(needPrivateKey);
+        }
+
+        /// <summary>
+        /// Gets the certificate associated with the identifier.
+        /// </summary>
+        public Task<X509Certificate2> FindAsync(bool needPrivateKey)
+        {
             Opc.Ua.CertificateIdentifier output = SecuredApplication.FromCertificateIdentifier(this);
-            return output.Find(needPrivateKey);
+            return output.FindAsync(needPrivateKey);
         }
 
         /// <summary>

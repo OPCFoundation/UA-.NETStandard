@@ -383,21 +383,33 @@ namespace Opc.Ua.Server
                     // update store
                     // test integrity of all CRLs
                     TrustListMasks updateMasks = TrustListMasks.None;
-                    if ((masks & TrustListMasks.IssuerCertificates) != 0 && TrustList.UpdateStoreCertificates(m_issuerStore, issuerCertificates).GetAwaiter().GetResult())
+                    if ((masks & TrustListMasks.IssuerCertificates) != 0)
                     {
-                        updateMasks |= TrustListMasks.IssuerCertificates;
+                        if (UpdateStoreCertificatesAsync(m_issuerStore, issuerCertificates).GetAwaiter().GetResult())
+                        {
+                            updateMasks |= TrustListMasks.IssuerCertificates;
+                        }
                     }
-                    if ((masks & TrustListMasks.IssuerCrls) != 0 && TrustList.UpdateStoreCrls(m_issuerStore, issuerCrls).GetAwaiter().GetResult())
+                    if ((masks & TrustListMasks.IssuerCrls) != 0)
                     {
-                        updateMasks |= TrustListMasks.IssuerCrls;
+                        if (UpdateStoreCrlsAsync(m_issuerStore, issuerCrls).GetAwaiter().GetResult())
+                        {
+                            updateMasks |= TrustListMasks.IssuerCrls;
+                        }
                     }
-                    if ((masks & TrustListMasks.TrustedCertificates) != 0 && TrustList.UpdateStoreCertificates(m_trustedStore, trustedCertificates).GetAwaiter().GetResult())
+                    if ((masks & TrustListMasks.TrustedCertificates) != 0)
                     {
-                        updateMasks |= TrustListMasks.TrustedCertificates;
+                        if (UpdateStoreCertificatesAsync(m_trustedStore, trustedCertificates).GetAwaiter().GetResult())
+                        {
+                            updateMasks |= TrustListMasks.TrustedCertificates;
+                        }
                     }
-                    if ((masks & TrustListMasks.TrustedCrls) != 0 && TrustList.UpdateStoreCrls(m_trustedStore, trustedCrls).GetAwaiter().GetResult())
+                    if ((masks & TrustListMasks.TrustedCrls) != 0)
                     {
-                        updateMasks |= TrustListMasks.TrustedCrls;
+                        if (UpdateStoreCrlsAsync(m_trustedStore, trustedCrls).GetAwaiter().GetResult())
+                        {
+                            updateMasks |= TrustListMasks.TrustedCrls;
+                        }
                     }
 
                     if (masks != updateMasks)
@@ -607,7 +619,7 @@ namespace Opc.Ua.Server
             return trustList;
         }
 
-        private static async Task<bool> UpdateStoreCrls(
+        private static async Task<bool> UpdateStoreCrlsAsync(
             CertificateStoreIdentifier storeIdentifier,
             X509CRLCollection updatedCrls)
         {
@@ -647,7 +659,7 @@ namespace Opc.Ua.Server
             return result;
         }
 
-        private static async Task<bool> UpdateStoreCertificates(
+        private static async Task<bool> UpdateStoreCertificatesAsync(
             CertificateStoreIdentifier storeIdentifier,
             X509Certificate2Collection updatedCerts)
         {

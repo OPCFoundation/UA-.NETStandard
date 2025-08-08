@@ -250,7 +250,7 @@ namespace Opc.Ua.Server.Tests
             {
                 Quickstarts.Servers.Utils.UseSamplingGroupsInReferenceNodeManager(referenceServer);
             }
-            await Application.Start(server).ConfigureAwait(false);
+            await Application.StartAsync(server).ConfigureAwait(false);
             Server = server;
             Port = port;
         }

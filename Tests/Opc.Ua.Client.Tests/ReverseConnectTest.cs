@@ -138,7 +138,7 @@ namespace Opc.Ua.Client.Tests
             ITransportWaitingConnection connection;
             using (var cancellationTokenSource = new CancellationTokenSource(MaxTimeout))
             {
-                connection = await ClientFixture.ReverseConnectManager.WaitForConnection(
+                connection = await ClientFixture.ReverseConnectManager.WaitForConnectionAsync(
                     m_endpointUrl, null, cancellationTokenSource.Token).ConfigureAwait(false);
                 Assert.NotNull(connection, "Failed to get connection.");
             }
@@ -162,7 +162,7 @@ namespace Opc.Ua.Client.Tests
             ITransportWaitingConnection connection;
             using (var cancellationTokenSource = new CancellationTokenSource(MaxTimeout))
             {
-                connection = await ClientFixture.ReverseConnectManager.WaitForConnection(
+                connection = await ClientFixture.ReverseConnectManager.WaitForConnectionAsync(
                     m_endpointUrl, null, cancellationTokenSource.Token).ConfigureAwait(false);
                 Assert.NotNull(connection, "Failed to get connection.");
             }
@@ -181,7 +181,7 @@ namespace Opc.Ua.Client.Tests
             ITransportWaitingConnection connection;
             using (var cancellationTokenSource = new CancellationTokenSource(MaxTimeout))
             {
-                connection = await ClientFixture.ReverseConnectManager.WaitForConnection(
+                connection = await ClientFixture.ReverseConnectManager.WaitForConnectionAsync(
                     m_endpointUrl, null, cancellationTokenSource.Token).ConfigureAwait(false);
                 Assert.NotNull(connection, "Failed to get connection.");
             }

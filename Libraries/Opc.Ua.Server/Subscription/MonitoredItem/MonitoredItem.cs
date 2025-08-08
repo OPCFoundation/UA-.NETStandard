@@ -187,7 +187,6 @@ namespace Opc.Ua.Server
             m_sourceSamplingInterval = storedMonitoredItem.SourceSamplingInterval;
             m_calculator = null;
             m_nextSamplingTime = HiResClock.TickCount64;
-            AlwaysReportUpdates = false;
             m_monitoredItemQueueFactory = m_server.MonitoredItemQueueFactory;
             m_subscriptionStore = m_server.SubscriptionStore;
             IsDurable = storedMonitoredItem.IsDurable;
@@ -762,22 +761,6 @@ namespace Opc.Ua.Server
                     m_nextSamplingTime = 0;
                 }
             }
-        }
-
-        /// <summary>
-        /// Changes the monitoring mode for the item.
-        /// </summary>
-        void ISampledDataChangeMonitoredItem.SetMonitoringMode(MonitoringMode monitoringMode)
-        {
-            SetMonitoringMode(monitoringMode);
-        }
-
-        /// <summary>
-        /// Changes the monitoring mode for the item.
-        /// </summary>
-        void IEventMonitoredItem.SetMonitoringMode(MonitoringMode monitoringMode)
-        {
-            SetMonitoringMode(monitoringMode);
         }
 
         /// <summary>

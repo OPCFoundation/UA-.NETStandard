@@ -2819,7 +2819,7 @@ namespace Opc.Ua.Server
         {
             try
             {
-                ApplicationConfiguration configuration = await ApplicationConfiguration.Load(
+                ApplicationConfiguration configuration = await ApplicationConfiguration.LoadAsync(
                     new FileInfo(args.FilePath),
                     Configuration.ApplicationType,
                     Configuration.GetType()).ConfigureAwait(false);

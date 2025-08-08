@@ -72,7 +72,7 @@ namespace Opc.Ua.Gds.Server
             CertificateGroupConfiguration certificateGroupConfiguration,
             [Optional] string issuerCertificatesStorePath);
 
-        Task Init();
+        Task InitAsync();
 
         Task<X509Certificate2> CreateCACertificateAsync(
             string subjectName,

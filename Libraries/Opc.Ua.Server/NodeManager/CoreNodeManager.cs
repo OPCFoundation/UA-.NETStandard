@@ -68,7 +68,7 @@ namespace Opc.Ua.Server
 
             Server = server;
             m_nodes = new NodeTable(server.NamespaceUris, server.ServerUris, server.TypeTree);
-            m_monitoredItems = new Dictionary<uint, MonitoredItem>();
+            m_monitoredItems = new Dictionary<uint, ISampledDataChangeMonitoredItem>();
             m_defaultMinimumSamplingInterval = 1000;
             m_namespaceUris = new List<string>();
             m_dynamicNamespaceIndex = dynamicNamespaceIndex;
@@ -1353,7 +1353,7 @@ namespace Opc.Ua.Server
                     }
 
                     // create monitored item.
-                    MonitoredItem monitoredItem = m_samplingGroupManager.CreateMonitoredItem(
+                    ISampledDataChangeMonitoredItem monitoredItem = m_samplingGroupManager.CreateMonitoredItem(
                         context,
                         subscriptionId,
                         publishingInterval,
@@ -1440,7 +1440,7 @@ namespace Opc.Ua.Server
                     item.IsRestored = true;
 
                     // create monitored item.
-                    MonitoredItem monitoredItem = m_samplingGroupManager.RestoreMonitoredItem(
+                    ISampledDataChangeMonitoredItem monitoredItem = m_samplingGroupManager.RestoreMonitoredItem(
                         node,
                         item,
                         savedOwnerIdentity
@@ -1542,7 +1542,7 @@ namespace Opc.Ua.Server
                     itemToModify.Processed = true;
 
                     // validate monitored item.
-                    MonitoredItem monitoredItem = null;
+                    ISampledDataChangeMonitoredItem monitoredItem = null;
 
                     if (!m_monitoredItems.TryGetValue(monitoredItems[ii].Id, out monitoredItem))
                     {
@@ -1664,7 +1664,7 @@ namespace Opc.Ua.Server
                     processedItems[ii] = true;
 
                     // validate monitored item.
-                    MonitoredItem monitoredItem = null;
+                    ISampledDataChangeMonitoredItem monitoredItem = null;
 
                     if (!m_monitoredItems.TryGetValue(monitoredItems[ii].Id, out monitoredItem))
                     {
@@ -1806,7 +1806,7 @@ namespace Opc.Ua.Server
                     processedItems[ii] = true;
 
                     // validate monitored item.
-                    MonitoredItem monitoredItem = null;
+                    ISampledDataChangeMonitoredItem monitoredItem = null;
 
                     if (!m_monitoredItems.TryGetValue(monitoredItems[ii].Id, out monitoredItem))
                     {
@@ -3468,7 +3468,7 @@ namespace Opc.Ua.Server
         private readonly NodeTable m_nodes;
         private long m_lastId;
         private readonly SamplingGroupManager m_samplingGroupManager;
-        private readonly Dictionary<uint, MonitoredItem> m_monitoredItems;
+        private readonly Dictionary<uint, ISampledDataChangeMonitoredItem> m_monitoredItems;
         private readonly double m_defaultMinimumSamplingInterval;
         private readonly List<string> m_namespaceUris;
         private readonly ushort m_dynamicNamespaceIndex;

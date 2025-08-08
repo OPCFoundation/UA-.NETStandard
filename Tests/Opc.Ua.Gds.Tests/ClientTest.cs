@@ -1481,7 +1481,7 @@ namespace Opc.Ua.Gds.Tests
             {
                 m_gdsClient.GDSClient.AdminCredentials = admin ? m_gdsClient.AdminUser : m_gdsClient.AppUser;
             }
-            m_gdsClient.GDSClient.Connect(m_gdsClient.GDSClient.EndpointUrl).Wait();
+            m_gdsClient.GDSClient.ConnectAsync(m_gdsClient.GDSClient.EndpointUrl).GetAwaiter().GetResult();
             TestContext.Progress.WriteLine($"GDS Client({admin}) connected -- {memberName}");
         }
 

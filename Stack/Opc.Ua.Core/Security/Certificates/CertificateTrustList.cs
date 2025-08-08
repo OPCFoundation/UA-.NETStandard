@@ -44,11 +44,21 @@ namespace Opc.Ua
     public partial class CertificateTrustList : CertificateStoreIdentifier
     {
         #region Public Methods
+
         /// <summary>
         /// Returns the certificates in the trust list.
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
-        public async Task<X509Certificate2Collection> GetCertificates()
+        [Obsolete("Use GetCertificatesAsync() instead.")]
+        public Task<X509Certificate2Collection> GetCertificates()
+        {
+            return GetCertificatesAsync();
+        }
+
+        /// <summary>
+        /// Returns the certificates in the trust list.
+        /// </summary>
+        public async Task<X509Certificate2Collection> GetCertificatesAsync()
         {
             var collection = new X509Certificate2Collection();
 
@@ -78,7 +88,7 @@ namespace Opc.Ua
 
             foreach (CertificateIdentifier trustedCertificate in TrustedCertificates)
             {
-                X509Certificate2 certificate = await trustedCertificate.Find().ConfigureAwait(false);
+                X509Certificate2 certificate = await trustedCertificate.FindAsync().ConfigureAwait(false);
 
                 if (certificate != null)
                 {

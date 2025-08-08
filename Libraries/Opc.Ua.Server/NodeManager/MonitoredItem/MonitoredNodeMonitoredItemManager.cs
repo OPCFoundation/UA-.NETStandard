@@ -55,7 +55,7 @@ namespace Opc.Ua.Server
         public ConcurrentDictionary<uint, IMonitoredItem> MonitoredItems { get; }
 
         /// <inheritdoc/>
-        public IMonitoredItem CreateMonitoredItem(
+        public ISampledDataChangeMonitoredItem CreateMonitoredItem(
             IServerInternal server,
             INodeManager nodeManager,
             ServerSystemContext context,
@@ -86,7 +86,7 @@ namespace Opc.Ua.Server
             handle.MonitoredNode = monitoredNode;
 
             // create the item.
-            var datachangeItem = new MonitoredItem(
+            ISampledDataChangeMonitoredItem datachangeItem = new MonitoredItem(
                 server,
                 m_nodeManager,
                 handle,
@@ -134,17 +134,14 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public StatusCode DeleteMonitoredItem(ServerSystemContext context, IMonitoredItem monitoredItem, NodeHandle handle)
+        public StatusCode DeleteMonitoredItem(ServerSystemContext context, ISampledDataChangeMonitoredItem monitoredItem, NodeHandle handle)
         {
-            // check for valid monitored item.
-            var datachangeItem = monitoredItem as MonitoredItem;
-
             // check if the node is already being monitored.
             MonitoredNode2 monitoredNode = null;
 
             if (MonitoredNodes.TryGetValue(handle.NodeId, out monitoredNode))
             {
-                monitoredNode.Remove(datachangeItem);
+                monitoredNode.Remove(monitoredItem);
 
                 // check if node is no longer being monitored.
                 if (!monitoredNode.HasMonitoredItems)
@@ -161,18 +158,15 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public (ServiceResult, MonitoringMode?) SetMonitoringMode(ServerSystemContext context, IMonitoredItem monitoredItem, MonitoringMode monitoringMode, NodeHandle handle)
+        public (ServiceResult, MonitoringMode?) SetMonitoringMode(ServerSystemContext context, ISampledDataChangeMonitoredItem monitoredItem, MonitoringMode monitoringMode, NodeHandle handle)
         {
-            // check for valid monitored item.
-            var datachangeItem = monitoredItem as MonitoredItem;
-
             // update monitoring mode.
-            MonitoringMode previousMode = datachangeItem.SetMonitoringMode(monitoringMode);
+            MonitoringMode previousMode = monitoredItem.SetMonitoringMode(monitoringMode);
 
             // must send the latest value after enabling a disabled item.
             if (monitoringMode == MonitoringMode.Reporting && previousMode == MonitoringMode.Disabled)
             {
-                handle.MonitoredNode.QueueValue(context, handle.Node, datachangeItem);
+                handle.MonitoredNode.QueueValue(context, handle.Node, monitoredItem);
             }
 
             return (StatusCodes.Good, previousMode);
@@ -186,7 +180,7 @@ namespace Opc.Ua.Server
                                          IStoredMonitoredItem storedMonitoredItem,
                                          IUserIdentity savedOwnerIdentity,
                                          Func<ISystemContext, NodeHandle, NodeState, NodeState> AddNodeToComponentCache,
-                                         out IMonitoredItem monitoredItem)
+                                         out ISampledDataChangeMonitoredItem monitoredItem)
         {
             // check if the node is already being monitored.
             MonitoredNode2 monitoredNode = null;
@@ -201,7 +195,7 @@ namespace Opc.Ua.Server
             handle.MonitoredNode = monitoredNode;
 
             // create the item.
-            var datachangeItem = new MonitoredItem(
+            ISampledDataChangeMonitoredItem datachangeItem = new MonitoredItem(
                 server,
                 nodeManager,
                 handle,

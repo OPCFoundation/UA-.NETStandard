@@ -104,7 +104,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                     TrustedIssuerCertificates = new CertificateTrustList { StorePath = "Test" },
                 }
             };
-            Assert.DoesNotThrow(() => appConfig.Validate(ApplicationType.Client).GetAwaiter().GetResult());
+            Assert.DoesNotThrow(() => appConfig.ValidateAsync(ApplicationType.Client).GetAwaiter().GetResult());
         }
         #endregion
     }

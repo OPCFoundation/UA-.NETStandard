@@ -483,7 +483,7 @@ namespace Quickstarts.ConsoleReferenceClient
             // get user certificate with matching thumbprint
             X509Certificate2Collection userCertifiactesWithMatchingThumbprint =
                 (await trustedUserCertificates
-                .GetCertificates().ConfigureAwait(true))
+                .GetCertificatesAsync().ConfigureAwait(false))
                 .Find(X509FindType.FindByThumbprint, thumbprint, false);
 
             // create Certificate Identifier

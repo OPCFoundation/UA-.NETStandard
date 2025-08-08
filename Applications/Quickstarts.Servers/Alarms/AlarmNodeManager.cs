@@ -789,8 +789,9 @@ namespace Alarms
 
             for (int ii = 0; ii < monitoredItems.Count; ii++)
             {
-                // the IEventMonitoredItem should always be MonitoredItems since they are created by the MasterNodeManager.
-                if (!(monitoredItems[ii] is MonitoredItem monitoredItem))
+                IEventMonitoredItem monitoredItem = monitoredItems[ii];
+
+                if (monitoredItem == null)
                 {
                     continue;
                 }

@@ -1061,9 +1061,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public void TestNullParameters()
         {
             var validator = TemporaryCertValidator.Create();
-            CertificateValidator certValidator = validator.Update();
-            Assert.Throws<ArgumentNullException>(() => certValidator.UpdateAsync(null).GetAwaiter().GetResult());
-            Assert.Throws<ArgumentNullException>(() => certValidator.Update(null).GetAwaiter().GetResult());
+            var certValidator = validator.Update();
+            Assert.Throws<ArgumentNullException>(() => certValidator.UpdateAsync((SecurityConfiguration)null).GetAwaiter().GetResult());
+            Assert.Throws<ArgumentNullException>(() => certValidator.UpdateAsync((ApplicationConfiguration)null).GetAwaiter().GetResult());
         }
 
         /// <summary>

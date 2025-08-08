@@ -102,7 +102,16 @@ namespace Opc.Ua
         /// <summary>
         /// Updates the validator with the current state of the configuration.
         /// </summary>
-        public virtual async Task Update(ApplicationConfiguration configuration)
+        [Obsolete("Use UpdateAsync instead.")]
+        public virtual Task Update(ApplicationConfiguration configuration)
+        {
+            return UpdateAsync(configuration);
+        }
+
+        /// <summary>
+        /// Updates the validator with the current state of the configuration.
+        /// </summary>
+        public virtual async Task UpdateAsync(ApplicationConfiguration configuration)
         {
             if (configuration == null)
             {
@@ -228,7 +237,7 @@ namespace Opc.Ua
                 {
                     foreach (CertificateIdentifier applicationCertificate in configuration.ApplicationCertificates)
                     {
-                        X509Certificate2 certificate = await applicationCertificate.Find(true, applicationUri).ConfigureAwait(false);
+                        X509Certificate2 certificate = await applicationCertificate.FindAsync(true, applicationUri).ConfigureAwait(false);
                         if (certificate == null)
                         {
                             Utils.Trace(Utils.TraceMasks.Security, "Could not find application certificate: {0}", applicationCertificate);
@@ -266,7 +275,7 @@ namespace Opc.Ua
 
                 foreach (CertificateIdentifier applicationCertificate in securityConfiguration.ApplicationCertificates)
                 {
-                    await applicationCertificate.LoadPrivateKeyEx(
+                    await applicationCertificate.LoadPrivateKeyExAsync(
                         securityConfiguration.CertificatePasswordProvider, applicationUri).ConfigureAwait(false);
                 }
             }
@@ -596,7 +605,19 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the issuers for the certificates.
         /// </summary>
-        public async Task<bool> GetIssuersNoExceptionsOnGetIssuer(X509Certificate2Collection certificates,
+        [Obsolete("Use GetIssuersNoExceptionsOnGetIssuerAsync instead.")]
+        public Task<bool> GetIssuersNoExceptionsOnGetIssuer(X509Certificate2Collection certificates,
+            List<CertificateIdentifier> issuers, Dictionary<X509Certificate2, ServiceResultException> validationErrors)
+        {
+            return GetIssuersNoExceptionsOnGetIssuerAsync(
+                certificates, issuers, validationErrors
+                );
+        }
+
+        /// <summary>
+        /// Returns the issuers for the certificates.
+        /// </summary>
+        public async Task<bool> GetIssuersNoExceptionsOnGetIssuerAsync(X509Certificate2Collection certificates,
             List<CertificateIdentifier> issuers, Dictionary<X509Certificate2, ServiceResultException> validationErrors)
         {
             bool isTrusted = false;
@@ -624,7 +645,7 @@ namespace Opc.Ua
                 }
                 else
                 {
-                    issuer = await GetIssuer(certificate, m_trustedCertificateList, m_trustedCertificateStore, true).ConfigureAwait(false);
+                    issuer = await GetIssuerAsync(certificate, m_trustedCertificateList, m_trustedCertificateStore, true).ConfigureAwait(false);
                 }
 
                 if (issuer == null)
@@ -635,7 +656,7 @@ namespace Opc.Ua
                     }
                     else
                     {
-                        issuer = await GetIssuer(certificate, m_issuerCertificateList, m_issuerCertificateStore, true).ConfigureAwait(false);
+                        issuer = await GetIssuerAsync(certificate, m_issuerCertificateList, m_issuerCertificateStore, true).ConfigureAwait(false);
                     }
 
                     if (issuer == null)
@@ -646,7 +667,7 @@ namespace Opc.Ua
                         }
                         else
                         {
-                            issuer = await GetIssuer(certificate, untrustedCollection, null, true).ConfigureAwait(false);
+                            issuer = await GetIssuerAsync(certificate, untrustedCollection, null, true).ConfigureAwait(false);
                         }
                     }
                 }
@@ -669,7 +690,7 @@ namespace Opc.Ua
 
                     issuers.Add(issuer);
 
-                    certificate = await issuer.Find(false).ConfigureAwait(false);
+                    certificate = await issuer.FindAsync(false).ConfigureAwait(false);
                 }
             }
             while (issuer != null);
@@ -680,9 +701,18 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the issuers for the certificates.
         /// </summary>
+        [Obsolete("Use GetIssuersAsync instead.")]
         public Task<bool> GetIssuers(X509Certificate2Collection certificates, List<CertificateIdentifier> issuers)
         {
-            return GetIssuersNoExceptionsOnGetIssuer(
+            return GetIssuersAsync(certificates, issuers);
+        }
+
+        /// <summary>
+        /// Returns the issuers for the certificates.
+        /// </summary>
+        public Task<bool> GetIssuersAsync(X509Certificate2Collection certificates, List<CertificateIdentifier> issuers)
+        {
+            return GetIssuersNoExceptionsOnGetIssuerAsync(
                 certificates, issuers, null // ensures legacy behavior is respected
                 );
         }
@@ -692,9 +722,20 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="certificate">The certificate.</param>
         /// <param name="issuers">The issuers.</param>
+        [Obsolete ("Use GetIssuersAsync instead.")]
         public Task<bool> GetIssuers(X509Certificate2 certificate, List<CertificateIdentifier> issuers)
         {
-            return GetIssuers(new X509Certificate2Collection { certificate }, issuers);
+            return GetIssuersAsync(certificate, issuers);
+        }
+
+        /// <summary>
+        /// Returns the issuers for the certificate.
+        /// </summary>
+        /// <param name="certificate">The certificate.</param>
+        /// <param name="issuers">The issuers.</param>
+        public Task<bool> GetIssuersAsync(X509Certificate2 certificate, List<CertificateIdentifier> issuers)
+        {
+            return GetIssuersAsync(new X509Certificate2Collection { certificate }, issuers);
         }
 
         /// <summary>
@@ -900,7 +941,7 @@ namespace Opc.Ua
             {
                 for (int ii = 0; ii < m_trustedCertificateList.Count; ii++)
                 {
-                    X509Certificate2 trusted = await m_trustedCertificateList[ii].Find(false).ConfigureAwait(false);
+                    X509Certificate2 trusted = await m_trustedCertificateList[ii].FindAsync(false).ConfigureAwait(false);
 
                     if (trusted != null && trusted.Thumbprint == certificate.Thumbprint && Utils.IsEqual(trusted.RawData, certificate.RawData))
                     {
@@ -1022,7 +1063,7 @@ namespace Opc.Ua
             {
                 for (int ii = 0; ii < explicitList.Count; ii++)
                 {
-                    X509Certificate2 issuer = await explicitList[ii].Find(false).ConfigureAwait(false);
+                    X509Certificate2 issuer = await explicitList[ii].FindAsync(false).ConfigureAwait(false);
 
                     if (issuer != null)
                     {
@@ -1122,7 +1163,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the certificate information for a trusted issuer certificate.
         /// </summary>
-        private async Task<CertificateIdentifier> GetIssuer(
+        private async Task<CertificateIdentifier> GetIssuerAsync(
             X509Certificate2 certificate,
             CertificateIdentifierCollection explicitList,
             CertificateStoreIdentifier certificateStore,
@@ -1171,7 +1212,7 @@ namespace Opc.Ua
             var issuers = new List<CertificateIdentifier>();
             var validationErrors = new Dictionary<X509Certificate2, ServiceResultException>();
 
-            bool isIssuerTrusted = await GetIssuersNoExceptionsOnGetIssuer(certificates, issuers, validationErrors).ConfigureAwait(false);
+            bool isIssuerTrusted = await GetIssuersNoExceptionsOnGetIssuerAsync(certificates, issuers, validationErrors).ConfigureAwait(false);
 
             ServiceResult sresult = CertificateValidator.PopulateSresultWithValidationErrors(validationErrors);
 

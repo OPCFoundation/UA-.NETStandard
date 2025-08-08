@@ -74,7 +74,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(certificateId));
             }
 
-            X509Certificate2 certificate = certificateId.LoadPrivateKeyEx(certificatePasswordProvider).Result;
+            X509Certificate2 certificate = certificateId.LoadPrivateKeyExAsync(certificatePasswordProvider).GetAwaiter().GetResult();
 
             if (certificate == null || !certificate.HasPrivateKey)
             {

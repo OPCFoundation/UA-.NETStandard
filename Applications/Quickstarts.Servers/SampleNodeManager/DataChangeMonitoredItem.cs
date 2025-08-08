@@ -70,6 +70,7 @@ namespace Opc.Ua.Sample
             m_readyToTrigger = false;
             m_resendData = false;
             AlwaysReportUpdates = alwaysReportUpdates;
+            m_nodeId = source.Node.NodeId;
         }
 
         /// <summary>
@@ -113,6 +114,7 @@ namespace Opc.Ua.Sample
             m_filter = filter;
             m_range = 0;
             AlwaysReportUpdates = alwaysReportUpdates;
+            m_nodeId = source.Node.NodeId;
 
             if (range != null)
             {
@@ -158,6 +160,7 @@ namespace Opc.Ua.Sample
             AlwaysReportUpdates = storedMonitoredItem.AlwaysReportUpdates;
             m_lastValue = storedMonitoredItem.LastValue;
             m_lastError = storedMonitoredItem.LastError;
+            m_nodeId = storedMonitoredItem.NodeId;
 
             if (storedMonitoredItem.QueueSize > 1)
             {
@@ -723,6 +726,8 @@ namespace Opc.Ua.Sample
 
         public bool IsDurable => false;
 
+        public NodeId NodeId => m_nodeId;
+
         /// <summary>
         /// Increments the sample time to the next interval.
         /// </summary>
@@ -926,6 +931,7 @@ namespace Opc.Ua.Sample
         private bool m_semanticsChanged;
         private bool m_structureChanged;
         private bool m_resendData;
+        private NodeId m_nodeId;
         #endregion
     }
 }
