@@ -151,7 +151,7 @@ namespace Opc.Ua.Server
 
                     if ((masks & TrustListMasks.TrustedCertificates) != 0)
                     {
-                        X509Certificate2Collection certificates = store.Enumerate().GetAwaiter().GetResult();
+                        X509Certificate2Collection certificates = store.EnumerateAsync().GetAwaiter().GetResult();
                         foreach (var certificate in certificates)
                         {
                             trustList.TrustedCertificates.Add(certificate.RawData);
@@ -160,7 +160,7 @@ namespace Opc.Ua.Server
 
                     if ((masks & TrustListMasks.TrustedCrls) != 0)
                     {
-                        foreach (var crl in store.EnumerateCRLs().GetAwaiter().GetResult())
+                        foreach (var crl in store.EnumerateCRLsAsync().GetAwaiter().GetResult())
                         {
                             trustList.TrustedCrls.Add(crl.RawData);
                         }
@@ -183,7 +183,7 @@ namespace Opc.Ua.Server
 
                     if ((masks & TrustListMasks.IssuerCertificates) != 0)
                     {
-                        X509Certificate2Collection certificates = store.Enumerate().GetAwaiter().GetResult();
+                        X509Certificate2Collection certificates = store.EnumerateAsync().GetAwaiter().GetResult();
                         foreach (var certificate in certificates)
                         {
                             trustList.IssuerCertificates.Add(certificate.RawData);
@@ -192,7 +192,7 @@ namespace Opc.Ua.Server
 
                     if ((masks & TrustListMasks.IssuerCrls) != 0)
                     {
-                        foreach (var crl in store.EnumerateCRLs().GetAwaiter().GetResult())
+                        foreach (var crl in store.EnumerateCRLsAsync().GetAwaiter().GetResult())
                         {
                             trustList.IssuerCrls.Add(crl.RawData);
                         }
@@ -490,7 +490,7 @@ namespace Opc.Ua.Server
                     {
                         if (cert != null && store != null)
                         {
-                            store.Add(cert).GetAwaiter().GetResult();
+                            store.AddAsync(cert).GetAwaiter().GetResult();
                         }
                     }
                     finally
@@ -542,7 +542,7 @@ namespace Opc.Ua.Server
                             throw new ServiceResultException(StatusCodes.BadConfigurationError, "Failed to open certificate store.");
                         }
 
-                        var certCollection = store.FindByThumbprint(thumbprint).GetAwaiter().GetResult();
+                        var certCollection = store.FindByThumbprintAsync(thumbprint).GetAwaiter().GetResult();
 
                         if (certCollection.Count == 0)
                         {
@@ -552,7 +552,7 @@ namespace Opc.Ua.Server
                         {
                             // delete all CRLs signed by cert
                             var crlsToDelete = new X509CRLCollection();
-                            foreach (var crl in store.EnumerateCRLs().GetAwaiter().GetResult())
+                            foreach (var crl in store.EnumerateCRLsAsync().GetAwaiter().GetResult())
                             {
                                 foreach (var cert in certCollection)
                                 {
@@ -565,7 +565,7 @@ namespace Opc.Ua.Server
                                 }
                             }
 
-                            if (!store.Delete(thumbprint).GetAwaiter().GetResult())
+                            if (!store.DeleteAsync(thumbprint).GetAwaiter().GetResult())
                             {
                                 result = StatusCodes.BadInvalidArgument;
                             }
@@ -573,7 +573,7 @@ namespace Opc.Ua.Server
                             {
                                 foreach (var crl in crlsToDelete)
                                 {
-                                    if (!store.DeleteCRL(crl).GetAwaiter().GetResult())
+                                    if (!store.DeleteCRLAsync(crl).GetAwaiter().GetResult())
                                     {
                                         // intentionally ignore errors, try best effort
                                         Utils.LogError("RemoveCertificate: Failed to delete CRL {0}.", crl.ToString());
@@ -646,12 +646,12 @@ namespace Opc.Ua.Server
                         throw new ServiceResultException(StatusCodes.BadConfigurationError, "Failed to open certificate store.");
                     }
 
-                    var storeCrls = await store.EnumerateCRLs().ConfigureAwait(false);
+                    var storeCrls = await store.EnumerateCRLsAsync().ConfigureAwait(false);
                     foreach (var crl in storeCrls)
                     {
                         if (!updatedCrls.Contains(crl))
                         {
-                            if (!await store.DeleteCRL(crl).ConfigureAwait(false))
+                            if (!await store.DeleteCRLAsync(crl).ConfigureAwait(false))
                             {
                                 result = false;
                             }
@@ -663,7 +663,7 @@ namespace Opc.Ua.Server
                     }
                     foreach (var crl in updatedCrls)
                     {
-                        await store.AddCRL(crl).ConfigureAwait(false);
+                        await store.AddCRLAsync(crl).ConfigureAwait(false);
                     }
                 }
                 finally
@@ -693,12 +693,12 @@ namespace Opc.Ua.Server
                         throw new ServiceResultException(StatusCodes.BadConfigurationError, "Failed to open certificate store.");
                     }
 
-                    var storeCerts = await store.Enumerate().ConfigureAwait(false);
+                    var storeCerts = await store.EnumerateAsync().ConfigureAwait(false);
                     foreach (var cert in storeCerts)
                     {
                         if (!updatedCerts.Contains(cert))
                         {
-                            if (!await store.Delete(cert.Thumbprint).ConfigureAwait(false))
+                            if (!await store.DeleteAsync(cert.Thumbprint).ConfigureAwait(false))
                             {
                                 result = false;
                             }
@@ -710,7 +710,7 @@ namespace Opc.Ua.Server
                     }
                     foreach (var cert in updatedCerts)
                     {
-                        await store.Add(cert).ConfigureAwait(false);
+                        await store.AddAsync(cert).ConfigureAwait(false);
                     }
                 }
                 finally

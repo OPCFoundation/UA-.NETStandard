@@ -125,7 +125,14 @@ namespace Opc.Ua
         public bool NoPrivateKeys => m_noPrivateKeys;
 
         /// <inheritdoc/>
+        [Obsolete("Use EnumerateAsync instead.")]
         public Task<X509Certificate2Collection> Enumerate()
+        {
+            return EnumerateAsync();
+        }
+
+        /// <inheritdoc/>
+        public Task<X509Certificate2Collection> EnumerateAsync()
         {
             using (X509Store store = new X509Store(m_storeName, m_storeLocation))
             {
@@ -135,7 +142,14 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        [Obsolete("Use AddAsync instead.")]
         public Task Add(X509Certificate2 certificate, string password = null)
+        {
+            return AddAsync(certificate, password);
+        }
+
+        /// <inheritdoc/>
+        public Task AddAsync(X509Certificate2 certificate, string password = null)
         {
             if (certificate == null) throw new ArgumentNullException(nameof(certificate));
 
@@ -171,7 +185,14 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        [Obsolete("Use DeleteAsync instead.")]
         public Task<bool> Delete(string thumbprint)
+        {
+            return DeleteAsync(thumbprint);
+        }
+
+        /// <inheritdoc/>
+        public Task<bool> DeleteAsync(string thumbprint)
         {
             using (X509Store store = new X509Store(m_storeName, m_storeLocation))
             {
@@ -190,7 +211,14 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        [Obsolete("Use FindByThumbprintAsync instead.")]
         public Task<X509Certificate2Collection> FindByThumbprint(string thumbprint)
+        {
+            return FindByThumbprintAsync(thumbprint);
+        }
+
+        /// <inheritdoc/>
+        public Task<X509Certificate2Collection> FindByThumbprintAsync(string thumbprint)
         {
             using (X509Store store = new X509Store(m_storeName, m_storeLocation))
             {
@@ -215,7 +243,15 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         /// <remarks>The LoadPrivateKey special handling is not necessary in this store.</remarks>
+        [Obsolete("Use LoadPrivateKeyAsync instead.")]
         public Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string applicationUri, NodeId certificateType, string password)
+        {
+            return Task.FromResult<X509Certificate2>(null);
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>The LoadPrivateKey special handling is not necessary in this store.</remarks>
+        public Task<X509Certificate2> LoadPrivateKeyAsync(string thumbprint, string subjectName, string applicationUri, NodeId certificateType, string password)
         {
             return Task.FromResult<X509Certificate2>(null);
         }
@@ -224,11 +260,17 @@ namespace Opc.Ua
         /// <remarks>CRLs are only supported on Windows Platform.</remarks>
         public bool SupportsCRLs => PlatformHelper.IsWindowsWithCrlSupport();
 
-
+        /// <inheritdoc/>
+        /// <remarks>CRLs are only supported on Windows Platform.</remarks>
+        [Obsolete("Use IsRevokedAsync instead.")]
+        public Task<StatusCode> IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate)
+        {
+            return IsRevokedAsync(issuer, certificate);
+        }
 
         /// <inheritdoc/>
         /// <remarks>CRLs are only supported on Windows Platform.</remarks>
-        public async Task<StatusCode> IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate)
+        public async Task<StatusCode> IsRevokedAsync(X509Certificate2 issuer, X509Certificate2 certificate)
         {
             if (!SupportsCRLs)
             {
@@ -245,7 +287,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(certificate));
             }
 
-            X509CRLCollection crls = await EnumerateCRLs().ConfigureAwait(false);
+            X509CRLCollection crls = await EnumerateCRLsAsync().ConfigureAwait(false);
             // check for CRL.
 
             bool crlExpired = true;
@@ -285,7 +327,15 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         /// <remarks>CRLs are only supported on Windows Platform.</remarks>
+        [Obsolete("Use EnumerateCRLsAsync instead.")]
         public Task<X509CRLCollection> EnumerateCRLs()
+        {
+            return EnumerateCRLsAsync();
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>CRLs are only supported on Windows Platform.</remarks>
+        public Task<X509CRLCollection> EnumerateCRLsAsync()
         {
             if (!SupportsCRLs)
             {
@@ -315,7 +365,15 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         /// <remarks>CRLs are only supported on Windows Platform.</remarks>
-        public async Task<X509CRLCollection> EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true)
+        [Obsolete("Use EnumerateCRLsAsync instead.")]
+        public Task<X509CRLCollection> EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true)
+        {
+            return EnumerateCRLsAsync(issuer, validateUpdateTime);
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>CRLs are only supported on Windows Platform.</remarks>
+        public async Task<X509CRLCollection> EnumerateCRLsAsync(X509Certificate2 issuer, bool validateUpdateTime = true)
         {
             if (!SupportsCRLs)
             {
@@ -326,7 +384,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(issuer));
             }
             var crls = new X509CRLCollection();
-            foreach (X509CRL crl in await EnumerateCRLs().ConfigureAwait(false))
+            foreach (X509CRL crl in await EnumerateCRLsAsync().ConfigureAwait(false))
             {
                 if (!X509Utils.CompareDistinguishedName(crl.IssuerName, issuer.SubjectName))
                 {
@@ -350,7 +408,15 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         /// <remarks>CRLs are only supported on Windows Platform.</remarks>
-        public async Task AddCRL(X509CRL crl)
+        [Obsolete("Use AddCRLAsync instead.")]
+        public Task AddCRL(X509CRL crl)
+        {
+            return AddCRLAsync(crl);
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>CRLs are only supported on Windows Platform.</remarks>
+        public async Task AddCRLAsync(X509CRL crl)
         {
             if (!SupportsCRLs)
             {
@@ -363,7 +429,7 @@ namespace Opc.Ua
 
             X509Certificate2 issuer = null;
             X509Certificate2Collection certificates = null;
-            certificates = await Enumerate().ConfigureAwait(false);
+            certificates = await EnumerateAsync().ConfigureAwait(false);
             foreach (X509Certificate2 certificate in certificates)
             {
                 if (X509Utils.CompareDistinguishedName(certificate.SubjectName, crl.IssuerName))
@@ -390,7 +456,15 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         /// <remarks>CRLs are only supported on Windows Platform.</remarks>
+        [Obsolete("Use DeleteCRLAsync instead.")]
         public Task<bool> DeleteCRL(X509CRL crl)
+        {
+            return DeleteCRLAsync(crl);
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>CRLs are only supported on Windows Platform.</remarks>
+        public Task<bool> DeleteCRLAsync(X509CRL crl)
         {
             if (!SupportsCRLs)
             {
@@ -409,7 +483,14 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        [Obsolete("Use AddRejectedAsync instead.")]
         public Task AddRejected(X509Certificate2Collection certificates, int maxCertificates)
+        {
+            return Task.CompletedTask;
+        }
+
+        /// <inheritdoc/>
+        public Task AddRejectedAsync(X509Certificate2Collection certificates, int maxCertificates)
         {
             return Task.CompletedTask;
         }

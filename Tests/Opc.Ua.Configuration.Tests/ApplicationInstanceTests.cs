@@ -374,12 +374,12 @@ namespace Opc.Ua.Configuration.Tests
                 var thumbprint = applicationCertificate.Certificate.Thumbprint;
                 using (ICertificateStore store = applicationCertificate.OpenStore())
                 {
-                    bool success = await store.Delete(thumbprint).ConfigureAwait(false);
+                    bool success = await store.DeleteAsync(thumbprint).ConfigureAwait(false);
                     Assert.IsTrue(success);
                 }
                 using (ICertificateStore store = applicationInstance.ApplicationConfiguration.SecurityConfiguration.TrustedPeerCertificates.OpenStore())
                 {
-                    bool success = await store.Delete(thumbprint).ConfigureAwait(false);
+                    bool success = await store.DeleteAsync(thumbprint).ConfigureAwait(false);
                     Assert.IsTrue(success);
                 }
             }
@@ -621,7 +621,7 @@ namespace Opc.Ua.Configuration.Tests
                 //Act
                 await applicationInstance.AddOwnCertificateToTrustedStoreAsync(cert, new CancellationToken()).ConfigureAwait(false);
                 ICertificateStore store = configuration.SecurityConfiguration.TrustedPeerCertificates.OpenStore();
-                var storedCertificates = await store.FindByThumbprint(cert.Thumbprint).ConfigureAwait(false);
+                var storedCertificates = await store.FindByThumbprintAsync(cert.Thumbprint).ConfigureAwait(false);
 
                 //Assert
                 Assert.IsTrue(storedCertificates.Contains(cert));

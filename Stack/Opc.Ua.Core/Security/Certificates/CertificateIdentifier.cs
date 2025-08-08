@@ -200,12 +200,12 @@ namespace Opc.Ua
                     if (store?.SupportsLoadPrivateKey == true)
                     {
                         string password = passwordProvider?.GetPassword(this);
-                        m_certificate = await store.LoadPrivateKey(this.Thumbprint, this.SubjectName, null, this.CertificateType, password).ConfigureAwait(false);
+                        m_certificate = await store.LoadPrivateKeyAsync(this.Thumbprint, this.SubjectName, null, this.CertificateType, password).ConfigureAwait(false);
 
                         //find certificate by applicationUri instead of subjectName, as the subjectName could have changed after a certificate update
                         if (m_certificate == null && !string.IsNullOrEmpty(applicationUri))
                         {
-                            m_certificate = await store.LoadPrivateKey(this.Thumbprint, null, applicationUri, this.CertificateType, password).ConfigureAwait(false);
+                            m_certificate = await store.LoadPrivateKeyAsync(this.Thumbprint, null, applicationUri, this.CertificateType, password).ConfigureAwait(false);
                         }
 
                         return m_certificate;
@@ -258,7 +258,7 @@ namespace Opc.Ua
                         return null;
                     }
 
-                    X509Certificate2Collection collection = await store.Enumerate().ConfigureAwait(false);
+                    X509Certificate2Collection collection = await store.EnumerateAsync().ConfigureAwait(false);
 
                     certificate = Find(collection, m_thumbprint, m_subjectName, applicationUri, m_certificateType, needPrivateKey);
 
@@ -828,7 +828,14 @@ namespace Opc.Ua
         public bool NoPrivateKeys => true;
 
         /// <inheritdoc/>
-        public async Task<X509Certificate2Collection> Enumerate()
+        [Obsolete("Use EnumerateAsync instead")]
+        public Task<X509Certificate2Collection> Enumerate()
+        {
+            return EnumerateAsync();
+        }
+
+        /// <inheritdoc/>
+        public async Task<X509Certificate2Collection> EnumerateAsync()
         {
             X509Certificate2Collection collection = new X509Certificate2Collection();
 
@@ -846,7 +853,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public async Task Add(X509Certificate2 certificate, string password = null)
+        public Task Add(X509Certificate2 certificate, string password = null)
+        {
+            return AddAsync(certificate, password);
+        }
+
+        /// <inheritdoc/>
+        public async Task AddAsync(X509Certificate2 certificate, string password = null)
         {
             if (certificate == null) throw new ArgumentNullException(nameof(certificate));
 
@@ -868,7 +881,14 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public async Task<bool> Delete(string thumbprint)
+        [Obsolete("Use DeleteAsync instead.")]
+        public Task<bool> Delete(string thumbprint)
+        {
+            return DeleteAsync(thumbprint);
+        }
+
+        /// <inheritdoc/>
+        public async Task<bool> DeleteAsync(string thumbprint)
         {
             if (String.IsNullOrEmpty(thumbprint))
             {
@@ -890,7 +910,14 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public async Task<X509Certificate2Collection> FindByThumbprint(string thumbprint)
+        [Obsolete("Use FindByThumbprintAsync instead.")]
+        public Task<X509Certificate2Collection> FindByThumbprint(string thumbprint)
+        {
+            return FindByThumbprintAsync(thumbprint);
+        }
+
+        /// <inheritdoc/>
+        public async Task<X509Certificate2Collection> FindByThumbprintAsync(string thumbprint)
         {
             if (String.IsNullOrEmpty(thumbprint))
             {
@@ -913,6 +940,8 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public bool SupportsLoadPrivateKey => false;
 
+
+
         /// <inheritdoc/>
         public Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string password)
         {
@@ -920,7 +949,15 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        /// <remarks>The LoadPrivateKey special handling is not necessary in this store.</remarks>
+        [Obsolete("Use LoadPrivateKeyAsync instead.")]
         public Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string applicationUri, NodeId certificateType, string password)
+        {
+            return LoadPrivateKeyAsync(thumbprint, subjectName, applicationUri, certificateType, password);
+        }
+
+        /// <inheritdoc/>
+        public Task<X509Certificate2> LoadPrivateKeyAsync(string thumbprint, string subjectName, string applicationUri, NodeId certificateType, string password)
         {
             return Task.FromResult<X509Certificate2>(null);
         }
@@ -929,37 +966,79 @@ namespace Opc.Ua
         public bool SupportsCRLs => false;
 
         /// <inheritdoc/>
+        [Obsolete("Use IsRevokedAsync instead.")]
         public Task<StatusCode> IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate)
+        {
+            return IsRevokedAsync(issuer, certificate);
+        }
+
+        /// <inheritdoc/>
+        public Task<StatusCode> IsRevokedAsync(X509Certificate2 issuer, X509Certificate2 certificate)
         {
             return Task.FromResult((StatusCode)StatusCodes.BadNotSupported);
         }
 
         /// <inheritdoc/>
+        [Obsolete("Use EnumerateCRLsAsync instead.")]
         public Task<X509CRLCollection> EnumerateCRLs()
         {
-            return Task.FromResult(new X509CRLCollection());
+            return EnumerateCRLsAsync();
         }
 
         /// <inheritdoc/>
-        public Task<X509CRLCollection> EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true)
+        public Task<X509CRLCollection> EnumerateCRLsAsync()
         {
             return Task.FromResult(new X509CRLCollection());
         }
 
         /// <inheritdoc/>
+        [Obsolete("Use EnumerateCRLsAsync instead.")]
+        public Task<X509CRLCollection> EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true)
+        {
+            return EnumerateCRLsAsync(issuer, validateUpdateTime);
+        }
+
+        /// <inheritdoc/>
+        public Task<X509CRLCollection> EnumerateCRLsAsync(X509Certificate2 issuer, bool validateUpdateTime = true)
+        {
+            return Task.FromResult(new X509CRLCollection());
+        }
+
+        /// <inheritdoc/>
+        [Obsolete("Use AddCRLAsync instead")]
         public Task AddCRL(X509CRL crl)
         {
             throw new ServiceResultException(StatusCodes.BadNotSupported);
         }
 
         /// <inheritdoc/>
-        public Task<bool> DeleteCRL(X509CRL crl)
+        public Task AddCRLAsync(X509CRL crl)
         {
             throw new ServiceResultException(StatusCodes.BadNotSupported);
         }
 
         /// <inheritdoc/>
+        [Obsolete("Use DeleteCRLAsync instead.")]
+        public Task<bool> DeleteCRL(X509CRL crl)
+        {
+            return DeleteCRLAsync(crl);
+        }
+
+        /// <inheritdoc/>
+        public Task<bool> DeleteCRLAsync(X509CRL crl)
+        {
+            throw new ServiceResultException(StatusCodes.BadNotSupported);
+        }
+
+        /// <inheritdoc/>
+        [Obsolete("Use AddRejectedAsync instead.")]
         public Task AddRejected(X509Certificate2Collection certificates, int maxCertificates)
+        {
+            return Task.CompletedTask;
+        }
+
+        /// <inheritdoc/>
+        public Task AddRejectedAsync(X509Certificate2Collection certificates, int maxCertificates)
         {
             return Task.CompletedTask;
         }

@@ -123,7 +123,7 @@ namespace Opc.Ua.Configuration.Tests
             using (ICertificateStore trustListStore = trustList.OpenStore())
             {
                 var certs = trustListStore.Enumerate();
-                var crls = trustListStore.EnumerateCRLs();
+                var crls = trustListStore.EnumerateCRLsAsync();
                 trustListStore.Close();
             }
         }
@@ -195,25 +195,51 @@ namespace Opc.Ua.Configuration.Tests
         /// <inheritdoc/>
         public Task Add(X509Certificate2 certificate, string password = null)
         {
-            return m_innerStore.Add(certificate, password);
+            return m_innerStore.AddAsync(certificate, password);
         }
 
         /// <inheritdoc/>
+        public Task AddAsync(X509Certificate2 certificate, string password = null)
+        {
+            return m_innerStore.AddAsync(certificate, password);
+        }
+
+        /// <inheritdoc/>
+        [Obsolete("Use DeleteAsync instead.")]
         public Task<bool> Delete(string thumbprint)
         {
-            return m_innerStore.Delete(thumbprint);
+            return DeleteAsync(thumbprint);
+        }
+
+        /// <inheritdoc/>
+        public Task<bool> DeleteAsync(string thumbprint)
+        {
+            return m_innerStore.DeleteAsync(thumbprint);
         }
 
         /// <inheritdoc/>
         public Task<X509Certificate2Collection> Enumerate()
         {
-            return m_innerStore.Enumerate();
+            return m_innerStore.EnumerateAsync();
         }
 
         /// <inheritdoc/>
+        public Task<X509Certificate2Collection> EnumerateAsync()
+        {
+            return m_innerStore.EnumerateAsync();
+        }
+
+        /// <inheritdoc/>
+        [Obsolete("Use FindByThumbprintAsync instead.")]
         public Task<X509Certificate2Collection> FindByThumbprint(string thumbprint)
         {
-            return m_innerStore.FindByThumbprint(thumbprint);
+            return FindByThumbprintAsync(thumbprint);
+        }
+
+        /// <inheritdoc/>
+        public Task<X509Certificate2Collection> FindByThumbprintAsync(string thumbprint)
+        {
+            return m_innerStore.FindByThumbprintAsync(thumbprint);
         }
 
         /// <inheritdoc/>
@@ -222,34 +248,80 @@ namespace Opc.Ua.Configuration.Tests
 
         /// <inheritdoc/>
         public Task AddCRL(X509CRL crl)
-            => m_innerStore.AddCRL(crl);
+            => m_innerStore.AddCRLAsync(crl);
 
         /// <inheritdoc/>
+        public Task AddCRLAsync(X509CRL crl)
+            => m_innerStore.AddCRLAsync(crl);
+
+        /// <inheritdoc/>
+        [Obsolete("Use DeleteCRLAsync instead.")]
         public Task<bool> DeleteCRL(X509CRL crl)
-            => m_innerStore.DeleteCRL(crl);
+        {
+            return DeleteCRLAsync(crl);
+        }
 
         /// <inheritdoc/>
+        public Task<bool> DeleteCRLAsync(X509CRL crl)
+            => m_innerStore.DeleteCRLAsync(crl);
+
+        /// <inheritdoc/>
+        [Obsolete("Use EnumerateCRLsAsync instead.")]
         public Task<X509CRLCollection> EnumerateCRLs()
-            => m_innerStore.EnumerateCRLs();
+        {
+            return EnumerateCRLsAsync();
+        }
 
         /// <inheritdoc/>
+        public Task<X509CRLCollection> EnumerateCRLsAsync()
+            => m_innerStore.EnumerateCRLsAsync();
+
+        /// <inheritdoc/>
+        [Obsolete("Use EnumerateCRLsAsync instead.")]
         public Task<X509CRLCollection> EnumerateCRLs(X509Certificate2 issuer, bool validateUpdateTime = true)
-            => m_innerStore.EnumerateCRLs(issuer, validateUpdateTime);
+        {
+            return EnumerateCRLsAsync(issuer, validateUpdateTime);
+        }
 
         /// <inheritdoc/>
+        public Task<X509CRLCollection> EnumerateCRLsAsync(X509Certificate2 issuer, bool validateUpdateTime = true)
+            => m_innerStore.EnumerateCRLsAsync(issuer, validateUpdateTime);
+
+        /// <inheritdoc/>
+        [Obsolete("Use IsRevokedAsync instead.")]
         public Task<StatusCode> IsRevoked(X509Certificate2 issuer, X509Certificate2 certificate)
-            => m_innerStore.IsRevoked(issuer, certificate);
+        {
+            return IsRevokedAsync(issuer, certificate);
+        }
+
+        /// <inheritdoc/>
+        public Task<StatusCode> IsRevokedAsync(X509Certificate2 issuer, X509Certificate2 certificate)
+            => m_innerStore.IsRevokedAsync(issuer, certificate);
 
         /// <inheritdoc/>
         public bool SupportsLoadPrivateKey => m_innerStore.SupportsLoadPrivateKey;
 
         /// <inheritdoc/>
+        [Obsolete("Use LoadPrivateKeyAsync instead.")]
         public Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string applicationUri, NodeId certificateType, string password)
-            => m_innerStore.LoadPrivateKey(thumbprint, subjectName, applicationUri, certificateType, password);
+        {
+            return LoadPrivateKeyAsync(thumbprint, subjectName, applicationUri, certificateType, password);
+        }
 
         /// <inheritdoc/>
+        public Task<X509Certificate2> LoadPrivateKeyAsync(string thumbprint, string subjectName, string applicationUri, NodeId certificateType, string password)
+            => m_innerStore.LoadPrivateKeyAsync(thumbprint, subjectName, applicationUri, certificateType, password);
+
+        /// <inheritdoc/>
+        [Obsolete("Use AddRejectedAsync instead.")]
         public Task AddRejected(X509Certificate2Collection certificates, int maxCertificates)
-            => m_innerStore.AddRejected(certificates, maxCertificates);
+        {
+            return AddRejectedAsync(certificates, maxCertificates);
+        }
+
+        /// <inheritdoc/>
+        public Task AddRejectedAsync(X509Certificate2Collection certificates, int maxCertificates)
+            => m_innerStore.AddRejectedAsync(certificates, maxCertificates);
 
         public static int InstancesCreated => s_instancesCreated;
 

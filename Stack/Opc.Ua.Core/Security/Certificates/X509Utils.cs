@@ -609,7 +609,7 @@ namespace Opc.Ua
             X500DistinguishedName issuer,
             string serialnumber)
         {
-            X509Certificate2Collection certificates = await store.Enumerate().ConfigureAwait(false);
+            X509Certificate2Collection certificates = await store.EnumerateAsync().ConfigureAwait(false);
 
             foreach (var certificate in certificates)
             {
@@ -653,7 +653,7 @@ namespace Opc.Ua
                     }
 
                     store.Open(storePath, false);
-                    store.Add(certificate, password).Wait();
+                    store.AddAsync(certificate, password).Wait();
                     store.Close();
                 }
             }
@@ -687,7 +687,7 @@ namespace Opc.Ua
                         throw new ArgumentException("Invalid store type");
                     }
 
-                    store.Add(certificate, password).Wait();
+                    store.AddAsync(certificate, password).Wait();
                 }
                 finally
                 {
@@ -727,7 +727,7 @@ namespace Opc.Ua
                         throw new ArgumentException("Invalid store type");
                     }
 
-                    await store.Add(certificate, password).ConfigureAwait(false);
+                    await store.AddAsync(certificate, password).ConfigureAwait(false);
                     store.Close();
                 }
             }
@@ -761,7 +761,7 @@ namespace Opc.Ua
                     {
                         throw new ArgumentException("Invalid store type");
                     }
-                    await store.Add(certificate, password).ConfigureAwait(false);
+                    await store.AddAsync(certificate, password).ConfigureAwait(false);
                 }
                 finally
                 {
