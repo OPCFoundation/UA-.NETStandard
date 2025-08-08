@@ -2016,7 +2016,7 @@ namespace Opc.Ua.Server
 
             foreach (var kvp in MonitoredItems)
             {
-                var monitoredItem = kvp.Value as MonitoredItem;
+                var monitoredItem = kvp.Value as ISampledDataChangeMonitoredItem;
                 if (monitoredItem == null || monitoredItem.AttributeId != Attributes.Value)
                 {
                     continue;
@@ -3321,7 +3321,7 @@ namespace Opc.Ua.Server
             for (int ii = 0; ii < monitoredItems.Count; ii++)
             {
                 // the IEventMonitoredItem should always be MonitoredItems since they are created by the MasterNodeManager.
-                MonitoredItem monitoredItem = monitoredItems[ii] as MonitoredItem;
+                IEventMonitoredItem monitoredItem = monitoredItems[ii];
 
                 if (monitoredItem == null)
                 {
@@ -3498,6 +3498,8 @@ namespace Opc.Ua.Server
             // put an upper limit on queue size.
             storedMonitoredItem.QueueSize = SubscriptionManager.CalculateRevisedQueueSize(storedMonitoredItem.IsDurable, storedMonitoredItem.QueueSize, m_maxQueueSize, m_maxDurableQueueSize);
 
+            ISampledDataChangeMonitoredItem restoredItem;
+
             bool success = m_monitoredItemManager.RestoreMonitoredItem(
                 Server,
                 this,
@@ -3506,10 +3508,12 @@ namespace Opc.Ua.Server
                 storedMonitoredItem,
                 savedOwnerIdentity,
                 AddNodeToComponentCache,
-                out monitoredItem);
+                out restoredItem);
+
+            monitoredItem = restoredItem;
 
             // report change.
-            OnMonitoredItemCreated(context, handle, (MonitoredItem)monitoredItem);
+            OnMonitoredItemCreated(context, handle, restoredItem);
 
             return true;
         }
@@ -3722,7 +3726,7 @@ namespace Opc.Ua.Server
                 return error;
             }
 
-            monitoredItem = m_monitoredItemManager.CreateMonitoredItem(
+            ISampledDataChangeMonitoredItem dataChangeMonitoredItem = m_monitoredItemManager.CreateMonitoredItem(
                 Server,
                 this,
                 context,
@@ -3741,9 +3745,10 @@ namespace Opc.Ua.Server
                 AddNodeToComponentCache
                 );
 
+            monitoredItem = dataChangeMonitoredItem;
 
             // report the initial value.
-            error = ReadInitialValue(context, handle, (MonitoredItem)monitoredItem);
+            error = ReadInitialValue(context, handle, dataChangeMonitoredItem);
             if (ServiceResult.IsBad(error))
             {
                 if (error.StatusCode == StatusCodes.BadAttributeIdInvalid ||
@@ -3756,7 +3761,7 @@ namespace Opc.Ua.Server
             }
 
             // report change.
-            OnMonitoredItemCreated(context, handle, (MonitoredItem)monitoredItem);
+            OnMonitoredItemCreated(context, handle, dataChangeMonitoredItem);
 
             return error;
         }
@@ -3800,7 +3805,7 @@ namespace Opc.Ua.Server
         protected virtual void OnMonitoredItemCreated(
             ServerSystemContext context,
             NodeHandle handle,
-            MonitoredItem monitoredItem)
+            ISampledDataChangeMonitoredItem monitoredItem)
         {
             // overridden by the sub-class.
         }
@@ -4145,7 +4150,7 @@ namespace Opc.Ua.Server
             filterResult = null;
 
             // check for valid monitored item.
-            MonitoredItem datachangeItem = monitoredItem as MonitoredItem;
+            ISampledDataChangeMonitoredItem datachangeItem = monitoredItem as ISampledDataChangeMonitoredItem;
 
             // validate parameters.
             MonitoringParameters parameters = itemToModify.RequestedParameters;
@@ -4229,7 +4234,7 @@ namespace Opc.Ua.Server
         protected virtual void OnMonitoredItemModified(
             ServerSystemContext context,
             NodeHandle handle,
-            MonitoredItem monitoredItem)
+            ISampledDataChangeMonitoredItem monitoredItem)
         {
             // overridden by the sub-class.
         }
@@ -4323,13 +4328,15 @@ namespace Opc.Ua.Server
             IMonitoredItem monitoredItem,
             NodeHandle handle)
         {
+            var sampledDataChangeMonitoredItem = monitoredItem as ISampledDataChangeMonitoredItem;
+
             StatusCode statusCode = m_monitoredItemManager.DeleteMonitoredItem(
                 context,
-                monitoredItem,
+                sampledDataChangeMonitoredItem,
                 handle);
 
             // report change.
-            OnMonitoredItemDeleted(context, handle, (MonitoredItem)monitoredItem);
+            OnMonitoredItemDeleted(context, handle, sampledDataChangeMonitoredItem);
 
             return statusCode;
         }
@@ -4343,7 +4350,7 @@ namespace Opc.Ua.Server
         protected virtual void OnMonitoredItemDeleted(
             ServerSystemContext context,
             NodeHandle handle,
-            MonitoredItem monitoredItem)
+            ISampledDataChangeMonitoredItem monitoredItem)
         {
             // overridden by the sub-class.
         }
@@ -4509,9 +4516,11 @@ namespace Opc.Ua.Server
             MonitoringMode monitoringMode,
             NodeHandle handle)
         {
+            var sampledDataChangeMonitoredItem = monitoredItem as ISampledDataChangeMonitoredItem;
+
             (ServiceResult result, MonitoringMode? previousMode) = m_monitoredItemManager.SetMonitoringMode(
                 context,
-                monitoredItem,
+                sampledDataChangeMonitoredItem,
                 monitoringMode,
                 handle);
 
@@ -4521,7 +4530,7 @@ namespace Opc.Ua.Server
                 OnMonitoringModeChanged(
                     context,
                     handle,
-                    (MonitoredItem)monitoredItem,
+                    sampledDataChangeMonitoredItem,
                     (MonitoringMode)previousMode,
                     monitoringMode);
             }
@@ -4540,7 +4549,7 @@ namespace Opc.Ua.Server
         protected virtual void OnMonitoringModeChanged(
             ServerSystemContext context,
             NodeHandle handle,
-            MonitoredItem monitoredItem,
+            ISampledDataChangeMonitoredItem monitoredItem,
             MonitoringMode previousMode,
             MonitoringMode monitoringMode)
         {

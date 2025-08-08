@@ -111,7 +111,7 @@ namespace Opc.Ua.Server
                     Utils.SilentDispose(samplingGroup);
                 }
 
-                foreach (MonitoredItem monitoredItem in monitoredItems)
+                foreach (ISampledDataChangeMonitoredItem monitoredItem in monitoredItems)
                 {
                     Utils.SilentDispose(monitoredItem);
                 }
@@ -142,7 +142,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates a new monitored item and calls StartMonitoring().
         /// </summary>
-        public virtual MonitoredItem CreateMonitoredItem(
+        public virtual ISampledDataChangeMonitoredItem CreateMonitoredItem(
             OperationContext           context,
             uint                       subscriptionId,
             double                     publishingInterval,
@@ -197,7 +197,7 @@ namespace Opc.Ua.Server
             }
 
             // create monitored item.
-            MonitoredItem monitoredItem = CreateMonitoredItem(
+            ISampledDataChangeMonitoredItem monitoredItem = CreateMonitoredItem(
                 m_server,
                 m_nodeManager,
                 managerHandle,
@@ -248,7 +248,7 @@ namespace Opc.Ua.Server
         /// <param name="minimumSamplingInterval">The minimum sampling interval.</param>
         /// <param name="createDurable">True if a durable monitored item should be created.</param>
         /// <returns>The monitored item.</returns>
-        protected virtual MonitoredItem CreateMonitoredItem(
+        protected virtual ISampledDataChangeMonitoredItem CreateMonitoredItem(
             IServerInternal     server,
             INodeManager        nodeManager,
             object              managerHandle,
@@ -293,13 +293,13 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Restores a monitored item after a server restart and calls StartMonitoring().
         /// </summary>
-        public virtual MonitoredItem RestoreMonitoredItem(
+        public virtual ISampledDataChangeMonitoredItem RestoreMonitoredItem(
             object managerHandle,
             IStoredMonitoredItem storedMonitoredItem,
             IUserIdentity savedOwnerIdentity)
         {
             // create monitored item.
-            MonitoredItem monitoredItem = new MonitoredItem(m_server, m_nodeManager, managerHandle, storedMonitoredItem);
+            ISampledDataChangeMonitoredItem monitoredItem = new MonitoredItem(m_server, m_nodeManager, managerHandle, storedMonitoredItem);
 
             // start sampling.
             StartMonitoring(new OperationContext(monitoredItem), monitoredItem, savedOwnerIdentity);

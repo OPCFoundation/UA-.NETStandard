@@ -78,7 +78,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets the current list of data change MonitoredItems.
         /// </summary>
-        public List<MonitoredItem> DataChangeMonitoredItems
+        public List<IDataChangeMonitoredItem2> DataChangeMonitoredItems
         {
             get { return m_dataChangeMonitoredItems; }
             private set { m_dataChangeMonitoredItems = value; }
@@ -121,11 +121,11 @@ namespace Opc.Ua.Server
         /// Adds the specified data change monitored item.
         /// </summary>
         /// <param name="datachangeItem">The monitored item.</param>
-        public void Add(MonitoredItem datachangeItem)
+        public void Add(IDataChangeMonitoredItem2 datachangeItem)
         {
             if (DataChangeMonitoredItems == null)
             {
-                DataChangeMonitoredItems = new List<MonitoredItem>();
+                DataChangeMonitoredItems = new List<IDataChangeMonitoredItem2>();
                 Node.OnStateChanged = OnMonitoredNodeChanged;
             }
 
@@ -136,7 +136,7 @@ namespace Opc.Ua.Server
         /// Removes the specified data change monitored item.
         /// </summary>
         /// <param name="datachangeItem">The monitored item.</param>
-        public void Remove(MonitoredItem datachangeItem)
+        public void Remove(IDataChangeMonitoredItem2 datachangeItem)
         {
             for (int ii = 0; ii < DataChangeMonitoredItems.Count; ii++)
             {
@@ -295,7 +295,7 @@ namespace Opc.Ua.Server
 
                 for (int ii = 0; ii < DataChangeMonitoredItems.Count; ii++)
                 {
-                    MonitoredItem monitoredItem = DataChangeMonitoredItems[ii];
+                    IDataChangeMonitoredItem2 monitoredItem = DataChangeMonitoredItems[ii];
 
                     if (monitoredItem.AttributeId == Attributes.Value && (changes & NodeStateChangeMasks.Value) != 0)
                     {
@@ -327,7 +327,7 @@ namespace Opc.Ua.Server
         public void QueueValue(
             ISystemContext context,
             NodeState node,
-            MonitoredItem monitoredItem)
+            IDataChangeMonitoredItem2 monitoredItem)
         {
             DataValue value = new DataValue();
 
@@ -366,7 +366,7 @@ namespace Opc.Ua.Server
         /// <param name="monitoredItem">The monitored item.</param>
         /// <param name="context">The system context.</param>
         /// <returns>The cached or newly created context.</returns>
-        private ServerSystemContext GetOrCreateContext(ServerSystemContext context, MonitoredItem monitoredItem)
+        private ServerSystemContext GetOrCreateContext(ServerSystemContext context, IDataChangeMonitoredItem2 monitoredItem)
         {
             uint monitoredItemId = monitoredItem.Id;
             int currentTicks = HiResClock.TickCount;
@@ -402,7 +402,7 @@ namespace Opc.Ua.Server
         #region Private Fields
         private CustomNodeManager2 m_nodeManager;
         private NodeState m_node;
-        private List<MonitoredItem> m_dataChangeMonitoredItems;
+        private List<IDataChangeMonitoredItem2> m_dataChangeMonitoredItems;
         private List<IEventMonitoredItem> m_eventMonitoredItems;
         private readonly ConcurrentDictionary<uint, (ServerSystemContext Context, int CreatedAtTicks)> m_contextCache = new();
         private readonly int m_cacheLifetimeTicks = (int)TimeSpan.FromMinutes(5).TotalMilliseconds;

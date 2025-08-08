@@ -55,7 +55,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Create a MonitoredItem and save it in table of monitored items.
         /// </summary>
-        IMonitoredItem CreateMonitoredItem(IServerInternal server,
+        ISampledDataChangeMonitoredItem CreateMonitoredItem(IServerInternal server,
                                           INodeManager nodeManager,
                                           ServerSystemContext context,
                                           NodeHandle handle,
@@ -90,7 +90,7 @@ namespace Opc.Ua.Server
         /// </summary>
         StatusCode DeleteMonitoredItem(
             ServerSystemContext context,
-            IMonitoredItem monitoredItem,
+            ISampledDataChangeMonitoredItem monitoredItem,
             NodeHandle handle);
 
         /// <summary>
@@ -98,7 +98,7 @@ namespace Opc.Ua.Server
         /// </summary>
         (ServiceResult, MonitoringMode?) SetMonitoringMode(
             ServerSystemContext context,
-            IMonitoredItem monitoredItem,
+            ISampledDataChangeMonitoredItem monitoredItem,
             MonitoringMode monitoringMode,
             NodeHandle handle);
 
@@ -113,7 +113,7 @@ namespace Opc.Ua.Server
             IStoredMonitoredItem storedMonitoredItem,
             IUserIdentity savedOwnerIdentity,
             Func<ISystemContext, NodeHandle, NodeState, NodeState> AddNodeToComponentCache,
-            out IMonitoredItem monitoredItem);
+            out ISampledDataChangeMonitoredItem monitoredItem);
 
         /// <summary>
         /// Subscribe to events of the specified node.

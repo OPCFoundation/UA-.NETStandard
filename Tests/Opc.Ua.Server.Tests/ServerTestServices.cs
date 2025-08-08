@@ -114,12 +114,12 @@ namespace Opc.Ua.Server.Tests
             out DiagnosticInfoCollection diagnosticInfos);
 
         ResponseHeader SetMonitoringMode(
-           RequestHeader requestHeader,
-           uint subscriptionId,
-           MonitoringMode monitoringMode,
-           UInt32Collection monitoredItemIds,
-           out StatusCodeCollection results,
-           out DiagnosticInfoCollection diagnosticInfos);
+            RequestHeader requestHeader,
+            uint subscriptionId,
+            MonitoringMode monitoringMode,
+            UInt32Collection monitoredItemIds,
+            out StatusCodeCollection results,
+            out DiagnosticInfoCollection diagnosticInfos);
 
         ResponseHeader Republish(
             RequestHeader requestHeader,
