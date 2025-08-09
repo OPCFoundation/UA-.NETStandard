@@ -498,7 +498,7 @@ namespace Opc.Ua.Server
             NodeId objectId,
             uint subscriptionId)
         {
-            var systemContext = context as ServerSystemContext ?? SystemContext;
+            ServerSystemContext systemContext = context as ServerSystemContext ?? SystemContext;
 
             Server.ConditionRefresh(systemContext.OperationContext, subscriptionId);
 
@@ -515,7 +515,7 @@ namespace Opc.Ua.Server
             uint subscriptionId,
             uint monitoredItemId)
         {
-            var systemContext = context as ServerSystemContext ?? SystemContext;
+            ServerSystemContext systemContext = context as ServerSystemContext ?? SystemContext;
 
             Server.ConditionRefresh2(systemContext.OperationContext, subscriptionId, monitoredItemId);
 

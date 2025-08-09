@@ -108,7 +108,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             byte[] buffer;
             using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
-                using (var encoder = CreateEncoder(encoderType, Context, encoderStream, systemType, jsonEncodingType))
+                using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, systemType, jsonEncodingType))
                 {
                     encoder.PushNamespace("urn:This:is:another:namespace");
                     encoder.WriteArray(objectName, array, ValueRanks.OneDimension, builtInType);
@@ -130,7 +130,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             object result;
             using (var decoderStream = new MemoryStream(buffer))
-            using (var decoder = CreateDecoder(encoderType, Context, decoderStream, systemType))
+            using (IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, systemType))
             {
                 decoder.PushNamespace("urn:This:is:another:namespace");
                 result = decoder.ReadArray(objectName, ValueRanks.OneDimension, BuiltInType.Variant, systemType, dataTypeId);
@@ -184,7 +184,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             byte[] buffer;
             using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
-                using (var encoder = CreateEncoder(encoderType, Context, encoderStream, systemType, jsonEncodingType))
+                using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, systemType, jsonEncodingType))
                 {
                     if (encodeAsMatrix)
                     {
@@ -207,7 +207,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             Array result;
             using (var decoderStream = new MemoryStream(buffer))
-            using (var decoder = CreateDecoder(encoderType, Context, decoderStream, systemType))
+            using (IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, systemType))
             {
                 result = decoder.ReadArray(objectName, matrix.TypeInfo.ValueRank, BuiltInType.Variant, systemType, dataTypeId);
             }

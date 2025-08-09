@@ -263,19 +263,9 @@ namespace Opc.Ua.Bindings
             BufferManager bufferManager,
             int receiveBufferSize)
         {
-            if (socket == null)
-            {
-                throw new ArgumentNullException(nameof(socket));
-            }
-
-            if (bufferManager == null)
-            {
-                throw new ArgumentNullException(nameof(bufferManager));
-            }
-
             m_sink = sink;
-            m_socket = socket;
-            m_bufferManager = bufferManager;
+            m_socket = socket ?? throw new ArgumentNullException(nameof(socket));
+            m_bufferManager = bufferManager ?? throw new ArgumentNullException(nameof(bufferManager));
             m_receiveBufferSize = receiveBufferSize;
             m_incomingMessageSize = -1;
             m_readComplete = OnReadComplete;
@@ -350,7 +340,10 @@ namespace Opc.Ua.Bindings
             }
 
             SocketError error = SocketError.NotInitialized;
-            CallbackAction doCallback = (SocketError socketError) => callback(this, new TcpMessageSocketConnectAsyncEventArgs(socketError) { UserToken = state });
+            void DoCallback(SocketError socketError)
+            {
+                callback(this, new TcpMessageSocketConnectAsyncEventArgs(socketError) { UserToken = state });
+            }
 
             // Get port
             int port = endpointUrl.Port;
@@ -360,7 +353,7 @@ namespace Opc.Ua.Bindings
             }
 
             var endpoint = new DnsEndPoint(endpointUrl.DnsSafeHost, port);
-            error = BeginConnect(endpoint, doCallback);
+            error = BeginConnect(endpoint, DoCallback);
             return error is SocketError.InProgress or SocketError.Success;
         }
 
@@ -652,9 +645,20 @@ namespace Opc.Ua.Bindings
             bool result = true;
             switch (m_readState)
             {
-                case ReadState.ReadNextBlock: ReadNextBlock(); break;
-                case ReadState.ReadNextMessage: ReadNextMessage(); break;
-                default: result = false; break;
+                case ReadState.ReadNextBlock:
+                    ReadNextBlock();
+                    break;
+                case ReadState.ReadNextMessage:
+                    ReadNextMessage();
+                    break;
+                case ReadState.Ready:
+                case ReadState.Receive:
+                case ReadState.ReadComplete:
+                case ReadState.NotConnected:
+                case ReadState.Error:
+                default:
+                    result = false;
+                    break;
             }
             return result;
         }
@@ -735,7 +739,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Sends a buffer.
         /// </summary>
-        public bool SendAsync(IMessageSocketAsyncEventArgs args)
+        public bool Send(IMessageSocketAsyncEventArgs args)
         {
             if (args is not TcpMessageSocketAsyncEventArgs eventArgs)
             {

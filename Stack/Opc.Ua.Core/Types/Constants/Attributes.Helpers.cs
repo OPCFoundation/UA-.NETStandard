@@ -300,7 +300,7 @@ namespace Opc.Ua
         /// </summary>
         public static bool IsValid(NodeClass nodeClassMask, uint attributeId)
         {
-            var nodeClass = (int)nodeClassMask;
+            int nodeClass = (int)nodeClassMask;
             switch (attributeId)
             {
                 case NodeId:

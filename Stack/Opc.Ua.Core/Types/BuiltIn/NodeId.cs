@@ -220,7 +220,7 @@ namespace Opc.Ua
         /// <param name="text">The string id of this new node</param>
         public NodeId(string text)
         {
-            var nodeId = Parse(text);
+            NodeId nodeId = Parse(text);
 
             m_namespaceIndex = nodeId.NamespaceIndex;
             m_identifierType = nodeId.IdType;
@@ -1448,7 +1448,7 @@ namespace Opc.Ua
             {
                 ValidateImmutableNodeIdIsNotModified();
 
-                var nodeId = Parse(value);
+                NodeId nodeId = Parse(value);
 
                 m_namespaceIndex = nodeId.NamespaceIndex;
                 m_identifierType = nodeId.IdType;

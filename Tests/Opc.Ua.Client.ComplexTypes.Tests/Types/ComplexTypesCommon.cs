@@ -295,7 +295,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             byte[] buffer;
             using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
-                using (var encoder = CreateEncoder(encoderType, encoderContext, encoderStream, typeof(DataValue), jsonEncodingType))
+                using (IEncoder encoder = CreateEncoder(encoderType, encoderContext, encoderStream, typeof(DataValue), jsonEncodingType))
                 {
                     encoder.WriteExtensionObject("ExtensionObject", expected);
                 }
@@ -314,7 +314,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             }
 
             using (var decoderStream = new MemoryStream(buffer))
-            using (var decoder = CreateDecoder(encoderType, encoderContext, decoderStream, typeof(DataValue)))
+            using (IDecoder decoder = CreateDecoder(encoderType, encoderContext, decoderStream, typeof(DataValue)))
             {
                 ExtensionObject result = decoder.ReadExtensionObject("ExtensionObject");
                 TestContext.Out.WriteLine("Result:");

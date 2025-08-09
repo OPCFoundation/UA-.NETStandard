@@ -207,7 +207,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             NUnit.Framework.Assert.Throws<ArgumentNullException>(() => new ExtensionObject(extensionObject_null));
             NUnit.Framework.Assert.Throws<ServiceResultException>(() => new ExtensionObject(new object()));
             // constructor by object
-            var byteArray = new byte[] { 1, 2, 3 };
+            byte[] byteArray = new byte[] { 1, 2, 3 };
             extensionObject = new ExtensionObject(byteArray);
             Assert.NotNull(extensionObject);
             Assert.AreEqual(extensionObject, extensionObject);
@@ -216,7 +216,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             NUnit.Framework.Assert.Throws<FormatException>(() => extensionObject.ToString("123", null));
             Assert.NotNull(extensionObjectString);
             // clone
-            var clonedExtensionObject = Utils.Clone(extensionObject);
+            ExtensionObject clonedExtensionObject = Utils.Clone(extensionObject);
             Assert.AreEqual(extensionObject, clonedExtensionObject);
             // IsEqual operator
             clonedExtensionObject.TypeId = new ExpandedNodeId(333);

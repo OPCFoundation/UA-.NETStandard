@@ -509,7 +509,7 @@ namespace Opc.Ua.Bindings
                 args.SetBuffer(buffer.Array, buffer.Offset, buffer.Count);
                 args.Completed += OnWriteComplete;
                 args.UserToken = state;
-                if (!m_socket.SendAsync(args))
+                if (!m_socket.Send(args))
                 {
                     // I/O completed synchronously
                     if (args.IsSocketError || (args.BytesTransferred < buffer.Count))
@@ -551,7 +551,7 @@ namespace Opc.Ua.Bindings
                 args.Completed += OnWriteComplete;
                 args.UserToken = state;
                 IMessageSocket socket = m_socket;
-                if (socket == null || !socket.SendAsync(args))
+                if (socket == null || !socket.Send(args))
                 {
                     // I/O completed synchronously
                     if (args.IsSocketError || (args.BytesTransferred < buffers.TotalSize))

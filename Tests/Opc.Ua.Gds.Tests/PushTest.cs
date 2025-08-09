@@ -766,7 +766,7 @@ namespace Opc.Ua.Gds.Tests
 
         private static async Task<bool> AddTrustListToStore(SecurityConfiguration config, TrustListDataType trustList)
         {
-            var masks = (int)trustList.SpecifiedLists;
+            int masks = (int)trustList.SpecifiedLists;
 
             X509Certificate2Collection issuerCertificates = null;
             X509CRLCollection issuerCrls = null;

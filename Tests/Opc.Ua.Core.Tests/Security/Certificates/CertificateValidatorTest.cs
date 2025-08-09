@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2018 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -315,7 +315,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public async Task VerifyRejectedCertsDoNotOverflowStore()
         {
-            // test number of rejected certs 
+            // test number of rejected certs
             const int kNumberOfRejectCertsHistory = 5;
 
             // add all certs to issuer store, make sure validation fails.
@@ -1055,7 +1055,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public void TestNullParameters()
         {
             var validator = TemporaryCertValidator.Create();
-            var certValidator = validator.Update();
+            CertificateValidator certValidator = validator.Update();
             NUnit.Framework.Assert.Throws<ArgumentNullException>(() => certValidator.UpdateAsync((SecurityConfiguration)null).GetAwaiter().GetResult());
             NUnit.Framework.Assert.Throws<ArgumentNullException>(() => certValidator.UpdateAsync(null).GetAwaiter().GetResult());
         }
@@ -1331,9 +1331,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             // override the autoaccept flag, always approve
             certValidator = validator.Update();
             certValidator.AutoAcceptUntrustedCertificates = autoAccept;
-            CertValidationApprover approver = new CertValidationApprover([
-                StatusCodes.BadCertificateUntrusted
-            ]);
+            CertValidationApprover approver = new ([StatusCodes.BadCertificateUntrusted]);
             certValidator.CertificateValidation += approver.OnCertificateValidation;
             certValidator.Validate(cert);
             certValidator.CertificateValidation -= approver.OnCertificateValidation;
@@ -1429,7 +1427,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 // Discussion:
                 // no crl is placed into any store, but revocation list is required.
                 // the validator (correctly) complains about a missing CRL
-                // it does not detect the missing CA CRLs                
+                // it does not detect the missing CA CRLs
                 using (var validator = TemporaryCertValidator.Create())
                 {
                     for (int i = 0; i < kCaChainCount; i++)

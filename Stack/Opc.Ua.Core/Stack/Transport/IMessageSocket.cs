@@ -185,7 +185,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Sends a buffer.
         /// </summary>
-        bool SendAsync(IMessageSocketAsyncEventArgs args);
+        bool Send(IMessageSocketAsyncEventArgs args);
 
         /// <summary>
         /// Get the message socket event args.

@@ -1167,7 +1167,7 @@ namespace Opc.Ua
         /// <returns>LiteralOperand as a displayable string.</returns>
         public override string ToString(INodeTable nodeTable)
         {
-            var nodeId = Value.Value as ExpandedNodeId ?? (ExpandedNodeId)(Value.Value as NodeId);
+            ExpandedNodeId nodeId = Value.Value as ExpandedNodeId ?? (ExpandedNodeId)(Value.Value as NodeId);
 
             if (nodeId != null)
             {

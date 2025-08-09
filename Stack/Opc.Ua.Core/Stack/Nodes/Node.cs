@@ -234,7 +234,7 @@ namespace Opc.Ua
         /// <returns>Copy of the node</returns>
         public ILocalNode CreateCopy(NodeId nodeId)
         {
-            var node = Copy(this);
+            Node node = Copy(this);
             node.NodeId = nodeId;
             return node;
         }

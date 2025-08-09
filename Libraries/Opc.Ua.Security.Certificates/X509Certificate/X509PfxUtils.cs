@@ -234,15 +234,10 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         public static bool IsECDsaSignature(X509Certificate2 cert)
         {
-            switch (cert.SignatureAlgorithm.Value)
-            {
-                case Oids.ECDsaWithSha1:
-                case Oids.ECDsaWithSha256:
-                case Oids.ECDsaWithSha384:
-                case Oids.ECDsaWithSha512:
-                    return true;
-            }
-            return false;
+            return cert.SignatureAlgorithm.Value switch {
+                Oids.ECDsaWithSha1 or Oids.ECDsaWithSha256 or Oids.ECDsaWithSha384 or Oids.ECDsaWithSha512 => true,
+                _ => false,
+            };
         }
 
 #if ECC_SUPPORT

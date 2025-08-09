@@ -238,7 +238,7 @@ namespace Opc.Ua
         /// <returns>An data type identifier for a node in a server's address space.</returns>
         public static NodeId GetDataTypeId(Type type)
         {
-            var typeInfo = Construct(type);
+            TypeInfo typeInfo = Construct(type);
 
             NodeId dataTypeId = GetDataTypeId(typeInfo);
 
@@ -336,7 +336,7 @@ namespace Opc.Ua
                 return ValueRanks.Any;
             }
 
-            var typeInfo = Construct(value);
+            TypeInfo typeInfo = Construct(value);
 
             if (typeInfo.BuiltInType == BuiltInType.Null && value is Matrix matrix)
             {
@@ -353,7 +353,7 @@ namespace Opc.Ua
         /// <returns>The array rank of the <paramref name="type"/> </returns>
         public static int GetValueRank(Type type)
         {
-            var typeInfo = Construct(type);
+            TypeInfo typeInfo = Construct(type);
 
             if (typeInfo.BuiltInType == BuiltInType.Null)
             {
@@ -981,7 +981,7 @@ namespace Opc.Ua
                         element = ((Variant)element).Value;
                     }
 
-                    var elementInfo = IsInstanceOfDataType(
+                    TypeInfo elementInfo = IsInstanceOfDataType(
                         element,
                         expectedDataTypeId,
                         ValueRanks.Scalar,

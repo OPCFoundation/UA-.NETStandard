@@ -377,7 +377,7 @@ namespace Opc.Ua.Client
                 {
                     if (m_reverseConnectManager != null)
                     {
-                        var connection = await m_reverseConnectManager.WaitForConnectionAsync(
+                        ITransportWaitingConnection connection = await m_reverseConnectManager.WaitForConnectionAsync(
                                 new Uri(m_session.Endpoint.EndpointUrl),
                                 m_session.Endpoint.Server.ApplicationUri
                             ).ConfigureAwait(false);

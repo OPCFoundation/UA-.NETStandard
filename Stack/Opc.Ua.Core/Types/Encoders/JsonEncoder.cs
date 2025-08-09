@@ -1141,7 +1141,7 @@ namespace Opc.Ua
         {
             // == compares memory reference, comparing to empty means we compare to the default
             // If null array is converted to span the span is default
-            var isNull = value == ReadOnlySpan<byte>.Empty;
+            bool isNull = value == ReadOnlySpan<byte>.Empty;
 
             if (fieldName != null && !IncludeDefaultValues && isNull)
             {

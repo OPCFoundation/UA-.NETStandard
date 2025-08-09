@@ -653,7 +653,7 @@ namespace Opc.Ua
             }
 
             WriteInt32(null, (int)value.Length);
-            foreach (var element in value)
+            foreach (ReadOnlyMemory<byte> element in value)
             {
                 m_writer.Write(element.Span);
             }

@@ -25,7 +25,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public async Task CertificateStoreTypeConfigTest()
         {
             var fileInfo = new FileInfo(Path.Combine(TestContext.CurrentContext.TestDirectory, "Security", "Certificates", "CertificateStoreTypeTestConfig.xml"));
-            var appConfig = await ApplicationConfiguration.LoadAsync(fileInfo, ApplicationType.Client, null).ConfigureAwait(false);
+            ApplicationConfiguration appConfig = await ApplicationConfiguration.LoadAsync(fileInfo, ApplicationType.Client, null).ConfigureAwait(false);
             int instancesCreatedWhileLoadingConfig = TestCertStore.InstancesCreated;
             Assert.IsTrue(instancesCreatedWhileLoadingConfig > 0);
             CertificateTrustList trustedIssuers = appConfig.SecurityConfiguration.TrustedIssuerCertificates;

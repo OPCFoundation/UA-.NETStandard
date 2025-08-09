@@ -80,7 +80,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         /// Set up a Server and a Client instance.
         /// </summary>
         [OneTimeSetUp]
-        public Task OneTimeSetUp()
+        public Task OneTimeSetUpAsync()
         {
             m_fetchedNodesCount = -1;
             m_browsedNodesCount = -1;
@@ -140,6 +140,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             }
             await m_serverFixture.StopAsync().ConfigureAwait(false);
             Utils.SilentDispose(m_clientFixture);
+            Utils.SilentDispose(m_server);
         }
 
         /// <summary>
@@ -238,7 +239,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             m_fetchedNodesCount = allNodes.Count;
 
             var variableIds = new NodeIdCollection(allNodes
-                .Where(r => r.NodeClass == NodeClass.Variable && r is VariableNode && ((VariableNode)r).DataType.NamespaceIndex != 0)
+                .Where(r => r.NodeClass == NodeClass.Variable && r is VariableNode v && v.DataType.NamespaceIndex != 0)
                 .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, m_session.NamespaceUris)));
 
             TestContext.Out.WriteLine("VariableIds: {0}", variableIds.Count);
@@ -292,9 +293,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                         continue;
                     }
 
-                    if (value.Value is ExtensionObject)
+                    if (value.Value is ExtensionObject extensionObject)
                     {
-                        Type valueType = ((ExtensionObject)value.Value).Body.GetType();
+                        Type valueType = extensionObject.Body.GetType();
                         if (valueType != type)
                         {
                             testFailed = true;

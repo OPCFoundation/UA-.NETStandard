@@ -217,7 +217,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.IsNotNull(expected, "Expected DataValue is Null, " + encodeInfo);
             using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
-                using (var encoder = CreateEncoder(encoderType, Context, encoderStream, typeof(DataValue), encoding))
+                using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, typeof(DataValue), encoding))
                 {
                     encoder.WriteDataValue("DataValue", expected);
                 }
@@ -251,7 +251,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 byte[] buffer;
                 using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
                 {
-                    using (var encoder = CreateEncoder(encoderType, Context, encoderStream, typeof(DataValue), jsonEncodingType))
+                    using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, typeof(DataValue), jsonEncodingType))
                     {
                         encoder.WriteDataValue("DataValue", expected);
                     }
@@ -266,10 +266,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     case EncodingType.Xml:
                         formatted = PrettifyAndValidateXml(buffer);
                         break;
+                    case EncodingType.Binary:
+                    default:
+                        break;
                 }
 
                 using (var decoderStream = new MemoryStream(buffer))
-                using (var decoder = CreateDecoder(encoderType, Context, decoderStream, typeof(DataValue)))
+                using (IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, typeof(DataValue)))
                 {
                     result = decoder.ReadDataValue("DataValue");
                 }
@@ -318,7 +321,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 byte[] buffer;
                 using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
                 {
-                    using (var encoder = CreateEncoder(encoderType, Context, encoderStream, type, jsonEncodingType))
+                    using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, type, jsonEncodingType))
                     {
                         Encode(encoder, builtInType, builtInType.ToString(), expected);
                     }
@@ -334,13 +337,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     case EncodingType.Xml:
                         formatted = PrettifyAndValidateXml(buffer);
                         break;
+                    case EncodingType.Binary:
                     default:
                         formatted = Encoding.UTF8.GetString(buffer);
                         break;
                 }
 
                 using (var decoderStream = new MemoryStream(buffer))
-                using (var decoder = CreateDecoder(encoderType, Context, decoderStream, type))
+                using (IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, type))
                 {
                     result = Decode(decoder, builtInType, builtInType.ToString(), type);
                 }
@@ -402,10 +406,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 byte[] buffer;
                 using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
                 {
-                    using (var encoder = CreateEncoder(EncodingType.Json, Context, encoderStream, typeof(DataValue),
+                    using (IEncoder encoder = CreateEncoder(EncodingType.Json, Context, encoderStream, typeof(DataValue),
                         jsonEncoding, topLevelIsArray, includeDefaultValues, includeDefaultNumbers))
                     {
-                        if (jsonEncoding == JsonEncodingType.Reversible || jsonEncoding == JsonEncodingType.NonReversible)
+                        if (jsonEncoding is JsonEncodingType.Reversible or JsonEncodingType.NonReversible)
                         {
                             // encoder.SetMappingTables(nameSpaceUris, serverUris);
                         }
@@ -574,7 +578,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 case EncodingType.Json:
                     var encoder = new JsonEncoder(context, jsonEncoding, topLevelIsArray, stream, true);
                     // only deprecated encodings allow to set the default value
-                    if (jsonEncoding == JsonEncodingType.Reversible || jsonEncoding == JsonEncodingType.NonReversible)
+                    if (jsonEncoding is JsonEncodingType.Reversible or JsonEncodingType.NonReversible)
                     {
                         encoder.IncludeDefaultValues = includeDefaultValues;
                         encoder.IncludeDefaultNumberValues = includeDefaultNumbers;
@@ -605,8 +609,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 case EncodingType.Json:
                     var jsonTextReader = new JsonTextReader(new StreamReader(stream));
                     return new JsonDecoder(systemType, jsonTextReader, context);
+                default:
+                    return null;
             }
-            return null;
         }
 
         /// <summary>
@@ -616,7 +621,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             var statusCode = (StatusCode)DataGenerator.GetRandom(BuiltInType.StatusCode);
             var sourceTimeStamp = (DateTime)DataGenerator.GetRandom(BuiltInType.DateTime);
-            Variant variant = (builtInType == BuiltInType.Variant) && (data is Variant) ? (Variant)data : new Variant(data);
+            Variant variant = (builtInType == BuiltInType.Variant) && (data is Variant v) ? v : new Variant(data);
             return new DataValue(variant, statusCode, sourceTimeStamp, DateTime.UtcNow);
         }
 
@@ -677,8 +682,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
                     case BuiltInType.ExtensionObject: encoder.WriteExtensionObject(fieldName, (ExtensionObject)value); return;
 
-                    case BuiltInType.DataValue: encoder.WriteDataValue(fieldName, (DataValue)value); return;
-
+                    case BuiltInType.DataValue:
+                        encoder.WriteDataValue(fieldName, (DataValue)value);
+                        return;
                     case BuiltInType.Enumeration:
                         if (value.GetType().IsEnum)
                         {
@@ -689,10 +695,17 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                             encoder.WriteEnumerated(fieldName, (Enumeration)value);
                         }
                         return;
-
-                    case BuiltInType.Variant: encoder.WriteVariant(fieldName, (Variant)value); return;
-
-                    case BuiltInType.DiagnosticInfo: encoder.WriteDiagnosticInfo(fieldName, (DiagnosticInfo)value); return;
+                    case BuiltInType.Variant:
+                        encoder.WriteVariant(fieldName, (Variant)value);
+                        return;
+                    case BuiltInType.DiagnosticInfo:
+                        encoder.WriteDiagnosticInfo(fieldName, (DiagnosticInfo)value);
+                        return;
+                    case BuiltInType.Number:
+                    case BuiltInType.Integer:
+                    case BuiltInType.UInteger:
+                    default:
+                        break;
                 }
             }
             else
@@ -700,13 +713,15 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 Type arrayType = value.GetType().GetElementType();
                 var enumerable = value as IEnumerable;
                 var array = value as Array;
-                switch (builtInType)
+                if (builtInType == BuiltInType.Variant)
                 {
-                    case BuiltInType.Variant: encoder.WriteVariantArray(fieldName, (VariantCollection)value); return;
-
-                    case BuiltInType.Enumeration:
-                        encoder.WriteEnumeratedArray(fieldName, array, arrayType);
-                        return;
+                    encoder.WriteVariantArray(fieldName, (VariantCollection)value);
+                    return;
+                }
+                else if (builtInType == BuiltInType.Enumeration)
+                {
+                    encoder.WriteEnumeratedArray(fieldName, array, arrayType);
+                    return;
                 }
             }
             NUnit.Framework.Assert.Fail($"Unknown BuiltInType {builtInType}");
@@ -773,6 +788,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 case BuiltInType.DiagnosticInfo: return decoder.ReadDiagnosticInfo(fieldName);
 
                 case BuiltInType.Variant: return decoder.ReadVariant(fieldName);
+                case BuiltInType.Number:
+                case BuiltInType.Integer:
+                case BuiltInType.UInteger:
+                default:
+                    break;
             }
             NUnit.Framework.Assert.Fail($"Unknown BuiltInType {builtInType}");
             return null;
@@ -797,7 +817,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
             if (encoderType == EncodingType.Binary)
             {
-                if (builtInType == BuiltInType.DateTime || builtInType == BuiltInType.Variant)
+                if (builtInType is BuiltInType.DateTime or BuiltInType.Variant)
                 {
                     if (value.GetType() == typeof(DateTime))
                     {

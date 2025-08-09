@@ -1896,7 +1896,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                     !string.IsNullOrEmpty(expandedNodeId1.NamespaceUri))
                                                 {
                                                     // replace the namespaceUri with namespaceIndex to match the encoded value
-                                                    var expandedNodeId = Utils.Clone(expandedNodeId1);
+                                                    ExpandedNodeId expandedNodeId = Utils.Clone(expandedNodeId1);
                                                     Assert.IsNotNull(expandedNodeId, "Decoded 'ExpandedNodeId' Field: {0} should not be null", field.FieldMetaData.Name);
                                                     Assert.IsNotEmpty(expandedNodeId.NamespaceUri, "Decoded 'ExpandedNodeId.NamespaceUri' Field: {0} should not be empty", field.FieldMetaData.Name);
 
@@ -1970,7 +1970,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                                                         !string.IsNullOrEmpty(expandedNodeId2.NamespaceUri))
                                                     {
                                                         // replace the namespaceUri with namespaceIndex to match the encoded value
-                                                        var expandedNodeId = Utils.Clone(expandedNodeId2);
+                                                        ExpandedNodeId expandedNodeId = Utils.Clone(expandedNodeId2);
                                                         Assert.IsNotNull(expandedNodeId, "Decoded 'ExpandedNodeId' Field: {0} should not be null", field.FieldMetaData.Name);
                                                         Assert.IsNotEmpty(expandedNodeId.NamespaceUri, "Decoded 'ExpandedNodeId.NamespaceUri' Field: {0} should not be empty", field.FieldMetaData.Name);
 

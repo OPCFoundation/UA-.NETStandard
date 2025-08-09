@@ -617,15 +617,15 @@ namespace Opc.Ua.Server
                         throw new ServiceResultException(StatusCodes.BadConfigurationError, "Failed to open certificate store.");
                     }
 
-                    var storeCrls = await store.EnumerateCRLsAsync().ConfigureAwait(false);
-                    foreach (var crl in storeCrls)
+                    X509CRLCollection storeCrls = await store.EnumerateCRLsAsync().ConfigureAwait(false);
+                    foreach (X509CRL crl in storeCrls)
                     {
                         if (!updatedCrls.Remove(crl) && !await store.DeleteCRLAsync(crl).ConfigureAwait(false))
                         {
                             result = false;
                         }
                     }
-                    foreach (var crl in updatedCrls)
+                    foreach (X509CRL crl in updatedCrls)
                     {
                         await store.AddCRLAsync(crl).ConfigureAwait(false);
                     }

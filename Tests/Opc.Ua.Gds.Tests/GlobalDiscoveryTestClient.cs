@@ -248,7 +248,7 @@ namespace Opc.Ua.Gds.Tests
         private NodeId Register(ApplicationTestData ownApplicationTestData)
         {
             m_client.ConnectAsync(m_client.EndpointUrl).Wait();
-            var id = m_client.RegisterApplication(ownApplicationTestData.ApplicationRecord);
+            NodeId id = m_client.RegisterApplication(ownApplicationTestData.ApplicationRecord);
             m_client.Disconnect();
             return id;
         }

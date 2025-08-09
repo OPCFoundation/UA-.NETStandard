@@ -447,7 +447,7 @@ namespace Opc.Ua
             get => Format(CultureInfo.InvariantCulture);
             set
             {
-                var nodeId = Parse(value);
+                ExpandedNodeId nodeId = Parse(value);
 
                 InnerNodeId = nodeId.InnerNodeId;
                 m_namespaceUri = nodeId.m_namespaceUri;
@@ -1139,14 +1139,14 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException">Thrown if the namespace URI is not in the namespace table.</exception>
         public static NodeId Parse(string text, NamespaceTable namespaceUris)
         {
-            var nodeId = Parse(text);
+            ExpandedNodeId nodeId = Parse(text);
 
             if (!nodeId.IsAbsolute)
             {
                 return nodeId.InnerNodeId;
             }
 
-            var localId = ToNodeId(nodeId, namespaceUris);
+            NodeId localId = ToNodeId(nodeId, namespaceUris);
 
             if (localId == null)
             {

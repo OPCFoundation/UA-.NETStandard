@@ -383,7 +383,7 @@ namespace Opc.Ua.Client.Tests
             {
                 testSet.AddRange(GetTestSetFullSimulation(Session.NamespaceUris));
             }
-            var monitoredItemsList = testSet.ConvertAll(nodeId => new MonitoredItem(subscription.DefaultItem) {
+            List<MonitoredItem> monitoredItemsList = testSet.ConvertAll(nodeId => new MonitoredItem(subscription.DefaultItem) {
                 StartNodeId = nodeId,
                 SamplingInterval = 0,
             });
@@ -530,7 +530,7 @@ namespace Opc.Ua.Client.Tests
 
             ServiceResultException sre;
 
-            var userIdentity = anonymous ? new UserIdentity() : new UserIdentity("user1", "password");
+            UserIdentity userIdentity = anonymous ? new UserIdentity() : new UserIdentity("user1", "password");
 
             // the first channel determines the endpoint
             ConfiguredEndpoint endpoint = await ClientFixture.GetEndpointAsync(ServerUrl, securityPolicy, Endpoints).ConfigureAwait(false);
