@@ -1,14 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
-using BenchmarkDotNet.Loggers;
-using CommandLine.Text;
-using Microsoft.AspNetCore.Hosting.Server;
-using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using Quickstarts.Servers;
@@ -135,8 +130,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(queue.ItemsInQueue, Is.EqualTo(2));
 
             queue.Enqueue(dataValue3, null);
-
-            int size = queue.ItemsInQueue;
+            _ = queue.ItemsInQueue;
 
             Assert.That(queue.ItemsInQueue, Is.EqualTo(2));
 
@@ -254,8 +248,7 @@ namespace Opc.Ua.Server.Tests
             for (int j = 0; j < 10_000; j++)
             {
                 queue.Enqueue(new DataValue(new Variant(false)), null);
-
-                queue.Dequeue(out DataValue dataValue, out ServiceResult _);
+                queue.Dequeue(out _, out _);
             }
         }
         [Benchmark]
@@ -272,7 +265,7 @@ namespace Opc.Ua.Server.Tests
                 }
                 for (int v = 0; v < 90; v++)
                 {
-                    queue.Dequeue(out DataValue dataValue, out ServiceResult _);
+                    queue.Dequeue(out _, out _);
                 }
             }
         }
@@ -291,7 +284,7 @@ namespace Opc.Ua.Server.Tests
                     ]
                 };
                 queue.Enqueue(value);
-                queue.Dequeue(out EventFieldList value2);
+                queue.Dequeue(out _);
             }
         }
         [Benchmark]
@@ -313,7 +306,7 @@ namespace Opc.Ua.Server.Tests
                 }
                 for (int v = 0; v < 90; v++)
                 {
-                    queue.Dequeue(out EventFieldList value);
+                    queue.Dequeue(out _);
                 }
             }
         }
@@ -866,8 +859,12 @@ namespace Opc.Ua.Server.Tests
         public void DataValueQueueDiscardedValueHandlerInvoked()
         {
             bool called = false;
-            Action discardedValueHandler = () => called = true;
-            var queueHandler = new DataChangeQueueHandler(1, false, m_factory, discardedValueHandler);
+            void DiscardedValueHandler()
+            {
+                called = true;
+            }
+
+            var queueHandler = new DataChangeQueueHandler(1, false, m_factory, DiscardedValueHandler);
 
             queueHandler.SetQueueSize(1, true, DiagnosticsMasks.All);
 
@@ -896,8 +893,12 @@ namespace Opc.Ua.Server.Tests
         public void DataValueQueueDiscardedValueHandlerInvokedNoDiscardOldest()
         {
             bool called = false;
-            Action discardedValueHandler = () => called = true;
-            var queueHandler = new DataChangeQueueHandler(1, false, m_factory, discardedValueHandler);
+            void DiscardValueHandler()
+            {
+                called = true;
+            }
+
+            var queueHandler = new DataChangeQueueHandler(1, false, m_factory, DiscardValueHandler);
 
             queueHandler.SetQueueSize(2, false, DiagnosticsMasks.All);
 
@@ -932,9 +933,12 @@ namespace Opc.Ua.Server.Tests
         public void DataValueQueueSamplingIntervalOverwrites()
         {
             bool called = false;
-            Action discardedValueHandler = () => called = true;
+            void DiscardValueHandler()
+            {
+                called = true;
+            }
 
-            var queueHandler = new DataChangeQueueHandler(1, false, m_factory, discardedValueHandler);
+            var queueHandler = new DataChangeQueueHandler(1, false, m_factory, DiscardValueHandler);
 
             queueHandler.SetQueueSize(3, true, DiagnosticsMasks.All);
 
@@ -961,12 +965,15 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public async Task DataValueQueueSamplingIntervalChangeApplied()
+        public async Task DataValueQueueSamplingIntervalChangeAppliedAsync()
         {
             bool called = false;
-            Action discardedValueHandler = () => called = true;
+            void DiscardValueHandler()
+            {
+                called = true;
+            }
 
-            var queueHandler = new DataChangeQueueHandler(1, false, m_factory, discardedValueHandler);
+            var queueHandler = new DataChangeQueueHandler(1, false, m_factory, DiscardValueHandler);
 
             queueHandler.SetQueueSize(3, true, DiagnosticsMasks.All);
 
@@ -998,9 +1005,12 @@ namespace Opc.Ua.Server.Tests
         public void DataValueQueueSizeChangeRequeuesValues()
         {
             bool called = false;
-            Action discardedValueHandler = () => called = true;
+            void DiscardValueHandler()
+            {
+                called = true;
+            }
 
-            var queueHandler = new DataChangeQueueHandler(1, false, m_factory, discardedValueHandler);
+            var queueHandler = new DataChangeQueueHandler(1, false, m_factory, DiscardValueHandler);
 
             queueHandler.SetQueueSize(10, true, DiagnosticsMasks.All);
 
@@ -1047,9 +1057,12 @@ namespace Opc.Ua.Server.Tests
         public void DataValueDecreaseQueueSizeDiscardsOldest()
         {
             bool called = false;
-            Action discardedValueHandler = () => called = true;
+            void DiscardValueHandler()
+            {
+                called = true;
+            }
 
-            var queueHandler = new DataChangeQueueHandler(1, false, m_factory, discardedValueHandler);
+            var queueHandler = new DataChangeQueueHandler(1, false, m_factory, DiscardValueHandler);
 
             queueHandler.SetQueueSize(10, true, DiagnosticsMasks.All);
 
@@ -1101,9 +1114,12 @@ namespace Opc.Ua.Server.Tests
         public void DataValueInitialDataOverWritesLastValue()
         {
             bool called = false;
-            Action discardedValueHandler = () => called = true;
+            void DiscardValueHandler()
+            {
+                called = true;
+            }
 
-            var queueHandler = new DataChangeQueueHandler(1, false, m_factory, discardedValueHandler);
+            var queueHandler = new DataChangeQueueHandler(1, false, m_factory, DiscardValueHandler);
 
             queueHandler.SetQueueSize(10, true, DiagnosticsMasks.All);
 

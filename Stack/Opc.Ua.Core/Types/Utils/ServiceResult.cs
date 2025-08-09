@@ -654,7 +654,8 @@ namespace Opc.Ua
         /// </summary>
         [DataMember(Order = 1)]
         public StatusCode StatusCode
-        { get => Code; private set => Code = value.Code;
+        {
+            get => Code; private set => Code = value.Code;
         }
 
         /// <summary>

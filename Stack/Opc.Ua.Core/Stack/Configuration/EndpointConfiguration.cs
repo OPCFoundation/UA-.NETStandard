@@ -10,7 +10,6 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System.Runtime.Serialization;
 using Opc.Ua.Bindings;
 
 namespace Opc.Ua

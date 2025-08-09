@@ -10,11 +10,6 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System;
-using System.Collections.Generic;
-using System.Runtime.Serialization;
-using System.Security.Cryptography.X509Certificates;
-
 namespace Opc.Ua
 {
     public partial class BrowseDescription
@@ -23,7 +18,8 @@ namespace Opc.Ua
         /// A handle assigned to the item during processing.
         /// </summary>
         public object Handle
-        { get => m_handle; set => m_handle = value;
+        {
+            get => m_handle; set => m_handle = value;
         }
 
         private object m_handle;
@@ -35,7 +31,8 @@ namespace Opc.Ua
         /// A handle assigned to the item during processing.
         /// </summary>
         public object Handle
-        { get => m_handle; set => m_handle = value;
+        {
+            get => m_handle; set => m_handle = value;
         }
 
         private object m_handle;

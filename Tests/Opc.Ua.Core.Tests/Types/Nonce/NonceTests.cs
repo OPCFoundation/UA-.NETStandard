@@ -29,7 +29,6 @@
 
 using System;
 using System.Runtime.InteropServices;
-using System.Security.Cryptography;
 using NUnit.Framework;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 

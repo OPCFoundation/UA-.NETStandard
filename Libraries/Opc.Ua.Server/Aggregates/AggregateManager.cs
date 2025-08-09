@@ -28,10 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
-using System.Security.Principal;
-using System.Text;
-using System.Threading;
 
 namespace Opc.Ua.Server
 {

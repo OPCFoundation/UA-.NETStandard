@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -30,7 +30,6 @@
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Configuration;
@@ -76,7 +75,7 @@ namespace Opc.Ua.Server.Tests
         {
         }
 
-        public async Task LoadConfiguration(string pkiRoot = null)
+        public async Task LoadConfigurationAsync(string pkiRoot = null)
         {
             Application = new ApplicationInstance {
                 ApplicationName = typeof(T).Name,
@@ -190,7 +189,7 @@ namespace Opc.Ua.Server.Tests
 
             if (Application == null)
             {
-                await LoadConfiguration(pkiRoot).ConfigureAwait(false);
+                await LoadConfigurationAsync(pkiRoot).ConfigureAwait(false);
             }
 
             if (port <= 0)
@@ -229,7 +228,7 @@ namespace Opc.Ua.Server.Tests
 
             if (writer != null)
             {
-                m_traceLogger = NUnitTestLogger<T>.Create(writer, Config, TraceMasks);
+                m_traceLogger = NUnitTestLogger<T>.Create(writer);
             }
 
             // check the application certificate.
@@ -284,7 +283,7 @@ namespace Opc.Ua.Server.Tests
                 // Create an instance of ActivityListener without logging
                 ActivityListener = new ActivityListener() {
                     ShouldListenTo = (source) => source.Name == EndpointBase.ActivitySourceName,
-                    Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,
+                    Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
                     ActivityStarted = _ => { },
                     ActivityStopped = _ => { }
                 };
@@ -294,7 +293,7 @@ namespace Opc.Ua.Server.Tests
                 // Create an instance of ActivityListener and configure its properties with logging
                 ActivityListener = new ActivityListener() {
                     ShouldListenTo = (source) => source.Name == EndpointBase.ActivitySourceName,
-                    Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,
+                    Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
                     ActivityStarted = activity => Utils.LogInfo("Server Started: {0,-15} - TraceId: {1,-32} SpanId: {2,-16} ParentId: {3,-32}",
                         activity.OperationName, activity.TraceId, activity.SpanId, activity.ParentId),
                     ActivityStopped = activity => Utils.LogInfo("Server Stopped: {0,-15} - TraceId: {1,-32} SpanId: {2,-16} ParentId: {3,-32} Duration: {4}",

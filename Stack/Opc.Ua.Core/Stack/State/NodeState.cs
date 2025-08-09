@@ -15,7 +15,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Xml;
 
 namespace Opc.Ua
@@ -220,7 +219,8 @@ namespace Opc.Ua
         /// An arbitrary handle associated with the node.
         /// </summary>
         public object Handle
-        { get => m_handle; set => m_handle = value;
+        {
+            get => m_handle; set => m_handle = value;
         }
 
         /// <summary>
@@ -228,7 +228,8 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The change masks that indicates what has changed in a node.</value>
         public NodeStateChangeMasks ChangeMasks
-        { get => m_changeMasks; protected set => m_changeMasks = value;
+        {
+            get => m_changeMasks; protected set => m_changeMasks = value;
         }
 
         /// <summary>
@@ -239,7 +240,8 @@ namespace Opc.Ua
         /// This string can only contain characters that are valid for an XML element name.
         /// </remarks>
         public string SymbolicName
-        { get => m_symbolicName; set => m_symbolicName = value;
+        {
+            get => m_symbolicName; set => m_symbolicName = value;
         }
 
         /// <summary>
@@ -2217,7 +2219,8 @@ namespace Opc.Ua
         /// True if the node and its children have been initialized.
         /// </summary>
         public bool Initialized
-        { get => m_initialized; set => m_initialized = value;
+        {
+            get => m_initialized; set => m_initialized = value;
         }
 
         /// <summary>

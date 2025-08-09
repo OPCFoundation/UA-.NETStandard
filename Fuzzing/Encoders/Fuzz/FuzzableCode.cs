@@ -29,7 +29,6 @@
 
 using System;
 using System.IO;
-using Opc.Ua;
 using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Fuzzing

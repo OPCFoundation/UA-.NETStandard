@@ -29,17 +29,13 @@
 
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Text;
 using System.Threading;
-using System.Xml;
 using Moq;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.PublishedData;
@@ -1578,7 +1574,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             object token = null;
             string jsonMessage = System.Text.Encoding.ASCII.GetString(networkMessage);
-            using (var  jsonDecoder = new JsonDecoder(jsonMessage, context))
+            using (var jsonDecoder = new JsonDecoder(jsonMessage, context))
             {
                 if (jsonDecoder.ReadField(MetaDataMessageId, out token))
                 {
@@ -1714,7 +1710,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             ServiceMessageContext context = ServiceMessageContext.GlobalContext;
 
             string jsonMessage = System.Text.Encoding.ASCII.GetString(networkMessage);
-            using (var  jsonDecoder = new JsonDecoder(jsonMessage, context))
+            using (var jsonDecoder = new JsonDecoder(jsonMessage, context))
             {
                 if (jsonNetworkMessage.HasNetworkMessageHeader)
                 {

@@ -11,11 +11,8 @@
 */
 
 using System;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Opc.Ua.Bindings
 {
@@ -135,7 +132,8 @@ namespace Opc.Ua.Bindings
 
         /// <inheritdoc/>
         public BufferCollection BufferList
-        { get => Args.BufferList as BufferCollection; set => Args.BufferList = value;
+        {
+            get => Args.BufferList as BufferCollection; set => Args.BufferList = value;
         }
 
         /// <summary>
@@ -197,7 +195,8 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         /// <remarks>Not implememnted here.</remarks>
         public BufferCollection BufferList
-        { get => null; set => throw new NotImplementedException();
+        {
+            get => null; set => throw new NotImplementedException();
         }
 
         private readonly SocketError m_socketError;

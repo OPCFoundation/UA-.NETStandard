@@ -32,7 +32,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Xml.Schema;
 using static Opc.Ua.Utils;
 
 namespace Opc.Ua.PubSub.Encoding
@@ -184,7 +183,8 @@ namespace Opc.Ua.PubSub.Encoding
         /// Get and Set Uadp version
         /// </summary>
         public byte UADPVersion
-        { get => m_uadpVersion; set => m_uadpVersion = Convert.ToByte(value & kUADPVersionBitMask);
+        {
+            get => m_uadpVersion; set => m_uadpVersion = Convert.ToByte(value & kUADPVersionBitMask);
         }
 
         /// <summary>

@@ -10,11 +10,6 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System;
-using System.Collections.Generic;
-using System.Runtime.Serialization;
-using System.Security.Cryptography.X509Certificates;
-
 namespace Opc.Ua
 {
     /// <summary>
@@ -26,14 +21,16 @@ namespace Opc.Ua
         /// The handle cast to a notification message.
         /// </summary>
         public NotificationMessage Message
-        { get => m_handle as NotificationMessage; set => m_handle = value;
+        {
+            get => m_handle as NotificationMessage; set => m_handle = value;
         }
 
         /// <summary>
         /// A handle associated withe the event instance.
         /// </summary>
         public object Handle
-        { get => m_handle; set => m_handle = value;
+        {
+            get => m_handle; set => m_handle = value;
         }
 
         private object m_handle;

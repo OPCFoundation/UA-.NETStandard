@@ -133,7 +133,8 @@ namespace Opc.Ua
         /// </remarks>
         [DataMember(Name = "PolicyId", IsRequired = false, Order = 10)]
         public string PolicyId
-        { get => m_token.PolicyId; set => m_token.PolicyId = value;
+        {
+            get => m_token.PolicyId; set => m_token.PolicyId = value;
         }
 
         /// <inheritdoc/>

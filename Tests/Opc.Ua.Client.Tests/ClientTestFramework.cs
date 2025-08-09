@@ -198,7 +198,7 @@ namespace Opc.Ua.Client.Tests
                 ServerFixture.TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security;
             }
 
-            await ServerFixture.LoadConfiguration(PkiRoot).ConfigureAwait(false);
+            await ServerFixture.LoadConfigurationAsync(PkiRoot).ConfigureAwait(false);
             ServerFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
             ServerFixture.Config.TransportQuotas.MaxByteStringLength =
             ServerFixture.Config.TransportQuotas.MaxStringLength = TransportQuotaMaxStringLength;

@@ -29,7 +29,6 @@
 
 using System;
 using System.Text;
-using Opc.Ua;
 
 namespace Opc.Ua.Server
 {

@@ -185,7 +185,8 @@ namespace Opc.Ua
         /// The sub-code portion of the status code.
         /// </remarks>
         public uint SubCode
-        { get => Code & 0x0FFF0000; set => Code = 0x0FFF0000 & value;
+        {
+            get => Code & 0x0FFF0000; set => Code = 0x0FFF0000 & value;
         }
 
         /// <summary>

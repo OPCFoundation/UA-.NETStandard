@@ -13,7 +13,6 @@
 using System;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
-using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
 {
@@ -375,7 +374,8 @@ namespace Opc.Ua
         /// The decrypted password associated with the token.
         /// </summary>
         public byte[] DecryptedTokenData
-        { get => m_decryptedTokenData; set => m_decryptedTokenData = value;
+        {
+            get => m_decryptedTokenData; set => m_decryptedTokenData = value;
         }
 
         /// <summary>

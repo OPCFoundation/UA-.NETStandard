@@ -48,7 +48,7 @@ namespace Opc.Ua.Server.Tests
         /// not contained in the server's namespace table
         /// </summary>
         [Test]
-        public async Task RegisterNamespaceManagerNewNamespace()
+        public async Task RegisterNamespaceManagerNewNamespaceAsync()
         {
             var fixture = new ServerFixture<StandardServer>();
 
@@ -86,7 +86,7 @@ namespace Opc.Ua.Server.Tests
         /// contained in the server's namespace table
         /// </summary>
         [Test]
-        public async Task RegisterNamespaceManagerExistingNamespace()
+        public async Task RegisterNamespaceManagerExistingNamespaceAsync()
         {
             var fixture = new ServerFixture<StandardServer>();
 
@@ -132,7 +132,7 @@ namespace Opc.Ua.Server.Tests
         [TestCase(3, 0)]
         [TestCase(3, 1)]
         [TestCase(3, 2)]
-        public async Task UnregisterNamespaceManagerInCollection(int totalManagers, int indexToRemove)
+        public async Task UnregisterNamespaceManagerInCollectionAsync(int totalManagers, int indexToRemove)
         {
             var fixture = new ServerFixture<StandardServer>();
 
@@ -180,7 +180,7 @@ namespace Opc.Ua.Server.Tests
         /// previously been registered
         /// </summary>
         [Test]
-        public async Task UnregisterNamespaceManagerNotInCollection()
+        public async Task UnregisterNamespaceManagerNotInCollectionAsync()
         {
             var fixture = new ServerFixture<StandardServer>();
 
@@ -230,7 +230,7 @@ namespace Opc.Ua.Server.Tests
         /// which is unknown by the server
         /// </summary>
         [Test]
-        public async Task UnregisterNamespaceManagerUnknownNamespace()
+        public async Task UnregisterNamespaceManagerUnknownNamespaceAsync()
         {
             var fixture = new ServerFixture<StandardServer>();
 

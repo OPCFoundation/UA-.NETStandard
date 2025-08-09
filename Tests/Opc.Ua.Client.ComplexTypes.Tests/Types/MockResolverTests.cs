@@ -269,7 +269,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             byte[] buffer;
             using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
-                using (var  encoder = CreateEncoder(EncodingType.Json, encoderContext, encoderStream, carType))
+                using (var encoder = CreateEncoder(EncodingType.Json, encoderContext, encoderStream, carType))
                 {
                     encoder.WriteEncodeable("Car", car, carType);
                 }
@@ -449,7 +449,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             byte[] buffer;
             using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
-                using (var  encoder = CreateEncoder(EncodingType.Json, encoderContext, encoderStream, arraysTypes))
+                using (var encoder = CreateEncoder(EncodingType.Json, encoderContext, encoderStream, arraysTypes))
                 {
                     encoder.WriteEncodeable("Arrays", arrays, arraysTypes);
                 }
@@ -635,7 +635,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             byte[] buffer;
             using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
-                using (var  encoder = CreateEncoder(EncodingType.Json, encoderContext, encoderStream, arraysTypes))
+                using (var encoder = CreateEncoder(EncodingType.Json, encoderContext, encoderStream, arraysTypes))
                 {
                     encoder.WriteEncodeable("TestType", testType, arraysTypes);
                 }

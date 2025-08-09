@@ -30,7 +30,6 @@
 using System;
 using System.IO;
 using System.Runtime.Serialization;
-using System.Security.Cryptography;
 using System.Xml;
 
 namespace Opc.Ua.Client

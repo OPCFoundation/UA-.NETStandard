@@ -30,7 +30,6 @@
 using System;
 using System.IO;
 using System.Linq;
-using Opc.Ua;
 
 namespace Opc.Ua.Fuzzing
 {

@@ -204,7 +204,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             byte[] buffer;
             using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
             {
-                using (var  encoder = CreateEncoder(
+                using (var encoder = CreateEncoder(
                     EncodingType.Json, EncoderContext, encoderStream,
                     typeof(ExtensionObject), jsonEncoding, topLevelIsArray))
                 {

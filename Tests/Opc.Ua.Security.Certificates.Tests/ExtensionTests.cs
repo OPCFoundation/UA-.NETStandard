@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.IO;
 using System.Numerics;
 using System.Security.Cryptography.X509Certificates;
 using NUnit.Framework;

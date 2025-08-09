@@ -1,5 +1,4 @@
 using System;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -34,7 +33,7 @@ namespace Opc.Ua.Server.Tests
                 var nodeHandle = new NodeHandle(new NodeId((string)CommonTestWorkers.NodeIdTestSetStatic[0].Identifier, 0), baseObject);
 
                 //Act
-                await RunTaskInParallel(() => UseComponentCacheAsync(nodeManager, baseObject, nodeHandle), 100).ConfigureAwait(false);
+                await RunTaskInParallelAsync(() => UseComponentCacheAsync(nodeManager, baseObject, nodeHandle), 100).ConfigureAwait(false);
 
                 //Assert, that entry was deleted from cache after parallel operations on the same node
                 NodeState handleFromCache = nodeManager.LookupNodeInComponentCache(nodeManager.SystemContext, nodeHandle);
@@ -51,7 +50,7 @@ namespace Opc.Ua.Server.Tests
         /// Tests the Predefined Nodes methods with multiple threads
         /// </summary>
         [Test]
-        public async Task TestPredefinedNodes()
+        public async Task TestPredefinedNodesAsync()
         {
             var fixture = new ServerFixture<StandardServer>();
 
@@ -97,7 +96,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(nodeManager.PredefinedNodes, Is.Empty);
 
                 //Act
-                await RunTaskInParallel(() => UsePredefinedNodesAsync(nodeManager, baseObject, nodeId), 100).ConfigureAwait(false);
+                await RunTaskInParallelAsync(() => UsePredefinedNodesAsync(nodeManager, baseObject, nodeId), 100).ConfigureAwait(false);
 
                 //last operation added the Node back into the dictionary
                 Assert.That(nodeManager.PredefinedNodes.ContainsKey(nodeId), Is.True);
@@ -115,16 +114,14 @@ namespace Opc.Ua.Server.Tests
         private static async Task UsePredefinedNodesAsync(TestableCustomNodeManger2 nodeManager, DataItemState baseObject, NodeId nodeId)
         {
             nodeManager.AddPredefinedNode(nodeManager.SystemContext, baseObject);
-
-            NodeState nodeState = nodeManager.Find(nodeId);
-
-            var handle = nodeManager.GetManagerHandle(nodeId) as NodeHandle;
+            _ = nodeManager.Find(nodeId);
+            _ = nodeManager.GetManagerHandle(nodeId) as NodeHandle;
 
             nodeManager.DeleteNode(nodeManager.SystemContext, nodeId);
 
-            nodeState = nodeManager.Find(nodeId);
+            _ = nodeManager.Find(nodeId);
 
-            handle = nodeManager.GetManagerHandle(nodeId) as NodeHandle;
+            _ = nodeManager.GetManagerHandle(nodeId) as NodeHandle;
 
             nodeManager.AddPredefinedNode(nodeManager.SystemContext, baseObject);
             await Task.CompletedTask.ConfigureAwait(false);
@@ -157,13 +154,13 @@ namespace Opc.Ua.Server.Tests
             await Task.CompletedTask.ConfigureAwait(false);
         }
 
-        public static async Task<(bool IsSuccess, Exception Error)> RunTaskInParallel(Func<Task> task, int iterations)
+        public static async Task<(bool IsSuccess, Exception Error)> RunTaskInParallelAsync(Func<Task> task, int iterations)
         {
             var cancellationTokenSource = new CancellationTokenSource();
             Exception error = null;
             int tasksCompletedCount = 0;
             ParallelLoopResult result = Parallel.For(0, iterations, new ParallelOptions(),
-                          async index => {
+                          async _ => {
                               try
                               {
                                   await task().ConfigureAwait(false);

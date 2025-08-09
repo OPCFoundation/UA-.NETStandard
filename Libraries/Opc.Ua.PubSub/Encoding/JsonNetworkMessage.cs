@@ -230,7 +230,7 @@ namespace Opc.Ua.PubSub.Encoding
         {
             string json = System.Text.Encoding.UTF8.GetString(message);
 
-            using (var  jsonDecoder = new JsonDecoder(json, context))
+            using (var jsonDecoder = new JsonDecoder(json, context))
             {
                 // 1. decode network message header (PublisherId & DataSetClassId)
                 DecodeNetworkMessageHeader(jsonDecoder);

@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
 using System.Security.Cryptography.X509Certificates;
-using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Gds.Client
 {
@@ -240,7 +239,7 @@ namespace Opc.Ua.Gds.Client
                     }
                     catch (Exception e)
                     {
-                        return new string[] { e.Message };
+                        return [e.Message];
                     }
                 }
 

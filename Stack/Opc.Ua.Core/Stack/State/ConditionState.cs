@@ -12,13 +12,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Xml;
-using Opc.Ua;
 
 namespace Opc.Ua
 {
@@ -70,7 +64,8 @@ namespace Opc.Ua
         /// 	<c>true</c> if the condition automatically reports ecents; otherwise, <c>false</c>.
         /// </value>
         public bool AutoReportStateChanges
-        { get => m_autoReportStateChanges; set => m_autoReportStateChanges = value;
+        {
+            get => m_autoReportStateChanges; set => m_autoReportStateChanges = value;
         }
 
         /// <summary>

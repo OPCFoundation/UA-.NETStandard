@@ -365,7 +365,8 @@ namespace Opc.Ua
         /// </remarks>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1721:PropertyNamesShouldNotMatchGetMethods")]
         public object Value
-        { get => m_value.Value; set => m_value.Value = value;
+        {
+            get => m_value.Value; set => m_value.Value = value;
         }
 
         /// <summary>
@@ -376,7 +377,8 @@ namespace Opc.Ua
         /// </remarks>
         [DataMember(Name = "Value", Order = 1, IsRequired = false)]
         public Variant WrappedValue
-        { get => m_value; set => m_value = value;
+        {
+            get => m_value; set => m_value = value;
         }
 
         /// <summary>

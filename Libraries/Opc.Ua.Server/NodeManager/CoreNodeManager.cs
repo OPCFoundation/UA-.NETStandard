@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -2708,7 +2707,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            bool instance = (node.NodeClass & (NodeClass.Object | NodeClass.Variable)) != 0;
+            bool instance = ((int)node.NodeClass & ((int)NodeClass.Object | (int)NodeClass.Variable)) != 0;
 
             var referencesToDelete = new Dictionary<NodeId, IList<IReference>>();
 

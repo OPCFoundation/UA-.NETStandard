@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -135,7 +135,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Get the read only list of <see cref="UaPubSubConnection"/> created for this Application instance
         /// </summary>
-        public ReadOnlyList<IUaPubSubConnection> PubSubConnections => new ReadOnlyList<IUaPubSubConnection>(m_uaPubSubConnections);
+        public ReadOnlyList<IUaPubSubConnection> PubSubConnections => new(m_uaPubSubConnections);
 
         /// <summary>
         /// Get reference to current configured DataCollector for this UaPubSubApplication
@@ -160,7 +160,7 @@ namespace Opc.Ua.PubSub
         /// <returns>New instance of <see cref="UaPubSubApplication"/></returns>
         public static UaPubSubApplication Create(string configFilePath, IUaPubSubDataStore dataStore = null)
         {
-            // validate input argument 
+            // validate input argument
             if (configFilePath == null)
             {
                 throw new ArgumentNullException(nameof(configFilePath));

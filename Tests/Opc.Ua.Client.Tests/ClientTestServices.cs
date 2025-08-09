@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using Microsoft.AspNetCore.Hosting.Server;
 using Opc.Ua.Server.Tests;
 
 namespace Opc.Ua.Client.Tests

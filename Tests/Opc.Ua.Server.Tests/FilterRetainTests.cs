@@ -3,17 +3,10 @@
 // Requires discussion with Part 9 Editor
 #define AddActiveState
 
-using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Reflection;
-using System.Runtime.InteropServices;
-using System.Security.Claims;
-using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
-using Castle.Components.DictionaryAdapter;
-using Microsoft.AspNetCore.Hosting.Server;
 using Moq;
 using NUnit.Framework;
 
@@ -85,7 +78,6 @@ namespace Opc.Ua.Server.Tests
         [TestCase(true, Description = "Should pass filter")]
         public void TestNonEvent(bool pass)
         {
-            SystemContext systemContext = GetSystemContext();
             var certificateType = new ApplicationCertificateState(null);
 
             FilterContext context = GetFilterContext();
@@ -222,9 +214,10 @@ namespace Opc.Ua.Server.Tests
             alarm.OutOfServiceState.Value = InService;
 
             FilterContext filterContext = GetFilterContext();
-            var filter = new EventFilter();
-            filter.SelectClauses = GetSelectFields();
-            filter.WhereClause = GetStateFilter();
+            var filter = new EventFilter {
+                SelectClauses = GetSelectFields(),
+                WhereClause = GetStateFilter()
+            };
             filter.Validate(filterContext);
 
             MonitoredItem monitoredItem = CreateMonitoredItem(filter);
@@ -369,8 +362,9 @@ namespace Opc.Ua.Server.Tests
 
             if (addFilterRetain)
             {
-                alarm.SupportsFilteredRetain = new PropertyState<bool>(alarm);
-                alarm.SupportsFilteredRetain.Value = filterRetainValue;
+                alarm.SupportsFilteredRetain = new PropertyState<bool>(alarm) {
+                    Value = filterRetainValue
+                };
             }
 
             return alarm;
@@ -380,16 +374,17 @@ namespace Opc.Ua.Server.Tests
         {
             var simpleAttributeOperands = new SimpleAttributeOperandCollection();
 
-            var desiredEventFields = new Dictionary<int, QualifiedNameCollection>();
             int eventIndexCounter = 0;
-            desiredEventFields.Add(eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.EventId }]);
-            desiredEventFields.Add(eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.EventType }]);
-            desiredEventFields.Add(eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.Time }]);
-            desiredEventFields.Add(eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.ActiveState }]);
-            desiredEventFields.Add(eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.Message }]);
-            desiredEventFields.Add(eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.LimitState, BrowseNames.CurrentState }]);
-            desiredEventFields.Add(eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.LimitState, BrowseNames.CurrentState, BrowseNames.Id }]);
-            desiredEventFields.Add(eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.LimitState, BrowseNames.LastTransition }]);
+            var desiredEventFields = new Dictionary<int, QualifiedNameCollection> {
+                { eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.EventId }] },
+                { eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.EventType }] },
+                { eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.Time }] },
+                { eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.ActiveState }] },
+                { eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.Message }] },
+                { eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.LimitState, BrowseNames.CurrentState }] },
+                { eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.LimitState, BrowseNames.CurrentState, BrowseNames.Id }] },
+                { eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.LimitState, BrowseNames.LastTransition }] }
+            };
 
             foreach (QualifiedNameCollection desiredEventField in desiredEventFields.Values)
             {
@@ -434,15 +429,16 @@ namespace Opc.Ua.Server.Tests
                     BrowseNames.Id }]
             };
 
-            var desiredEventLevel = new LiteralOperand();
-            desiredEventLevel.Value = new Variant(new NodeId(Objects.ExclusiveLimitStateMachineType_High));
+            var desiredEventLevel = new LiteralOperand {
+                Value = new Variant(new NodeId(Objects.ExclusiveLimitStateMachineType_High))
+            };
 
-            whereClause.Push(FilterOperator.Equals, new FilterOperand[] { eventLevel, desiredEventLevel });
+            whereClause.Push(FilterOperator.Equals, [eventLevel, desiredEventLevel]);
 
             return whereClause;
         }
 
-        private ContentFilter GetStateFilter()
+        private static ContentFilter GetStateFilter()
         {
             var whereClause = new ContentFilter();
 
@@ -453,12 +449,11 @@ namespace Opc.Ua.Server.Tests
                     BrowseNames.OutOfServiceState }]
             };
 
-            var desiredOutOfServiceValue = new LiteralOperand();
-            desiredOutOfServiceValue.Value = new Variant(InService);
+            var desiredOutOfServiceValue = new LiteralOperand {
+                Value = new Variant(InService)
+            };
 
-            whereClause.Push(FilterOperator.Equals, new FilterOperand[] {
-                notOutOfServiceState,
-                desiredOutOfServiceValue });
+            whereClause.Push(FilterOperator.Equals, [notOutOfServiceState, desiredOutOfServiceValue]);
 
             var notSuppressed = new SimpleAttributeOperand() {
                 AttributeId = Attributes.Value,
@@ -467,12 +462,11 @@ namespace Opc.Ua.Server.Tests
                     BrowseNames.SuppressedState }]
             };
 
-            var desiredSuppressedValue = new LiteralOperand();
-            desiredSuppressedValue.Value = new Variant(Unsuppressed);
+            var desiredSuppressedValue = new LiteralOperand {
+                Value = new Variant(Unsuppressed)
+            };
 
-            whereClause.Push(FilterOperator.Equals, new FilterOperand[] {
-                notSuppressed,
-                desiredSuppressedValue });
+            whereClause.Push(FilterOperator.Equals, [notSuppressed, desiredSuppressedValue]);
 
 #if AddActiveState
 
@@ -483,22 +477,23 @@ namespace Opc.Ua.Server.Tests
                     BrowseNames.ActiveState }]
             };
 
-            var activeValue = new LiteralOperand();
-            activeValue.Value = new Variant(Active);
+            var activeValue = new LiteralOperand {
+                Value = new Variant(Active)
+            };
 
-            whereClause.Push(FilterOperator.Equals, new FilterOperand[] {
+            whereClause.Push(FilterOperator.Equals, [
                 activeState,
-                activeValue });
+                activeValue ]);
 
-            whereClause.Push(FilterOperator.And, new ElementOperand[] {
-                new(1),
-                new(2) });
+            whereClause.Push(FilterOperator.And, [
+                new ElementOperand(1),
+                new ElementOperand(2) ]);
 
 #endif
 
-            whereClause.Push(FilterOperator.And, new ElementOperand[] {
-                new(0),
-                new(1) });
+            whereClause.Push(FilterOperator.And, [
+                new ElementOperand(0),
+                new ElementOperand(1) ]);
 
             return whereClause;
         }
@@ -507,8 +502,9 @@ namespace Opc.Ua.Server.Tests
         {
             if (m_systemContext == null)
             {
-                m_systemContext = new SystemContext();
-                m_systemContext.NamespaceUris = new NamespaceTable();
+                m_systemContext = new SystemContext {
+                    NamespaceUris = new NamespaceTable()
+                };
                 m_systemContext.NamespaceUris.Append(Namespaces.OpcUa);
                 var typeTable = new TypeTable(m_systemContext.NamespaceUris);
                 typeTable.AddSubtype(ObjectTypeIds.BaseObjectType, null);

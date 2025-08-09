@@ -444,7 +444,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using (var stream = new MemoryStream())
             {
                 string text;
-                using (var  encoder = new BinaryEncoder(stream, new ServiceMessageContext(), true))
+                using (var encoder = new BinaryEncoder(stream, new ServiceMessageContext(), true))
                 {
                     text = WriteByteStringData(encoder);
                 }
@@ -465,7 +465,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
                 using (var writer = XmlWriter.Create(stream, settings))
-                using (var  encoder = new XmlEncoder(new XmlQualifiedName("ByteStrings", Namespaces.OpcUaXsd), writer, new ServiceMessageContext()))
+                using (var encoder = new XmlEncoder(new XmlQualifiedName("ByteStrings", Namespaces.OpcUaXsd), writer, new ServiceMessageContext()))
                 {
                     string text = WriteByteStringData(encoder);
                 }
@@ -485,7 +485,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using (var stream = new MemoryStream())
             {
                 string text;
-                using (var  encoder = new JsonEncoder(new ServiceMessageContext(), true, false, stream, true))
+                using (var encoder = new JsonEncoder(new ServiceMessageContext(), true, false, stream, true))
                 {
                     text = WriteByteStringData(encoder);
                 }
@@ -546,7 +546,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             byte[] buffer;
             using (MemoryStream encoderStream = CreateEncoderMemoryStream(MemoryStreamType.MemoryStream))
             {
-                using (var  encoder = CreateEncoder(encoderType, Context, encoderStream, type, jsonEncodingType, false))
+                using (var encoder = CreateEncoder(encoderType, Context, encoderStream, type, jsonEncodingType, false))
                 {
                     encoder.WriteArray(builtInType.ToString(), randomData, ValueRanks.OneDimension, builtInType);
                 }
@@ -562,7 +562,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             object result;
             using (var decoderStream = new MemoryStream(buffer))
-            using (var  decoder = CreateDecoder(encoderType, Context, decoderStream, type))
+            using (var decoder = CreateDecoder(encoderType, Context, decoderStream, type))
             {
                 result = decoder.ReadArray(builtInType.ToString(), ValueRanks.OneDimension, builtInType);
             }
@@ -673,7 +673,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             byte[] buffer;
             using (MemoryStream encoderStream = CreateEncoderMemoryStream(MemoryStreamType.MemoryStream))
             {
-                using (var  encoder = CreateEncoder(encoderType, Context, encoderStream, type, jsonEncodingType))
+                using (var encoder = CreateEncoder(encoderType, Context, encoderStream, type, jsonEncodingType))
                 {
                     encoder.WriteArray(builtInType.ToString(), matrix, matrix.TypeInfo.ValueRank, builtInType);
                 }
@@ -689,7 +689,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             object result;
             using (var decoderStream = new MemoryStream(buffer))
-            using (var  decoder = CreateDecoder(encoderType, Context, decoderStream, type))
+            using (var decoder = CreateDecoder(encoderType, Context, decoderStream, type))
             {
                 result = decoder.ReadArray(builtInType.ToString(), matrix.TypeInfo.ValueRank, builtInType);
             }
@@ -768,7 +768,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             byte[] buffer;
             using (MemoryStream encoderStream = CreateEncoderMemoryStream(MemoryStreamType.MemoryStream))
             {
-                using (var  encoder = CreateEncoder(encoderType, Context, encoderStream, typeof(DataValue), jsonEncodingType))
+                using (var encoder = CreateEncoder(encoderType, Context, encoderStream, typeof(DataValue), jsonEncodingType))
                 {
                     if (encoderType == EncodingType.Json && jsonEncodingType == JsonEncodingType.NonReversible)
                     {
@@ -793,7 +793,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
 
             using (var decoderStream = new MemoryStream(buffer))
-            using (var  decoder = CreateDecoder(encoderType, Context, decoderStream, typeof(DataValue)))
+            using (var decoder = CreateDecoder(encoderType, Context, decoderStream, typeof(DataValue)))
             {
                 // check such matrix cannot be initialized when decoding from Binary format
                 // the exception is thrown before trying to construct the Matrix
@@ -842,7 +842,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             byte[] buffer;
             using (MemoryStream encoderStream = CreateEncoderMemoryStream(MemoryStreamType.ArraySegmentStream))
             {
-                using (var  encoder = CreateEncoder(encoderType, Context, encoderStream, typeof(DataValue), jsonEncodingType))
+                using (var encoder = CreateEncoder(encoderType, Context, encoderStream, typeof(DataValue), jsonEncodingType))
                 {
                     if (encoderType == EncodingType.Json && jsonEncodingType == JsonEncodingType.NonReversible)
                     {
@@ -867,7 +867,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
 
             using (var decoderStream = new MemoryStream(buffer))
-            using (var  decoder = CreateDecoder(encoderType, Context, decoderStream, typeof(DataValue)))
+            using (var decoder = CreateDecoder(encoderType, Context, decoderStream, typeof(DataValue)))
             {
                 // check such matrix cannot be initialized when decoding from Json format
                 // the exception is thrown while trying to construct the Matrix
@@ -919,7 +919,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             byte[] buffer;
             using (MemoryStream encoderStream = CreateEncoderMemoryStream(MemoryStreamType.RecyclableMemoryStream))
             {
-                using (var  encoder = CreateEncoder(encoderType, Context, encoderStream, type, jsonEncodingType))
+                using (var encoder = CreateEncoder(encoderType, Context, encoderStream, type, jsonEncodingType))
                 {
                     switch (encoderType)
                     {
@@ -942,7 +942,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
 
             using (var decoderStream = new MemoryStream(buffer))
-            using (var  decoder = CreateDecoder(encoderType, Context, decoderStream, type))
+            using (var decoder = CreateDecoder(encoderType, Context, decoderStream, type))
             {
                 ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(
                     () => decoder.ReadArray(builtInType.ToString(), matrix.TypeInfo.ValueRank, builtInType));

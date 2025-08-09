@@ -29,13 +29,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Globalization;
-using System.IO;
 using System.Reflection;
-using System.Text;
-using System.Threading;
-using System.Xml;
 using Opc.Ua;
 using Opc.Ua.Sample;
 using Opc.Ua.Server;

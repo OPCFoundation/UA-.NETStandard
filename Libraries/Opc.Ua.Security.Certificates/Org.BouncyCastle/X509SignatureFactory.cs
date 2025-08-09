@@ -30,10 +30,10 @@
 #if !NETSTANDARD2_1 && !NET472_OR_GREATER && !NET5_0_OR_GREATER
 
 using System;
+using System.IO;
 using System.Security.Cryptography;
 using Org.BouncyCastle.Asn1.X509;
 using Org.BouncyCastle.Crypto;
-using System.IO;
 
 namespace Opc.Ua.Security.Certificates.BouncyCastle
 {

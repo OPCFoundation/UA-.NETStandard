@@ -225,7 +225,7 @@ namespace Opc.Ua.Client
             {
                 if (m_nodeClass != value)
                 {
-                    if ((value & (NodeClass.Object | NodeClass.View)) != 0)
+                    if (((int)value & ((int)NodeClass.Object | (int)NodeClass.View)) != 0)
                     {
                         // ensure a valid event filter.
                         if (!(m_filter is EventFilter))
@@ -370,7 +370,8 @@ namespace Opc.Ua.Client
         /// </summary>
         [DataMember(Order = 13)]
         public uint ServerId
-        { get => m_status.Id; set => m_status.Id = value;
+        {
+            get => m_status.Id; set => m_status.Id = value;
         }
 
         /// <summary>

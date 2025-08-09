@@ -12,8 +12,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Runtime.Serialization;
-using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua
 {
@@ -26,14 +24,16 @@ namespace Opc.Ua
         /// The string table that was received with the message.
         /// </summary>
         public StringCollection StringTable
-        { get => m_stringTable; set => m_stringTable = value;
+        {
+            get => m_stringTable; set => m_stringTable = value;
         }
 
         /// <summary>
         /// Gets a value indicating whether there are more NotificationMessages for this publish interval.
         /// </summary>
         public bool MoreNotifications
-        { get => m_moreNotifications; set => m_moreNotifications = value;
+        {
+            get => m_moreNotifications; set => m_moreNotifications = value;
         }
 
         /// <summary>

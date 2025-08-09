@@ -669,7 +669,7 @@ namespace Opc.Ua
             }
         }
 
-        private bool IsObjectOrVariable => (NodeClass & (NodeClass.Variable | NodeClass.Object)) != 0;
+        private bool IsObjectOrVariable => ((int)NodeClass & ((int)NodeClass.Variable | (int)NodeClass.Object)) != 0;
 
         private NodeId m_referenceTypeId;
         private NodeId m_typeDefinitionId;

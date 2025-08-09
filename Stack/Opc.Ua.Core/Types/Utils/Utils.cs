@@ -29,8 +29,6 @@ using System.Threading.Tasks;
 using System.Xml;
 using Opc.Ua.Security.Certificates;
 
-using NewNonceImplementation = Opc.Ua.Nonce;
-
 namespace Opc.Ua
 {
     /// <summary>

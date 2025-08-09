@@ -28,19 +28,11 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Globalization;
 using System.IO;
-using System.Linq;
-using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
-using BenchmarkDotNet.Configs;
-using CommandLine;
 using NUnit.Framework;
 using Opc.Ua.Server.Tests;
 using Quickstarts.ReferenceServer;
@@ -94,7 +86,7 @@ namespace Opc.Ua.Client.Tests
                 ServerFixture.TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security;
             }
 
-            await ServerFixture.LoadConfiguration(PkiRoot).ConfigureAwait(false);
+            await ServerFixture.LoadConfigurationAsync(PkiRoot).ConfigureAwait(false);
             ServerFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
             ServerFixture.Config.TransportQuotas.MaxByteStringLength =
             ServerFixture.Config.TransportQuotas.MaxStringLength = TransportQuotaMaxStringLength;

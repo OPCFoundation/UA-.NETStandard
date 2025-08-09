@@ -707,7 +707,8 @@ namespace Opc.Ua.Bindings
         /// The socket for the channel.
         /// </summary>
         protected internal IMessageSocket Socket
-        { get => m_socket; set => m_socket = value;
+        {
+            get => m_socket; set => m_socket = value;
         }
 
         /// <summary>
@@ -729,42 +730,48 @@ namespace Opc.Ua.Bindings
         /// The size of the receive buffer.
         /// </summary>
         protected int ReceiveBufferSize
-        { get => m_receiveBufferSize; set => m_receiveBufferSize = value;
+        {
+            get => m_receiveBufferSize; set => m_receiveBufferSize = value;
         }
 
         /// <summary>
         /// The size of the send buffer.
         /// </summary>
         protected int SendBufferSize
-        { get => m_sendBufferSize; set => m_sendBufferSize = value;
+        {
+            get => m_sendBufferSize; set => m_sendBufferSize = value;
         }
 
         /// <summary>
         /// The maximum size for a request message.
         /// </summary>
         protected int MaxRequestMessageSize
-        { get => m_maxRequestMessageSize; set => m_maxRequestMessageSize = value;
+        {
+            get => m_maxRequestMessageSize; set => m_maxRequestMessageSize = value;
         }
 
         /// <summary>
         /// The maximum number of chunks per request message.
         /// </summary>
         protected int MaxRequestChunkCount
-        { get => m_maxRequestChunkCount; set => m_maxRequestChunkCount = value;
+        {
+            get => m_maxRequestChunkCount; set => m_maxRequestChunkCount = value;
         }
 
         /// <summary>
         /// The maximum size for a response message.
         /// </summary>
         protected int MaxResponseMessageSize
-        { get => m_maxResponseMessageSize; set => m_maxResponseMessageSize = value;
+        {
+            get => m_maxResponseMessageSize; set => m_maxResponseMessageSize = value;
         }
 
         /// <summary>
         /// The maximum number of chunks per response message.
         /// </summary>
         protected int MaxResponseChunkCount
-        { get => m_maxResponseChunkCount; set => m_maxResponseChunkCount = value;
+        {
+            get => m_maxResponseChunkCount; set => m_maxResponseChunkCount = value;
         }
 
         /// <summary>

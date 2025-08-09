@@ -11,11 +11,7 @@
 */
 
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Tracing;
-using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 using static Opc.Ua.Utils;
 

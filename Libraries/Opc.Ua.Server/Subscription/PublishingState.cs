@@ -27,12 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Collections;
-using System.Diagnostics;
-using System.Threading;
-using System.Xml;
-
 namespace Opc.Ua.Server
 {
     /// <summary>

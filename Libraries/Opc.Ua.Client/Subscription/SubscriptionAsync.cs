@@ -33,7 +33,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Client
 {

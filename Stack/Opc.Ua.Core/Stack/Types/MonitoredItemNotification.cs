@@ -10,11 +10,6 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System;
-using System.Collections.Generic;
-using System.Runtime.Serialization;
-using System.Security.Cryptography.X509Certificates;
-
 namespace Opc.Ua
 {
     /// <summary>
@@ -26,14 +21,16 @@ namespace Opc.Ua
         /// The notification message that the item belongs to.
         /// </summary>
         public NotificationMessage Message
-        { get => m_message; set => m_message = value;
+        {
+            get => m_message; set => m_message = value;
         }
 
         /// <summary>
         /// The diagnostic info associated with the notification.
         /// </summary>
         public DiagnosticInfo DiagnosticInfo
-        { get => m_diagnosticInfo; set => m_diagnosticInfo = value;
+        {
+            get => m_diagnosticInfo; set => m_diagnosticInfo = value;
         }
 
         private NotificationMessage m_message;

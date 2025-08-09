@@ -11,9 +11,6 @@
 */
 
 using System;
-using System.Collections.Generic;
-using System.Runtime.Serialization;
-using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua
 {
@@ -26,21 +23,24 @@ namespace Opc.Ua
         /// A handle assigned to the item during processing.
         /// </summary>
         public object Handle
-        { get => m_handle; set => m_handle = value;
+        {
+            get => m_handle; set => m_handle = value;
         }
 
         /// <summary>
         /// Whether the value has been processed.
         /// </summary>
         public bool Processed
-        { get => m_processed; set => m_processed = value;
+        {
+            get => m_processed; set => m_processed = value;
         }
 
         /// <summary>
         /// Stores the parsed form of the index range parameter.
         /// </summary>
         public NumericRange ParsedIndexRange
-        { get => m_parsedIndexRange; set => m_parsedIndexRange = value;
+        {
+            get => m_parsedIndexRange; set => m_parsedIndexRange = value;
         }
 
         /// <summary>

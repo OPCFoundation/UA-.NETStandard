@@ -11,10 +11,7 @@
 */
 
 using System;
-using System.Collections.Generic;
 using System.Globalization;
-using System.Runtime.Serialization;
-using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua
 {
@@ -91,7 +88,7 @@ namespace Opc.Ua
             LocalizedText displayName,
             ExpandedNodeId typeDefinition)
         {
-            if ((resultMask & BrowseResultMask.NodeClass) != 0)
+            if (((int)resultMask & (int)BrowseResultMask.NodeClass) != 0)
             {
                 m_nodeClass = nodeClass;
             }
@@ -100,7 +97,7 @@ namespace Opc.Ua
                 m_nodeClass = 0;
             }
 
-            if ((resultMask & BrowseResultMask.BrowseName) != 0)
+            if (((int)resultMask & (int)BrowseResultMask.BrowseName) != 0)
             {
                 m_browseName = browseName;
             }
@@ -109,7 +106,7 @@ namespace Opc.Ua
                 m_browseName = null;
             }
 
-            if ((resultMask & BrowseResultMask.DisplayName) != 0)
+            if (((int)resultMask & (int)BrowseResultMask.DisplayName) != 0)
             {
                 m_displayName = displayName;
             }
@@ -118,7 +115,7 @@ namespace Opc.Ua
                 m_displayName = null;
             }
 
-            if ((resultMask & BrowseResultMask.TypeDefinition) != 0)
+            if (((int)resultMask & (int)BrowseResultMask.TypeDefinition) != 0)
             {
                 m_typeDefinition = typeDefinition;
             }
@@ -132,7 +129,8 @@ namespace Opc.Ua
         /// True if the reference filter has not been applied.
         /// </summary>
         public bool Unfiltered
-        { get => m_unfiltered; set => m_unfiltered = value;
+        {
+            get => m_unfiltered; set => m_unfiltered = value;
         }
 
         private bool m_unfiltered;

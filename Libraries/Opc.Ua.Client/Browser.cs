@@ -217,7 +217,8 @@ namespace Opc.Ua.Client
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1009:DeclareEventHandlersCorrectly")]
         public event BrowserEventHandler MoreReferences
-        { add => m_MoreReferences += value; remove => m_MoreReferences -= value;
+        {
+            add => m_MoreReferences += value; remove => m_MoreReferences -= value;
         }
 
         /// <summary>

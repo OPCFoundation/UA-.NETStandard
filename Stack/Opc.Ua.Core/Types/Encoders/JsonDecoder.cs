@@ -18,7 +18,6 @@ using System.Linq;
 using System.Text;
 using System.Xml;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 
 namespace Opc.Ua
 {
@@ -117,7 +116,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(context));
             }
 
-            using (var  decoder = new JsonDecoder(Encoding.UTF8.GetString(buffer), context))
+            using (var decoder = new JsonDecoder(Encoding.UTF8.GetString(buffer), context))
             {
                 // decode the actual message.
                 var message = new SessionLessServiceMessage();

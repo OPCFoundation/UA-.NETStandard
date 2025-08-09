@@ -32,7 +32,7 @@ using Opc.Ua.PubSub.Configuration;
 
 namespace Opc.Ua.PubSub.Tests.Configuration
 {
-    partial class PubSubStateMachineTests
+    public partial class PubSubStateMachineTests
     {
         [Test(Description = "Validate transition of state Disabled_0 to Paused_1 on Reader")]
         public void ValidateDisabled_0ToPause_1_Reader()

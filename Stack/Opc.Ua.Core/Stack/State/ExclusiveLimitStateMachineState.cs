@@ -10,10 +10,6 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System;
-using System.Collections.Generic;
-using System.Text;
-
 namespace Opc.Ua
 {
     public partial class ExclusiveLimitStateMachineState

@@ -5,14 +5,14 @@
 
 #if NET6_0_OR_GREATER
 
-using Moq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Assert = NUnit.Framework.Legacy.ClassicAssert;
+using Moq;
 using NUnit.Framework;
+using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.Tests
 {

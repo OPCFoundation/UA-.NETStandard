@@ -27,10 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using System.Collections.Generic;
-using System.Text;
-
 namespace Opc.Ua.Server
 {
     /// <summary>
@@ -87,7 +83,8 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <value>The operation context.</value>
         public new OperationContext OperationContext
-        { get => base.OperationContext as OperationContext; set => base.OperationContext = value;
+        {
+            get => base.OperationContext as OperationContext; set => base.OperationContext = value;
         }
 
         /// <summary>

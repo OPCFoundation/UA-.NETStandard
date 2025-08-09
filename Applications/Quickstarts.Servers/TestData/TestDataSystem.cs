@@ -29,13 +29,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Xml;
 using Opc.Ua;
-using Opc.Ua.Server;
 
 namespace TestData
 {

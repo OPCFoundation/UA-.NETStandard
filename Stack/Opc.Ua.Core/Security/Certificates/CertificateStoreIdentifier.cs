@@ -130,7 +130,8 @@ namespace Opc.Ua
         /// Options that can be used to suppress certificate validation errors.
         /// </summary>
         public CertificateValidationOptions ValidationOptions
-        { get => m_validationOptions; set => m_validationOptions = value;
+        {
+            get => m_validationOptions; set => m_validationOptions = value;
         }
 
         /// <summary>

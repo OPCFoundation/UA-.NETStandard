@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
-using System.Threading;
 
 namespace Quickstarts.Servers
 {

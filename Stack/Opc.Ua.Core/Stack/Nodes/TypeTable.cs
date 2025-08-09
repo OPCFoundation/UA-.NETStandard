@@ -480,7 +480,7 @@ namespace Opc.Ua
             }
 
             // ignore non-types.
-            if ((node.NodeClass & (NodeClass.ObjectType | NodeClass.VariableType | NodeClass.ReferenceType | NodeClass.DataType)) == 0)
+            if (((int)node.NodeClass & ((int)NodeClass.ObjectType | (int)NodeClass.VariableType | (int)NodeClass.ReferenceType | (int)NodeClass.DataType)) == 0)
             {
                 return;
             }
@@ -554,7 +554,7 @@ namespace Opc.Ua
                 }
 
                 // add reference type.
-                if ((node.NodeClass & NodeClass.ReferenceType) != 0)
+                if (((int)node.NodeClass & (int)NodeClass.ReferenceType) != 0)
                 {
                     if (!QualifiedName.IsNull(typeInfo.BrowseName))
                     {

@@ -12,7 +12,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
@@ -117,7 +116,8 @@ namespace Opc.Ua
         /// The validation options that can be used to suppress certificate validation errors.
         /// </value>
         public CertificateValidationOptions ValidationOptions
-        { get => m_validationOptions; set => m_validationOptions = value;
+        {
+            get => m_validationOptions; set => m_validationOptions = value;
         }
 
         /// <summary>

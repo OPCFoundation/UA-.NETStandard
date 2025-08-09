@@ -33,7 +33,6 @@ using System.IO;
 using System.Reflection;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
-using Opc.Ua.Configuration;
 
 namespace Opc.Ua.Gds.Client
 {

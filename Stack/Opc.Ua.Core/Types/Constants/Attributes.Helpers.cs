@@ -10,9 +10,7 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-using System;
 using System.Reflection;
-using System.Xml;
 
 namespace Opc.Ua
 {

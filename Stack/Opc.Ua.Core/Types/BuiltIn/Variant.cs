@@ -839,7 +839,8 @@ namespace Opc.Ua
         /// The value stored -as <see cref="object"/>- within the Variant object.
         /// </remarks>
         public object Value
-        { get => m_value; set => Set(value, TypeInfo.Construct(value));
+        {
+            get => m_value; set => Set(value, TypeInfo.Construct(value));
         }
 
         /// <summary>

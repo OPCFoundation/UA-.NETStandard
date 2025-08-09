@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using Opc.Ua;
 
 namespace Opc.Ua.Fuzzing
 {

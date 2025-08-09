@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Running;
 

@@ -12,7 +12,6 @@
 
 using System;
 using System.Reflection;
-using System.Xml;
 
 namespace Opc.Ua
 {

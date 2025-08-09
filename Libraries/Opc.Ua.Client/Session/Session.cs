@@ -489,7 +489,8 @@ namespace Opc.Ua.Client
         /// Gets the local handle assigned to the session.
         /// </summary>
         public object Handle
-        { get => m_handle; set => m_handle = value;
+        {
+            get => m_handle; set => m_handle = value;
         }
 
         /// <summary>
@@ -578,7 +579,8 @@ namespace Opc.Ua.Client
         /// be transferred or for durable subscriptions.
         /// </remarks>
         public bool DeleteSubscriptionsOnClose
-        { get => m_deleteSubscriptionsOnClose; set => m_deleteSubscriptionsOnClose = value;
+        {
+            get => m_deleteSubscriptionsOnClose; set => m_deleteSubscriptionsOnClose = value;
         }
 
         /// <summary>
@@ -589,7 +591,8 @@ namespace Opc.Ua.Client
         /// be transferred after reconnect. Service must be supported by server.
         /// </remarks>
         public bool TransferSubscriptionsOnReconnect
-        { get => m_transferSubscriptionsOnReconnect; set => m_transferSubscriptionsOnReconnect = value;
+        {
+            get => m_transferSubscriptionsOnReconnect; set => m_transferSubscriptionsOnReconnect = value;
         }
 
         /// <summary>
@@ -601,7 +604,8 @@ namespace Opc.Ua.Client
         /// Gets or Sets the default subscription for the session.
         /// </summary>
         public Subscription DefaultSubscription
-        { get => m_defaultSubscription; set => m_defaultSubscription = value;
+        {
+            get => m_defaultSubscription; set => m_defaultSubscription = value;
         }
 
         /// <summary>
@@ -1289,7 +1293,8 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
         public event RenewUserIdentityEventHandler RenewUserIdentity
-        { add => m_RenewUserIdentity += value; remove => m_RenewUserIdentity -= value;
+        {
+            add => m_RenewUserIdentity += value; remove => m_RenewUserIdentity -= value;
         }
 
         private event RenewUserIdentityEventHandler m_RenewUserIdentity;

@@ -30,7 +30,6 @@
 using System;
 using System.Buffers;
 using NUnit.Framework;
-using NUnit.Framework.Internal;
 
 namespace Opc.Ua.Buffers.Tests
 {

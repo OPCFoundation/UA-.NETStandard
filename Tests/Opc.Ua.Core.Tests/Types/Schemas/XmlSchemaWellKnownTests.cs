@@ -30,12 +30,8 @@
 using System.IO;
 using System.IO.Compression;
 using System.Reflection;
-using System.Runtime.Serialization;
 using System.Xml;
-using Castle.Components.DictionaryAdapter.Xml;
 using NUnit.Framework;
-using NUnit.Framework.Constraints;
-using Opc.Ua.Core.Tests.Stack.Schema;
 using Opc.Ua.Schema.Xml;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 

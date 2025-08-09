@@ -162,7 +162,7 @@ namespace Opc.Ua.Security.Certificates
         public static X509Extension BuildX509CRLDistributionPoints(
             this string distributionPoint)
         {
-            return BuildX509CRLDistributionPoints(new string[] { distributionPoint });
+            return BuildX509CRLDistributionPoints([distributionPoint]);
         }
 
         /// <summary>

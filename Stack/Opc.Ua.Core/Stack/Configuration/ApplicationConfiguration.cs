@@ -84,7 +84,8 @@ namespace Opc.Ua
         /// Gets or sets the certificate validator which is configured to use.
         /// </summary>
         public CertificateValidator CertificateValidator
-        { get => m_certificateValidator; set => m_certificateValidator = value;
+        {
+            get => m_certificateValidator; set => m_certificateValidator = value;
         }
 
         /// <summary>

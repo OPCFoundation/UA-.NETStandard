@@ -434,7 +434,8 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The parent.</value>
         public ContentFilter Parent
-        { get => m_parent; internal set => m_parent = value;
+        {
+            get => m_parent; internal set => m_parent = value;
         }
 
         /// <summary>
@@ -726,7 +727,8 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The parent element.</value>
         public ContentFilterElement Parent
-        { get => m_parent; internal set => m_parent = value;
+        {
+            get => m_parent; internal set => m_parent = value;
         }
 
         /// <summary>

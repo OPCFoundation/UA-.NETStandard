@@ -12,10 +12,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Reflection;
-using System.Xml;
-using Opc.Ua;
 
 namespace Opc.Ua
 {
@@ -72,7 +68,8 @@ namespace Opc.Ua
         /// The namespace index used to qualify the element browse names and node ids.
         /// </summary>
         protected ushort ElementNamespaceIndex
-        { get => m_elementNamespaceIndex; set => m_elementNamespaceIndex = value;
+        {
+            get => m_elementNamespaceIndex; set => m_elementNamespaceIndex = value;
         }
 
         /// <summary>
@@ -104,7 +101,8 @@ namespace Opc.Ua
         /// The last state that the machine was in.
         /// </summary>
         protected FiniteStateVariableState LastState
-        { get => m_lastState; set => m_lastState = value;
+        {
+            get => m_lastState; set => m_lastState = value;
         }
 
         /// <summary>
@@ -375,7 +373,8 @@ namespace Opc.Ua
         /// If true transition events will not be produced by the state machine.
         /// </summary>
         public bool SuppressTransitionEvents
-        { get => m_suppressTransitionEvents; set => m_suppressTransitionEvents = value;
+        {
+            get => m_suppressTransitionEvents; set => m_suppressTransitionEvents = value;
         }
 
         /// <summary>

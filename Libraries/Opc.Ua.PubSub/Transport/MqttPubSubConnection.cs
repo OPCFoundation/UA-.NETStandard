@@ -39,10 +39,7 @@ using MQTTnet.Client;
 using MQTTnet.Formatter;
 using MQTTnet.Protocol;
 using Opc.Ua.PubSub.Encoding;
-using Opc.Ua.PubSub.PublishedData;
 using DataSet = Opc.Ua.PubSub.PublishedData.DataSet;
-using JsonNetworkMessage = Opc.Ua.PubSub.Encoding.JsonNetworkMessage;
-using JsonDataSetMessage = Opc.Ua.PubSub.Encoding.JsonDataSetMessage;
 using System.Buffers;
 
 namespace Opc.Ua.PubSub.Transport

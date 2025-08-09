@@ -127,7 +127,8 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The handle.</value>
         public object Handle
-        { get => m_handle; set => m_handle = value;
+        {
+            get => m_handle; set => m_handle = value;
         }
 
         /// <summary>
@@ -201,7 +202,8 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The write mask.</value>
         AttributeWriteMask ILocalNode.WriteMask
-        { get => (AttributeWriteMask)m_writeMask; set => m_writeMask = (uint)value;
+        {
+            get => (AttributeWriteMask)m_writeMask; set => m_writeMask = (uint)value;
         }
 
         /// <summary>
@@ -209,7 +211,8 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The user write mask.</value>
         AttributeWriteMask ILocalNode.UserWriteMask
-        { get => (AttributeWriteMask)m_userWriteMask; set => m_userWriteMask = (uint)value;
+        {
+            get => (AttributeWriteMask)m_userWriteMask; set => m_userWriteMask = (uint)value;
         }
 
         /// <summary>

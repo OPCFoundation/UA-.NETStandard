@@ -201,8 +201,8 @@ namespace Opc.Ua.Server.Tests
 
                         allResults.AddRange(browseResultCollection);
                     }
-                    catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadEncodingLimitsExceeded ||
-                            sre.StatusCode == StatusCodes.BadResponseTooLarge)
+                    catch (ServiceResultException sre) when (sre.StatusCode is StatusCodes.BadEncodingLimitsExceeded or
+                            StatusCodes.BadResponseTooLarge)
                     {
                         // try to address by overriding operation limit
                         maxNodesPerBrowse = maxNodesPerBrowse == 0 ?
@@ -522,7 +522,7 @@ namespace Opc.Ua.Server.Tests
                 };
             response = services.Publish(requestHeader, acknowledgements,
                 out uint publishedId, out UInt32Collection availableSequenceNumbers,
-                out bool moreNotifications, out NotificationMessage notificationMessage,
+                out _, out _,
                 out statuses, out diagnosticInfos);
             ServerFixtureUtils.ValidateResponse(response, statuses, acknowledgements);
             ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknowledgements, response.StringTable);
@@ -576,9 +576,9 @@ namespace Opc.Ua.Server.Tests
             requestHeader.Timestamp = DateTime.UtcNow;
             var acknowledgements = new SubscriptionAcknowledgementCollection();
             response = services.Publish(requestHeader, acknowledgements,
-                out uint publishedId, out UInt32Collection availableSequenceNumbers,
-                out bool moreNotifications, out NotificationMessage notificationMessage,
-                out StatusCodeCollection _, out diagnosticInfos);
+                out uint publishedId, out _,
+                out _, out NotificationMessage notificationMessage,
+                out _, out diagnosticInfos);
             Assert.AreEqual((StatusCode)StatusCodes.Good, response.ServiceResult);
             ServerFixtureUtils.ValidateResponse(response);
             ServerFixtureUtils.ValidateDiagnosticInfos(diagnosticInfos, acknowledgements, response.StringTable);
@@ -594,7 +594,7 @@ namespace Opc.Ua.Server.Tests
             //Assert.AreEqual(0, availableSequenceNumbers.Count);
 
             requestHeader.Timestamp = DateTime.UtcNow;
-            response = services.DeleteSubscriptions(requestHeader, subscriptionIds, out StatusCodeCollection statusResults, out diagnosticInfos);
+            response = services.DeleteSubscriptions(requestHeader, subscriptionIds, out _, out _);
             Assert.AreEqual((StatusCode)StatusCodes.Good, response.ServiceResult);
         }
 
@@ -653,11 +653,10 @@ namespace Opc.Ua.Server.Tests
             const uint maxNotificationPerPublish = 0;
             const byte priority = 128;
             const bool enabled = false;
-
             ResponseHeader response = services.CreateSubscription(requestHeader,
                 publishingInterval, lifetimeCount, maxKeepAliveCount,
                 maxNotificationPerPublish, enabled, priority,
-                out uint id, out double revisedPublishingInterval, out uint revisedLifetimeCount, out uint revisedMaxKeepAliveCount);
+                out uint id, out _, out _, out _);
             ServerFixtureUtils.ValidateResponse(response);
 
             return id;
@@ -698,7 +697,7 @@ namespace Opc.Ua.Server.Tests
         {
             var whereClause = new ContentFilter();
 
-            whereClause.Push(FilterOperator.Equals, new FilterOperand[] {
+            whereClause.Push(FilterOperator.Equals, [
                 new SimpleAttributeOperand() {
                     AttributeId = Attributes.Value,
                     TypeDefinitionId = ObjectTypeIds.BaseEventType,
@@ -707,7 +706,7 @@ namespace Opc.Ua.Server.Tests
                 new LiteralOperand {
                     Value = new Variant(new NodeId(ObjectTypeIds.BaseEventType))
                 }
-            });
+            ]);
 
             return new MonitoredItemCreateRequest() {
                 ItemToMonitor = new ReadValueId() {

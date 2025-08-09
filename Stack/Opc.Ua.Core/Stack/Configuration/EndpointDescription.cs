@@ -11,9 +11,7 @@
 */
 
 using System;
-using System.Linq;
 using System.Xml;
-using Opc.Ua.Security;
 
 namespace Opc.Ua
 {
@@ -73,7 +71,8 @@ namespace Opc.Ua
         /// The proxy url to use when connecting to the endpoint.
         /// </summary>
         public Uri ProxyUrl
-        { get => m_proxyUrl; set => m_proxyUrl = value;
+        {
+            get => m_proxyUrl; set => m_proxyUrl = value;
         }
 
         /// <summary>

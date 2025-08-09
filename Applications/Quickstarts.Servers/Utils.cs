@@ -34,7 +34,6 @@ using System.Linq;
 using System.Reflection;
 using Opc.Ua;
 using Opc.Ua.Server;
-using Quickstarts.ReferenceServer;
 
 namespace Quickstarts.Servers
 {

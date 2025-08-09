@@ -11,7 +11,6 @@
 */
 
 using System;
-using System.Diagnostics;
 using System.Security.Cryptography;
 
 namespace Opc.Ua.Bindings

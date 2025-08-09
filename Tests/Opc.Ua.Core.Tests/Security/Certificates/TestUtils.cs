@@ -27,9 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace Opc.Ua.Core.Tests

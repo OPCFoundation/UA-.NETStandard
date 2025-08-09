@@ -1185,7 +1185,7 @@ namespace Opc.Ua.Export
         /// <summary>
         /// Exports the array dimensions.
         /// </summary>
-        private static string Export(IList<uint> arrayDimensions)
+        private static string Export(ReadOnlyList<uint> arrayDimensions)
         {
             if (arrayDimensions == null)
             {

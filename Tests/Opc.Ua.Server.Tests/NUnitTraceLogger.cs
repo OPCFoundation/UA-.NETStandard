@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Globalization;
 using System.IO;
 
@@ -46,7 +45,6 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         public static NUnitTraceLogger Create(
             TextWriter writer,
-            ApplicationConfiguration config,
             int traceMasks)
         {
             var traceLogger = new NUnitTraceLogger(writer, traceMasks);

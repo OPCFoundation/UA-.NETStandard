@@ -66,7 +66,7 @@ namespace Opc.Ua.Server.Tests
         /// Set up a Server fixture.
         /// </summary>
         [OneTimeSetUp]
-        public async Task OneTimeSetUp()
+        public async Task OneTimeSetUpAsync()
         {
             // start Ref server
             m_fixture = new ServerFixture<ReferenceServer>() {
@@ -240,10 +240,7 @@ namespace Opc.Ua.Server.Tests
             {
                 GetOperationLimits();
             }
-            if (m_referenceDescriptions == null)
-            {
-                m_referenceDescriptions = CommonTestWorkers.BrowseFullAddressSpaceWorker(serverTestServices, m_requestHeader, m_operationLimits);
-            }
+            m_referenceDescriptions ??= CommonTestWorkers.BrowseFullAddressSpaceWorker(serverTestServices, m_requestHeader, m_operationLimits);
 
             // Read all variables
             RequestHeader requestHeader = m_requestHeader;
@@ -328,10 +325,7 @@ namespace Opc.Ua.Server.Tests
             {
                 GetOperationLimits();
             }
-            if (m_referenceDescriptions == null)
-            {
-                m_referenceDescriptions = CommonTestWorkers.BrowseFullAddressSpaceWorker(serverTestServices, m_requestHeader, m_operationLimits);
-            }
+            m_referenceDescriptions ??= CommonTestWorkers.BrowseFullAddressSpaceWorker(serverTestServices, m_requestHeader, m_operationLimits);
             _ = CommonTestWorkers.TranslateBrowsePathWorker(serverTestServices, m_referenceDescriptions, m_requestHeader, m_operationLimits);
         }
 
@@ -451,7 +445,7 @@ namespace Opc.Ua.Server.Tests
             {
                 NamespaceTable namespaceUris = m_server.CurrentInstance.NamespaceUris;
                 NodeIdCollection testSetCollection = CommonTestWorkers.NodeIdTestSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).ToArray();
-                testSetCollection.AddRange(CommonTestWorkers.NodeIdTestDataSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)).ToArray());
+                testSetCollection.AddRange(CommonTestWorkers.NodeIdTestDataSetStatic.Select(n => ExpandedNodeId.ToNodeId(n, namespaceUris)));
                 NodeId[] testSet = [.. testSetCollection];
 
                 //Re-use method CreateSubscriptionForTransfer to create a subscription

@@ -29,12 +29,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Reflection;
-using System.Threading;
-using System.Xml;
 using Opc.Ua;
-using Opc.Ua.Server;
 
 namespace MemoryBuffer
 {

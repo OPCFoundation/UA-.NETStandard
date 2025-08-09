@@ -31,7 +31,6 @@ using System;
 using System.Buffers;
 using System.IO;
 using NUnit.Framework;
-using NUnit.Framework.Internal;
 using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Buffers.Tests

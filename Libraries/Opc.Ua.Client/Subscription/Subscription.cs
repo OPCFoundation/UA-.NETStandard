@@ -267,7 +267,8 @@ namespace Opc.Ua.Client
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1009:DeclareEventHandlersCorrectly")]
         public event SubscriptionStateChangedEventHandler StateChanged
-        { add => m_StateChanged += value; remove => m_StateChanged -= value;
+        {
+            add => m_StateChanged += value; remove => m_StateChanged -= value;
         }
 
         /// <summary>
@@ -452,7 +453,8 @@ namespace Opc.Ua.Client
         /// </remarks>
         [DataMember(Name = "RepublishAfterTransfer", Order = 15)]
         public bool RepublishAfterTransfer
-        { get => m_republishAfterTransfer; set => m_republishAfterTransfer = value;
+        {
+            get => m_republishAfterTransfer; set => m_republishAfterTransfer = value;
         }
 
         /// <summary>

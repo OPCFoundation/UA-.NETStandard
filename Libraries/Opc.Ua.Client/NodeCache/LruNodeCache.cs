@@ -31,15 +31,15 @@
 
 #nullable enable
 
-using BitFaster.Caching;
-using BitFaster.Caching.Lfu;
-using BitFaster.Caching.Lru;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using BitFaster.Caching;
+using BitFaster.Caching.Lfu;
+using BitFaster.Caching.Lru;
 
 namespace Opc.Ua.Client
 {

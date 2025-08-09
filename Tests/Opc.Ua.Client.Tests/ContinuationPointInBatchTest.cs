@@ -31,16 +31,13 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
 using NUnit.Framework.Internal;
-using Opc.Ua.Server;
 using Opc.Ua.Server.Tests;
-using Quickstarts.ReferenceServer;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
 
 namespace Opc.Ua.Client.Tests
@@ -179,7 +176,7 @@ namespace Opc.Ua.Client.Tests
                 ServerFixtureWithLimits.TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security;
             }
 
-            await ServerFixtureWithLimits.LoadConfiguration(PkiRoot).ConfigureAwait(false);
+            await ServerFixtureWithLimits.LoadConfigurationAsync(PkiRoot).ConfigureAwait(false);
             ServerFixtureWithLimits.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
             ServerFixtureWithLimits.Config.TransportQuotas.MaxByteStringLength =
             ServerFixtureWithLimits.Config.TransportQuotas.MaxStringLength = TransportQuotaMaxStringLength;

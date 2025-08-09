@@ -42,9 +42,7 @@ namespace Opc.Ua.Server.Tests
         /// Create a nunit trace logger which replaces the default logging.
         /// </summary>
         public static NUnitTestLogger<T> Create(
-            TextWriter writer,
-            ApplicationConfiguration config,
-            int traceMasks)
+            TextWriter writer)
         {
             var traceLogger = new NUnitTestLogger<T>(writer);
 

@@ -57,7 +57,8 @@ namespace Opc.Ua.Bindings
         /// The server certificate chain.
         /// </summary>
         protected X509Certificate2Collection ServerCertificateChain
-        { get => m_serverCertificateChain; set => m_serverCertificateChain = value;
+        {
+            get => m_serverCertificateChain; set => m_serverCertificateChain = value;
         }
 
         /// <summary>
@@ -79,14 +80,16 @@ namespace Opc.Ua.Bindings
         /// The certificate for the client.
         /// </summary>
         protected X509Certificate2 ClientCertificate
-        { get => m_clientCertificate; set => m_clientCertificate = value;
+        {
+            get => m_clientCertificate; set => m_clientCertificate = value;
         }
 
         /// <summary>
         /// The client certificate chain.
         /// </summary>
         internal X509Certificate2Collection ClientCertificateChain
-        { get => m_clientCertificateChain; set => m_clientCertificateChain = value;
+        {
+            get => m_clientCertificateChain; set => m_clientCertificateChain = value;
         }
 
         /// <summary>

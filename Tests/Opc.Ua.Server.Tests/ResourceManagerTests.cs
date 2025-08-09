@@ -1,9 +1,4 @@
-using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using BenchmarkDotNet.Attributes;
 using Moq;
 using NUnit.Framework;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
@@ -96,7 +91,7 @@ namespace Opc.Ua.Server.Tests
             LocalizedText resultText = resourceManager.Translate(["mul", "de-DE", "en-US"], defaultText);
 
             // Assert
-            Assert.AreEqual("{\"t\":[[\"en-US\",\"Hello\"],[\"de-DE\",\"Hallo\"]]}", resultText.Text);
+            Assert.AreEqual(/*lang=json,strict*/ "{\"t\":[[\"en-US\",\"Hello\"],[\"de-DE\",\"Hallo\"]]}", resultText.Text);
             Assert.AreEqual("mul", resultText.Locale);
         }
 
@@ -141,7 +136,7 @@ namespace Opc.Ua.Server.Tests
             LocalizedText resultText = resourceManager.Translate(["mul", "de-DE", "en-US"], defaultText);
 
             // Assert
-            Assert.AreEqual("{\"t\":[[\"en-US\",\"Hello\"],[\"de-DE\",\"Hallo\"]]}", resultText.Text);
+            Assert.AreEqual(/*lang=json,strict*/ "{\"t\":[[\"en-US\",\"Hello\"],[\"de-DE\",\"Hallo\"]]}", resultText.Text);
             Assert.AreEqual("mul", resultText.Locale);
         }
 
@@ -157,7 +152,7 @@ namespace Opc.Ua.Server.Tests
             LocalizedText resultText = resourceManager.Translate(["mul", "de-DE", "en-US"], "greeting", null);
 
             // Assert
-            Assert.AreEqual("{\"t\":[[\"de-DE\",\"Hallo\"],[\"en-US\",\"Hello\"]]}", resultText.Text);
+            Assert.AreEqual(/*lang=json,strict*/ "{\"t\":[[\"de-DE\",\"Hallo\"],[\"en-US\",\"Hello\"]]}", resultText.Text);
             Assert.AreEqual("mul", resultText.Locale);
         }
 
@@ -173,7 +168,7 @@ namespace Opc.Ua.Server.Tests
             LocalizedText resultText = resourceManager.Translate(["mul"], "greeting", null);
 
             // Assert
-            Assert.AreEqual("{\"t\":[[\"de-DE\",\"Hallo\"],[\"en-US\",\"Hello\"]]}", resultText.Text);
+            Assert.AreEqual(/*lang=json,strict*/ "{\"t\":[[\"de-DE\",\"Hallo\"],[\"en-US\",\"Hello\"]]}", resultText.Text);
             Assert.AreEqual("mul", resultText.Locale);
         }
 
@@ -189,7 +184,7 @@ namespace Opc.Ua.Server.Tests
             LocalizedText resultText = resourceManager.Translate(["mul"], "greeting", null, "User");
 
             // Assert
-            Assert.AreEqual("{\"t\":[[\"de-DE\",\"Hallo User\"],[\"en-US\",\"Hello User\"]]}", resultText.Text);
+            Assert.AreEqual(/*lang=json,strict*/ "{\"t\":[[\"de-DE\",\"Hallo User\"],[\"en-US\",\"Hello User\"]]}", resultText.Text);
             Assert.AreEqual("mul", resultText.Locale);
         }
     }
