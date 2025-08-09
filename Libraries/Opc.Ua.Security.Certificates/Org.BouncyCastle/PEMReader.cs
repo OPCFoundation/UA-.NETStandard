@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -28,12 +28,13 @@
  * ======================================================================*/
 
 #if !NETSTANDARD2_1 && !NET5_0_OR_GREATER
-using System;
 using System.IO;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+#if NET472_OR_GREATER
 using Opc.Ua.Security.Certificates.BouncyCastle;
+#endif
 using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.OpenSsl;
 using Org.BouncyCastle.Security;
@@ -52,38 +53,37 @@ namespace Opc.Ua.Security.Certificates
         /// <returns>True if a private key is found.</returns>
         public static bool ContainsPrivateKey(byte[] pemDataBlob)
         {
-            using (var ms = new MemoryStream(pemDataBlob))
-            using (var reader = new StreamReader(ms, Encoding.UTF8, true))
+            using var ms = new MemoryStream(pemDataBlob);
+            using var reader = new StreamReader(ms, Encoding.UTF8, true);
+            var pemReader = new PemReader(reader);
+            try
             {
-                var pemReader = new PemReader(reader);
-                try
+                object pemObject = pemReader.ReadObject();
+                while (pemObject != null)
                 {
-                    object pemObject = pemReader.ReadObject();
-                    while (pemObject != null)
+                    // Check for AsymmetricCipherKeyPair (private key)
+                    if (pemObject is Org.BouncyCastle.Crypto.AsymmetricCipherKeyPair)
                     {
-                        // Check for AsymmetricCipherKeyPair (private key)
-                        if (pemObject is Org.BouncyCastle.Crypto.AsymmetricCipherKeyPair)
-                        {
-                            return true;
-                        }
-                        // Check for direct private key parameters
-                        if (pemObject is RsaPrivateCrtKeyParameters)
-                        {
-                            return true;
-                        }
-#if NET472_OR_GREATER
-                        if (pemObject is ECPrivateKeyParameters)
-                        {
-                            return true;
-                        }
-#endif
-                        pemObject = pemReader.ReadObject();
+                        return true;
                     }
+                    // Check for direct private key parameters
+                    if (pemObject is RsaPrivateCrtKeyParameters)
+                    {
+                        return true;
+                    }
+#if NET472_OR_GREATER
+
+                    if (pemObject is ECPrivateKeyParameters)
+                    {
+                        return true;
+                    }
+#endif
+                    pemObject = pemReader.ReadObject();
                 }
-                finally
-                {
-                    pemReader.Reader.Dispose();
-                }
+            }
+            finally
+            {
+                pemReader.Reader.Dispose();
             }
             return false;
         }
@@ -170,61 +170,59 @@ namespace Opc.Ua.Security.Certificates
             string password = null)
         {
             PemReader pemReader;
-            using (var pemStreamReader = new StreamReader(new MemoryStream(pemDataBlob), Encoding.UTF8, true))
+            using var pemStreamReader = new StreamReader(new MemoryStream(pemDataBlob), Encoding.UTF8, true);
+            if (string.IsNullOrEmpty(password))
             {
-                if (string.IsNullOrEmpty(password))
-                {
-                    pemReader = new PemReader(pemStreamReader);
-                }
-                else
-                {
-                    var pwFinder = new Password(password.ToCharArray());
-                    pemReader = new PemReader(pemStreamReader, pwFinder);
-                }
+                pemReader = new PemReader(pemStreamReader);
+            }
+            else
+            {
+                var pwFinder = new Password(password.ToCharArray());
+                pemReader = new PemReader(pemStreamReader, pwFinder);
+            }
 
-                AsymmetricAlgorithm key = null;
-                try
+            AsymmetricAlgorithm key = null;
+            try
+            {
+                // find the private key in the PEM blob
+                object pemObject = pemReader.ReadObject();
+                while (pemObject != null)
                 {
-                    // find the private key in the PEM blob
-                    object pemObject = pemReader.ReadObject();
-                    while (pemObject != null)
+                    if (pemObject is Org.BouncyCastle.Crypto.AsymmetricCipherKeyPair keypair)
                     {
-                        if (pemObject is Org.BouncyCastle.Crypto.AsymmetricCipherKeyPair keypair)
-                        {
-                            pemObject = keypair.Private;
-                        }
+                        pemObject = keypair.Private;
+                    }
 
-                        // Check for an RSA private key
-                        if (pemObject is RsaPrivateCrtKeyParameters rsaParams)
-                        {
-                            var rsa = RSA.Create();
-                            rsa.ImportParameters(DotNetUtilities.ToRSAParameters(rsaParams));
-                            key = rsa;
-                            break;
-                        }
+                    // Check for an RSA private key
+                    if (pemObject is RsaPrivateCrtKeyParameters rsaParams)
+                    {
+                        var rsa = RSA.Create();
+                        rsa.ImportParameters(DotNetUtilities.ToRSAParameters(rsaParams));
+                        key = rsa;
+                        break;
+                    }
 #if NET472_OR_GREATER
-                        // Check for an EC private key
-                        if (pemObject is ECPrivateKeyParameters ecParams)
-                        {
-                            key = CreateECDsaFromECPrivateKey(ecParams);
-                            break;
-                        }
+                    // Check for an EC private key
+                    if (pemObject is ECPrivateKeyParameters ecParams)
+                    {
+                        key = CreateECDsaFromECPrivateKey(ecParams);
+                        break;
+                    }
 #endif
 
-                        // read next object
-                        pemObject = pemReader.ReadObject();
-                    }
+                    // read next object
+                    pemObject = pemReader.ReadObject();
                 }
-                finally
-                {
-                    pemReader.Reader.Dispose();
-                }
-                if (key == null)
-                {
-                    throw new CryptographicException("PEM data blob does not contain a private key.");
-                }
-                return key;
             }
+            finally
+            {
+                pemReader.Reader.Dispose();
+            }
+            if (key == null)
+            {
+                throw new CryptographicException("PEM data blob does not contain a private key.");
+            }
+            return key;
         }
 
 #if NET472_OR_GREATER

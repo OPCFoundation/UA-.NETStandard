@@ -45,18 +45,8 @@ namespace Opc.Ua.Server
         /// </summary>
         public SessionPublishQueue(IServerInternal server, ISession session, int maxPublishRequests)
         {
-            if (server == null)
-            {
-                throw new ArgumentNullException(nameof(server));
-            }
-
-            if (session == null)
-            {
-                throw new ArgumentNullException(nameof(session));
-            }
-
-            m_server = server;
-            m_session = session;
+            m_server = server ?? throw new ArgumentNullException(nameof(server));
+            m_session = session ?? throw new ArgumentNullException(nameof(session));
             m_publishEvent = new ManualResetEvent(false);
             m_queuedRequests = new LinkedList<QueuedRequest>();
             m_queuedSubscriptions = [];

@@ -129,7 +129,7 @@ namespace Opc.Ua
                 return;
             }
 
-            if (!(Activator.CreateInstance(systemType) is IEncodeable encodeable))
+            if (Activator.CreateInstance(systemType) is not IEncodeable encodeable)
             {
                 return;
             }

@@ -78,7 +78,10 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context.</param>
         [OnDeserializing()]
-        public void Initialize(StreamingContext context) => Initialize();
+        public void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
 
         /// <summary>
         /// Gets an object used to synchronize access to the properties dictionary.
@@ -298,7 +301,10 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context.</param>
         [OnDeserializing()]
-        public void Initialize(StreamingContext context) => Initialize();
+        public void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
 
         /// <summary>
         /// The default timeout to use when sending requests (in milliseconds).
@@ -398,7 +404,10 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context.</param>
         [OnDeserializing()]
-        public void Initialize(StreamingContext context) => Initialize();
+        public void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
 
         /// <summary>
         /// The output file used to log the trace information.
@@ -555,7 +564,10 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context.</param>
         [OnDeserializing()]
-        public void Initialize(StreamingContext context) => Initialize();
+        public void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
 
         /// <summary>
         /// Calculates the security level, given the security mode and policy
@@ -647,7 +659,10 @@ namespace Opc.Ua
         /// Initializes the object during deserialization.
         /// </summary>
         [OnDeserializing()]
-        public void Initialize(StreamingContext context) => Initialize();
+        public void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
 
         /// <summary>
         /// The application instance certificate.
@@ -1020,7 +1035,10 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context.</param>
         [OnDeserializing()]
-        public void Initialize(StreamingContext context) => Initialize();
+        public void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
 
         /// <summary>
         /// The first sampling rate in the group (in milliseconds).
@@ -1109,7 +1127,10 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context.</param>
         [OnDeserializing()]
-        public void Initialize(StreamingContext context) => Initialize();
+        public void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
 
         /// <summary>
         /// Remove unsupported security policies and expand wild cards.
@@ -1310,7 +1331,10 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context.</param>
         [OnDeserializing()]
-        public new void Initialize(StreamingContext context) => Initialize();
+        public new void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
 
         /// <summary>
         /// The user tokens accepted by the server.
@@ -1776,7 +1800,10 @@ namespace Opc.Ua
         /// Initializes the object during deserialization.
         /// </summary>
         [OnDeserializing]
-        private void Initialize(StreamingContext context) => Initialize();
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
 
         /// <summary>
         /// Sets private members to default values.
@@ -1832,7 +1859,10 @@ namespace Opc.Ua
         /// Initializes the object during deserialization.
         /// </summary>
         [OnDeserializing]
-        private void Initialize(StreamingContext context) => Initialize();
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
 
         /// <summary>
         /// Sets private members to default values.
@@ -1945,7 +1975,10 @@ namespace Opc.Ua
         /// Initializes the object during deserialization.
         /// </summary>
         [OnDeserializing]
-        private void Initialize(StreamingContext context) => Initialize();
+        private void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
 
         /// <summary>
         /// Sets private members to default values.
@@ -2043,7 +2076,10 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context.</param>
         [OnDeserializing()]
-        public void Initialize(StreamingContext context) => Initialize();
+        public void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
 
         /// <summary>
         /// The default session timeout (in milliseconds).
@@ -2148,7 +2184,10 @@ namespace Opc.Ua
         /// Initializes the object during deserialization.
         /// </summary>
         [OnDeserializing]
-        private static void Initialize(StreamingContext context) => Initialize();
+        private static void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
 
         /// <summary>
         /// Sets private members to default values.
@@ -2195,7 +2234,10 @@ namespace Opc.Ua
         /// Initializes the object during deserialization.
         /// </summary>
         [OnDeserializing]
-        private static void Initialize(StreamingContext context) => Initialize();
+        private static void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
 
         /// <summary>
         /// Sets private members to default values.
@@ -2266,7 +2308,10 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context.</param>
         [OnDeserializing()]
-        public new void Initialize(StreamingContext context) => Initialize();
+        public new void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
 
         /// <summary>
         /// The localized names for the discovery server.
@@ -2325,7 +2370,10 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context.</param>
         [OnDeserializing()]
-        public void Initialize(StreamingContext context) => Initialize();
+        public void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
 
         /// <summary>
         /// Gets or sets the application URI of the server which the registration applies to.
@@ -2471,7 +2519,10 @@ namespace Opc.Ua
         /// Initializes the object during deserialization.
         /// </summary>
         [OnDeserializing()]
-        public void Initialize(StreamingContext context) => Initialize();
+        public void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
 
         /// <summary>
         /// The list of trusted certificates.
@@ -2561,7 +2612,10 @@ namespace Opc.Ua
         /// Initializes the object during deserialization.
         /// </summary>
         [OnDeserializing()]
-        public void Initialize(StreamingContext context) => Initialize();
+        public void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
 
         /// <summary>
         /// The type of certificate store.
@@ -2789,7 +2843,10 @@ namespace Opc.Ua
         /// Called by the .NET framework during deserialization.
         /// </summary>
         [OnDeserializing]
-        public void Initialize(StreamingContext context) => Initialize();
+        public void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
 
         /// <summary>
         /// Sets private members to default values.
@@ -2871,7 +2928,10 @@ namespace Opc.Ua
         /// Called by the .NET framework during deserialization.
         /// </summary>
         [OnDeserializing]
-        public void Initialize(StreamingContext context) => Initialize();
+        public void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
 
         /// <summary>
         /// Sets private members to default values.
@@ -3034,7 +3094,10 @@ namespace Opc.Ua
         /// Called by the .NET framework during deserialization.
         /// </summary>
         [OnDeserializing]
-        public void Initialize(StreamingContext context) => Initialize();
+        public void Initialize(StreamingContext context)
+        {
+            Initialize();
+        }
 
         /// <summary>
         /// Sets private members to default values.

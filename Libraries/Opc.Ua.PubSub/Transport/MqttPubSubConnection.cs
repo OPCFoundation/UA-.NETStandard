@@ -35,12 +35,13 @@ using System.Threading.Tasks;
 using MQTTnet;
 #if !NET8_0_OR_GREATER
 using MQTTnet.Client;
+#else
+using System.Buffers;
 #endif
 using MQTTnet.Formatter;
 using MQTTnet.Protocol;
 using Opc.Ua.PubSub.Encoding;
 using DataSet = Opc.Ua.PubSub.PublishedData.DataSet;
-using System.Buffers;
 
 namespace Opc.Ua.PubSub.Transport
 {
@@ -190,7 +191,7 @@ namespace Opc.Ua.PubSub.Transport
         /// </summary>
         public override IList<UaNetworkMessage> CreateNetworkMessages(WriterGroupDataType writerGroupConfiguration, WriterGroupPublishState state)
         {
-            if (!(ExtensionObject.ToEncodeable(writerGroupConfiguration.TransportSettings) is BrokerWriterGroupTransportDataType))
+            if (ExtensionObject.ToEncodeable(writerGroupConfiguration.TransportSettings) is not BrokerWriterGroupTransportDataType)
             {
                 //Wrong configuration of writer group MessageSettings
                 return null;
@@ -327,8 +328,8 @@ namespace Opc.Ua.PubSub.Transport
 
             lock (Lock)
             {
-                if (!(ExtensionObject.ToEncodeable(
-                    PubSubConnectionConfiguration.Address) is NetworkAddressUrlDataType networkAddressUrlState))
+                if (ExtensionObject.ToEncodeable(
+                    PubSubConnectionConfiguration.Address) is not NetworkAddressUrlDataType networkAddressUrlState)
                 {
                     Utils.Trace(
                         Utils.TraceMasks.Error,
@@ -670,7 +671,7 @@ namespace Opc.Ua.PubSub.Transport
             MqttClientOptions mqttOptions = null;
             var mqttKeepAlive = TimeSpan.FromSeconds(GetWriterGroupsMaxKeepAlive() + m_maxKeepAliveIncrement);
 
-            if (!(ExtensionObject.ToEncodeable(PubSubConnectionConfiguration.Address) is NetworkAddressUrlDataType networkAddressUrlState))
+            if (ExtensionObject.ToEncodeable(PubSubConnectionConfiguration.Address) is not NetworkAddressUrlDataType networkAddressUrlState)
             {
                 Utils.Trace(Utils.TraceMasks.Error,
                     "The configuration for mqttConnection {0} has invalid Address configuration.",
@@ -961,8 +962,7 @@ namespace Opc.Ua.PubSub.Transport
             public override IList<UaNetworkMessage> CreateNetworkMessages(WriterGroupDataType writerGroupConfiguration,
                 WriterGroupPublishState state)
             {
-                if (!(ExtensionObject.ToEncodeable(
-                        writerGroupConfiguration.MessageSettings) is JsonWriterGroupMessageDataType jsonMessageSettings))
+                if (ExtensionObject.ToEncodeable(writerGroupConfiguration.MessageSettings) is not JsonWriterGroupMessageDataType jsonMessageSettings)
                 {
                     //Wrong configuration of writer group MessageSettings
                     return null;
@@ -1092,8 +1092,7 @@ namespace Opc.Ua.PubSub.Transport
             public override IList<UaNetworkMessage> CreateNetworkMessages(WriterGroupDataType writerGroupConfiguration,
                 WriterGroupPublishState state)
             {
-                if (!(ExtensionObject.ToEncodeable(
-                        writerGroupConfiguration.MessageSettings) is UadpWriterGroupMessageDataType uadpMessageSettings))
+                if (ExtensionObject.ToEncodeable(writerGroupConfiguration.MessageSettings) is not UadpWriterGroupMessageDataType uadpMessageSettings)
                 {
                     //Wrong configuration of writer group MessageSettings
                     return null;

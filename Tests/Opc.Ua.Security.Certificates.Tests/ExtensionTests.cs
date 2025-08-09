@@ -51,32 +51,30 @@ namespace Opc.Ua.Security.Certificates.Tests
             CertificateAsset certAsset
             )
         {
-            using (X509Certificate2 x509Cert = X509CertificateLoader.LoadCertificate(certAsset.Cert))
+            using X509Certificate2 x509Cert = X509CertificateLoader.LoadCertificate(certAsset.Cert);
+            Assert.NotNull(x509Cert);
+            TestContext.Out.WriteLine("CertificateAsset:");
+            TestContext.Out.WriteLine(x509Cert);
+            X509SubjectAltNameExtension altName = x509Cert.FindExtension<X509SubjectAltNameExtension>();
+            if (altName != null)
             {
-                Assert.NotNull(x509Cert);
-                TestContext.Out.WriteLine("CertificateAsset:");
-                TestContext.Out.WriteLine(x509Cert);
-                X509SubjectAltNameExtension altName = x509Cert.FindExtension<X509SubjectAltNameExtension>();
-                if (altName != null)
-                {
-                    TestContext.Out.WriteLine("X509SubjectAltNameExtension:");
-                    TestContext.Out.WriteLine(altName?.Format(true));
-                    var ext = new X509Extension(altName.Oid, altName.RawData, altName.Critical);
-                    TestContext.Out.WriteLine(ext.Format(true));
-                }
-                X509AuthorityKeyIdentifierExtension authority = x509Cert.FindExtension<X509AuthorityKeyIdentifierExtension>();
-                if (authority != null)
-                {
-                    TestContext.Out.WriteLine("X509AuthorityKeyIdentifierExtension:");
-                    TestContext.Out.WriteLine(authority?.Format(true));
-                    var ext = new X509Extension(authority.Oid, authority.RawData, authority.Critical);
-                    TestContext.Out.WriteLine(ext.Format(true));
-                }
-                TestContext.Out.WriteLine("All extensions:");
-                foreach (X509Extension extension in x509Cert.Extensions)
-                {
-                    TestContext.Out.WriteLine(extension.Format(true));
-                }
+                TestContext.Out.WriteLine("X509SubjectAltNameExtension:");
+                TestContext.Out.WriteLine(altName?.Format(true));
+                var ext = new X509Extension(altName.Oid, altName.RawData, altName.Critical);
+                TestContext.Out.WriteLine(ext.Format(true));
+            }
+            X509AuthorityKeyIdentifierExtension authority = x509Cert.FindExtension<X509AuthorityKeyIdentifierExtension>();
+            if (authority != null)
+            {
+                TestContext.Out.WriteLine("X509AuthorityKeyIdentifierExtension:");
+                TestContext.Out.WriteLine(authority?.Format(true));
+                var ext = new X509Extension(authority.Oid, authority.RawData, authority.Critical);
+                TestContext.Out.WriteLine(ext.Format(true));
+            }
+            TestContext.Out.WriteLine("All extensions:");
+            foreach (X509Extension extension in x509Cert.Extensions)
+            {
+                TestContext.Out.WriteLine(extension.Format(true));
             }
         }
 

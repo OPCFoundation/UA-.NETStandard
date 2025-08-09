@@ -53,11 +53,9 @@ namespace Opc.Ua.Gds.Tests
             X509Certificate2 certificate = await certificateGroup.CreateCACertificateAsync(configuration.SubjectName, certificateGroup.CertificateTypes[0]).ConfigureAwait(false);
             Assert.NotNull(certificate);
             var certificateStoreIdentifier = new CertificateStoreIdentifier(configuration.TrustedListPath);
-            using (ICertificateStore trustedStore = certificateStoreIdentifier.OpenStore())
-            {
-                X509Certificate2Collection certs = await trustedStore.FindByThumbprintAsync(certificate.Thumbprint).ConfigureAwait(false);
-                Assert.IsTrue(certs.Count == 1);
-            }
+            using ICertificateStore trustedStore = certificateStoreIdentifier.OpenStore();
+            X509Certificate2Collection certs = await trustedStore.FindByThumbprintAsync(certificate.Thumbprint).ConfigureAwait(false);
+            Assert.IsTrue(certs.Count == 1);
         }
 
         [Test]

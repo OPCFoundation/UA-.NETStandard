@@ -263,8 +263,9 @@ namespace Opc.Ua
                     if ((endpointUrl.Scheme == discoveryEndPointUri.Scheme) &&
                         (endpointUrl.Port == discoveryEndPointUri.Port))
                     {
-                        var builder = new UriBuilder(discoveryEndPointUri);
-                        builder.Host = endpointUrl.DnsSafeHost;
+                        var builder = new UriBuilder(discoveryEndPointUri) {
+                            Host = endpointUrl.DnsSafeHost
+                        };
                         discoveryEndPoint.EndpointUrl = builder.Uri.OriginalString;
                     }
 

@@ -1026,7 +1026,7 @@ namespace Opc.Ua.Server
                 var context = new FilterContext(m_server.NamespaceUris, m_server.TypeTree, Session?.PreferredLocales);
 
                 // event filter must be specified.
-                if (!(m_filterToUse is EventFilter filter))
+                if (m_filterToUse is not EventFilter filter)
                 {
                     throw new ServiceResultException(StatusCodes.BadInternalError);
                 }
@@ -1416,12 +1416,12 @@ namespace Opc.Ua.Server
             item.Value = value;
 
             // apply timestamp filter.
-            if (m_timestampsToReturn != TimestampsToReturn.Server && m_timestampsToReturn != TimestampsToReturn.Both)
+            if (m_timestampsToReturn is not TimestampsToReturn.Server and not TimestampsToReturn.Both)
             {
                 item.Value.ServerTimestamp = DateTime.MinValue;
             }
 
-            if (m_timestampsToReturn != TimestampsToReturn.Source && m_timestampsToReturn != TimestampsToReturn.Both)
+            if (m_timestampsToReturn is not TimestampsToReturn.Source and not TimestampsToReturn.Both)
             {
                 item.Value.SourceTimestamp = DateTime.MinValue;
             }

@@ -33,9 +33,12 @@ namespace Opc.Ua
         {
             switch (padding)
             {
-                case Padding.Pkcs1: return RSAEncryptionPadding.Pkcs1;
-                case Padding.OaepSHA1: return RSAEncryptionPadding.OaepSHA1;
-                case Padding.OaepSHA256: return RSAEncryptionPadding.OaepSHA256;
+                case Padding.Pkcs1:
+                    return RSAEncryptionPadding.Pkcs1;
+                case Padding.OaepSHA1:
+                    return RSAEncryptionPadding.OaepSHA1;
+                case Padding.OaepSHA256:
+                    return RSAEncryptionPadding.OaepSHA256;
             }
             throw new ServiceResultException("Invalid Padding");
         }
@@ -45,10 +48,8 @@ namespace Opc.Ua
         /// </summary>
         internal static int GetPlainTextBlockSize(X509Certificate2 encryptingCertificate, Padding padding)
         {
-            using (RSA rsa = encryptingCertificate.GetRSAPublicKey())
-            {
-                return GetPlainTextBlockSize(rsa, padding);
-            }
+            using RSA rsa = encryptingCertificate.GetRSAPublicKey();
+            return GetPlainTextBlockSize(rsa, padding);
         }
 
         /// <summary>
@@ -60,9 +61,12 @@ namespace Opc.Ua
             {
                 switch (padding)
                 {
-                    case Padding.Pkcs1: return (rsa.KeySize / 8) - 11;
-                    case Padding.OaepSHA1: return (rsa.KeySize / 8) - 42;
-                    case Padding.OaepSHA256: return (rsa.KeySize / 8) - 66;
+                    case Padding.Pkcs1:
+                        return (rsa.KeySize / 8) - 11;
+                    case Padding.OaepSHA1:
+                        return (rsa.KeySize / 8) - 42;
+                    case Padding.OaepSHA256:
+                        return (rsa.KeySize / 8) - 66;
                 }
             }
             return -1;
@@ -73,10 +77,8 @@ namespace Opc.Ua
         /// </summary>
         internal static int GetCipherTextBlockSize(X509Certificate2 encryptingCertificate, Padding padding)
         {
-            using (RSA rsa = encryptingCertificate.GetRSAPublicKey())
-            {
-                return GetCipherTextBlockSize(rsa, padding);
-            }
+            using RSA rsa = encryptingCertificate.GetRSAPublicKey();
+            return GetCipherTextBlockSize(rsa, padding);
         }
 
         /// <summary>
@@ -96,14 +98,12 @@ namespace Opc.Ua
         /// </summary>
         internal static int GetSignatureLength(X509Certificate2 signingCertificate)
         {
-            using (RSA rsa = signingCertificate.GetRSAPublicKey())
+            using RSA rsa = signingCertificate.GetRSAPublicKey();
+            if (rsa == null)
             {
-                if (rsa == null)
-                {
-                    throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
-                }
-                return rsa.KeySize / 8;
+                throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
             }
+            return rsa.KeySize / 8;
         }
 
         /// <summary>
@@ -116,16 +116,14 @@ namespace Opc.Ua
             RSASignaturePadding rsaSignaturePadding)
         {
             // extract the private key.
-            using (RSA rsa = signingCertificate.GetRSAPrivateKey())
+            using RSA rsa = signingCertificate.GetRSAPrivateKey();
+            if (rsa == null)
             {
-                if (rsa == null)
-                {
-                    throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No private key for certificate.");
-                }
-
-                // create the signature.
-                return rsa.SignData(dataToSign.Array, dataToSign.Offset, dataToSign.Count, hashAlgorithm, rsaSignaturePadding);
+                throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No private key for certificate.");
             }
+
+            // create the signature.
+            return rsa.SignData(dataToSign.Array, dataToSign.Offset, dataToSign.Count, hashAlgorithm, rsaSignaturePadding);
         }
 
         /// <summary>
@@ -139,16 +137,14 @@ namespace Opc.Ua
             RSASignaturePadding rsaSignaturePadding)
         {
             // extract the public key.
-            using (RSA rsa = signingCertificate.GetRSAPublicKey())
+            using RSA rsa = signingCertificate.GetRSAPublicKey();
+            if (rsa == null)
             {
-                if (rsa == null)
-                {
-                    throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
-                }
-
-                // verify signature.
-                return rsa.VerifyData(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count, signature, hashAlgorithm, rsaSignaturePadding);
+                throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
             }
+
+            // verify signature.
+            return rsa.VerifyData(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count, signature, hashAlgorithm, rsaSignaturePadding);
         }
 
         /// <summary>
@@ -159,35 +155,33 @@ namespace Opc.Ua
             X509Certificate2 encryptingCertificate,
             Padding padding)
         {
-            using (RSA rsa = encryptingCertificate.GetRSAPublicKey())
+            using RSA rsa = encryptingCertificate.GetRSAPublicKey();
+            if (rsa == null)
             {
-                if (rsa == null)
-                {
-                    throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
-                }
-
-                int plaintextBlockSize = GetPlainTextBlockSize(rsa, padding);
-                int blockCount = ((dataToEncrypt.Length + 4) / plaintextBlockSize) + 1;
-                int plainTextSize = blockCount * plaintextBlockSize;
-                int cipherTextSize = blockCount * GetCipherTextBlockSize(rsa, padding);
-
-                byte[] plainText = new byte[plainTextSize];
-
-                // encode length.
-                plainText[0] = (byte)(0x000000FF & dataToEncrypt.Length);
-                plainText[1] = (byte)((0x0000FF00 & dataToEncrypt.Length) >> 8);
-                plainText[2] = (byte)((0x00FF0000 & dataToEncrypt.Length) >> 16);
-                plainText[3] = (byte)((0xFF000000 & dataToEncrypt.Length) >> 24);
-
-                // copy data.
-                Array.Copy(dataToEncrypt, 0, plainText, 4, dataToEncrypt.Length);
-
-                byte[] buffer = new byte[cipherTextSize];
-                ArraySegment<byte> cipherText = Encrypt(new ArraySegment<byte>(plainText), rsa, padding, new ArraySegment<byte>(buffer));
-                System.Diagnostics.Debug.Assert(cipherText.Count == buffer.Length);
-
-                return buffer;
+                throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
             }
+
+            int plaintextBlockSize = GetPlainTextBlockSize(rsa, padding);
+            int blockCount = ((dataToEncrypt.Length + 4) / plaintextBlockSize) + 1;
+            int plainTextSize = blockCount * plaintextBlockSize;
+            int cipherTextSize = blockCount * GetCipherTextBlockSize(rsa, padding);
+
+            byte[] plainText = new byte[plainTextSize];
+
+            // encode length.
+            plainText[0] = (byte)(0x000000FF & dataToEncrypt.Length);
+            plainText[1] = (byte)((0x0000FF00 & dataToEncrypt.Length) >> 8);
+            plainText[2] = (byte)((0x00FF0000 & dataToEncrypt.Length) >> 16);
+            plainText[3] = (byte)((0xFF000000 & dataToEncrypt.Length) >> 24);
+
+            // copy data.
+            Array.Copy(dataToEncrypt, 0, plainText, 4, dataToEncrypt.Length);
+
+            byte[] buffer = new byte[cipherTextSize];
+            ArraySegment<byte> cipherText = Encrypt(new ArraySegment<byte>(plainText), rsa, padding, new ArraySegment<byte>(buffer));
+            System.Diagnostics.Debug.Assert(cipherText.Count == buffer.Length);
+
+            return buffer;
         }
 
         /// <summary>
@@ -242,38 +236,36 @@ namespace Opc.Ua
             X509Certificate2 encryptingCertificate,
             Padding padding)
         {
-            using (RSA rsa = encryptingCertificate.GetRSAPrivateKey())
+            using RSA rsa = encryptingCertificate.GetRSAPrivateKey();
+            if (rsa == null)
             {
-                if (rsa == null)
-                {
-                    throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No private key for certificate.");
-                }
-
-                int plainTextSize = dataToDecrypt.Count / GetCipherTextBlockSize(rsa, padding);
-                plainTextSize *= GetPlainTextBlockSize(encryptingCertificate, padding);
-
-                byte[] buffer = new byte[plainTextSize];
-                ArraySegment<byte> plainText = Decrypt(dataToDecrypt, rsa, padding, new ArraySegment<byte>(buffer));
-                System.Diagnostics.Debug.Assert(plainText.Count == buffer.Length);
-
-                // decode length.
-                int length = 0;
-
-                length += plainText.Array[plainText.Offset + 0];
-                length += plainText.Array[plainText.Offset + 1] << 8;
-                length += plainText.Array[plainText.Offset + 2] << 16;
-                length += plainText.Array[plainText.Offset + 3] << 24;
-
-                if (length > (plainText.Count - plainText.Offset - 4))
-                {
-                    throw ServiceResultException.Create(StatusCodes.BadEndOfStream, "Could not decrypt data. Invalid total length.");
-                }
-
-                byte[] decryptedData = new byte[length];
-                Array.Copy(plainText.Array, plainText.Offset + 4, decryptedData, 0, length);
-
-                return decryptedData;
+                throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No private key for certificate.");
             }
+
+            int plainTextSize = dataToDecrypt.Count / GetCipherTextBlockSize(rsa, padding);
+            plainTextSize *= GetPlainTextBlockSize(encryptingCertificate, padding);
+
+            byte[] buffer = new byte[plainTextSize];
+            ArraySegment<byte> plainText = Decrypt(dataToDecrypt, rsa, padding, new ArraySegment<byte>(buffer));
+            System.Diagnostics.Debug.Assert(plainText.Count == buffer.Length);
+
+            // decode length.
+            int length = 0;
+
+            length += plainText.Array[plainText.Offset + 0];
+            length += plainText.Array[plainText.Offset + 1] << 8;
+            length += plainText.Array[plainText.Offset + 2] << 16;
+            length += plainText.Array[plainText.Offset + 3] << 24;
+
+            if (length > (plainText.Count - plainText.Offset - 4))
+            {
+                throw ServiceResultException.Create(StatusCodes.BadEndOfStream, "Could not decrypt data. Invalid total length.");
+            }
+
+            byte[] decryptedData = new byte[length];
+            Array.Copy(plainText.Array, plainText.Offset + 4, decryptedData, 0, length);
+
+            return decryptedData;
         }
 
         /// <summary>
@@ -345,10 +337,8 @@ namespace Opc.Ua
             // but not supported with Mono
             return !Utils.IsRunningOnMono();
 #else
-            using (var rsa = RSA.Create())
-            {
-                return TryVerifyRSAPssSign(rsa, rsa);
-            }
+            using var rsa = RSA.Create();
+            return TryVerifyRSAPssSign(rsa, rsa);
 #endif
         });
     }

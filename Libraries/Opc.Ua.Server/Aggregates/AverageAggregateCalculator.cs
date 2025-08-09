@@ -203,9 +203,13 @@ namespace Opc.Ua.Server
 
             switch (valueType)
             {
-                case 1: result = total / totalDuration; break;
+                case 1:
+                    result = total / totalDuration;
+                    break;
 
-                case 2: result = total; break;
+                case 2:
+                    result = total;
+                    break;
             }
 
             // set the timestamp and status.

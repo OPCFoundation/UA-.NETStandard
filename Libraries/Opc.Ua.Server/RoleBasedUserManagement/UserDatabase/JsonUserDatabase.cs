@@ -52,7 +52,7 @@ namespace Opc.Ua.Server.UserDatabase
         /// <summary>
         /// Load the JSON application database.
         /// </summary>
-        static public JsonUserDatabase Load(string fileName)
+        public static JsonUserDatabase Load(string fileName)
         {
             if (fileName == null)
             {

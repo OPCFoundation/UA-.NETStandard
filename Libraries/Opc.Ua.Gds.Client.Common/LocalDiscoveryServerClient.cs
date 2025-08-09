@@ -117,7 +117,7 @@ namespace Opc.Ua.Gds.Client
 
         public List<ApplicationDescription> EndFindServers(IAsyncResult result)
         {
-            if (!(result is FindServersData data))
+            if (result is not FindServersData data)
             {
                 throw new ArgumentException("Did not pass the correct IAsyncResult to end method.", nameof(result));
             }

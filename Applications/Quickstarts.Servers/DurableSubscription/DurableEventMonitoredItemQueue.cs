@@ -157,7 +157,7 @@ namespace Quickstarts.Servers
                     //only persist second batch in list, as the first could be needed, for duplicate event check
                     if (m_eventBatches.Count > 1)
                     {
-                        m_batchPersistor.RequestBatchPersist(m_eventBatches[m_eventBatches.Count - 2]);
+                        m_batchPersistor.RequestBatchPersist(m_eventBatches[^2]);
                     }
 
                     m_enqueueBatch = new EventBatch([], kBatchSize, MonitoredItemId);

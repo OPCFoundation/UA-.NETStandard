@@ -351,10 +351,11 @@ namespace Opc.Ua
 
                     if (context != null)
                     {
-                        messageContext = new ServiceMessageContext();
-                        messageContext.NamespaceUris = context.NamespaceUris;
-                        messageContext.ServerUris = context.ServerUris;
-                        messageContext.Factory = context.EncodeableFactory;
+                        messageContext = new ServiceMessageContext {
+                            NamespaceUris = context.NamespaceUris,
+                            ServerUris = context.ServerUris,
+                            Factory = context.EncodeableFactory
+                        };
                     }
 
                     if (extension.Encoding == ExtensionObjectEncoding.Binary)
@@ -1547,11 +1548,11 @@ namespace Opc.Ua
             // apply data encoding.
             if (!QualifiedName.IsNull(dataEncoding))
             {
-                var messageContext = new ServiceMessageContext();
-
-                messageContext.NamespaceUris = context.NamespaceUris;
-                messageContext.ServerUris = context.ServerUris;
-                messageContext.Factory = context.EncodeableFactory;
+                var messageContext = new ServiceMessageContext {
+                    NamespaceUris = context.NamespaceUris,
+                    ServerUris = context.ServerUris,
+                    Factory = context.EncodeableFactory
+                };
 
                 result = EncodeableObject.ApplyDataEncoding(messageContext, dataEncoding, ref value);
 
@@ -1584,7 +1585,7 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.DataType:
-                    if (!(value is NodeId dataType))
+                    if (value is not NodeId dataType)
                     {
                         return StatusCodes.BadTypeMismatch;
                     }

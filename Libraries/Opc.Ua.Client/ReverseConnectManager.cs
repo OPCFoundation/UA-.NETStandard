@@ -503,7 +503,7 @@ namespace Opc.Ua.Client
         {
             var tcs = new TaskCompletionSource<ITransportWaitingConnection>();
             int hashCode = RegisterWaitingConnection(endpointUrl, serverUri,
-                (object sender, ConnectionWaitingEventArgs e) => tcs.TrySetResult(e),
+                (sender, e) => tcs.TrySetResult(e),
                 ReverseConnectStrategy.Once);
 
             Func<Task> listenForCancelTaskFnc = async () => {

@@ -107,8 +107,9 @@ namespace Opc.Ua
                 // set a default value for the server.
                 if (endpoint.Description.Server == null)
                 {
-                    endpoint.Description.Server = new ApplicationDescription();
-                    endpoint.Description.Server.ApplicationType = ApplicationType.Server;
+                    endpoint.Description.Server = new ApplicationDescription {
+                        ApplicationType = ApplicationType.Server
+                    };
                 }
 
                 // set a default for application uri.
@@ -238,11 +239,11 @@ namespace Opc.Ua
         /// </summary>
         public new object MemberwiseClone()
         {
-            var clone = new ConfiguredEndpointCollection();
-
-            clone.m_filepath = m_filepath;
-            clone.m_knownHosts = [.. m_knownHosts];
-            clone.m_defaultConfiguration = (EndpointConfiguration)m_defaultConfiguration.MemberwiseClone();
+            var clone = new ConfiguredEndpointCollection {
+                m_filepath = m_filepath,
+                m_knownHosts = [.. m_knownHosts],
+                m_defaultConfiguration = (EndpointConfiguration)m_defaultConfiguration.MemberwiseClone()
+            };
 
             foreach (ConfiguredEndpoint endpoint in m_endpoints)
             {
@@ -632,11 +633,11 @@ namespace Opc.Ua
 
             var uri = new Uri(url);
 
-            var description = new EndpointDescription();
-
-            description.EndpointUrl = uri.ToString();
-            description.SecurityMode = securityMode;
-            description.SecurityPolicyUri = securityPolicyUri;
+            var description = new EndpointDescription {
+                EndpointUrl = uri.ToString(),
+                SecurityMode = securityMode,
+                SecurityPolicyUri = securityPolicyUri
+            };
             description.Server.ApplicationUri = Utils.UpdateInstanceUri(uri.ToString());
             description.Server.ApplicationName = uri.AbsolutePath;
 
@@ -738,8 +739,9 @@ namespace Opc.Ua
 
             if (endpoint.Server == null)
             {
-                endpoint.Server = new ApplicationDescription();
-                endpoint.Server.ApplicationType = ApplicationType.Server;
+                endpoint.Server = new ApplicationDescription {
+                    ApplicationType = ApplicationType.Server
+                };
             }
 
             if (string.IsNullOrEmpty(endpoint.Server.ApplicationUri))
@@ -766,15 +768,10 @@ namespace Opc.Ua
             ApplicationDescription server,
             EndpointConfiguration configuration)
         {
-            if (server == null)
-            {
-                throw new ArgumentNullException(nameof(server));
-            }
-
             m_description = new EndpointDescription();
             m_updateBeforeConnect = true;
 
-            m_description.Server = server;
+            m_description.Server = server ?? throw new ArgumentNullException(nameof(server));
 
             foreach (string discoveryUrl in server.DiscoveryUrls)
             {
@@ -840,13 +837,8 @@ namespace Opc.Ua
             EndpointDescription description,
             EndpointConfiguration configuration)
         {
-            if (description == null)
-            {
-                throw new ArgumentNullException(nameof(description));
-            }
-
             m_collection = collection;
-            m_description = description;
+            m_description = description ?? throw new ArgumentNullException(nameof(description));
             m_updateBeforeConnect = true;
 
             // ensure a default configuration.
@@ -876,8 +868,9 @@ namespace Opc.Ua
         /// </summary>
         public new object MemberwiseClone()
         {
-            var clone = new ConfiguredEndpoint();
-            clone.Collection = Collection;
+            var clone = new ConfiguredEndpoint {
+                Collection = Collection
+            };
             clone.Update(this);
             return clone;
         }
@@ -1227,12 +1220,7 @@ namespace Opc.Ua
 
             internal set
             {
-                if (value == null)
-                {
-                    throw new ArgumentNullException(nameof(value));
-                }
-
-                m_collection = value;
+                m_collection = value ?? throw new ArgumentNullException(nameof(value));
             }
         }
 
@@ -1424,9 +1412,10 @@ namespace Opc.Ua
                 Uri matchUrl = Utils.ParseUri(match.EndpointUrl);
                 if (matchUrl == null || !string.Equals(discoveryUrl.DnsSafeHost, matchUrl.DnsSafeHost, StringComparison.OrdinalIgnoreCase))
                 {
-                    var uri = new UriBuilder(matchUrl);
-                    uri.Host = discoveryUrl.DnsSafeHost;
-                    uri.Port = discoveryUrl.Port;
+                    var uri = new UriBuilder(matchUrl) {
+                        Host = discoveryUrl.DnsSafeHost,
+                        Port = discoveryUrl.Port
+                    };
                     match.EndpointUrl = uri.ToString();
 
                     // need to update the discovery urls.

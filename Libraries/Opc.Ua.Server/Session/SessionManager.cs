@@ -48,17 +48,12 @@ namespace Opc.Ua.Server
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
-            if (server == null)
-            {
-                throw new ArgumentNullException(nameof(server));
-            }
-
             if (configuration == null)
             {
                 throw new ArgumentNullException(nameof(configuration));
             }
 
-            m_server = server;
+            m_server = server ?? throw new ArgumentNullException(nameof(server));
 
             m_minSessionTimeout = configuration.ServerConfiguration.MinSessionTimeout;
             m_maxSessionTimeout = configuration.ServerConfiguration.MaxSessionTimeout;
@@ -448,7 +443,7 @@ namespace Opc.Ua.Server
             try
             {
                 // check for create session request.
-                if (requestType == RequestType.CreateSession || requestType == RequestType.ActivateSession)
+                if (requestType is RequestType.CreateSession or RequestType.ActivateSession)
                 {
                     return new OperationContext(requestHeader, requestType);
                 }
@@ -546,13 +541,21 @@ namespace Opc.Ua.Server
 
                 switch (reason)
                 {
-                    case SessionEventReason.Created: handler = m_sessionCreated; break;
+                    case SessionEventReason.Created:
+                        handler = m_sessionCreated;
+                        break;
 
-                    case SessionEventReason.Activated: handler = m_sessionActivated; break;
+                    case SessionEventReason.Activated:
+                        handler = m_sessionActivated;
+                        break;
 
-                    case SessionEventReason.Closing: handler = m_sessionClosing; break;
+                    case SessionEventReason.Closing:
+                        handler = m_sessionClosing;
+                        break;
 
-                    case SessionEventReason.ChannelKeepAlive: handler = m_sessionChannelKeepAlive; break;
+                    case SessionEventReason.ChannelKeepAlive:
+                        handler = m_sessionChannelKeepAlive;
+                        break;
                 }
 
                 if (handler != null)

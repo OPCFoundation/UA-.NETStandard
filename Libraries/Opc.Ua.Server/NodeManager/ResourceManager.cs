@@ -30,7 +30,9 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+#if !NETSTANDARD2_1_OR_GREATER && !NET6_0_OR_GREATER
 using System.Linq;
+#endif
 using System.Xml;
 
 namespace Opc.Ua.Server
@@ -45,17 +47,12 @@ namespace Opc.Ua.Server
         /// </summary>
         public ResourceManager(IServerInternal server, ApplicationConfiguration configuration)
         {
-            if (server == null)
-            {
-                throw new ArgumentNullException(nameof(server));
-            }
-
             if (configuration == null)
             {
                 throw new ArgumentNullException(nameof(configuration));
             }
 
-            m_server = server;
+            m_server = server ?? throw new ArgumentNullException(nameof(server));
             m_translationTables = [];
         }
 
@@ -491,7 +488,8 @@ namespace Opc.Ua.Server
             culture = null;
             TranslationTable match = null;
 
-            if (preferredLocales == null || preferredLocales.Count == 0) { return null; }
+            if (preferredLocales == null || preferredLocales.Count == 0)
+            { return null; }
 
             for (int jj = 0; jj < preferredLocales.Count; jj++)
             {

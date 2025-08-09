@@ -141,7 +141,7 @@ namespace Opc.Ua
                 {
                     Buffer.BlockCopy(hash, 0, info, 0, hash.Length);
                     Buffer.BlockCopy(salt, 0, info, hash.Length, salt.Length);
-                    info[info.Length - 1] = counter++;
+                    info[^1] = counter++;
 
                     hash = hmac.ComputeHash(info, 0, info.Length);
 
@@ -173,13 +173,17 @@ namespace Opc.Ua
             switch (securityPolicyUri)
             {
 #if ECC_SUPPORT
-                case SecurityPolicies.ECC_nistP256: return CreateNonce(ECCurve.NamedCurves.nistP256);
+                case SecurityPolicies.ECC_nistP256:
+                    return CreateNonce(ECCurve.NamedCurves.nistP256);
 
-                case SecurityPolicies.ECC_nistP384: return CreateNonce(ECCurve.NamedCurves.nistP384);
+                case SecurityPolicies.ECC_nistP384:
+                    return CreateNonce(ECCurve.NamedCurves.nistP384);
 
-                case SecurityPolicies.ECC_brainpoolP256r1: return CreateNonce(ECCurve.NamedCurves.brainpoolP256r1);
+                case SecurityPolicies.ECC_brainpoolP256r1:
+                    return CreateNonce(ECCurve.NamedCurves.brainpoolP256r1);
 
-                case SecurityPolicies.ECC_brainpoolP384r1: return CreateNonce(ECCurve.NamedCurves.brainpoolP384r1);
+                case SecurityPolicies.ECC_brainpoolP384r1:
+                    return CreateNonce(ECCurve.NamedCurves.brainpoolP384r1);
 
 #endif
 #if CURVE25519
@@ -226,13 +230,17 @@ namespace Opc.Ua
             switch (securityPolicyUri)
             {
 #if ECC_SUPPORT
-                case SecurityPolicies.ECC_nistP256: return CreateNonce(ECCurve.NamedCurves.nistP256, nonceData);
+                case SecurityPolicies.ECC_nistP256:
+                    return CreateNonce(ECCurve.NamedCurves.nistP256, nonceData);
 
-                case SecurityPolicies.ECC_nistP384: return CreateNonce(ECCurve.NamedCurves.nistP384, nonceData);
+                case SecurityPolicies.ECC_nistP384:
+                    return CreateNonce(ECCurve.NamedCurves.nistP384, nonceData);
 
-                case SecurityPolicies.ECC_brainpoolP256r1: return CreateNonce(ECCurve.NamedCurves.brainpoolP256r1, nonceData);
+                case SecurityPolicies.ECC_brainpoolP256r1:
+                    return CreateNonce(ECCurve.NamedCurves.brainpoolP256r1, nonceData);
 
-                case SecurityPolicies.ECC_brainpoolP384r1: return CreateNonce(ECCurve.NamedCurves.brainpoolP384r1, nonceData);
+                case SecurityPolicies.ECC_brainpoolP384r1:
+                    return CreateNonce(ECCurve.NamedCurves.brainpoolP384r1, nonceData);
 
 #endif
                 case SecurityPolicies.ECC_curve25519:

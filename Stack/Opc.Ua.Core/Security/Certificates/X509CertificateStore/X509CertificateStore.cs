@@ -64,12 +64,7 @@ namespace Opc.Ua
         /// </remarks>
         public void Open(string location, bool noPrivateKeys = true)
         {
-            if (location == null)
-            {
-                throw new ArgumentNullException(nameof(location));
-            }
-
-            m_storePath = location;
+            m_storePath = location ?? throw new ArgumentNullException(nameof(location));
             m_noPrivateKeys = noPrivateKeys;
             location = location.Trim();
 
@@ -138,11 +133,9 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public Task<X509Certificate2Collection> EnumerateAsync()
         {
-            using (X509Store store = new X509Store(m_storeName, m_storeLocation))
-            {
-                store.Open(OpenFlags.ReadOnly);
-                return Task.FromResult(new X509Certificate2Collection(store.Certificates));
-            }
+            using var store = new X509Store(m_storeName, m_storeLocation);
+            store.Open(OpenFlags.ReadOnly);
+            return Task.FromResult(new X509Certificate2Collection(store.Certificates));
         }
 
         /// <inheritdoc/>
@@ -174,10 +167,8 @@ namespace Opc.Ua
                     else if (certificate.HasPrivateKey && m_noPrivateKeys)
                     {
                         // ensure no private key is added to store
-                        using (X509Certificate2 publicKey = X509CertificateLoader.LoadCertificate(certificate.RawData))
-                        {
-                            store.Add(publicKey);
-                        }
+                        using X509Certificate2 publicKey = X509CertificateLoader.LoadCertificate(certificate.RawData);
+                        store.Add(publicKey);
                     }
                     else
                     {
@@ -201,7 +192,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public Task<bool> DeleteAsync(string thumbprint)
         {
-            using (X509Store store = new X509Store(m_storeName, m_storeLocation))
+            using (var store = new X509Store(m_storeName, m_storeLocation))
             {
                 store.Open(OpenFlags.ReadWrite);
 
@@ -227,22 +218,20 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public Task<X509Certificate2Collection> FindByThumbprintAsync(string thumbprint)
         {
-            using (X509Store store = new X509Store(m_storeName, m_storeLocation))
+            using var store = new X509Store(m_storeName, m_storeLocation);
+            store.Open(OpenFlags.ReadOnly);
+
+            var collection = new X509Certificate2Collection();
+
+            foreach (X509Certificate2 certificate in store.Certificates)
             {
-                store.Open(OpenFlags.ReadOnly);
-
-                var collection = new X509Certificate2Collection();
-
-                foreach (X509Certificate2 certificate in store.Certificates)
+                if (certificate.Thumbprint == thumbprint)
                 {
-                    if (certificate.Thumbprint == thumbprint)
-                    {
-                        collection.Add(certificate);
-                    }
+                    collection.Add(certificate);
                 }
-
-                return Task.FromResult(collection);
             }
+
+            return Task.FromResult(collection);
         }
 
         /// <inheritdoc/>
@@ -448,12 +437,10 @@ namespace Opc.Ua
             {
                 throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Could not find issuer of the CRL.");
             }
-            using (var store = new X509Store(m_storeName, m_storeLocation))
-            {
-                store.Open(OpenFlags.ReadWrite);
+            using var store = new X509Store(m_storeName, m_storeLocation);
+            store.Open(OpenFlags.ReadWrite);
 
-                store.AddCrl(crl.RawData);
-            }
+            store.AddCrl(crl.RawData);
         }
 
         /// <inheritdoc/>
@@ -476,12 +463,10 @@ namespace Opc.Ua
             {
                 throw new ArgumentNullException(nameof(crl));
             }
-            using (var store = new X509Store(m_storeName, m_storeLocation))
-            {
-                store.Open(OpenFlags.ReadWrite);
+            using var store = new X509Store(m_storeName, m_storeLocation);
+            store.Open(OpenFlags.ReadWrite);
 
-                return Task.FromResult(store.DeleteCrl(crl.RawData));
-            }
+            return Task.FromResult(store.DeleteCrl(crl.RawData));
         }
 
         /// <inheritdoc/>

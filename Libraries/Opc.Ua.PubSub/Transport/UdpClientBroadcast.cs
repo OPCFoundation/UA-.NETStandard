@@ -95,7 +95,8 @@ namespace Opc.Ua.PubSub.Transport
         /// </summary>
         private void CustomizeSocketToBroadcastThroughIf()
         {
-            Action<SocketOptionLevel, SocketOptionName, bool> setSocketOption = (SocketOptionLevel socketOptionLevel, SocketOptionName socketOptionName, bool value) => {
+            void SetSocketOption(SocketOptionLevel socketOptionLevel, SocketOptionName socketOptionName, bool value)
+            {
                 try
                 {
                     Client.SetSocketOption(socketOptionLevel, socketOptionName, value);
@@ -104,10 +105,10 @@ namespace Opc.Ua.PubSub.Transport
                 {
                     Utils.Trace(Utils.TraceMasks.Information, "UdpClientBroadcast set SetSocketOption {1} to {2} resulted in ex {0}", ex.Message, SocketOptionName.Broadcast, value);
                 }
-            };
-            setSocketOption(SocketOptionLevel.Socket, SocketOptionName.Broadcast, true);
-            setSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontRoute, false);
-            setSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+            }
+            SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.Broadcast, true);
+            SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontRoute, false);
+            SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
 
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {

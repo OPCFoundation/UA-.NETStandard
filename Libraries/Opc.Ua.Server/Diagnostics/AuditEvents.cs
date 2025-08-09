@@ -1264,7 +1264,7 @@ namespace Opc.Ua.Server
                 }
 
                 StatusCode statusCode = StatusCodes.Good;
-                while (exception != null && !(exception is ServiceResultException))
+                while (exception is not null and not ServiceResultException)
                 {
                     exception = exception.InnerException;
                 }
@@ -1363,7 +1363,7 @@ namespace Opc.Ua.Server
                 }
 
                 StatusCode statusCode = StatusCodes.Good;
-                while (exception != null && !(exception is ServiceResultException))
+                while (exception is not null and not ServiceResultException)
                 {
                     exception = exception.InnerException;
                 }

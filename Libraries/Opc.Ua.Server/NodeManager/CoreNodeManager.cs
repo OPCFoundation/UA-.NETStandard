@@ -54,17 +54,12 @@ namespace Opc.Ua.Server
             ApplicationConfiguration configuration,
             ushort dynamicNamespaceIndex)
         {
-            if (server == null)
-            {
-                throw new ArgumentNullException(nameof(server));
-            }
-
             if (configuration == null)
             {
                 throw new ArgumentNullException(nameof(configuration));
             }
 
-            Server = server;
+            Server = server ?? throw new ArgumentNullException(nameof(server));
             m_nodes = new NodeTable(server.NamespaceUris, server.ServerUris, server.TypeTree);
             m_monitoredItems = [];
             m_defaultMinimumSamplingInterval = 1000;
@@ -247,7 +242,7 @@ namespace Opc.Ua.Server
             }
 
             // check for valid handle.
-            if (!(sourceHandle is ILocalNode source))
+            if (sourceHandle is not ILocalNode source)
             {
                 return;
             }
@@ -317,7 +312,7 @@ namespace Opc.Ua.Server
             }
 
             // check for valid handle.
-            if (!(continuationPoint.NodeToBrowse is ILocalNode source))
+            if (continuationPoint.NodeToBrowse is not ILocalNode source)
             {
                 throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
             }
@@ -463,7 +458,7 @@ namespace Opc.Ua.Server
             }
 
             // find target.
-            if (!(targetHandle is ILocalNode target))
+            if (targetHandle is not ILocalNode target)
             {
                 return null;
             }
@@ -573,7 +568,7 @@ namespace Opc.Ua.Server
                 // look up type definition.
                 if (((int)resultMask & (int)BrowseResultMask.TypeDefinition) != 0)
                 {
-                    if (target.NodeClass == NodeClass.Variable || target.NodeClass == NodeClass.Object)
+                    if (target.NodeClass is NodeClass.Variable or NodeClass.Object)
                     {
                         metadata.TypeDefinition = target.TypeDefinitionId;
                     }
@@ -1349,15 +1344,14 @@ namespace Opc.Ua.Server
 
                     // final check for initial value
                     ServiceResult error = ReadInitialValue(context, node, monitoredItem);
-                    if (ServiceResult.IsBad(error))
+                    if (ServiceResult.IsBad(error) &&
+                        error.StatusCode.Code is
+                            StatusCodes.BadAttributeIdInvalid or
+                            StatusCodes.BadDataEncodingInvalid or
+                            StatusCodes.BadDataEncodingUnsupported)
                     {
-                        if (error.StatusCode == StatusCodes.BadAttributeIdInvalid ||
-                            error.StatusCode == StatusCodes.BadDataEncodingInvalid ||
-                            error.StatusCode == StatusCodes.BadDataEncodingUnsupported)
-                        {
-                            errors[ii] = error;
-                            continue;
-                        }
+                        errors[ii] = error;
+                        continue;
                     }
 
                     // save monitored item.
@@ -1728,7 +1722,7 @@ namespace Opc.Ua.Server
                     IMonitoredItem monitoredItem = monitoredItems[ii];
 
                     // find the node being monitored.
-                    if (!(monitoredItem.ManagerHandle is ILocalNode node))
+                    if (monitoredItem.ManagerHandle is not ILocalNode node)
                     {
                         continue;
                     }
@@ -2486,7 +2480,8 @@ namespace Opc.Ua.Server
                 // recursively include aggregated children.
                 NodeId modellingRule = child.ModellingRule;
 
-                if (modellingRule == Objects.ModellingRule_Mandatory || modellingRule == Objects.ModellingRule_Optional)
+                if (modellingRule == ObjectIds.ModellingRule_Mandatory ||
+                    modellingRule == ObjectIds.ModellingRule_Optional)
                 {
                     BuildDeclarationList(declaration, declarations);
                 }
@@ -2498,11 +2493,6 @@ namespace Opc.Ua.Server
         /// </summary>
         private void BuildInstanceList(ILocalNode parent, string browsePath, IDictionary<string, ILocalNode> instances)
         {
-            if (parent == null)
-            {
-                throw new ArgumentNullException(nameof(parent));
-            }
-
             if (instances == null)
             {
                 throw new ArgumentNullException(nameof(instances));
@@ -2515,7 +2505,7 @@ namespace Opc.Ua.Server
             }
 
             // index parent by browse path.
-            instances[browsePath] = parent;
+            instances[browsePath] = parent ?? throw new ArgumentNullException(nameof(parent));
 
             // get list of children.
             foreach (IReference reference in parent.References.Find(ReferenceTypeIds.HierarchicalReferences, false, true, m_nodes.TypeTree))
@@ -3065,7 +3055,7 @@ namespace Opc.Ua.Server
 
             lock (DataLock)
             {
-                if (!(sourceHandle is ILocalNode source))
+                if (sourceHandle is not ILocalNode source)
                 {
                     return StatusCodes.BadSourceNodeIdInvalid;
                 }

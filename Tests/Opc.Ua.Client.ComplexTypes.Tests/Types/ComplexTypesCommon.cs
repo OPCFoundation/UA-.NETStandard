@@ -313,18 +313,16 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     break;
             }
 
-            using (var decoderStream = new MemoryStream(buffer))
-            using (IDecoder decoder = CreateDecoder(encoderType, encoderContext, decoderStream, typeof(DataValue)))
-            {
-                ExtensionObject result = decoder.ReadExtensionObject("ExtensionObject");
-                TestContext.Out.WriteLine("Result:");
-                TestContext.Out.WriteLine(result);
-                Assert.IsNotNull(result, "Resulting DataValue is Null, " + encodeInfo);
-                Assert.AreEqual(expected.Encoding, result.Encoding, encodeInfo);
-                //TODO: investigate why AreEqual cannot compare ExtensionObject and Body
-                //Assert.AreEqual(expected.Body, result.Body, encodeInfo);
-                Assert.IsTrue(Utils.IsEqual(expected.Body, result.Body), $"Opc.Ua.Utils.IsEqual failed to compare expected and result.\r\n{encodeInfo}.\r\n{expected.Body}!={result.Body}.");
-            }
+            using var decoderStream = new MemoryStream(buffer);
+            using IDecoder decoder = CreateDecoder(encoderType, encoderContext, decoderStream, typeof(DataValue));
+            ExtensionObject result = decoder.ReadExtensionObject("ExtensionObject");
+            TestContext.Out.WriteLine("Result:");
+            TestContext.Out.WriteLine(result);
+            Assert.IsNotNull(result, "Resulting DataValue is Null, " + encodeInfo);
+            Assert.AreEqual(expected.Encoding, result.Encoding, encodeInfo);
+            //TODO: investigate why AreEqual cannot compare ExtensionObject and Body
+            //Assert.AreEqual(expected.Body, result.Body, encodeInfo);
+            Assert.IsTrue(Utils.IsEqual(expected.Body, result.Body), $"Opc.Ua.Utils.IsEqual failed to compare expected and result.\r\n{encodeInfo}.\r\n{expected.Body}!={result.Body}.");
         }
 
         /// <summary>

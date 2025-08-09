@@ -61,9 +61,6 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
-        /// <remarks>
-        /// Initializes the object with default values.
-        /// </remarks>
         public DataValue()
         {
             Initialize();
@@ -110,9 +107,6 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with a status code.
         /// </summary>
-        /// <remarks>
-        /// Initializes the object with a status code.
-        /// </remarks>
         /// <param name="statusCode">The StatusCode to set</param>
         public DataValue(StatusCode statusCode)
         {
@@ -123,9 +117,6 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with a status code and a server timestamp.
         /// </summary>
-        /// <remarks>
-        /// Initializes the object with a status code and a server timestamp.
-        /// </remarks>
         /// <param name="statusCode">The status code associated with the value.</param>
         /// <param name="serverTimestamp">The timestamp associated with the status code.</param>
         public DataValue(StatusCode statusCode, DateTime serverTimestamp)
@@ -138,9 +129,6 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with a value and a status code.
         /// </summary>
-        /// <remarks>
-        /// Initializes the object with a value and a status code.
-        /// </remarks>
         /// <param name="value">The value to set</param>
         /// <param name="statusCode">The status code to set</param>
         public DataValue(Variant value, StatusCode statusCode)
@@ -154,9 +142,6 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with a value, a status code and a source timestamp
         /// </summary>
-        /// <remarks>
-        /// Initializes the object with a value, a status code and a source timestamp
-        /// </remarks>
         /// <param name="value">The variant value to set</param>
         /// <param name="statusCode">The status code to set</param>
         /// <param name="sourceTimestamp">The timestamp to set</param>
@@ -172,9 +157,6 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with a value, a status code, a source timestamp and a server timestamp
         /// </summary>
-        /// <remarks>
-        /// Initializes the object with a value, a status code, a source timestamp and a server timestamp
-        /// </remarks>
         /// <param name="value">The variant value to set</param>
         /// <param name="statusCode">The status code to set</param>
         /// <param name="sourceTimestamp">The source timestamp to set</param>
@@ -203,9 +185,6 @@ namespace Opc.Ua
         /// <summary>
         /// Determines if the specified object is equal to the object.
         /// </summary>
-        /// <remarks>
-        /// Determines if the specified object is equal to the object.
-        /// </remarks>
         /// <param name="obj">The object to compare to *this*</param>
         public override bool Equals(object obj)
         {
@@ -250,9 +229,6 @@ namespace Opc.Ua
         /// <summary>
         /// Determines if the specified object is equal to the object.
         /// </summary>
-        /// <remarks>
-        /// Determines if the specified object is equal to the object.
-        /// </remarks>
         /// <param name="other">The DataValue to compare to *this*</param>
         public bool Equals(DataValue other)
         {
@@ -297,9 +273,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns a unique hashcode for the object.
         /// </summary>
-        /// <remarks>
-        /// Returns a unique hashcode for the object.
-        /// </remarks>
         public override int GetHashCode()
         {
             if (m_value.Value != null)
@@ -313,9 +286,6 @@ namespace Opc.Ua
         /// <summary>
         /// Converts the value to a human readable string.
         /// </summary>
-        /// <remarks>
-        /// Converts the value to a human readable string.
-        /// </remarks>
         public override string ToString()
         {
             return ToString(null, null);
@@ -324,9 +294,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the string representation of the object.
         /// </summary>
-        /// <remarks>
-        /// Returns the string representation of the object.
-        /// </remarks>
         /// <param name="format">Not used, ALWAYS specify a null/nothing value</param>
         /// <param name="formatProvider">The format string, ALWAYS specify a null/nothing value</param>
         /// <exception cref="FormatException">Thrown when the format is NOT null/nothing</exception>
@@ -349,9 +316,6 @@ namespace Opc.Ua
         /// <summary>
         /// Makes a deep copy of the object.
         /// </summary>
-        /// <remarks>
-        /// Makes a deep copy of the object.
-        /// </remarks>
         public new object MemberwiseClone()
         {
             return new DataValue(this);
@@ -360,9 +324,6 @@ namespace Opc.Ua
         /// <summary>
         /// The value of data value.
         /// </summary>
-        /// <remarks>
-        /// The value of data value.
-        /// </remarks>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1721:PropertyNamesShouldNotMatchGetMethods")]
         public object Value
         {
@@ -372,9 +333,6 @@ namespace Opc.Ua
         /// <summary>
         /// The value of data value.
         /// </summary>
-        /// <remarks>
-        /// The value of data value.
-        /// </remarks>
         [DataMember(Name = "Value", Order = 1, IsRequired = false)]
         public Variant WrappedValue
         {
@@ -384,54 +342,36 @@ namespace Opc.Ua
         /// <summary>
         /// The status code associated with the value.
         /// </summary>
-        /// <remarks>
-        /// The status code associated with the value.
-        /// </remarks>
         [DataMember(Order = 2, IsRequired = false)]
         public StatusCode StatusCode { get; set; }
 
         /// <summary>
         /// The source timestamp associated with the value.
         /// </summary>
-        /// <remarks>
-        /// The source timestamp associated with the value.
-        /// </remarks>
         [DataMember(Order = 3, IsRequired = false)]
         public DateTime SourceTimestamp { get; set; }
 
         /// <summary>
         /// Additional resolution for the source timestamp.
         /// </summary>
-        /// <remarks>
-        /// Additional resolution for the source timestamp.
-        /// </remarks>
         [DataMember(Order = 4, IsRequired = false)]
         public ushort SourcePicoseconds { get; set; }
 
         /// <summary>
         /// The server timestamp associated with the value.
         /// </summary>
-        /// <remarks>
-        /// The server timestamp associated with the value.
-        /// </remarks>
         [DataMember(Order = 5, IsRequired = false)]
         public DateTime ServerTimestamp { get; set; }
 
         /// <summary>
         /// Additional resolution for the server timestamp.
         /// </summary>
-        /// <remarks>
-        /// Additional resolution for the server timestamp.
-        /// </remarks>
         [DataMember(Order = 6, IsRequired = false)]
         public ushort ServerPicoseconds { get; set; }
 
         /// <summary>
         /// Returns true if the status code is good.
         /// </summary>
-        /// <remarks>
-        /// Returns true if the status code is good.
-        /// </remarks>
         /// <param name="value">The value to check the quality of</param>
         public static bool IsGood(DataValue value)
         {
@@ -446,9 +386,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if the status is bad or uncertain.
         /// </summary>
-        /// <remarks>
-        /// Returns true if the status is bad or uncertain.
-        /// </remarks>
         /// <param name="value">The value to check the quality of</param>
         public static bool IsNotGood(DataValue value)
         {
@@ -463,9 +400,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if the status code is uncertain.
         /// </summary>
-        /// <remarks>
-        /// Returns true if the status code is uncertain.
-        /// </remarks>
         /// <param name="value">The value to checck the quality of</param>
         public static bool IsUncertain(DataValue value)
         {
@@ -480,9 +414,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if the status is good or uncertain.
         /// </summary>
-        /// <remarks>
-        /// Returns true if the status is good or uncertain.
-        /// </remarks>
         /// <param name="value">The value to check the quality of</param>
         public static bool IsNotUncertain(DataValue value)
         {
@@ -497,9 +428,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if the status code is bad.
         /// </summary>
-        /// <remarks>
-        /// Returns true if the status code is bad.
-        /// </remarks>
         /// <param name="value">The value to check the quality of</param>
         public static bool IsBad(DataValue value)
         {
@@ -514,9 +442,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if the status is good or uncertain.
         /// </summary>
-        /// <remarks>
-        /// Returns true if the status is good or uncertain.
-        /// </remarks>
         /// <param name="value">The value to check the quality of</param>
         public static bool IsNotBad(DataValue value)
         {
@@ -647,35 +572,23 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        /// <remarks>
-        /// Initializes an empty collection.
-        /// </remarks>
         public DataValueCollection() { }
 
         /// <summary>
         /// Initializes the collection from another collection.
         /// </summary>
-        /// <remarks>
-        /// Initializes the collection from another collection.
-        /// </remarks>
         /// <param name="collection">A collection of <see cref="DataValue"/> objects to pre-populate this new collection with</param>
         public DataValueCollection(IEnumerable<DataValue> collection) : base(collection) { }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
-        /// <remarks>
-        /// Initializes the collection with the specified capacity.
-        /// </remarks>
         /// <param name="capacity">The max capacity of this collection</param>
         public DataValueCollection(int capacity) : base(capacity) { }
 
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
-        /// <remarks>
-        /// Converts an array to a collection.
-        /// </remarks>
         /// <param name="values">An array of <see cref="DataValue"/> objects to return as a collection</param>
         public static DataValueCollection ToDataValueCollection(DataValue[] values)
         {
@@ -690,9 +603,6 @@ namespace Opc.Ua
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
-        /// <remarks>
-        /// Converts an array to a collection.
-        /// </remarks>
         /// <param name="values">An array of <see cref="DataValue"/> objects to return as a collection</param>
         public static implicit operator DataValueCollection(DataValue[] values)
         {
@@ -708,9 +618,6 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
-        /// <remarks>
-        /// Creates a deep copy of the collection.
-        /// </remarks>
         public new object MemberwiseClone()
         {
             var clone = new DataValueCollection(Count);

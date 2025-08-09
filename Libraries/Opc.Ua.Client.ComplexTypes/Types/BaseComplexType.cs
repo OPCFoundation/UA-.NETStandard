@@ -428,31 +428,81 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             switch (builtInType)
             {
-                case BuiltInType.Boolean: encoder.WriteBoolean(name, (bool)property.GetValue(this)); break;
-                case BuiltInType.SByte: encoder.WriteSByte(name, (sbyte)property.GetValue(this)); break;
-                case BuiltInType.Byte: encoder.WriteByte(name, (byte)property.GetValue(this)); break;
-                case BuiltInType.Int16: encoder.WriteInt16(name, (short)property.GetValue(this)); break;
-                case BuiltInType.UInt16: encoder.WriteUInt16(name, (ushort)property.GetValue(this)); break;
-                case BuiltInType.Int32: encoder.WriteInt32(name, (int)property.GetValue(this)); break;
-                case BuiltInType.UInt32: encoder.WriteUInt32(name, (uint)property.GetValue(this)); break;
-                case BuiltInType.Int64: encoder.WriteInt64(name, (long)property.GetValue(this)); break;
-                case BuiltInType.UInt64: encoder.WriteUInt64(name, (ulong)property.GetValue(this)); break;
-                case BuiltInType.Float: encoder.WriteFloat(name, (float)property.GetValue(this)); break;
-                case BuiltInType.Double: encoder.WriteDouble(name, (double)property.GetValue(this)); break;
-                case BuiltInType.String: encoder.WriteString(name, (string)property.GetValue(this)); break;
-                case BuiltInType.DateTime: encoder.WriteDateTime(name, (DateTime)property.GetValue(this)); break;
-                case BuiltInType.Guid: encoder.WriteGuid(name, (Uuid)property.GetValue(this)); break;
-                case BuiltInType.ByteString: encoder.WriteByteString(name, (byte[])property.GetValue(this)); break;
-                case BuiltInType.XmlElement: encoder.WriteXmlElement(name, (XmlElement)property.GetValue(this)); break;
-                case BuiltInType.NodeId: encoder.WriteNodeId(name, (NodeId)property.GetValue(this)); break;
-                case BuiltInType.ExpandedNodeId: encoder.WriteExpandedNodeId(name, (ExpandedNodeId)property.GetValue(this)); break;
-                case BuiltInType.StatusCode: encoder.WriteStatusCode(name, (StatusCode)property.GetValue(this)); break;
-                case BuiltInType.DiagnosticInfo: encoder.WriteDiagnosticInfo(name, (DiagnosticInfo)property.GetValue(this)); break;
-                case BuiltInType.QualifiedName: encoder.WriteQualifiedName(name, (QualifiedName)property.GetValue(this)); break;
-                case BuiltInType.LocalizedText: encoder.WriteLocalizedText(name, (LocalizedText)property.GetValue(this)); break;
-                case BuiltInType.DataValue: encoder.WriteDataValue(name, (DataValue)property.GetValue(this)); break;
-                case BuiltInType.Variant: encoder.WriteVariant(name, (Variant)property.GetValue(this)); break;
-                case BuiltInType.ExtensionObject: encoder.WriteExtensionObject(name, (ExtensionObject)property.GetValue(this)); break;
+                case BuiltInType.Boolean:
+                    encoder.WriteBoolean(name, (bool)property.GetValue(this));
+                    break;
+                case BuiltInType.SByte:
+                    encoder.WriteSByte(name, (sbyte)property.GetValue(this));
+                    break;
+                case BuiltInType.Byte:
+                    encoder.WriteByte(name, (byte)property.GetValue(this));
+                    break;
+                case BuiltInType.Int16:
+                    encoder.WriteInt16(name, (short)property.GetValue(this));
+                    break;
+                case BuiltInType.UInt16:
+                    encoder.WriteUInt16(name, (ushort)property.GetValue(this));
+                    break;
+                case BuiltInType.Int32:
+                    encoder.WriteInt32(name, (int)property.GetValue(this));
+                    break;
+                case BuiltInType.UInt32:
+                    encoder.WriteUInt32(name, (uint)property.GetValue(this));
+                    break;
+                case BuiltInType.Int64:
+                    encoder.WriteInt64(name, (long)property.GetValue(this));
+                    break;
+                case BuiltInType.UInt64:
+                    encoder.WriteUInt64(name, (ulong)property.GetValue(this));
+                    break;
+                case BuiltInType.Float:
+                    encoder.WriteFloat(name, (float)property.GetValue(this));
+                    break;
+                case BuiltInType.Double:
+                    encoder.WriteDouble(name, (double)property.GetValue(this));
+                    break;
+                case BuiltInType.String:
+                    encoder.WriteString(name, (string)property.GetValue(this));
+                    break;
+                case BuiltInType.DateTime:
+                    encoder.WriteDateTime(name, (DateTime)property.GetValue(this));
+                    break;
+                case BuiltInType.Guid:
+                    encoder.WriteGuid(name, (Uuid)property.GetValue(this));
+                    break;
+                case BuiltInType.ByteString:
+                    encoder.WriteByteString(name, (byte[])property.GetValue(this));
+                    break;
+                case BuiltInType.XmlElement:
+                    encoder.WriteXmlElement(name, (XmlElement)property.GetValue(this));
+                    break;
+                case BuiltInType.NodeId:
+                    encoder.WriteNodeId(name, (NodeId)property.GetValue(this));
+                    break;
+                case BuiltInType.ExpandedNodeId:
+                    encoder.WriteExpandedNodeId(name, (ExpandedNodeId)property.GetValue(this));
+                    break;
+                case BuiltInType.StatusCode:
+                    encoder.WriteStatusCode(name, (StatusCode)property.GetValue(this));
+                    break;
+                case BuiltInType.DiagnosticInfo:
+                    encoder.WriteDiagnosticInfo(name, (DiagnosticInfo)property.GetValue(this));
+                    break;
+                case BuiltInType.QualifiedName:
+                    encoder.WriteQualifiedName(name, (QualifiedName)property.GetValue(this));
+                    break;
+                case BuiltInType.LocalizedText:
+                    encoder.WriteLocalizedText(name, (LocalizedText)property.GetValue(this));
+                    break;
+                case BuiltInType.DataValue:
+                    encoder.WriteDataValue(name, (DataValue)property.GetValue(this));
+                    break;
+                case BuiltInType.Variant:
+                    encoder.WriteVariant(name, (Variant)property.GetValue(this));
+                    break;
+                case BuiltInType.ExtensionObject:
+                    encoder.WriteExtensionObject(name, (ExtensionObject)property.GetValue(this));
+                    break;
                 case BuiltInType.Enumeration:
                     if (propertyType.IsEnum)
                     {
@@ -534,30 +584,78 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             switch (builtInType)
             {
-                case BuiltInType.Boolean: property.SetValue(this, decoder.ReadBoolean(name)); break;
-                case BuiltInType.SByte: property.SetValue(this, decoder.ReadSByte(name)); break;
-                case BuiltInType.Byte: property.SetValue(this, decoder.ReadByte(name)); break;
-                case BuiltInType.Int16: property.SetValue(this, decoder.ReadInt16(name)); break;
-                case BuiltInType.UInt16: property.SetValue(this, decoder.ReadUInt16(name)); break;
-                case BuiltInType.Int32: property.SetValue(this, decoder.ReadInt32(name)); break;
-                case BuiltInType.UInt32: property.SetValue(this, decoder.ReadUInt32(name)); break;
-                case BuiltInType.Int64: property.SetValue(this, decoder.ReadInt64(name)); break;
-                case BuiltInType.UInt64: property.SetValue(this, decoder.ReadUInt64(name)); break;
-                case BuiltInType.Float: property.SetValue(this, decoder.ReadFloat(name)); break;
-                case BuiltInType.Double: property.SetValue(this, decoder.ReadDouble(name)); break;
-                case BuiltInType.String: property.SetValue(this, decoder.ReadString(name)); break;
-                case BuiltInType.DateTime: property.SetValue(this, decoder.ReadDateTime(name)); break;
-                case BuiltInType.Guid: property.SetValue(this, decoder.ReadGuid(name)); break;
-                case BuiltInType.ByteString: property.SetValue(this, decoder.ReadByteString(name)); break;
-                case BuiltInType.XmlElement: property.SetValue(this, decoder.ReadXmlElement(name)); break;
-                case BuiltInType.NodeId: property.SetValue(this, decoder.ReadNodeId(name)); break;
-                case BuiltInType.ExpandedNodeId: property.SetValue(this, decoder.ReadExpandedNodeId(name)); break;
-                case BuiltInType.StatusCode: property.SetValue(this, decoder.ReadStatusCode(name)); break;
-                case BuiltInType.QualifiedName: property.SetValue(this, decoder.ReadQualifiedName(name)); break;
-                case BuiltInType.LocalizedText: property.SetValue(this, decoder.ReadLocalizedText(name)); break;
-                case BuiltInType.DataValue: property.SetValue(this, decoder.ReadDataValue(name)); break;
-                case BuiltInType.Variant: property.SetValue(this, decoder.ReadVariant(name)); break;
-                case BuiltInType.DiagnosticInfo: property.SetValue(this, decoder.ReadDiagnosticInfo(name)); break;
+                case BuiltInType.Boolean:
+                    property.SetValue(this, decoder.ReadBoolean(name));
+                    break;
+                case BuiltInType.SByte:
+                    property.SetValue(this, decoder.ReadSByte(name));
+                    break;
+                case BuiltInType.Byte:
+                    property.SetValue(this, decoder.ReadByte(name));
+                    break;
+                case BuiltInType.Int16:
+                    property.SetValue(this, decoder.ReadInt16(name));
+                    break;
+                case BuiltInType.UInt16:
+                    property.SetValue(this, decoder.ReadUInt16(name));
+                    break;
+                case BuiltInType.Int32:
+                    property.SetValue(this, decoder.ReadInt32(name));
+                    break;
+                case BuiltInType.UInt32:
+                    property.SetValue(this, decoder.ReadUInt32(name));
+                    break;
+                case BuiltInType.Int64:
+                    property.SetValue(this, decoder.ReadInt64(name));
+                    break;
+                case BuiltInType.UInt64:
+                    property.SetValue(this, decoder.ReadUInt64(name));
+                    break;
+                case BuiltInType.Float:
+                    property.SetValue(this, decoder.ReadFloat(name));
+                    break;
+                case BuiltInType.Double:
+                    property.SetValue(this, decoder.ReadDouble(name));
+                    break;
+                case BuiltInType.String:
+                    property.SetValue(this, decoder.ReadString(name));
+                    break;
+                case BuiltInType.DateTime:
+                    property.SetValue(this, decoder.ReadDateTime(name));
+                    break;
+                case BuiltInType.Guid:
+                    property.SetValue(this, decoder.ReadGuid(name));
+                    break;
+                case BuiltInType.ByteString:
+                    property.SetValue(this, decoder.ReadByteString(name));
+                    break;
+                case BuiltInType.XmlElement:
+                    property.SetValue(this, decoder.ReadXmlElement(name));
+                    break;
+                case BuiltInType.NodeId:
+                    property.SetValue(this, decoder.ReadNodeId(name));
+                    break;
+                case BuiltInType.ExpandedNodeId:
+                    property.SetValue(this, decoder.ReadExpandedNodeId(name));
+                    break;
+                case BuiltInType.StatusCode:
+                    property.SetValue(this, decoder.ReadStatusCode(name));
+                    break;
+                case BuiltInType.QualifiedName:
+                    property.SetValue(this, decoder.ReadQualifiedName(name));
+                    break;
+                case BuiltInType.LocalizedText:
+                    property.SetValue(this, decoder.ReadLocalizedText(name));
+                    break;
+                case BuiltInType.DataValue:
+                    property.SetValue(this, decoder.ReadDataValue(name));
+                    break;
+                case BuiltInType.Variant:
+                    property.SetValue(this, decoder.ReadVariant(name));
+                    break;
+                case BuiltInType.DiagnosticInfo:
+                    property.SetValue(this, decoder.ReadDiagnosticInfo(name));
+                    break;
                 case BuiltInType.ExtensionObject:
                     if (typeof(IEncodeable).IsAssignableFrom(propertyType))
                     {
@@ -569,7 +667,8 @@ namespace Opc.Ua.Client.ComplexTypes
                 case BuiltInType.Enumeration:
                     if (propertyType.IsEnum)
                     {
-                        property.SetValue(this, decoder.ReadEnumerated(name, propertyType)); break;
+                        property.SetValue(this, decoder.ReadEnumerated(name, propertyType));
+                        break;
                     }
                     goto case BuiltInType.Int32;
                 case BuiltInType.Null:

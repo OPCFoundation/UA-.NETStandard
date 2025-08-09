@@ -156,10 +156,8 @@ namespace Opc.Ua.Schema
             // check if namespace specified in the import table.
             if (ImportFiles.TryGetValue(namespaceUri, out byte[] schema))
             {
-                using (Stream memoryStream = new MemoryStream(schema))
-                {
-                    return LoadFile(type, memoryStream);
-                }
+                using Stream memoryStream = new MemoryStream(schema);
+                return LoadFile(type, memoryStream);
             }
 
             // check if a valid path provided.
@@ -226,12 +224,10 @@ namespace Opc.Ua.Schema
         /// </summary>
         protected static object LoadFile(Type type, string path)
         {
-            using (var reader = new StreamReader(new FileStream(path, FileMode.Open)))
-            using (var xmlReader = XmlReader.Create(reader, Utils.DefaultXmlReaderSettings()))
-            {
-                var serializer = new XmlSerializer(type);
-                return serializer.Deserialize(xmlReader);
-            }
+            using var reader = new StreamReader(new FileStream(path, FileMode.Open));
+            using var xmlReader = XmlReader.Create(reader, Utils.DefaultXmlReaderSettings());
+            var serializer = new XmlSerializer(type);
+            return serializer.Deserialize(xmlReader);
         }
 
         /// <summary>
@@ -239,12 +235,10 @@ namespace Opc.Ua.Schema
         /// </summary>
         protected static object LoadFile(Type type, Stream stream)
         {
-            using (var reader = new StreamReader(stream))
-            using (var xmlReader = XmlReader.Create(reader, Utils.DefaultXmlReaderSettings()))
-            {
-                var serializer = new XmlSerializer(type);
-                return serializer.Deserialize(xmlReader);
-            }
+            using var reader = new StreamReader(stream);
+            using var xmlReader = XmlReader.Create(reader, Utils.DefaultXmlReaderSettings());
+            var serializer = new XmlSerializer(type);
+            return serializer.Deserialize(xmlReader);
         }
 
         /// <summary>
@@ -259,12 +253,10 @@ namespace Opc.Ua.Schema
                     assembly = typeof(SchemaValidator).GetTypeInfo().Assembly;
                 }
 
-                using (var reader = new StreamReader(assembly.GetManifestResourceStream(path)))
-                using (var xmlReader = XmlReader.Create(reader, Utils.DefaultXmlReaderSettings()))
-                {
-                    var serializer = new XmlSerializer(type);
-                    return serializer.Deserialize(xmlReader);
-                }
+                using var reader = new StreamReader(assembly.GetManifestResourceStream(path));
+                using var xmlReader = XmlReader.Create(reader, Utils.DefaultXmlReaderSettings());
+                var serializer = new XmlSerializer(type);
+                return serializer.Deserialize(xmlReader);
             }
             catch (Exception e)
             {

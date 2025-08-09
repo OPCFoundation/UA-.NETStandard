@@ -61,7 +61,7 @@ namespace Opc.Ua.Security
                     typeName);
             }
 
-            if (!(Activator.CreateInstance(type) is ISecurityConfigurationManager configuration))
+            if (Activator.CreateInstance(type) is not ISecurityConfigurationManager configuration)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadNotSupported,

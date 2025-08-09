@@ -894,7 +894,9 @@ namespace Opc.Ua
         /// Formats the NodeId as a string and appends it to the buffer.
         /// </summary>
         public static void Format(StringBuilder buffer, object identifier, IdType identifierType, ushort namespaceIndex)
-            => Format(CultureInfo.InvariantCulture, buffer, identifier, identifierType, namespaceIndex);
+        {
+            Format(CultureInfo.InvariantCulture, buffer, identifier, identifierType, namespaceIndex);
+        }
 
         /// <summary>
         /// Formats the NodeId as a string and appends it to the buffer.
@@ -1493,9 +1495,11 @@ namespace Opc.Ua
                 {
                     switch (m_identifierType)
                     {
-                        case IdType.Numeric: return (uint)0;
+                        case IdType.Numeric:
+                            return (uint)0;
 
-                        case IdType.Guid: return Guid.Empty;
+                        case IdType.Guid:
+                            return Guid.Empty;
                     }
                 }
 
@@ -1591,7 +1595,7 @@ namespace Opc.Ua
                 switch (idType1)
                 {
                     case IdType.Numeric:
-                        if (nonNull is uint && (uint)nonNull == 0)
+                        if (nonNull is uint integer && integer == 0)
                         {
                             return 0;
                         }
@@ -1599,7 +1603,7 @@ namespace Opc.Ua
                         break;
 
                     case IdType.Guid:
-                        if (nonNull is Guid && (Guid)nonNull == Guid.Empty)
+                        if (nonNull is Guid guid && guid == Guid.Empty)
                         {
                             return 0;
                         }
@@ -1696,18 +1700,18 @@ namespace Opc.Ua
                 {
                     if (m_identifier is Guid id2)
                     {
-                        if (id is Uuid)
+                        if (id is Uuid uuid2)
                         {
-                            return id2.CompareTo((Uuid)id);
+                            return id2.CompareTo(uuid2);
                         }
                         return id2.CompareTo((Guid)id);
                     }
 
                     if (m_identifier is Uuid id1)
                     {
-                        if (id is Uuid)
+                        if (id is Uuid uuid1)
                         {
-                            return id1.CompareTo(id);
+                            return id1.CompareTo(uuid1);
                         }
                         return id1.CompareTo((Guid)id);
                     }

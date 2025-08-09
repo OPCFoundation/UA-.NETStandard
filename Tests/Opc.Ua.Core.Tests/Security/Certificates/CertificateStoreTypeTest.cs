@@ -29,18 +29,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             int instancesCreatedWhileLoadingConfig = TestCertStore.InstancesCreated;
             Assert.IsTrue(instancesCreatedWhileLoadingConfig > 0);
             CertificateTrustList trustedIssuers = appConfig.SecurityConfiguration.TrustedIssuerCertificates;
-            using (ICertificateStore trustedIssuersStore = trustedIssuers.OpenStore())
-            {
-                trustedIssuersStore.Close();
-                int instancesCreatedWhileOpeningAuthRootStore = TestCertStore.InstancesCreated;
-                Assert.IsTrue(instancesCreatedWhileLoadingConfig < instancesCreatedWhileOpeningAuthRootStore);
+            using ICertificateStore trustedIssuersStore = trustedIssuers.OpenStore();
+            trustedIssuersStore.Close();
+            int instancesCreatedWhileOpeningAuthRootStore = TestCertStore.InstancesCreated;
+            Assert.IsTrue(instancesCreatedWhileLoadingConfig < instancesCreatedWhileOpeningAuthRootStore);
 
-                var certificateStoreIdentifier = new CertificateStoreIdentifier(TestCertStore.StoreTypePrefix + @"CurrentUser\Disallowed");
-                using (ICertificateStore store = certificateStoreIdentifier.OpenStore())
-                {
-                    Assert.IsTrue(instancesCreatedWhileOpeningAuthRootStore < TestCertStore.InstancesCreated);
-                }
-            }
+            var certificateStoreIdentifier = new CertificateStoreIdentifier(TestCertStore.StoreTypePrefix + @"CurrentUser\Disallowed");
+            using ICertificateStore store = certificateStoreIdentifier.OpenStore();
+            Assert.IsTrue(instancesCreatedWhileOpeningAuthRootStore < TestCertStore.InstancesCreated);
         }
     }
 
@@ -157,11 +153,15 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// <inheritdoc/>
         [Obsolete("Use AddCRLAsync instead.")]
         public Task AddCRL(X509CRL crl)
-            => m_innerStore.AddCRLAsync(crl);
+        {
+            return m_innerStore.AddCRLAsync(crl);
+        }
 
         /// <inheritdoc/>
         public Task AddCRLAsync(X509CRL crl)
-            => m_innerStore.AddCRLAsync(crl);
+        {
+            return m_innerStore.AddCRLAsync(crl);
+        }
 
         /// <inheritdoc/>
         [Obsolete("Use DeleteCRLAsync instead.")]
@@ -172,7 +172,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
         /// <inheritdoc/>
         public Task<bool> DeleteCRLAsync(X509CRL crl)
-            => m_innerStore.DeleteCRLAsync(crl);
+        {
+            return m_innerStore.DeleteCRLAsync(crl);
+        }
 
         /// <inheritdoc/>
         [Obsolete("Use EnumerateCRLsAsync instead.")]
@@ -183,7 +185,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
         /// <inheritdoc/>
         public Task<X509CRLCollection> EnumerateCRLsAsync()
-            => m_innerStore.EnumerateCRLsAsync();
+        {
+            return m_innerStore.EnumerateCRLsAsync();
+        }
 
         /// <inheritdoc/>
         [Obsolete("Use EnumerateCRLsAsync instead.")]
@@ -194,7 +198,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
         /// <inheritdoc/>
         public Task<X509CRLCollection> EnumerateCRLsAsync(X509Certificate2 issuer, bool validateUpdateTime = true)
-            => m_innerStore.EnumerateCRLsAsync(issuer, validateUpdateTime);
+        {
+            return m_innerStore.EnumerateCRLsAsync(issuer, validateUpdateTime);
+        }
 
         /// <inheritdoc/>
         [Obsolete("Use IsRevokedAsync instead.")]
@@ -205,7 +211,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
         /// <inheritdoc/>
         public Task<StatusCode> IsRevokedAsync(X509Certificate2 issuer, X509Certificate2 certificate)
-            => m_innerStore.IsRevokedAsync(issuer, certificate);
+        {
+            return m_innerStore.IsRevokedAsync(issuer, certificate);
+        }
 
         /// <inheritdoc/>
         public bool SupportsLoadPrivateKey => m_innerStore.SupportsLoadPrivateKey;
@@ -218,7 +226,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
         /// <inheritdoc/>
         public Task<X509Certificate2> LoadPrivateKeyAsync(string thumbprint, string subjectName, string applicationUri, NodeId certificateType, string password)
-            => m_innerStore.LoadPrivateKeyAsync(thumbprint, subjectName, applicationUri, certificateType, password);
+        {
+            return m_innerStore.LoadPrivateKeyAsync(thumbprint, subjectName, applicationUri, certificateType, password);
+        }
 
         /// <inheritdoc/>
         [Obsolete("Use AddRejectedAsync instead.")]
@@ -229,7 +239,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
         /// <inheritdoc/>
         public Task AddRejectedAsync(X509Certificate2Collection certificates, int maxCertificates)
-            => m_innerStore.AddRejectedAsync(certificates, maxCertificates);
+        {
+            return m_innerStore.AddRejectedAsync(certificates, maxCertificates);
+        }
 
         public static int InstancesCreated => s_instancesCreated;
 

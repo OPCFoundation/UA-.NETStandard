@@ -29,7 +29,9 @@
 
 using System;
 using System.IO;
+#if NETCOREAPP2_1_OR_GREATER
 using System.Runtime.InteropServices;
+#endif
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -542,15 +544,13 @@ namespace Opc.Ua.Configuration.Tests
             X509Certificate2Collection testCerts = CreateInvalidCertChain(certType);
             if (certType != InvalidCertType.NoIssuer)
             {
-                using (X509Certificate2 issuerCert = testCerts[1])
-                {
-                    Assert.NotNull(issuerCert);
-                    Assert.False(issuerCert.HasPrivateKey);
-                    issuerCert.AddToStore(
-                        applicationInstance.ApplicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates.StoreType,
-                        applicationInstance.ApplicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates.StorePath
-                        );
-                }
+                using X509Certificate2 issuerCert = testCerts[1];
+                Assert.NotNull(issuerCert);
+                Assert.False(issuerCert.HasPrivateKey);
+                issuerCert.AddToStore(
+                    applicationInstance.ApplicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates.StoreType,
+                    applicationInstance.ApplicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates.StorePath
+                    );
             }
 
             X509Certificate2 publicKey = null;
@@ -605,20 +605,18 @@ namespace Opc.Ua.Configuration.Tests
             DateTime notBefore = DateTime.Today.AddDays(-30);
             DateTime notAfter = DateTime.Today.AddDays(30);
 
-            using (X509Certificate2 cert = CertificateFactory.CreateCertificate(SubjectName)
+            using X509Certificate2 cert = CertificateFactory.CreateCertificate(SubjectName)
                 .SetNotBefore(notBefore)
                 .SetNotAfter(notAfter)
                 .SetCAConstraint(-1)
-                .CreateForRSA())
-            {
-                //Act
-                await applicationInstance.AddOwnCertificateToTrustedStoreAsync(cert, new CancellationToken()).ConfigureAwait(false);
-                ICertificateStore store = configuration.SecurityConfiguration.TrustedPeerCertificates.OpenStore();
-                X509Certificate2Collection storedCertificates = await store.FindByThumbprintAsync(cert.Thumbprint).ConfigureAwait(false);
+                .CreateForRSA();
+            //Act
+            await applicationInstance.AddOwnCertificateToTrustedStoreAsync(cert, new CancellationToken()).ConfigureAwait(false);
+            ICertificateStore store = configuration.SecurityConfiguration.TrustedPeerCertificates.OpenStore();
+            X509Certificate2Collection storedCertificates = await store.FindByThumbprintAsync(cert.Thumbprint).ConfigureAwait(false);
 
-                //Assert
-                Assert.IsTrue(storedCertificates.Contains(cert));
-            }
+            //Assert
+            Assert.IsTrue(storedCertificates.Contains(cert));
         }
 
         /// <summary>
@@ -745,28 +743,26 @@ namespace Opc.Ua.Configuration.Tests
             }
 
             const string rootCASubjectName = "CN=Root CA Test, O=OPC Foundation, C=US, S=Arizona";
-            using (X509Certificate2 rootCA = CertificateFactory.CreateCertificate(rootCASubjectName)
+            using X509Certificate2 rootCA = CertificateFactory.CreateCertificate(rootCASubjectName)
                 .SetNotBefore(issuerNotBefore)
                 .SetNotAfter(issuerNotAfter)
                 .SetCAConstraint(-1)
-                .CreateForRSA())
-            {
-                X509Certificate2 appCert = CertificateFactory.CreateCertificate(
-                    ApplicationUri,
-                    ApplicationName,
-                    SubjectName,
-                    domainNames)
-                    .SetNotBefore(notBefore)
-                    .SetNotAfter(notAfter)
-                    .SetIssuer(rootCA)
-                    .SetRSAKeySize(keySize)
-                    .CreateForRSA();
+                .CreateForRSA();
+            X509Certificate2 appCert = CertificateFactory.CreateCertificate(
+                ApplicationUri,
+                ApplicationName,
+                SubjectName,
+                domainNames)
+                .SetNotBefore(notBefore)
+                .SetNotAfter(notAfter)
+                .SetIssuer(rootCA)
+                .SetRSAKeySize(keySize)
+                .CreateForRSA();
 
-                return [
-                    appCert,
+            return [
+                appCert,
                     X509CertificateLoader.LoadCertificate(rootCA.RawData)
-                ];
-            }
+            ];
         }
 
         private string m_pkiRoot;

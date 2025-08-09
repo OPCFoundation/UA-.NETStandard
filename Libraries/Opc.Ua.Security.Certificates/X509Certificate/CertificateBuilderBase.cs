@@ -251,12 +251,7 @@ namespace Opc.Ua.Security.Certificates
         /// <inheritdoc/>
         public virtual ICertificateBuilderCreateForECDsaAny SetECDsaPublicKey(ECDsa publicKey)
         {
-            if (publicKey == null)
-            {
-                throw new ArgumentNullException(nameof(publicKey));
-            }
-
-            m_ecdsaPublicKey = publicKey;
+            m_ecdsaPublicKey = publicKey ?? throw new ArgumentNullException(nameof(publicKey));
             return this;
         }
 #endif
@@ -267,24 +262,14 @@ namespace Opc.Ua.Security.Certificates
         /// <inheritdoc/>
         public virtual ICertificateBuilderCreateForRSAAny SetRSAPublicKey(RSA publicKey)
         {
-            if (publicKey == null)
-            {
-                throw new ArgumentNullException(nameof(publicKey));
-            }
-
-            m_rsaPublicKey = publicKey;
+            m_rsaPublicKey = publicKey ?? throw new ArgumentNullException(nameof(publicKey));
             return this;
         }
 
         /// <inheritdoc/>
         public virtual ICertificateBuilderIssuer SetIssuer(X509Certificate2 issuerCertificate)
         {
-            if (issuerCertificate == null)
-            {
-                throw new ArgumentNullException(nameof(issuerCertificate));
-            }
-
-            m_issuerCAKeyCert = issuerCertificate;
+            m_issuerCAKeyCert = issuerCertificate ?? throw new ArgumentNullException(nameof(issuerCertificate));
             m_issuerName = issuerCertificate.SubjectName;
             return this;
         }

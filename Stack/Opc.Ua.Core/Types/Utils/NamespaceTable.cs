@@ -29,7 +29,7 @@ namespace Opc.Ua
             m_strings = [];
 
 #if DEBUG
-            m_instanceId = Interlocked.Increment(ref s_globalInstanceCount);
+            InstanceId = Interlocked.Increment(ref s_globalInstanceCount);
 #endif
         }
 
@@ -42,7 +42,7 @@ namespace Opc.Ua
 
 #if DEBUG
             m_shared = shared;
-            m_instanceId = Interlocked.Increment(ref s_globalInstanceCount);
+            InstanceId = Interlocked.Increment(ref s_globalInstanceCount);
 #endif
         }
 
@@ -54,7 +54,7 @@ namespace Opc.Ua
             Update(strings);
 
 #if DEBUG
-            m_instanceId = Interlocked.Increment(ref s_globalInstanceCount);
+            InstanceId = Interlocked.Increment(ref s_globalInstanceCount);
 #endif
         }
 
@@ -67,7 +67,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns a unique identifier for the table instance. Used to debug problems with shared tables.
         /// </summary>
-        public int InstanceId => m_instanceId;
+        public int InstanceId { get; }
 #endif
 
         /// <summary>
@@ -89,7 +89,7 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < m_strings.Count; ii++)
                     {
-                        Utils.LogWarning("WARNING: Adding '{0}' to shared StringTable #{1}.", m_strings[ii], m_instanceId);
+                        Utils.LogWarning("WARNING: Adding '{0}' to shared StringTable #{1}.", m_strings[ii], InstanceId);
                     }
                 }
 #endif
@@ -109,7 +109,7 @@ namespace Opc.Ua
 #if DEBUG
             if (m_shared)
             {
-                Utils.LogWarning("WARNING: Adding '{0}' to shared StringTable #{1}.", value, m_instanceId);
+                Utils.LogWarning("WARNING: Adding '{0}' to shared StringTable #{1}.", value, InstanceId);
             }
 #endif
 
@@ -171,7 +171,7 @@ namespace Opc.Ua
 #if DEBUG
                     if (m_shared)
                     {
-                        Utils.LogWarning("WARNING: Adding '{0}' to shared StringTable #{1}.", value, m_instanceId);
+                        Utils.LogWarning("WARNING: Adding '{0}' to shared StringTable #{1}.", value, InstanceId);
                     }
 #endif
 
@@ -252,7 +252,6 @@ namespace Opc.Ua
         /// Whether the table is shared.
         /// </summary>
         protected bool m_shared;
-        private int m_instanceId;
         private static int s_globalInstanceCount;
 #endif
     }

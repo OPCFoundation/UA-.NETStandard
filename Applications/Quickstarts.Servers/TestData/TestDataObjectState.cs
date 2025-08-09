@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -111,12 +111,12 @@ namespace TestData
         {
             try
             {
-                if (!(node.FindChild(context, Opc.Ua.BrowseNames.EURange) is BaseVariableState euRange))
+                if (node.FindChild(context, Opc.Ua.BrowseNames.EURange) is not BaseVariableState euRange)
                 {
                     return ServiceResult.Good;
                 }
 
-                if (!(euRange.Value is Range range))
+                if (euRange.Value is not Range range)
                 {
                     return ServiceResult.Good;
                 }
@@ -225,7 +225,7 @@ namespace TestData
             ref StatusCode statusCode,
             ref DateTime timestamp)
         {
-            if (!(node is BaseVariableState variable))
+            if (node is not BaseVariableState variable)
             {
                 return ServiceResult.Good;
             }
@@ -235,7 +235,7 @@ namespace TestData
                 return ServiceResult.Good;
             }
 
-            if (!(context.SystemHandle is TestDataSystem system))
+            if (context.SystemHandle is not TestDataSystem system)
             {
                 return StatusCodes.BadOutOfService;
             }

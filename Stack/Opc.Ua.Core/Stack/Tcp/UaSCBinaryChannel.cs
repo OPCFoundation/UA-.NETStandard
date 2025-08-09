@@ -67,15 +67,6 @@ namespace Opc.Ua.Bindings
             MessageSecurityMode securityMode,
             string securityPolicyUri)
         {
-            if (bufferManager == null)
-            {
-                throw new ArgumentNullException(nameof(bufferManager));
-            }
-
-            if (quotas == null)
-            {
-                throw new ArgumentNullException(nameof(quotas));
-            }
 
             // create a unique contex if none provided.
             m_contextId = contextId;
@@ -119,8 +110,8 @@ namespace Opc.Ua.Bindings
                         nameof(securityPolicyUri));
             }
 
-            m_bufferManager = bufferManager;
-            m_quotas = quotas;
+            m_bufferManager = bufferManager ?? throw new ArgumentNullException(nameof(bufferManager));
+            m_quotas = quotas ?? throw new ArgumentNullException(nameof(quotas));
             m_serverCertificateTypesProvider = serverCertificateTypesProvider;
             m_serverCertificate = serverCertificate;
             m_serverCertificateChain = serverCertificateChain;

@@ -35,14 +35,10 @@ namespace Opc.Ua
             }
 
             ITransportListener listener = TransportBindings.Listeners.GetListener(url.Scheme);
-            if (listener == null)
-            {
-                throw ServiceResultException.Create(
+
+            m_listener = listener ?? throw ServiceResultException.Create(
                     StatusCodes.BadProtocolVersionUnsupported,
                     "Unsupported transport profile for scheme {0}.", url.Scheme);
-            }
-
-            m_listener = listener;
             Url = url;
             m_onConnectionWaiting = OnConnectionWaiting;
             m_onConnectionStatusChanged = OnConnectionStatusChanged;

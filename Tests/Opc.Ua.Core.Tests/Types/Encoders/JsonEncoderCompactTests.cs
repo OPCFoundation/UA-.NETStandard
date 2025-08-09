@@ -308,11 +308,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             var context = new ServiceMessageContext();
 
-            using (var decoder = new JsonDecoder(data, context))
-            {
-                decoder.UpdateNamespaceTable = true;
-                CheckDecodedNodeIds(context, decoder, index);
-            }
+            using var decoder = new JsonDecoder(data, context);
+            decoder.UpdateNamespaceTable = true;
+            CheckDecodedNodeIds(context, decoder, index);
         }
 
         [Test]
@@ -343,18 +341,16 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             var context = new ServiceMessageContext();
             Array.ForEach(NamespaceUris, x => context.NamespaceUris.Append(x));
 
-            using (var encoder = new JsonEncoder(context, jsonEncoding))
-            {
-                encoder.WriteNodeId("D0", new NodeId(2263));
-                encoder.WriteNodeId("D1", new NodeId(Get(NumericIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index))));
-                encoder.WriteNodeId("D2", new NodeId(Get(StringIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))));
-                encoder.WriteNodeId("D3", new NodeId(Get(GuidIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))));
-                encoder.WriteNodeId("D4", new NodeId(Get(OpaqueIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))));
+            using var encoder = new JsonEncoder(context, jsonEncoding);
+            encoder.WriteNodeId("D0", new NodeId(2263));
+            encoder.WriteNodeId("D1", new NodeId(Get(NumericIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index))));
+            encoder.WriteNodeId("D2", new NodeId(Get(StringIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))));
+            encoder.WriteNodeId("D3", new NodeId(Get(GuidIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))));
+            encoder.WriteNodeId("D4", new NodeId(Get(OpaqueIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))));
 
-                string actual = encoder.CloseAndReturnText();
-                EncoderCommon.PrettifyAndValidateJson(actual, true);
-                Assert.AreEqual(expected, actual);
-            }
+            string actual = encoder.CloseAndReturnText();
+            EncoderCommon.PrettifyAndValidateJson(actual, true);
+            Assert.AreEqual(expected, actual);
         }
 
         [Test]
@@ -381,11 +377,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             var context = new ServiceMessageContext();
 
-            using (var decoder = new JsonDecoder(data, context))
-            {
-                decoder.UpdateNamespaceTable = true;
-                CheckDecodedExpandedNodeIds(context, decoder, index);
-            }
+            using var decoder = new JsonDecoder(data, context);
+            decoder.UpdateNamespaceTable = true;
+            CheckDecodedExpandedNodeIds(context, decoder, index);
         }
 
         [Test]
@@ -423,22 +417,20 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context.ServerUris.Append("http://server-placeholder");
             Array.ForEach(ServerUris, x => context.ServerUris.Append(x));
 
-            using (var encoder = new JsonEncoder(context, jsonEncoding))
-            {
-                encoder.WriteExpandedNodeId("D0", new ExpandedNodeId(2263));
-                encoder.WriteExpandedNodeId("D1", new ExpandedNodeId(Get(NumericIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index))));
-                encoder.WriteExpandedNodeId("D2", new ExpandedNodeId(Get(StringIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))));
-                encoder.WriteExpandedNodeId("D3", new ExpandedNodeId(Get(GuidIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))));
-                encoder.WriteExpandedNodeId("D4", new ExpandedNodeId(Get(OpaqueIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))));
-                encoder.WriteExpandedNodeId("D5", new ExpandedNodeId(Get(NumericIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index)), null, (uint)context.ServerUris.GetIndex(Get(ServerUris, index))));
-                encoder.WriteExpandedNodeId("D6", new ExpandedNodeId(Get(StringIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1)), null, (uint)context.ServerUris.GetIndex(Get(ServerUris, index + 1))));
-                encoder.WriteExpandedNodeId("D7", new ExpandedNodeId(Get(GuidIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2)), null, (uint)context.ServerUris.GetIndex(Get(ServerUris, index + 2))));
-                encoder.WriteExpandedNodeId("D8", new ExpandedNodeId(Get(OpaqueIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3)), null, (uint)context.ServerUris.GetIndex(Get(ServerUris, index + 3))));
+            using var encoder = new JsonEncoder(context, jsonEncoding);
+            encoder.WriteExpandedNodeId("D0", new ExpandedNodeId(2263));
+            encoder.WriteExpandedNodeId("D1", new ExpandedNodeId(Get(NumericIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index))));
+            encoder.WriteExpandedNodeId("D2", new ExpandedNodeId(Get(StringIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))));
+            encoder.WriteExpandedNodeId("D3", new ExpandedNodeId(Get(GuidIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))));
+            encoder.WriteExpandedNodeId("D4", new ExpandedNodeId(Get(OpaqueIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))));
+            encoder.WriteExpandedNodeId("D5", new ExpandedNodeId(Get(NumericIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index)), null, (uint)context.ServerUris.GetIndex(Get(ServerUris, index))));
+            encoder.WriteExpandedNodeId("D6", new ExpandedNodeId(Get(StringIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1)), null, (uint)context.ServerUris.GetIndex(Get(ServerUris, index + 1))));
+            encoder.WriteExpandedNodeId("D7", new ExpandedNodeId(Get(GuidIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2)), null, (uint)context.ServerUris.GetIndex(Get(ServerUris, index + 2))));
+            encoder.WriteExpandedNodeId("D8", new ExpandedNodeId(Get(OpaqueIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3)), null, (uint)context.ServerUris.GetIndex(Get(ServerUris, index + 3))));
 
-                string actual = encoder.CloseAndReturnText();
-                EncoderCommon.PrettifyAndValidateJson(actual, true);
-                Assert.AreEqual(expected, actual);
-            }
+            string actual = encoder.CloseAndReturnText();
+            EncoderCommon.PrettifyAndValidateJson(actual, true);
+            Assert.AreEqual(expected, actual);
         }
 
         [Test]
@@ -469,12 +461,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context2.NamespaceUris.Append(NamespaceUris[0]);
             context2.NamespaceUris.Append(NamespaceUris[1]);
 
-            using (var decoder = new JsonDecoder(data, context2))
-            {
-                decoder.UpdateNamespaceTable = false;
-                decoder.SetMappingTables(context1.NamespaceUris, context1.ServerUris);
-                CheckDecodedNodeIds(context2, decoder, index);
-            }
+            using var decoder = new JsonDecoder(data, context2);
+            decoder.UpdateNamespaceTable = false;
+            decoder.SetMappingTables(context1.NamespaceUris, context1.ServerUris);
+            CheckDecodedNodeIds(context2, decoder, index);
         }
 
         [Test]
@@ -509,20 +499,18 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context2.NamespaceUris.Append(NamespaceUris[0]);
             context2.NamespaceUris.Append(NamespaceUris[1]);
 
-            using (var encoder = new JsonEncoder(context2, JsonEncodingType.Reversible))
-            {
-                encoder.SetMappingTables(context1.NamespaceUris, context1.ServerUris);
+            using var encoder = new JsonEncoder(context2, JsonEncodingType.Reversible);
+            encoder.SetMappingTables(context1.NamespaceUris, context1.ServerUris);
 
-                encoder.WriteNodeId("D0", new NodeId(2263));
-                encoder.WriteNodeId("D1", new NodeId(Get(NumericIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index))));
-                encoder.WriteNodeId("D2", new NodeId(Get(StringIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))));
-                encoder.WriteNodeId("D3", new NodeId(Get(GuidIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))));
-                encoder.WriteNodeId("D4", new NodeId(Get(OpaqueIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))));
+            encoder.WriteNodeId("D0", new NodeId(2263));
+            encoder.WriteNodeId("D1", new NodeId(Get(NumericIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index))));
+            encoder.WriteNodeId("D2", new NodeId(Get(StringIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))));
+            encoder.WriteNodeId("D3", new NodeId(Get(GuidIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))));
+            encoder.WriteNodeId("D4", new NodeId(Get(OpaqueIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))));
 
-                string actual = encoder.CloseAndReturnText();
-                EncoderCommon.PrettifyAndValidateJson(actual, true);
-                Assert.AreEqual(expected, actual);
-            }
+            string actual = encoder.CloseAndReturnText();
+            EncoderCommon.PrettifyAndValidateJson(actual, true);
+            Assert.AreEqual(expected, actual);
         }
 
         [Test]
@@ -565,12 +553,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context2.ServerUris.Append(ServerUris[0]);
             context2.ServerUris.Append(ServerUris[1]);
 
-            using (var decoder = new JsonDecoder(data, context2))
-            {
-                decoder.UpdateNamespaceTable = false;
-                decoder.SetMappingTables(context1.NamespaceUris, context1.ServerUris);
-                CheckDecodedExpandedNodeIds(context2, decoder, index);
-            }
+            using var decoder = new JsonDecoder(data, context2);
+            decoder.UpdateNamespaceTable = false;
+            decoder.SetMappingTables(context1.NamespaceUris, context1.ServerUris);
+            CheckDecodedExpandedNodeIds(context2, decoder, index);
         }
 
         [Test]
@@ -617,24 +603,22 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context2.ServerUris.Append(ServerUris[0]);
             context2.ServerUris.Append(ServerUris[1]);
 
-            using (var encoder = new JsonEncoder(context2, JsonEncodingType.Reversible))
-            {
-                encoder.SetMappingTables(context1.NamespaceUris, context1.ServerUris);
+            using var encoder = new JsonEncoder(context2, JsonEncodingType.Reversible);
+            encoder.SetMappingTables(context1.NamespaceUris, context1.ServerUris);
 
-                encoder.WriteExpandedNodeId("D0", new ExpandedNodeId(2263));
-                encoder.WriteExpandedNodeId("D1", new ExpandedNodeId(Get(NumericIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index))));
-                encoder.WriteExpandedNodeId("D2", new ExpandedNodeId(Get(StringIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))));
-                encoder.WriteExpandedNodeId("D3", new ExpandedNodeId(Get(GuidIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))));
-                encoder.WriteExpandedNodeId("D4", new ExpandedNodeId(Get(OpaqueIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))));
-                encoder.WriteExpandedNodeId("D5", new ExpandedNodeId(Get(NumericIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index)), null, (uint)context2.ServerUris.GetIndex(Get(ServerUris, index))));
-                encoder.WriteExpandedNodeId("D6", new ExpandedNodeId(Get(StringIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1)), null, (uint)context2.ServerUris.GetIndex(Get(ServerUris, index + 1))));
-                encoder.WriteExpandedNodeId("D7", new ExpandedNodeId(Get(GuidIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2)), null, (uint)context2.ServerUris.GetIndex(Get(ServerUris, index + 2))));
-                encoder.WriteExpandedNodeId("D8", new ExpandedNodeId(Get(OpaqueIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3)), null, (uint)context2.ServerUris.GetIndex(Get(ServerUris, index + 3))));
+            encoder.WriteExpandedNodeId("D0", new ExpandedNodeId(2263));
+            encoder.WriteExpandedNodeId("D1", new ExpandedNodeId(Get(NumericIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index))));
+            encoder.WriteExpandedNodeId("D2", new ExpandedNodeId(Get(StringIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))));
+            encoder.WriteExpandedNodeId("D3", new ExpandedNodeId(Get(GuidIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))));
+            encoder.WriteExpandedNodeId("D4", new ExpandedNodeId(Get(OpaqueIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))));
+            encoder.WriteExpandedNodeId("D5", new ExpandedNodeId(Get(NumericIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index)), null, (uint)context2.ServerUris.GetIndex(Get(ServerUris, index))));
+            encoder.WriteExpandedNodeId("D6", new ExpandedNodeId(Get(StringIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1)), null, (uint)context2.ServerUris.GetIndex(Get(ServerUris, index + 1))));
+            encoder.WriteExpandedNodeId("D7", new ExpandedNodeId(Get(GuidIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2)), null, (uint)context2.ServerUris.GetIndex(Get(ServerUris, index + 2))));
+            encoder.WriteExpandedNodeId("D8", new ExpandedNodeId(Get(OpaqueIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3)), null, (uint)context2.ServerUris.GetIndex(Get(ServerUris, index + 3))));
 
-                string actual = encoder.CloseAndReturnText();
-                EncoderCommon.PrettifyAndValidateJson(actual, true);
-                Assert.AreEqual(expected, actual);
-            }
+            string actual = encoder.CloseAndReturnText();
+            EncoderCommon.PrettifyAndValidateJson(actual, true);
+            Assert.AreEqual(expected, actual);
         }
 
         [Test]
@@ -657,11 +641,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             var context = new ServiceMessageContext();
 
-            using (var decoder = new JsonDecoder(data, context))
-            {
-                decoder.UpdateNamespaceTable = true;
-                CheckDecodedNodeIds(context, decoder, index);
-            }
+            using var decoder = new JsonDecoder(data, context);
+            decoder.UpdateNamespaceTable = true;
+            CheckDecodedNodeIds(context, decoder, index);
         }
 
         [Test]
@@ -696,22 +678,20 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context2.NamespaceUris.Append(NamespaceUris[0]);
             context2.NamespaceUris.Append(NamespaceUris[1]);
 
-            using (var encoder = new JsonEncoder(context2, JsonEncodingType.NonReversible))
-            {
-                //encoder.ForceNamespaceUri = true;
-                //encoder.ForceNamespaceUriForIndex1 = true;
-                encoder.SetMappingTables(context1.NamespaceUris, context1.ServerUris);
+            using var encoder = new JsonEncoder(context2, JsonEncodingType.NonReversible);
+            //encoder.ForceNamespaceUri = true;
+            //encoder.ForceNamespaceUriForIndex1 = true;
+            encoder.SetMappingTables(context1.NamespaceUris, context1.ServerUris);
 
-                encoder.WriteNodeId("D0", new NodeId(2263));
-                encoder.WriteNodeId("D1", new NodeId(Get(NumericIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index))));
-                encoder.WriteNodeId("D2", new NodeId(Get(StringIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))));
-                encoder.WriteNodeId("D3", new NodeId(Get(GuidIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))));
-                encoder.WriteNodeId("D4", new NodeId(Get(OpaqueIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))));
+            encoder.WriteNodeId("D0", new NodeId(2263));
+            encoder.WriteNodeId("D1", new NodeId(Get(NumericIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index))));
+            encoder.WriteNodeId("D2", new NodeId(Get(StringIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))));
+            encoder.WriteNodeId("D3", new NodeId(Get(GuidIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))));
+            encoder.WriteNodeId("D4", new NodeId(Get(OpaqueIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))));
 
-                string actual = encoder.CloseAndReturnText();
-                EncoderCommon.PrettifyAndValidateJson(actual, true);
-                Assert.AreEqual(expected, actual);
-            }
+            string actual = encoder.CloseAndReturnText();
+            EncoderCommon.PrettifyAndValidateJson(actual, true);
+            Assert.AreEqual(expected, actual);
         }
 
         [Test]
@@ -748,11 +728,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             var context2 = new ServiceMessageContext();
             context2.ServerUris.Append("http://server-placeholder");
 
-            using (var decoder = new JsonDecoder(data, context2))
-            {
-                decoder.UpdateNamespaceTable = true;
-                CheckDecodedExpandedNodeIds(context2, decoder, index);
-            }
+            using var decoder = new JsonDecoder(data, context2);
+            decoder.UpdateNamespaceTable = true;
+            CheckDecodedExpandedNodeIds(context2, decoder, index);
         }
 
         [Test]
@@ -799,27 +777,25 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context2.ServerUris.Append(ServerUris[0]);
             context2.ServerUris.Append(ServerUris[1]);
 
-            using (var encoder = new JsonEncoder(context2, JsonEncodingType.NonReversible))
-            {
-                // encoder.ForceNamespaceUri = true;
-                // encoder.ForceNamespaceUriForIndex1 = true;
+            using var encoder = new JsonEncoder(context2, JsonEncodingType.NonReversible);
+            // encoder.ForceNamespaceUri = true;
+            // encoder.ForceNamespaceUriForIndex1 = true;
 
-                encoder.SetMappingTables(context1.NamespaceUris, context1.ServerUris);
+            encoder.SetMappingTables(context1.NamespaceUris, context1.ServerUris);
 
-                encoder.WriteExpandedNodeId("D0", new ExpandedNodeId(2263));
-                encoder.WriteExpandedNodeId("D1", new ExpandedNodeId(Get(NumericIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index))));
-                encoder.WriteExpandedNodeId("D2", new ExpandedNodeId(Get(StringIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))));
-                encoder.WriteExpandedNodeId("D3", new ExpandedNodeId(Get(GuidIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))));
-                encoder.WriteExpandedNodeId("D4", new ExpandedNodeId(Get(OpaqueIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))));
-                encoder.WriteExpandedNodeId("D5", new ExpandedNodeId(Get(NumericIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index)), null, (uint)context2.ServerUris.GetIndex(Get(ServerUris, index))));
-                encoder.WriteExpandedNodeId("D6", new ExpandedNodeId(Get(StringIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1)), null, (uint)context2.ServerUris.GetIndex(Get(ServerUris, index + 1))));
-                encoder.WriteExpandedNodeId("D7", new ExpandedNodeId(Get(GuidIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2)), null, (uint)context2.ServerUris.GetIndex(Get(ServerUris, index + 2))));
-                encoder.WriteExpandedNodeId("D8", new ExpandedNodeId(Get(OpaqueIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3)), null, (uint)context2.ServerUris.GetIndex(Get(ServerUris, index + 3))));
+            encoder.WriteExpandedNodeId("D0", new ExpandedNodeId(2263));
+            encoder.WriteExpandedNodeId("D1", new ExpandedNodeId(Get(NumericIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index))));
+            encoder.WriteExpandedNodeId("D2", new ExpandedNodeId(Get(StringIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))));
+            encoder.WriteExpandedNodeId("D3", new ExpandedNodeId(Get(GuidIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))));
+            encoder.WriteExpandedNodeId("D4", new ExpandedNodeId(Get(OpaqueIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))));
+            encoder.WriteExpandedNodeId("D5", new ExpandedNodeId(Get(NumericIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index)), null, (uint)context2.ServerUris.GetIndex(Get(ServerUris, index))));
+            encoder.WriteExpandedNodeId("D6", new ExpandedNodeId(Get(StringIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1)), null, (uint)context2.ServerUris.GetIndex(Get(ServerUris, index + 1))));
+            encoder.WriteExpandedNodeId("D7", new ExpandedNodeId(Get(GuidIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2)), null, (uint)context2.ServerUris.GetIndex(Get(ServerUris, index + 2))));
+            encoder.WriteExpandedNodeId("D8", new ExpandedNodeId(Get(OpaqueIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3)), null, (uint)context2.ServerUris.GetIndex(Get(ServerUris, index + 3))));
 
-                string actual = encoder.CloseAndReturnText();
-                EncoderCommon.PrettifyAndValidateJson(actual, true);
-                Assert.AreEqual(expected, actual);
-            }
+            string actual = encoder.CloseAndReturnText();
+            EncoderCommon.PrettifyAndValidateJson(actual, true);
+            Assert.AreEqual(expected, actual);
         }
 
         [Test]
@@ -839,11 +815,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             var context = new ServiceMessageContext();
 
-            using (var decoder = new JsonDecoder(data, context))
-            {
-                decoder.UpdateNamespaceTable = true;
-                CheckDecodedQualfiiedNames(context, decoder, 0);
-            }
+            using var decoder = new JsonDecoder(data, context);
+            decoder.UpdateNamespaceTable = true;
+            CheckDecodedQualfiiedNames(context, decoder, 0);
         }
 
         [Test]
@@ -877,20 +851,18 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context2.NamespaceUris.Append(NamespaceUris[0]);
             context2.NamespaceUris.Append(NamespaceUris[1]);
 
-            using (var encoder = new JsonEncoder(context2, jsonEncoding))
-            {
-                encoder.SetMappingTables(context1.NamespaceUris, context1.ServerUris);
+            using var encoder = new JsonEncoder(context2, jsonEncoding);
+            encoder.SetMappingTables(context1.NamespaceUris, context1.ServerUris);
 
-                encoder.WriteQualifiedName("D0", new QualifiedName("ServerStatus"));
-                encoder.WriteQualifiedName("D1", new QualifiedName("N1", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 0))));
-                encoder.WriteQualifiedName("D2", new QualifiedName("N2", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 1))));
-                encoder.WriteQualifiedName("D3", new QualifiedName("N3", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 2))));
-                encoder.WriteQualifiedName("D4", new QualifiedName("N4", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 3))));
+            encoder.WriteQualifiedName("D0", new QualifiedName("ServerStatus"));
+            encoder.WriteQualifiedName("D1", new QualifiedName("N1", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 0))));
+            encoder.WriteQualifiedName("D2", new QualifiedName("N2", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 1))));
+            encoder.WriteQualifiedName("D3", new QualifiedName("N3", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 2))));
+            encoder.WriteQualifiedName("D4", new QualifiedName("N4", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 3))));
 
-                string actual = encoder.CloseAndReturnText();
-                EncoderCommon.PrettifyAndValidateJson(actual, true);
-                Assert.AreEqual(expected, actual);
-            }
+            string actual = encoder.CloseAndReturnText();
+            EncoderCommon.PrettifyAndValidateJson(actual, true);
+            Assert.AreEqual(expected, actual);
         }
 
         [Test]
@@ -918,12 +890,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context2.NamespaceUris.Append(NamespaceUris[0]);
             context2.NamespaceUris.Append(NamespaceUris[1]);
 
-            using (var decoder = new JsonDecoder(data, context2))
-            {
-                decoder.UpdateNamespaceTable = false;
-                decoder.SetMappingTables(context1.NamespaceUris, context1.ServerUris);
-                CheckDecodedQualfiiedNames(context2, decoder, 0);
-            }
+            using var decoder = new JsonDecoder(data, context2);
+            decoder.UpdateNamespaceTable = false;
+            decoder.SetMappingTables(context1.NamespaceUris, context1.ServerUris);
+            CheckDecodedQualfiiedNames(context2, decoder, 0);
         }
 
         [Test]
@@ -955,20 +925,18 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context2.NamespaceUris.Append(NamespaceUris[0]);
             context2.NamespaceUris.Append(NamespaceUris[1]);
 
-            using (var encoder = new JsonEncoder(context2, JsonEncodingType.Reversible))
-            {
-                encoder.SetMappingTables(context1.NamespaceUris, context1.ServerUris);
+            using var encoder = new JsonEncoder(context2, JsonEncodingType.Reversible);
+            encoder.SetMappingTables(context1.NamespaceUris, context1.ServerUris);
 
-                encoder.WriteQualifiedName("D0", new QualifiedName("ServerStatus"));
-                encoder.WriteQualifiedName("D1", new QualifiedName("N1", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 0))));
-                encoder.WriteQualifiedName("D2", new QualifiedName("N2", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 1))));
-                encoder.WriteQualifiedName("D3", new QualifiedName("N3", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 2))));
-                encoder.WriteQualifiedName("D4", new QualifiedName("N4", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 3))));
+            encoder.WriteQualifiedName("D0", new QualifiedName("ServerStatus"));
+            encoder.WriteQualifiedName("D1", new QualifiedName("N1", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 0))));
+            encoder.WriteQualifiedName("D2", new QualifiedName("N2", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 1))));
+            encoder.WriteQualifiedName("D3", new QualifiedName("N3", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 2))));
+            encoder.WriteQualifiedName("D4", new QualifiedName("N4", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 3))));
 
-                string actual = encoder.CloseAndReturnText();
-                EncoderCommon.PrettifyAndValidateJson(actual, true);
-                Assert.AreEqual(expected, actual);
-            }
+            string actual = encoder.CloseAndReturnText();
+            EncoderCommon.PrettifyAndValidateJson(actual, true);
+            Assert.AreEqual(expected, actual);
         }
 
         [Test]
@@ -996,12 +964,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context2.NamespaceUris.Append(NamespaceUris[0]);
             context2.NamespaceUris.Append(NamespaceUris[1]);
 
-            using (var decoder = new JsonDecoder(data, context2))
-            {
-                decoder.UpdateNamespaceTable = false;
-                decoder.SetMappingTables(context1.NamespaceUris, context1.ServerUris);
-                CheckDecodedQualfiiedNames(context2, decoder, 0);
-            }
+            using var decoder = new JsonDecoder(data, context2);
+            decoder.UpdateNamespaceTable = false;
+            decoder.SetMappingTables(context1.NamespaceUris, context1.ServerUris);
+            CheckDecodedQualfiiedNames(context2, decoder, 0);
         }
 
         [Test]
@@ -1033,23 +999,21 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context2.NamespaceUris.Append(NamespaceUris[0]);
             context2.NamespaceUris.Append(NamespaceUris[1]);
 
-            using (var encoder = new JsonEncoder(context2, JsonEncodingType.NonReversible))
-            {
-                // encoder.ForceNamespaceUri = true;
-                // encoder.ForceNamespaceUriForIndex1 = true;
+            using var encoder = new JsonEncoder(context2, JsonEncodingType.NonReversible);
+            // encoder.ForceNamespaceUri = true;
+            // encoder.ForceNamespaceUriForIndex1 = true;
 
-                encoder.SetMappingTables(context1.NamespaceUris, context1.ServerUris);
+            encoder.SetMappingTables(context1.NamespaceUris, context1.ServerUris);
 
-                encoder.WriteQualifiedName("D0", new QualifiedName("ServerStatus"));
-                encoder.WriteQualifiedName("D1", new QualifiedName("N1", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 0))));
-                encoder.WriteQualifiedName("D2", new QualifiedName("N2", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 1))));
-                encoder.WriteQualifiedName("D3", new QualifiedName("N3", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 2))));
-                encoder.WriteQualifiedName("D4", new QualifiedName("N4", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 3))));
+            encoder.WriteQualifiedName("D0", new QualifiedName("ServerStatus"));
+            encoder.WriteQualifiedName("D1", new QualifiedName("N1", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 0))));
+            encoder.WriteQualifiedName("D2", new QualifiedName("N2", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 1))));
+            encoder.WriteQualifiedName("D3", new QualifiedName("N3", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 2))));
+            encoder.WriteQualifiedName("D4", new QualifiedName("N4", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 3))));
 
-                string actual = encoder.CloseAndReturnText();
-                EncoderCommon.PrettifyAndValidateJson(actual, true);
-                Assert.AreEqual(expected, actual);
-            }
+            string actual = encoder.CloseAndReturnText();
+            EncoderCommon.PrettifyAndValidateJson(actual, true);
+            Assert.AreEqual(expected, actual);
         }
 
         [Test]
@@ -1066,21 +1030,19 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             var context = new ServiceMessageContext();
 
-            using (var decoder = new JsonDecoder(data, context))
-            {
-                Array a1 = decoder.ReadArray("D0", 2, BuiltInType.Int64);
-                Assert.AreEqual(2, a1.Rank);
-                Assert.AreEqual(6, a1.Length);
-                Assert.AreEqual(2, a1.GetLength(0));
-                Assert.AreEqual(3, a1.GetLength(1));
+            using var decoder = new JsonDecoder(data, context);
+            Array a1 = decoder.ReadArray("D0", 2, BuiltInType.Int64);
+            Assert.AreEqual(2, a1.Rank);
+            Assert.AreEqual(6, a1.Length);
+            Assert.AreEqual(2, a1.GetLength(0));
+            Assert.AreEqual(3, a1.GetLength(1));
 
-                Array a2 = decoder.ReadArray("D1", 2, BuiltInType.Int64);
-                Assert.AreEqual(3, a2.Rank);
-                Assert.AreEqual(6, a2.Length);
-                Assert.AreEqual(1, a2.GetLength(0));
-                Assert.AreEqual(2, a2.GetLength(1));
-                Assert.AreEqual(3, a2.GetLength(2));
-            }
+            Array a2 = decoder.ReadArray("D1", 2, BuiltInType.Int64);
+            Assert.AreEqual(3, a2.Rank);
+            Assert.AreEqual(6, a2.Length);
+            Assert.AreEqual(1, a2.GetLength(0));
+            Assert.AreEqual(2, a2.GetLength(1));
+            Assert.AreEqual(3, a2.GetLength(2));
         }
 
         [Test]
@@ -1103,15 +1065,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             var context = new ServiceMessageContext();
 
-            using (var encoder = new JsonEncoder(context, jsonEncoding))
-            {
-                encoder.WriteArray("D0", new int[,] { { 1, 2, 3 }, { 4, 5, 6 } }, 2, BuiltInType.Int32);
-                encoder.WriteArray("D1", new int[,,] { { { 1, 2, 3 }, { 4, 5, 6 } } }, 3, BuiltInType.Int32);
+            using var encoder = new JsonEncoder(context, jsonEncoding);
+            encoder.WriteArray("D0", new int[,] { { 1, 2, 3 }, { 4, 5, 6 } }, 2, BuiltInType.Int32);
+            encoder.WriteArray("D1", new int[,,] { { { 1, 2, 3 }, { 4, 5, 6 } } }, 3, BuiltInType.Int32);
 
-                string actual = encoder.CloseAndReturnText();
-                EncoderCommon.PrettifyAndValidateJson(actual, true);
-                Assert.AreEqual(expected, actual);
-            }
+            string actual = encoder.CloseAndReturnText();
+            EncoderCommon.PrettifyAndValidateJson(actual, true);
+            Assert.AreEqual(expected, actual);
         }
 
         [Test]
@@ -1128,21 +1088,19 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             var context = new ServiceMessageContext();
 
-            using (var decoder = new JsonDecoder(data, context))
-            {
-                Array a1 = decoder.ReadArray("D0", 2, BuiltInType.Int64);
-                Assert.AreEqual(2, a1.Rank);
-                Assert.AreEqual(6, a1.Length);
-                Assert.AreEqual(2, a1.GetLength(0));
-                Assert.AreEqual(3, a1.GetLength(1));
+            using var decoder = new JsonDecoder(data, context);
+            Array a1 = decoder.ReadArray("D0", 2, BuiltInType.Int64);
+            Assert.AreEqual(2, a1.Rank);
+            Assert.AreEqual(6, a1.Length);
+            Assert.AreEqual(2, a1.GetLength(0));
+            Assert.AreEqual(3, a1.GetLength(1));
 
-                Array a2 = decoder.ReadArray("D1", 2, BuiltInType.Int64);
-                Assert.AreEqual(3, a2.Rank);
-                Assert.AreEqual(6, a2.Length);
-                Assert.AreEqual(1, a2.GetLength(0));
-                Assert.AreEqual(2, a2.GetLength(1));
-                Assert.AreEqual(3, a2.GetLength(2));
-            }
+            Array a2 = decoder.ReadArray("D1", 2, BuiltInType.Int64);
+            Assert.AreEqual(3, a2.Rank);
+            Assert.AreEqual(6, a2.Length);
+            Assert.AreEqual(1, a2.GetLength(0));
+            Assert.AreEqual(2, a2.GetLength(1));
+            Assert.AreEqual(3, a2.GetLength(2));
         }
 
         [Test]
@@ -1165,15 +1123,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             var context = new ServiceMessageContext();
 
-            using (var encoder = new JsonEncoder(context, jsonEncoding))
-            {
-                encoder.WriteArray("D0", new int[,] { { 1, 2, 3 }, { 4, 5, 6 } }, 2, BuiltInType.Int32);
-                encoder.WriteArray("D1", new int[,,] { { { 1, 2, 3 }, { 4, 5, 6 } } }, 3, BuiltInType.Int32);
+            using var encoder = new JsonEncoder(context, jsonEncoding);
+            encoder.WriteArray("D0", new int[,] { { 1, 2, 3 }, { 4, 5, 6 } }, 2, BuiltInType.Int32);
+            encoder.WriteArray("D1", new int[,,] { { { 1, 2, 3 }, { 4, 5, 6 } } }, 3, BuiltInType.Int32);
 
-                string actual = encoder.CloseAndReturnText();
-                EncoderCommon.PrettifyAndValidateJson(actual, true);
-                Assert.AreEqual(expected, actual);
-            }
+            string actual = encoder.CloseAndReturnText();
+            EncoderCommon.PrettifyAndValidateJson(actual, true);
+            Assert.AreEqual(expected, actual);
         }
 
         [Test]
@@ -1206,27 +1162,25 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context.NamespaceUris.Append("urn:localhost:server");
             context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
 
-            using (var decoder = new JsonDecoder(data, context))
-            {
-                ExtensionObject eo = decoder.ReadExtensionObject("D0");
-                Assert.AreEqual(DataTypeIds.Range.ToString(), eo.TypeId.ToString());
-                var range = eo.Body as Range;
-                Assert.IsNotNull(range);
-                Assert.AreEqual(0, range.Low);
-                Assert.AreEqual(9876.5432, range.High);
+            using var decoder = new JsonDecoder(data, context);
+            ExtensionObject eo = decoder.ReadExtensionObject("D0");
+            Assert.AreEqual(DataTypeIds.Range.ToString(), eo.TypeId.ToString());
+            var range = eo.Body as Range;
+            Assert.IsNotNull(range);
+            Assert.AreEqual(0, range.Low);
+            Assert.AreEqual(9876.5432, range.High);
 
-                Variant v1 = decoder.ReadVariant("D1");
-                Assert.AreEqual(v1.TypeInfo.BuiltInType, BuiltInType.ExtensionObject);
+            Variant v1 = decoder.ReadVariant("D1");
+            Assert.AreEqual(v1.TypeInfo.BuiltInType, BuiltInType.ExtensionObject);
 
-                eo = v1.Value as ExtensionObject;
-                Assert.IsNotNull(eo);
-                Assert.AreEqual(Gds.DataTypeIds.ApplicationRecordDataType.ToString(), eo.TypeId.ToString());
+            eo = v1.Value as ExtensionObject;
+            Assert.IsNotNull(eo);
+            Assert.AreEqual(Gds.DataTypeIds.ApplicationRecordDataType.ToString(), eo.TypeId.ToString());
 
-                var record = eo.Body as Gds.ApplicationRecordDataType;
-                Assert.IsNotNull(record);
-                Assert.AreEqual(ApplicationType.Client, record.ApplicationType);
-                Assert.AreEqual("Test Client", record.ApplicationNames[0].Text);
-            }
+            var record = eo.Body as Gds.ApplicationRecordDataType;
+            Assert.IsNotNull(record);
+            Assert.AreEqual(ApplicationType.Client, record.ApplicationType);
+            Assert.AreEqual("Test Client", record.ApplicationNames[0].Text);
         }
 
         [Test]
@@ -1264,32 +1218,30 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context.NamespaceUris.Append("urn:localhost:server");
             context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
 
-            using (var encoder = new JsonEncoder(context, JsonEncodingType.Compact))
-            {
-                encoder.WriteExtensionObject(
-                    "D0",
-                    new ExtensionObject(
-                        DataTypeIds.Range,
-                        new Range() { High = 9876.5432 })
-                );
+            using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
+            encoder.WriteExtensionObject(
+                "D0",
+                new ExtensionObject(
+                    DataTypeIds.Range,
+                    new Range() { High = 9876.5432 })
+            );
 
-                encoder.WriteVariant(
-                    "D1",
-                    new Variant(new ExtensionObject(
-                        Gds.DataTypeIds.ApplicationRecordDataType,
-                        new Gds.ApplicationRecordDataType() {
-                            ApplicationId = new NodeId("urn:123456789", 1),
-                            ApplicationUri = "urn:localhost:test.org:client",
-                            ApplicationNames = new LocalizedText[] { new("en", "Test Client") },
-                            ProductUri = "http://test.org/client",
-                            DiscoveryUrls = Body,
-                        }))
-                );
+            encoder.WriteVariant(
+                "D1",
+                new Variant(new ExtensionObject(
+                    Gds.DataTypeIds.ApplicationRecordDataType,
+                    new Gds.ApplicationRecordDataType() {
+                        ApplicationId = new NodeId("urn:123456789", 1),
+                        ApplicationUri = "urn:localhost:test.org:client",
+                        ApplicationNames = new LocalizedText[] { new("en", "Test Client") },
+                        ProductUri = "http://test.org/client",
+                        DiscoveryUrls = Body,
+                    }))
+            );
 
-                string actual = encoder.CloseAndReturnText();
-                EncoderCommon.PrettifyAndValidateJson(actual, true);
-                Assert.AreEqual(expected, actual);
-            }
+            string actual = encoder.CloseAndReturnText();
+            EncoderCommon.PrettifyAndValidateJson(actual, true);
+            Assert.AreEqual(expected, actual);
         }
 
         [Test]
@@ -1325,27 +1277,25 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context.NamespaceUris.Append("urn:localhost:server");
             context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
 
-            using (var decoder = new JsonDecoder(data, context))
-            {
-                ExtensionObject eo = decoder.ReadExtensionObject("D0");
-                Assert.AreEqual(DataTypeIds.Range.ToString(), eo.TypeId.ToString());
-                var range = eo.Body as Range;
-                Assert.IsNotNull(range);
-                Assert.AreEqual(0, range.Low);
-                Assert.AreEqual(9876.5432, range.High);
+            using var decoder = new JsonDecoder(data, context);
+            ExtensionObject eo = decoder.ReadExtensionObject("D0");
+            Assert.AreEqual(DataTypeIds.Range.ToString(), eo.TypeId.ToString());
+            var range = eo.Body as Range;
+            Assert.IsNotNull(range);
+            Assert.AreEqual(0, range.Low);
+            Assert.AreEqual(9876.5432, range.High);
 
-                Variant v1 = decoder.ReadVariant("D1");
-                Assert.AreEqual(v1.TypeInfo.BuiltInType, BuiltInType.ExtensionObject);
+            Variant v1 = decoder.ReadVariant("D1");
+            Assert.AreEqual(v1.TypeInfo.BuiltInType, BuiltInType.ExtensionObject);
 
-                eo = v1.Value as ExtensionObject;
-                Assert.IsNotNull(eo);
-                Assert.AreEqual(Gds.DataTypeIds.ApplicationRecordDataType.ToString(), eo.TypeId.ToString());
+            eo = v1.Value as ExtensionObject;
+            Assert.IsNotNull(eo);
+            Assert.AreEqual(Gds.DataTypeIds.ApplicationRecordDataType.ToString(), eo.TypeId.ToString());
 
-                var record = eo.Body as Gds.ApplicationRecordDataType;
-                Assert.IsNotNull(record);
-                Assert.AreEqual(ApplicationType.Client, record.ApplicationType);
-                Assert.AreEqual("Test Client", record.ApplicationNames[0].Text);
-            }
+            var record = eo.Body as Gds.ApplicationRecordDataType;
+            Assert.IsNotNull(record);
+            Assert.AreEqual(ApplicationType.Client, record.ApplicationType);
+            Assert.AreEqual("Test Client", record.ApplicationNames[0].Text);
         }
 
         [Test]
@@ -1384,33 +1334,31 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context.NamespaceUris.Append("urn:localhost:server");
             context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
 
-            using (var encoder = new JsonEncoder(context, JsonEncodingType.Verbose))
-            {
-                encoder.WriteExtensionObject(
-                    "D0",
-                    new ExtensionObject(
-                        DataTypeIds.Range,
-                        new Range() { Low = 0, High = 9876.5432 })
-                );
+            using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
+            encoder.WriteExtensionObject(
+                "D0",
+                new ExtensionObject(
+                    DataTypeIds.Range,
+                    new Range() { Low = 0, High = 9876.5432 })
+            );
 
-                encoder.WriteVariant(
-                    "D1",
-                    new Variant(new ExtensionObject(
-                        Gds.DataTypeIds.ApplicationRecordDataType,
-                        new Gds.ApplicationRecordDataType() {
-                            ApplicationId = new NodeId("urn:123456789", 1),
-                            ApplicationUri = "urn:localhost:test.org:client",
-                            ApplicationType = ApplicationType.Client,
-                            ApplicationNames = new LocalizedText[] { new("en", "Test Client") },
-                            ProductUri = "http://test.org/client",
-                            DiscoveryUrls = Body,
-                        }))
-                );
+            encoder.WriteVariant(
+                "D1",
+                new Variant(new ExtensionObject(
+                    Gds.DataTypeIds.ApplicationRecordDataType,
+                    new Gds.ApplicationRecordDataType() {
+                        ApplicationId = new NodeId("urn:123456789", 1),
+                        ApplicationUri = "urn:localhost:test.org:client",
+                        ApplicationType = ApplicationType.Client,
+                        ApplicationNames = new LocalizedText[] { new("en", "Test Client") },
+                        ProductUri = "http://test.org/client",
+                        DiscoveryUrls = Body,
+                    }))
+            );
 
-                string actual = encoder.CloseAndReturnText();
-                EncoderCommon.PrettifyAndValidateJson(actual, true);
-                Assert.AreEqual(expected, actual);
-            }
+            string actual = encoder.CloseAndReturnText();
+            EncoderCommon.PrettifyAndValidateJson(actual, true);
+            Assert.AreEqual(expected, actual);
         }
 
         [Test]
@@ -1445,27 +1393,25 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context.NamespaceUris.Append("urn:localhost:server");
             context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
 
-            using (var decoder = new JsonDecoder(data, context))
-            {
-                ExtensionObject eo = decoder.ReadExtensionObject("D0");
-                Assert.AreEqual(DataTypeIds.Range.ToString(), eo.TypeId.ToString());
-                var range = eo.Body as Range;
-                Assert.IsNotNull(range);
-                Assert.AreEqual(0, range.Low);
-                Assert.AreEqual(9876.5432, range.High);
+            using var decoder = new JsonDecoder(data, context);
+            ExtensionObject eo = decoder.ReadExtensionObject("D0");
+            Assert.AreEqual(DataTypeIds.Range.ToString(), eo.TypeId.ToString());
+            var range = eo.Body as Range;
+            Assert.IsNotNull(range);
+            Assert.AreEqual(0, range.Low);
+            Assert.AreEqual(9876.5432, range.High);
 
-                Variant v1 = decoder.ReadVariant("D1");
-                Assert.AreEqual(v1.TypeInfo.BuiltInType, BuiltInType.ExtensionObject);
+            Variant v1 = decoder.ReadVariant("D1");
+            Assert.AreEqual(v1.TypeInfo.BuiltInType, BuiltInType.ExtensionObject);
 
-                eo = v1.Value as ExtensionObject;
-                Assert.IsNotNull(eo);
-                Assert.AreEqual(Gds.DataTypeIds.ApplicationRecordDataType.ToString(), eo.TypeId.ToString());
+            eo = v1.Value as ExtensionObject;
+            Assert.IsNotNull(eo);
+            Assert.AreEqual(Gds.DataTypeIds.ApplicationRecordDataType.ToString(), eo.TypeId.ToString());
 
-                var record = eo.Body as Gds.ApplicationRecordDataType;
-                Assert.IsNotNull(record);
-                Assert.AreEqual(ApplicationType.Client, record.ApplicationType);
-                Assert.AreEqual("Test Client", record.ApplicationNames[0].Text);
-            }
+            var record = eo.Body as Gds.ApplicationRecordDataType;
+            Assert.IsNotNull(record);
+            Assert.AreEqual(ApplicationType.Client, record.ApplicationType);
+            Assert.AreEqual("Test Client", record.ApplicationNames[0].Text);
         }
 
         [Test]
@@ -1505,33 +1451,31 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context.NamespaceUris.Append("urn:localhost:server");
             context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
 
-            using (var encoder = new JsonEncoder(context, JsonEncodingType.Reversible))
-            {
-                encoder.WriteExtensionObject(
-                    "D0",
-                    new ExtensionObject(
-                        DataTypeIds.Range,
-                        new Range() { High = 9876.5432 })
-                );
+            using var encoder = new JsonEncoder(context, JsonEncodingType.Reversible);
+            encoder.WriteExtensionObject(
+                "D0",
+                new ExtensionObject(
+                    DataTypeIds.Range,
+                    new Range() { High = 9876.5432 })
+            );
 
-                encoder.WriteVariant(
-                    "D1",
-                    new Variant(new ExtensionObject(
-                        Gds.DataTypeIds.ApplicationRecordDataType,
-                        new Gds.ApplicationRecordDataType() {
-                            ApplicationId = new NodeId("urn:123456789", 1),
-                            ApplicationUri = "urn:localhost:test.org:client",
-                            ApplicationType = ApplicationType.Client,
-                            ApplicationNames = new LocalizedText[] { new("en", "Test Client") },
-                            ProductUri = "http://test.org/client",
-                            DiscoveryUrls = BodyArray,
-                        }))
-                );
+            encoder.WriteVariant(
+                "D1",
+                new Variant(new ExtensionObject(
+                    Gds.DataTypeIds.ApplicationRecordDataType,
+                    new Gds.ApplicationRecordDataType() {
+                        ApplicationId = new NodeId("urn:123456789", 1),
+                        ApplicationUri = "urn:localhost:test.org:client",
+                        ApplicationType = ApplicationType.Client,
+                        ApplicationNames = new LocalizedText[] { new("en", "Test Client") },
+                        ProductUri = "http://test.org/client",
+                        DiscoveryUrls = BodyArray,
+                    }))
+            );
 
-                string actual = encoder.CloseAndReturnText();
-                EncoderCommon.PrettifyAndValidateJson(actual, true);
-                Assert.AreEqual(expected, actual);
-            }
+            string actual = encoder.CloseAndReturnText();
+            EncoderCommon.PrettifyAndValidateJson(actual, true);
+            Assert.AreEqual(expected, actual);
         }
 
         [Test]
@@ -1558,18 +1502,16 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             context.NamespaceUris.Append("urn:localhost:server");
             context.NamespaceUris.Append(Gds.Namespaces.OpcUaGds);
 
-            using (var decoder = new JsonDecoder(data, context))
-            {
-                var range = decoder.ReadEncodeable("D0", typeof(Range)) as Range;
-                Assert.IsNotNull(range);
-                Assert.AreEqual(0, range.Low);
-                Assert.AreEqual(9876.5432, range.High);
+            using var decoder = new JsonDecoder(data, context);
+            var range = decoder.ReadEncodeable("D0", typeof(Range)) as Range;
+            Assert.IsNotNull(range);
+            Assert.AreEqual(0, range.Low);
+            Assert.AreEqual(9876.5432, range.High);
 
-                var record = decoder.ReadEncodeable("D1", typeof(Gds.ApplicationRecordDataType)) as Gds.ApplicationRecordDataType;
-                Assert.IsNotNull(record);
-                Assert.AreEqual(ApplicationType.Client, record.ApplicationType);
-                Assert.AreEqual("Test Client", record.ApplicationNames[0].Text);
-            }
+            var record = decoder.ReadEncodeable("D1", typeof(Gds.ApplicationRecordDataType)) as Gds.ApplicationRecordDataType;
+            Assert.IsNotNull(record);
+            Assert.AreEqual(ApplicationType.Client, record.ApplicationType);
+            Assert.AreEqual("Test Client", record.ApplicationNames[0].Text);
         }
 
         [Test]
@@ -1599,33 +1541,31 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             var context = new ServiceMessageContext();
             context.NamespaceUris.Append("urn:localhost:server");
 
-            using (var encoder = new JsonEncoder(context, JsonEncodingType.NonReversible))
-            {
-                encoder.WriteExtensionObject(
-                    "D0",
-                    new ExtensionObject(
-                        DataTypeIds.Range,
-                        new Range() { Low = 0, High = 9876.5432 })
-                );
+            using var encoder = new JsonEncoder(context, JsonEncodingType.NonReversible);
+            encoder.WriteExtensionObject(
+                "D0",
+                new ExtensionObject(
+                    DataTypeIds.Range,
+                    new Range() { Low = 0, High = 9876.5432 })
+            );
 
-                encoder.WriteVariant(
-                    "D1",
-                    new Variant(new ExtensionObject(
-                        Gds.DataTypeIds.ApplicationRecordDataType,
-                        new Gds.ApplicationRecordDataType() {
-                            ApplicationId = new NodeId("urn:123456789", 1),
-                            ApplicationUri = "urn:localhost:test.org:client",
-                            ApplicationType = ApplicationType.Client,
-                            ApplicationNames = new LocalizedText[] { new("en", "Test Client") },
-                            ProductUri = "http://test.org/client",
-                            DiscoveryUrls = BodyArray,
-                        }))
-                );
+            encoder.WriteVariant(
+                "D1",
+                new Variant(new ExtensionObject(
+                    Gds.DataTypeIds.ApplicationRecordDataType,
+                    new Gds.ApplicationRecordDataType() {
+                        ApplicationId = new NodeId("urn:123456789", 1),
+                        ApplicationUri = "urn:localhost:test.org:client",
+                        ApplicationType = ApplicationType.Client,
+                        ApplicationNames = new LocalizedText[] { new("en", "Test Client") },
+                        ProductUri = "http://test.org/client",
+                        DiscoveryUrls = BodyArray,
+                    }))
+            );
 
-                string actual = encoder.CloseAndReturnText();
-                EncoderCommon.PrettifyAndValidateJson(actual, true);
-                Assert.AreEqual(expected, actual);
-            }
+            string actual = encoder.CloseAndReturnText();
+            EncoderCommon.PrettifyAndValidateJson(actual, true);
+            Assert.AreEqual(expected, actual);
         }
     }
 }

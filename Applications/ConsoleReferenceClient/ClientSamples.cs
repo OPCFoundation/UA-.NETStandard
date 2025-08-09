@@ -63,7 +63,7 @@ namespace Quickstarts
     /// </summary>
     public class ClientSamples
     {
-        const int kMaxSearchDepth = 128;
+        private const int kMaxSearchDepth = 128;
         public ClientSamples(TextWriter output, Action<IList, IList> validateResponse, ManualResetEvent quitEvent = null, bool verbose = false)
         {
             m_output = output;
@@ -1022,7 +1022,7 @@ namespace Quickstarts
         /// The NodeCache needs this information to function properly with subtypes of hierarchical calls.
         /// </remarks>
         /// <param name="session">The session to use</param>
-        static Task FetchReferenceIdTypesAsync(ISession session)
+        private static Task FetchReferenceIdTypesAsync(ISession session)
         {
             // fetch the reference types first, otherwise browse for e.g. hierarchical references with subtypes won't work
             const BindingFlags bindingFlags = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public;
@@ -1213,28 +1213,24 @@ namespace Quickstarts
             }
 
             // prettify
-            using (var stringWriter = new StringWriter())
+            using var stringWriter = new StringWriter();
+            try
             {
-                try
-                {
-                    using (var stringReader = new StringReader(textbuffer))
-                    {
-                        var jsonReader = new JsonTextReader(stringReader);
-                        var jsonWriter = new JsonTextWriter(stringWriter) {
-                            Formatting = Formatting.Indented,
-                            Culture = CultureInfo.InvariantCulture
-                        };
-                        jsonWriter.WriteToken(jsonReader);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    stringWriter.WriteLine("Failed to format the JSON output: {0}", ex.Message);
-                    stringWriter.WriteLine(textbuffer);
-                    throw;
-                }
-                return stringWriter.ToString();
+                using var stringReader = new StringReader(textbuffer);
+                var jsonReader = new JsonTextReader(stringReader);
+                var jsonWriter = new JsonTextWriter(stringWriter) {
+                    Formatting = Formatting.Indented,
+                    Culture = CultureInfo.InvariantCulture
+                };
+                jsonWriter.WriteToken(jsonReader);
             }
+            catch (Exception ex)
+            {
+                stringWriter.WriteLine("Failed to format the JSON output: {0}", ex.Message);
+                stringWriter.WriteLine(textbuffer);
+                throw;
+            }
+            return stringWriter.ToString();
         }
 
         /// <summary>

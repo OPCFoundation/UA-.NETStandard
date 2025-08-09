@@ -112,19 +112,15 @@ namespace Opc.Ua
         {
             if (initializationString.StartsWith('<'))
             {
-                using (var reader = new StringReader(initializationString))
-                {
-                    LoadFromXml(context, reader);
-                }
+                using var reader = new StringReader(initializationString);
+                LoadFromXml(context, reader);
             }
             else
             {
                 byte[] bytes = Convert.FromBase64String(initializationString);
 
-                using (var istrm = new MemoryStream(bytes))
-                {
-                    LoadAsBinary(context, istrm);
-                }
+                using var istrm = new MemoryStream(bytes);
+                LoadAsBinary(context, istrm);
             }
         }
 
@@ -453,21 +449,37 @@ namespace Opc.Ua
 
             switch (NodeClass)
             {
-                case NodeClass.Object: node = new ObjectNode(); break;
+                case NodeClass.Object:
+                    node = new ObjectNode();
+                    break;
 
-                case NodeClass.ObjectType: node = new ObjectTypeNode(); break;
+                case NodeClass.ObjectType:
+                    node = new ObjectTypeNode();
+                    break;
 
-                case NodeClass.Variable: node = new VariableNode(); break;
+                case NodeClass.Variable:
+                    node = new VariableNode();
+                    break;
 
-                case NodeClass.VariableType: node = new VariableTypeNode(); break;
+                case NodeClass.VariableType:
+                    node = new VariableTypeNode();
+                    break;
 
-                case NodeClass.Method: node = new MethodNode(); break;
+                case NodeClass.Method:
+                    node = new MethodNode();
+                    break;
 
-                case NodeClass.ReferenceType: node = new ReferenceTypeNode(); break;
+                case NodeClass.ReferenceType:
+                    node = new ReferenceTypeNode();
+                    break;
 
-                case NodeClass.DataType: node = new DataTypeNode(); break;
+                case NodeClass.DataType:
+                    node = new DataTypeNode();
+                    break;
 
-                case NodeClass.View: node = new ViewNode(); break;
+                case NodeClass.View:
+                    node = new ViewNode();
+                    break;
 
                 default:
                     node = new Node();
@@ -526,22 +538,18 @@ namespace Opc.Ua
 
             XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
             settings.CloseOutput = true;
-            using (var writer = XmlWriter.Create(ostrm, settings))
-            {
-                var root = new XmlQualifiedName(SymbolicName, context.NamespaceUris.GetString(BrowseName.NamespaceIndex));
+            using var writer = XmlWriter.Create(ostrm, settings);
+            var root = new XmlQualifiedName(SymbolicName, context.NamespaceUris.GetString(BrowseName.NamespaceIndex));
 
-                using (var encoder = new XmlEncoder(root, writer, messageContext))
-                {
-                    encoder.SaveStringTable("NamespaceUris", "NamespaceUri", context.NamespaceUris);
-                    encoder.SaveStringTable("ServerUris", "ServerUri", context.ServerUris);
+            using var encoder = new XmlEncoder(root, writer, messageContext);
+            encoder.SaveStringTable("NamespaceUris", "NamespaceUri", context.NamespaceUris);
+            encoder.SaveStringTable("ServerUris", "ServerUri", context.ServerUris);
 
-                    Save(context, encoder);
-                    SaveReferences(context, encoder);
-                    SaveChildren(context, encoder);
+            Save(context, encoder);
+            SaveReferences(context, encoder);
+            SaveChildren(context, encoder);
 
-                    encoder.Close();
-                }
-            }
+            encoder.Close();
         }
 
         /// <summary>
@@ -551,26 +559,24 @@ namespace Opc.Ua
         /// <param name="ostrm">The stream to write.</param>
         public void SaveAsBinary(ISystemContext context, Stream ostrm)
         {
-            var messageContext = new ServiceMessageContext();
+            var messageContext = new ServiceMessageContext {
+                NamespaceUris = context.NamespaceUris,
+                ServerUris = context.ServerUris,
+                Factory = context.EncodeableFactory
+            };
 
-            messageContext.NamespaceUris = context.NamespaceUris;
-            messageContext.ServerUris = context.ServerUris;
-            messageContext.Factory = context.EncodeableFactory;
+            using var encoder = new BinaryEncoder(ostrm, messageContext, true);
+            encoder.SaveStringTable(context.NamespaceUris);
+            encoder.SaveStringTable(context.ServerUris);
 
-            using (var encoder = new BinaryEncoder(ostrm, messageContext, true))
-            {
-                encoder.SaveStringTable(context.NamespaceUris);
-                encoder.SaveStringTable(context.ServerUris);
+            AttributesToSave attributesToSave = GetAttributesToSave(context);
+            encoder.WriteUInt32(null, (uint)attributesToSave);
 
-                AttributesToSave attributesToSave = GetAttributesToSave(context);
-                encoder.WriteUInt32(null, (uint)attributesToSave);
+            Save(context, encoder, attributesToSave);
+            SaveReferences(context, encoder);
+            SaveChildren(context, encoder);
 
-                Save(context, encoder, attributesToSave);
-                SaveReferences(context, encoder);
-                SaveChildren(context, encoder);
-
-                encoder.Close();
-            }
+            encoder.Close();
         }
 
         /// <summary>
@@ -601,38 +607,36 @@ namespace Opc.Ua
                 Factory = context.EncodeableFactory
             };
 
-            using (var decoder = new BinaryDecoder(istrm, messageContext, true))
+            using var decoder = new BinaryDecoder(istrm, messageContext, true);
+            // check if a namespace table was provided.
+            var namespaceUris = new NamespaceTable();
+
+            if (!decoder.LoadStringTable(namespaceUris))
             {
-                // check if a namespace table was provided.
-                var namespaceUris = new NamespaceTable();
-
-                if (!decoder.LoadStringTable(namespaceUris))
-                {
-                    namespaceUris = null;
-                }
-
-                // check if a server uri table was provided.
-                var serverUris = new StringTable();
-
-                if (namespaceUris != null && namespaceUris.Count > 1)
-                {
-                    serverUris.Append(namespaceUris.GetString(1));
-                }
-
-                if (!decoder.LoadStringTable(serverUris))
-                {
-                    serverUris = null;
-                }
-
-                // setup the mappings to use during decoding.
-                decoder.SetMappingTables(namespaceUris, serverUris);
-
-                // update the node and children.
-                var attributesToLoad = (AttributesToSave)decoder.ReadUInt32(null);
-                Update(context, decoder, attributesToLoad);
-                UpdateReferences(context, decoder);
-                UpdateChildren(context, decoder);
+                namespaceUris = null;
             }
+
+            // check if a server uri table was provided.
+            var serverUris = new StringTable();
+
+            if (namespaceUris != null && namespaceUris.Count > 1)
+            {
+                serverUris.Append(namespaceUris.GetString(1));
+            }
+
+            if (!decoder.LoadStringTable(serverUris))
+            {
+                serverUris = null;
+            }
+
+            // setup the mappings to use during decoding.
+            decoder.SetMappingTables(namespaceUris, serverUris);
+
+            // update the node and children.
+            var attributesToLoad = (AttributesToSave)decoder.ReadUInt32(null);
+            Update(context, decoder, attributesToLoad);
+            UpdateReferences(context, decoder);
+            UpdateChildren(context, decoder);
         }
 
         /// <summary>
@@ -1197,10 +1201,8 @@ namespace Opc.Ua
         /// <param name="input">The stream to read.</param>
         public void LoadFromXml(ISystemContext context, TextReader input)
         {
-            using (var reader = XmlReader.Create(input, Utils.DefaultXmlReaderSettings()))
-            {
-                LoadFromXml(context, reader);
-            }
+            using var reader = XmlReader.Create(input, Utils.DefaultXmlReaderSettings());
+            LoadFromXml(context, reader);
         }
 
         /// <summary>
@@ -1210,10 +1212,8 @@ namespace Opc.Ua
         /// <param name="input">The stream to read.</param>
         public void LoadFromXml(ISystemContext context, Stream input)
         {
-            using (var reader = XmlReader.Create(input, Utils.DefaultXmlReaderSettings()))
-            {
-                LoadFromXml(context, reader);
-            }
+            using var reader = XmlReader.Create(input, Utils.DefaultXmlReaderSettings());
+            LoadFromXml(context, reader);
         }
 
         /// <summary>
@@ -1246,32 +1246,30 @@ namespace Opc.Ua
             SymbolicName = symbolicName.Name;
             BrowseName = new QualifiedName(symbolicName.Name, (ushort)namespaceIndex);
 
-            using (var decoder = new XmlDecoder(null, reader, messageContext))
+            using var decoder = new XmlDecoder(null, reader, messageContext);
+            // check if a namespace table was provided.
+            var namespaceUris = new NamespaceTable();
+
+            if (!decoder.LoadStringTable("NamespaceUris", "NamespaceUri", namespaceUris))
             {
-                // check if a namespace table was provided.
-                var namespaceUris = new NamespaceTable();
-
-                if (!decoder.LoadStringTable("NamespaceUris", "NamespaceUri", namespaceUris))
-                {
-                    namespaceUris = null;
-                }
-
-                // check if a server uri table was provided.
-                var serverUris = new StringTable();
-
-                if (!decoder.LoadStringTable("ServerUris", "ServerUri", serverUris))
-                {
-                    serverUris = null;
-                }
-
-                // setup the mappings to use during decoding.
-                decoder.SetMappingTables(namespaceUris, serverUris);
-
-                // update the node and children.
-                Update(context, decoder);
-                UpdateReferences(context, decoder);
-                UpdateChildren(context, decoder);
+                namespaceUris = null;
             }
+
+            // check if a server uri table was provided.
+            var serverUris = new StringTable();
+
+            if (!decoder.LoadStringTable("ServerUris", "ServerUri", serverUris))
+            {
+                serverUris = null;
+            }
+
+            // setup the mappings to use during decoding.
+            decoder.SetMappingTables(namespaceUris, serverUris);
+
+            // update the node and children.
+            Update(context, decoder);
+            UpdateReferences(context, decoder);
+            UpdateChildren(context, decoder);
         }
 
         /// <summary>
@@ -1782,13 +1780,13 @@ namespace Opc.Ua
 
             // create the appropriate node.
 
-            if (!(factory.CreateInstance(
+            if (factory.CreateInstance(
                 context,
                 parent,
                 nodeClass,
                 browseName,
                 referenceTypeId,
-                typeDefinitionId) is BaseInstanceState child))
+                typeDefinitionId) is not BaseInstanceState child)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
@@ -1993,13 +1991,13 @@ namespace Opc.Ua
 
             // create the appropriate node.
 
-            if (!(factory.CreateInstance(
+            if (factory.CreateInstance(
                 context,
                 parent,
                 nodeClass,
                 browseName,
                 referenceTypeId,
-                typeDefinitionId) is BaseInstanceState child))
+                typeDefinitionId) is not BaseInstanceState child)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
@@ -2187,7 +2185,7 @@ namespace Opc.Ua
         {
             // only instance nodes can be part of a hierarchy.
 
-            if (!(this is BaseInstanceState instance) || instance.Parent == null)
+            if ((this is not BaseInstanceState instance) || instance.Parent == null)
             {
                 return this;
             }
@@ -3671,7 +3669,7 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.NodeId:
-                    if (!(value is NodeId nodeId))
+                    if (value is not NodeId nodeId)
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -3725,7 +3723,7 @@ namespace Opc.Ua
                     return result;
 
                 case Attributes.BrowseName:
-                    if (!(value is QualifiedName browseName))
+                    if (value is not QualifiedName browseName)
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -3750,7 +3748,7 @@ namespace Opc.Ua
                     return result;
 
                 case Attributes.DisplayName:
-                    if (!(value is LocalizedText displayName))
+                    if (value is not LocalizedText displayName)
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
@@ -4149,26 +4147,26 @@ namespace Opc.Ua
         /// </summary>
         public PropertyState AddProperty<T>(string propertyName, NodeId dataTypeId, int valueRank)
         {
-            PropertyState property = new PropertyState<T>(this);
-
-            property.ReferenceTypeId = ReferenceTypeIds.HasProperty;
-            property.ModellingRuleId = null;
-            property.TypeDefinitionId = VariableTypeIds.PropertyType;
-            property.SymbolicName = propertyName;
-            property.NodeId = null;
-            property.BrowseName = propertyName;
-            property.DisplayName = propertyName;
-            property.Description = null;
-            property.WriteMask = 0;
-            property.UserWriteMask = 0;
-            property.Value = default(T);
-            property.DataType = dataTypeId;
-            property.ValueRank = valueRank;
-            property.ArrayDimensions = null;
-            property.AccessLevel = AccessLevels.CurrentRead;
-            property.UserAccessLevel = AccessLevels.CurrentRead;
-            property.MinimumSamplingInterval = MinimumSamplingIntervals.Indeterminate;
-            property.Historizing = false;
+            PropertyState property = new PropertyState<T>(this) {
+                ReferenceTypeId = ReferenceTypeIds.HasProperty,
+                ModellingRuleId = null,
+                TypeDefinitionId = VariableTypeIds.PropertyType,
+                SymbolicName = propertyName,
+                NodeId = null,
+                BrowseName = propertyName,
+                DisplayName = propertyName,
+                Description = null,
+                WriteMask = 0,
+                UserWriteMask = 0,
+                Value = default,
+                DataType = dataTypeId,
+                ValueRank = valueRank,
+                ArrayDimensions = null,
+                AccessLevel = AccessLevels.CurrentRead,
+                UserAccessLevel = AccessLevels.CurrentRead,
+                MinimumSamplingInterval = MinimumSamplingIntervals.Indeterminate,
+                Historizing = false
+            };
 
             AddChild(property);
 
@@ -4214,7 +4212,7 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (!(CreateChild(context, browseName) is BaseInstanceState child))
+            if (CreateChild(context, browseName) is not BaseInstanceState child)
             {
                 return false;
             }
@@ -4253,7 +4251,7 @@ namespace Opc.Ua
             object value,
             bool copy)
         {
-            if (!(CreateChild(context, browseName) is BaseVariableState child))
+            if (CreateChild(context, browseName) is not BaseVariableState child)
             {
                 return false;
             }

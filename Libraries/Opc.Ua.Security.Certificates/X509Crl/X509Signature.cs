@@ -188,14 +188,12 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         private bool VerifyForRSA(X509Certificate2 certificate, RSASignaturePadding padding)
         {
-            using (RSA rsa = certificate.GetRSAPublicKey())
+            using RSA rsa = certificate.GetRSAPublicKey();
+            if (rsa == null)
             {
-                if (rsa == null)
-                {
-                    return false;
-                }
-                return rsa.VerifyData(Tbs, Signature, Name, padding);
+                return false;
             }
+            return rsa.VerifyData(Tbs, Signature, Name, padding);
         }
 
         /// <summary>
@@ -203,15 +201,13 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         private bool VerifyForECDsa(X509Certificate2 certificate)
         {
-            using (ECDsa key = certificate.GetECDsaPublicKey())
+            using ECDsa key = certificate.GetECDsaPublicKey();
+            if (key == null)
             {
-                if (key == null)
-                {
-                    return false;
-                }
-                byte[] decodedSignature = DecodeECDsa(Signature, key.KeySize);
-                return key.VerifyData(Tbs, decodedSignature, Name);
+                return false;
             }
+            byte[] decodedSignature = DecodeECDsa(Signature, key.KeySize);
+            return key.VerifyData(Tbs, decodedSignature, Name);
         }
 
         /// <summary>

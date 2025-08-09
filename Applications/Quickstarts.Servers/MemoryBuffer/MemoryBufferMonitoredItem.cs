@@ -54,7 +54,7 @@ namespace MemoryBuffer
             uint clientHandle,
             MonitoringFilter originalFilter,
             MonitoringFilter filterToUse,
-            Opc.Ua.Range range,
+            Range range,
             double samplingInterval,
             uint queueSize,
             bool discardOldest,

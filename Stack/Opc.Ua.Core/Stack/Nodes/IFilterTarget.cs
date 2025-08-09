@@ -128,18 +128,8 @@ namespace Opc.Ua
         /// <param name="context">The context.</param>
         public FilterContext(NamespaceTable namespaceUris, ITypeTable typeTree, IOperationContext context)
         {
-            if (namespaceUris == null)
-            {
-                throw new ArgumentNullException(nameof(namespaceUris));
-            }
-
-            if (typeTree == null)
-            {
-                throw new ArgumentNullException(nameof(typeTree));
-            }
-
-            NamespaceUris = namespaceUris;
-            TypeTree = typeTree;
+            NamespaceUris = namespaceUris ?? throw new ArgumentNullException(nameof(namespaceUris));
+            TypeTree = typeTree ?? throw new ArgumentNullException(nameof(typeTree));
             m_context = context;
         }
 
@@ -162,18 +152,8 @@ namespace Opc.Ua
         /// <param name="preferredLocales">The preferred locales.</param>
         public FilterContext(NamespaceTable namespaceUris, ITypeTable typeTree, IList<string> preferredLocales)
         {
-            if (namespaceUris == null)
-            {
-                throw new ArgumentNullException(nameof(namespaceUris));
-            }
-
-            if (typeTree == null)
-            {
-                throw new ArgumentNullException(nameof(typeTree));
-            }
-
-            NamespaceUris = namespaceUris;
-            TypeTree = typeTree;
+            NamespaceUris = namespaceUris ?? throw new ArgumentNullException(nameof(namespaceUris));
+            TypeTree = typeTree ?? throw new ArgumentNullException(nameof(typeTree));
             m_context = null;
             m_preferredLocales = preferredLocales;
         }

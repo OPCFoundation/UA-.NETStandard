@@ -287,10 +287,10 @@ namespace Opc.Ua
         /// </summary>
         public static EncryptedData Encrypt(X509Certificate2 certificate, string securityPolicyUri, byte[] plainText)
         {
-            var encryptedData = new EncryptedData();
-
-            encryptedData.Algorithm = null;
-            encryptedData.Data = plainText;
+            var encryptedData = new EncryptedData {
+                Algorithm = null,
+                Data = plainText
+            };
 
             // check if nothing to do.
             if (plainText == null)

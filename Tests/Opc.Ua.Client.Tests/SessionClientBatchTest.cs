@@ -148,7 +148,7 @@ namespace Opc.Ua.Client.Tests
 
 #if CLIENT_ASYNC
         [Test]
-        public void AddNodesAsync()
+        public void AddNodesAsyncThrows()
         {
             var nodesToAdd = new AddNodesItemCollection();
             var addNodesItem = new AddNodesItem();
@@ -201,7 +201,7 @@ namespace Opc.Ua.Client.Tests
 
 #if CLIENT_ASYNC
         [Test]
-        public void AddReferencesAsync()
+        public void AddReferencesAsyncThrows()
         {
             var referencesToAdd = new AddReferencesItemCollection();
             var addReferencesItem = new AddReferencesItem();
@@ -254,7 +254,7 @@ namespace Opc.Ua.Client.Tests
 
 #if CLIENT_ASYNC
         [Test]
-        public void DeleteNodesAsync()
+        public void DeleteNodesAsyncThrows()
         {
             var nodesTDelete = new DeleteNodesItemCollection();
             var deleteNodesItem = new DeleteNodesItem();
@@ -307,7 +307,7 @@ namespace Opc.Ua.Client.Tests
 
 #if CLIENT_ASYNC
         [Test]
-        public void DeleteReferencesAsync()
+        public void DeleteReferencesAsyncThrows()
         {
             var referencesToDelete = new DeleteReferencesItemCollection();
             var deleteReferencesItem = new DeleteReferencesItem();

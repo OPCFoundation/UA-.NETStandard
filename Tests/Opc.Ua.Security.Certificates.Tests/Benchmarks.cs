@@ -108,7 +108,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Benchmark]
         public void CreateCertificate()
         {
-            using (X509Certificate2 cert = CertificateBuilder.Create("CN=Create").CreateForRSA()) { }
+            using X509Certificate2 cert = CertificateBuilder.Create("CN=Create").CreateForRSA();
         }
 
         /// <summary>
@@ -117,7 +117,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Benchmark]
         public void GetPrivateKey()
         {
-            using (RSA privateKey = m_certificate.GetRSAPrivateKey()) { }
+            using RSA privateKey = m_certificate.GetRSAPrivateKey();
         }
 
         /// <summary>
@@ -126,10 +126,8 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Benchmark]
         public void GetPrivateKeyAndExport()
         {
-            using (RSA privateKey = m_certificate.GetRSAPrivateKey())
-            {
-                privateKey.ExportParameters(true);
-            }
+            using RSA privateKey = m_certificate.GetRSAPrivateKey();
+            privateKey.ExportParameters(true);
         }
 
         /// <summary>
@@ -138,7 +136,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Benchmark]
         public void GetPublicKey()
         {
-            using (RSA publicKey = m_certificate.GetRSAPublicKey()) { }
+            using RSA publicKey = m_certificate.GetRSAPublicKey();
         }
 
         /// <summary>
@@ -147,10 +145,8 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Benchmark]
         public void GetPublicKeyAndExport()
         {
-            using (RSA publicKey = m_certificate.GetRSAPublicKey())
-            {
-                publicKey.ExportParameters(false);
-            }
+            using RSA publicKey = m_certificate.GetRSAPublicKey();
+            publicKey.ExportParameters(false);
         }
 
         /// <summary>

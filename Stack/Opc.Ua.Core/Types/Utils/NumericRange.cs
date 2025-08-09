@@ -73,7 +73,7 @@ namespace Opc.Ua
         /// <exception cref="ArgumentOutOfRangeException">Thrown when the value is less than -1, or when the value is greater than the end</exception>
         public int Begin
         {
-            get => m_begin;
+            readonly get => m_begin;
 
             set
             {
@@ -101,7 +101,7 @@ namespace Opc.Ua
         /// than -1 or when the end is less than the beginning</exception>
         public int End
         {
-            get => m_end;
+            readonly get => m_end;
 
             set
             {
@@ -125,7 +125,7 @@ namespace Opc.Ua
         /// <remarks>
         /// The number of elements specified by the range.
         /// </remarks>
-        public int Count
+        public readonly int Count
         {
             get
             {
@@ -147,7 +147,7 @@ namespace Opc.Ua
         /// Gets the number of dimensions in the range.
         /// </summary>
         /// <value>The number of dimensions.</value>
-        public int Dimensions
+        public readonly int Dimensions
         {
             get
             {
@@ -261,7 +261,7 @@ namespace Opc.Ua
         /// Returns true if the objects are equal.
         /// </remarks>
         /// <param name="other">The NumericRange to test against this</param>
-        public bool Equals(NumericRange other)
+        public readonly bool Equals(NumericRange other)
         {
             return (other.m_begin == m_begin) && (other.m_end == m_end);
         }
@@ -298,7 +298,7 @@ namespace Opc.Ua
         /// <remarks>
         /// Returns a suitable hash code for the object.
         /// </remarks>
-        public override int GetHashCode()
+        public override readonly int GetHashCode()
         {
             return HashCode.Combine(m_begin, m_end);
         }
@@ -323,7 +323,7 @@ namespace Opc.Ua
         /// <param name="format">(Unused) Always pass NULL/NOTHING</param>
         /// <param name="formatProvider">(Unused) Always pass NULL/NOTHING</param>
         /// <exception cref="FormatException">Thrown when a non null/nothing is passed for either parameter</exception>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public readonly string ToString(string format, IFormatProvider formatProvider)
         {
             if (format == null)
             {
@@ -456,7 +456,7 @@ namespace Opc.Ua
         /// <summary>
         /// Applies the multidimensional index range.
         /// </summary>
-        private StatusCode ApplyMultiRange(ref object value)
+        private readonly StatusCode ApplyMultiRange(ref object value)
         {
             var array = value as Array;
             TypeInfo typeInfo = null;
@@ -464,7 +464,7 @@ namespace Opc.Ua
             // check for matrix.
             if (array == null)
             {
-                if (!(value is Matrix matrix) || matrix.Dimensions.Length != SubRanges.Length)
+                if (value is not Matrix matrix || matrix.Dimensions.Length != SubRanges.Length)
                 {
                     value = null;
                     return StatusCodes.BadIndexRangeNoData;
@@ -482,7 +482,7 @@ namespace Opc.Ua
             {
                 if (typeInfo.BuiltInType is BuiltInType.ByteString or BuiltInType.String && SubRanges.Length == typeInfo.ValueRank + 1)
                 {
-                    finalRange = SubRanges[SubRanges.Length - 1];
+                    finalRange = SubRanges[^1];
                 }
 
                 if (finalRange == null)
@@ -605,7 +605,7 @@ namespace Opc.Ua
                 {
                     char[] dstString = ((string)dst).ToCharArray();
 
-                    if (!(src is string srcString) || srcString.Length != Count)
+                    if (src is not string srcString || srcString.Length != Count)
                     {
                         return StatusCodes.BadIndexRangeInvalid;
                     }
@@ -629,7 +629,7 @@ namespace Opc.Ua
                 {
                     byte[] dstString = (byte[])dst;
 
-                    if (!(src is byte[] srcString) || srcString.Length != Count)
+                    if (src is not byte[] srcString || srcString.Length != Count)
                     {
                         return StatusCodes.BadIndexRangeInvalid;
                     }
@@ -657,7 +657,7 @@ namespace Opc.Ua
             // check for destinations specified as a matrix.
             if (dstArray == null)
             {
-                if (!(dst is Matrix matrix) || SubRanges == null || matrix.Dimensions.Length != SubRanges.Length)
+                if (dst is not Matrix matrix || SubRanges == null || matrix.Dimensions.Length != SubRanges.Length)
                 {
                     return StatusCodes.BadIndexRangeInvalid;
                 }
@@ -668,7 +668,7 @@ namespace Opc.Ua
             // check for input specified as a matrix.
             if (srcArray == null)
             {
-                if (!(src is Matrix matrix) || SubRanges == null || matrix.Dimensions.Length != SubRanges.Length)
+                if (src is not Matrix matrix || SubRanges == null || matrix.Dimensions.Length != SubRanges.Length)
                 {
                     return StatusCodes.BadIndexRangeInvalid;
                 }
@@ -727,7 +727,7 @@ namespace Opc.Ua
             {
                 if (srcTypeInfo.BuiltInType is BuiltInType.ByteString or BuiltInType.String && SubRanges.Length == srcTypeInfo.ValueRank + 1)
                 {
-                    finalRange = SubRanges[SubRanges.Length - 1];
+                    finalRange = SubRanges[^1];
                 }
 
                 if (finalRange == null)

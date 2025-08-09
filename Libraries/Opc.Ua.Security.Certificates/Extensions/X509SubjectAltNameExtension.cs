@@ -413,13 +413,16 @@ namespace Opc.Ua.Security.Certificates
                 switch (Uri.CheckHostName(generalName))
                 {
                     case UriHostNameType.Dns:
-                        domainNames.Add(generalName); break;
+                        domainNames.Add(generalName);
+                        break;
                     case UriHostNameType.IPv4:
                     case UriHostNameType.IPv6:
-                        ipAddresses.Add(generalName); break;
+                        ipAddresses.Add(generalName);
+                        break;
                     case UriHostNameType.Unknown:
                     case UriHostNameType.Basic:
-                    default: continue;
+                    default:
+                        continue;
                 }
             }
             m_uris = uris;

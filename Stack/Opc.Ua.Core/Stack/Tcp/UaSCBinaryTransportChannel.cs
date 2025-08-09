@@ -179,7 +179,10 @@ namespace Opc.Ua.Bindings
         /// <remarks>
         /// Calling this method will cause outstanding requests over the current secure channel to fail.
         /// </remarks>
-        public void Reconnect() => Reconnect(null);
+        public void Reconnect()
+        {
+            Reconnect(null);
+        }
 
         /// <summary>
         /// Closes any existing secure channel and opens a new one.

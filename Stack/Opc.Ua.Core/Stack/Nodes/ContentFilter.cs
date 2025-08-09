@@ -136,8 +136,9 @@ namespace Opc.Ua
             }
 
             // create the element and set the operator.
-            var element = new ContentFilterElement();
-            element.FilterOperator = op;
+            var element = new ContentFilterElement {
+                FilterOperator = op
+            };
 
             for (int ii = 0; ii < operands.Length; ii++)
             {
@@ -160,16 +161,18 @@ namespace Opc.Ua
                         throw ServiceResultException.Create(StatusCodes.BadInvalidArgument, "ContentFilterElement is not part of the ContentFilter.");
                     }
 
-                    var operand = new ElementOperand();
-                    operand.Index = (uint)index;
+                    var operand = new ElementOperand {
+                        Index = (uint)index
+                    };
 
                     element.FilterOperands.Add(new ExtensionObject(operand));
                     continue;
                 }
 
                 // assume a literal operand.
-                var literalOperand = new LiteralOperand();
-                literalOperand.Value = new Variant(operands[ii]);
+                var literalOperand = new LiteralOperand {
+                    Value = new Variant(operands[ii])
+                };
                 element.FilterOperands.Add(new ExtensionObject(literalOperand));
             }
 
@@ -269,8 +272,9 @@ namespace Opc.Ua
 
                     if (elementResult == null || ServiceResult.IsGood(elementResult.Status))
                     {
-                        elementResult2 = new ContentFilterElementResult();
-                        elementResult2.StatusCode = StatusCodes.Good;
+                        elementResult2 = new ContentFilterElementResult {
+                            StatusCode = StatusCodes.Good
+                        };
 
                         result.ElementResults.Add(elementResult2);
                         result.ElementDiagnosticInfos.Add(null);
@@ -771,12 +775,12 @@ namespace Opc.Ua
 
             m_browsePath = new RelativePath();
 
-            var element = new RelativePathElement();
-
-            element.ReferenceTypeId = ReferenceTypeIds.Aggregates;
-            element.IsInverse = false;
-            element.IncludeSubtypes = true;
-            element.TargetName = browsePath;
+            var element = new RelativePathElement {
+                ReferenceTypeId = ReferenceTypeIds.Aggregates,
+                IsInverse = false,
+                IncludeSubtypes = true,
+                TargetName = browsePath
+            };
 
             m_browsePath.Elements.Add(element);
         }
@@ -796,12 +800,12 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < browsePaths.Count; ii++)
             {
-                var element = new RelativePathElement();
-
-                element.ReferenceTypeId = ReferenceTypeIds.Aggregates;
-                element.IsInverse = false;
-                element.IncludeSubtypes = true;
-                element.TargetName = browsePaths[ii];
+                var element = new RelativePathElement {
+                    ReferenceTypeId = ReferenceTypeIds.Aggregates,
+                    IsInverse = false,
+                    IncludeSubtypes = true,
+                    TargetName = browsePaths[ii]
+                };
 
                 m_browsePath.Elements.Add(element);
             }

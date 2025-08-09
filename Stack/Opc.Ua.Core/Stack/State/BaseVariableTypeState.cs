@@ -528,7 +528,7 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.DataType:
-                    if (!(value is NodeId dataType))
+                    if (value is not NodeId dataType)
                     {
                         return StatusCodes.BadTypeMismatch;
                     }

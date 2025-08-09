@@ -1768,7 +1768,10 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void WriteEncodingMask(uint encodingMask) => WriteUInt32("EncodingMask", encodingMask);
+        public void WriteEncodingMask(uint encodingMask)
+        {
+            WriteUInt32("EncodingMask", encodingMask);
+        }
 
         /// <summary>
         /// Writes the contents of an Variant to the stream.
@@ -1792,53 +1795,101 @@ namespace Opc.Ua
                 {
                     switch (typeInfo.BuiltInType)
                     {
-                        case BuiltInType.Boolean: WriteBoolean("Boolean", (bool)value); return;
+                        case BuiltInType.Boolean:
+                            WriteBoolean("Boolean", (bool)value);
+                            return;
 
-                        case BuiltInType.SByte: WriteSByte("SByte", (sbyte)value); return;
+                        case BuiltInType.SByte:
+                            WriteSByte("SByte", (sbyte)value);
+                            return;
 
-                        case BuiltInType.Byte: WriteByte("Byte", (byte)value); return;
+                        case BuiltInType.Byte:
+                            WriteByte("Byte", (byte)value);
+                            return;
 
-                        case BuiltInType.Int16: WriteInt16("Int16", (short)value); return;
+                        case BuiltInType.Int16:
+                            WriteInt16("Int16", (short)value);
+                            return;
 
-                        case BuiltInType.UInt16: WriteUInt16("UInt16", (ushort)value); return;
+                        case BuiltInType.UInt16:
+                            WriteUInt16("UInt16", (ushort)value);
+                            return;
 
-                        case BuiltInType.Int32: WriteInt32("Int32", (int)value); return;
+                        case BuiltInType.Int32:
+                            WriteInt32("Int32", (int)value);
+                            return;
 
-                        case BuiltInType.UInt32: WriteUInt32("UInt32", (uint)value); return;
+                        case BuiltInType.UInt32:
+                            WriteUInt32("UInt32", (uint)value);
+                            return;
 
-                        case BuiltInType.Int64: WriteInt64("Int64", (long)value); return;
+                        case BuiltInType.Int64:
+                            WriteInt64("Int64", (long)value);
+                            return;
 
-                        case BuiltInType.UInt64: WriteUInt64("UInt64", (ulong)value); return;
+                        case BuiltInType.UInt64:
+                            WriteUInt64("UInt64", (ulong)value);
+                            return;
 
-                        case BuiltInType.Float: WriteFloat("Float", (float)value); return;
+                        case BuiltInType.Float:
+                            WriteFloat("Float", (float)value);
+                            return;
 
-                        case BuiltInType.Double: WriteDouble("Double", (double)value); return;
+                        case BuiltInType.Double:
+                            WriteDouble("Double", (double)value);
+                            return;
 
-                        case BuiltInType.String: WriteString("String", (string)value); return;
+                        case BuiltInType.String:
+                            WriteString("String", (string)value);
+                            return;
 
-                        case BuiltInType.DateTime: WriteDateTime("DateTime", (DateTime)value); return;
+                        case BuiltInType.DateTime:
+                            WriteDateTime("DateTime", (DateTime)value);
+                            return;
 
-                        case BuiltInType.Guid: WriteGuid("Guid", (Uuid)value); return;
+                        case BuiltInType.Guid:
+                            WriteGuid("Guid", (Uuid)value);
+                            return;
 
-                        case BuiltInType.ByteString: WriteByteString("ByteString", (byte[])value); return;
+                        case BuiltInType.ByteString:
+                            WriteByteString("ByteString", (byte[])value);
+                            return;
 
-                        case BuiltInType.XmlElement: WriteXmlElement("XmlElement", (XmlElement)value); return;
+                        case BuiltInType.XmlElement:
+                            WriteXmlElement("XmlElement", (XmlElement)value);
+                            return;
 
-                        case BuiltInType.NodeId: WriteNodeId("NodeId", (NodeId)value); return;
+                        case BuiltInType.NodeId:
+                            WriteNodeId("NodeId", (NodeId)value);
+                            return;
 
-                        case BuiltInType.ExpandedNodeId: WriteExpandedNodeId("ExpandedNodeId", (ExpandedNodeId)value); return;
+                        case BuiltInType.ExpandedNodeId:
+                            WriteExpandedNodeId("ExpandedNodeId", (ExpandedNodeId)value);
+                            return;
 
-                        case BuiltInType.StatusCode: WriteStatusCode("StatusCode", (StatusCode)value); return;
+                        case BuiltInType.StatusCode:
+                            WriteStatusCode("StatusCode", (StatusCode)value);
+                            return;
 
-                        case BuiltInType.QualifiedName: WriteQualifiedName("QualifiedName", (QualifiedName)value); return;
+                        case BuiltInType.QualifiedName:
+                            WriteQualifiedName("QualifiedName", (QualifiedName)value);
+                            return;
 
-                        case BuiltInType.LocalizedText: WriteLocalizedText("LocalizedText", (LocalizedText)value); return;
+                        case BuiltInType.LocalizedText:
+                            WriteLocalizedText("LocalizedText", (LocalizedText)value);
+                            return;
 
-                        case BuiltInType.ExtensionObject: WriteExtensionObject("ExtensionObject", (ExtensionObject)value); return;
+                        case BuiltInType.ExtensionObject:
+                            WriteExtensionObject("ExtensionObject", (ExtensionObject)value);
+                            return;
 
-                        case BuiltInType.DataValue: WriteDataValue("DataValue", (DataValue)value); return;
+                        case BuiltInType.DataValue:
+                            WriteDataValue("DataValue", (DataValue)value);
+                            return;
 
-                        case BuiltInType.Enumeration: WriteInt32("Int32", (int)value); return;
+                        case BuiltInType.Enumeration:
+                            WriteInt32("Int32", (int)value);
+                            return;
                     }
                 }
 
@@ -1847,51 +1898,97 @@ namespace Opc.Ua
                 {
                     switch (typeInfo.BuiltInType)
                     {
-                        case BuiltInType.Boolean: WriteBooleanArray("ListOfBoolean", (bool[])value); return;
+                        case BuiltInType.Boolean:
+                            WriteBooleanArray("ListOfBoolean", (bool[])value);
+                            return;
 
-                        case BuiltInType.SByte: WriteSByteArray("ListOfSByte", (sbyte[])value); return;
+                        case BuiltInType.SByte:
+                            WriteSByteArray("ListOfSByte", (sbyte[])value);
+                            return;
 
-                        case BuiltInType.Byte: WriteByteArray("ListOfByte", (byte[])value); return;
+                        case BuiltInType.Byte:
+                            WriteByteArray("ListOfByte", (byte[])value);
+                            return;
 
-                        case BuiltInType.Int16: WriteInt16Array("ListOfInt16", (short[])value); return;
+                        case BuiltInType.Int16:
+                            WriteInt16Array("ListOfInt16", (short[])value);
+                            return;
 
-                        case BuiltInType.UInt16: WriteUInt16Array("ListOfUInt16", (ushort[])value); return;
+                        case BuiltInType.UInt16:
+                            WriteUInt16Array("ListOfUInt16", (ushort[])value);
+                            return;
 
-                        case BuiltInType.Int32: WriteInt32Array("ListOfInt32", (int[])value); return;
+                        case BuiltInType.Int32:
+                            WriteInt32Array("ListOfInt32", (int[])value);
+                            return;
 
-                        case BuiltInType.UInt32: WriteUInt32Array("ListOfUInt32", (uint[])value); return;
+                        case BuiltInType.UInt32:
+                            WriteUInt32Array("ListOfUInt32", (uint[])value);
+                            return;
 
-                        case BuiltInType.Int64: WriteInt64Array("ListOfInt64", (long[])value); return;
+                        case BuiltInType.Int64:
+                            WriteInt64Array("ListOfInt64", (long[])value);
+                            return;
 
-                        case BuiltInType.UInt64: WriteUInt64Array("ListOfUInt64", (ulong[])value); return;
+                        case BuiltInType.UInt64:
+                            WriteUInt64Array("ListOfUInt64", (ulong[])value);
+                            return;
 
-                        case BuiltInType.Float: WriteFloatArray("ListOfFloat", (float[])value); return;
+                        case BuiltInType.Float:
+                            WriteFloatArray("ListOfFloat", (float[])value);
+                            return;
 
-                        case BuiltInType.Double: WriteDoubleArray("ListOfDouble", (double[])value); return;
+                        case BuiltInType.Double:
+                            WriteDoubleArray("ListOfDouble", (double[])value);
+                            return;
 
-                        case BuiltInType.String: WriteStringArray("ListOfString", (string[])value); return;
+                        case BuiltInType.String:
+                            WriteStringArray("ListOfString", (string[])value);
+                            return;
 
-                        case BuiltInType.DateTime: WriteDateTimeArray("ListOfDateTime", (DateTime[])value); return;
+                        case BuiltInType.DateTime:
+                            WriteDateTimeArray("ListOfDateTime", (DateTime[])value);
+                            return;
 
-                        case BuiltInType.Guid: WriteGuidArray("ListOfGuid", (Uuid[])value); return;
+                        case BuiltInType.Guid:
+                            WriteGuidArray("ListOfGuid", (Uuid[])value);
+                            return;
 
-                        case BuiltInType.ByteString: WriteByteStringArray("ListOfByteString", (byte[][])value); return;
+                        case BuiltInType.ByteString:
+                            WriteByteStringArray("ListOfByteString", (byte[][])value);
+                            return;
 
-                        case BuiltInType.XmlElement: WriteXmlElementArray("ListOfXmlElement", (XmlElement[])value); return;
+                        case BuiltInType.XmlElement:
+                            WriteXmlElementArray("ListOfXmlElement", (XmlElement[])value);
+                            return;
 
-                        case BuiltInType.NodeId: WriteNodeIdArray("ListOfNodeId", (NodeId[])value); return;
+                        case BuiltInType.NodeId:
+                            WriteNodeIdArray("ListOfNodeId", (NodeId[])value);
+                            return;
 
-                        case BuiltInType.ExpandedNodeId: WriteExpandedNodeIdArray("ListOfExpandedNodeId", (ExpandedNodeId[])value); return;
+                        case BuiltInType.ExpandedNodeId:
+                            WriteExpandedNodeIdArray("ListOfExpandedNodeId", (ExpandedNodeId[])value);
+                            return;
 
-                        case BuiltInType.StatusCode: WriteStatusCodeArray("ListOfStatusCode", (StatusCode[])value); return;
+                        case BuiltInType.StatusCode:
+                            WriteStatusCodeArray("ListOfStatusCode", (StatusCode[])value);
+                            return;
 
-                        case BuiltInType.QualifiedName: WriteQualifiedNameArray("ListOfQualifiedName", (QualifiedName[])value); return;
+                        case BuiltInType.QualifiedName:
+                            WriteQualifiedNameArray("ListOfQualifiedName", (QualifiedName[])value);
+                            return;
 
-                        case BuiltInType.LocalizedText: WriteLocalizedTextArray("ListOfLocalizedText", (LocalizedText[])value); return;
+                        case BuiltInType.LocalizedText:
+                            WriteLocalizedTextArray("ListOfLocalizedText", (LocalizedText[])value);
+                            return;
 
-                        case BuiltInType.ExtensionObject: WriteExtensionObjectArray("ListOfExtensionObject", (ExtensionObject[])value); return;
+                        case BuiltInType.ExtensionObject:
+                            WriteExtensionObjectArray("ListOfExtensionObject", (ExtensionObject[])value);
+                            return;
 
-                        case BuiltInType.DataValue: WriteDataValueArray("ListOfDataValue", (DataValue[])value); return;
+                        case BuiltInType.DataValue:
+                            WriteDataValueArray("ListOfDataValue", (DataValue[])value);
+                            return;
 
                         case BuiltInType.Enumeration:
                             if (value is not int[] ints)
@@ -1974,11 +2071,9 @@ namespace Opc.Ua
             // encode xml body.
             if (body is XmlElement xml)
             {
-                using (var reader = XmlReader.Create(new StringReader(xml.OuterXml), Utils.DefaultXmlReaderSettings()))
-                {
-                    m_writer.WriteNode(reader, false);
-                    return;
-                }
+                using var reader = XmlReader.Create(new StringReader(xml.OuterXml), Utils.DefaultXmlReaderSettings());
+                m_writer.WriteNode(reader, false);
+                return;
             }
 
             if (body is not IEncodeable encodeable)
@@ -2041,53 +2136,101 @@ namespace Opc.Ua
                     * The name of the element in the array shall be the type name.*/
                     switch (builtInType)
                     {
-                        case BuiltInType.Boolean: WriteBooleanArray(fieldName, (bool[])array); return;
+                        case BuiltInType.Boolean:
+                            WriteBooleanArray(fieldName, (bool[])array);
+                            return;
 
-                        case BuiltInType.SByte: WriteSByteArray(fieldName, (sbyte[])array); return;
+                        case BuiltInType.SByte:
+                            WriteSByteArray(fieldName, (sbyte[])array);
+                            return;
 
-                        case BuiltInType.Byte: WriteByteArray(fieldName, (byte[])array); return;
+                        case BuiltInType.Byte:
+                            WriteByteArray(fieldName, (byte[])array);
+                            return;
 
-                        case BuiltInType.Int16: WriteInt16Array(fieldName, (short[])array); return;
+                        case BuiltInType.Int16:
+                            WriteInt16Array(fieldName, (short[])array);
+                            return;
 
-                        case BuiltInType.UInt16: WriteUInt16Array(fieldName, (ushort[])array); return;
+                        case BuiltInType.UInt16:
+                            WriteUInt16Array(fieldName, (ushort[])array);
+                            return;
 
-                        case BuiltInType.Int32: WriteInt32Array(fieldName, (int[])array); return;
+                        case BuiltInType.Int32:
+                            WriteInt32Array(fieldName, (int[])array);
+                            return;
 
-                        case BuiltInType.UInt32: WriteUInt32Array(fieldName, (uint[])array); return;
+                        case BuiltInType.UInt32:
+                            WriteUInt32Array(fieldName, (uint[])array);
+                            return;
 
-                        case BuiltInType.Int64: WriteInt64Array(fieldName, (long[])array); return;
+                        case BuiltInType.Int64:
+                            WriteInt64Array(fieldName, (long[])array);
+                            return;
 
-                        case BuiltInType.UInt64: WriteUInt64Array(fieldName, (ulong[])array); return;
+                        case BuiltInType.UInt64:
+                            WriteUInt64Array(fieldName, (ulong[])array);
+                            return;
 
-                        case BuiltInType.Float: WriteFloatArray(fieldName, (float[])array); return;
+                        case BuiltInType.Float:
+                            WriteFloatArray(fieldName, (float[])array);
+                            return;
 
-                        case BuiltInType.Double: WriteDoubleArray(fieldName, (double[])array); return;
+                        case BuiltInType.Double:
+                            WriteDoubleArray(fieldName, (double[])array);
+                            return;
 
-                        case BuiltInType.String: WriteStringArray(fieldName, (string[])array); return;
+                        case BuiltInType.String:
+                            WriteStringArray(fieldName, (string[])array);
+                            return;
 
-                        case BuiltInType.DateTime: WriteDateTimeArray(fieldName, (DateTime[])array); return;
+                        case BuiltInType.DateTime:
+                            WriteDateTimeArray(fieldName, (DateTime[])array);
+                            return;
 
-                        case BuiltInType.Guid: WriteGuidArray(fieldName, (Uuid[])array); return;
+                        case BuiltInType.Guid:
+                            WriteGuidArray(fieldName, (Uuid[])array);
+                            return;
 
-                        case BuiltInType.ByteString: WriteByteStringArray(fieldName, (byte[][])array); return;
+                        case BuiltInType.ByteString:
+                            WriteByteStringArray(fieldName, (byte[][])array);
+                            return;
 
-                        case BuiltInType.XmlElement: WriteXmlElementArray(fieldName, (XmlElement[])array); return;
+                        case BuiltInType.XmlElement:
+                            WriteXmlElementArray(fieldName, (XmlElement[])array);
+                            return;
 
-                        case BuiltInType.NodeId: WriteNodeIdArray(fieldName, (NodeId[])array); return;
+                        case BuiltInType.NodeId:
+                            WriteNodeIdArray(fieldName, (NodeId[])array);
+                            return;
 
-                        case BuiltInType.ExpandedNodeId: WriteExpandedNodeIdArray(fieldName, (ExpandedNodeId[])array); return;
+                        case BuiltInType.ExpandedNodeId:
+                            WriteExpandedNodeIdArray(fieldName, (ExpandedNodeId[])array);
+                            return;
 
-                        case BuiltInType.StatusCode: WriteStatusCodeArray(fieldName, (StatusCode[])array); return;
+                        case BuiltInType.StatusCode:
+                            WriteStatusCodeArray(fieldName, (StatusCode[])array);
+                            return;
 
-                        case BuiltInType.QualifiedName: WriteQualifiedNameArray(fieldName, (QualifiedName[])array); return;
+                        case BuiltInType.QualifiedName:
+                            WriteQualifiedNameArray(fieldName, (QualifiedName[])array);
+                            return;
 
-                        case BuiltInType.LocalizedText: WriteLocalizedTextArray(fieldName, (LocalizedText[])array); return;
+                        case BuiltInType.LocalizedText:
+                            WriteLocalizedTextArray(fieldName, (LocalizedText[])array);
+                            return;
 
-                        case BuiltInType.ExtensionObject: WriteExtensionObjectArray(fieldName, (ExtensionObject[])array); return;
+                        case BuiltInType.ExtensionObject:
+                            WriteExtensionObjectArray(fieldName, (ExtensionObject[])array);
+                            return;
 
-                        case BuiltInType.DataValue: WriteDataValueArray(fieldName, (DataValue[])array); return;
+                        case BuiltInType.DataValue:
+                            WriteDataValueArray(fieldName, (DataValue[])array);
+                            return;
 
-                        case BuiltInType.DiagnosticInfo: WriteDiagnosticInfoArray(fieldName, (DiagnosticInfo[])array); return;
+                        case BuiltInType.DiagnosticInfo:
+                            WriteDiagnosticInfoArray(fieldName, (DiagnosticInfo[])array);
+                            return;
 
                         case BuiltInType.Enumeration:
                             if (array is not int[] ints)

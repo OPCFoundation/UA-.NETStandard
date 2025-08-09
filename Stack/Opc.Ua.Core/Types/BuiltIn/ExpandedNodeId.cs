@@ -320,9 +320,6 @@ namespace Opc.Ua
         /// <summary>
         /// Sets the private members to default values.
         /// </summary>
-        /// <remarks>
-        /// Sets the private members to default values.
-        /// </remarks>
         private void Initialize()
         {
             InnerNodeId = null;
@@ -425,17 +422,11 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if the expanded node id is an absolute identifier that contains a namespace URI instead of a server dependent index.
         /// </summary>
-        /// <remarks>
-        /// Returns true if the expanded node id is an absolute identifier that contains a namespace URI instead of a server dependent index.
-        /// </remarks>
         public bool IsAbsolute => !string.IsNullOrEmpty(m_namespaceUri) || m_serverIndex > 0;
 
         /// <summary>
         /// Returns the inner node id.
         /// </summary>
-        /// <remarks>
-        /// Returns the inner node id.
-        /// </remarks>
         internal NodeId InnerNodeId { get; set; }
 
         /// <summary>
@@ -514,8 +505,10 @@ namespace Opc.Ua
             IdType identifierType,
             ushort namespaceIndex,
             string namespaceUri,
-            uint serverIndex) =>
+            uint serverIndex)
+        {
             Format(CultureInfo.InvariantCulture, buffer, identifier, identifierType, namespaceIndex, namespaceUri, serverIndex);
+        }
 
         /// <summary>
         /// Formats the node ids as string and adds it to the buffer.
@@ -680,9 +673,6 @@ namespace Opc.Ua
         /// <summary>
         /// Compares the current instance to the object.
         /// </summary>
-        /// <remarks>
-        /// Compares the current instance to the object.
-        /// </remarks>
         public int CompareTo(object obj)
         {
             // check for null.
@@ -746,9 +736,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if a is greater than b.
         /// </summary>
-        /// <remarks>
-        /// Returns true if a is greater than b.
-        /// </remarks>
         public static bool operator >(ExpandedNodeId value1, object value2)
         {
             if (!ReferenceEquals(value1, null))
@@ -762,9 +749,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if a is less than b.
         /// </summary>
-        /// <remarks>
-        /// Returns true if a is less than b.
-        /// </remarks>
         public static bool operator <(ExpandedNodeId value1, object value2)
         {
             if (!ReferenceEquals(value1, null))
@@ -778,9 +762,6 @@ namespace Opc.Ua
         /// <summary>
         /// Determines if the specified object is equal to the ExpandedNodeId.
         /// </summary>
-        /// <remarks>
-        /// Determines if the specified object is equal to the ExpandedNodeId.
-        /// </remarks>
         public override bool Equals(object obj)
         {
             return CompareTo(obj) == 0;
@@ -789,9 +770,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns a unique hashcode for the ExpandedNodeId
         /// </summary>
-        /// <remarks>
-        /// Returns a unique hashcode for the ExpandedNodeId
-        /// </remarks>
         public override int GetHashCode()
         {
             if (InnerNodeId == null || InnerNodeId.IsNullNodeId)
@@ -825,9 +803,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if the objects are equal.
         /// </summary>
-        /// <remarks>
-        /// Returns true if the objects are equal.
-        /// </remarks>
         public static bool operator ==(ExpandedNodeId value1, object value2)
         {
             if (ReferenceEquals(value1, null))
@@ -841,9 +816,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if the objects are not equal.
         /// </summary>
-        /// <remarks>
-        /// Returns true if the objects are not equal.
-        /// </remarks>
         public static bool operator !=(ExpandedNodeId value1, object value2)
         {
             if (ReferenceEquals(value1, null))
@@ -866,9 +838,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the string representation of an ExpandedNodeId.
         /// </summary>
-        /// <remarks>
-        /// Returns the string representation of an ExpandedNodeId.
-        /// </remarks>
         /// <returns>The <see cref="ExpandedNodeId"/> as a formatted string</returns>
         /// <param name="format">(Unused) The format string.</param>
         /// <param name="formatProvider">(Unused) The format-provider.</param>
@@ -904,9 +873,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the string representation of am ExpandedNodeId.
         /// </summary>
-        /// <remarks>
-        /// Returns the string representation of am ExpandedNodeId.
-        /// </remarks>
         public override string ToString()
         {
             return ToString(null, null);
@@ -957,9 +923,6 @@ namespace Opc.Ua
         /// <summary>
         /// Updates the namespace index.
         /// </summary>
-        /// <remarks>
-        /// Updates the namespace index.
-        /// </remarks>
         internal void SetNamespaceIndex(ushort namespaceIndex)
         {
             InnerNodeId.SetNamespaceIndex(namespaceIndex);
@@ -1159,9 +1122,6 @@ namespace Opc.Ua
         /// <summary>
         /// Converts an ExpandedNodeId to a NodeId.
         /// </summary>
-        /// <remarks>
-        /// Converts an ExpandedNodeId to a NodeId.
-        /// </remarks>
         /// <exception cref="InvalidCastException">Thrown if the ExpandedNodeId is an absolute node identifier.</exception>
         public static explicit operator NodeId(ExpandedNodeId value)
         {
@@ -1181,9 +1141,6 @@ namespace Opc.Ua
         /// <summary>
         /// Converts an integer to a numeric node identifier.
         /// </summary>
-        /// <remarks>
-        /// Converts an integer to a numeric node identifier.
-        /// </remarks>
         public static implicit operator ExpandedNodeId(uint value)
         {
             return new ExpandedNodeId(value);
@@ -1192,9 +1149,6 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a guid to a guid node identifier.
         /// </summary>
-        /// <remarks>
-        /// Converts a guid to a guid node identifier.
-        /// </remarks>
         public static implicit operator ExpandedNodeId(Guid value)
         {
             return new ExpandedNodeId(value);
@@ -1203,9 +1157,6 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a byte array to an opaque node identifier.
         /// </summary>
-        /// <remarks>
-        /// Converts a byte array to an opaque node identifier.
-        /// </remarks>
         public static implicit operator ExpandedNodeId(byte[] value)
         {
             return new ExpandedNodeId(value);
@@ -1214,9 +1165,6 @@ namespace Opc.Ua
         /// <summary>
         /// Parses a node id string and initializes a node id.
         /// </summary>
-        /// <remarks>
-        /// Parses a node id string and initializes a node id.
-        /// </remarks>
         public static implicit operator ExpandedNodeId(string text)
         {
             return new ExpandedNodeId(text);
@@ -1225,9 +1173,6 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a NodeId to an ExpandedNodeId
         /// </summary>
-        /// <remarks>
-        /// Converts a NodeId to an ExpandedNodeId
-        /// </remarks>
         public static implicit operator ExpandedNodeId(NodeId nodeId)
         {
             return new ExpandedNodeId(nodeId);
@@ -1351,9 +1296,6 @@ namespace Opc.Ua
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
-        /// <remarks>
-        /// Converts an array to a collection.
-        /// </remarks>
         /// <param name="values">An array of <see cref="ExpandedNodeId"/> values to return as a collection</param>
         public static implicit operator ExpandedNodeIdCollection(ExpandedNodeId[] values)
         {

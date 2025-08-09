@@ -85,7 +85,7 @@ namespace TestData
 
         public virtual StatusCode OnGenerateValues(ISystemContext context)
         {
-            if (!(context.SystemHandle is TestDataSystem system))
+            if (context.SystemHandle is not TestDataSystem system)
             {
                 return StatusCodes.BadOutOfService;
             }

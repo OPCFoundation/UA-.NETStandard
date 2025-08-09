@@ -77,10 +77,8 @@ namespace Opc.Ua.Gds.Tests
                 string thumbprint = Config.SecurityConfiguration.ApplicationCertificate.Thumbprint;
                 if (thumbprint != null)
                 {
-                    using (ICertificateStore store = Config.SecurityConfiguration.ApplicationCertificate.OpenStore())
-                    {
-                        await store.DeleteAsync(thumbprint).ConfigureAwait(false);
-                    }
+                    using ICertificateStore store = Config.SecurityConfiguration.ApplicationCertificate.OpenStore();
+                    await store.DeleteAsync(thumbprint).ConfigureAwait(false);
                 }
 
                 // always start with clean cert store
@@ -154,12 +152,10 @@ namespace Opc.Ua.Gds.Tests
             {
                 Console.WriteLine("Server stopped. Waiting for exit...");
 
-                using (GlobalDiscoverySampleServer server = m_server)
-                {
-                    m_server = null;
-                    // Stop server and dispose
-                    server.Stop();
-                }
+                using GlobalDiscoverySampleServer server = m_server;
+                m_server = null;
+                // Stop server and dispose
+                server.Stop();
             }
         }
 

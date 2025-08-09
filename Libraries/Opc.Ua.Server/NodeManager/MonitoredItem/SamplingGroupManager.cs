@@ -47,18 +47,8 @@ namespace Opc.Ua.Server
             uint maxDurableQueueSize,
             IEnumerable<SamplingRateGroup> samplingRates)
         {
-            if (server == null)
-            {
-                throw new ArgumentNullException(nameof(server));
-            }
-
-            if (nodeManager == null)
-            {
-                throw new ArgumentNullException(nameof(nodeManager));
-            }
-
-            m_server = server;
-            m_nodeManager = nodeManager;
+            m_server = server ?? throw new ArgumentNullException(nameof(server));
+            m_nodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
             m_samplingGroups = [];
             m_sampledItems = [];
             m_maxQueueSize = maxQueueSize;

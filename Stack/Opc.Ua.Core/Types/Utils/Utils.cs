@@ -359,16 +359,14 @@ namespace Opc.Ua
                             truncated = true;
                         }
 
-                        using (var writer = new StreamWriter(File.Open(file.FullName, FileMode.Append, FileAccess.Write, FileShare.Read)))
+                        using var writer = new StreamWriter(File.Open(file.FullName, FileMode.Append, FileAccess.Write, FileShare.Read));
+                        if (truncated)
                         {
-                            if (truncated)
-                            {
-                                writer.WriteLine("WARNING - LOG FILE TRUNCATED.");
-                            }
-
-                            writer.WriteLine(output);
-                            writer.Flush();
+                            writer.WriteLine("WARNING - LOG FILE TRUNCATED.");
                         }
+
+                        writer.WriteLine(output);
+                        writer.Flush();
                     }
                     catch (Exception e)
                     {
@@ -655,7 +653,8 @@ namespace Opc.Ua
         {
             switch (input)
             {
-                case "CommonApplicationData": return "ProgramData";
+                case "CommonApplicationData":
+                    return "ProgramData";
             }
 
             return input;
@@ -879,10 +878,8 @@ namespace Opc.Ua
                 }
 
                 // open and close the file.
-                using (Stream ostrm = file.Open(FileMode.CreateNew, FileAccess.ReadWrite))
-                {
-                    return filePath;
-                }
+                using Stream ostrm = file.Open(FileMode.CreateNew, FileAccess.ReadWrite);
+                return filePath;
             }
             catch (Exception e)
             {
@@ -1391,12 +1388,12 @@ namespace Opc.Ua
             // check for null.
             if (string.IsNullOrEmpty(instanceUri))
             {
-                var builder = new UriBuilder();
-
-                builder.Scheme = UriSchemeHttps;
-                builder.Host = GetHostName();
-                builder.Port = -1;
-                builder.Path = Guid.NewGuid().ToString();
+                var builder = new UriBuilder {
+                    Scheme = UriSchemeHttps,
+                    Host = GetHostName(),
+                    Port = -1,
+                    Path = Guid.NewGuid().ToString()
+                };
 
                 return builder.Uri.ToString();
             }
@@ -1404,12 +1401,12 @@ namespace Opc.Ua
             // prefix non-urls with the hostname.
             if (!instanceUri.StartsWith(UriSchemeHttps, StringComparison.Ordinal))
             {
-                var builder = new UriBuilder();
-
-                builder.Scheme = UriSchemeHttps;
-                builder.Host = GetHostName();
-                builder.Port = -1;
-                builder.Path = Uri.EscapeDataString(instanceUri);
+                var builder = new UriBuilder {
+                    Scheme = UriSchemeHttps,
+                    Host = GetHostName(),
+                    Port = -1,
+                    Path = Uri.EscapeDataString(instanceUri)
+                };
 
                 return builder.Uri.ToString();
             }
@@ -1419,8 +1416,9 @@ namespace Opc.Ua
 
             if (parsedUri != null && parsedUri.DnsSafeHost == "localhost")
             {
-                var builder = new UriBuilder(parsedUri);
-                builder.Host = GetHostName();
+                var builder = new UriBuilder(parsedUri) {
+                    Host = GetHostName()
+                };
                 return builder.Uri.ToString();
             }
 
@@ -2468,12 +2466,10 @@ namespace Opc.Ua
         /// <returns>The TimeZone information for the current local time.</returns>
         public static TimeZoneDataType GetTimeZoneInfo()
         {
-            var info = new TimeZoneDataType();
-
-            info.Offset = (short)TimeZoneInfo.Local.GetUtcOffset(DateTime.Now).TotalMinutes;
-            info.DaylightSavingInOffset = true;
-
-            return info;
+            return new TimeZoneDataType {
+                Offset = (short)TimeZoneInfo.Local.GetUtcOffset(DateTime.Now).TotalMinutes,
+                DaylightSavingInOffset = true
+            };
         }
 
         /// <summary>
@@ -2499,12 +2495,7 @@ namespace Opc.Ua
                 // get qualified name from the data contract attribute.
                 XmlQualifiedName qname = EncodeableFactory.GetXmlName(typeof(T));
 
-                if (qname == null)
-                {
-                    throw new ArgumentException("Type does not seem to support DataContract serialization");
-                }
-
-                elementName = qname;
+                elementName = qname ?? throw new ArgumentException("Type does not seem to support DataContract serialization");
             }
 
             // find the element.
@@ -2581,12 +2572,7 @@ namespace Opc.Ua
                 // get qualified name from the data contract attribute.
                 XmlQualifiedName qname = EncodeableFactory.GetXmlName(typeof(T));
 
-                if (qname == null)
-                {
-                    throw new ArgumentException("Type does not seem to support DataContract serialization");
-                }
-
-                elementName = qname;
+                elementName = qname ?? throw new ArgumentException("Type does not seem to support DataContract serialization");
             }
 
             // replace existing element.
@@ -2756,12 +2742,10 @@ namespace Opc.Ua
         /// <param name="xml">The Xml document string.</param>
         internal static void LoadInnerXml(this XmlDocument doc, string xml)
         {
-            using (var sreader = new StringReader(xml))
-            using (var reader = XmlReader.Create(sreader, DefaultXmlReaderSettings()))
-            {
-                doc.XmlResolver = null;
-                doc.Load(reader);
-            }
+            using var sreader = new StringReader(xml);
+            using var reader = XmlReader.Create(sreader, DefaultXmlReaderSettings());
+            doc.XmlResolver = null;
+            doc.Load(reader);
         }
 
         /// <summary>
@@ -2928,10 +2912,8 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(secret));
             }
             // create the hmac.
-            using (var hmac = new HMACSHA1(secret))
-            {
-                return PSHA(hmac, label, data, offset, length);
-            }
+            using var hmac = new HMACSHA1(secret);
+            return PSHA(hmac, label, data, offset, length);
         }
 
         /// <summary>
@@ -2944,10 +2926,8 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(secret));
             }
             // create the hmac.
-            using (var hmac = new HMACSHA256(secret))
-            {
-                return PSHA(hmac, label, data, offset, length);
-            }
+            using var hmac = new HMACSHA256(secret);
+            return PSHA(hmac, label, data, offset, length);
         }
 
         /// <summary>
@@ -3148,11 +3128,9 @@ namespace Opc.Ua
             try
             {
                 // Create a ECDsa object and generate a new keypair on the given curve
-                using (var eCDsa = ECDsa.Create(eCCurve))
-                {
-                    ECParameters parameters = eCDsa.ExportParameters(false);
-                    return parameters.Q.X != null && parameters.Q.Y != null;
-                }
+                using var eCDsa = ECDsa.Create(eCCurve);
+                ECParameters parameters = eCDsa.ExportParameters(false);
+                return parameters.Q.X != null && parameters.Q.Y != null;
             }
             catch (Exception ex) when (
                 ex is PlatformNotSupportedException or

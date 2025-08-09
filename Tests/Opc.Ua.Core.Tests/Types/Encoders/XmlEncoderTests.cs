@@ -45,7 +45,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     public class XmlEncoderTests
     {
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "SYSLIB1045:Convert to 'GeneratedRegexAttribute'.", Justification = "Tests")]
-        static readonly Regex REValue = new("Value>([^<]*)<");
+        internal static readonly Regex REValue = new("Value>([^<]*)<");
         private static readonly int[] elements = [1, 2, 3, 4];
         private static readonly int[] dimensions = [2, 2];
 

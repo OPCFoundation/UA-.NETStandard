@@ -254,9 +254,9 @@ namespace Opc.Ua.Server
             }
 
             // only objects or views can be subscribed to.
-            if (!(source is BaseObjectState instance) || (instance.EventNotifier & EventNotifiers.SubscribeToEvents) == 0)
+            if ((source is not BaseObjectState instance) || (instance.EventNotifier & EventNotifiers.SubscribeToEvents) == 0)
             {
-                if (!(source is ViewState view) || (view.EventNotifier & EventNotifiers.SubscribeToEvents) == 0)
+                if ((source is not ViewState view) || (view.EventNotifier & EventNotifiers.SubscribeToEvents) == 0)
                 {
                     return (null, StatusCodes.BadNotSupported);
                 }

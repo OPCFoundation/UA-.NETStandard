@@ -11,7 +11,6 @@
 */
 
 using System;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Security.Cryptography;
@@ -203,30 +202,28 @@ namespace Opc.Ua.Bindings
         {
             int length = m_signatureKeySize + m_encryptionKeySize + m_encryptionBlockSize;
 
-            using (HMAC hmac = Utils.CreateHMAC(algorithmName, secret))
+            using HMAC hmac = Utils.CreateHMAC(algorithmName, secret);
+            byte[] output = Utils.PSHA(hmac, null, seed, 0, length);
+
+            byte[] signingKey = new byte[m_signatureKeySize];
+            byte[] encryptingKey = new byte[m_encryptionKeySize];
+            byte[] iv = new byte[m_encryptionBlockSize];
+
+            Buffer.BlockCopy(output, 0, signingKey, 0, signingKey.Length);
+            Buffer.BlockCopy(output, m_signatureKeySize, encryptingKey, 0, encryptingKey.Length);
+            Buffer.BlockCopy(output, m_signatureKeySize + m_encryptionKeySize, iv, 0, iv.Length);
+
+            if (isServer)
             {
-                byte[] output = Utils.PSHA(hmac, null, seed, 0, length);
-
-                byte[] signingKey = new byte[m_signatureKeySize];
-                byte[] encryptingKey = new byte[m_encryptionKeySize];
-                byte[] iv = new byte[m_encryptionBlockSize];
-
-                Buffer.BlockCopy(output, 0, signingKey, 0, signingKey.Length);
-                Buffer.BlockCopy(output, m_signatureKeySize, encryptingKey, 0, encryptingKey.Length);
-                Buffer.BlockCopy(output, m_signatureKeySize + m_encryptionKeySize, iv, 0, iv.Length);
-
-                if (isServer)
-                {
-                    token.ServerSigningKey = signingKey;
-                    token.ServerEncryptingKey = encryptingKey;
-                    token.ServerInitializationVector = iv;
-                }
-                else
-                {
-                    token.ClientSigningKey = signingKey;
-                    token.ClientEncryptingKey = encryptingKey;
-                    token.ClientInitializationVector = iv;
-                }
+                token.ServerSigningKey = signingKey;
+                token.ServerEncryptingKey = encryptingKey;
+                token.ServerInitializationVector = iv;
+            }
+            else
+            {
+                token.ClientSigningKey = signingKey;
+                token.ClientEncryptingKey = encryptingKey;
+                token.ClientInitializationVector = iv;
             }
         }
 
@@ -477,10 +474,8 @@ namespace Opc.Ua.Bindings
 
                 if (rawBytes != null)
                 {
-                    using (var encoder = new BinaryEncoder(ostrm, Quotas.MessageContext, true))
-                    {
-                        encoder.WriteRawBytes(rawBytes.Value.Array, rawBytes.Value.Offset, rawBytes.Value.Count);
-                    }
+                    using var encoder = new BinaryEncoder(ostrm, Quotas.MessageContext, true);
+                    encoder.WriteRawBytes(rawBytes.Value.Array, rawBytes.Value.Offset, rawBytes.Value.Count);
                 }
 
                 chunksToProcess = ostrm.GetBuffers("WriteSymmetricMessage");
@@ -511,130 +506,128 @@ namespace Opc.Ua.Bindings
                     }
 
                     var strm = new MemoryStream(chunkToProcess.Array, 0, SendBufferSize);
-                    using (var encoder = new BinaryEncoder(strm, Quotas.MessageContext, false))
+                    using var encoder = new BinaryEncoder(strm, Quotas.MessageContext, false);
+                    // check if the message needs to be aborted.
+                    if (MessageLimitsExceeded(isRequest, messageSize + chunkToProcess.Count - headerSize, ii + 1))
                     {
-                        // check if the message needs to be aborted.
-                        if (MessageLimitsExceeded(isRequest, messageSize + chunkToProcess.Count - headerSize, ii + 1))
-                        {
-                            encoder.WriteUInt32(null, messageType | TcpMessageType.Abort);
+                        encoder.WriteUInt32(null, messageType | TcpMessageType.Abort);
 
-                            // replace the body in the chunk with an error message.
-                            using (var errorEncoder = new BinaryEncoder(
-                                chunkToProcess.Array,
-                                chunkToProcess.Offset,
-                                chunkToProcess.Count,
-                                Quotas.MessageContext))
+                        // replace the body in the chunk with an error message.
+                        using (var errorEncoder = new BinaryEncoder(
+                            chunkToProcess.Array,
+                            chunkToProcess.Offset,
+                            chunkToProcess.Count,
+                            Quotas.MessageContext))
+                        {
+                            WriteErrorMessageBody(errorEncoder, isRequest ? StatusCodes.BadRequestTooLarge : StatusCodes.BadResponseTooLarge);
+                            int size = errorEncoder.Close();
+                            chunkToProcess = new ArraySegment<byte>(chunkToProcess.Array, chunkToProcess.Offset, size);
+                        }
+
+                        limitsExceeded = true;
+                    }
+
+                    // check if the message is complete.
+                    else if (ii == chunksToProcess.Count - 1)
+                    {
+                        encoder.WriteUInt32(null, messageType | TcpMessageType.Final);
+                    }
+
+                    // more chunks to follow.
+                    else
+                    {
+                        encoder.WriteUInt32(null, messageType | TcpMessageType.Intermediate);
+                    }
+
+                    int count = 0;
+
+                    count += TcpMessageLimits.SequenceHeaderSize;
+                    count += chunkToProcess.Count;
+                    count += SymmetricSignatureSize;
+
+                    // calculate the padding.
+                    int padding = 0;
+
+                    if (SecurityMode == MessageSecurityMode.SignAndEncrypt && !AuthenticatedEncryption)
+                    {
+                        // reserve one byte for the padding size.
+                        count++;
+
+                        // use padding as helper to calc the real padding
+                        padding = count % EncryptionBlockSize;
+                        if (padding != 0)
+                        {
+                            padding = EncryptionBlockSize - padding;
+                        }
+
+                        count += padding;
+                    }
+
+                    count += TcpMessageLimits.SymmetricHeaderSize;
+
+                    encoder.WriteUInt32(null, (uint)count);
+                    encoder.WriteUInt32(null, ChannelId);
+                    encoder.WriteUInt32(null, token.TokenId);
+
+                    uint sequenceNumber = GetNewSequenceNumber();
+                    encoder.WriteUInt32(null, sequenceNumber);
+
+                    encoder.WriteUInt32(null, requestId);
+
+                    // skip body.
+                    strm.Seek(chunkToProcess.Count, SeekOrigin.Current);
+
+                    // update message size count.
+                    messageSize += chunkToProcess.Count;
+
+                    // write padding.
+                    if (SecurityMode == MessageSecurityMode.SignAndEncrypt && !AuthenticatedEncryption)
+                    {
+#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+                        if (padding > 1)
+                        {
+                            Span<byte> buffer = paddingBuffer[..(padding + 1)];
+                            buffer.Fill((byte)padding);
+                            encoder.WriteRawBytes(buffer);
+                        }
+                        else
+#endif
+                        {
+                            for (int jj = 0; jj <= padding; jj++)
                             {
-                                WriteErrorMessageBody(errorEncoder, isRequest ? StatusCodes.BadRequestTooLarge : StatusCodes.BadResponseTooLarge);
-                                int size = errorEncoder.Close();
-                                chunkToProcess = new ArraySegment<byte>(chunkToProcess.Array, chunkToProcess.Offset, size);
+                                encoder.WriteByte(null, (byte)padding);
                             }
-
-                            limitsExceeded = true;
                         }
+                    }
 
-                        // check if the message is complete.
-                        else if (ii == chunksToProcess.Count - 1)
+                    // calculate and write signature.
+                    if (SecurityMode != MessageSecurityMode.None)
+                    {
+                        if (AuthenticatedEncryption)
                         {
-                            encoder.WriteUInt32(null, messageType | TcpMessageType.Final);
+                            strm.Seek(SymmetricSignatureSize, SeekOrigin.Current);
                         }
-
-                        // more chunks to follow.
                         else
                         {
-                            encoder.WriteUInt32(null, messageType | TcpMessageType.Intermediate);
-                        }
+                            byte[] signature = Sign(token, new ArraySegment<byte>(chunkToProcess.Array, 0, encoder.Position), isRequest);
 
-                        int count = 0;
-
-                        count += TcpMessageLimits.SequenceHeaderSize;
-                        count += chunkToProcess.Count;
-                        count += SymmetricSignatureSize;
-
-                        // calculate the padding.
-                        int padding = 0;
-
-                        if (SecurityMode == MessageSecurityMode.SignAndEncrypt && !AuthenticatedEncryption)
-                        {
-                            // reserve one byte for the padding size.
-                            count++;
-
-                            // use padding as helper to calc the real padding
-                            padding = count % EncryptionBlockSize;
-                            if (padding != 0)
+                            if (signature != null)
                             {
-                                padding = EncryptionBlockSize - padding;
-                            }
-
-                            count += padding;
-                        }
-
-                        count += TcpMessageLimits.SymmetricHeaderSize;
-
-                        encoder.WriteUInt32(null, (uint)count);
-                        encoder.WriteUInt32(null, ChannelId);
-                        encoder.WriteUInt32(null, token.TokenId);
-
-                        uint sequenceNumber = GetNewSequenceNumber();
-                        encoder.WriteUInt32(null, sequenceNumber);
-
-                        encoder.WriteUInt32(null, requestId);
-
-                        // skip body.
-                        strm.Seek(chunkToProcess.Count, SeekOrigin.Current);
-
-                        // update message size count.
-                        messageSize += chunkToProcess.Count;
-
-                        // write padding.
-                        if (SecurityMode == MessageSecurityMode.SignAndEncrypt && !AuthenticatedEncryption)
-                        {
-#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
-                            if (padding > 1)
-                            {
-                                Span<byte> buffer = paddingBuffer[..(padding + 1)];
-                                buffer.Fill((byte)padding);
-                                encoder.WriteRawBytes(buffer);
-                            }
-                            else
-#endif
-                            {
-                                for (int jj = 0; jj <= padding; jj++)
-                                {
-                                    encoder.WriteByte(null, (byte)padding);
-                                }
+                                encoder.WriteRawBytes(signature, 0, signature.Length);
                             }
                         }
-
-                        // calculate and write signature.
-                        if (SecurityMode != MessageSecurityMode.None)
-                        {
-                            if (AuthenticatedEncryption)
-                            {
-                                strm.Seek(SymmetricSignatureSize, SeekOrigin.Current);
-                            }
-                            else
-                            {
-                                byte[] signature = Sign(token, new ArraySegment<byte>(chunkToProcess.Array, 0, encoder.Position), isRequest);
-
-                                if (signature != null)
-                                {
-                                    encoder.WriteRawBytes(signature, 0, signature.Length);
-                                }
-                            }
-                        }
-
-                        if ((SecurityMode == MessageSecurityMode.SignAndEncrypt && !AuthenticatedEncryption) ||
-                            (SecurityMode != MessageSecurityMode.None && AuthenticatedEncryption))
-                        {
-                            // encrypt the data.
-                            var dataToEncrypt = new ArraySegment<byte>(chunkToProcess.Array, TcpMessageLimits.SymmetricHeaderSize, encoder.Position - TcpMessageLimits.SymmetricHeaderSize);
-                            Encrypt(token, dataToEncrypt, isRequest);
-                        }
-
-                        // add the header into chunk.
-                        chunksToSend.Add(new ArraySegment<byte>(chunkToProcess.Array, 0, encoder.Position));
                     }
+
+                    if ((SecurityMode == MessageSecurityMode.SignAndEncrypt && !AuthenticatedEncryption) ||
+                        (SecurityMode != MessageSecurityMode.None && AuthenticatedEncryption))
+                    {
+                        // encrypt the data.
+                        var dataToEncrypt = new ArraySegment<byte>(chunkToProcess.Array, TcpMessageLimits.SymmetricHeaderSize, encoder.Position - TcpMessageLimits.SymmetricHeaderSize);
+                        Encrypt(token, dataToEncrypt, isRequest);
+                    }
+
+                    // add the header into chunk.
+                    chunksToSend.Add(new ArraySegment<byte>(chunkToProcess.Array, 0, encoder.Position));
                 }
 
                 // ensure the buffers don't get cleaned up on exit.
@@ -661,124 +654,122 @@ namespace Opc.Ua.Bindings
             out uint requestId,
             out uint sequenceNumber)
         {
-            using (var decoder = new BinaryDecoder(buffer, Quotas.MessageContext))
+            using var decoder = new BinaryDecoder(buffer, Quotas.MessageContext);
+            uint messageType = decoder.ReadUInt32(null);
+            uint messageSize = decoder.ReadUInt32(null);
+            uint channelId = decoder.ReadUInt32(null);
+            uint tokenId = decoder.ReadUInt32(null);
+
+            // ensure the channel is valid.
+            if (channelId != ChannelId)
             {
-                uint messageType = decoder.ReadUInt32(null);
-                uint messageSize = decoder.ReadUInt32(null);
-                uint channelId = decoder.ReadUInt32(null);
-                uint tokenId = decoder.ReadUInt32(null);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTcpSecureChannelUnknown,
+                    "SecureChannelId is not known. ChanneId={0}, CurrentChannelId={1}",
+                    channelId,
+                    ChannelId);
+            }
 
-                // ensure the channel is valid.
-                if (channelId != ChannelId)
+            // check for a message secured with the new token.
+            if (RenewedToken != null && RenewedToken.TokenId == tokenId)
+            {
+                ActivateToken(RenewedToken);
+            }
+
+            // check if activation of the new token should be forced.
+            else if (RenewedToken != null && CurrentToken.ActivationRequired)
+            {
+                ActivateToken(RenewedToken);
+                Utils.LogInfo("ChannelId {0}: Token #{1} activated forced.", Id, CurrentToken.TokenId);
+            }
+
+            // check for valid token.
+            ChannelToken currentToken = CurrentToken;
+
+            if (currentToken == null)
+            {
+                throw new ServiceResultException(StatusCodes.BadSecureChannelClosed);
+            }
+
+            // find the token.
+            if (currentToken.TokenId != tokenId && (PreviousToken == null || PreviousToken.TokenId != tokenId))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTcpSecureChannelUnknown,
+                    "Channel{0}: TokenId is not known. ChanneId={1}, TokenId={2}, CurrentTokenId={3}, PreviousTokenId={4}",
+                    Id, channelId,
+                    tokenId, currentToken.TokenId,
+                    (PreviousToken != null) ? (int)PreviousToken.TokenId : -1);
+            }
+
+            token = currentToken;
+
+            // check for a message secured with the token before it expired.
+            if (PreviousToken != null && PreviousToken.TokenId == tokenId)
+            {
+                token = PreviousToken;
+            }
+
+            // check if token has expired.
+            if (token.Expired)
+            {
+                throw ServiceResultException.Create(StatusCodes.BadTcpSecureChannelUnknown,
+                    "Channel{0}: Token #{1} has expired. Lifetime={2:HH:mm:ss.fff}-{3}",
+                    Id, token.TokenId, token.CreatedAt, token.CreatedAtTickCount);
+            }
+
+            int headerSize = decoder.Position;
+
+            if (SecurityMode == MessageSecurityMode.SignAndEncrypt)
+            {
+                // decrypt the message.
+                Decrypt(token, new ArraySegment<byte>(buffer.Array, buffer.Offset + headerSize, buffer.Count - headerSize), isRequest);
+            }
+
+            int paddingCount = 0;
+            if (SecurityMode != MessageSecurityMode.None)
+            {
+                int signatureStart = buffer.Offset + buffer.Count - SymmetricSignatureSize;
+
+                // extract signature.
+                byte[] signature = new byte[SymmetricSignatureSize];
+                Array.Copy(buffer.Array, signatureStart, signature, 0, signature.Length);
+
+                // verify the signature.
+                if (!Verify(token, signature, new ArraySegment<byte>(buffer.Array, buffer.Offset, buffer.Count - SymmetricSignatureSize), isRequest))
                 {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadTcpSecureChannelUnknown,
-                        "SecureChannelId is not known. ChanneId={0}, CurrentChannelId={1}",
-                        channelId,
-                        ChannelId);
+                    Utils.LogError("ChannelId {0}: Could not verify signature on message.", Id);
+                    throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "Could not verify the signature on the message.");
                 }
-
-                // check for a message secured with the new token.
-                if (RenewedToken != null && RenewedToken.TokenId == tokenId)
-                {
-                    ActivateToken(RenewedToken);
-                }
-
-                // check if activation of the new token should be forced.
-                else if (RenewedToken != null && CurrentToken.ActivationRequired)
-                {
-                    ActivateToken(RenewedToken);
-                    Utils.LogInfo("ChannelId {0}: Token #{1} activated forced.", Id, CurrentToken.TokenId);
-                }
-
-                // check for valid token.
-                ChannelToken currentToken = CurrentToken;
-
-                if (currentToken == null)
-                {
-                    throw new ServiceResultException(StatusCodes.BadSecureChannelClosed);
-                }
-
-                // find the token.
-                if (currentToken.TokenId != tokenId && (PreviousToken == null || PreviousToken.TokenId != tokenId))
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadTcpSecureChannelUnknown,
-                        "Channel{0}: TokenId is not known. ChanneId={1}, TokenId={2}, CurrentTokenId={3}, PreviousTokenId={4}",
-                        Id, channelId,
-                        tokenId, currentToken.TokenId,
-                        (PreviousToken != null) ? (int)PreviousToken.TokenId : -1);
-                }
-
-                token = currentToken;
-
-                // check for a message secured with the token before it expired.
-                if (PreviousToken != null && PreviousToken.TokenId == tokenId)
-                {
-                    token = PreviousToken;
-                }
-
-                // check if token has expired.
-                if (token.Expired)
-                {
-                    throw ServiceResultException.Create(StatusCodes.BadTcpSecureChannelUnknown,
-                        "Channel{0}: Token #{1} has expired. Lifetime={2:HH:mm:ss.fff}-{3}",
-                        Id, token.TokenId, token.CreatedAt, token.CreatedAtTickCount);
-                }
-
-                int headerSize = decoder.Position;
 
                 if (SecurityMode == MessageSecurityMode.SignAndEncrypt)
                 {
-                    // decrypt the message.
-                    Decrypt(token, new ArraySegment<byte>(buffer.Array, buffer.Offset + headerSize, buffer.Count - headerSize), isRequest);
-                }
+                    // verify padding.
+                    int paddingStart = signatureStart - 1;
+                    paddingCount = buffer.Array[paddingStart];
 
-                int paddingCount = 0;
-                if (SecurityMode != MessageSecurityMode.None)
-                {
-                    int signatureStart = buffer.Offset + buffer.Count - SymmetricSignatureSize;
-
-                    // extract signature.
-                    byte[] signature = new byte[SymmetricSignatureSize];
-                    Array.Copy(buffer.Array, signatureStart, signature, 0, signature.Length);
-
-                    // verify the signature.
-                    if (!Verify(token, signature, new ArraySegment<byte>(buffer.Array, buffer.Offset, buffer.Count - SymmetricSignatureSize), isRequest))
+                    for (int ii = paddingStart - paddingCount; ii < paddingStart; ii++)
                     {
-                        Utils.LogError("ChannelId {0}: Could not verify signature on message.", Id);
-                        throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "Could not verify the signature on the message.");
-                    }
-
-                    if (SecurityMode == MessageSecurityMode.SignAndEncrypt)
-                    {
-                        // verify padding.
-                        int paddingStart = signatureStart - 1;
-                        paddingCount = buffer.Array[paddingStart];
-
-                        for (int ii = paddingStart - paddingCount; ii < paddingStart; ii++)
+                        if (buffer.Array[ii] != paddingCount)
                         {
-                            if (buffer.Array[ii] != paddingCount)
-                            {
-                                throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "Could not verify the padding in the message.");
-                            }
+                            throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "Could not verify the padding in the message.");
                         }
-
-                        // add byte for size.
-                        paddingCount++;
                     }
+
+                    // add byte for size.
+                    paddingCount++;
                 }
-
-                // extract request id and sequence number.
-                sequenceNumber = decoder.ReadUInt32(null);
-                requestId = decoder.ReadUInt32(null);
-
-                // return an the data contained in the message.
-                int startOfBody = buffer.Offset + TcpMessageLimits.SymmetricHeaderSize + TcpMessageLimits.SequenceHeaderSize;
-                int sizeOfBody = buffer.Count - TcpMessageLimits.SymmetricHeaderSize - TcpMessageLimits.SequenceHeaderSize - paddingCount - SymmetricSignatureSize;
-
-                return new ArraySegment<byte>(buffer.Array, startOfBody, sizeOfBody);
             }
+
+            // extract request id and sequence number.
+            sequenceNumber = decoder.ReadUInt32(null);
+            requestId = decoder.ReadUInt32(null);
+
+            // return an the data contained in the message.
+            int startOfBody = buffer.Offset + TcpMessageLimits.SymmetricHeaderSize + TcpMessageLimits.SequenceHeaderSize;
+            int sizeOfBody = buffer.Count - TcpMessageLimits.SymmetricHeaderSize - TcpMessageLimits.SequenceHeaderSize - paddingCount - SymmetricSignatureSize;
+
+            return new ArraySegment<byte>(buffer.Array, startOfBody, sizeOfBody);
         }
 
         /// <summary>
@@ -978,7 +969,7 @@ namespace Opc.Ua.Bindings
             int hashSizeInBytes = hmac.HashSize >> 3;
             Span<byte> computedSignature = stackalloc byte[hashSizeInBytes];
             bool result = hmac.TryComputeHash(dataToVerify, computedSignature, out int bytesWritten);
-            Debug.Assert(bytesWritten == hashSizeInBytes);
+            System.Diagnostics.Debug.Assert(bytesWritten == hashSizeInBytes);
             // compare signatures.
             if (!result || !computedSignature.SequenceEqual(signature))
             {
@@ -1040,19 +1031,17 @@ namespace Opc.Ua.Bindings
                 throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "Token missing symmetric key object.");
             }
 
-            using (ICryptoTransform encryptor = encryptingKey.CreateEncryptor())
+            using ICryptoTransform encryptor = encryptingKey.CreateEncryptor();
+            byte[] blockToEncrypt = dataToEncrypt.Array;
+
+            int start = dataToEncrypt.Offset;
+            int count = dataToEncrypt.Count;
+
+            if (count % encryptor.InputBlockSize != 0)
             {
-                byte[] blockToEncrypt = dataToEncrypt.Array;
-
-                int start = dataToEncrypt.Offset;
-                int count = dataToEncrypt.Count;
-
-                if (count % encryptor.InputBlockSize != 0)
-                {
-                    throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "Input data is not an even number of encryption blocks.");
-                }
-                encryptor.TransformBlock(blockToEncrypt, start, count, blockToEncrypt, start);
+                throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "Input data is not an even number of encryption blocks.");
             }
+            encryptor.TransformBlock(blockToEncrypt, start, count, blockToEncrypt, start);
         }
 
         /// <summary>
@@ -1071,20 +1060,18 @@ namespace Opc.Ua.Bindings
                 throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "Token missing symmetric key object.");
             }
 
-            using (ICryptoTransform decryptor = decryptingKey.CreateDecryptor())
+            using ICryptoTransform decryptor = decryptingKey.CreateDecryptor();
+            byte[] blockToDecrypt = dataToDecrypt.Array;
+
+            int start = dataToDecrypt.Offset;
+            int count = dataToDecrypt.Count;
+
+            if (count % decryptor.InputBlockSize != 0)
             {
-                byte[] blockToDecrypt = dataToDecrypt.Array;
-
-                int start = dataToDecrypt.Offset;
-                int count = dataToDecrypt.Count;
-
-                if (count % decryptor.InputBlockSize != 0)
-                {
-                    throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "Input data is not an even number of encryption blocks.");
-                }
-
-                decryptor.TransformBlock(blockToDecrypt, start, count, blockToDecrypt, start);
+                throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "Input data is not an even number of encryption blocks.");
             }
+
+            decryptor.TransformBlock(blockToDecrypt, start, count, blockToDecrypt, start);
         }
 
 #if CURVE25519

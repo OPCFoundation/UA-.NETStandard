@@ -187,19 +187,17 @@ namespace Opc.Ua.Gds.Server
         {
             if (certificate != null && certificate.Length > 0)
             {
-                using (X509Certificate2 x509 = X509CertificateLoader.LoadCertificate(certificate))
+                using X509Certificate2 x509 = X509CertificateLoader.LoadCertificate(certificate);
+                NodeId certificateType = CertificateIdentifier.GetCertificateType(x509);
+                foreach (ICertificateGroup certificateGroup in m_certificateGroups.Values)
                 {
-                    NodeId certificateType = CertificateIdentifier.GetCertificateType(x509);
-                    foreach (ICertificateGroup certificateGroup in m_certificateGroups.Values)
-                    {
-                        KeyValuePair<NodeId, X509Certificate2>? matchingCert = certificateGroup.Certificates.FirstOrDefault(kvp =>
-                           X509Utils.CompareDistinguishedName(kvp.Value.Subject, x509.Issuer)
-                           && kvp.Key == certificateType);
+                    KeyValuePair<NodeId, X509Certificate2>? matchingCert = certificateGroup.Certificates.FirstOrDefault(kvp =>
+                       X509Utils.CompareDistinguishedName(kvp.Value.Subject, x509.Issuer)
+                       && kvp.Key == certificateType);
 
-                        if (matchingCert != null)
-                        {
-                            return certificateGroup;
-                        }
+                    if (matchingCert != null)
+                    {
+                        return certificateGroup;
                     }
                 }
             }
@@ -216,20 +214,18 @@ namespace Opc.Ua.Gds.Server
 
                 if (certificateGroup != null)
                 {
-                    using (X509Certificate2 x509 = X509CertificateLoader.LoadCertificate(certificate))
+                    using X509Certificate2 x509 = X509CertificateLoader.LoadCertificate(certificate);
+                    try
                     {
-                        try
+                        Security.Certificates.X509CRL crl = await certificateGroup.RevokeCertificateAsync(x509).ConfigureAwait(false);
+                        if (crl != null)
                         {
-                            Security.Certificates.X509CRL crl = await certificateGroup.RevokeCertificateAsync(x509).ConfigureAwait(false);
-                            if (crl != null)
-                            {
-                                revoked = true;
-                            }
+                            revoked = true;
                         }
-                        catch (Exception e)
-                        {
-                            Utils.LogError(e, "Unexpected error revoking certificate. {0} for Authority={1}", x509.Subject, certificateGroup.Id);
-                        }
+                    }
+                    catch (Exception e)
+                    {
+                        Utils.LogError(e, "Unexpected error revoking certificate. {0} for Authority={1}", x509.Subject, certificateGroup.Id);
                     }
                 }
             }
@@ -668,63 +664,61 @@ namespace Opc.Ua.Gds.Server
                     }
                 }
 
-                using (X509Certificate2 x509 = X509CertificateLoader.LoadCertificate(certificate))
+                using X509Certificate2 x509 = X509CertificateLoader.LoadCertificate(certificate);
+                if (chain.Build(x509))
                 {
-                    if (chain.Build(x509))
+                    certificateStatus = StatusCodes.Good;
+                    return ServiceResult.Good;
+                }
+                else
+                {
+                    //Assing certificateStatus for invalid chain if no matching found use StatusCodes.BadCertificateRevoked
+                    switch (chain.ChainStatus.FirstOrDefault().Status)
                     {
-                        certificateStatus = StatusCodes.Good;
-                        return ServiceResult.Good;
-                    }
-                    else
-                    {
-                        //Assing certificateStatus for invalid chain if no matching found use StatusCodes.BadCertificateRevoked
-                        switch (chain.ChainStatus.FirstOrDefault().Status)
-                        {
-                            case X509ChainStatusFlags.NotTimeValid:
-                                certificateStatus = StatusCodes.BadCertificateTimeInvalid;
-                                break;
-                            case X509ChainStatusFlags.Revoked:
-                                certificateStatus = StatusCodes.BadCertificateRevoked;
-                                break;
-                            case X509ChainStatusFlags.NotSignatureValid:
-                                certificateStatus = StatusCodes.BadCertificateInvalid;
-                                break;
-                            case X509ChainStatusFlags.NotValidForUsage:
-                                certificateStatus = StatusCodes.BadCertificateUseNotAllowed;
-                                break;
-                            case X509ChainStatusFlags.RevocationStatusUnknown:
-                                certificateStatus = StatusCodes.BadCertificateRevocationUnknown;
-                                break;
-                            case X509ChainStatusFlags.PartialChain:
-                                certificateStatus = StatusCodes.BadCertificateChainIncomplete;
-                                break;
-                            case X509ChainStatusFlags.ExplicitDistrust:
-                                certificateStatus = StatusCodes.BadCertificateUntrusted;
-                                break;
-                            //cases not in the OPC UA Status codes -> default to BadCertificateRevoked
-                            case X509ChainStatusFlags.NoError:
-                            case X509ChainStatusFlags.UntrustedRoot:
-                            case X509ChainStatusFlags.NotTimeNested:
-                            case X509ChainStatusFlags.Cyclic:
-                            case X509ChainStatusFlags.InvalidExtension:
-                            case X509ChainStatusFlags.InvalidPolicyConstraints:
-                            case X509ChainStatusFlags.InvalidBasicConstraints:
-                            case X509ChainStatusFlags.InvalidNameConstraints:
-                            case X509ChainStatusFlags.HasNotSupportedNameConstraint:
-                            case X509ChainStatusFlags.HasNotDefinedNameConstraint:
-                            case X509ChainStatusFlags.HasNotPermittedNameConstraint:
-                            case X509ChainStatusFlags.HasExcludedNameConstraint:
-                            case X509ChainStatusFlags.CtlNotTimeValid:
-                            case X509ChainStatusFlags.CtlNotSignatureValid:
-                            case X509ChainStatusFlags.CtlNotValidForUsage:
-                            case X509ChainStatusFlags.OfflineRevocation:
-                            case X509ChainStatusFlags.NoIssuanceChainPolicy:
-                            case X509ChainStatusFlags.HasNotSupportedCriticalExtension:
-                            case X509ChainStatusFlags.HasWeakSignature:
-                            default:
-                                certificateStatus = StatusCodes.BadCertificateRevoked;
-                                break;
-                        }
+                        case X509ChainStatusFlags.NotTimeValid:
+                            certificateStatus = StatusCodes.BadCertificateTimeInvalid;
+                            break;
+                        case X509ChainStatusFlags.Revoked:
+                            certificateStatus = StatusCodes.BadCertificateRevoked;
+                            break;
+                        case X509ChainStatusFlags.NotSignatureValid:
+                            certificateStatus = StatusCodes.BadCertificateInvalid;
+                            break;
+                        case X509ChainStatusFlags.NotValidForUsage:
+                            certificateStatus = StatusCodes.BadCertificateUseNotAllowed;
+                            break;
+                        case X509ChainStatusFlags.RevocationStatusUnknown:
+                            certificateStatus = StatusCodes.BadCertificateRevocationUnknown;
+                            break;
+                        case X509ChainStatusFlags.PartialChain:
+                            certificateStatus = StatusCodes.BadCertificateChainIncomplete;
+                            break;
+                        case X509ChainStatusFlags.ExplicitDistrust:
+                            certificateStatus = StatusCodes.BadCertificateUntrusted;
+                            break;
+                        //cases not in the OPC UA Status codes -> default to BadCertificateRevoked
+                        case X509ChainStatusFlags.NoError:
+                        case X509ChainStatusFlags.UntrustedRoot:
+                        case X509ChainStatusFlags.NotTimeNested:
+                        case X509ChainStatusFlags.Cyclic:
+                        case X509ChainStatusFlags.InvalidExtension:
+                        case X509ChainStatusFlags.InvalidPolicyConstraints:
+                        case X509ChainStatusFlags.InvalidBasicConstraints:
+                        case X509ChainStatusFlags.InvalidNameConstraints:
+                        case X509ChainStatusFlags.HasNotSupportedNameConstraint:
+                        case X509ChainStatusFlags.HasNotDefinedNameConstraint:
+                        case X509ChainStatusFlags.HasNotPermittedNameConstraint:
+                        case X509ChainStatusFlags.HasExcludedNameConstraint:
+                        case X509ChainStatusFlags.CtlNotTimeValid:
+                        case X509ChainStatusFlags.CtlNotSignatureValid:
+                        case X509ChainStatusFlags.CtlNotValidForUsage:
+                        case X509ChainStatusFlags.OfflineRevocation:
+                        case X509ChainStatusFlags.NoIssuanceChainPolicy:
+                        case X509ChainStatusFlags.HasNotSupportedCriticalExtension:
+                        case X509ChainStatusFlags.HasWeakSignature:
+                        default:
+                            certificateStatus = StatusCodes.BadCertificateRevoked;
+                            break;
                     }
                 }
             }

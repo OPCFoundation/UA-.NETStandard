@@ -56,10 +56,8 @@ namespace Opc.Ua.Core.Tests.Types.Schemas
         {
             NUnit.Framework.Assert.That(schemaData.Length == 2);
             Assembly assembly = typeof(XmlSchemaValidator).GetTypeInfo().Assembly;
-            using (Stream stream = assembly.GetManifestResourceStream(schemaData[1]))
-            {
-                Assert.IsNotNull(stream);
-            }
+            using Stream stream = assembly.GetManifestResourceStream(schemaData[1]);
+            Assert.IsNotNull(stream);
         }
 
         /// <summary>
@@ -69,15 +67,13 @@ namespace Opc.Ua.Core.Tests.Types.Schemas
         public void ValidateResources(string[] schemaData)
         {
             Assembly assembly = typeof(XmlSchemaValidator).GetTypeInfo().Assembly;
-            using (Stream stream = assembly.GetManifestResourceStream(schemaData[1]))
-            {
-                Assert.IsNotNull(stream);
-                var schema = new XmlSchemaValidator();
-                Assert.IsNotNull(schema);
-                schema.Validate(stream);
-                Assert.IsNull(schema.FilePath);
-                Assert.AreEqual(schemaData[0], schema.TargetSchema.TargetNamespace);
-            }
+            using Stream stream = assembly.GetManifestResourceStream(schemaData[1]);
+            Assert.IsNotNull(stream);
+            var schema = new XmlSchemaValidator();
+            Assert.IsNotNull(schema);
+            schema.Validate(stream);
+            Assert.IsNull(schema.FilePath);
+            Assert.AreEqual(schemaData[0], schema.TargetSchema.TargetNamespace);
         }
 
         /// <summary>
@@ -91,37 +87,33 @@ namespace Opc.Ua.Core.Tests.Types.Schemas
             const string zipExtension = ".zip";
             Assembly assembly = typeof(XmlSchemaValidator).GetTypeInfo().Assembly;
 
-            using (Stream stream = assembly.GetManifestResourceStream(schemaPrefix + resource + zipExtension))
+            using Stream stream = assembly.GetManifestResourceStream(schemaPrefix + resource + zipExtension);
+            Assert.IsNotNull(stream);
+            using var zipArchive = new ZipArchive(stream, ZipArchiveMode.Read);
+            Assert.NotNull(zipArchive);
+            Assert.AreEqual(1, zipArchive.Entries.Count);
+            ZipArchiveEntry zipEntry = zipArchive.GetEntry(zipArchive.Entries[0].Name);
+            Assert.AreEqual(resource, zipEntry.Name);
+            Stream zipStream = zipEntry.Open();
+            Assert.IsNotNull(zipStream);
+
+            XmlReaderSettings settings = Utils.DefaultXmlReaderSettings();
+            settings.CloseInput = true;
+
+            var localContext = new SystemContext {
+                NamespaceUris = new NamespaceTable()
+            };
+
+            var exportedNodeSet = Export.UANodeSet.Read(zipStream);
+            Assert.IsNotNull(exportedNodeSet);
+            exportedNodeSet.NamespaceUris ??= [];
+            foreach (string namespaceUri in exportedNodeSet.NamespaceUris)
             {
-                Assert.IsNotNull(stream);
-                using (var zipArchive = new ZipArchive(stream, ZipArchiveMode.Read))
-                {
-                    Assert.NotNull(zipArchive);
-                    Assert.AreEqual(1, zipArchive.Entries.Count);
-                    ZipArchiveEntry zipEntry = zipArchive.GetEntry(zipArchive.Entries[0].Name);
-                    Assert.AreEqual(resource, zipEntry.Name);
-                    Stream zipStream = zipEntry.Open();
-                    Assert.IsNotNull(zipStream);
-
-                    XmlReaderSettings settings = Utils.DefaultXmlReaderSettings();
-                    settings.CloseInput = true;
-
-                    var localContext = new SystemContext {
-                        NamespaceUris = new NamespaceTable()
-                    };
-
-                    var exportedNodeSet = Export.UANodeSet.Read(zipStream);
-                    Assert.IsNotNull(exportedNodeSet);
-                    exportedNodeSet.NamespaceUris ??= [];
-                    foreach (string namespaceUri in exportedNodeSet.NamespaceUris)
-                    {
-                        localContext.NamespaceUris.Append(namespaceUri);
-                    }
-                    var nodeStates = new NodeStateCollection();
-                    exportedNodeSet.Import(localContext, nodeStates);
-                    Assert.Greater(nodeStates.Count, 0);
-                }
+                localContext.NamespaceUris.Append(namespaceUri);
             }
+            var nodeStates = new NodeStateCollection();
+            exportedNodeSet.Import(localContext, nodeStates);
+            Assert.Greater(nodeStates.Count, 0);
         }
     }
 }

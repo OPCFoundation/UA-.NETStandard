@@ -13,7 +13,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+#if !NETFRAMEWORK
 using System.Runtime.InteropServices;
+#endif
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -110,14 +112,12 @@ namespace Opc.Ua
         /// <param name="certificate">The certificate</param>
         public static int GetRSAPublicKeySize(X509Certificate2 certificate)
         {
-            using (RSA rsaPublicKey = certificate.GetRSAPublicKey())
+            using RSA rsaPublicKey = certificate.GetRSAPublicKey();
+            if (rsaPublicKey != null)
             {
-                if (rsaPublicKey != null)
-                {
-                    return rsaPublicKey.KeySize;
-                }
-                return -1;
+                return rsaPublicKey.KeySize;
             }
+            return -1;
         }
 
         /// <summary>
@@ -134,12 +134,10 @@ namespace Opc.Ua
                 }
             }
 
-            using (ECDsa ecdsaPublicKey = certificate.GetECDsaPublicKey())
+            using ECDsa ecdsaPublicKey = certificate.GetECDsaPublicKey();
+            if (ecdsaPublicKey != null)
             {
-                if (ecdsaPublicKey != null)
-                {
-                    return ecdsaPublicKey.KeySize;
-                }
+                return ecdsaPublicKey.KeySize;
             }
 
             return -1;
@@ -470,7 +468,7 @@ namespace Opc.Ua
 
                         buffer.Append(value);
 
-                        if (value.Length > 0 && value[value.Length - 1] != '"')
+                        if (value.Length > 0 && value[^1] != '"')
                         {
                             buffer.Append('"');
                         }
@@ -661,17 +659,15 @@ namespace Opc.Ua
             if (!string.IsNullOrEmpty(storePath) && !string.IsNullOrEmpty(storeType))
             {
                 var certificateStoreIdentifier = new CertificateStoreIdentifier(storePath, storeType, false);
-                using (ICertificateStore store = certificateStoreIdentifier.OpenStore())
+                using ICertificateStore store = certificateStoreIdentifier.OpenStore();
+                if (store == null)
                 {
-                    if (store == null)
-                    {
-                        throw new ArgumentException("Invalid store type");
-                    }
-
-                    store.Open(storePath, false);
-                    store.AddAsync(certificate, password).Wait();
-                    store.Close();
+                    throw new ArgumentException("Invalid store type");
                 }
+
+                store.Open(storePath, false);
+                store.AddAsync(certificate, password).Wait();
+                store.Close();
             }
             return certificate;
         }
@@ -736,16 +732,14 @@ namespace Opc.Ua
             if (!string.IsNullOrEmpty(storePath) && !string.IsNullOrEmpty(storeType))
             {
                 var certificateStoreIdentifier = new CertificateStoreIdentifier(storePath, storeType, false);
-                using (ICertificateStore store = certificateStoreIdentifier.OpenStore())
+                using ICertificateStore store = certificateStoreIdentifier.OpenStore();
+                if (store == null)
                 {
-                    if (store == null)
-                    {
-                        throw new ArgumentException("Invalid store type");
-                    }
-
-                    await store.AddAsync(certificate, password).ConfigureAwait(false);
-                    store.Close();
+                    throw new ArgumentException("Invalid store type");
                 }
+
+                await store.AddAsync(certificate, password).ConfigureAwait(false);
+                store.Close();
             }
             return certificate;
         }

@@ -69,14 +69,22 @@ namespace Opc.Ua
 
             switch (source.NodeClass)
             {
-                case NodeClass.Object: return new ObjectNode(source);
-                case NodeClass.Variable: return new VariableNode(source);
-                case NodeClass.ObjectType: return new ObjectTypeNode(source);
-                case NodeClass.VariableType: return new VariableTypeNode(source);
-                case NodeClass.DataType: return new DataTypeNode(source);
-                case NodeClass.ReferenceType: return new ReferenceTypeNode(source);
-                case NodeClass.Method: return new MethodNode(source);
-                case NodeClass.View: return new ViewNode(source);
+                case NodeClass.Object:
+                    return new ObjectNode(source);
+                case NodeClass.Variable:
+                    return new VariableNode(source);
+                case NodeClass.ObjectType:
+                    return new ObjectTypeNode(source);
+                case NodeClass.VariableType:
+                    return new VariableTypeNode(source);
+                case NodeClass.DataType:
+                    return new DataTypeNode(source);
+                case NodeClass.ReferenceType:
+                    return new ReferenceTypeNode(source);
+                case NodeClass.Method:
+                    return new MethodNode(source);
+                case NodeClass.View:
+                    return new ViewNode(source);
             }
 
             if (source is IObject)
@@ -405,16 +413,26 @@ namespace Opc.Ua
         {
             switch (attributeId)
             {
-                case Attributes.NodeId: return m_nodeId;
-                case Attributes.NodeClass: return m_nodeClass;
-                case Attributes.BrowseName: return m_browseName;
-                case Attributes.DisplayName: return m_displayName;
-                case Attributes.Description: return m_description;
-                case Attributes.WriteMask: return m_writeMask;
-                case Attributes.UserWriteMask: return m_userWriteMask;
-                case Attributes.RolePermissions: return m_rolePermissions;
-                case Attributes.UserRolePermissions: return m_userRolePermissions;
-                case Attributes.AccessRestrictions: return m_accessRestrictions;
+                case Attributes.NodeId:
+                    return m_nodeId;
+                case Attributes.NodeClass:
+                    return m_nodeClass;
+                case Attributes.BrowseName:
+                    return m_browseName;
+                case Attributes.DisplayName:
+                    return m_displayName;
+                case Attributes.Description:
+                    return m_description;
+                case Attributes.WriteMask:
+                    return m_writeMask;
+                case Attributes.UserWriteMask:
+                    return m_userWriteMask;
+                case Attributes.RolePermissions:
+                    return m_rolePermissions;
+                case Attributes.UserRolePermissions:
+                    return m_userRolePermissions;
+                case Attributes.AccessRestrictions:
+                    return m_accessRestrictions;
             }
 
             return false;
@@ -430,21 +448,37 @@ namespace Opc.Ua
         {
             switch (attributeId)
             {
-                case Attributes.BrowseName: m_browseName = (QualifiedName)value; break;
+                case Attributes.BrowseName:
+                    m_browseName = (QualifiedName)value;
+                    break;
 
-                case Attributes.DisplayName: m_displayName = (LocalizedText)value; break;
+                case Attributes.DisplayName:
+                    m_displayName = (LocalizedText)value;
+                    break;
 
-                case Attributes.Description: m_description = (LocalizedText)value; break;
+                case Attributes.Description:
+                    m_description = (LocalizedText)value;
+                    break;
 
-                case Attributes.WriteMask: m_writeMask = (uint)value; break;
+                case Attributes.WriteMask:
+                    m_writeMask = (uint)value;
+                    break;
 
-                case Attributes.UserWriteMask: m_userWriteMask = (uint)value; break;
+                case Attributes.UserWriteMask:
+                    m_userWriteMask = (uint)value;
+                    break;
 
-                case Attributes.RolePermissions: m_rolePermissions = (RolePermissionTypeCollection)value; break;
+                case Attributes.RolePermissions:
+                    m_rolePermissions = (RolePermissionTypeCollection)value;
+                    break;
 
-                case Attributes.UserRolePermissions: m_userRolePermissions = (RolePermissionTypeCollection)value; break;
+                case Attributes.UserRolePermissions:
+                    m_userRolePermissions = (RolePermissionTypeCollection)value;
+                    break;
 
-                case Attributes.AccessRestrictions: m_accessRestrictions = (ushort)value; break;
+                case Attributes.AccessRestrictions:
+                    m_accessRestrictions = (ushort)value;
+                    break;
 
                 default:
                     return StatusCodes.BadAttributeIdInvalid;
@@ -613,7 +647,7 @@ namespace Opc.Ua
                 return 0;
             }
 
-            if (!(obj is ReferenceNode reference))
+            if (obj is not ReferenceNode reference)
             {
                 return -1;
             }
@@ -772,13 +806,20 @@ namespace Opc.Ua
         {
             switch (attributeId)
             {
-                case Attributes.DataType: return m_dataType;
-                case Attributes.ValueRank: return m_valueRank;
-                case Attributes.AccessLevel: return m_accessLevel;
-                case Attributes.UserAccessLevel: return m_userAccessLevel;
-                case Attributes.MinimumSamplingInterval: return m_minimumSamplingInterval;
-                case Attributes.Historizing: return m_historizing;
-                case Attributes.AccessLevelEx: return m_accessLevelEx;
+                case Attributes.DataType:
+                    return m_dataType;
+                case Attributes.ValueRank:
+                    return m_valueRank;
+                case Attributes.AccessLevel:
+                    return m_accessLevel;
+                case Attributes.UserAccessLevel:
+                    return m_userAccessLevel;
+                case Attributes.MinimumSamplingInterval:
+                    return m_minimumSamplingInterval;
+                case Attributes.Historizing:
+                    return m_historizing;
+                case Attributes.AccessLevelEx:
+                    return m_accessLevelEx;
 
                 // values are copied when the are written so then can be safely returned.
                 case Attributes.Value:
@@ -807,15 +848,25 @@ namespace Opc.Ua
         {
             switch (attributeId)
             {
-                case Attributes.AccessLevel: m_accessLevel = (byte)value; return ServiceResult.Good;
+                case Attributes.AccessLevel:
+                    m_accessLevel = (byte)value;
+                    return ServiceResult.Good;
 
-                case Attributes.UserAccessLevel: m_userAccessLevel = (byte)value; return ServiceResult.Good;
+                case Attributes.UserAccessLevel:
+                    m_userAccessLevel = (byte)value;
+                    return ServiceResult.Good;
 
-                case Attributes.AccessLevelEx: m_accessLevelEx = (uint)value; return ServiceResult.Good;
+                case Attributes.AccessLevelEx:
+                    m_accessLevelEx = (uint)value;
+                    return ServiceResult.Good;
 
-                case Attributes.MinimumSamplingInterval: m_minimumSamplingInterval = (int)value; return ServiceResult.Good;
+                case Attributes.MinimumSamplingInterval:
+                    m_minimumSamplingInterval = (int)value;
+                    return ServiceResult.Good;
 
-                case Attributes.Historizing: m_historizing = (bool)value; return ServiceResult.Good;
+                case Attributes.Historizing:
+                    m_historizing = (bool)value;
+                    return ServiceResult.Good;
 
                 // values are copied when the are written so then can be safely returned on read.
                 case Attributes.Value:
@@ -907,7 +958,8 @@ namespace Opc.Ua
         {
             switch (attributeId)
             {
-                case Attributes.EventNotifier: return m_eventNotifier;
+                case Attributes.EventNotifier:
+                    return m_eventNotifier;
             }
 
             return base.Read(attributeId);
@@ -923,10 +975,12 @@ namespace Opc.Ua
         {
             switch (attributeId)
             {
-                case Attributes.EventNotifier: m_eventNotifier = (byte)value; return ServiceResult.Good;
+                case Attributes.EventNotifier:
+                    m_eventNotifier = (byte)value;
+                    return ServiceResult.Good;
+                default:
+                    return base.Write(attributeId, value);
             }
-
-            return base.Write(attributeId, value);
         }
     }
 
@@ -974,7 +1028,8 @@ namespace Opc.Ua
         {
             switch (attributeId)
             {
-                case Attributes.IsAbstract: return m_isAbstract;
+                case Attributes.IsAbstract:
+                    return m_isAbstract;
             }
 
             return base.Read(attributeId);
@@ -990,7 +1045,9 @@ namespace Opc.Ua
         {
             switch (attributeId)
             {
-                case Attributes.IsAbstract: m_isAbstract = (bool)value; return ServiceResult.Good;
+                case Attributes.IsAbstract:
+                    m_isAbstract = (bool)value;
+                    return ServiceResult.Good;
             }
 
             return base.Write(attributeId, value);
@@ -1089,8 +1146,10 @@ namespace Opc.Ua
         {
             switch (attributeId)
             {
-                case Attributes.DataType: return m_dataType;
-                case Attributes.ValueRank: return m_valueRank;
+                case Attributes.DataType:
+                    return m_dataType;
+                case Attributes.ValueRank:
+                    return m_valueRank;
 
                 // values are copied when the are written so then can be safely returned.
                 case Attributes.Value:
@@ -1212,9 +1271,12 @@ namespace Opc.Ua
         {
             switch (attributeId)
             {
-                case Attributes.IsAbstract: return m_isAbstract;
-                case Attributes.InverseName: return m_inverseName;
-                case Attributes.Symmetric: return m_symmetric;
+                case Attributes.IsAbstract:
+                    return m_isAbstract;
+                case Attributes.InverseName:
+                    return m_inverseName;
+                case Attributes.Symmetric:
+                    return m_symmetric;
             }
 
             return base.Read(attributeId);
@@ -1230,11 +1292,17 @@ namespace Opc.Ua
         {
             switch (attributeId)
             {
-                case Attributes.IsAbstract: m_isAbstract = (bool)value; return ServiceResult.Good;
+                case Attributes.IsAbstract:
+                    m_isAbstract = (bool)value;
+                    return ServiceResult.Good;
 
-                case Attributes.InverseName: m_inverseName = (LocalizedText)value; return ServiceResult.Good;
+                case Attributes.InverseName:
+                    m_inverseName = (LocalizedText)value;
+                    return ServiceResult.Good;
 
-                case Attributes.Symmetric: m_symmetric = (bool)value; return ServiceResult.Good;
+                case Attributes.Symmetric:
+                    m_symmetric = (bool)value;
+                    return ServiceResult.Good;
             }
 
             return base.Write(attributeId, value);
@@ -1287,8 +1355,10 @@ namespace Opc.Ua
         {
             switch (attributeId)
             {
-                case Attributes.Executable: return m_executable;
-                case Attributes.UserExecutable: return m_userExecutable;
+                case Attributes.Executable:
+                    return m_executable;
+                case Attributes.UserExecutable:
+                    return m_userExecutable;
             }
 
             return base.Read(attributeId);
@@ -1304,9 +1374,13 @@ namespace Opc.Ua
         {
             switch (attributeId)
             {
-                case Attributes.Executable: m_executable = (bool)value; return ServiceResult.Good;
+                case Attributes.Executable:
+                    m_executable = (bool)value;
+                    return ServiceResult.Good;
 
-                case Attributes.UserExecutable: m_userExecutable = (bool)value; return ServiceResult.Good;
+                case Attributes.UserExecutable:
+                    m_userExecutable = (bool)value;
+                    return ServiceResult.Good;
             }
 
             return base.Write(attributeId, value);
@@ -1359,8 +1433,10 @@ namespace Opc.Ua
         {
             switch (attributeId)
             {
-                case Attributes.EventNotifier: return m_eventNotifier;
-                case Attributes.ContainsNoLoops: return m_containsNoLoops;
+                case Attributes.EventNotifier:
+                    return m_eventNotifier;
+                case Attributes.ContainsNoLoops:
+                    return m_containsNoLoops;
             }
 
             return base.Read(attributeId);
@@ -1376,9 +1452,13 @@ namespace Opc.Ua
         {
             switch (attributeId)
             {
-                case Attributes.EventNotifier: m_eventNotifier = (byte)value; return ServiceResult.Good;
+                case Attributes.EventNotifier:
+                    m_eventNotifier = (byte)value;
+                    return ServiceResult.Good;
 
-                case Attributes.ContainsNoLoops: m_containsNoLoops = (bool)value; return ServiceResult.Good;
+                case Attributes.ContainsNoLoops:
+                    m_containsNoLoops = (bool)value;
+                    return ServiceResult.Good;
             }
 
             return base.Write(attributeId, value);
@@ -1430,8 +1510,10 @@ namespace Opc.Ua
         {
             switch (attributeId)
             {
-                case Attributes.IsAbstract: return m_isAbstract;
-                case Attributes.DataTypeDefinition: return m_dataTypeDefinition;
+                case Attributes.IsAbstract:
+                    return m_isAbstract;
+                case Attributes.DataTypeDefinition:
+                    return m_dataTypeDefinition;
             }
 
             return base.Read(attributeId);
@@ -1447,9 +1529,13 @@ namespace Opc.Ua
         {
             switch (attributeId)
             {
-                case Attributes.IsAbstract: m_isAbstract = (bool)value; return ServiceResult.Good;
+                case Attributes.IsAbstract:
+                    m_isAbstract = (bool)value;
+                    return ServiceResult.Good;
 
-                case Attributes.DataTypeDefinition: m_dataTypeDefinition = (ExtensionObject)value; return ServiceResult.Good;
+                case Attributes.DataTypeDefinition:
+                    m_dataTypeDefinition = (ExtensionObject)value;
+                    return ServiceResult.Good;
             }
 
             return base.Write(attributeId, value);

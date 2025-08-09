@@ -40,7 +40,10 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Returns the base array of the buffer.
         /// </summary>
-        public byte[] Array() => m_array;
+        public byte[] Array()
+        {
+            return m_array;
+        }
 
         /// <summary>
         /// Constructor for a buffer segment.

@@ -40,7 +40,7 @@ namespace Opc.Ua.Server
     /// </summary>
     public class TrustList
     {
-        const int kDefaultTrustListCapacity = 0x10000;
+        private const int kDefaultTrustListCapacity = 0x10000;
 
         /// <summary>
         /// Initialize the trustlist with default values.
@@ -109,7 +109,7 @@ namespace Opc.Ua.Server
             {
                 HasSecureReadAccess(context);
             }
-            else if (mode == (OpenFileMode.Write | OpenFileMode.EraseExisting))
+            else if ((int)mode == ((int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting))
             {
                 HasSecureWriteAccess(context);
             }
@@ -144,7 +144,7 @@ namespace Opc.Ua.Server
                         throw new ServiceResultException(StatusCodes.BadConfigurationError, "Failed to open trusted certificate store.");
                     }
 
-                    if ((masks & TrustListMasks.TrustedCertificates) != 0)
+                    if (((int)masks & (int)TrustListMasks.TrustedCertificates) != 0)
                     {
                         foreach (X509Certificate2 certificate in store.EnumerateAsync().GetAwaiter().GetResult())
                         {
@@ -152,7 +152,7 @@ namespace Opc.Ua.Server
                         }
                     }
 
-                    if ((masks & TrustListMasks.TrustedCrls) != 0)
+                    if (((int)masks & (int)TrustListMasks.TrustedCrls) != 0)
                     {
                         foreach (X509CRL crl in store.EnumerateCRLsAsync().GetAwaiter().GetResult())
                         {
@@ -173,7 +173,7 @@ namespace Opc.Ua.Server
                         throw new ServiceResultException(StatusCodes.BadConfigurationError, "Failed to open issuer certificate store.");
                     }
 
-                    if ((masks & TrustListMasks.IssuerCertificates) != 0)
+                    if (((int)masks & (int)TrustListMasks.IssuerCertificates) != 0)
                     {
                         foreach (X509Certificate2 certificate in store.EnumerateAsync().GetAwaiter().GetResult())
                         {
@@ -181,7 +181,7 @@ namespace Opc.Ua.Server
                         }
                     }
 
-                    if ((masks & TrustListMasks.IssuerCrls) != 0)
+                    if (((int)masks & (int)TrustListMasks.IssuerCrls) != 0)
                     {
                         foreach (X509CRL crl in store.EnumerateCRLsAsync().GetAwaiter().GetResult())
                         {
@@ -334,7 +334,7 @@ namespace Opc.Ua.Server
                 try
                 {
                     TrustListDataType trustList = DecodeTrustListData(context, m_strm);
-                    var masks = (TrustListMasks)trustList.SpecifiedLists;
+                    int masks = (int)trustList.SpecifiedLists;
 
                     X509Certificate2Collection issuerCertificates = null;
                     X509CRLCollection issuerCrls = null;
@@ -342,7 +342,7 @@ namespace Opc.Ua.Server
                     X509CRLCollection trustedCrls = null;
 
                     // test integrity of all CRLs
-                    if ((masks & TrustListMasks.IssuerCertificates) != 0)
+                    if ((masks & (int)TrustListMasks.IssuerCertificates) != 0)
                     {
                         issuerCertificates = [];
                         foreach (byte[] cert in trustList.IssuerCertificates)
@@ -350,7 +350,7 @@ namespace Opc.Ua.Server
                             issuerCertificates.Add(X509CertificateLoader.LoadCertificate(cert));
                         }
                     }
-                    if ((masks & TrustListMasks.IssuerCrls) != 0)
+                    if ((masks & (int)TrustListMasks.IssuerCrls) != 0)
                     {
                         issuerCrls = [];
                         foreach (byte[] crl in trustList.IssuerCrls)
@@ -358,7 +358,7 @@ namespace Opc.Ua.Server
                             issuerCrls.Add(new X509CRL(crl));
                         }
                     }
-                    if ((masks & TrustListMasks.TrustedCertificates) != 0)
+                    if ((masks & (int)TrustListMasks.TrustedCertificates) != 0)
                     {
                         trustedCertificates = [];
                         foreach (byte[] cert in trustList.TrustedCertificates)
@@ -366,7 +366,7 @@ namespace Opc.Ua.Server
                             trustedCertificates.Add(X509CertificateLoader.LoadCertificate(cert));
                         }
                     }
-                    if ((masks & TrustListMasks.TrustedCrls) != 0)
+                    if ((masks & (int)TrustListMasks.TrustedCrls) != 0)
                     {
                         trustedCrls = [];
                         foreach (byte[] crl in trustList.TrustedCrls)
@@ -377,22 +377,22 @@ namespace Opc.Ua.Server
 
                     // update store
                     // test integrity of all CRLs
-                    TrustListMasks updateMasks = TrustListMasks.None;
-                    if ((masks & TrustListMasks.IssuerCertificates) != 0 && UpdateStoreCertificatesAsync(m_issuerStore, issuerCertificates).GetAwaiter().GetResult())
+                    int updateMasks = (int)TrustListMasks.None;
+                    if ((masks & (int)TrustListMasks.IssuerCertificates) != 0 && UpdateStoreCertificatesAsync(m_issuerStore, issuerCertificates).GetAwaiter().GetResult())
                     {
-                        updateMasks |= TrustListMasks.IssuerCertificates;
+                        updateMasks |= (int)TrustListMasks.IssuerCertificates;
                     }
-                    if ((masks & TrustListMasks.IssuerCrls) != 0 && UpdateStoreCrlsAsync(m_issuerStore, issuerCrls).GetAwaiter().GetResult())
+                    if ((masks & (int)TrustListMasks.IssuerCrls) != 0 && UpdateStoreCrlsAsync(m_issuerStore, issuerCrls).GetAwaiter().GetResult())
                     {
-                        updateMasks |= TrustListMasks.IssuerCrls;
+                        updateMasks |= (int)TrustListMasks.IssuerCrls;
                     }
-                    if ((masks & TrustListMasks.TrustedCertificates) != 0 && UpdateStoreCertificatesAsync(m_trustedStore, trustedCertificates).GetAwaiter().GetResult())
+                    if ((masks & (int)TrustListMasks.TrustedCertificates) != 0 && UpdateStoreCertificatesAsync(m_trustedStore, trustedCertificates).GetAwaiter().GetResult())
                     {
-                        updateMasks |= TrustListMasks.TrustedCertificates;
+                        updateMasks |= (int)TrustListMasks.TrustedCertificates;
                     }
-                    if ((masks & TrustListMasks.TrustedCrls) != 0 && UpdateStoreCrlsAsync(m_trustedStore, trustedCrls).GetAwaiter().GetResult())
+                    if ((masks & (int)TrustListMasks.TrustedCrls) != 0 && UpdateStoreCrlsAsync(m_trustedStore, trustedCrls).GetAwaiter().GetResult())
                     {
-                        updateMasks |= TrustListMasks.TrustedCrls;
+                        updateMasks |= (int)TrustListMasks.TrustedCrls;
                     }
 
                     if (masks != updateMasks)

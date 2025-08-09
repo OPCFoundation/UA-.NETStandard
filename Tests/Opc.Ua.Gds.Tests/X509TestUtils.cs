@@ -33,6 +33,7 @@ using System.Security.Cryptography.X509Certificates;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
+using X509AuthorityKeyIdentifierExtension = Opc.Ua.Security.Certificates.X509AuthorityKeyIdentifierExtension;
 
 namespace Opc.Ua.Gds.Tests
 {
@@ -140,7 +141,7 @@ namespace Opc.Ua.Gds.Tests
 
             // test for authority key
 
-            Security.Certificates.X509AuthorityKeyIdentifierExtension authority = signedCert.FindExtension<Security.Certificates.X509AuthorityKeyIdentifierExtension>();
+            X509AuthorityKeyIdentifierExtension authority = signedCert.FindExtension<X509AuthorityKeyIdentifierExtension>();
             Assert.NotNull(authority);
             TestContext.Out.WriteLine($"Authority Key Identifier: {authority.Format(true)}");
             Assert.NotNull(authority.SerialNumber);

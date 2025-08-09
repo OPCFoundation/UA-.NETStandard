@@ -81,18 +81,13 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(context));
             }
 
-            if (server == null)
-            {
-                throw new ArgumentNullException(nameof(server));
-            }
-
             // verify that a secure channel was specified.
             if (context.ChannelContext == null)
             {
                 throw new ServiceResultException(StatusCodes.BadSecureChannelIdInvalid);
             }
 
-            m_server = server;
+            m_server = server ?? throw new ArgumentNullException(nameof(server));
             m_authenticationToken = authenticationToken;
             ClientNonce = clientNonce;
             m_serverNonce = serverNonce;
@@ -861,7 +856,7 @@ namespace Opc.Ua.Server
                 //handle the use case when the UserIdentityToken is binary encoded over xml message encoding
                 if (identityToken.Encoding == ExtensionObjectEncoding.Binary && typeof(byte[]).IsInstanceOfType(identityToken.Body))
                 {
-                    if (!(BaseVariableState.DecodeExtensionObject(null, typeof(UserIdentityToken), identityToken, false) is UserIdentityToken newToken))
+                    if (BaseVariableState.DecodeExtensionObject(null, typeof(UserIdentityToken), identityToken, false) is not UserIdentityToken newToken)
                     {
                         throw ServiceResultException.Create(StatusCodes.BadUserAccessDenied, "Invalid user identity token provided.");
                     }
@@ -1060,61 +1055,117 @@ namespace Opc.Ua.Server
 
                 switch (requestType)
                 {
-                    case RequestType.Read: counter = SessionDiagnostics.ReadCount; break;
+                    case RequestType.Read:
+                        counter = SessionDiagnostics.ReadCount;
+                        break;
 
-                    case RequestType.HistoryRead: counter = SessionDiagnostics.HistoryReadCount; break;
+                    case RequestType.HistoryRead:
+                        counter = SessionDiagnostics.HistoryReadCount;
+                        break;
 
-                    case RequestType.Write: counter = SessionDiagnostics.WriteCount; break;
+                    case RequestType.Write:
+                        counter = SessionDiagnostics.WriteCount;
+                        break;
 
-                    case RequestType.HistoryUpdate: counter = SessionDiagnostics.HistoryUpdateCount; break;
+                    case RequestType.HistoryUpdate:
+                        counter = SessionDiagnostics.HistoryUpdateCount;
+                        break;
 
-                    case RequestType.Call: counter = SessionDiagnostics.CallCount; break;
+                    case RequestType.Call:
+                        counter = SessionDiagnostics.CallCount;
+                        break;
 
-                    case RequestType.CreateMonitoredItems: counter = SessionDiagnostics.CreateMonitoredItemsCount; break;
+                    case RequestType.CreateMonitoredItems:
+                        counter = SessionDiagnostics.CreateMonitoredItemsCount;
+                        break;
 
-                    case RequestType.ModifyMonitoredItems: counter = SessionDiagnostics.ModifyMonitoredItemsCount; break;
+                    case RequestType.ModifyMonitoredItems:
+                        counter = SessionDiagnostics.ModifyMonitoredItemsCount;
+                        break;
 
-                    case RequestType.SetMonitoringMode: counter = SessionDiagnostics.SetMonitoringModeCount; break;
+                    case RequestType.SetMonitoringMode:
+                        counter = SessionDiagnostics.SetMonitoringModeCount;
+                        break;
 
-                    case RequestType.SetTriggering: counter = SessionDiagnostics.SetTriggeringCount; break;
+                    case RequestType.SetTriggering:
+                        counter = SessionDiagnostics.SetTriggeringCount;
+                        break;
 
-                    case RequestType.DeleteMonitoredItems: counter = SessionDiagnostics.DeleteMonitoredItemsCount; break;
+                    case RequestType.DeleteMonitoredItems:
+                        counter = SessionDiagnostics.DeleteMonitoredItemsCount;
+                        break;
 
-                    case RequestType.CreateSubscription: counter = SessionDiagnostics.CreateSubscriptionCount; break;
+                    case RequestType.CreateSubscription:
+                        counter = SessionDiagnostics.CreateSubscriptionCount;
+                        break;
 
-                    case RequestType.ModifySubscription: counter = SessionDiagnostics.ModifySubscriptionCount; break;
+                    case RequestType.ModifySubscription:
+                        counter = SessionDiagnostics.ModifySubscriptionCount;
+                        break;
 
-                    case RequestType.SetPublishingMode: counter = SessionDiagnostics.SetPublishingModeCount; break;
+                    case RequestType.SetPublishingMode:
+                        counter = SessionDiagnostics.SetPublishingModeCount;
+                        break;
 
-                    case RequestType.Publish: counter = SessionDiagnostics.PublishCount; break;
+                    case RequestType.Publish:
+                        counter = SessionDiagnostics.PublishCount;
+                        break;
 
-                    case RequestType.Republish: counter = SessionDiagnostics.RepublishCount; break;
+                    case RequestType.Republish:
+                        counter = SessionDiagnostics.RepublishCount;
+                        break;
 
-                    case RequestType.TransferSubscriptions: counter = SessionDiagnostics.TransferSubscriptionsCount; break;
+                    case RequestType.TransferSubscriptions:
+                        counter = SessionDiagnostics.TransferSubscriptionsCount;
+                        break;
 
-                    case RequestType.DeleteSubscriptions: counter = SessionDiagnostics.DeleteSubscriptionsCount; break;
+                    case RequestType.DeleteSubscriptions:
+                        counter = SessionDiagnostics.DeleteSubscriptionsCount;
+                        break;
 
-                    case RequestType.AddNodes: counter = SessionDiagnostics.AddNodesCount; break;
+                    case RequestType.AddNodes:
+                        counter = SessionDiagnostics.AddNodesCount;
+                        break;
 
-                    case RequestType.AddReferences: counter = SessionDiagnostics.AddReferencesCount; break;
+                    case RequestType.AddReferences:
+                        counter = SessionDiagnostics.AddReferencesCount;
+                        break;
 
-                    case RequestType.DeleteNodes: counter = SessionDiagnostics.DeleteNodesCount; break;
+                    case RequestType.DeleteNodes:
+                        counter = SessionDiagnostics.DeleteNodesCount;
+                        break;
 
-                    case RequestType.DeleteReferences: counter = SessionDiagnostics.DeleteReferencesCount; break;
+                    case RequestType.DeleteReferences:
+                        counter = SessionDiagnostics.DeleteReferencesCount;
+                        break;
 
-                    case RequestType.Browse: counter = SessionDiagnostics.BrowseCount; break;
+                    case RequestType.Browse:
+                        counter = SessionDiagnostics.BrowseCount;
+                        break;
 
-                    case RequestType.BrowseNext: counter = SessionDiagnostics.BrowseNextCount; break;
+                    case RequestType.BrowseNext:
+                        counter = SessionDiagnostics.BrowseNextCount;
+                        break;
 
-                    case RequestType.TranslateBrowsePathsToNodeIds: counter = SessionDiagnostics.TranslateBrowsePathsToNodeIdsCount; break;
+                    case RequestType.TranslateBrowsePathsToNodeIds:
+                        counter = SessionDiagnostics.TranslateBrowsePathsToNodeIdsCount;
+                        break;
 
-                    case RequestType.QueryFirst: counter = SessionDiagnostics.QueryFirstCount; break;
+                    case RequestType.QueryFirst:
+                        counter = SessionDiagnostics.QueryFirstCount;
+                        break;
 
-                    case RequestType.QueryNext: counter = SessionDiagnostics.QueryNextCount; break;
+                    case RequestType.QueryNext:
+                        counter = SessionDiagnostics.QueryNextCount;
+                        break;
 
-                    case RequestType.RegisterNodes: counter = SessionDiagnostics.RegisterNodesCount; break;
+                    case RequestType.RegisterNodes:
+                        counter = SessionDiagnostics.RegisterNodesCount;
+                        break;
 
-                    case RequestType.UnregisterNodes: counter = SessionDiagnostics.UnregisterNodesCount; break;
+                    case RequestType.UnregisterNodes:
+                        counter = SessionDiagnostics.UnregisterNodesCount;
+                        break;
                 }
 
                 if (counter != null)

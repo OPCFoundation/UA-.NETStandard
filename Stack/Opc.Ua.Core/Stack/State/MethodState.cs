@@ -546,7 +546,7 @@ namespace Opc.Ua
             object executable = null;
             ReadNonValueAttribute(context, Attributes.Executable, ref executable);
 
-            if (executable is bool && !(bool)executable)
+            if (executable is bool exec && !exec)
             {
                 return StatusCodes.BadNotExecutable;
             }
@@ -555,7 +555,7 @@ namespace Opc.Ua
             object userExecutable = null;
             ReadNonValueAttribute(context, Attributes.UserExecutable, ref userExecutable);
 
-            if (userExecutable is bool && !(bool)userExecutable)
+            if (userExecutable is bool userExec && !userExec)
             {
                 return StatusCodes.BadUserAccessDenied;
             }
@@ -612,11 +612,11 @@ namespace Opc.Ua
 
             if (expectedOutputArguments != null)
             {
-                IList<Argument> arguments = expectedOutputArguments.Value;
+                Argument[] arguments = expectedOutputArguments.Value;
 
-                if (arguments != null && arguments.Count > 0)
+                if (arguments != null && arguments.Length > 0)
                 {
-                    for (int ii = 0; ii < arguments.Count; ii++)
+                    for (int ii = 0; ii < arguments.Length; ii++)
                     {
                         outputs.Add(GetArgumentDefaultValue(context, arguments[ii]));
                     }
@@ -713,9 +713,9 @@ namespace Opc.Ua
                 return StatusCodes.BadInvalidArgument;
             }
 
-            IList<Argument> arguments = inputArguments.Value;
+            Argument[] arguments = inputArguments.Value;
 
-            if (arguments == null || index < 0 || index >= arguments.Count)
+            if (arguments == null || index < 0 || index >= arguments.Length)
             {
                 return StatusCodes.BadInvalidArgument;
             }

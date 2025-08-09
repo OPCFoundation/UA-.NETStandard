@@ -145,14 +145,14 @@ namespace Opc.Ua
             else
             {
 #if ECC_SUPPORT
-                var secret = new EncryptedSecret();
-
-                secret.ReceiverCertificate = receiverCertificate;
-                secret.SecurityPolicyUri = securityPolicyUri;
-                secret.ReceiverNonce = receiverEphemeralKey;
-                secret.SenderCertificate = senderCertificate;
-                secret.SenderIssuerCertificates = senderIssuerCertificates;
-                secret.DoNotEncodeSenderCertificate = doNotEncodeSenderCertificate;
+                var secret = new EncryptedSecret {
+                    ReceiverCertificate = receiverCertificate,
+                    SecurityPolicyUri = securityPolicyUri,
+                    ReceiverNonce = receiverEphemeralKey,
+                    SenderCertificate = senderCertificate,
+                    SenderIssuerCertificates = senderIssuerCertificates,
+                    DoNotEncodeSenderCertificate = doNotEncodeSenderCertificate
+                };
 
                 // check if the complete chain is included in the sender issuers.
                 if (senderIssuerCertificates != null && senderIssuerCertificates.Count > 0 && senderIssuerCertificates[0].Thumbprint == senderCertificate.Thumbprint)
@@ -206,9 +206,10 @@ namespace Opc.Ua
             // handle RSA encryption.
             if (!EccUtils.IsEccPolicy(securityPolicyUri))
             {
-                var encryptedData = new EncryptedData();
-                encryptedData.Data = m_password;
-                encryptedData.Algorithm = m_encryptionAlgorithm;
+                var encryptedData = new EncryptedData {
+                    Data = m_password,
+                    Algorithm = m_encryptionAlgorithm
+                };
 
                 byte[] decryptedPassword = SecurityPolicies.Decrypt(
                     certificate,
@@ -247,14 +248,14 @@ namespace Opc.Ua
             else
             {
 #if ECC_SUPPORT
-                var secret = new EncryptedSecret();
-
-                secret.SenderCertificate = senderCertificate;
-                secret.SenderIssuerCertificates = senderIssuerCertificates;
-                secret.Validator = validator;
-                secret.ReceiverCertificate = certificate;
-                secret.ReceiverNonce = ephemeralKey;
-                secret.SecurityPolicyUri = securityPolicyUri;
+                var secret = new EncryptedSecret {
+                    SenderCertificate = senderCertificate,
+                    SenderIssuerCertificates = senderIssuerCertificates,
+                    Validator = validator,
+                    ReceiverCertificate = certificate,
+                    ReceiverNonce = ephemeralKey,
+                    SecurityPolicyUri = securityPolicyUri
+                };
 
                 m_decryptedPassword = secret.Decrypt(DateTime.UtcNow.AddHours(-1), receiverNonce.Data, m_password, 0, m_password.Length);
 #else
@@ -428,10 +429,10 @@ namespace Opc.Ua
                 return;
             }
 
-            var encryptedData = new EncryptedData();
-
-            encryptedData.Data = m_tokenData;
-            encryptedData.Algorithm = m_encryptionAlgorithm;
+            var encryptedData = new EncryptedData {
+                Data = m_tokenData,
+                Algorithm = m_encryptionAlgorithm
+            };
 
             byte[] decryptedTokenData = SecurityPolicies.Decrypt(
                 certificate,

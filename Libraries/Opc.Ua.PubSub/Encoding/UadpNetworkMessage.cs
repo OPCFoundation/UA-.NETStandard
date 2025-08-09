@@ -366,11 +366,9 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="messageContext">The context.</param>
         public override byte[] Encode(IServiceMessageContext messageContext)
         {
-            using (var stream = new MemoryStream())
-            {
-                Encode(messageContext, stream);
-                return stream.ToArray();
-            }
+            using var stream = new MemoryStream();
+            Encode(messageContext, stream);
+            return stream.ToArray();
         }
 
         /// <summary>
@@ -380,24 +378,22 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="stream">The stream to use.</param>
         public override void Encode(IServiceMessageContext messageContext, Stream stream)
         {
-            using (var binaryEncoder = new BinaryEncoder(stream, messageContext, true))
+            using var binaryEncoder = new BinaryEncoder(stream, messageContext, true);
+            if (m_uadpNetworkMessageType == UADPNetworkMessageType.DataSetMessage)
             {
-                if (m_uadpNetworkMessageType == UADPNetworkMessageType.DataSetMessage)
-                {
-                    EncodeDataSetNetworkMessageType(binaryEncoder);
-                }
-                else
-                {
-                    EncodeNetworkMessageHeader(binaryEncoder);
+                EncodeDataSetNetworkMessageType(binaryEncoder);
+            }
+            else
+            {
+                EncodeNetworkMessageHeader(binaryEncoder);
 
-                    if (m_uadpNetworkMessageType == UADPNetworkMessageType.DiscoveryResponse)
-                    {
-                        EncodeDiscoveryResponse(binaryEncoder);
-                    }
-                    else if (m_uadpNetworkMessageType == UADPNetworkMessageType.DiscoveryRequest)
-                    {
-                        EncodeDiscoveryRequest(binaryEncoder);
-                    }
+                if (m_uadpNetworkMessageType == UADPNetworkMessageType.DiscoveryResponse)
+                {
+                    EncodeDiscoveryResponse(binaryEncoder);
+                }
+                else if (m_uadpNetworkMessageType == UADPNetworkMessageType.DiscoveryRequest)
+                {
+                    EncodeDiscoveryRequest(binaryEncoder);
                 }
             }
         }
@@ -410,29 +406,27 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="dataSetReaders"></param>
         public override void Decode(IServiceMessageContext context, byte[] message, IList<DataSetReaderDataType> dataSetReaders)
         {
-            using (var binaryDecoder = new BinaryDecoder(message, context))
-            {
-                // 1. decode network message header (PublisherId & DataSetClassId)
-                DecodeNetworkMessageHeader(binaryDecoder);
+            using var binaryDecoder = new BinaryDecoder(message, context);
+            // 1. decode network message header (PublisherId & DataSetClassId)
+            DecodeNetworkMessageHeader(binaryDecoder);
 
-                //decode network messages according to their type
-                if (m_uadpNetworkMessageType == UADPNetworkMessageType.DataSetMessage)
+            //decode network messages according to their type
+            if (m_uadpNetworkMessageType == UADPNetworkMessageType.DataSetMessage)
+            {
+                if (dataSetReaders == null || dataSetReaders.Count == 0)
                 {
-                    if (dataSetReaders == null || dataSetReaders.Count == 0)
-                    {
-                        return;
-                    }
-                    //decode bytes using dataset reader information
-                    DecodeSubscribedDataSets(binaryDecoder, dataSetReaders);
+                    return;
                 }
-                else if (m_uadpNetworkMessageType == UADPNetworkMessageType.DiscoveryResponse)
-                {
-                    DecodeDiscoveryResponse(binaryDecoder);
-                }
-                else if (m_uadpNetworkMessageType == UADPNetworkMessageType.DiscoveryRequest)
-                {
-                    DecodeDiscoveryRequest(binaryDecoder);
-                }
+                //decode bytes using dataset reader information
+                DecodeSubscribedDataSets(binaryDecoder, dataSetReaders);
+            }
+            else if (m_uadpNetworkMessageType == UADPNetworkMessageType.DiscoveryResponse)
+            {
+                DecodeDiscoveryResponse(binaryDecoder);
+            }
+            else if (m_uadpNetworkMessageType == UADPNetworkMessageType.DiscoveryRequest)
+            {
+                DecodeDiscoveryRequest(binaryDecoder);
             }
         }
 

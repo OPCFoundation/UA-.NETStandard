@@ -45,17 +45,15 @@ namespace Opc.Ua.Security
         {
             if (input != null && !string.IsNullOrEmpty(input.StoreType) && !string.IsNullOrEmpty(input.StorePath))
             {
-                var output = new CertificateIdentifier();
-
-                output.StoreType = input.StoreType;
-                output.StorePath = input.StorePath;
-                output.SubjectName = input.SubjectName;
-                output.Thumbprint = input.Thumbprint;
-                output.ValidationOptions = (int)input.ValidationOptions;
-                output.OfflineRevocationList = null;
-                output.OnlineRevocationList = null;
-
-                return output;
+                return new CertificateIdentifier {
+                    StoreType = input.StoreType,
+                    StorePath = input.StorePath,
+                    SubjectName = input.SubjectName,
+                    Thumbprint = input.Thumbprint,
+                    ValidationOptions = (int)input.ValidationOptions,
+                    OfflineRevocationList = null,
+                    OnlineRevocationList = null
+                };
             }
 
             return null;
@@ -87,13 +85,11 @@ namespace Opc.Ua.Security
         {
             if (input != null && !string.IsNullOrEmpty(input.StoreType) && !string.IsNullOrEmpty(input.StorePath))
             {
-                var output = new CertificateStoreIdentifier();
-
-                output.StoreType = input.StoreType;
-                output.StorePath = input.StorePath;
-                output.ValidationOptions = (int)input.ValidationOptions;
-
-                return output;
+                return new CertificateStoreIdentifier {
+                    StoreType = input.StoreType,
+                    StorePath = input.StorePath,
+                    ValidationOptions = (int)input.ValidationOptions
+                };
             }
 
             return null;
@@ -333,13 +329,27 @@ namespace Opc.Ua.Security
                     result = 4;
                     break;
 
-                case SecurityPolicies.Basic256Sha256: result = 6; break;
-                case SecurityPolicies.Aes128_Sha256_RsaOaep: result = 8; break;
-                case SecurityPolicies.Aes256_Sha256_RsaPss: result = 10; break;
-                case SecurityPolicies.ECC_brainpoolP256r1: result = 11; break;
-                case SecurityPolicies.ECC_nistP256: result = 12; break;
-                case SecurityPolicies.ECC_brainpoolP384r1: result = 13; break;
-                case SecurityPolicies.ECC_nistP384: result = 14; break;
+                case SecurityPolicies.Basic256Sha256:
+                    result = 6;
+                    break;
+                case SecurityPolicies.Aes128_Sha256_RsaOaep:
+                    result = 8;
+                    break;
+                case SecurityPolicies.Aes256_Sha256_RsaPss:
+                    result = 10;
+                    break;
+                case SecurityPolicies.ECC_brainpoolP256r1:
+                    result = 11;
+                    break;
+                case SecurityPolicies.ECC_nistP256:
+                    result = 12;
+                    break;
+                case SecurityPolicies.ECC_brainpoolP384r1:
+                    result = 13;
+                    break;
+                case SecurityPolicies.ECC_nistP384:
+                    result = 14;
+                    break;
                 case SecurityPolicies.None:
                     return 0;
                 default:
@@ -361,8 +371,9 @@ namespace Opc.Ua.Security
         /// </summary>
         private static ServerSecurityPolicy CreatePolicy(string profileUri)
         {
-            var policy = new ServerSecurityPolicy();
-            policy.SecurityPolicyUri = profileUri;
+            var policy = new ServerSecurityPolicy {
+                SecurityPolicyUri = profileUri
+            };
 
             if (profileUri != null)
             {
@@ -399,10 +410,10 @@ namespace Opc.Ua.Security
         /// </summary>
         private static SecurityProfile CreateProfile(string profileUri)
         {
-            var policy = new SecurityProfile();
-            policy.ProfileUri = profileUri;
-            policy.Enabled = false;
-            return policy;
+            return new SecurityProfile {
+                ProfileUri = profileUri,
+                Enabled = false
+            };
         }
 
         /// <summary>

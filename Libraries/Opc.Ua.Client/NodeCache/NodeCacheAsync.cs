@@ -337,7 +337,7 @@ namespace Opc.Ua.Client
         {
             IList<INode> targets = [];
 
-            if (!(await FindAsync(nodeId, ct).ConfigureAwait(false) is Node source))
+            if (await FindAsync(nodeId, ct).ConfigureAwait(false) is not Node source)
             {
                 return targets;
             }
@@ -386,7 +386,7 @@ namespace Opc.Ua.Client
             IList<INode> sources = await FindAsync(nodeIds, ct).ConfigureAwait(false);
             foreach (INode source in sources)
             {
-                if (!(source is Node node))
+                if (source is not Node node)
                 {
                     continue;
                 }
@@ -426,7 +426,7 @@ namespace Opc.Ua.Client
         public async Task FetchSuperTypesAsync(ExpandedNodeId nodeId, CancellationToken ct)
         {
             // find the target node,
-            if (!(await FindAsync(nodeId, ct).ConfigureAwait(false) is ILocalNode source))
+            if (await FindAsync(nodeId, ct).ConfigureAwait(false) is not ILocalNode source)
             {
                 return;
             }

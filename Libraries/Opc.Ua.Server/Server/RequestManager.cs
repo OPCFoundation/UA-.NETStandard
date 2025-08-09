@@ -44,12 +44,7 @@ namespace Opc.Ua.Server
         /// <param name="server"></param>
         public RequestManager(IServerInternal server)
         {
-            if (server == null)
-            {
-                throw new ArgumentNullException(nameof(server));
-            }
-
-            m_server = server;
+            m_server = server ?? throw new ArgumentNullException(nameof(server));
             m_requests = [];
             m_requestTimer = null;
         }

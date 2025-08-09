@@ -1080,14 +1080,14 @@ namespace Opc.Ua
             }
 
             // copy the description.
-            var copy = new ApplicationDescription();
-
-            copy.ApplicationName = description.ApplicationName;
-            copy.ApplicationUri = description.ApplicationUri;
-            copy.ApplicationType = description.ApplicationType;
-            copy.ProductUri = description.ProductUri;
-            copy.GatewayServerUri = description.DiscoveryProfileUri;
-            copy.DiscoveryUrls = discoveryUrls;
+            var copy = new ApplicationDescription {
+                ApplicationName = description.ApplicationName,
+                ApplicationUri = description.ApplicationUri,
+                ApplicationType = description.ApplicationType,
+                ProductUri = description.ProductUri,
+                GatewayServerUri = description.DiscoveryProfileUri,
+                DiscoveryUrls = discoveryUrls
+            };
 
             if (!LocalizedText.IsNullOrEmpty(applicationName))
             {
@@ -1150,9 +1150,9 @@ namespace Opc.Ua
                             continue;
                         }
 
-                        var translation = new EndpointDescription();
-
-                        translation.EndpointUrl = baseAddress.Url.ToString();
+                        var translation = new EndpointDescription {
+                            EndpointUrl = baseAddress.Url.ToString()
+                        };
 
                         if (endpointUrl.Path.StartsWith(baseAddress.Url.PathAndQuery, StringComparison.Ordinal) &&
                             endpointUrl.Path.Length > baseAddress.Url.PathAndQuery.Length)
@@ -1215,12 +1215,10 @@ namespace Opc.Ua
                 throw new ServiceResultException(statusCode);
             }
 
-            var responseHeader = new ResponseHeader();
-
-            responseHeader.Timestamp = DateTime.UtcNow;
-            responseHeader.RequestHandle = requestHeader.RequestHandle;
-
-            return responseHeader;
+            return new ResponseHeader {
+                Timestamp = DateTime.UtcNow,
+                RequestHandle = requestHeader.RequestHandle
+            };
         }
 
         /// <summary>
@@ -1231,10 +1229,10 @@ namespace Opc.Ua
         /// <returns>Returns a description for the ResponseHeader DataType. </returns>
         protected virtual ResponseHeader CreateResponse(RequestHeader requestHeader, Exception exception)
         {
-            var responseHeader = new ResponseHeader();
-
-            responseHeader.Timestamp = DateTime.UtcNow;
-            responseHeader.RequestHandle = requestHeader.RequestHandle;
+            var responseHeader = new ResponseHeader {
+                Timestamp = DateTime.UtcNow,
+                RequestHandle = requestHeader.RequestHandle
+            };
 
             var stringTable = new StringTable();
             responseHeader.ServiceDiagnostics = new DiagnosticInfo(exception, (DiagnosticsMasks)requestHeader.ReturnDiagnostics, true, stringTable);
@@ -1251,10 +1249,10 @@ namespace Opc.Ua
         /// <returns>Returns a description for the ResponseHeader DataType. </returns>
         protected virtual ResponseHeader CreateResponse(RequestHeader requestHeader, StringTable stringTable)
         {
-            var responseHeader = new ResponseHeader();
-
-            responseHeader.Timestamp = DateTime.UtcNow;
-            responseHeader.RequestHandle = requestHeader.RequestHandle;
+            var responseHeader = new ResponseHeader {
+                Timestamp = DateTime.UtcNow,
+                RequestHandle = requestHeader.RequestHandle
+            };
 
             responseHeader.StringTable.AddRange(stringTable.ToArray());
 
@@ -1293,9 +1291,9 @@ namespace Opc.Ua
                 // ensure at least one user token policy exists.
                 if (configuration.ServerConfiguration.UserTokenPolicies.Count == 0)
                 {
-                    var userTokenPolicy = new UserTokenPolicy();
-
-                    userTokenPolicy.TokenType = UserTokenType.Anonymous;
+                    var userTokenPolicy = new UserTokenPolicy {
+                        TokenType = UserTokenType.Anonymous
+                    };
                     userTokenPolicy.PolicyId = userTokenPolicy.TokenType.ToString();
 
                     configuration.ServerConfiguration.UserTokenPolicies.Add(userTokenPolicy);
@@ -1554,8 +1552,9 @@ namespace Opc.Ua
                             Monitor.Exit(m_lock);
 
                             // new threads start in an active state
-                            var thread = new Thread(OnProcessRequestQueue);
-                            thread.IsBackground = true;
+                            var thread = new Thread(OnProcessRequestQueue) {
+                                IsBackground = true
+                            };
                             thread.Start(null);
 
                             Utils.LogTrace("Thread created: {0:X8}. Total: {1} Active: {2}",

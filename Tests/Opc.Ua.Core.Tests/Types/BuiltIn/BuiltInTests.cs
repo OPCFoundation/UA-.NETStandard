@@ -207,7 +207,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             NUnit.Framework.Assert.Throws<ArgumentNullException>(() => new ExtensionObject(extensionObject_null));
             NUnit.Framework.Assert.Throws<ServiceResultException>(() => new ExtensionObject(new object()));
             // constructor by object
-            byte[] byteArray = new byte[] { 1, 2, 3 };
+            byte[] byteArray = [1, 2, 3];
             extensionObject = new ExtensionObject(byteArray);
             Assert.NotNull(extensionObject);
             Assert.AreEqual(extensionObject, extensionObject);
@@ -348,7 +348,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             _ = nodeIdText == nodeId2;
             _ = nodeIdText > nodeId2;
 
-            NodeId id = new NodeId((object)(uint)123, 123);
+            var id = new NodeId((object)(uint)123, 123);
             Assert.AreEqual(123, id.NamespaceIndex);
             Assert.AreEqual(123, id.Identifier);
             id = new NodeId((object)"Test", 123);
@@ -372,7 +372,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() => _ = NodeId.Create(123, "urn:xyz", new NamespaceTable()));
             Assert.AreEqual((StatusCode)StatusCodes.BadNodeIdInvalid, (StatusCode)sre.StatusCode);
 
-            NodeId opaqueId = new byte[] { 33, 44, 55, 66 };
+            NodeId opaqueId = "!,7B"u8.ToArray();
             NodeId stringId1 = "ns=1;s=Test";
             var stringId2 = new NodeId("ns=1;s=Test");
             Assert.AreEqual(stringId1, stringId2);
@@ -611,10 +611,18 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             NodeId nodeId = DataGenerator.GetRandomNodeId();
             switch (idType)
             {
-                case IdType.Numeric: nodeId = new NodeId(DataGenerator.GetRandomUInt16(), DataGenerator.GetRandomByte()); break;
-                case IdType.String: nodeId = new NodeId(DataGenerator.GetRandomString(), 0); break;
-                case IdType.Guid: nodeId = new NodeId(DataGenerator.GetRandomGuid()); break;
-                case IdType.Opaque: nodeId = new NodeId(Ua.Nonce.CreateRandomNonceData(32)); break;
+                case IdType.Numeric:
+                    nodeId = new NodeId(DataGenerator.GetRandomUInt16(), DataGenerator.GetRandomByte());
+                    break;
+                case IdType.String:
+                    nodeId = new NodeId(DataGenerator.GetRandomString(), 0);
+                    break;
+                case IdType.Guid:
+                    nodeId = new NodeId(DataGenerator.GetRandomGuid());
+                    break;
+                case IdType.Opaque:
+                    nodeId = new NodeId(Ua.Nonce.CreateRandomNonceData(32));
+                    break;
             }
             var nodeIdClone = (NodeId)nodeId.Clone();
             Assert.AreEqual(nodeId, nodeIdClone);
@@ -640,10 +648,18 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             NodeId nodeId2 = DataGenerator.GetRandomNodeId();
             switch (idType)
             {
-                case IdType.Numeric: nodeId2 = new NodeId(DataGenerator.GetRandomUInt16(), DataGenerator.GetRandomByte()); break;
-                case IdType.String: nodeId2 = new NodeId(DataGenerator.GetRandomString(), 0); break;
-                case IdType.Guid: nodeId2 = new NodeId(DataGenerator.GetRandomGuid()); break;
-                case IdType.Opaque: nodeId2 = new NodeId(Ua.Nonce.CreateRandomNonceData(32)); break;
+                case IdType.Numeric:
+                    nodeId2 = new NodeId(DataGenerator.GetRandomUInt16(), DataGenerator.GetRandomByte());
+                    break;
+                case IdType.String:
+                    nodeId2 = new NodeId(DataGenerator.GetRandomString(), 0);
+                    break;
+                case IdType.Guid:
+                    nodeId2 = new NodeId(DataGenerator.GetRandomGuid());
+                    break;
+                case IdType.Opaque:
+                    nodeId2 = new NodeId(Ua.Nonce.CreateRandomNonceData(32));
+                    break;
             }
             dictionary.Add(nodeId2, "TestClone");
             Assert.AreEqual(2, dictionary.Distinct().ToList().Count);
@@ -657,11 +673,21 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             NodeId nodeId = NodeId.Null;
             switch (idType)
             {
-                case IdType.Numeric: nodeId = new NodeId(0, 0); break;
-                case IdType.String: nodeId = new NodeId(""); break;
-                case IdType.Guid: nodeId = new NodeId(Guid.Empty); break;
-                case IdType.Opaque: nodeId = new NodeId([]); break;
-                case (IdType)100: nodeId = new NodeId((byte[])null); break;
+                case IdType.Numeric:
+                    nodeId = new NodeId(0, 0);
+                    break;
+                case IdType.String:
+                    nodeId = new NodeId("");
+                    break;
+                case IdType.Guid:
+                    nodeId = new NodeId(Guid.Empty);
+                    break;
+                case IdType.Opaque:
+                    nodeId = new NodeId([]);
+                    break;
+                case (IdType)100:
+                    nodeId = new NodeId((byte[])null);
+                    break;
             }
 
             Assert.IsTrue(nodeId.IsNullNodeId);

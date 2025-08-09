@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Buffers;
 using System.Threading;
 using BenchmarkDotNet.Attributes;
@@ -85,7 +84,7 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
         {
             for (int i = 0; i < Allocations; i++)
             {
-                m_bufferArray[i] = GC.AllocateUninitializedArray<byte>(BufferSize + 1);
+                m_bufferArray[i] = System.GC.AllocateUninitializedArray<byte>(BufferSize + 1);
                 m_bufferArray[i][i] = (byte)i;
             }
             for (int i = 0; i < Allocations; i++)

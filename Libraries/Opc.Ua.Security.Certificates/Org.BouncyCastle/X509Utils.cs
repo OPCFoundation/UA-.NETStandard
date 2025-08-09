@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -34,10 +34,12 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+#if NET472_OR_GREATER
 using System.Text.RegularExpressions;
 using Org.BouncyCastle.Asn1;
-using Org.BouncyCastle.Asn1.X509;
 using Org.BouncyCastle.Asn1.X9;
+#endif
+using Org.BouncyCastle.Asn1.X509;
 using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Math;
@@ -63,21 +65,19 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             SecureRandom random)
         {
             // create pkcs12 store for cert and private key
-            using (var pfxData = new MemoryStream())
+            using var pfxData = new MemoryStream();
+            var builder = new Pkcs12StoreBuilder();
+            builder.SetUseDerEncoding(true);
+            Pkcs12Store pkcsStore = builder.Build();
+            var chain = new X509CertificateEntry[1];
+            chain[0] = new X509CertificateEntry(certificate);
+            if (string.IsNullOrEmpty(friendlyName))
             {
-                var builder = new Pkcs12StoreBuilder();
-                builder.SetUseDerEncoding(true);
-                Pkcs12Store pkcsStore = builder.Build();
-                var chain = new X509CertificateEntry[1];
-                chain[0] = new X509CertificateEntry(certificate);
-                if (string.IsNullOrEmpty(friendlyName))
-                {
-                    friendlyName = GetCertificateCommonName(certificate);
-                }
-                pkcsStore.SetKeyEntry(friendlyName, new AsymmetricKeyEntry(privateKey), chain);
-                pkcsStore.Save(pfxData, passcode.ToCharArray(), random);
-                return pfxData.ToArray();
+                friendlyName = GetCertificateCommonName(certificate);
             }
+            pkcsStore.SetKeyEntry(friendlyName, new AsymmetricKeyEntry(privateKey), chain);
+            pkcsStore.Save(pfxData, passcode.ToCharArray(), random);
+            return pfxData.ToArray();
         }
 
         /// <summary>
@@ -109,10 +109,8 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         /// </summary>
         internal static RsaKeyParameters GetRsaPublicKeyParameter(X509Certificate2 certificate)
         {
-            using (RSA rsa = certificate.GetRSAPublicKey())
-            {
-                return GetRsaPublicKeyParameter(rsa);
-            }
+            using RSA rsa = certificate.GetRSAPublicKey();
+            return GetRsaPublicKeyParameter(rsa);
         }
 
         /// <summary>
@@ -134,12 +132,10 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         internal static RsaPrivateCrtKeyParameters GetRsaPrivateKeyParameter(X509Certificate2 certificate)
         {
             // try to get signing/private key from certificate passed in
-            using (RSA rsa = certificate.GetRSAPrivateKey())
+            using RSA rsa = certificate.GetRSAPrivateKey();
+            if (rsa != null)
             {
-                if (rsa != null)
-                {
-                    return GetRsaPrivateKeyParameter(rsa);
-                }
+                return GetRsaPrivateKeyParameter(rsa);
             }
             return null;
         }
@@ -170,12 +166,10 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         internal static ECPrivateKeyParameters GetECDsaPrivateKeyParameter(X509Certificate2 certificate)
         {
             // try to get signing/private key from certificate passed in
-            using (ECDsa ecdsa = certificate.GetECDsaPrivateKey())
+            using ECDsa ecdsa = certificate.GetECDsaPrivateKey();
+            if (ecdsa != null)
             {
-                if (ecdsa != null)
-                {
-                    return GetECDsaPrivateKeyParameter(ecdsa);
-                }
+                return GetECDsaPrivateKeyParameter(ecdsa);
             }
             return null;
         }
@@ -273,7 +267,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             else if (!string.IsNullOrEmpty(ecParams.Curve.Oid.FriendlyName))
             {
                 // nist curve names do not contain "nist" in the bouncy castle ECNamedCurveTable
-                // for ex: the form is "P-256" while the microsoft is "nistP256" 
+                // for ex: the form is "P-256" while the microsoft is "nistP256"
                 // brainpool bouncy castle curve names are identic to the microsoft ones
                 string msFriendlyName = ecParams.Curve.Oid.FriendlyName;
                 string bcFriendlyName = msFriendlyName;
@@ -345,12 +339,10 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         internal static string GeneratePasscode()
         {
             const int kLength = 18;
-            using (var rng = RandomNumberGenerator.Create())
-            {
-                byte[] tokenBuffer = new byte[kLength];
-                rng.GetBytes(tokenBuffer);
-                return Convert.ToBase64String(tokenBuffer);
-            }
+            using var rng = RandomNumberGenerator.Create();
+            byte[] tokenBuffer = new byte[kLength];
+            rng.GetBytes(tokenBuffer);
+            return Convert.ToBase64String(tokenBuffer);
         }
 
         /// <summary>

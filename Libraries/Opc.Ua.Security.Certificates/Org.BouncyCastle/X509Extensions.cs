@@ -71,10 +71,15 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
                 int domainType = GeneralName.OtherName;
                 switch (Uri.CheckHostName(domainNames[i]))
                 {
-                    case UriHostNameType.Dns: domainType = GeneralName.DnsName; break;
+                    case UriHostNameType.Dns:
+                        domainType = GeneralName.DnsName;
+                        break;
                     case UriHostNameType.IPv4:
-                    case UriHostNameType.IPv6: domainType = GeneralName.IPAddress; break;
-                    default: continue;
+                    case UriHostNameType.IPv6:
+                        domainType = GeneralName.IPAddress;
+                        break;
+                    default:
+                        continue;
                 }
                 generalNames.Add(new GeneralName(domainType, domainNames[i]));
             }

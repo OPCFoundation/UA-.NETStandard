@@ -396,7 +396,7 @@ namespace Opc.Ua.Server
                     return predefinedNode;
                 }
 
-                if (!(predefinedNode is MethodState passiveMethod))
+                if (predefinedNode is not MethodState passiveMethod)
                 {
                     return predefinedNode;
                 }
@@ -534,7 +534,7 @@ namespace Opc.Ua.Server
 
             if (!IsDiagnosticsStructureNode(node))
             {
-                if (!(node is BaseInstanceState instance))
+                if (node is not BaseInstanceState instance)
                 {
                     return false;
                 }
@@ -550,7 +550,7 @@ namespace Opc.Ua.Server
         /// </summary>
         private static bool IsDiagnosticsStructureNode(NodeState node)
         {
-            if (!(node is BaseInstanceState instance))
+            if (node is not BaseInstanceState instance)
             {
                 return false;
             }
@@ -2016,7 +2016,7 @@ user.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin);
                         ISampledDataChangeMonitoredItem monitoredItem = m_sampledItems[ii];
 
                         // get the handle.
-                        if (!(monitoredItem.ManagerHandle is NodeHandle handle))
+                        if (monitoredItem.ManagerHandle is not NodeHandle handle)
                         {
                             continue;
                         }

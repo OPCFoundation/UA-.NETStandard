@@ -195,7 +195,7 @@ namespace Boiler
         /// </summary>
         protected override NodeState AddBehaviourToPredefinedNode(ISystemContext context, NodeState predefinedNode)
         {
-            if (!(predefinedNode is BaseObjectState passiveNode))
+            if (predefinedNode is not BaseObjectState passiveNode)
             {
                 return predefinedNode;
             }

@@ -198,7 +198,7 @@ namespace MemoryBuffer
             ref StatusCode statusCode,
             ref DateTime timestamp)
         {
-            if (!(node is MemoryTagState tag))
+            if (node is not MemoryTagState tag)
             {
                 return StatusCodes.BadNodeIdUnknown;
             }
@@ -248,7 +248,7 @@ namespace MemoryBuffer
             ref StatusCode statusCode,
             ref DateTime timestamp)
         {
-            if (!(node is MemoryTagState tag))
+            if (node is not MemoryTagState tag)
             {
                 return StatusCodes.BadNodeIdUnknown;
             }
@@ -508,7 +508,7 @@ namespace MemoryBuffer
                 m_monitoringTable[elementOffet].CopyTo(monitoredItems, 0);
             }
 
-            monitoredItems[monitoredItems.Length - 1] = monitoredItem;
+            monitoredItems[^1] = monitoredItem;
             m_monitoringTable[elementOffet] = monitoredItems;
             m_itemCount++;
         }

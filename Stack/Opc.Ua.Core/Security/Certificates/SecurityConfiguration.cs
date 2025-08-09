@@ -95,7 +95,7 @@ namespace Opc.Ua
         /// Validate if the specified store can be opened
         /// throws ServiceResultException
         /// </summary>
-        private static void ValidateStore(CertificateStoreIdentifier storeIdentifier, string storeName)
+        private static void ValidateStore(CertificateTrustList storeIdentifier, string storeName)
         {
             if (string.IsNullOrEmpty(storeIdentifier?.StorePath))
             {

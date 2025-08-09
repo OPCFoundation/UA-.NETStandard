@@ -167,18 +167,16 @@ namespace Opc.Ua
         public static XmlElement EncodeXml(IEncodeable encodeable, IServiceMessageContext context)
         {
             // create encoder.
-            using (var encoder = new XmlEncoder(context))
-            {
-                // write body.
-                encoder.WriteExtensionObjectBody(encodeable);
+            using var encoder = new XmlEncoder(context);
+            // write body.
+            encoder.WriteExtensionObjectBody(encodeable);
 
-                // create document from encoder.
-                var document = new XmlDocument();
-                document.LoadInnerXml(encoder.CloseAndReturnText());
+            // create document from encoder.
+            var document = new XmlDocument();
+            document.LoadInnerXml(encoder.CloseAndReturnText());
 
-                // return root element.
-                return document.DocumentElement;
-            }
+            // return root element.
+            return document.DocumentElement;
         }
 
         /// <summary>
@@ -186,11 +184,9 @@ namespace Opc.Ua
         /// </summary>
         public static byte[] EncodeBinary(IEncodeable encodeable, IServiceMessageContext context)
         {
-            using (var encoder = new BinaryEncoder(context))
-            {
-                encoder.WriteEncodeable(null, encodeable, null);
-                return encoder.CloseAndReturnBuffer();
-            }
+            using var encoder = new BinaryEncoder(context);
+            encoder.WriteEncodeable(null, encodeable, null);
+            return encoder.CloseAndReturnBuffer();
         }
 
         /// <inheritdoc/>

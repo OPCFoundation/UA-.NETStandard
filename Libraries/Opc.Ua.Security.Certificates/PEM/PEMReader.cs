@@ -30,7 +30,6 @@
 #if NETSTANDARD2_1 || NET5_0_OR_GREATER
 
 using System;
-using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -175,8 +174,12 @@ namespace Opc.Ua.Security.Certificates
                                 }
                                 rsaPrivateKey.ImportEncryptedPkcs8PrivateKey(password.ToCharArray(), pemDecoded, out bytesRead);
                                 break;
-                            case 2: rsaPrivateKey.ImportPkcs8PrivateKey(pemDecoded, out bytesRead); break;
-                            case 3: rsaPrivateKey.ImportRSAPrivateKey(pemDecoded, out bytesRead); break;
+                            case 2:
+                                rsaPrivateKey.ImportPkcs8PrivateKey(pemDecoded, out bytesRead);
+                                break;
+                            case 3:
+                                rsaPrivateKey.ImportRSAPrivateKey(pemDecoded, out bytesRead);
+                                break;
                         }
                         return rsaPrivateKey;
                     }

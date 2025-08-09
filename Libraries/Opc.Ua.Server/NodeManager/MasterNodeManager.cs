@@ -50,17 +50,12 @@ namespace Opc.Ua.Server
             string dynamicNamespaceUri,
             params INodeManager[] additionalManagers)
         {
-            if (server == null)
-            {
-                throw new ArgumentNullException(nameof(server));
-            }
-
             if (configuration == null)
             {
                 throw new ArgumentNullException(nameof(configuration));
             }
 
-            Server = server;
+            Server = server ?? throw new ArgumentNullException(nameof(server));
             m_nodeManagers = [];
             m_maxContinuationPointsPerBrowse = (uint)configuration.ServerConfiguration.MaxBrowseContinuationPoints;
 
@@ -440,7 +435,7 @@ namespace Opc.Ua.Server
                 }
 
                 // add new node manager to the end of the list.
-                registeredManagers[registeredManagers.Length - 1] = nodeManager;
+                registeredManagers[^1] = nodeManager;
                 namespaceManagers[index] = registeredManagers;
 
                 // replace the table.
@@ -1409,7 +1404,7 @@ namespace Opc.Ua.Server
                 return StatusCodes.BadReferenceTypeIdInvalid;
             }
 
-            if (nodeToBrowse.BrowseDirection < BrowseDirection.Forward || nodeToBrowse.BrowseDirection > BrowseDirection.Both)
+            if (nodeToBrowse.BrowseDirection is < BrowseDirection.Forward or > BrowseDirection.Both)
             {
                 return StatusCodes.BadBrowseDirectionInvalid;
             }
@@ -1576,7 +1571,7 @@ namespace Opc.Ua.Server
             }
 
             // check nodeclass filter.
-            if (nodeClassMask != NodeClass.Unspecified && (metadata.NodeClass & nodeClassMask) == 0)
+            if (nodeClassMask != NodeClass.Unspecified && ((int)metadata.NodeClass & (int)nodeClassMask) == 0)
             {
                 return false;
             }
@@ -1617,7 +1612,7 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadMaxAgeInvalid);
             }
 
-            if (timestampsToReturn < TimestampsToReturn.Source || timestampsToReturn > TimestampsToReturn.Neither)
+            if (timestampsToReturn is < TimestampsToReturn.Source or > TimestampsToReturn.Neither)
             {
                 throw new ServiceResultException(StatusCodes.BadTimestampsToReturnInvalid);
             }
@@ -1718,12 +1713,12 @@ namespace Opc.Ua.Server
                 }
 
                 // apply the timestamp filters.
-                if (timestampsToReturn != TimestampsToReturn.Server && timestampsToReturn != TimestampsToReturn.Both)
+                if (timestampsToReturn is not TimestampsToReturn.Server and not TimestampsToReturn.Both)
                 {
                     value.ServerTimestamp = DateTime.MinValue;
                 }
 
-                if (timestampsToReturn != TimestampsToReturn.Source && timestampsToReturn != TimestampsToReturn.Both)
+                if (timestampsToReturn is not TimestampsToReturn.Source and not TimestampsToReturn.Both)
                 {
                     value.SourceTimestamp = DateTime.MinValue;
                 }
@@ -1751,7 +1746,7 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadHistoryOperationInvalid);
             }
 
-            if (!(historyReadDetails.Body is HistoryReadDetails details))
+            if (historyReadDetails.Body is not HistoryReadDetails details)
             {
                 throw new ServiceResultException(StatusCodes.BadHistoryOperationInvalid);
             }
@@ -2258,7 +2253,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentOutOfRangeException(nameof(publishingInterval));
             }
 
-            if (timestampsToReturn < TimestampsToReturn.Source || timestampsToReturn > TimestampsToReturn.Neither)
+            if (timestampsToReturn is < TimestampsToReturn.Source or > TimestampsToReturn.Neither)
             {
                 throw new ServiceResultException(StatusCodes.BadTimestampsToReturnInvalid);
             }
@@ -2353,7 +2348,7 @@ namespace Opc.Ua.Server
                     }
 
                     // all event subscriptions required an event filter.
-                    if (!(itemToCreate.RequestedParameters.Filter.Body is EventFilter filter))
+                    if (itemToCreate.RequestedParameters.Filter.Body is not EventFilter filter)
                     {
                         continue;
                     }
@@ -2514,7 +2509,7 @@ namespace Opc.Ua.Server
                 if (!item.IsRestored)
                 {
                     // all event subscriptions required an event filter.
-                    if (!(item.OriginalFilter is EventFilter filter))
+                    if (item.OriginalFilter is not EventFilter filter)
                     {
                         continue;
                     }
@@ -2605,7 +2600,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(filterResults));
             }
 
-            if (timestampsToReturn < TimestampsToReturn.Source || timestampsToReturn > TimestampsToReturn.Neither)
+            if (timestampsToReturn is < TimestampsToReturn.Source or > TimestampsToReturn.Neither)
             {
                 throw new ServiceResultException(StatusCodes.BadTimestampsToReturnInvalid);
             }
@@ -3079,7 +3074,7 @@ namespace Opc.Ua.Server
             }
 
             // check for valid monitoring mode.
-            if ((int)item.MonitoringMode < 0 || (int)item.MonitoringMode > (int)MonitoringMode.Reporting)
+            if ((int)item.MonitoringMode is < 0 or > ((int)MonitoringMode.Reporting))
             {
                 return new ServiceResult(StatusCodes.BadMonitoringModeInvalid);
             }
@@ -3095,7 +3090,7 @@ namespace Opc.Ua.Server
             }
 
             // check that no filter is specified for non-value attributes.
-            if (item.ItemToMonitor.AttributeId != Attributes.Value && item.ItemToMonitor.AttributeId != Attributes.EventNotifier)
+            if (item.ItemToMonitor.AttributeId is not Attributes.Value and not Attributes.EventNotifier)
             {
                 if (!ExtensionObject.IsNull(attributes.Filter))
                 {
@@ -3407,9 +3402,9 @@ namespace Opc.Ua.Server
                 bool sessionRequired = (restrictions & AccessRestrictionType.SessionRequired) == AccessRestrictionType.SessionRequired;
                 bool applyRestrictionsToBrowse = (restrictions & AccessRestrictionType.ApplyRestrictionsToBrowse) == AccessRestrictionType.ApplyRestrictionsToBrowse;
 
-                bool browseOperation = context.RequestType == RequestType.Browse ||
-                                       context.RequestType == RequestType.BrowseNext ||
-                                       context.RequestType == RequestType.TranslateBrowsePathsToNodeIds;
+                bool browseOperation = context.RequestType is RequestType.Browse or
+                                       RequestType.BrowseNext or
+                                       RequestType.TranslateBrowsePathsToNodeIds;
 
                 if ((encryptionRequired &&
                      context.ChannelContext.EndpointDescription.SecurityMode != MessageSecurityMode.SignAndEncrypt &&

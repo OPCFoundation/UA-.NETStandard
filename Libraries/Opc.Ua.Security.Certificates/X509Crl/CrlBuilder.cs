@@ -180,7 +180,7 @@ namespace Opc.Ua.Security.Certificates
                 throw new ArgumentNullException(nameof(serialNumbers));
             }
 
-            m_revokedCertificates.AddRange(serialNumbers.Select(s => new RevokedCertificate(s, crlReason)).ToList());
+            m_revokedCertificates.AddRange([.. serialNumbers.Select(s => new RevokedCertificate(s, crlReason))]);
             return this;
         }
 
@@ -258,11 +258,9 @@ namespace Opc.Ua.Security.Certificates
         /// <returns>The signed CRL.</returns>
         public IX509CRL CreateForRSA(X509Certificate2 issuerCertificate)
         {
-            using (RSA rsa = issuerCertificate.GetRSAPrivateKey())
-            {
-                var generator = X509SignatureGenerator.CreateForRSA(rsa, RSASignaturePadding.Pkcs1);
-                return CreateSignature(generator);
-            }
+            using RSA rsa = issuerCertificate.GetRSAPrivateKey();
+            var generator = X509SignatureGenerator.CreateForRSA(rsa, RSASignaturePadding.Pkcs1);
+            return CreateSignature(generator);
         }
 
 #if ECC_SUPPORT
@@ -272,11 +270,9 @@ namespace Opc.Ua.Security.Certificates
         /// <returns>The signed CRL.</returns>
         public IX509CRL CreateForECDsa(X509Certificate2 issuerCertificate)
         {
-            using (ECDsa ecdsa = issuerCertificate.GetECDsaPrivateKey())
-            {
-                var generator = X509SignatureGenerator.CreateForECDsa(ecdsa);
-                return CreateSignature(generator);
-            }
+            using ECDsa ecdsa = issuerCertificate.GetECDsaPrivateKey();
+            var generator = X509SignatureGenerator.CreateForECDsa(ecdsa);
+            return CreateSignature(generator);
         }
 #endif
 

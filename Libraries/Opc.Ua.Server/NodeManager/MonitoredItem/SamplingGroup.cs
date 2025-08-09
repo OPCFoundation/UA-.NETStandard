@@ -51,32 +51,13 @@ namespace Opc.Ua.Server
             double samplingInterval,
             IUserIdentity savedOwnerIdentity = null)
         {
-            if (server == null)
-            {
-                throw new ArgumentNullException(nameof(server));
-            }
-
-            if (nodeManager == null)
-            {
-                throw new ArgumentNullException(nameof(nodeManager));
-            }
-
-            if (samplingRates == null)
-            {
-                throw new ArgumentNullException(nameof(samplingRates));
-            }
-
-            m_server = server;
-            m_nodeManager = nodeManager;
-            m_samplingRates = samplingRates;
+            m_server = server ?? throw new ArgumentNullException(nameof(server));
+            m_nodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
+            m_samplingRates = samplingRates ?? throw new ArgumentNullException(nameof(samplingRates));
             m_session = context.Session;
             if (m_session == null)
             {
-                if (savedOwnerIdentity == null)
-                {
-                    throw new ArgumentNullException(nameof(savedOwnerIdentity), "Either a context with a Session or an owner identity need to be provided");
-                }
-                m_effectiveIdentity = savedOwnerIdentity;
+                m_effectiveIdentity = savedOwnerIdentity ?? throw new ArgumentNullException(nameof(savedOwnerIdentity), "Either a context with a Session or an owner identity need to be provided");
             }
             m_diagnosticsMask = context.DiagnosticsMask & DiagnosticsMasks.OperationAll;
             m_samplingInterval = AdjustSamplingInterval(samplingInterval);

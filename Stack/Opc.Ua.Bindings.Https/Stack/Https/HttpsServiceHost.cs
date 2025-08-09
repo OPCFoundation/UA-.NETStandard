@@ -79,7 +79,7 @@ namespace Opc.Ua.Bindings
 
                 var uri = new UriBuilder(baseAddresses[ii]);
 
-                if (uri.Path[uri.Path.Length - 1] != '/')
+                if (uri.Path[^1] != '/')
                 {
                     uri.Path += "/";
                 }

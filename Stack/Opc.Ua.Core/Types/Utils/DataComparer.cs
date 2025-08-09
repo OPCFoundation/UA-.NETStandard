@@ -669,59 +669,109 @@ namespace Opc.Ua.Test
 
             if (!systemType.IsArray || systemType == typeof(byte[]))
             {
-                if (systemType == typeof(bool)) { return CompareBoolean((bool)value1.Value, (bool)value2.Value); }
-                if (systemType == typeof(sbyte)) { return CompareSByte((sbyte)value1.Value, (sbyte)value2.Value); }
-                if (systemType == typeof(byte)) { return CompareByte((byte)value1.Value, (byte)value2.Value); }
-                if (systemType == typeof(short)) { return CompareInt16((short)value1.Value, (short)value2.Value); }
-                if (systemType == typeof(ushort)) { return CompareUInt16((ushort)value1.Value, (ushort)value2.Value); }
-                if (systemType == typeof(int)) { return CompareInt32((int)value1.Value, (int)value2.Value); }
-                if (systemType == typeof(uint)) { return CompareUInt32((uint)value1.Value, (uint)value2.Value); }
-                if (systemType == typeof(long)) { return CompareInt64((long)value1.Value, (long)value2.Value); }
-                if (systemType == typeof(ulong)) { return CompareUInt64((ulong)value1.Value, (ulong)value2.Value); }
-                if (systemType == typeof(float)) { return CompareFloat((float)value1.Value, (float)value2.Value); }
-                if (systemType == typeof(double)) { return CompareDouble((double)value1.Value, (double)value2.Value); }
-                if (systemType == typeof(string)) { return CompareString((string)value1.Value, (string)value2.Value); }
-                if (systemType == typeof(DateTime)) { return CompareDateTime((DateTime)value1.Value, (DateTime)value2.Value); }
-                if (systemType == typeof(Uuid)) { return CompareUuid((Uuid)value1.Value, (Uuid)value2.Value); }
-                if (systemType == typeof(byte[])) { return CompareByteString((byte[])value1.Value, (byte[])value2.Value); }
-                if (systemType == typeof(XmlElement)) { return CompareXmlElement((XmlElement)value1.Value, (XmlElement)value2.Value); }
-                if (systemType == typeof(NodeId)) { return CompareNodeId((NodeId)value1.Value, (NodeId)value2.Value); }
-                if (systemType == typeof(ExpandedNodeId)) { return CompareExpandedNodeId((ExpandedNodeId)value1.Value, (ExpandedNodeId)value2.Value); }
-                if (systemType == typeof(StatusCode)) { return CompareStatusCode((StatusCode)value1.Value, (StatusCode)value2.Value); }
-                if (systemType == typeof(DiagnosticInfo)) { return CompareDiagnosticInfo((DiagnosticInfo)value1.Value, (DiagnosticInfo)value2.Value); }
-                if (systemType == typeof(QualifiedName)) { return CompareQualifiedName((QualifiedName)value1.Value, (QualifiedName)value2.Value); }
-                if (systemType == typeof(LocalizedText)) { return CompareLocalizedText((LocalizedText)value1.Value, (LocalizedText)value2.Value); }
-                if (systemType == typeof(ExtensionObject)) { return CompareExtensionObject((ExtensionObject)value1.Value, (ExtensionObject)value2.Value); }
-                if (systemType == typeof(DataValue)) { return CompareDataValue((DataValue)value1.Value, (DataValue)value2.Value); }
-                if (systemType == typeof(Variant)) { return CompareVariant((Variant)value1.Value, (Variant)value2.Value); }
-                if (systemType == typeof(Matrix)) { return CompareMatrix((Matrix)value1.Value, (Matrix)value2.Value); }
+                if (systemType == typeof(bool))
+                { return CompareBoolean((bool)value1.Value, (bool)value2.Value); }
+                if (systemType == typeof(sbyte))
+                { return CompareSByte((sbyte)value1.Value, (sbyte)value2.Value); }
+                if (systemType == typeof(byte))
+                { return CompareByte((byte)value1.Value, (byte)value2.Value); }
+                if (systemType == typeof(short))
+                { return CompareInt16((short)value1.Value, (short)value2.Value); }
+                if (systemType == typeof(ushort))
+                { return CompareUInt16((ushort)value1.Value, (ushort)value2.Value); }
+                if (systemType == typeof(int))
+                { return CompareInt32((int)value1.Value, (int)value2.Value); }
+                if (systemType == typeof(uint))
+                { return CompareUInt32((uint)value1.Value, (uint)value2.Value); }
+                if (systemType == typeof(long))
+                { return CompareInt64((long)value1.Value, (long)value2.Value); }
+                if (systemType == typeof(ulong))
+                { return CompareUInt64((ulong)value1.Value, (ulong)value2.Value); }
+                if (systemType == typeof(float))
+                { return CompareFloat((float)value1.Value, (float)value2.Value); }
+                if (systemType == typeof(double))
+                { return CompareDouble((double)value1.Value, (double)value2.Value); }
+                if (systemType == typeof(string))
+                { return CompareString((string)value1.Value, (string)value2.Value); }
+                if (systemType == typeof(DateTime))
+                { return CompareDateTime((DateTime)value1.Value, (DateTime)value2.Value); }
+                if (systemType == typeof(Uuid))
+                { return CompareUuid((Uuid)value1.Value, (Uuid)value2.Value); }
+                if (systemType == typeof(byte[]))
+                { return CompareByteString((byte[])value1.Value, (byte[])value2.Value); }
+                if (systemType == typeof(XmlElement))
+                { return CompareXmlElement((XmlElement)value1.Value, (XmlElement)value2.Value); }
+                if (systemType == typeof(NodeId))
+                { return CompareNodeId((NodeId)value1.Value, (NodeId)value2.Value); }
+                if (systemType == typeof(ExpandedNodeId))
+                { return CompareExpandedNodeId((ExpandedNodeId)value1.Value, (ExpandedNodeId)value2.Value); }
+                if (systemType == typeof(StatusCode))
+                { return CompareStatusCode((StatusCode)value1.Value, (StatusCode)value2.Value); }
+                if (systemType == typeof(DiagnosticInfo))
+                { return CompareDiagnosticInfo((DiagnosticInfo)value1.Value, (DiagnosticInfo)value2.Value); }
+                if (systemType == typeof(QualifiedName))
+                { return CompareQualifiedName((QualifiedName)value1.Value, (QualifiedName)value2.Value); }
+                if (systemType == typeof(LocalizedText))
+                { return CompareLocalizedText((LocalizedText)value1.Value, (LocalizedText)value2.Value); }
+                if (systemType == typeof(ExtensionObject))
+                { return CompareExtensionObject((ExtensionObject)value1.Value, (ExtensionObject)value2.Value); }
+                if (systemType == typeof(DataValue))
+                { return CompareDataValue((DataValue)value1.Value, (DataValue)value2.Value); }
+                if (systemType == typeof(Variant))
+                { return CompareVariant((Variant)value1.Value, (Variant)value2.Value); }
+                if (systemType == typeof(Matrix))
+                { return CompareMatrix((Matrix)value1.Value, (Matrix)value2.Value); }
             }
             else
             {
-                if (systemType == typeof(bool[])) { return CompareArray((bool[])value1.Value, (bool[])value2.Value, CompareBoolean); }
-                if (systemType == typeof(sbyte[])) { return CompareArray((sbyte[])value1.Value, (sbyte[])value2.Value, CompareSByte); }
-                if (systemType == typeof(short[])) { return CompareArray((short[])value1.Value, (short[])value2.Value, CompareInt16); }
-                if (systemType == typeof(ushort[])) { return CompareArray((ushort[])value1.Value, (ushort[])value2.Value, CompareUInt16); }
-                if (systemType == typeof(int[])) { return CompareArray((int[])value1.Value, (int[])value2.Value, CompareInt32); }
-                if (systemType == typeof(uint[])) { return CompareArray((uint[])value1.Value, (uint[])value2.Value, CompareUInt32); }
-                if (systemType == typeof(long[])) { return CompareArray((long[])value1.Value, (long[])value2.Value, CompareInt64); }
-                if (systemType == typeof(ulong[])) { return CompareArray((ulong[])value1.Value, (ulong[])value2.Value, CompareUInt64); }
-                if (systemType == typeof(float[])) { return CompareArray((float[])value1.Value, (float[])value2.Value, CompareFloat); }
-                if (systemType == typeof(double[])) { return CompareArray((double[])value1.Value, (double[])value2.Value, CompareDouble); }
-                if (systemType == typeof(string[])) { return CompareArray((string[])value1.Value, (string[])value2.Value, CompareString); }
-                if (systemType == typeof(DateTime[])) { return CompareArray((DateTime[])value1.Value, (DateTime[])value2.Value, CompareDateTime); }
-                if (systemType == typeof(Uuid[])) { return CompareArray((Uuid[])value1.Value, (Uuid[])value2.Value, CompareUuid); }
-                if (systemType == typeof(byte[][])) { return CompareArray((byte[][])value1.Value, (byte[][])value2.Value, CompareByteString); }
-                if (systemType == typeof(XmlElement[])) { return CompareArray((XmlElement[])value1.Value, (XmlElement[])value2.Value, CompareXmlElement); }
-                if (systemType == typeof(NodeId[])) { return CompareArray((NodeId[])value1.Value, (NodeId[])value2.Value, CompareNodeId); }
-                if (systemType == typeof(ExpandedNodeId[])) { return CompareArray((ExpandedNodeId[])value1.Value, (ExpandedNodeId[])value2.Value, CompareExpandedNodeId); }
-                if (systemType == typeof(StatusCode[])) { return CompareArray((StatusCode[])value1.Value, (StatusCode[])value2.Value, CompareStatusCode); }
-                if (systemType == typeof(DiagnosticInfo[])) { return CompareArray((DiagnosticInfo[])value1.Value, (DiagnosticInfo[])value2.Value, CompareDiagnosticInfo); }
-                if (systemType == typeof(QualifiedName[])) { return CompareArray((QualifiedName[])value1.Value, (QualifiedName[])value2.Value, CompareQualifiedName); }
-                if (systemType == typeof(LocalizedText[])) { return CompareArray((LocalizedText[])value1.Value, (LocalizedText[])value2.Value, CompareLocalizedText); }
-                if (systemType == typeof(ExtensionObject[])) { return CompareArray((ExtensionObject[])value1.Value, (ExtensionObject[])value2.Value, CompareExtensionObject); }
-                if (systemType == typeof(DataValue[])) { return CompareArray((DataValue[])value1.Value, (DataValue[])value2.Value, CompareDataValue); }
-                if (systemType == typeof(Variant[])) { return CompareArray((Variant[])value1.Value, (Variant[])value2.Value, CompareVariant); }
+                if (systemType == typeof(bool[]))
+                { return CompareArray((bool[])value1.Value, (bool[])value2.Value, CompareBoolean); }
+                if (systemType == typeof(sbyte[]))
+                { return CompareArray((sbyte[])value1.Value, (sbyte[])value2.Value, CompareSByte); }
+                if (systemType == typeof(short[]))
+                { return CompareArray((short[])value1.Value, (short[])value2.Value, CompareInt16); }
+                if (systemType == typeof(ushort[]))
+                { return CompareArray((ushort[])value1.Value, (ushort[])value2.Value, CompareUInt16); }
+                if (systemType == typeof(int[]))
+                { return CompareArray((int[])value1.Value, (int[])value2.Value, CompareInt32); }
+                if (systemType == typeof(uint[]))
+                { return CompareArray((uint[])value1.Value, (uint[])value2.Value, CompareUInt32); }
+                if (systemType == typeof(long[]))
+                { return CompareArray((long[])value1.Value, (long[])value2.Value, CompareInt64); }
+                if (systemType == typeof(ulong[]))
+                { return CompareArray((ulong[])value1.Value, (ulong[])value2.Value, CompareUInt64); }
+                if (systemType == typeof(float[]))
+                { return CompareArray((float[])value1.Value, (float[])value2.Value, CompareFloat); }
+                if (systemType == typeof(double[]))
+                { return CompareArray((double[])value1.Value, (double[])value2.Value, CompareDouble); }
+                if (systemType == typeof(string[]))
+                { return CompareArray((string[])value1.Value, (string[])value2.Value, CompareString); }
+                if (systemType == typeof(DateTime[]))
+                { return CompareArray((DateTime[])value1.Value, (DateTime[])value2.Value, CompareDateTime); }
+                if (systemType == typeof(Uuid[]))
+                { return CompareArray((Uuid[])value1.Value, (Uuid[])value2.Value, CompareUuid); }
+                if (systemType == typeof(byte[][]))
+                { return CompareArray((byte[][])value1.Value, (byte[][])value2.Value, CompareByteString); }
+                if (systemType == typeof(XmlElement[]))
+                { return CompareArray((XmlElement[])value1.Value, (XmlElement[])value2.Value, CompareXmlElement); }
+                if (systemType == typeof(NodeId[]))
+                { return CompareArray((NodeId[])value1.Value, (NodeId[])value2.Value, CompareNodeId); }
+                if (systemType == typeof(ExpandedNodeId[]))
+                { return CompareArray((ExpandedNodeId[])value1.Value, (ExpandedNodeId[])value2.Value, CompareExpandedNodeId); }
+                if (systemType == typeof(StatusCode[]))
+                { return CompareArray((StatusCode[])value1.Value, (StatusCode[])value2.Value, CompareStatusCode); }
+                if (systemType == typeof(DiagnosticInfo[]))
+                { return CompareArray((DiagnosticInfo[])value1.Value, (DiagnosticInfo[])value2.Value, CompareDiagnosticInfo); }
+                if (systemType == typeof(QualifiedName[]))
+                { return CompareArray((QualifiedName[])value1.Value, (QualifiedName[])value2.Value, CompareQualifiedName); }
+                if (systemType == typeof(LocalizedText[]))
+                { return CompareArray((LocalizedText[])value1.Value, (LocalizedText[])value2.Value, CompareLocalizedText); }
+                if (systemType == typeof(ExtensionObject[]))
+                { return CompareArray((ExtensionObject[])value1.Value, (ExtensionObject[])value2.Value, CompareExtensionObject); }
+                if (systemType == typeof(DataValue[]))
+                { return CompareArray((DataValue[])value1.Value, (DataValue[])value2.Value, CompareDataValue); }
+                if (systemType == typeof(Variant[]))
+                { return CompareArray((Variant[])value1.Value, (Variant[])value2.Value, CompareVariant); }
             }
 
             return ReportError(value1.Value, value2.Value);

@@ -191,15 +191,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public void CertificateWithoutKeyID()
         {
             // a valid app cert
-            using (X509Certificate2 appCert = CertificateFactory.CreateCertificate("CN=AppCert")
+            using X509Certificate2 appCert = CertificateFactory.CreateCertificate("CN=AppCert")
                 .SetIssuer(m_rootCert)
-                .CreateForRSA())
-            {
-                Assert.NotNull(appCert);
+                .CreateForRSA();
+            Assert.NotNull(appCert);
 
-                m_certValidator.RejectUnknownRevocationStatus = true;
-                m_certValidator.Validate(appCert);
-            }
+            m_certValidator.RejectUnknownRevocationStatus = true;
+            m_certValidator.Validate(appCert);
         }
 
         /// <summary>
@@ -224,20 +222,18 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             certBuilder.AddExtension(authorityKeyIdentifier);
 
             // a valid app cert
-            using (X509Certificate2 appCert = certBuilder
+            using X509Certificate2 appCert = certBuilder
                 .SetIssuer(m_rootCert)
-                .CreateForRSA())
+                .CreateForRSA();
+            m_certValidator.RejectUnknownRevocationStatus = false;
+            if (!subjectKeyIdentifier && !serialNumber)
             {
-                m_certValidator.RejectUnknownRevocationStatus = false;
-                if (!subjectKeyIdentifier && !serialNumber)
-                {
-                    ServiceResultException result = NUnit.Framework.Assert.Throws<ServiceResultException>(() => m_certValidator.Validate(appCert));
-                    TestContext.Out.WriteLine($"{result.Result}: {result.Message}");
-                }
-                else
-                {
-                    m_certValidator.Validate(appCert);
-                }
+                ServiceResultException result = NUnit.Framework.Assert.Throws<ServiceResultException>(() => m_certValidator.Validate(appCert));
+                TestContext.Out.WriteLine($"{result.Result}: {result.Message}");
+            }
+            else
+            {
+                m_certValidator.Validate(appCert);
             }
         }
 
@@ -256,15 +252,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             TestContext.Out.WriteLine("Extension: {0}", extension.Format(true));
 
             // create app cert from alternate root
-            using (X509Certificate2 altAppCert = certBuilder.SetIssuer(m_rootAltCert).CreateForRSA())
-            {
-                Assert.NotNull(altAppCert);
+            using X509Certificate2 altAppCert = certBuilder.SetIssuer(m_rootAltCert).CreateForRSA();
+            Assert.NotNull(altAppCert);
 
-                m_certValidator.RejectUnknownRevocationStatus = rejectUnknownRevocationStatus;
-                ServiceResultException result = NUnit.Framework.Assert.Throws<ServiceResultException>(() => m_certValidator.Validate(altAppCert));
+            m_certValidator.RejectUnknownRevocationStatus = rejectUnknownRevocationStatus;
+            ServiceResultException result = NUnit.Framework.Assert.Throws<ServiceResultException>(() => m_certValidator.Validate(altAppCert));
 
-                TestContext.Out.WriteLine($"{result.Result}: {result.Message}");
-            }
+            TestContext.Out.WriteLine($"{result.Result}: {result.Message}");
         }
 
         /// <summary>
@@ -295,17 +289,15 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             TestContext.Out.WriteLine("Extension: {0}", extension.Format(true));
 
             // create the certificate from the alternate root
-            using (X509Certificate2 altAppCert = certBuilder
+            using X509Certificate2 altAppCert = certBuilder
                 .SetIssuer(m_rootAltCert)
-                .CreateForRSA())
-            {
-                Assert.NotNull(altAppCert);
+                .CreateForRSA();
+            Assert.NotNull(altAppCert);
 
-                // should not pass!
-                m_certValidator.RejectUnknownRevocationStatus = false;
-                ServiceResultException result = NUnit.Framework.Assert.Throws<ServiceResultException>(() => m_certValidator.Validate(altAppCert));
-                TestContext.Out.WriteLine($"{result.Result}: {result.Message}");
-            }
+            // should not pass!
+            m_certValidator.RejectUnknownRevocationStatus = false;
+            ServiceResultException result = NUnit.Framework.Assert.Throws<ServiceResultException>(() => m_certValidator.Validate(altAppCert));
+            TestContext.Out.WriteLine($"{result.Result}: {result.Message}");
         }
 
         /// <summary>
@@ -321,57 +313,55 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             var rsa = RSA.Create();
             var generator = X509SignatureGenerator.CreateForRSA(rsa, RSASignaturePadding.Pkcs1);
 
-            using (X509Certificate2 rootCert = CertificateFactory.CreateCertificate(rootSubject)
+            using X509Certificate2 rootCert = CertificateFactory.CreateCertificate(rootSubject)
                 .SetCAConstraint()
                 .SetRSAPublicKey(rsa)
-                .CreateForRSA(generator))
-            using (X509Certificate2 subCACert = CertificateFactory.CreateCertificate(subCASubject)
+                .CreateForRSA(generator);
+            using X509Certificate2 subCACert = CertificateFactory.CreateCertificate(subCASubject)
                 .SetCAConstraint()
                 .SetIssuer(rootCert)
-                .CreateForRSA(generator))
-            using (X509Certificate2 rootReverseCert = CertificateFactory.CreateCertificate(rootSubject)
+                .CreateForRSA(generator);
+            using X509Certificate2 rootReverseCert = CertificateFactory.CreateCertificate(rootSubject)
                 .SetCAConstraint()
                 .SetSerialNumber(rootCert.GetSerialNumber())
                 .SetIssuer(subCACert)
                 .SetRSAPublicKey(rsa)
-                .CreateForRSA())
-            using (X509Certificate2 leafCert = CertificateFactory.CreateCertificate(leafSubject)
+                .CreateForRSA();
+            using X509Certificate2 leafCert = CertificateFactory.CreateCertificate(leafSubject)
                 .SetIssuer(subCACert)
-                .CreateForRSA())
+                .CreateForRSA();
+            // validate cert chain
+            using (var validator = TemporaryCertValidator.Create())
             {
-                // validate cert chain
-                using (var validator = TemporaryCertValidator.Create())
-                {
-                    await validator.IssuerStore.AddAsync(rootCert).ConfigureAwait(false);
-                    await validator.TrustedStore.AddAsync(subCACert).ConfigureAwait(false);
-                    CertificateValidator certValidator = validator.Update();
-                    certValidator.Validate(leafCert);
-                }
+                await validator.IssuerStore.AddAsync(rootCert).ConfigureAwait(false);
+                await validator.TrustedStore.AddAsync(subCACert).ConfigureAwait(false);
+                CertificateValidator certValidator = validator.Update();
+                certValidator.Validate(leafCert);
+            }
 
-                // validate using server/client chain sent over the wire
-                var collection = new X509Certificate2Collection {
+            // validate using server/client chain sent over the wire
+            var collection = new X509Certificate2Collection {
                     leafCert,
                     subCACert,
                     rootReverseCert
                 };
-                using (var validator = TemporaryCertValidator.Create())
-                {
-                    CertificateValidator certValidator = validator.Update();
-                    ServiceResultException result = NUnit.Framework.Assert.Throws<ServiceResultException>(() => certValidator.Validate(collection));
+            using (var validator = TemporaryCertValidator.Create())
+            {
+                CertificateValidator certValidator = validator.Update();
+                ServiceResultException result = NUnit.Framework.Assert.Throws<ServiceResultException>(() => certValidator.Validate(collection));
 
-                    TestContext.Out.WriteLine($"{result.Result}: {result.Message}");
-                }
+                TestContext.Out.WriteLine($"{result.Result}: {result.Message}");
+            }
 
-                // validate using cert chain in issuer and trusted store
-                using (var validator = TemporaryCertValidator.Create())
-                {
-                    await validator.IssuerStore.AddAsync(rootReverseCert).ConfigureAwait(false);
-                    await validator.TrustedStore.AddAsync(subCACert).ConfigureAwait(false);
-                    CertificateValidator certValidator = validator.Update();
-                    ServiceResultException result = NUnit.Framework.Assert.Throws<ServiceResultException>(() => certValidator.Validate(collection));
+            // validate using cert chain in issuer and trusted store
+            using (var validator = TemporaryCertValidator.Create())
+            {
+                await validator.IssuerStore.AddAsync(rootReverseCert).ConfigureAwait(false);
+                await validator.TrustedStore.AddAsync(subCACert).ConfigureAwait(false);
+                CertificateValidator certValidator = validator.Update();
+                ServiceResultException result = NUnit.Framework.Assert.Throws<ServiceResultException>(() => certValidator.Validate(collection));
 
-                    TestContext.Out.WriteLine($"{result.Result}: {result.Message}");
-                }
+                TestContext.Out.WriteLine($"{result.Result}: {result.Message}");
             }
         }
 

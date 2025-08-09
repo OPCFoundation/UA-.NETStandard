@@ -172,10 +172,10 @@ namespace Opc.Ua
         /// <returns>A snapshot of a node.</returns>
         private ChildNode CreateChildNode(ISystemContext context, BaseInstanceState state)
         {
-            var node = new ChildNode();
-
-            node.NodeClass = state.NodeClass;
-            node.BrowseName = state.BrowseName;
+            var node = new ChildNode {
+                NodeClass = state.NodeClass,
+                BrowseName = state.BrowseName
+            };
 
             if (state is BaseVariableState variable && !StatusCode.IsBad(variable.StatusCode))
             {

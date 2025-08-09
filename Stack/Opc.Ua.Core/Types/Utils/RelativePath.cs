@@ -44,12 +44,12 @@ namespace Opc.Ua
         {
             Initialize();
 
-            var element = new RelativePathElement();
-
-            element.ReferenceTypeId = referenceTypeId;
-            element.IsInverse = isInverse;
-            element.IncludeSubtypes = includeSubtypes;
-            element.TargetName = browseName;
+            var element = new RelativePathElement {
+                ReferenceTypeId = referenceTypeId,
+                IsInverse = isInverse,
+                IncludeSubtypes = includeSubtypes,
+                TargetName = browseName
+            };
 
             m_elements.Add(element);
         }
@@ -94,12 +94,12 @@ namespace Opc.Ua
 
             foreach (RelativePathFormatter.Element element in formatter.Elements)
             {
-                var parsedElement = new RelativePathElement();
-
-                parsedElement.ReferenceTypeId = null;
-                parsedElement.IsInverse = false;
-                parsedElement.IncludeSubtypes = element.IncludeSubtypes;
-                parsedElement.TargetName = element.TargetName;
+                var parsedElement = new RelativePathElement {
+                    ReferenceTypeId = null,
+                    IsInverse = false,
+                    IncludeSubtypes = element.IncludeSubtypes,
+                    TargetName = element.TargetName
+                };
 
                 switch (element.ElementType)
                 {
@@ -153,12 +153,12 @@ namespace Opc.Ua
 
             foreach (RelativePathFormatter.Element element in formatter.Elements)
             {
-                var parsedElement = new RelativePathElement();
-
-                parsedElement.ReferenceTypeId = null;
-                parsedElement.IsInverse = false;
-                parsedElement.IncludeSubtypes = element.IncludeSubtypes;
-                parsedElement.TargetName = element.TargetName;
+                var parsedElement = new RelativePathElement {
+                    ReferenceTypeId = null,
+                    IsInverse = false,
+                    IncludeSubtypes = element.IncludeSubtypes,
+                    TargetName = element.TargetName
+                };
 
                 switch (element.ElementType)
                 {

@@ -215,10 +215,8 @@ namespace Opc.Ua.Security.Certificates.Tests
                 Assert.AreEqual(2, x509Crl.CrlExtensions.Count);
             }
 
-            using (X509Certificate2 issuerPubKey = X509CertificateLoader.LoadCertificate(m_issuerCert.RawData))
-            {
-                Assert.True(x509Crl.VerifySignature(issuerPubKey, true));
-            }
+            using X509Certificate2 issuerPubKey = X509CertificateLoader.LoadCertificate(m_issuerCert.RawData);
+            Assert.True(x509Crl.VerifySignature(issuerPubKey, true));
         }
 
         /// <summary>
@@ -247,20 +245,16 @@ namespace Opc.Ua.Security.Certificates.Tests
 #if ECC_SUPPORT
             if (X509PfxUtils.IsECDsaSignature(m_issuerCert))
             {
-                using (ECDsa ecdsa = m_issuerCert.GetECDsaPrivateKey())
-                {
-                    var generator = X509SignatureGenerator.CreateForECDsa(ecdsa);
-                    ix509Crl = crlBuilder.CreateSignature(generator);
-                }
+                using ECDsa ecdsa = m_issuerCert.GetECDsaPrivateKey();
+                var generator = X509SignatureGenerator.CreateForECDsa(ecdsa);
+                ix509Crl = crlBuilder.CreateSignature(generator);
             }
             else
 #endif
             {
-                using (RSA rsa = m_issuerCert.GetRSAPrivateKey())
-                {
-                    var generator = X509SignatureGenerator.CreateForRSA(rsa, RSASignaturePadding.Pkcs1);
-                    ix509Crl = crlBuilder.CreateSignature(generator);
-                }
+                using RSA rsa = m_issuerCert.GetRSAPrivateKey();
+                var generator = X509SignatureGenerator.CreateForRSA(rsa, RSASignaturePadding.Pkcs1);
+                ix509Crl = crlBuilder.CreateSignature(generator);
             }
             var x509Crl = new X509CRL(ix509Crl);
             Assert.NotNull(x509Crl);
@@ -273,10 +267,8 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.AreEqual(serial, x509Crl.RevokedCertificates[0].UserCertificate);
             Assert.AreEqual(serstring, x509Crl.RevokedCertificates[1].SerialNumber);
             Assert.AreEqual(2, x509Crl.CrlExtensions.Count);
-            using (X509Certificate2 issuerPubKey = X509CertificateLoader.LoadCertificate(m_issuerCert.RawData))
-            {
-                Assert.True(x509Crl.VerifySignature(issuerPubKey, true));
-            }
+            using X509Certificate2 issuerPubKey = X509CertificateLoader.LoadCertificate(m_issuerCert.RawData);
+            Assert.True(x509Crl.VerifySignature(issuerPubKey, true));
         }
 
         /// <summary>
@@ -333,7 +325,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             stringBuilder.AppendLine("RevokedCertificates:");
             foreach (RevokedCertificate revokedCert in x509Crl.RevokedCertificates)
             {
-                stringBuilder.AppendFormat(CultureInfo.InvariantCulture, "{0:20}", revokedCert.SerialNumber).Append(", ").Append(revokedCert.RevocationDate).Append(", ");
+                stringBuilder.AppendFormat(CultureInfo.InvariantCulture, "{0:20}, ", revokedCert.SerialNumber).Append(revokedCert.RevocationDate).Append(", ");
                 foreach (X509Extension entryExt in revokedCert.CrlEntryExtensions)
                 {
                     stringBuilder.Append(entryExt.Format(false)).Append(' ');

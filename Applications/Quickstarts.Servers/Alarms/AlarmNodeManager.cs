@@ -587,9 +587,9 @@ namespace Alarms
                 if (splitString.Length >= 2)
                 {
 #if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
-                    sourceName = splitString[splitString.Length - 1].Replace("Source", "", StringComparison.Ordinal);
+                    sourceName = splitString[^1].Replace("Source", "", StringComparison.Ordinal);
 #else
-                    sourceName = splitString[splitString.Length - 1].Replace("Source", "");
+                    sourceName = splitString[^1].Replace("Source", "");
 #endif
                 }
             }

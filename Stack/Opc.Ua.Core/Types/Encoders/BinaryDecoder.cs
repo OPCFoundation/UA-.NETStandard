@@ -11,7 +11,9 @@
 */
 
 using System;
+#if NET6_0_OR_GREATER
 using System.Buffers;
+#endif
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -164,10 +166,8 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(context));
             }
 
-            using (var decoder = new BinaryDecoder(stream, context))
-            {
-                return decoder.DecodeMessage(expectedType);
-            }
+            using var decoder = new BinaryDecoder(stream, context);
+            return decoder.DecodeMessage(expectedType);
         }
 
         /// <summary>
@@ -185,32 +185,30 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(context));
             }
 
-            using (var decoder = new BinaryDecoder(buffer, context))
+            using var decoder = new BinaryDecoder(buffer, context);
+            // read the node id.
+            NodeId typeId = decoder.ReadNodeId(null);
+
+            // convert to absolute node id.
+            var absoluteId = NodeId.ToExpandedNodeId(typeId, context.NamespaceUris);
+
+            // lookup message session-less envelope type.
+            Type actualType = context.Factory.GetSystemType(absoluteId);
+
+            if (actualType == null || actualType != typeof(SessionlessInvokeRequestType))
             {
-                // read the node id.
-                NodeId typeId = decoder.ReadNodeId(null);
-
-                // convert to absolute node id.
-                var absoluteId = NodeId.ToExpandedNodeId(typeId, context.NamespaceUris);
-
-                // lookup message session-less envelope type.
-                Type actualType = context.Factory.GetSystemType(absoluteId);
-
-                if (actualType == null || actualType != typeof(SessionlessInvokeRequestType))
-                {
-                    throw ServiceResultException.Create(StatusCodes.BadDecodingError,
-                        "Cannot decode session-less service message with type id: {0}.", absoluteId);
-                }
-
-                // decode the actual message.
-                var message = new SessionLessServiceMessage();
-
-                message.Decode(decoder);
-
-                decoder.Close();
-
-                return message.Message;
+                throw ServiceResultException.Create(StatusCodes.BadDecodingError,
+                    "Cannot decode session-less service message with type id: {0}.", absoluteId);
             }
+
+            // decode the actual message.
+            var message = new SessionLessServiceMessage();
+
+            message.Decode(decoder);
+
+            decoder.Close();
+
+            return message.Message;
         }
 
         /// <summary>
@@ -228,10 +226,8 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(context));
             }
 
-            using (var decoder = new BinaryDecoder(buffer, context))
-            {
-                return decoder.DecodeMessage(expectedType);
-            }
+            using var decoder = new BinaryDecoder(buffer, context);
+            return decoder.DecodeMessage(expectedType);
         }
 
         /// <summary>
@@ -566,11 +562,9 @@ namespace Opc.Ua
                     utf8StringLength--;
                 }
                 string xmlString = Encoding.UTF8.GetString(bytes, 0, utf8StringLength);
-                using (var stream = new StringReader(xmlString))
-                using (var reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings()))
-                {
-                    document.Load(reader);
-                }
+                using var stream = new StringReader(xmlString);
+                using var reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings());
+                document.Load(reader);
             }
             catch (XmlException)
             {
@@ -794,7 +788,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(systemType));
             }
 
-            if (!(Activator.CreateInstance(systemType) is IEncodeable encodeable))
+            if (Activator.CreateInstance(systemType) is not IEncodeable encodeable)
             {
                 throw ServiceResultException.Create(StatusCodes.BadDecodingError,
                     "Cannot decode type '{0}'.", systemType.FullName);
@@ -1576,7 +1570,10 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public uint ReadEncodingMask(IList<string> masks) => ReadUInt32("EncodingMask");
+        public uint ReadEncodingMask(IList<string> masks)
+        {
+            return ReadUInt32("EncodingMask");
+        }
 
         /// <summary>
         /// Reads a DiagnosticInfo from the stream.
@@ -2129,23 +2126,21 @@ namespace Opc.Ua
                 if (systemType != null && extension.Body != null)
                 {
                     var element = extension.Body as XmlElement;
-                    using (var xmlDecoder = new XmlDecoder(element, Context))
+                    using var xmlDecoder = new XmlDecoder(element, Context);
+                    try
                     {
-                        try
-                        {
-                            xmlDecoder.PushNamespace(element.NamespaceURI);
-                            IEncodeable body = xmlDecoder.ReadEncodeable(element.LocalName, systemType, extension.TypeId);
-                            xmlDecoder.PopNamespace();
+                        xmlDecoder.PushNamespace(element.NamespaceURI);
+                        IEncodeable body = xmlDecoder.ReadEncodeable(element.LocalName, systemType, extension.TypeId);
+                        xmlDecoder.PopNamespace();
 
-                            // update body.
-                            extension.Body = body;
+                        // update body.
+                        extension.Body = body;
 
-                            xmlDecoder.Close();
-                        }
-                        catch (Exception e)
-                        {
-                            Utils.LogError("Could not decode known type {0} encoded as Xml. Error={1}, Value={2}", systemType.FullName, e.Message, element.OuterXml);
-                        }
+                        xmlDecoder.Close();
+                    }
+                    catch (Exception e)
+                    {
+                        Utils.LogError("Could not decode known type {0} encoded as Xml. Error={1}, Value={2}", systemType.FullName, e.Message, element.OuterXml);
                     }
                 }
 

@@ -132,12 +132,10 @@ namespace Opc.Ua.Client
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = discoverTimeout > 0 ? discoverTimeout : DefaultDiscoverTimeout;
 
-            using (var client = DiscoveryClient.Create(application, connection, endpointConfiguration))
-            {
-                var url = new Uri(client.Endpoint.EndpointUrl);
-                EndpointDescriptionCollection endpoints = client.GetEndpoints(null);
-                return SelectEndpoint(application, url, endpoints, useSecurity);
-            }
+            using var client = DiscoveryClient.Create(application, connection, endpointConfiguration);
+            var url = new Uri(client.Endpoint.EndpointUrl);
+            EndpointDescriptionCollection endpoints = client.GetEndpoints(null);
+            return SelectEndpoint(application, url, endpoints, useSecurity);
         }
 
         /// <summary>
@@ -174,25 +172,23 @@ namespace Opc.Ua.Client
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = discoverTimeout;
 
-            using (var client = DiscoveryClient.Create(application, uri, endpointConfiguration))
+            using var client = DiscoveryClient.Create(application, uri, endpointConfiguration);
+            // Connect to the server's discovery endpoint and find the available configuration.
+            var url = new Uri(client.Endpoint.EndpointUrl);
+            EndpointDescriptionCollection endpoints = client.GetEndpoints(null);
+            EndpointDescription selectedEndpoint = SelectEndpoint(application, url, endpoints, useSecurity);
+
+            Uri endpointUrl = Utils.ParseUri(selectedEndpoint.EndpointUrl);
+            if (endpointUrl != null && endpointUrl.Scheme == uri.Scheme)
             {
-                // Connect to the server's discovery endpoint and find the available configuration.
-                var url = new Uri(client.Endpoint.EndpointUrl);
-                EndpointDescriptionCollection endpoints = client.GetEndpoints(null);
-                EndpointDescription selectedEndpoint = SelectEndpoint(application, url, endpoints, useSecurity);
-
-                Uri endpointUrl = Utils.ParseUri(selectedEndpoint.EndpointUrl);
-                if (endpointUrl != null && endpointUrl.Scheme == uri.Scheme)
-                {
-                    var builder = new UriBuilder(endpointUrl) {
-                        Host = uri.DnsSafeHost,
-                        Port = uri.Port
-                    };
-                    selectedEndpoint.EndpointUrl = builder.ToString();
-                }
-
-                return selectedEndpoint;
+                var builder = new UriBuilder(endpointUrl) {
+                    Host = uri.DnsSafeHost,
+                    Port = uri.Port
+                };
+                selectedEndpoint.EndpointUrl = builder.ToString();
             }
+
+            return selectedEndpoint;
         }
 
         /// <summary>

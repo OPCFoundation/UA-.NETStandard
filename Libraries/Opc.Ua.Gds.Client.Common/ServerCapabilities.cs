@@ -91,23 +91,21 @@ namespace Opc.Ua.Gds.Client
 
             if (istrm != null)
             {
-                using (var reader = new StreamReader(istrm))
+                using var reader = new StreamReader(istrm);
+                string line = reader.ReadLine();
+
+                while (line != null)
                 {
-                    string line = reader.ReadLine();
+                    int index = line.IndexOf(',', StringComparison.Ordinal);
 
-                    while (line != null)
+                    if (index >= 0)
                     {
-                        int index = line.IndexOf(',', StringComparison.Ordinal);
-
-                        if (index >= 0)
-                        {
-                            string id = line[..index].Trim();
-                            string description = line[(index + 1)..].Trim();
-                            capabilities.Add(new ServerCapability() { Id = id, Description = description });
-                        }
-
-                        line = reader.ReadLine();
+                        string id = line[..index].Trim();
+                        string description = line[(index + 1)..].Trim();
+                        capabilities.Add(new ServerCapability() { Id = id, Description = description });
                     }
+
+                    line = reader.ReadLine();
                 }
             }
 

@@ -174,7 +174,7 @@ namespace Opc.Ua.Bindings
                 {
                     lock (m_lock)
                     {
-                        // Dispose the event 
+                        // Dispose the event
                         if (m_event != null)
                         {
                             m_event.Dispose();
@@ -389,9 +389,9 @@ namespace Opc.Ua.Bindings
                     return false;
                 }
 
-                if (result is T)
+                if (result is T typed)
                 {
-                    m_response = (T)result;
+                    m_response = typed;
                 }
                 else
                 {

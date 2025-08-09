@@ -93,20 +93,18 @@ namespace Opc.Ua.Security.Certificates.Tests
                     continue;
                 }
 
-                using (X509Certificate2 cert = builder
+                using X509Certificate2 cert = builder
                     .SetHashAlgorithm(eCCurveHash.HashAlgorithmName)
                     .SetECCurve(eCCurveHash.Curve)
-                    .CreateForECDsa())
-                {
-                    Assert.NotNull(cert);
-                    WriteCertificate(cert, $"Default cert with ECDsa {eCCurveHash.Curve.Oid.FriendlyName} {eCCurveHash.HashAlgorithmName} signature.");
-                    Assert.AreEqual(eCCurveHash.HashAlgorithmName, Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
-                    // ensure serial numbers are different
-                    Assert.AreNotEqual(previousSerialNumber, cert.GetSerialNumber());
-                    X509PfxUtils.VerifyECDsaKeyPair(cert, cert, true);
-                    Assert.True(X509Utils.VerifySelfSigned(cert));
-                    CheckPEMWriterReader(cert);
-                }
+                    .CreateForECDsa();
+                Assert.NotNull(cert);
+                WriteCertificate(cert, $"Default cert with ECDsa {eCCurveHash.Curve.Oid.FriendlyName} {eCCurveHash.HashAlgorithmName} signature.");
+                Assert.AreEqual(eCCurveHash.HashAlgorithmName, Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
+                // ensure serial numbers are different
+                Assert.AreNotEqual(previousSerialNumber, cert.GetSerialNumber());
+                X509PfxUtils.VerifyECDsaKeyPair(cert, cert, true);
+                Assert.True(X509Utils.VerifySelfSigned(cert));
+                CheckPEMWriterReader(cert);
             }
         }
 
@@ -270,7 +268,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             ICertificateBuilder builder = CertificateBuilder.Create(Subject)
                 .SetSerialNumber(serial);
 
-            serial[serial.Length - 1] &= 0x7f;
+            serial[^1] &= 0x7f;
             Assert.AreEqual(serial, builder.GetSerialNumber());
             X509Certificate2 cert1 = builder.SetECCurve(eccurve).CreateForECDsa();
             WriteCertificate(cert1, "Cert1 with max length serial number");
@@ -340,14 +338,12 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             // ensure invalid path throws argument exception
             NUnit.Framework.Assert.Throws<NotSupportedException>(() => {
-                using (ECDsa ecdsaPrivateKey = signingCert.GetECDsaPrivateKey())
-                {
-                    var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey);
-                    X509Certificate2 cert = CertificateBuilder.Create("CN=App Cert")
-                        .SetHashAlgorithm(ecCurveHashPair.HashAlgorithmName)
-                        .SetECCurve(ecCurveHashPair.Curve)
-                        .CreateForECDsa(generator);
-                }
+                using ECDsa ecdsaPrivateKey = signingCert.GetECDsaPrivateKey();
+                var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey);
+                X509Certificate2 cert = CertificateBuilder.Create("CN=App Cert")
+                    .SetHashAlgorithm(ecCurveHashPair.HashAlgorithmName)
+                    .SetECCurve(ecCurveHashPair.Curve)
+                    .CreateForECDsa(generator);
             });
         }
 
@@ -365,20 +361,18 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             WriteCertificate(signingCert, $"Signing ECDsa {signingCert.GetECDsaPublicKey().KeySize} cert");
 
-            using (ECDsa ecdsaPrivateKey = signingCert.GetECDsaPrivateKey())
-            using (ECDsa ecdsaPublicKey = signingCert.GetECDsaPublicKey())
-            {
-                byte[] pubKeyBytes = GetPublicKey(ecdsaPublicKey);
+            using ECDsa ecdsaPrivateKey = signingCert.GetECDsaPrivateKey();
+            using ECDsa ecdsaPublicKey = signingCert.GetECDsaPublicKey();
+            byte[] pubKeyBytes = GetPublicKey(ecdsaPublicKey);
 
-                var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey);
-                X509Certificate2 cert = CertificateBuilder.Create("CN=App Cert")
-                    .SetHashAlgorithm(ecCurveHashPair.HashAlgorithmName)
-                    .SetIssuer(X509CertificateLoader.LoadCertificate(signingCert.RawData))
-                    .SetECDsaPublicKey(pubKeyBytes)
-                    .CreateForECDsa(generator);
-                Assert.NotNull(cert);
-                WriteCertificate(cert, "Default signed ECDsa cert with Public Key");
-            }
+            var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey);
+            X509Certificate2 cert = CertificateBuilder.Create("CN=App Cert")
+                .SetHashAlgorithm(ecCurveHashPair.HashAlgorithmName)
+                .SetIssuer(X509CertificateLoader.LoadCertificate(signingCert.RawData))
+                .SetECDsaPublicKey(pubKeyBytes)
+                .CreateForECDsa(generator);
+            Assert.NotNull(cert);
+            WriteCertificate(cert, "Default signed ECDsa cert with Public Key");
         }
 
         private static void WriteCertificate(X509Certificate2 cert, string message)

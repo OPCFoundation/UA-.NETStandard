@@ -968,13 +968,11 @@ namespace Opc.Ua.PubSub.Tests.Transport
         private static List<ushort> CreateDataSetWriterIdsList(UaPubSubApplication uaPubSubApplication)
         {
             var ids = new List<ushort>();
-
             foreach (PubSubConnectionDataType connection in uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration.Connections)
             {
                 ids.AddRange(connection.WriterGroups
                     .Select(group => group.DataSetWriters)
-                    .SelectMany(writer => writer.Select(x => x.DataSetWriterId))
-                    .ToList());
+                    .SelectMany(writer => writer.Select(x => x.DataSetWriterId)));
             }
             return ids;
         }

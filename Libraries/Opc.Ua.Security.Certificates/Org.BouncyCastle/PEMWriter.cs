@@ -29,7 +29,6 @@
 
 #if !NETSTANDARD2_1 && !NET5_0_OR_GREATER
 using System;
-using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Opc.Ua.Security.Certificates.BouncyCastle;

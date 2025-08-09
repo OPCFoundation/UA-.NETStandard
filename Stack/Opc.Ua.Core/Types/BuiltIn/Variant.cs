@@ -773,7 +773,7 @@ namespace Opc.Ua
         [DataMember(Name = "Value", Order = 1)]
         internal XmlElement XmlEncodedValue
         {
-            get
+            readonly get
             {
                 // check for null.
                 if (m_value == null)
@@ -782,18 +782,16 @@ namespace Opc.Ua
                 }
 
                 // create encoder.
-                using (var encoder = new XmlEncoder(MessageContextExtension.CurrentContext))
-                {
-                    // write value.
-                    encoder.WriteVariantContents(m_value, m_typeInfo);
+                using var encoder = new XmlEncoder(MessageContextExtension.CurrentContext);
+                // write value.
+                encoder.WriteVariantContents(m_value, m_typeInfo);
 
-                    // create document from encoder.
-                    var document = new XmlDocument();
-                    document.LoadInnerXml(encoder.CloseAndReturnText());
+                // create document from encoder.
+                var document = new XmlDocument();
+                document.LoadInnerXml(encoder.CloseAndReturnText());
 
-                    // return element.
-                    return document.DocumentElement;
-                }
+                // return element.
+                return document.DocumentElement;
             }
 
             set
@@ -808,26 +806,24 @@ namespace Opc.Ua
                 TypeInfo typeInfo = null;
 
                 // create decoder.
-                using (var decoder = new XmlDecoder(value, MessageContextExtension.CurrentContext))
+                using var decoder = new XmlDecoder(value, MessageContextExtension.CurrentContext);
+                try
                 {
-                    try
-                    {
-                        // read value.
-                        object body = decoder.ReadVariantContents(out typeInfo);
-                        Set(body, typeInfo);
-                    }
-                    catch (Exception e)
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadDecodingError,
-                            e,
-                            "Error decoding Variant value.");
-                    }
-                    finally
-                    {
-                        // close decoder.
-                        decoder.Close();
-                    }
+                    // read value.
+                    object body = decoder.ReadVariantContents(out typeInfo);
+                    Set(body, typeInfo);
+                }
+                catch (Exception e)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        e,
+                        "Error decoding Variant value.");
+                }
+                finally
+                {
+                    // close decoder.
+                    decoder.Close();
                 }
             }
         }
@@ -840,13 +836,13 @@ namespace Opc.Ua
         /// </remarks>
         public object Value
         {
-            get => m_value; set => Set(value, TypeInfo.Construct(value));
+            readonly get => m_value; set => Set(value, TypeInfo.Construct(value));
         }
 
         /// <summary>
         /// The type information for the matrix.
         /// </summary>
-        public TypeInfo TypeInfo => m_typeInfo;
+        public readonly TypeInfo TypeInfo => m_typeInfo;
 
         /// <summary>
         /// Returns the string representation of the object.
@@ -857,7 +853,7 @@ namespace Opc.Ua
         /// <exception cref="FormatException">Thrown when the 'format' argument is NOT null.</exception>
         /// <param name="format">(Unused) Always pass a NULL value</param>
         /// <param name="formatProvider">The format-provider to use. If unsure, pass an empty string or null</param>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public readonly string ToString(string format, IFormatProvider formatProvider)
         {
             if (format == null)
             {
@@ -890,7 +886,7 @@ namespace Opc.Ua
         /// <summary>
         /// Formats a value as a string.
         /// </summary>
-        private void AppendFormat(StringBuilder buffer, object value, IFormatProvider formatProvider)
+        private readonly void AppendFormat(StringBuilder buffer, object value, IFormatProvider formatProvider)
         {
             // check for null.
             if (value == null || m_typeInfo == null)
@@ -958,7 +954,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public object Clone()
+        public readonly object Clone()
         {
             return MemberwiseClone();
         }
@@ -969,7 +965,7 @@ namespace Opc.Ua
         /// <remarks>
         /// Makes a deep copy of the object.
         /// </remarks>
-        public new object MemberwiseClone()
+        public new readonly object MemberwiseClone()
         {
             return new Variant(Utils.Clone(Value));
         }
@@ -1539,7 +1535,7 @@ namespace Opc.Ua
         /// Determines if the specified object is equal to the object.
         /// Implements <see cref="IEquatable{Variant}.Equals(Variant)"/>.
         /// </summary>
-        public bool Equals(Variant other)
+        public readonly bool Equals(Variant other)
         {
             return Utils.IsEqual(m_value, other.m_value);
         }
@@ -1555,7 +1551,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns if the Variant is a Null value.
         /// </summary>
-        public bool IsNull => m_value == null;
+        public readonly bool IsNull => m_value == null;
 
         /// <summary>
         /// Determines if the specified object is equal to the object.
@@ -1563,7 +1559,7 @@ namespace Opc.Ua
         /// <remarks>
         /// Determines if the specified object is equal to the object.
         /// </remarks>
-        public override bool Equals(object obj)
+        public override readonly bool Equals(object obj)
         {
             var variant = obj as Variant?;
 
@@ -1578,7 +1574,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns a unique hashcode for the object.
         /// </summary>
-        public override int GetHashCode()
+        public override readonly int GetHashCode()
         {
             if (m_value != null)
             {
@@ -1591,7 +1587,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts the value to a human readable string.
         /// </summary>
-        public override string ToString()
+        public override readonly string ToString()
         {
             return ToString(null, null);
         }

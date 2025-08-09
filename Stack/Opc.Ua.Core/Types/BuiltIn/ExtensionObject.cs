@@ -275,9 +275,6 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
-        /// <remarks>
-        /// Initializes the object with default values.
-        /// </remarks>
         public ExtensionObject()
         {
             TypeId = ExpandedNodeId.Null;
@@ -290,9 +287,6 @@ namespace Opc.Ua
         /// Creates a deep copy of the value.
         /// </summary>
         /// <param name="value">The value to be copied.</param>
-        /// <remarks>
-        /// Creates a deep copy of the value.
-        /// </remarks>
         /// <exception cref="ArgumentNullException">Thrown when the value is null</exception>
         public ExtensionObject(ExtensionObject value)
         {
@@ -329,9 +323,6 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="typeId">The type describing the body</param>
         /// <param name="body">The underlying data/body to wrap</param>
-        /// <remarks>
-        /// Initializes the object with an encodeable object.
-        /// </remarks>
         public ExtensionObject(ExpandedNodeId typeId, object body)
         {
             TypeId = typeId;
@@ -583,11 +574,9 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="extension">The object to check if null</param>
         /// <returns>
-        /// 	<c>true</c> if the specified <paramref name="extension"/> is null of the embedded object is null; otherwise, <c>false</c>.
+        /// <c>true</c> if the specified <paramref name="extension"/> is null
+        /// of the embedded object is null; otherwise, <c>false</c>.
         /// </returns>
-        /// <remarks>
-        /// Tests is the  extension object is null value.
-        /// </remarks>
         public static bool IsNull(ExtensionObject extension)
         {
             return extension == null || extension.m_body == null;
@@ -598,9 +587,6 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="extension">The extension object to convert to an encodeable object</param>
         /// <returns>Instance of <see cref="IEncodeable"/> for the embedded object.</returns>
-        /// <remarks>
-        /// Converts an extension object to an encodeable object.
-        /// </remarks>
         public static IEncodeable ToEncodeable(ExtensionObject extension)
         {
             if (extension == null)
@@ -717,18 +703,16 @@ namespace Opc.Ua
                 }
 
                 // create encoder.
-                using (var encoder = new XmlEncoder(m_context))
-                {
-                    // write body.
-                    encoder.WriteExtensionObjectBody(m_body);
+                using var encoder = new XmlEncoder(m_context);
+                // write body.
+                encoder.WriteExtensionObjectBody(m_body);
 
-                    // create document from encoder.
-                    var document = new XmlDocument();
-                    document.LoadInnerXml(encoder.CloseAndReturnText());
+                // create document from encoder.
+                var document = new XmlDocument();
+                document.LoadInnerXml(encoder.CloseAndReturnText());
 
-                    // return root element.
-                    return document.DocumentElement;
-                }
+                // return root element.
+                return document.DocumentElement;
             }
 
             set
@@ -741,29 +725,27 @@ namespace Opc.Ua
                 }
 
                 // create decoder.
-                using (XmlDecoder decoder = new XmlDecoder(value, m_context))
+                using var decoder = new XmlDecoder(value, m_context);
+                // read body.
+                Body = decoder.ReadExtensionObjectBody(TypeId);
+
+                // clear the type id for encodeables.
+                if (m_body is IEncodeable)
                 {
-                    // read body.
-                    Body = decoder.ReadExtensionObjectBody(TypeId);
+                    TypeId = ExpandedNodeId.Null;
+                }
 
-                    // clear the type id for encodeables.
-                    if (m_body is IEncodeable)
-                    {
-                        TypeId = ExpandedNodeId.Null;
-                    }
-
-                    // close decoder.
-                    try
-                    {
-                        decoder.Close(true);
-                    }
-                    catch (Exception e)
-                    {
-                        throw new ServiceResultException(
-                            StatusCodes.BadDecodingError,
-                            Utils.Format("Did not read all of a extension object body: '{0}'", TypeId),
-                            e);
-                    }
+                // close decoder.
+                try
+                {
+                    decoder.Close(true);
+                }
+                catch (Exception e)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadDecodingError,
+                        Utils.Format("Did not read all of a extension object body: '{0}'", TypeId),
+                        e);
                 }
             }
         }
@@ -816,35 +798,23 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        /// <remarks>
-        /// Initializes an empty collection.
-        /// </remarks>
         public ExtensionObjectCollection() { }
 
         /// <summary>
         /// Initializes the collection from another collection.
         /// </summary>
-        /// <remarks>
-        /// Initializes the collection from another collection.
-        /// </remarks>
         /// <param name="collection">The collection containing the objects to copy into this new instance</param>
         public ExtensionObjectCollection(IEnumerable<ExtensionObject> collection) : base(collection) { }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
-        /// <remarks>
-        /// Initializes the collection with the specified capacity.
-        /// </remarks>
         /// <param name="capacity">Max capacity of the collection</param>
         public ExtensionObjectCollection(int capacity) : base(capacity) { }
 
         /// <summary>
         /// Converts an array of ExtensionObjects to a collection.
         /// </summary>
-        /// <remarks>
-        /// Converts an array of ExtensionObjects to a collection.
-        /// </remarks>
         /// <param name="values">An array of ExtensionObjects to convert to a collection</param>
         public static implicit operator ExtensionObjectCollection(ExtensionObject[] values)
         {
@@ -859,9 +829,6 @@ namespace Opc.Ua
         /// <summary>
         /// Converts an encodeable object to an extension object.
         /// </summary>
-        /// <remarks>
-        /// Converts an encodeable object to an extension object.
-        /// </remarks>
         /// <param name="encodeables">An enumerable array of ExtensionObjects to convert to a collection</param>
         public static ExtensionObjectCollection ToExtensionObjects(IEnumerable<IEncodeable> encodeables)
         {
@@ -905,9 +872,6 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
-        /// <remarks>
-        /// Creates a deep copy of the collection.
-        /// </remarks>
         public new object MemberwiseClone()
         {
             var clone = new ExtensionObjectCollection(Count);

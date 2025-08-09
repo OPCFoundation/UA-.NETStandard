@@ -52,7 +52,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         /// <summary>
         /// Load the JSON application database.
         /// </summary>
-        static public JsonApplicationsDatabase Load(string fileName)
+        public static JsonApplicationsDatabase Load(string fileName)
         {
             if (fileName == null)
             {

@@ -328,7 +328,7 @@ namespace Opc.Ua
                     // see if a remote node needs to be created.
                     if (targetId.ServerIndex != 0)
                     {
-                        if (!(Find(targetId) is RemoteNode remoteNode))
+                        if (Find(targetId) is not RemoteNode remoteNode)
                         {
                             remoteNode = new RemoteNode(this, targetId);
                             InternalAdd(remoteNode);
@@ -358,7 +358,7 @@ namespace Opc.Ua
                 // add reverse references.
                 foreach (IReference reference in node.ReferenceTable)
                 {
-                    if (!(Find(reference.TargetId) is Node targetNode))
+                    if (Find(reference.TargetId) is not Node targetNode)
                     {
                         if (reference.TargetId.ServerIndex != 0)
                         {
@@ -382,11 +382,11 @@ namespace Opc.Ua
                                 externalReferences[targetId] = referenceList = [];
                             }
 
-                            var reverseReference = new ReferenceNode();
-
-                            reverseReference.ReferenceTypeId = reference.ReferenceTypeId;
-                            reverseReference.IsInverse = !reference.IsInverse;
-                            reverseReference.TargetId = node.NodeId;
+                            var reverseReference = new ReferenceNode {
+                                ReferenceTypeId = reference.ReferenceTypeId,
+                                IsInverse = !reference.IsInverse,
+                                TargetId = node.NodeId
+                            };
 
                             referenceList.Add(reverseReference);
                         }
@@ -432,9 +432,9 @@ namespace Opc.Ua
                 }
                 else
                 {
-                    var node = new Node();
-
-                    node.NodeId = ExpandedNodeId.ToNodeId(reference.NodeId, NamespaceUris);
+                    var node = new Node {
+                        NodeId = ExpandedNodeId.ToNodeId(reference.NodeId, NamespaceUris)
+                    };
 
                     InternalAdd(node);
                     target = node;
@@ -506,7 +506,7 @@ namespace Opc.Ua
                     // see if a remote node needs to be created.
                     if (reference.TargetId.ServerIndex != 0)
                     {
-                        if (!(Find(reference.TargetId) is RemoteNode remoteNode))
+                        if (Find(reference.TargetId) is not RemoteNode remoteNode)
                         {
                             remoteNode = new RemoteNode(this, reference.TargetId);
                             InternalAdd(remoteNode);
@@ -526,7 +526,7 @@ namespace Opc.Ua
             // add reverse references.
             foreach (IReference reference in node.References)
             {
-                if (!(Find(reference.TargetId) is ILocalNode targetNode))
+                if (Find(reference.TargetId) is not ILocalNode targetNode)
                 {
                     continue;
                 }

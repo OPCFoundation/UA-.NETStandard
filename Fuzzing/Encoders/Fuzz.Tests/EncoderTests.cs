@@ -113,10 +113,8 @@ namespace Opc.Ua.Fuzzing
             }
             else if (typeof(Stream).IsAssignableFrom(parameters[0].ParameterType))
             {
-                using (var stream = new MemoryStream(blob))
-                {
-                    _ = fuzzableCode.MethodInfo.Invoke(null, [stream]);
-                }
+                using var stream = new MemoryStream(blob);
+                _ = fuzzableCode.MethodInfo.Invoke(null, [stream]);
             }
             else if (parameters[0].ParameterType == typeof(ReadOnlySpan<byte>))
             {

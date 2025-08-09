@@ -642,24 +642,22 @@ namespace Opc.Ua.PubSub.Tests.Transport
                     mosquittoProcess.Kill();
                 }
 
-                using (var process = new Process())
-                {
-                    string programFilesPath = Environment.Is64BitOperatingSystem ?
-                        Environment.GetEnvironmentVariable("ProgramW6432") :
-                        Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+                using var process = new Process();
+                string programFilesPath = Environment.Is64BitOperatingSystem ?
+                    Environment.GetEnvironmentVariable("ProgramW6432") :
+                    Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
 
-                    var startInfo =
-                   new ProcessStartInfo(
-                      Path.Combine(programFilesPath, Path.Combine(DefaultBrokerProcessName, $"{DefaultBrokerProcessName}.exe")));
-                    startInfo.WindowStyle = ProcessWindowStyle.Hidden;
-                    //startInfo.CreateNoWindow = true;
-                    //startInfo.RedirectStandardOutput = true;
-                    //startInfo.UseShellExecute = true;
-                    //startInfo.Verb = "runas";
-                    startInfo.Arguments = arguments;
-                    process.StartInfo = startInfo;
-                    process.Start();
-                }
+                var startInfo =
+               new ProcessStartInfo(
+                  Path.Combine(programFilesPath, Path.Combine(DefaultBrokerProcessName, $"{DefaultBrokerProcessName}.exe")));
+                startInfo.WindowStyle = ProcessWindowStyle.Hidden;
+                //startInfo.CreateNoWindow = true;
+                //startInfo.RedirectStandardOutput = true;
+                //startInfo.UseShellExecute = true;
+                //startInfo.Verb = "runas";
+                startInfo.Arguments = arguments;
+                process.StartInfo = startInfo;
+                process.Start();
             }
             catch (Exception)
             {

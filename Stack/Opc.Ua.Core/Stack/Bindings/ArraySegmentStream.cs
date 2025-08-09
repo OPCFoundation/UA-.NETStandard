@@ -37,7 +37,7 @@ namespace Opc.Ua.Bindings
 
             if (m_buffers.Count > 0)
             {
-                m_endOfLastBuffer = m_buffers[m_buffers.Count - 1].Count;
+                m_endOfLastBuffer = m_buffers[^1].Count;
             }
 
             SetCurrentBuffer(0);
@@ -208,7 +208,10 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Helper to benchmark the performance of the stream.
         /// </summary>
-        internal int ReadMemoryStream(Span<byte> buffer) => base.Read(buffer);
+        internal int ReadMemoryStream(Span<byte> buffer)
+        {
+            return base.Read(buffer);
+        }
 
         /// <inheritdoc/>
         public override int Read(Span<byte> buffer)
@@ -384,7 +387,10 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Helper to benchmark the performance of the stream.
         /// </summary>
-        internal void WriteMemoryStream(ReadOnlySpan<byte> buffer) => base.Write(buffer);
+        internal void WriteMemoryStream(ReadOnlySpan<byte> buffer)
+        {
+            base.Write(buffer);
+        }
 
         /// <inheritdoc/>
         public override void Write(ReadOnlySpan<byte> buffer)

@@ -86,8 +86,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             // for validating benchmark tests
             switch (DateTimeOmittedZeros)
             {
-                case 4: m_dateTime = new DateTime(2011, 11, 11, 11, 11, 11, 999, DateTimeKind.Utc); break;
-                case 7: m_dateTime = new DateTime(2011, 11, 11, 11, 11, 11, DateTimeKind.Utc); break;
+                case 4:
+                    m_dateTime = new DateTime(2011, 11, 11, 11, 11, 11, 999, DateTimeKind.Utc);
+                    break;
+                case 7:
+                    m_dateTime = new DateTime(2011, 11, 11, 11, 11, 11, DateTimeKind.Utc);
+                    break;
                 default:
                     do
                     {

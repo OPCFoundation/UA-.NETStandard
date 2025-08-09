@@ -142,7 +142,7 @@ namespace Opc.Ua
         /// <remarks>
         /// The 16 code bits of the status code.
         /// </remarks>
-        public uint CodeBits => Code & 0xFFFF0000;
+        public readonly uint CodeBits => Code & 0xFFFF0000;
 
         /// <summary>
         /// Returns a copy of the status code with the Code bits set.
@@ -163,7 +163,7 @@ namespace Opc.Ua
         /// <remarks>
         /// The 16 flag bits of the status code.
         /// </remarks>
-        public uint FlagBits => Code & 0x0000FFFF;
+        public readonly uint FlagBits => Code & 0x0000FFFF;
 
         /// <summary>
         /// Returns a copy of the status code with the Flag bits set.
@@ -186,7 +186,7 @@ namespace Opc.Ua
         /// </remarks>
         public uint SubCode
         {
-            get => Code & 0x0FFF0000; set => Code = 0x0FFF0000 & value;
+            readonly get => Code & 0x0FFF0000; set => Code = 0x0FFF0000 & value;
         }
 
         /// <summary>
@@ -198,7 +198,7 @@ namespace Opc.Ua
         [XmlIgnore()]
         public bool StructureChanged
         {
-            get => (Code & kStructureChangedBit) != 0;
+            readonly get => (Code & kStructureChangedBit) != 0;
 
             set
             {
@@ -233,7 +233,7 @@ namespace Opc.Ua
         [XmlIgnore()]
         public bool SemanticsChanged
         {
-            get => (Code & kSemanticsChangedBit) != 0;
+            readonly get => (Code & kSemanticsChangedBit) != 0;
 
             set
             {
@@ -268,7 +268,7 @@ namespace Opc.Ua
         [XmlIgnore()]
         public bool HasDataValueInfo
         {
-            get => (Code & kDataValueInfoType) != 0;
+            readonly get => (Code & kDataValueInfoType) != 0;
 
             set
             {
@@ -294,7 +294,7 @@ namespace Opc.Ua
         [XmlIgnore()]
         public LimitBits LimitBits
         {
-            get => (LimitBits)(Code & kLimitBits);
+            readonly get => (LimitBits)(Code & kLimitBits);
 
             set
             {
@@ -324,7 +324,7 @@ namespace Opc.Ua
         [XmlIgnore()]
         public bool Overflow
         {
-            get => ((Code & kDataValueInfoType) != 0) && ((Code & kOverflowBit) != 0);
+            readonly get => ((Code & kDataValueInfoType) != 0) && ((Code & kOverflowBit) != 0);
 
             set
             {
@@ -362,7 +362,7 @@ namespace Opc.Ua
         [XmlIgnore()]
         public AggregateBits AggregateBits
         {
-            get => (AggregateBits)(Code & kAggregateBits);
+            readonly get => (AggregateBits)(Code & kAggregateBits);
 
             set
             {
@@ -390,7 +390,7 @@ namespace Opc.Ua
         /// Compares the instance to another object.
         /// </remarks>
         /// <param name="obj">The object to compare to *this* object</param>
-        public int CompareTo(object obj)
+        public readonly int CompareTo(object obj)
         {
             // compare codes
             if (obj is StatusCode statusCode)
@@ -421,7 +421,7 @@ namespace Opc.Ua
         /// Compares the instance to another object.
         /// </remarks>
         /// <param name="other">The StatusCode to compare to *this* object</param>
-        public int CompareTo(StatusCode other)
+        public readonly int CompareTo(StatusCode other)
         {
             // check for status code.
             return Code.CompareTo(other.Code);
@@ -436,7 +436,7 @@ namespace Opc.Ua
         /// <param name="format">(Unused) The format of the string. Always specify null for this parameter</param>
         /// <param name="formatProvider">The provider to use for the formatting</param>
         /// <exception cref="FormatException">Thrown if you specify a value for the Format parameter</exception>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public readonly string ToString(string format, IFormatProvider formatProvider)
         {
             if (format == null)
             {
@@ -460,7 +460,7 @@ namespace Opc.Ua
         /// Determines if the specified object is equal to the object.
         /// </remarks>
         /// <param name="obj">The object to compare to *this* object</param>
-        public override bool Equals(object obj)
+        public override readonly bool Equals(object obj)
         {
             return CompareTo(obj) == 0;
         }
@@ -472,7 +472,7 @@ namespace Opc.Ua
         /// Determines if the specified object is equal to the object.
         /// </remarks>
         /// <param name="other">The StatusCode to compare to *this* object</param>
-        public bool Equals(StatusCode other)
+        public readonly bool Equals(StatusCode other)
         {
             return CompareTo(other) == 0;
         }
@@ -483,7 +483,7 @@ namespace Opc.Ua
         /// <remarks>
         /// Returns a unique hashcode for the object.
         /// </remarks>
-        public override int GetHashCode()
+        public override readonly int GetHashCode()
         {
             return Code.GetHashCode();
         }
@@ -494,7 +494,7 @@ namespace Opc.Ua
         /// <remarks>
         /// Converts the value to a human readable string.
         /// </remarks>
-        public override string ToString()
+        public override readonly string ToString()
         {
             var buffer = new StringBuilder();
 

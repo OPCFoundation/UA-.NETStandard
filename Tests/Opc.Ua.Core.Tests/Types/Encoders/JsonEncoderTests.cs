@@ -52,23 +52,23 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     [DisassemblyDiagnoser]
     public class JsonEncoderTests : EncoderCommon
     {
-        static readonly TestEnumType[] s_testEnumArray = [TestEnumType.One, TestEnumType.Two, TestEnumType.Hundred];
-        static readonly int[] s_testInt32Array = [2, 3, 10];
-        static readonly ExtensionObject s_testEncodeable = new(new FooBarEncodeable(999));
+        private static readonly TestEnumType[] s_testEnumArray = [TestEnumType.One, TestEnumType.Two, TestEnumType.Hundred];
+        private static readonly int[] s_testInt32Array = [2, 3, 10];
+        private static readonly ExtensionObject s_testEncodeable = new(new FooBarEncodeable(999));
 
         /// <summary>
         /// Constants used by test data set.
         /// </summary>
-        const ushort kDemoServerIndex = 3;
-        const string kDemoServer = "http://www.opcfoundation.org/DemoServer/";
-        const string kDemoServer2 = "http://www.opcfoundation.org/DemoServer2/";
-        const string kNodeIdString = "theNode";
-        const string kQualifiedName = "theName";
-        const string kLocalizedText = "theText";
-        const string kLocale = "en-us";
-        const int kNodeIdInt = 2345;
-        const long kInt64Value = -123456789123456;
-        const ulong kUInt64Value = 123456789123456;
+        private const ushort kDemoServerIndex = 3;
+        private const string kDemoServer = "http://www.opcfoundation.org/DemoServer/";
+        private const string kDemoServer2 = "http://www.opcfoundation.org/DemoServer2/";
+        private const string kNodeIdString = "theNode";
+        private const string kQualifiedName = "theName";
+        private const string kLocalizedText = "theText";
+        private const string kLocale = "en-us";
+        private const int kNodeIdInt = 2345;
+        private const long kInt64Value = -123456789123456;
+        private const ulong kUInt64Value = 123456789123456;
 
         private static readonly Guid s_nodeIdGuid = new("AABA0CFA-674F-40C7-B7FA-339D8EECB61D");
         private static readonly byte[] s_byteString = [1, 2, 3, 4, 5, 6, 7, 8, 9];
@@ -454,14 +454,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [TestCase(JsonEncodingType.Verbose)]
         public void ForcePropertiesShouldThrow(JsonEncodingType jsonEncodingType)
         {
-            using (var encoder = new JsonEncoder(Context, jsonEncodingType))
-            {
-                NUnit.Framework.Assert.Throws<NotSupportedException>(() => encoder.ForceNamespaceUri = true);
-                NUnit.Framework.Assert.Throws<NotSupportedException>(() => encoder.ForceNamespaceUriForIndex1 = true);
-                NUnit.Framework.Assert.Throws<NotSupportedException>(() => encoder.IncludeDefaultNumberValues = true);
-                NUnit.Framework.Assert.Throws<NotSupportedException>(() => encoder.IncludeDefaultValues = true);
-                NUnit.Framework.Assert.Throws<NotSupportedException>(() => encoder.EncodeNodeIdAsString = false);
-            }
+            using var encoder = new JsonEncoder(Context, jsonEncodingType);
+            NUnit.Framework.Assert.Throws<NotSupportedException>(() => encoder.ForceNamespaceUri = true);
+            NUnit.Framework.Assert.Throws<NotSupportedException>(() => encoder.ForceNamespaceUriForIndex1 = true);
+            NUnit.Framework.Assert.Throws<NotSupportedException>(() => encoder.IncludeDefaultNumberValues = true);
+            NUnit.Framework.Assert.Throws<NotSupportedException>(() => encoder.IncludeDefaultValues = true);
+            NUnit.Framework.Assert.Throws<NotSupportedException>(() => encoder.EncodeNodeIdAsString = false);
         }
 
         /// <summary>
@@ -471,16 +469,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void ConstructorDefault(bool useReversible, bool topLevelIsArray)
         {
             var context = new ServiceMessageContext();
-            using (JsonEncoder jsonEncoder = new JsonEncoder(context, useReversible, topLevelIsArray))
-            {
-                TestEncoding(jsonEncoder, topLevelIsArray);
-                string result = jsonEncoder.CloseAndReturnText();
+            using var jsonEncoder = new JsonEncoder(context, useReversible, topLevelIsArray);
+            TestEncoding(jsonEncoder, topLevelIsArray);
+            string result = jsonEncoder.CloseAndReturnText();
 
-                Assert.IsNotEmpty(result);
-                Assert.NotNull(result);
-                TestContext.Out.WriteLine("Result:");
-                _ = PrettifyAndValidateJson(result);
-            }
+            Assert.IsNotEmpty(result);
+            Assert.NotNull(result);
+            TestContext.Out.WriteLine("Result:");
+            _ = PrettifyAndValidateJson(result);
         }
 
         /// <summary>
@@ -490,10 +486,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void ConstructorMemoryStream()
         {
-            using (var memoryStream = new MemoryStream())
-            {
-                ConstructorStream(memoryStream);
-            }
+            using var memoryStream = new MemoryStream();
+            ConstructorStream(memoryStream);
         }
 
         /// <summary>
@@ -503,10 +497,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void ConstructorArraySegmentStream()
         {
-            using (var memoryStream = new ArraySegmentStream(BufferManager))
-            {
-                ConstructorStream(memoryStream);
-            }
+            using var memoryStream = new ArraySegmentStream(BufferManager);
+            ConstructorStream(memoryStream);
         }
 
         /// <summary>
@@ -519,10 +511,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             var recyclableMemoryStreamManager = new RecyclableMemoryStreamManager(new RecyclableMemoryStreamManager.Options {
                 BlockSize = BufferManager.MaxSuggestedBufferSize,
             });
-            using (var memoryStream = new RecyclableMemoryStream(recyclableMemoryStreamManager))
-            {
-                ConstructorStream(memoryStream);
-            }
+            using var memoryStream = new RecyclableMemoryStream(recyclableMemoryStreamManager);
+            ConstructorStream(memoryStream);
         }
 
         /// <summary>
@@ -556,7 +546,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             // recycle the StreamWriter, ensure the result is equal,
             // use reflection to return result in external stream
             memoryStream.Position = 0;
-            using (JsonEncoder jsonEncoder = new JsonEncoder(context, true, false, memoryStream, false))
+            using (var jsonEncoder = new JsonEncoder(context, true, false, memoryStream, false))
             {
                 TestEncoding(jsonEncoder);
                 string result3 = jsonEncoder.CloseAndReturnText();
@@ -579,58 +569,56 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void ConstructorArraySegmentStreamSequence()
         {
             var context = new ServiceMessageContext();
-            using (var memoryStream = new ArraySegmentStream(BufferManager))
+            using var memoryStream = new ArraySegmentStream(BufferManager);
+            using (var jsonEncoder = new JsonEncoder(context, true, false, memoryStream, true))
             {
-                using (var jsonEncoder = new JsonEncoder(context, true, false, memoryStream, true))
-                {
-                    TestEncoding(jsonEncoder);
-                }
+                TestEncoding(jsonEncoder);
+            }
 
-                // get the buffers and save the result
+            // get the buffers and save the result
 #if NET5_0_OR_GREATER
-                string result1;
-                using (BufferSequence sequence = memoryStream.GetSequence(nameof(ConstructorStream)))
-                {
-                    result1 = Encoding.UTF8.GetString(sequence.Sequence);
-                    Assert.IsNotEmpty(result1);
-                    TestContext.Out.WriteLine("Result1:");
-                    _ = PrettifyAndValidateJson(result1);
-                }
-#else
-                string result1 = Encoding.UTF8.GetString(memoryStream.ToArray());
+            string result1;
+            using (BufferSequence sequence = memoryStream.GetSequence(nameof(ConstructorStream)))
+            {
+                result1 = Encoding.UTF8.GetString(sequence.Sequence);
                 Assert.IsNotEmpty(result1);
                 TestContext.Out.WriteLine("Result1:");
                 _ = PrettifyAndValidateJson(result1);
+            }
+#else
+            string result1 = Encoding.UTF8.GetString(memoryStream.ToArray());
+            Assert.IsNotEmpty(result1);
+            TestContext.Out.WriteLine("Result1:");
+            _ = PrettifyAndValidateJson(result1);
 #endif
 
-                // recycle the memory stream, ensure the result is equal
-                memoryStream.Position = 0;
-                using (var jsonEncoder = new JsonEncoder(context, true, false, memoryStream, true))
-                {
-                    TestEncoding(jsonEncoder);
-                }
-                string result2 = Encoding.UTF8.GetString(memoryStream.ToArray());
-                Assert.IsNotEmpty(result2);
-                TestContext.Out.WriteLine("Result2:");
-                _ = PrettifyAndValidateJson(result2);
-                Assert.AreEqual(result1, result2);
-
-                // recycle the StreamWriter, ensure the result is equal,
-                // use reflection to return result in external stream
-                memoryStream.Position = 0;
-                using (JsonEncoder jsonEncoder = new JsonEncoder(context, true, false, memoryStream, false))
-                {
-                    TestEncoding(jsonEncoder);
-                    string result3 = jsonEncoder.CloseAndReturnText();
-                    Assert.IsNotEmpty(result3);
-                    TestContext.Out.WriteLine("Result3:");
-                    _ = PrettifyAndValidateJson(result3);
-                    Assert.AreEqual(result1, result3);
-                }
-
-                // ensure the memory stream was closed
-                NUnit.Framework.Assert.Throws<ArgumentException>(() => _ = new StreamWriter(memoryStream));
+            // recycle the memory stream, ensure the result is equal
+            memoryStream.Position = 0;
+            using (var jsonEncoder = new JsonEncoder(context, true, false, memoryStream, true))
+            {
+                TestEncoding(jsonEncoder);
             }
+            string result2 = Encoding.UTF8.GetString(memoryStream.ToArray());
+            Assert.IsNotEmpty(result2);
+            TestContext.Out.WriteLine("Result2:");
+            _ = PrettifyAndValidateJson(result2);
+            Assert.AreEqual(result1, result2);
+
+            // recycle the StreamWriter, ensure the result is equal,
+            // use reflection to return result in external stream
+            memoryStream.Position = 0;
+            using (var jsonEncoder = new JsonEncoder(context, true, false, memoryStream, false))
+            {
+                TestEncoding(jsonEncoder);
+                string result3 = jsonEncoder.CloseAndReturnText();
+                Assert.IsNotEmpty(result3);
+                TestContext.Out.WriteLine("Result3:");
+                _ = PrettifyAndValidateJson(result3);
+                Assert.AreEqual(result1, result3);
+            }
+
+            // ensure the memory stream was closed
+            NUnit.Framework.Assert.Throws<ArgumentException>(() => _ = new StreamWriter(memoryStream));
         }
 
         /// <summary>
@@ -642,58 +630,56 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void ConstructorRecyclableMemoryStreamSequence()
         {
             var context = new ServiceMessageContext();
-            using (var memoryStream = new RecyclableMemoryStream(RecyclableMemoryManager))
+            using var memoryStream = new RecyclableMemoryStream(RecyclableMemoryManager);
+            using (var jsonEncoder = new JsonEncoder(context, true, false, memoryStream, true))
             {
-                using (var jsonEncoder = new JsonEncoder(context, true, false, memoryStream, true))
-                {
-                    TestEncoding(jsonEncoder);
-                }
+                TestEncoding(jsonEncoder);
+            }
 
-                // get the buffers and save the result
+            // get the buffers and save the result
 #if NET5_0_OR_GREATER
-                string result1;
-                {
-                    System.Buffers.ReadOnlySequence<byte> sequence = memoryStream.GetReadOnlySequence();
-                    result1 = Encoding.UTF8.GetString(sequence);
-                    Assert.IsNotEmpty(result1);
-                    TestContext.Out.WriteLine("Result1:");
-                    _ = PrettifyAndValidateJson(result1);
-                }
-#else
-                string result1 = Encoding.UTF8.GetString(memoryStream.ToArray());
+            string result1;
+            {
+                System.Buffers.ReadOnlySequence<byte> sequence = memoryStream.GetReadOnlySequence();
+                result1 = Encoding.UTF8.GetString(sequence);
                 Assert.IsNotEmpty(result1);
                 TestContext.Out.WriteLine("Result1:");
                 _ = PrettifyAndValidateJson(result1);
+            }
+#else
+            string result1 = Encoding.UTF8.GetString(memoryStream.ToArray());
+            Assert.IsNotEmpty(result1);
+            TestContext.Out.WriteLine("Result1:");
+            _ = PrettifyAndValidateJson(result1);
 #endif
 
-                // recycle the memory stream, ensure the result is equal
-                memoryStream.Position = 0;
-                using (var jsonEncoder = new JsonEncoder(context, true, false, memoryStream, true))
-                {
-                    TestEncoding(jsonEncoder);
-                }
-                string result2 = Encoding.UTF8.GetString(memoryStream.ToArray());
-                Assert.IsNotEmpty(result2);
-                TestContext.Out.WriteLine("Result2:");
-                _ = PrettifyAndValidateJson(result2);
-                Assert.AreEqual(result1, result2);
-
-                // recycle the StreamWriter, ensure the result is equal,
-                // use reflection to return result in external stream
-                memoryStream.Position = 0;
-                using (JsonEncoder jsonEncoder = new JsonEncoder(context, true, false, memoryStream, false))
-                {
-                    TestEncoding(jsonEncoder);
-                    string result3 = jsonEncoder.CloseAndReturnText();
-                    Assert.IsNotEmpty(result3);
-                    TestContext.Out.WriteLine("Result3:");
-                    _ = PrettifyAndValidateJson(result3);
-                    Assert.AreEqual(result1, result3);
-                }
-
-                // ensure the memory stream was closed
-                NUnit.Framework.Assert.Throws<ArgumentException>(() => _ = new StreamWriter(memoryStream));
+            // recycle the memory stream, ensure the result is equal
+            memoryStream.Position = 0;
+            using (var jsonEncoder = new JsonEncoder(context, true, false, memoryStream, true))
+            {
+                TestEncoding(jsonEncoder);
             }
+            string result2 = Encoding.UTF8.GetString(memoryStream.ToArray());
+            Assert.IsNotEmpty(result2);
+            TestContext.Out.WriteLine("Result2:");
+            _ = PrettifyAndValidateJson(result2);
+            Assert.AreEqual(result1, result2);
+
+            // recycle the StreamWriter, ensure the result is equal,
+            // use reflection to return result in external stream
+            memoryStream.Position = 0;
+            using (var jsonEncoder = new JsonEncoder(context, true, false, memoryStream, false))
+            {
+                TestEncoding(jsonEncoder);
+                string result3 = jsonEncoder.CloseAndReturnText();
+                Assert.IsNotEmpty(result3);
+                TestContext.Out.WriteLine("Result3:");
+                _ = PrettifyAndValidateJson(result3);
+                Assert.AreEqual(result1, result3);
+            }
+
+            // ensure the memory stream was closed
+            NUnit.Framework.Assert.Throws<ArgumentException>(() => _ = new StreamWriter(memoryStream));
         }
 
         /// <summary>
@@ -722,21 +708,19 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine("Expected:");
             _ = PrettifyAndValidateJson(expected);
 
-            using (var encodeable = new FooBarEncodeable())
-            using (JsonEncoder encoder = new JsonEncoder(Context, true, topLevelIsArray))
-            {
-                encoder.WriteEncodeable(null, encodeable, typeof(FooBarEncodeable));
+            using var encodeable = new FooBarEncodeable();
+            using var encoder = new JsonEncoder(Context, true, topLevelIsArray);
+            encoder.WriteEncodeable(null, encodeable, typeof(FooBarEncodeable));
 
-                string encoded = encoder.CloseAndReturnText();
+            string encoded = encoder.CloseAndReturnText();
 
-                TestContext.Out.WriteLine("Encoded:");
-                TestContext.Out.WriteLine(encoded);
+            TestContext.Out.WriteLine("Encoded:");
+            TestContext.Out.WriteLine(encoded);
 
-                TestContext.Out.WriteLine("Formatted Encoded:");
-                _ = PrettifyAndValidateJson(encoded);
+            TestContext.Out.WriteLine("Formatted Encoded:");
+            _ = PrettifyAndValidateJson(encoded);
 
-                NUnit.Framework.Assert.That(encoded, Is.EqualTo(expected));
-            }
+            NUnit.Framework.Assert.That(encoded, Is.EqualTo(expected));
         }
 
         /// <summary>
@@ -749,21 +733,19 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine("Expected:");
             _ = PrettifyAndValidateJson(expected);
 
-            using (var encodeable = new FooBarEncodeable())
-            using (JsonEncoder encoder = new JsonEncoder(Context, true, false))
-            {
-                encoder.WriteEncodeable(encodeable.Foo, encodeable, typeof(FooBarEncodeable));
+            using var encodeable = new FooBarEncodeable();
+            using var encoder = new JsonEncoder(Context, true, false);
+            encoder.WriteEncodeable(encodeable.Foo, encodeable, typeof(FooBarEncodeable));
 
-                string encoded = encoder.CloseAndReturnText();
+            string encoded = encoder.CloseAndReturnText();
 
-                TestContext.Out.WriteLine("Encoded:");
-                TestContext.Out.WriteLine(encoded);
+            TestContext.Out.WriteLine("Encoded:");
+            TestContext.Out.WriteLine(encoded);
 
-                TestContext.Out.WriteLine("Formatted Encoded:");
-                _ = PrettifyAndValidateJson(encoded);
+            TestContext.Out.WriteLine("Formatted Encoded:");
+            _ = PrettifyAndValidateJson(encoded);
 
-                NUnit.Framework.Assert.That(encoded, Is.EqualTo(expected));
-            }
+            NUnit.Framework.Assert.That(encoded, Is.EqualTo(expected));
         }
 
         /// <summary>
@@ -776,21 +758,19 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine("Expected:");
             _ = PrettifyAndValidateJson(expected);
 
-            using (var encodeable = new DynamicEncodeable("FooXml", "urn:dynamic_encoder_test", "ns=2;test_dyn_typeid", "s=test_dyn_binaryencodingid", "s=test_dyn_xmlencodingid", "s=test_dyn_jsonencodingid", new Dictionary<string, (int, string)> { { "Foo", (1, "bar_1") } }))
-            using (JsonEncoder encoder = new JsonEncoder(Context, true, false))
-            {
-                encoder.WriteEncodeable("bar_1", encodeable, typeof(DynamicEncodeable));
+            using var encodeable = new DynamicEncodeable("FooXml", "urn:dynamic_encoder_test", "ns=2;test_dyn_typeid", "s=test_dyn_binaryencodingid", "s=test_dyn_xmlencodingid", "s=test_dyn_jsonencodingid", new Dictionary<string, (int, string)> { { "Foo", (1, "bar_1") } });
+            using var encoder = new JsonEncoder(Context, true, false);
+            encoder.WriteEncodeable("bar_1", encodeable, typeof(DynamicEncodeable));
 
-                string encoded = encoder.CloseAndReturnText();
+            string encoded = encoder.CloseAndReturnText();
 
-                TestContext.Out.WriteLine("Encoded:");
-                TestContext.Out.WriteLine(encoded);
+            TestContext.Out.WriteLine("Encoded:");
+            TestContext.Out.WriteLine(encoded);
 
-                TestContext.Out.WriteLine("Formatted Encoded:");
-                _ = PrettifyAndValidateJson(encoded);
+            TestContext.Out.WriteLine("Formatted Encoded:");
+            _ = PrettifyAndValidateJson(encoded);
 
-                NUnit.Framework.Assert.That(encoded, Is.EqualTo(expected));
-            }
+            NUnit.Framework.Assert.That(encoded, Is.EqualTo(expected));
         }
 
         /// <summary>
@@ -839,18 +819,16 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 var r = XmlReader.Create(ms2, new XmlReaderSettings { DtdProcessing = DtdProcessing.Ignore });
                 xmlDoc.Load(r);
 
-                using (var decoder = new XmlDecoder(xmlDoc.FirstChild as XmlElement, dynamicContext))
-                {
-                    decoder.PushNamespace(Namespaces.OpcUaXsd);
-                    extensionObjectFromXml = decoder.ReadExtensionObject("ExtensionObject");
-                    decoder.PopNamespace();
-                }
+                using var decoder = new XmlDecoder(xmlDoc.FirstChild as XmlElement, dynamicContext);
+                decoder.PushNamespace(Namespaces.OpcUaXsd);
+                extensionObjectFromXml = decoder.ReadExtensionObject("ExtensionObject");
+                decoder.PopNamespace();
             }
             NUnit.Framework.Assert.That(encodeable.IsEqual(extensionObjectFromXml.Body as IEncodeable), Is.True);
 
             // Encode to JSON
             string encodedJson;
-            using (JsonEncoder encoder = new JsonEncoder(Context, true, false))
+            using (var encoder = new JsonEncoder(Context, true, false))
             {
                 encoder.WriteExtensionObject(null, extensionObjectFromXml);
 
@@ -882,11 +860,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void TestWriteSingleEncodeableWithNameAndArrayAsTopLevelExpectException()
         {
-            using (var encodeable = new FooBarEncodeable())
-            using (var encoder = new JsonEncoder(Context, true, true))
-            {
-                NUnit.Framework.Assert.Throws<ServiceResultException>(() => encoder.WriteEncodeable(encodeable.Foo, encodeable, typeof(FooBarEncodeable)));
-            }
+            using var encodeable = new FooBarEncodeable();
+            using var encoder = new JsonEncoder(Context, true, true);
+            NUnit.Framework.Assert.Throws<ServiceResultException>(() => encoder.WriteEncodeable(encodeable.Foo, encodeable, typeof(FooBarEncodeable)));
         }
 
         /// <summary>
@@ -898,16 +874,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             // invalid JSON
             // "{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}"
             // "{{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}}"
-            using (var encodeable = new FooBarEncodeable())
-            using (var encoder = new JsonEncoder(Context, true, false))
-            {
-                NUnit.Framework.Assert.Throws<ServiceResultException>(() => {
-                    encoder.WriteEncodeable(null, encodeable, typeof(FooBarEncodeable));
-                    encoder.WriteEncodeable(null, encodeable, typeof(FooBarEncodeable));
-                    encoder.WriteEncodeable(null, encodeable, typeof(FooBarEncodeable));
-                }
-                );
+            using var encodeable = new FooBarEncodeable();
+            using var encoder = new JsonEncoder(Context, true, false);
+            NUnit.Framework.Assert.Throws<ServiceResultException>(() => {
+                encoder.WriteEncodeable(null, encodeable, typeof(FooBarEncodeable));
+                encoder.WriteEncodeable(null, encodeable, typeof(FooBarEncodeable));
+                encoder.WriteEncodeable(null, encodeable, typeof(FooBarEncodeable));
             }
+            );
         }
 
         /// <summary>
@@ -922,22 +896,20 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             var encodeables = new List<FooBarEncodeable> { new(), new(), new() };
             try
             {
-                using (JsonEncoder encoder = new JsonEncoder(Context, true, topLevelIsArray))
+                using var encoder = new JsonEncoder(Context, true, topLevelIsArray);
+                foreach (FooBarEncodeable encodeable in encodeables)
                 {
-                    foreach (FooBarEncodeable encodeable in encodeables)
-                    {
-                        encoder.WriteEncodeable(null, encodeable, typeof(FooBarEncodeable));
-                    }
-
-                    string encoded = encoder.CloseAndReturnText();
-                    TestContext.Out.WriteLine("Encoded:");
-                    TestContext.Out.WriteLine(encoded);
-
-                    TestContext.Out.WriteLine("Formatted Encoded:");
-                    _ = PrettifyAndValidateJson(encoded);
-
-                    NUnit.Framework.Assert.That(encoded, Is.EqualTo(expected));
+                    encoder.WriteEncodeable(null, encodeable, typeof(FooBarEncodeable));
                 }
+
+                string encoded = encoder.CloseAndReturnText();
+                TestContext.Out.WriteLine("Encoded:");
+                TestContext.Out.WriteLine(encoded);
+
+                TestContext.Out.WriteLine("Formatted Encoded:");
+                _ = PrettifyAndValidateJson(encoded);
+
+                NUnit.Framework.Assert.That(encoded, Is.EqualTo(expected));
             }
             finally
             {
@@ -959,22 +931,20 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             var encodeables = new List<FooBarEncodeable> { new(), new(), new() };
             try
             {
-                using (var encoder = new JsonEncoder(Context, true, false))
+                using var encoder = new JsonEncoder(Context, true, false);
+                foreach (FooBarEncodeable encodeable in encodeables)
                 {
-                    foreach (FooBarEncodeable encodeable in encodeables)
-                    {
-                        encoder.WriteEncodeable(encodeable.Foo, encodeable, typeof(FooBarEncodeable));
-                    }
-
-                    string encoded = encoder.CloseAndReturnText();
-                    TestContext.Out.WriteLine("Encoded:");
-                    TestContext.Out.WriteLine(encoded);
-
-                    TestContext.Out.WriteLine("Formatted Encoded:");
-                    _ = PrettifyAndValidateJson(encoded);
-
-                    NUnit.Framework.Assert.That(encoded, Is.EqualTo(expected));
+                    encoder.WriteEncodeable(encodeable.Foo, encodeable, typeof(FooBarEncodeable));
                 }
+
+                string encoded = encoder.CloseAndReturnText();
+                TestContext.Out.WriteLine("Encoded:");
+                TestContext.Out.WriteLine(encoded);
+
+                TestContext.Out.WriteLine("Formatted Encoded:");
+                _ = PrettifyAndValidateJson(encoded);
+
+                NUnit.Framework.Assert.That(encoded, Is.EqualTo(expected));
             }
             finally
             {
@@ -1060,86 +1030,82 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine("Expected:");
             _ = PrettifyAndValidateJson(expected);
 
-            using (var encodeable = new FooBarEncodeable(fieldname, foo))
-            using (var encoder = new JsonEncoder(Context, true))
-            {
-                encoder.WriteEncodeable(encodeable.FieldName, encodeable, typeof(FooBarEncodeable));
+            using var encodeable = new FooBarEncodeable(fieldname, foo);
+            using var encoder = new JsonEncoder(Context, true);
+            encoder.WriteEncodeable(encodeable.FieldName, encodeable, typeof(FooBarEncodeable));
 
-                string encoded = encoder.CloseAndReturnText();
-                TestContext.Out.WriteLine("Encoded:");
-                TestContext.Out.WriteLine(encoded);
+            string encoded = encoder.CloseAndReturnText();
+            TestContext.Out.WriteLine("Encoded:");
+            TestContext.Out.WriteLine(encoded);
 
-                TestContext.Out.WriteLine("Formatted Encoded:");
-                _ = PrettifyAndValidateJson(encoded);
+            TestContext.Out.WriteLine("Formatted Encoded:");
+            _ = PrettifyAndValidateJson(encoded);
 
-                NUnit.Framework.Assert.That(encoded, Is.EqualTo(expected));
-            }
+            NUnit.Framework.Assert.That(encoded, Is.EqualTo(expected));
         }
 
         /// <summary>
         /// Test if field names and values are properly escaped when used in an array.
         /// </summary>
-        [TestCase("\"Hello\".\"World\"", "\"Test\".\"Output\"",
-            "{\"\\\"Hello\\\".\\\"World\\\"\":[" +
-            "{\"\\\"Hello\\\".\\\"World\\\"\":\"\\\"Test\\\".\\\"Output\\\"\"}," +
-                                 /*lang=json,strict*/
-                                 "{\"\\\"Hello\\\".\\\"World\\\"\":\"\\\"Test\\\".\\\"Output\\\"\"}" +
-            "]}")]
+        [TestCase(
+            """
+            "Hello"."World"
+            """,
+            """
+            "Test"."Output"
+            """,
+            /*lang=json,strict*/ """{"\"Hello\".\"World\"":[{"\"Hello\".\"World\"":"\"Test\".\"Output\""},{"\"Hello\".\"World\"":"\"Test\".\"Output\""}]}"""
+            )]
         public void TestFieldValueEscapedArray(string fieldname, string foo, string expected)
         {
             TestContext.Out.WriteLine("Expected:");
             _ = PrettifyAndValidateJson(expected);
 
-            using (var encodeable = new FooBarEncodeable(fieldname, foo))
-            {
-                var list = new List<IEncodeable>() { encodeable, encodeable };
-                using (var encoder = new JsonEncoder(Context, true))
-                {
-                    encoder.WriteEncodeableArray(encodeable.FieldName, list, typeof(FooBarEncodeable));
+            using var encodeable = new FooBarEncodeable(fieldname, foo);
+            var list = new List<IEncodeable>() { encodeable, encodeable };
+            using var encoder = new JsonEncoder(Context, true);
+            encoder.WriteEncodeableArray(encodeable.FieldName, list, typeof(FooBarEncodeable));
 
-                    string encoded = encoder.CloseAndReturnText();
-                    TestContext.Out.WriteLine("Encoded:");
-                    TestContext.Out.WriteLine(encoded);
+            string encoded = encoder.CloseAndReturnText();
+            TestContext.Out.WriteLine("Encoded:");
+            TestContext.Out.WriteLine(encoded);
 
-                    TestContext.Out.WriteLine("Formatted Encoded:");
-                    _ = PrettifyAndValidateJson(encoded);
+            TestContext.Out.WriteLine("Formatted Encoded:");
+            _ = PrettifyAndValidateJson(encoded);
 
-                    NUnit.Framework.Assert.That(encoded, Is.EqualTo(expected));
-                }
-            }
+            NUnit.Framework.Assert.That(encoded, Is.EqualTo(expected));
         }
 
         /// <summary>
         /// Test if field names and values are properly escaped when used in a variant.
         /// </summary>
-        [TestCase("\"Hello\".\"World\"", "\"Test\".\"Output\"",
-            "{\"\\\"Hello\\\".\\\"World\\\"\":" +
-                                 /*lang=json,strict*/
-                                 "{\"\\\"Hello\\\".\\\"World\\\"\":\"\\\"Test\\\".\\\"Output\\\"\"}" +
-            "}")]
+        [TestCase(
+            """
+            "Hello"."World"
+            """,
+            """
+            "Test"."Output"
+            """,
+            /*lang=json,strict*/ """{"\"Hello\".\"World\"":{"\"Hello\".\"World\"":"\"Test\".\"Output\""}}""")]
         public void TestFieldValueEscapedVariant(string fieldname, string foo, string expected)
         {
             TestContext.Out.WriteLine("Expected:");
             _ = PrettifyAndValidateJson(expected);
 
-            using (var encodeable = new FooBarEncodeable(fieldname, foo))
-            {
-                var variant = new Variant(new ExtensionObject(encodeable));
-                // non reversible to save some space
-                using (var encoder = new JsonEncoder(Context, false))
-                {
-                    encoder.WriteVariant(encodeable.FieldName, variant);
+            using var encodeable = new FooBarEncodeable(fieldname, foo);
+            var variant = new Variant(new ExtensionObject(encodeable));
+            // non reversible to save some space
+            using var encoder = new JsonEncoder(Context, false);
+            encoder.WriteVariant(encodeable.FieldName, variant);
 
-                    string encoded = encoder.CloseAndReturnText();
-                    TestContext.Out.WriteLine("Encoded:");
-                    TestContext.Out.WriteLine(encoded);
+            string encoded = encoder.CloseAndReturnText();
+            TestContext.Out.WriteLine("Encoded:");
+            TestContext.Out.WriteLine(encoded);
 
-                    TestContext.Out.WriteLine("Formatted Encoded:");
-                    _ = PrettifyAndValidateJson(encoded);
+            TestContext.Out.WriteLine("Formatted Encoded:");
+            _ = PrettifyAndValidateJson(encoded);
 
-                    NUnit.Framework.Assert.That(encoded, Is.EqualTo(expected));
-                }
-            }
+            NUnit.Framework.Assert.That(encoded, Is.EqualTo(expected));
         }
 
         /// <summary>
@@ -1204,12 +1170,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 ServerTimestamp = DateTime.UtcNow,
                 StatusCode = statusCode
             };
-            using (var jsonEncoder = new JsonEncoder(m_context, jsonEncodingType))
-            {
-                jsonEncoder.WriteDataValue("Data", dataValue);
-                string result = jsonEncoder.CloseAndReturnText();
-                PrettifyAndValidateJson(result, true);
-            }
+            using var jsonEncoder = new JsonEncoder(m_context, jsonEncodingType);
+            jsonEncoder.WriteDataValue("Data", dataValue);
+            string result = jsonEncoder.CloseAndReturnText();
+            PrettifyAndValidateJson(result, true);
         }
 
         /// <summary>
@@ -1231,8 +1195,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine("Encoded: \"o\": {0} \"yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK\": {1}", resultO, resultString);
 
             // last char is always 'Z', Utc time
-            Assert.AreEqual('Z', resultString[resultString.Length - 1]);
-            Assert.AreEqual('Z', resultO[resultO.Length - 1]);
+            Assert.AreEqual('Z', resultString[^1]);
+            Assert.AreEqual('Z', resultO[^1]);
 
             Assert.AreEqual(resultString, resultO);
 
@@ -1273,10 +1237,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void MemoryStream()
         {
-            using (var test = new MemoryStream())
-            {
-                _ = test.Length;
-            }
+            using var test = new MemoryStream();
+            _ = test.Length;
         }
 
         /// <summary>
@@ -1286,11 +1248,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void JsonEncoderConstructor()
         {
-            using (var jsonEncoder = new JsonEncoder(m_context, false))
-            {
-                TestEncoding(jsonEncoder);
-                _ = jsonEncoder.CloseAndReturnText();
-            }
+            using var jsonEncoder = new JsonEncoder(m_context, false);
+            TestEncoding(jsonEncoder);
+            _ = jsonEncoder.CloseAndReturnText();
         }
 
         protected void TestEncoding(IEncoder encoder, bool topLevelIsArray = false)
@@ -1322,22 +1282,20 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     _ = PrettifyAndValidateJson(expected);
                 }
 
-                using (JsonEncoder encoder = new JsonEncoder(Context, true, topLevelIsArray))
-                {
-                    encoder.WriteEncodeableArray(
-                        fieldName,
-                        [.. encodeables.Cast<IEncodeable>()],
-                        typeof(FooBarEncodeable));
+                using var encoder = new JsonEncoder(Context, true, topLevelIsArray);
+                encoder.WriteEncodeableArray(
+                    fieldName,
+                    [.. encodeables.Cast<IEncodeable>()],
+                    typeof(FooBarEncodeable));
 
-                    string encoded = encoder.CloseAndReturnText();
-                    TestContext.Out.WriteLine("Encoded:");
-                    TestContext.Out.WriteLine(encoded);
+                string encoded = encoder.CloseAndReturnText();
+                TestContext.Out.WriteLine("Encoded:");
+                TestContext.Out.WriteLine(encoded);
 
-                    TestContext.Out.WriteLine("Formatted Encoded:");
-                    _ = PrettifyAndValidateJson(encoded);
+                TestContext.Out.WriteLine("Formatted Encoded:");
+                _ = PrettifyAndValidateJson(encoded);
 
-                    NUnit.Framework.Assert.That(encoded, Is.EqualTo(expected));
-                }
+                NUnit.Framework.Assert.That(encoded, Is.EqualTo(expected));
             }
             finally
             {

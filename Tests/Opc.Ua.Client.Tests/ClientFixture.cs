@@ -358,12 +358,10 @@ namespace Opc.Ua.Client.Tests
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = OperationTimeout;
 
-            using (var client = DiscoveryClient.Create(url, endpointConfiguration))
-            {
-                EndpointDescriptionCollection result = await client.GetEndpointsAsync(null).ConfigureAwait(false);
-                await client.CloseAsync().ConfigureAwait(false);
-                return result;
-            }
+            using var client = DiscoveryClient.Create(url, endpointConfiguration);
+            EndpointDescriptionCollection result = await client.GetEndpointsAsync(null).ConfigureAwait(false);
+            await client.CloseAsync().ConfigureAwait(false);
+            return result;
         }
 
         /// <summary>

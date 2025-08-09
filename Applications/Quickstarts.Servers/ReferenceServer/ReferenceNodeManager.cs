@@ -473,7 +473,7 @@ namespace Quickstarts.ReferenceServer
 
                     FolderState dataItemFolder = CreateFolder(daFolder, "DataAccess_DataItem", "DataItem");
                     const string daDataItem = "DataAccess_DataItem_";
-                    BuiltInType[] builtInTypes =
+                    var builtInTypes =
 #if NET8_0_OR_GREATER
                         Enum.GetValues<BuiltInType>()
 #else
@@ -503,8 +503,8 @@ namespace Quickstarts.ReferenceServer
                             string name = builtInType.ToString();
                             AnalogItemState item = CreateAnalogItemVariable(analogItemFolder, daAnalogItem + name, name, builtInType, ValueRanks.Scalar);
 
-                            if (builtInType == BuiltInType.Int64 ||
-                                builtInType == BuiltInType.UInt64)
+                            if (builtInType is BuiltInType.Int64 or
+                                BuiltInType.UInt64)
                             {
                                 // make test case without optional ranges
                                 item.EngineeringUnits = null;
@@ -1735,7 +1735,7 @@ namespace Quickstarts.ReferenceServer
         /// <summary>
         /// Creates a new UInt32 variable.
         /// </summary>
-        private DataItemState CreateMultiStateValueDiscreteItemVariable(NodeState parent, string path, string name, params string[] enumNames)
+        private MultiStateValueDiscreteState CreateMultiStateValueDiscreteItemVariable(NodeState parent, string path, string name, params string[] enumNames)
         {
             return CreateMultiStateValueDiscreteItemVariable(parent, path, name, null, enumNames);
         }
@@ -1743,7 +1743,7 @@ namespace Quickstarts.ReferenceServer
         /// <summary>
         /// Creates a new variable.
         /// </summary>
-        private DataItemState CreateMultiStateValueDiscreteItemVariable(NodeState parent, string path, string name, NodeId nodeId, params string[] enumNames)
+        private MultiStateValueDiscreteState CreateMultiStateValueDiscreteItemVariable(NodeState parent, string path, string name, NodeId nodeId, params string[] enumNames)
         {
             var variable = new MultiStateValueDiscreteState(parent);
 
@@ -2352,7 +2352,7 @@ namespace Quickstarts.ReferenceServer
             object value = null;
             for (int retryCount = 0; value == null && retryCount < 10; retryCount++)
             {
-                value = m_generator.GetRandom(variable.DataType, variable.ValueRank, new uint[] { 10 }, Server.TypeTree);
+                value = m_generator.GetRandom(variable.DataType, variable.ValueRank, [10], Server.TypeTree);
                 // skip Variant Null
                 if (value is Variant variant && variant.Value == null)
                 {

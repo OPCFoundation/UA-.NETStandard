@@ -116,7 +116,7 @@ namespace Opc.Ua.Server
             // return end value.
             else
             {
-                return values[values.Count - 1];
+                return values[^1];
             }
         }
 
@@ -249,7 +249,7 @@ namespace Opc.Ua.Server
             // return end bound.
             else
             {
-                value = values[values.Count - 1];
+                value = values[^1];
             }
 
             if (!IsGood(value))
@@ -286,7 +286,7 @@ namespace Opc.Ua.Server
             }
 
             DataValue start = values[0];
-            DataValue end = values[values.Count - 1];
+            DataValue end = values[^1];
 
             // check for bad bounds.
             if (!IsGood(start) || !IsGood(end))

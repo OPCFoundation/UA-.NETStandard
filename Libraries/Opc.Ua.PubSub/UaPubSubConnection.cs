@@ -57,12 +57,7 @@ namespace Opc.Ua.PubSub
                 ServerUris = ServiceMessageContext.GlobalContext.ServerUris
             };
 
-            if (parentUaPubSubApplication == null)
-            {
-                throw new ArgumentNullException(nameof(parentUaPubSubApplication));
-            }
-
-            Application = parentUaPubSubApplication;
+            Application = parentUaPubSubApplication ?? throw new ArgumentNullException(nameof(parentUaPubSubApplication));
             Application.UaPubSubConfigurator.WriterGroupAdded += UaPubSubConfigurator_WriterGroupAdded;
             PubSubConnectionConfiguration = pubSubConnectionDataType;
 

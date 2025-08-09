@@ -568,8 +568,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     {
                         switch (builtInType)
                         {
-                            case BuiltInType.DataValue: value = new DataValue(); break;
-                            case BuiltInType.DiagnosticInfo: value = new DiagnosticInfo(); break;
+                            case BuiltInType.DataValue:
+                                value = new DataValue();
+                                break;
+                            case BuiltInType.DiagnosticInfo:
+                                value = new DiagnosticInfo();
+                                break;
                             default:
                                 value = TypeInfo.GetDefaultValue(builtInType);
                                 break;

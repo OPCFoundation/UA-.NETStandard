@@ -339,7 +339,8 @@ namespace Opc.Ua.Configuration
                         m_typeSelected ? ApplicationType.ClientAndServer : ApplicationType.Server;
                     break;
                 case ApplicationType.Server:
-                case ApplicationType.ClientAndServer: break;
+                case ApplicationType.ClientAndServer:
+                    break;
                 default:
                     throw new ArgumentException("Invalid application type for server.");
             }
@@ -1092,14 +1093,30 @@ namespace Opc.Ua.Configuration
                 // see https://reference.opcfoundation.org/v104/GDS/docs/F.1/
                 switch (trustListType)
                 {
-                    case TrustlistType.Application: leafPath = "own"; break;
-                    case TrustlistType.Trusted: leafPath = "trusted"; break;
-                    case TrustlistType.Issuer: leafPath = "issuer"; break;
-                    case TrustlistType.TrustedHttps: leafPath = "trustedHttps"; break;
-                    case TrustlistType.IssuerHttps: leafPath = "issuerHttps"; break;
-                    case TrustlistType.TrustedUser: leafPath = "trustedUser"; break;
-                    case TrustlistType.IssuerUser: leafPath = "issuerUser"; break;
-                    case TrustlistType.Rejected: leafPath = "rejected"; break;
+                    case TrustlistType.Application:
+                        leafPath = "own";
+                        break;
+                    case TrustlistType.Trusted:
+                        leafPath = "trusted";
+                        break;
+                    case TrustlistType.Issuer:
+                        leafPath = "issuer";
+                        break;
+                    case TrustlistType.TrustedHttps:
+                        leafPath = "trustedHttps";
+                        break;
+                    case TrustlistType.IssuerHttps:
+                        leafPath = "issuerHttps";
+                        break;
+                    case TrustlistType.TrustedUser:
+                        leafPath = "trustedUser";
+                        break;
+                    case TrustlistType.IssuerUser:
+                        leafPath = "issuerUser";
+                        break;
+                    case TrustlistType.Rejected:
+                        leafPath = "rejected";
+                        break;
                 }
                 // Caller may have already provided the leaf path, then no need to add.
                 int startIndex = pkiRoot.Length - leafPath.Length;

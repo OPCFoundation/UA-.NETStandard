@@ -44,7 +44,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The default instance of the factory.
         /// </summary>
-        public new static readonly TraceableSessionFactory Instance = new();
+        public static new readonly TraceableSessionFactory Instance = new();
 
         /// <summary>
         /// Force use of the default instance.
@@ -67,12 +67,10 @@ namespace Opc.Ua.Client
             IList<string> preferredLocales,
             CancellationToken ct = default)
         {
-            using (Activity activity = TraceableSession.ActivitySource.StartActivity())
-            {
-                ISession session = await base.CreateAsync(configuration, endpoint, updateBeforeConnect, false,
-                    sessionName, sessionTimeout, identity, preferredLocales, ct).ConfigureAwait(false);
-                return new TraceableSession(session);
-            }
+            using Activity activity = TraceableSession.ActivitySource.StartActivity();
+            ISession session = await base.CreateAsync(configuration, endpoint, updateBeforeConnect, false,
+                sessionName, sessionTimeout, identity, preferredLocales, ct).ConfigureAwait(false);
+            return new TraceableSession(session);
         }
 
         /// <inheritdoc/>
@@ -87,14 +85,12 @@ namespace Opc.Ua.Client
             IList<string> preferredLocales,
             CancellationToken ct = default)
         {
-            using (Activity activity = TraceableSession.ActivitySource.StartActivity())
-            {
-                ISession session = await Session.Create(this, configuration, (ITransportWaitingConnection)null, endpoint,
-                    updateBeforeConnect, checkDomain, sessionName, sessionTimeout,
-                    identity, preferredLocales, ct).ConfigureAwait(false);
+            using Activity activity = TraceableSession.ActivitySource.StartActivity();
+            ISession session = await Session.Create(this, configuration, (ITransportWaitingConnection)null, endpoint,
+                updateBeforeConnect, checkDomain, sessionName, sessionTimeout,
+                identity, preferredLocales, ct).ConfigureAwait(false);
 
-                return new TraceableSession(session);
-            }
+            return new TraceableSession(session);
         }
 
         /// <inheritdoc/>
@@ -110,15 +106,13 @@ namespace Opc.Ua.Client
             IList<string> preferredLocales,
             CancellationToken ct = default)
         {
-            using (Activity activity = TraceableSession.ActivitySource.StartActivity())
-            {
-                ISession session = await Session.Create(this, configuration, connection, endpoint,
-                    updateBeforeConnect, checkDomain, sessionName, sessionTimeout,
-                    identity, preferredLocales, ct
-                    ).ConfigureAwait(false);
+            using Activity activity = TraceableSession.ActivitySource.StartActivity();
+            ISession session = await Session.Create(this, configuration, connection, endpoint,
+                updateBeforeConnect, checkDomain, sessionName, sessionTimeout,
+                identity, preferredLocales, ct
+                ).ConfigureAwait(false);
 
-                return new TraceableSession(session);
-            }
+            return new TraceableSession(session);
         }
 
         /// <inheritdoc/>
@@ -130,10 +124,8 @@ namespace Opc.Ua.Client
            EndpointDescriptionCollection availableEndpoints = null,
            StringCollection discoveryProfileUris = null)
         {
-            using (Activity activity = TraceableSession.ActivitySource.StartActivity())
-            {
-                return new TraceableSession(base.Create(configuration, channel, endpoint, clientCertificate, availableEndpoints, discoveryProfileUris));
-            }
+            using Activity activity = TraceableSession.ActivitySource.StartActivity();
+            return new TraceableSession(base.Create(configuration, channel, endpoint, clientCertificate, availableEndpoints, discoveryProfileUris));
         }
 
         /// <inheritdoc/>
@@ -145,10 +137,8 @@ namespace Opc.Ua.Client
             bool checkDomain,
             CancellationToken ct = default)
         {
-            using (Activity activity = TraceableSession.ActivitySource.StartActivity())
-            {
-                return await base.CreateChannelAsync(configuration, connection, endpoint, updateBeforeConnect, checkDomain, ct).ConfigureAwait(false);
-            }
+            using Activity activity = TraceableSession.ActivitySource.StartActivity();
+            return await base.CreateChannelAsync(configuration, connection, endpoint, updateBeforeConnect, checkDomain, ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -165,52 +155,44 @@ namespace Opc.Ua.Client
             CancellationToken ct = default
             )
         {
-            using (Activity activity = TraceableSession.ActivitySource.StartActivity())
-            {
-                ISession session = await base.CreateAsync(configuration,
-                    reverseConnectManager, endpoint,
-                    updateBeforeConnect,
-                    checkDomain, sessionName,
-                    sessionTimeout, userIdentity,
-                    preferredLocales, ct).ConfigureAwait(false);
+            using Activity activity = TraceableSession.ActivitySource.StartActivity();
+            ISession session = await base.CreateAsync(configuration,
+                reverseConnectManager, endpoint,
+                updateBeforeConnect,
+                checkDomain, sessionName,
+                sessionTimeout, userIdentity,
+                preferredLocales, ct).ConfigureAwait(false);
 
-                return new TraceableSession(session);
-            }
+            return new TraceableSession(session);
         }
 
         /// <inheritdoc/>
         public override async Task<ISession> RecreateAsync(ISession sessionTemplate, CancellationToken ct = default)
         {
             Session session = ValidateISession(sessionTemplate);
-            using (Activity activity = TraceableSession.ActivitySource.StartActivity())
-            {
-                return new TraceableSession(await Session.RecreateAsync(session, ct).ConfigureAwait(false));
-            }
+            using Activity activity = TraceableSession.ActivitySource.StartActivity();
+            return new TraceableSession(await Session.RecreateAsync(session, ct).ConfigureAwait(false));
         }
 
         /// <inheritdoc/>
         public override async Task<ISession> RecreateAsync(ISession sessionTemplate, ITransportWaitingConnection connection, CancellationToken ct = default)
         {
             Session session = ValidateISession(sessionTemplate);
-            using (Activity activity = TraceableSession.ActivitySource.StartActivity())
-            {
-                return new TraceableSession(await Session.RecreateAsync(session, connection, ct).ConfigureAwait(false));
-            }
+            using Activity activity = TraceableSession.ActivitySource.StartActivity();
+            return new TraceableSession(await Session.RecreateAsync(session, connection, ct).ConfigureAwait(false));
         }
 
         /// <inheritdoc/>
         public override async Task<ISession> RecreateAsync(ISession sessionTemplate, ITransportChannel channel, CancellationToken ct = default)
         {
             Session session = ValidateISession(sessionTemplate);
-            using (Activity activity = TraceableSession.ActivitySource.StartActivity())
-            {
-                return new TraceableSession(await Session.RecreateAsync(session, channel, ct).ConfigureAwait(false));
-            }
+            using Activity activity = TraceableSession.ActivitySource.StartActivity();
+            return new TraceableSession(await Session.RecreateAsync(session, channel, ct).ConfigureAwait(false));
         }
 
         private static Session ValidateISession(ISession sessionTemplate)
         {
-            if (!(sessionTemplate is Session session))
+            if (sessionTemplate is not Session session)
             {
                 if (sessionTemplate is TraceableSession template)
                 {

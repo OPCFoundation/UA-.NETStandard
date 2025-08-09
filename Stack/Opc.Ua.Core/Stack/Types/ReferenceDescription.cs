@@ -59,7 +59,7 @@ namespace Opc.Ua
             NodeId referenceTypeId,
             bool isForward)
         {
-            if ((resultMask & BrowseResultMask.ReferenceTypeId) != 0)
+            if (((int)resultMask & (int)BrowseResultMask.ReferenceTypeId) != 0)
             {
                 m_referenceTypeId = referenceTypeId;
             }
@@ -68,7 +68,7 @@ namespace Opc.Ua
                 m_referenceTypeId = null;
             }
 
-            if ((resultMask & BrowseResultMask.IsForward) != 0)
+            if (((int)resultMask & (int)BrowseResultMask.IsForward) != 0)
             {
                 m_isForward = isForward;
             }

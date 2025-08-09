@@ -47,10 +47,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void BinaryDecoderInternalMemoryStreamTest()
         {
-            using (var binaryDecoder = new BinaryDecoder(m_encodedByteArray, m_context))
-            {
-                TestDecoding(binaryDecoder);
-            }
+            using var binaryDecoder = new BinaryDecoder(m_encodedByteArray, m_context);
+            TestDecoding(binaryDecoder);
         }
 
         /// <summary>
@@ -59,11 +57,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void BinaryDecoderArraySegmentStreamTest()
         {
-            using (var memoryStream = new ArraySegmentStream(m_encodedBufferList))
-            using (var binaryDecoder = new BinaryDecoder(memoryStream, m_context))
-            {
-                TestDecoding(binaryDecoder);
-            }
+            using var memoryStream = new ArraySegmentStream(m_encodedBufferList);
+            using var binaryDecoder = new BinaryDecoder(memoryStream, m_context);
+            TestDecoding(binaryDecoder);
         }
 
         /// <summary>
@@ -73,14 +69,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void BinaryDecoderArraySegmentStreamNoSpanTest()
         {
 #if NET6_0_OR_GREATER && ECC_SUPPORT
-            using (var arraySegmentStream = new ArraySegmentStreamNoSpan(m_encodedBufferList))
+            using var arraySegmentStream = new ArraySegmentStreamNoSpan(m_encodedBufferList);
 #else
-            using (var arraySegmentStream = new ArraySegmentStream(m_encodedBufferList))
+            using var arraySegmentStream = new ArraySegmentStream(m_encodedBufferList);
 #endif
-            using (var binaryDecoder = new BinaryDecoder(arraySegmentStream, m_context))
-            {
-                TestDecoding(binaryDecoder);
-            }
+            using var binaryDecoder = new BinaryDecoder(arraySegmentStream, m_context);
+            TestDecoding(binaryDecoder);
         }
 
         /// <summary>
@@ -90,10 +84,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void BinaryDecoderMemoryStream()
         {
-            using (var memoryStream = new MemoryStream(m_encodedByteArray))
-            {
-                BinaryDecoder_Stream(memoryStream);
-            }
+            using var memoryStream = new MemoryStream(m_encodedByteArray);
+            BinaryDecoder_Stream(memoryStream);
         }
 
         /// <summary>
@@ -103,10 +95,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void BinaryDecoderArraySegmentStream()
         {
-            using (var arraySegmentStream = new ArraySegmentStream(m_encodedBufferList))
-            {
-                BinaryDecoder_Stream(arraySegmentStream);
-            }
+            using var arraySegmentStream = new ArraySegmentStream(m_encodedBufferList);
+            BinaryDecoder_Stream(arraySegmentStream);
         }
 
         /// <summary>
@@ -117,23 +107,19 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public void BinaryDecoderArraySegmentStreamNoSpan()
         {
 #if NET6_0_OR_GREATER && ECC_SUPPORT
-            using (var arraySegmentStream = new ArraySegmentStreamNoSpan(m_encodedBufferList))
+            using var arraySegmentStream = new ArraySegmentStreamNoSpan(m_encodedBufferList);
 #else
-            using (var arraySegmentStream = new ArraySegmentStream(m_encodedBufferList))
+            using var arraySegmentStream = new ArraySegmentStream(m_encodedBufferList);
 #endif
-            {
-                BinaryDecoder_Stream(arraySegmentStream);
-            }
+            BinaryDecoder_Stream(arraySegmentStream);
         }
 
         private void BinaryDecoder_Stream(MemoryStream memoryStream)
         {
-            using (var binaryDecoder = new BinaryDecoder(memoryStream, m_context))
-            {
-                TestDecoding(binaryDecoder);
-                TestDecoding(binaryDecoder);
-                binaryDecoder.Close();
-            }
+            using var binaryDecoder = new BinaryDecoder(memoryStream, m_context);
+            TestDecoding(binaryDecoder);
+            TestDecoding(binaryDecoder);
+            binaryDecoder.Close();
         }
 
         [OneTimeSetUp]

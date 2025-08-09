@@ -37,7 +37,7 @@ using Opc.Ua;
 namespace Boiler
 {
     #region GenericControllerState Class
-    #if (!OPCUA_EXCLUDE_GenericControllerState)
+#if (!OPCUA_EXCLUDE_GenericControllerState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -55,7 +55,7 @@ namespace Boiler
             return Opc.Ua.NodeId.Create(Boiler.ObjectTypes.GenericControllerType, Boiler.Namespaces.Boiler, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -85,7 +85,7 @@ namespace Boiler
            "UG9pbnQBAe4DAC4ARO4DAAAAC/////8DA/////8AAAAAFWCJCgIAAAABAAoAAABDb250cm9sT3V0AQHv" +
            "AwAuAETvAwAAAAv/////AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -170,7 +170,7 @@ namespace Boiler
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -266,11 +266,11 @@ namespace Boiler
         private PropertyState<double> m_controlOut;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region GenericSensorState Class
-    #if (!OPCUA_EXCLUDE_GenericSensorState)
+#if (!OPCUA_EXCLUDE_GenericSensorState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -288,7 +288,7 @@ namespace Boiler
             return Opc.Ua.NodeId.Create(Boiler.ObjectTypes.GenericSensorType, Boiler.Namespaces.Boiler, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -317,7 +317,7 @@ namespace Boiler
            "T3V0cHV0AQHxAwAvAQBACfEDAAAAC/////8BAf////8BAAAAFWCJCgIAAAAAAAcAAABFVVJhbmdlAQH1" +
            "AwAuAET1AwAAAQB0A/////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -354,7 +354,7 @@ namespace Boiler
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -406,11 +406,11 @@ namespace Boiler
         private AnalogItemState<double> m_output;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region GenericActuatorState Class
-    #if (!OPCUA_EXCLUDE_GenericActuatorState)
+#if (!OPCUA_EXCLUDE_GenericActuatorState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -428,7 +428,7 @@ namespace Boiler
             return Opc.Ua.NodeId.Create(Boiler.ObjectTypes.GenericActuatorType, Boiler.Namespaces.Boiler, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -457,7 +457,7 @@ namespace Boiler
            "AABJbnB1dAEB+AMALwEAQAn4AwAAAAv/////AgL/////AQAAABVgiQoCAAAAAAAHAAAARVVSYW5nZQEB" +
            "/AMALgBE/AMAAAEAdAP/////AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -494,7 +494,7 @@ namespace Boiler
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -546,11 +546,11 @@ namespace Boiler
         private AnalogItemState<double> m_input;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region CustomControllerState Class
-    #if (!OPCUA_EXCLUDE_CustomControllerState)
+#if (!OPCUA_EXCLUDE_CustomControllerState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -568,7 +568,7 @@ namespace Boiler
             return Opc.Ua.NodeId.Create(Boiler.ObjectTypes.CustomControllerType, Boiler.Namespaces.Boiler, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -600,7 +600,7 @@ namespace Boiler
            "/wAAAAAVYMkKAgAAAAwAAABEZXNjcmlwdGlvblgBAAsAAABEZXNjcmlwdGlvbgEBAwQALgBEAwQAAAAV" +
            "/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -733,7 +733,7 @@ namespace Boiler
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -873,11 +873,11 @@ namespace Boiler
         private PropertyState<LocalizedText> m_descriptionX;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region ValveState Class
-    #if (!OPCUA_EXCLUDE_ValveState)
+#if (!OPCUA_EXCLUDE_ValveState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -895,7 +895,7 @@ namespace Boiler
             return Opc.Ua.NodeId.Create(Boiler.ObjectTypes.ValveType, Boiler.Namespaces.Boiler, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -924,7 +924,7 @@ namespace Boiler
            "BAAvAQBACQUEAAAAC/////8CAv////8BAAAAFWCJCgIAAAAAAAcAAABFVVJhbmdlAQEJBAAuAEQJBAAA" +
            "AQB0A/////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -936,11 +936,11 @@ namespace Boiler
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region LevelControllerState Class
-    #if (!OPCUA_EXCLUDE_LevelControllerState)
+#if (!OPCUA_EXCLUDE_LevelControllerState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -958,7 +958,7 @@ namespace Boiler
             return Opc.Ua.NodeId.Create(Boiler.ObjectTypes.LevelControllerType, Boiler.Namespaces.Boiler, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -988,7 +988,7 @@ namespace Boiler
            "aW50AQENBAAuAEQNBAAAAAv/////AwP/////AAAAABVgiQoCAAAAAQAKAAAAQ29udHJvbE91dAEBDgQA" +
            "LgBEDgQAAAAL/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -1000,11 +1000,11 @@ namespace Boiler
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region FlowControllerState Class
-    #if (!OPCUA_EXCLUDE_FlowControllerState)
+#if (!OPCUA_EXCLUDE_FlowControllerState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -1022,7 +1022,7 @@ namespace Boiler
             return Opc.Ua.NodeId.Create(Boiler.ObjectTypes.FlowControllerType, Boiler.Namespaces.Boiler, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -1052,7 +1052,7 @@ namespace Boiler
            "bnQBAREEAC4ARBEEAAAAC/////8DA/////8AAAAAFWCJCgIAAAABAAoAAABDb250cm9sT3V0AQESBAAu" +
            "AEQSBAAAAAv/////AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -1064,11 +1064,11 @@ namespace Boiler
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region LevelIndicatorState Class
-    #if (!OPCUA_EXCLUDE_LevelIndicatorState)
+#if (!OPCUA_EXCLUDE_LevelIndicatorState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -1086,7 +1086,7 @@ namespace Boiler
             return Opc.Ua.NodeId.Create(Boiler.ObjectTypes.LevelIndicatorType, Boiler.Namespaces.Boiler, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -1115,7 +1115,7 @@ namespace Boiler
            "AE91dHB1dAEBFAQALwEAQAkUBAAAAAv/////AQH/////AQAAABVgiQoCAAAAAAAHAAAARVVSYW5nZQEB" +
            "GAQALgBEGAQAAAEAdAP/////AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -1127,11 +1127,11 @@ namespace Boiler
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region FlowTransmitterState Class
-    #if (!OPCUA_EXCLUDE_FlowTransmitterState)
+#if (!OPCUA_EXCLUDE_FlowTransmitterState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -1149,7 +1149,7 @@ namespace Boiler
             return Opc.Ua.NodeId.Create(Boiler.ObjectTypes.FlowTransmitterType, Boiler.Namespaces.Boiler, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -1178,7 +1178,7 @@ namespace Boiler
            "AABPdXRwdXQBARsEAC8BAEAJGwQAAAAL/////wEB/////wEAAAAVYIkKAgAAAAAABwAAAEVVUmFuZ2UB" +
            "AR8EAC4ARB8EAAABAHQD/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -1190,11 +1190,11 @@ namespace Boiler
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region BoilerStateMachineState Class
-    #if (!OPCUA_EXCLUDE_BoilerStateMachineState)
+#if (!OPCUA_EXCLUDE_BoilerStateMachineState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -1212,7 +1212,7 @@ namespace Boiler
             return Opc.Ua.NodeId.Create(Boiler.ObjectTypes.BoilerStateMachineType, Boiler.Namespaces.Boiler, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -1261,7 +1261,7 @@ namespace Boiler
            "AAEBAQAAAAA1AQEBTAQAAAAANWCJCgIAAAABAAoAAABVcGRhdGVSYXRlAQFjBAMAAAAAJgAAAFRoZSBy" +
            "YXRlIGF0IHdoaWNoIHRoZSBzaW11bGF0aW9uIHJ1bnMuAC4ARGMEAAAAB/////8DA/////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -1418,7 +1418,7 @@ namespace Boiler
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -1580,11 +1580,11 @@ namespace Boiler
         private MethodState m_resetMethod;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region BoilerInputPipeState Class
-    #if (!OPCUA_EXCLUDE_BoilerInputPipeState)
+#if (!OPCUA_EXCLUDE_BoilerInputPipeState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -1602,7 +1602,7 @@ namespace Boiler
             return Opc.Ua.NodeId.Create(Boiler.ObjectTypes.BoilerInputPipeType, Boiler.Namespaces.Boiler, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -1635,7 +1635,7 @@ namespace Boiler
            "AQFtBAAvAQBACW0EAAAAC/////8CAv////8BAAAAFWCJCgIAAAAAAAcAAABFVVJhbmdlAQFxBAAuAERx" +
            "BAAAAQB0A/////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -1696,7 +1696,7 @@ namespace Boiler
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -1770,11 +1770,11 @@ namespace Boiler
         private ValveState m_valve;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region BoilerDrumState Class
-    #if (!OPCUA_EXCLUDE_BoilerDrumState)
+#if (!OPCUA_EXCLUDE_BoilerDrumState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -1792,7 +1792,7 @@ namespace Boiler
             return Opc.Ua.NodeId.Create(Boiler.ObjectTypes.BoilerDrumType, Boiler.Namespaces.Boiler, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -1822,7 +1822,7 @@ namespace Boiler
            "iQoCAAAAAQAGAAAAT3V0cHV0AQF1BAAvAQBACXUEAAAAC/////8BAf////8BAAAAFWCJCgIAAAAAAAcA" +
            "AABFVVJhbmdlAQF5BAAuAER5BAAAAQB0A/////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -1859,7 +1859,7 @@ namespace Boiler
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -1911,11 +1911,11 @@ namespace Boiler
         private LevelIndicatorState m_levelIndicator;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region BoilerOutputPipeState Class
-    #if (!OPCUA_EXCLUDE_BoilerOutputPipeState)
+#if (!OPCUA_EXCLUDE_BoilerOutputPipeState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -1933,7 +1933,7 @@ namespace Boiler
             return Opc.Ua.NodeId.Create(Boiler.ObjectTypes.BoilerOutputPipeType, Boiler.Namespaces.Boiler, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -1963,7 +1963,7 @@ namespace Boiler
            "ewQBAAAAFWCJCgIAAAABAAYAAABPdXRwdXQBAX0EAC8BAEAJfQQAAAAL/////wEB/////wEAAAAVYIkK" +
            "AgAAAAAABwAAAEVVUmFuZ2UBAYEEAC4ARIEEAAABAHQD/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -2000,7 +2000,7 @@ namespace Boiler
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -2052,11 +2052,11 @@ namespace Boiler
         private FlowTransmitterState m_flowTransmitter2;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region BoilerState Class
-    #if (!OPCUA_EXCLUDE_BoilerState)
+#if (!OPCUA_EXCLUDE_BoilerState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -2074,7 +2074,7 @@ namespace Boiler
             return Opc.Ua.NodeId.Create(Boiler.ObjectTypes.BoilerType, Boiler.Namespaces.Boiler, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -2154,7 +2154,7 @@ namespace Boiler
            "bSB0byB0cmFuc2l0aW9uIGZyb20gdGhlIEhhbHRlZCBzdGF0ZSB0byB0aGUgUmVhZHkgc3RhdGUuAC8B" +
            "AWIE1QQAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -2335,7 +2335,7 @@ namespace Boiler
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -2519,6 +2519,6 @@ namespace Boiler
         private BoilerStateMachineState m_simulation;
         #endregion
     }
-    #endif
+#endif
     #endregion
 }

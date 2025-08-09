@@ -25,7 +25,7 @@ max_line_length          = 120
 
 # Xml project files
 [*.{csproj,vbproj,vcxproj,vcxproj.filters,proj,projitems,shproj}]
-indent_size = 2
+indent_size = 4
 
 # Xml config files
 
@@ -35,6 +35,16 @@ dotnet_diagnostic.IDE0046.severity = silent
 # IDE0130: Namespace does not match folder structure
 dotnet_style_namespace_match_folder = false
 dotnet_style_operator_placement_when_wrapping = beginning_of_line
+dotnet_style_null_propagation = true:suggestion
+dotnet_style_coalesce_expression = true:suggestion
+dotnet_style_prefer_auto_properties = true:silent
+dotnet_style_prefer_is_null_check_over_reference_equality_method = true:silent
+dotnet_style_collection_initializer = true:suggestion
+dotnet_style_object_initializer = true:suggestion
+dotnet_style_prefer_simplified_boolean_expressions = true:suggestion
+
+# IDE0130: Namespace does not match folder structure
+dotnet_diagnostic.IDE0130.severity = none
 
 [*.{xml,props,targets,ruleset,config,nuspec,resx,vsixmanifest,vsct}]
 indent_size = 2
@@ -112,7 +122,7 @@ csharp_space_between_method_declaration_parameter_list_parentheses            = 
 
 #Formatting - wrapping options
 csharp_preserve_single_line_blocks                                            = true
-csharp_preserve_single_line_statements                                        = true
+csharp_preserve_single_line_statements                                        = false
 
 #Pattern - matching preferences
 csharp_style_pattern_local_over_anonymous_function                            = true : suggestion
@@ -134,7 +144,7 @@ csharp_prefer_braces                                                          = 
 csharp_style_deconstructed_variable_declaration                               = true : suggestion
 csharp_prefer_simple_default_expression                                       = true : suggestion
 csharp_style_inlined_variable_declaration                                     = false : suggestion
-csharp_prefer_simple_using_statement                                          = false:suggestion
+csharp_prefer_simple_using_statement                                          = true:suggestion
 
 #Style - implicit and explicit types
 csharp_style_var_for_built_in_types                                           = false : suggestion
@@ -212,7 +222,7 @@ dotnet_naming_style.constants_with_k_style.required_prefix                    = 
 # Constants are PascalCase
 dotnet_naming_rule.constants_should_be_pascal_case.severity = suggestion
 dotnet_naming_rule.constants_should_be_pascal_case.symbols                    = constants
-dotnet_naming_rule.constants_should_be_pascal_case.style                      = non_private_static_field_style
+dotnet_naming_rule.constants_should_be_pascal_case.style = non_private_static_field_style
 
 dotnet_naming_symbols.constants.applicable_kinds                              = field, local
 dotnet_naming_symbols.constants.applicable_accessibilities                    = public, internal, protected_internal
@@ -223,7 +233,7 @@ dotnet_naming_style.constant_style.capitalization                             = 
 # Non-private readonly fields are PascalCase
 dotnet_naming_rule.non_private_readonly_fields_should_be_pascal_case.severity = suggestion
 dotnet_naming_rule.non_private_readonly_fields_should_be_pascal_case.symbols  = non_private_readonly_fields
-dotnet_naming_rule.non_private_readonly_fields_should_be_pascal_case.style    = non_private_static_field_style
+dotnet_naming_rule.non_private_readonly_fields_should_be_pascal_case.style = non_private_static_field_style
 
 dotnet_naming_symbols.non_private_readonly_fields.applicable_kinds            = field
 dotnet_naming_symbols.non_private_readonly_fields.applicable_accessibilities  = public, protected, internal, protected_internal, private_protected
@@ -288,7 +298,7 @@ dotnet_naming_style.camel_case_style.capitalization                           = 
 # Local functions are PascalCase
 dotnet_naming_rule.local_functions_should_be_pascal_case.severity = suggestion
 dotnet_naming_rule.local_functions_should_be_pascal_case.symbols              = local_functions
-dotnet_naming_rule.local_functions_should_be_pascal_case.style                = non_private_static_field_style
+dotnet_naming_rule.local_functions_should_be_pascal_case.style = non_private_static_field_style
 
 dotnet_naming_symbols.local_functions.applicable_kinds                        = local_function
 
@@ -297,7 +307,7 @@ dotnet_naming_style.local_function_style.capitalization                       = 
 # By default, name items with PascalCase
 dotnet_naming_rule.members_should_be_pascal_case.severity = suggestion
 dotnet_naming_rule.members_should_be_pascal_case.symbols                      = all_members
-dotnet_naming_rule.members_should_be_pascal_case.style                        = non_private_static_field_style
+dotnet_naming_rule.members_should_be_pascal_case.style = non_private_static_field_style
 
 dotnet_naming_symbols.all_members.applicable_kinds                            = *
 
@@ -356,7 +366,7 @@ dotnet_diagnostic.CA2014.severity                                             = 
 dotnet_diagnostic.IDE0058.severity                                            = silent
 
 # IDE0290: Use primary constructor
-csharp_style_prefer_primary_constructors                                      = false
+csharp_style_prefer_primary_constructors                                      = false:suggestion
 # IDE0045: Convert to conditional expression
 dotnet_diagnostic.IDE0045.severity                                            = none
 # IDE0065: Using directives must be placed inside a namespace declaration

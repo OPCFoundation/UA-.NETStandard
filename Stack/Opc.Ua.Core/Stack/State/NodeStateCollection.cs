@@ -72,11 +72,9 @@ namespace Opc.Ua
 
             XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
             settings.CloseOutput = true;
-            using (var writer = XmlWriter.Create(ostrm, settings))
-            {
-                var serializer = new DataContractSerializer(typeof(NodeSet));
-                serializer.WriteObject(writer, nodeSet);
-            }
+            using var writer = XmlWriter.Create(ostrm, settings);
+            var serializer = new DataContractSerializer(typeof(NodeSet));
+            serializer.WriteObject(writer, nodeSet);
         }
 
         /// <summary>
@@ -166,9 +164,10 @@ namespace Opc.Ua
         /// </summary>
         public void SaveAsNodeSet2(ISystemContext context, Stream ostrm, string version)
         {
-            var nodeSet = new Export.UANodeSet();
-            nodeSet.LastModified = DateTime.UtcNow;
-            nodeSet.LastModifiedSpecified = true;
+            var nodeSet = new Export.UANodeSet {
+                LastModified = DateTime.UtcNow,
+                LastModifiedSpecified = true
+            };
 
             for (int ii = 0; ii < s_AliasesToUse.Length; ii++)
             {
@@ -205,27 +204,23 @@ namespace Opc.Ua
                 Factory = context.EncodeableFactory
             };
 
-            using (var writer = XmlWriter.Create(ostrm, settings))
+            using var writer = XmlWriter.Create(ostrm, settings);
+            var root = new XmlQualifiedName("ListOfNodeState", Namespaces.OpcUaXsd);
+            using var encoder = new XmlEncoder(root, writer, messageContext);
+            encoder.SaveStringTable("NamespaceUris", "NamespaceUri", context.NamespaceUris);
+            encoder.SaveStringTable("ServerUris", "ServerUri", context.ServerUris);
+
+            for (int ii = 0; ii < Count; ii++)
             {
-                var root = new XmlQualifiedName("ListOfNodeState", Namespaces.OpcUaXsd);
-                using (var encoder = new XmlEncoder(root, writer, messageContext))
+                NodeState state = this[ii];
+
+                if (state != null)
                 {
-                    encoder.SaveStringTable("NamespaceUris", "NamespaceUri", context.NamespaceUris);
-                    encoder.SaveStringTable("ServerUris", "ServerUri", context.ServerUris);
-
-                    for (int ii = 0; ii < Count; ii++)
-                    {
-                        NodeState state = this[ii];
-
-                        if (state != null)
-                        {
-                            state.SaveAsXml(context, encoder);
-                        }
-                    }
-
-                    encoder.Close();
+                    state.SaveAsXml(context, encoder);
                 }
             }
+
+            encoder.Close();
         }
 
         /// <summary>
@@ -233,27 +228,25 @@ namespace Opc.Ua
         /// </summary>
         public void SaveAsBinary(ISystemContext context, Stream ostrm)
         {
-            var messageContext = new ServiceMessageContext();
+            var messageContext = new ServiceMessageContext {
+                NamespaceUris = context.NamespaceUris,
+                ServerUris = context.ServerUris,
+                Factory = context.EncodeableFactory
+            };
 
-            messageContext.NamespaceUris = context.NamespaceUris;
-            messageContext.ServerUris = context.ServerUris;
-            messageContext.Factory = context.EncodeableFactory;
+            using var encoder = new BinaryEncoder(ostrm, messageContext, true);
+            encoder.SaveStringTable(context.NamespaceUris);
+            encoder.SaveStringTable(context.ServerUris);
 
-            using (var encoder = new BinaryEncoder(ostrm, messageContext, true))
+            encoder.WriteInt32(null, Count);
+
+            for (int ii = 0; ii < Count; ii++)
             {
-                encoder.SaveStringTable(context.NamespaceUris);
-                encoder.SaveStringTable(context.ServerUris);
-
-                encoder.WriteInt32(null, Count);
-
-                for (int ii = 0; ii < Count; ii++)
-                {
-                    NodeState state = this[ii];
-                    state.SaveAsBinary(context, encoder);
-                }
-
-                encoder.Close();
+                NodeState state = this[ii];
+                state.SaveAsBinary(context, encoder);
             }
+
+            encoder.Close();
         }
 
         /// <summary>
@@ -267,63 +260,61 @@ namespace Opc.Ua
                 Factory = context.EncodeableFactory
             };
 
-            using (var decoder = new BinaryDecoder(istrm, messageContext))
+            using var decoder = new BinaryDecoder(istrm, messageContext);
+            // check if a namespace table was provided.
+            var namespaceUris = new NamespaceTable();
+
+            if (!decoder.LoadStringTable(namespaceUris))
             {
-                // check if a namespace table was provided.
-                var namespaceUris = new NamespaceTable();
+                namespaceUris = null;
+            }
 
-                if (!decoder.LoadStringTable(namespaceUris))
+            // update namespace table.
+            if (updateTables)
+            {
+                if (namespaceUris != null && context.NamespaceUris != null)
                 {
-                    namespaceUris = null;
-                }
-
-                // update namespace table.
-                if (updateTables)
-                {
-                    if (namespaceUris != null && context.NamespaceUris != null)
+                    for (int ii = 0; ii < namespaceUris.Count; ii++)
                     {
-                        for (int ii = 0; ii < namespaceUris.Count; ii++)
-                        {
-                            context.NamespaceUris.GetIndexOrAppend(namespaceUris.GetString((uint)ii));
-                        }
+                        context.NamespaceUris.GetIndexOrAppend(namespaceUris.GetString((uint)ii));
                     }
                 }
+            }
 
-                // check if a server uri table was provided.
-                var serverUris = new StringTable();
+            // check if a server uri table was provided.
+            var serverUris = new StringTable();
 
-                if (namespaceUris != null && namespaceUris.Count > 1)
+            if (namespaceUris != null && namespaceUris.Count > 1)
+            {
+                serverUris.Append(namespaceUris.GetString(1));
+            }
+
+            if (!decoder.LoadStringTable(serverUris))
+            {
+                serverUris = null;
+            }
+
+            // update server table.
+            if (updateTables)
+            {
+                if (serverUris != null && context.ServerUris != null)
                 {
-                    serverUris.Append(namespaceUris.GetString(1));
-                }
-
-                if (!decoder.LoadStringTable(serverUris))
-                {
-                    serverUris = null;
-                }
-
-                // update server table.
-                if (updateTables)
-                {
-                    if (serverUris != null && context.ServerUris != null)
+                    for (int ii = 0; ii < serverUris.Count; ii++)
                     {
-                        for (int ii = 0; ii < serverUris.Count; ii++)
-                        {
-                            context.ServerUris.GetIndexOrAppend(serverUris.GetString((uint)ii));
-                        }
+                        context.ServerUris.GetIndexOrAppend(serverUris.GetString((uint)ii));
                     }
                 }
+            }
 
-                // setup the mappings to use during decoding.
-                decoder.SetMappingTables(namespaceUris, serverUris);
+            // setup the mappings to use during decoding.
+            decoder.SetMappingTables(namespaceUris, serverUris);
 
-                int count = decoder.ReadInt32(null);
+            int count = decoder.ReadInt32(null);
 
-                for (int ii = 0; ii < count; ii++)
-                {
-                    var state = NodeState.LoadNode(context, decoder);
-                    Add(state);
-                }
+            for (int ii = 0; ii < count; ii++)
+            {
+                var state = NodeState.LoadNode(context, decoder);
+                Add(state);
             }
         }
 
@@ -332,69 +323,67 @@ namespace Opc.Ua
         /// </summary>
         public void LoadFromXml(ISystemContext context, Stream istrm, bool updateTables)
         {
-            var messageContext = new ServiceMessageContext();
+            var messageContext = new ServiceMessageContext {
+                NamespaceUris = context.NamespaceUris,
+                ServerUris = context.ServerUris,
+                Factory = context.EncodeableFactory
+            };
 
-            messageContext.NamespaceUris = context.NamespaceUris;
-            messageContext.ServerUris = context.ServerUris;
-            messageContext.Factory = context.EncodeableFactory;
+            using var reader = XmlReader.Create(istrm, Utils.DefaultXmlReaderSettings());
+            using var decoder = new XmlDecoder(null, reader, messageContext);
+            var namespaceUris = new NamespaceTable();
 
-            using (var reader = XmlReader.Create(istrm, Utils.DefaultXmlReaderSettings()))
-            using (var decoder = new XmlDecoder(null, reader, messageContext))
+            if (!decoder.LoadStringTable("NamespaceUris", "NamespaceUri", namespaceUris))
             {
-                var namespaceUris = new NamespaceTable();
-
-                if (!decoder.LoadStringTable("NamespaceUris", "NamespaceUri", namespaceUris))
-                {
-                    namespaceUris = null;
-                }
-
-                // update namespace table.
-                if (updateTables)
-                {
-                    if (namespaceUris != null && context.NamespaceUris != null)
-                    {
-                        for (int ii = 0; ii < namespaceUris.Count; ii++)
-                        {
-                            context.NamespaceUris.GetIndexOrAppend(namespaceUris.GetString((uint)ii));
-                        }
-                    }
-                }
-
-                var serverUris = new StringTable();
-
-                if (!decoder.LoadStringTable("ServerUris", "ServerUri", context.ServerUris))
-                {
-                    serverUris = null;
-                }
-
-                // update server table.
-                if (updateTables)
-                {
-                    if (serverUris != null && context.ServerUris != null)
-                    {
-                        for (int ii = 0; ii < serverUris.Count; ii++)
-                        {
-                            context.ServerUris.GetIndexOrAppend(serverUris.GetString((uint)ii));
-                        }
-                    }
-                }
-
-                // set mapping.
-                decoder.SetMappingTables(namespaceUris, serverUris);
-
-                decoder.PushNamespace(Namespaces.OpcUaXsd);
-
-                var state = NodeState.LoadNode(context, decoder);
-
-                while (state != null)
-                {
-                    Add(state);
-
-                    state = NodeState.LoadNode(context, decoder);
-                }
-
-                decoder.Close();
+                namespaceUris = null;
             }
+
+            // update namespace table.
+            if (updateTables)
+            {
+                if (namespaceUris != null && context.NamespaceUris != null)
+                {
+                    for (int ii = 0; ii < namespaceUris.Count; ii++)
+                    {
+                        context.NamespaceUris.GetIndexOrAppend(namespaceUris.GetString((uint)ii));
+                    }
+                }
+            }
+
+            var serverUris = new StringTable();
+
+            if (!decoder.LoadStringTable("ServerUris", "ServerUri", context.ServerUris))
+            {
+                serverUris = null;
+            }
+
+            // update server table.
+            if (updateTables)
+            {
+                if (serverUris != null && context.ServerUris != null)
+                {
+                    for (int ii = 0; ii < serverUris.Count; ii++)
+                    {
+                        context.ServerUris.GetIndexOrAppend(serverUris.GetString((uint)ii));
+                    }
+                }
+            }
+
+            // set mapping.
+            decoder.SetMappingTables(namespaceUris, serverUris);
+
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            var state = NodeState.LoadNode(context, decoder);
+
+            while (state != null)
+            {
+                Add(state);
+
+                state = NodeState.LoadNode(context, decoder);
+            }
+
+            decoder.Close();
         }
 
         /// <summary>
@@ -561,17 +550,12 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(typeDefinitionId));
             }
 
-            if (type == null)
-            {
-                throw new ArgumentNullException(nameof(type));
-            }
-
             if (m_types == null)
             {
                 m_types = [];
             }
 
-            m_types[typeDefinitionId] = type;
+            m_types[typeDefinitionId] = type ?? throw new ArgumentNullException(nameof(type));
         }
 
         /// <summary>

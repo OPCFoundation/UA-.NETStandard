@@ -55,18 +55,8 @@ namespace Opc.Ua.Server
             bool publishingEnabled,
             uint maxMessageCount)
         {
-            if (server == null)
-            {
-                throw new ArgumentNullException(nameof(server));
-            }
-
-            if (session == null)
-            {
-                throw new ArgumentNullException(nameof(session));
-            }
-
-            m_server = server;
-            m_session = session;
+            m_server = server ?? throw new ArgumentNullException(nameof(server));
+            m_session = session ?? throw new ArgumentNullException(nameof(session));
             Id = subscriptionId;
             m_publishingInterval = publishingInterval;
             m_maxLifetimeCount = maxLifetimeCount;
@@ -2196,7 +2186,7 @@ namespace Opc.Ua.Server
                 // build list of items to refresh.
                 foreach (LinkedListNode<IMonitoredItem> monitoredItem in m_monitoredItems.Values)
                 {
-                    IEventMonitoredItem eventMonitoredItem = monitoredItem.Value as IEventMonitoredItem;
+                    var eventMonitoredItem = monitoredItem.Value as IEventMonitoredItem;
 
                     if (eventMonitoredItem != null && eventMonitoredItem.EventFilter != null)
                     {
@@ -2227,7 +2217,7 @@ namespace Opc.Ua.Server
                 // build list of items to refresh.
                 if (m_monitoredItems.TryGetValue(monitoredItemId, out LinkedListNode<IMonitoredItem> monitoredItem))
                 {
-                    IEventMonitoredItem eventMonitoredItem = monitoredItem.Value as IEventMonitoredItem;
+                    var eventMonitoredItem = monitoredItem.Value as IEventMonitoredItem;
 
                     if (eventMonitoredItem != null && eventMonitoredItem.EventFilter != null)
                     {
@@ -2269,7 +2259,7 @@ namespace Opc.Ua.Server
                 // generate start event.
                 var e = new RefreshStartEventState(null);
 
-                TranslationInfo message = new TranslationInfo(
+                var message = new TranslationInfo(
                     "RefreshStartEvent",
                     "en-US",
                     Utils.Format(messageTemplate, "started"));
@@ -2321,7 +2311,7 @@ namespace Opc.Ua.Server
                 // generate start event.
                 var e = new RefreshEndEventState(null);
 
-                TranslationInfo message = new TranslationInfo(
+                var message = new TranslationInfo(
                     "RefreshEndEvent",
                     "en-US",
                     Utils.Format(messageTemplate, "completed"));

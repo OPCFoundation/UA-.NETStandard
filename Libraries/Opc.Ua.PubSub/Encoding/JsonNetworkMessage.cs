@@ -149,11 +149,9 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="messageContext">The context.</param>
         public override byte[] Encode(IServiceMessageContext messageContext)
         {
-            using (var stream = new MemoryStream())
-            {
-                Encode(messageContext, stream);
-                return stream.ToArray();
-            }
+            using var stream = new MemoryStream();
+            Encode(messageContext, stream);
+            return stream.ToArray();
         }
 
         /// <summary>
@@ -165,55 +163,53 @@ namespace Opc.Ua.PubSub.Encoding
         {
             bool topLevelIsArray = !HasNetworkMessageHeader && !HasSingleDataSetMessage && !IsMetaDataMessage;
 
-            using (var encoder = new JsonEncoder(messageContext, true, topLevelIsArray, stream))
+            using var encoder = new JsonEncoder(messageContext, true, topLevelIsArray, stream);
+            if (IsMetaDataMessage)
             {
-                if (IsMetaDataMessage)
-                {
-                    EncodeNetworkMessageHeader(encoder);
+                EncodeNetworkMessageHeader(encoder);
 
-                    encoder.WriteEncodeable(kFieldMetaData, m_metadata, null);
+                encoder.WriteEncodeable(kFieldMetaData, m_metadata, null);
 
-                    return;
-                }
+                return;
+            }
 
-                // handle no header
-                if (HasNetworkMessageHeader)
+            // handle no header
+            if (HasNetworkMessageHeader)
+            {
+                Encode(encoder);
+            }
+            else if (DataSetMessages != null && DataSetMessages.Count > 0)
+            {
+                if (HasSingleDataSetMessage)
                 {
-                    Encode(encoder);
-                }
-                else if (DataSetMessages != null && DataSetMessages.Count > 0)
-                {
-                    if (HasSingleDataSetMessage)
+                    // encode single dataset message
+
+                    if (DataSetMessages[0] is JsonDataSetMessage jsonDataSetMessage)
                     {
-                        // encode single dataset message
-
-                        if (DataSetMessages[0] is JsonDataSetMessage jsonDataSetMessage)
+                        if (!jsonDataSetMessage.HasDataSetMessageHeader)
                         {
-                            if (!jsonDataSetMessage.HasDataSetMessageHeader)
-                            {
-                                // If the NetworkMessageHeader and the DataSetMessageHeader bits are not set
-                                // and SingleDataSetMessage bit is set, the NetworkMessage is a JSON object
-                                // containing the set of name/value pairs defined for a single DataSet.
-                                jsonDataSetMessage.EncodePayload(encoder, false);
-                            }
-                            else
-                            {
-                                // If the SingleDataSetMessage bit of the NetworkMessageContentMask is set,
-                                // the content of the Messages field is a JSON object containing a single DataSetMessage.
-                                jsonDataSetMessage.Encode(encoder);
-                            }
+                            // If the NetworkMessageHeader and the DataSetMessageHeader bits are not set
+                            // and SingleDataSetMessage bit is set, the NetworkMessage is a JSON object
+                            // containing the set of name/value pairs defined for a single DataSet.
+                            jsonDataSetMessage.EncodePayload(encoder, false);
+                        }
+                        else
+                        {
+                            // If the SingleDataSetMessage bit of the NetworkMessageContentMask is set,
+                            // the content of the Messages field is a JSON object containing a single DataSetMessage.
+                            jsonDataSetMessage.Encode(encoder);
                         }
                     }
-                    else
+                }
+                else
+                {
+                    // If the NetworkMessageHeader bit of the NetworkMessageContentMask is not set,
+                    // the NetworkMessage is the contents of the Messages field (e.g. a JSON array of DataSetMessages).
+                    foreach (UaDataSetMessage message in DataSetMessages)
                     {
-                        // If the NetworkMessageHeader bit of the NetworkMessageContentMask is not set,
-                        // the NetworkMessage is the contents of the Messages field (e.g. a JSON array of DataSetMessages).
-                        foreach (UaDataSetMessage message in DataSetMessages)
+                        if (message is JsonDataSetMessage jsonDataSetMessage)
                         {
-                            if (message is JsonDataSetMessage jsonDataSetMessage)
-                            {
-                                jsonDataSetMessage.Encode(encoder);
-                            }
+                            jsonDataSetMessage.Encode(encoder);
                         }
                     }
                 }
@@ -230,20 +226,18 @@ namespace Opc.Ua.PubSub.Encoding
         {
             string json = System.Text.Encoding.UTF8.GetString(message);
 
-            using (var jsonDecoder = new JsonDecoder(json, context))
-            {
-                // 1. decode network message header (PublisherId & DataSetClassId)
-                DecodeNetworkMessageHeader(jsonDecoder);
+            using var jsonDecoder = new JsonDecoder(json, context);
+            // 1. decode network message header (PublisherId & DataSetClassId)
+            DecodeNetworkMessageHeader(jsonDecoder);
 
-                if (m_jsonNetworkMessageType == JSONNetworkMessageType.DataSetMetaData)
-                {
-                    DecodeMetaDataMessage(jsonDecoder);
-                }
-                else if (m_jsonNetworkMessageType == JSONNetworkMessageType.DataSetMessage)
-                {
-                    //decode bytes using dataset reader information
-                    DecodeSubscribedDataSets(jsonDecoder, dataSetReaders);
-                }
+            if (m_jsonNetworkMessageType == JSONNetworkMessageType.DataSetMetaData)
+            {
+                DecodeMetaDataMessage(jsonDecoder);
+            }
+            else if (m_jsonNetworkMessageType == JSONNetworkMessageType.DataSetMessage)
+            {
+                //decode bytes using dataset reader information
+                DecodeSubscribedDataSets(jsonDecoder, dataSetReaders);
             }
         }
 
@@ -515,7 +509,7 @@ namespace Opc.Ua.PubSub.Encoding
                     // attempt decoding for each data set reader
                     foreach (DataSetReaderDataType dataSetReader in dataSetReaders)
                     {
-                        if (!(ExtensionObject.ToEncodeable(dataSetReader.MessageSettings) is JsonDataSetReaderMessageDataType jsonMessageSettings))
+                        if (ExtensionObject.ToEncodeable(dataSetReader.MessageSettings) is not JsonDataSetReaderMessageDataType jsonMessageSettings)
                         {
                             // The reader MessageSettings is not set up correctly
                             continue;

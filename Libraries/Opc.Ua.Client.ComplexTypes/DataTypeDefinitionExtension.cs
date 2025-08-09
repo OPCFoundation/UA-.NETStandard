@@ -358,10 +358,14 @@ namespace Opc.Ua.Client.ComplexTypes
             {
                 switch (typeName.Name)
                 {
-                    case "CharArray": return DataTypeIds.String;
-                    case "Variant": return DataTypeIds.BaseDataType;
-                    case "ExtensionObject": return DataTypeIds.Structure;
-                    default: break;
+                    case "CharArray":
+                        return DataTypeIds.String;
+                    case "Variant":
+                        return DataTypeIds.BaseDataType;
+                    case "ExtensionObject":
+                        return DataTypeIds.Structure;
+                    default:
+                        break;
                 }
                 System.Reflection.FieldInfo internalField = typeof(DataTypeIds).GetField(typeName.Name);
                 if (internalField == null)

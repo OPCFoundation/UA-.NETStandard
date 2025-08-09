@@ -155,7 +155,7 @@ namespace Opc.Ua.Bindings
 #if TRACE_MEMORY
             Utils.LogTrace("{0:X}:TakeBuffer({1:X},{2:X},{3},{4})", this.GetHashCode(), buffer.GetHashCode(), buffer.Length, owner, ++m_buffersTaken);
 #endif
-            buffer[buffer.Length - 1] = kCookieUnlocked;
+            buffer[^1] = kCookieUnlocked;
 
             return buffer;
         }
@@ -205,14 +205,14 @@ namespace Opc.Ua.Bindings
         /// <param name="buffer">The buffer.</param>
         public static void LockBuffer(byte[] buffer)
         {
-            if (buffer[buffer.Length - 1] != kCookieUnlocked)
+            if (buffer[^1] != kCookieUnlocked)
             {
                 throw new InvalidOperationException("Buffer is already locked.");
             }
 #if TRACE_MEMORY
             Utils.LogTrace("LockBuffer({0:X},{1:X})", buffer.GetHashCode(), buffer.Length);
 #endif
-            buffer[buffer.Length - 1] = kCookieLocked;
+            buffer[^1] = kCookieLocked;
         }
 
         /// <summary>
@@ -221,14 +221,14 @@ namespace Opc.Ua.Bindings
         /// <param name="buffer">The buffer.</param>
         public static void UnlockBuffer(byte[] buffer)
         {
-            if (buffer[buffer.Length - 1] != kCookieLocked)
+            if (buffer[^1] != kCookieLocked)
             {
                 throw new InvalidOperationException("Buffer is not locked.");
             }
 #if TRACE_MEMORY
             Utils.LogTrace("UnlockBuffer({0:X},{1:X})", buffer.GetHashCode(), buffer.Length);
 #endif
-            buffer[buffer.Length - 1] = kCookieUnlocked;
+            buffer[^1] = kCookieUnlocked;
         }
 
         /// <summary>
@@ -246,13 +246,13 @@ namespace Opc.Ua.Bindings
 #if TRACE_MEMORY
             Utils.LogTrace("{0:X}:ReturnBuffer({1:X},{2:X},{3},{4})", this.GetHashCode(), buffer.GetHashCode(), buffer.Length, owner, --m_buffersTaken);
 #endif
-            if (buffer[buffer.Length - 1] != kCookieUnlocked)
+            if (buffer[^1] != kCookieUnlocked)
             {
                 throw new InvalidOperationException("Buffer has been locked.");
             }
 
             // destroy cookie
-            buffer[buffer.Length - 1] = kCookieUnlocked ^ kCookieLocked;
+            buffer[^1] = kCookieUnlocked ^ kCookieLocked;
 
 #if TRACK_MEMORY
             lock (m_lock)

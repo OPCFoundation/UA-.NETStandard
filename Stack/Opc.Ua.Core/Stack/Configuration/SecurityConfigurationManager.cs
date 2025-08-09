@@ -136,17 +136,17 @@ namespace Opc.Ua.Security
                 return application;
             }
 
-            application = new SecuredApplication();
-
-            // copy application info.
-            application.ApplicationName = applicationConfiguration.ApplicationName;
-            application.ApplicationUri = applicationConfiguration.ApplicationUri;
-            application.ProductName = applicationConfiguration.ProductUri;
-            application.ApplicationType = (ApplicationType)(int)applicationConfiguration.ApplicationType;
-            application.ConfigurationFile = configFilePath;
-            application.ExecutableFile = exeFilePath;
-            application.ConfigurationMode = "http://opcfoundation.org/UASDK/ConfigurationTool";
-            application.LastExportTime = DateTime.UtcNow;
+            application = new SecuredApplication {
+                // copy application info.
+                ApplicationName = applicationConfiguration.ApplicationName,
+                ApplicationUri = applicationConfiguration.ApplicationUri,
+                ProductName = applicationConfiguration.ProductUri,
+                ApplicationType = (ApplicationType)(int)applicationConfiguration.ApplicationType,
+                ConfigurationFile = configFilePath,
+                ExecutableFile = exeFilePath,
+                ConfigurationMode = "http://opcfoundation.org/UASDK/ConfigurationTool",
+                LastExportTime = DateTime.UtcNow
+            };
 
             // copy the security settings.
             if (applicationConfiguration.SecurityConfiguration != null)
@@ -379,12 +379,10 @@ namespace Opc.Ua.Security
         /// </summary>
         private static object GetObject(Type type, XmlNode element)
         {
-            using (var memoryStream = new MemoryStream(Encoding.UTF8.GetBytes(element.InnerXml)))
-            {
-                var reader = XmlDictionaryReader.CreateTextReader(memoryStream, Encoding.UTF8, new XmlDictionaryReaderQuotas(), null);
-                var serializer = new DataContractSerializer(type);
-                return serializer.ReadObject(reader);
-            }
+            using var memoryStream = new MemoryStream(Encoding.UTF8.GetBytes(element.InnerXml));
+            var reader = XmlDictionaryReader.CreateTextReader(memoryStream, Encoding.UTF8, new XmlDictionaryReaderQuotas(), null);
+            var serializer = new DataContractSerializer(type);
+            return serializer.ReadObject(reader);
         }
 
         /// <summary>
@@ -392,16 +390,14 @@ namespace Opc.Ua.Security
         /// </summary>
         private static string SetObject(Type type, object value)
         {
-            using (var memoryStream = new MemoryStream())
-            {
-                var serializer = new DataContractSerializer(value.GetType());
-                serializer.WriteObject(memoryStream, value);
+            using var memoryStream = new MemoryStream();
+            var serializer = new DataContractSerializer(value.GetType());
+            serializer.WriteObject(memoryStream, value);
 
-                // must extract the inner xml.
-                var document = new XmlDocument();
-                document.LoadInnerXml(Encoding.UTF8.GetString(memoryStream.ToArray()));
-                return document.DocumentElement.InnerXml;
-            }
+            // must extract the inner xml.
+            var document = new XmlDocument();
+            document.LoadInnerXml(Encoding.UTF8.GetString(memoryStream.ToArray()));
+            return document.DocumentElement.InnerXml;
         }
     }
 }

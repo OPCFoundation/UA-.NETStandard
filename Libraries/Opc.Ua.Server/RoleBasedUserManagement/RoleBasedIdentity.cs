@@ -144,7 +144,10 @@ namespace Opc.Ua.Server
             return lhs.Equals(rhs);
         }
         /// <inheritdoc/>
-        public static bool operator !=(Role lhs, Role rhs) => !(lhs == rhs);
+        public static bool operator !=(Role lhs, Role rhs)
+        {
+            return !(lhs == rhs);
+        }
 
         /// <summary>
         /// returns the name of the role

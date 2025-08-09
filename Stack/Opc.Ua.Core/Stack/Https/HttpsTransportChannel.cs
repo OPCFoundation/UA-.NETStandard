@@ -17,7 +17,9 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Security;
 using System.Reflection;
+#if NETCOREAPP3_1_OR_GREATER || NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
 using System.Security.Cryptography;
+#endif
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -313,11 +315,9 @@ namespace Opc.Ua.Bindings
                 _ = Task.Run(async () => {
                     try
                     {
-                        using (var cts = new CancellationTokenSource(OperationTimeout))
-                        {
-                            response = await m_client.PostAsync(m_url, content, cts.Token).ConfigureAwait(false);
-                            response.EnsureSuccessStatusCode();
-                        }
+                        using var cts = new CancellationTokenSource(OperationTimeout);
+                        response = await m_client.PostAsync(m_url, content, cts.Token).ConfigureAwait(false);
+                        response.EnsureSuccessStatusCode();
                     }
                     catch (Exception ex)
                     {
@@ -334,8 +334,9 @@ namespace Opc.Ua.Bindings
             catch (Exception ex)
             {
                 Utils.LogError(ex, "Exception sending HTTPS request.");
-                var result = new HttpsAsyncResult(callback, callbackData, OperationTimeout, request, response);
-                result.Exception = ex;
+                var result = new HttpsAsyncResult(callback, callbackData, OperationTimeout, request, response) {
+                    Exception = ex
+                };
                 result.OperationCompleted();
                 return result;
             }
@@ -344,7 +345,7 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public IServiceResponse EndSendRequest(IAsyncResult result)
         {
-            if (!(result is HttpsAsyncResult result2))
+            if (result is not HttpsAsyncResult result2)
             {
                 throw new ArgumentException("Invalid result object passed.", nameof(result));
             }
@@ -474,9 +475,13 @@ namespace Opc.Ua.Bindings
                     StatusCode statusCode = StatusCodes.BadUnknownResponse;
                     switch (webex.Status)
                     {
-                        case WebExceptionStatus.Timeout: statusCode = StatusCodes.BadRequestTimeout; break;
+                        case WebExceptionStatus.Timeout:
+                            statusCode = StatusCodes.BadRequestTimeout;
+                            break;
                         case WebExceptionStatus.ConnectionClosed:
-                        case WebExceptionStatus.ConnectFailure: statusCode = StatusCodes.BadNotConnected; break;
+                        case WebExceptionStatus.ConnectFailure:
+                            statusCode = StatusCodes.BadNotConnected;
+                            break;
                     }
                     Utils.LogError(webex, "Exception sending HTTPS request.");
                     throw ServiceResultException.Create((uint)statusCode, webex.Message);

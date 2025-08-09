@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 
 namespace Opc.Ua.Gds.Server.Database
@@ -349,7 +348,7 @@ namespace Opc.Ua.Gds.Server.Database
                 throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
             }
 
-            if (!(nodeId.Identifier is string id))
+            if (nodeId.Identifier is not string id)
             {
                 throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
             }

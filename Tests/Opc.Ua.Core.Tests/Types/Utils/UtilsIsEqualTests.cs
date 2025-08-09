@@ -31,6 +31,9 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+#if NET7_0_OR_GREATER
+using System.Runtime.CompilerServices;
+#endif
 using System.Runtime.InteropServices;
 using System.Xml;
 using BenchmarkDotNet.Attributes;
@@ -44,10 +47,20 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
     [Parallelizable]
     [MemoryDiagnoser]
     [DisassemblyDiagnoser]
-    public class UtilsIsEqualTests
+    public
+#if NET7_0_OR_GREATER
+        partial
+#endif
+        class UtilsIsEqualTests
     {
+#if NET7_0_OR_GREATER
+        [LibraryImport("msvcrt.dll")]
+        [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
+        private static partial int memcmp(in byte[] b1, in byte[] b2, long count);
+#else
         [DllImport("msvcrt.dll", CallingConvention = CallingConvention.Cdecl)]
         private static extern int memcmp(byte[] b1, byte[] b2, long count);
+#endif
 
         [Params(32, 128, 1024, 4096, 65536)]
         public int PayLoadSize { get; set; } = 1024;
@@ -305,7 +318,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 
             if (value1 is IEncodeable encodeable1)
             {
-                if (!(value2 is IEncodeable encodeable2))
+                if (value2 is not IEncodeable encodeable2)
                 {
                     return false;
                 }
@@ -317,7 +330,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 
             if (value1 is XmlElement element1)
             {
-                if (!(value2 is XmlElement element2))
+                if (value2 is not XmlElement element2)
                 {
                     return false;
                 }
@@ -330,7 +343,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             if (value1 is Array array1)
             {
                 // arrays are greater than non-arrays.
-                if (!(value2 is Array array2))
+                if (value2 is not Array array2)
                 {
                     return false;
                 }
@@ -383,7 +396,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             if (value1 is IEnumerable enumerable1)
             {
                 // collections are greater than non-collections.
-                if (!(value2 is IEnumerable enumerable2))
+                if (value2 is not IEnumerable enumerable2)
                 {
                     return false;
                 }

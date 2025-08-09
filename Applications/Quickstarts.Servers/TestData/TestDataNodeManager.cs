@@ -463,7 +463,7 @@ namespace TestData
                 return null;
             }
 
-            if (!(context.OperationContext.Session.RestoreHistoryContinuationPoint(continuationPoint) is HistoryDataReader reader))
+            if (context.OperationContext.Session.RestoreHistoryContinuationPoint(continuationPoint) is not HistoryDataReader reader)
             {
                 return null;
             }
@@ -600,7 +600,7 @@ namespace TestData
             }
 
             // only care about variables and properties.
-            if (!(monitoredNode.Node is BaseVariableState source))
+            if (monitoredNode.Node is not BaseVariableState source)
             {
                 return false;
             }

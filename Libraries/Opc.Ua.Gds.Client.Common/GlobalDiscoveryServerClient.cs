@@ -314,7 +314,8 @@ namespace Opc.Ua.Gds.Client
             Session.KeepAlive += Session_KeepAlive;
             Session.KeepAlive += KeepAlive;
             // TODO: implement, suppress warning/error
-            if (ServerStatusChanged != null) { }
+            if (ServerStatusChanged != null)
+            { }
 
             if (Session.Factory.GetSystemType(DataTypeIds.ApplicationRecordDataType) == null)
             {
@@ -951,53 +952,51 @@ namespace Opc.Ua.Gds.Client
                 (byte)OpenFileMode.Read);
 
             uint fileHandle = (uint)outputArguments[0];
-            using (var ostrm = new MemoryStream())
+            using var ostrm = new MemoryStream();
+            try
             {
-                try
+                while (true)
                 {
-                    while (true)
+                    const int length = 4096;
+
+                    outputArguments = Session.Call(
+                        trustListId,
+                        Ua.MethodIds.FileType_Read,
+                        fileHandle,
+                        length);
+
+                    byte[] bytes = (byte[])outputArguments[0];
+                    ostrm.Write(bytes, 0, bytes.Length);
+
+                    if (length != bytes.Length)
                     {
-                        const int length = 4096;
-
-                        outputArguments = Session.Call(
-                            trustListId,
-                            Ua.MethodIds.FileType_Read,
-                            fileHandle,
-                            length);
-
-                        byte[] bytes = (byte[])outputArguments[0];
-                        ostrm.Write(bytes, 0, bytes.Length);
-
-                        if (length != bytes.Length)
-                        {
-                            break;
-                        }
+                        break;
                     }
                 }
-                catch (Exception)
-                {
-                    throw;
-                }
-                finally
-                {
-                    if (IsConnected)
-                    {
-                        Session.Call(
-                            trustListId,
-                            Ua.MethodIds.FileType_Close,
-                            fileHandle);
-                    }
-                }
-
-                ostrm.Position = 0;
-
-                var trustList = new TrustListDataType();
-                using (var decoder = new BinaryDecoder(ostrm, Session.MessageContext))
-                {
-                    trustList.Decode(decoder);
-                }
-                return trustList;
             }
+            catch (Exception)
+            {
+                throw;
+            }
+            finally
+            {
+                if (IsConnected)
+                {
+                    Session.Call(
+                        trustListId,
+                        Ua.MethodIds.FileType_Close,
+                        fileHandle);
+                }
+            }
+
+            ostrm.Position = 0;
+
+            var trustList = new TrustListDataType();
+            using (var decoder = new BinaryDecoder(ostrm, Session.MessageContext))
+            {
+                trustList.Decode(decoder);
+            }
+            return trustList;
         }
 
         private ConfiguredEndpoint m_endpoint;

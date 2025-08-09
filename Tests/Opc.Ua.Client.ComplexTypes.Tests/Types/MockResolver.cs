@@ -148,7 +148,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             if (addRootNode)
             {
                 INode rootNode = await FindAsync(dataType, ct).ConfigureAwait(false);
-                if (!(rootNode is DataTypeNode))
+                if (rootNode is not DataTypeNode)
                 {
                     throw new ServiceResultException("Root Node is not a DataType node.");
                 }
@@ -163,7 +163,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     IEnumerable<DataTypeNode> response = m_dataTypeNodes.Values.Where(n => n.NodeClass == NodeClass.DataType && ((DataTypeNode)n).DataTypeDefinition.Body is StructureDefinition structureDefinition && Utils.IsEqual(structureDefinition.BaseDataType, node)).Cast<DataTypeNode>();
                     if (nestedSubTypes)
                     {
-                        nextNodesToBrowse.AddRange(response.Select(r => NodeId.ToExpandedNodeId(r.NodeId, NamespaceUris)).ToList());
+                        nextNodesToBrowse.AddRange(response.Select(r => NodeId.ToExpandedNodeId(r.NodeId, NamespaceUris)));
                     }
                     if (filterUATypes)
                     {

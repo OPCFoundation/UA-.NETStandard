@@ -298,7 +298,7 @@ namespace Opc.Ua.Server
         /// <returns>Non-null if the handle belongs to the node manager.</returns>
         protected virtual NodeHandle IsHandleInNamespace(object managerHandle)
         {
-            if (!(managerHandle is NodeHandle source))
+            if (managerHandle is not NodeHandle source)
             {
                 return null;
             }
@@ -512,7 +512,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual NodeState AddBehaviourToPredefinedNode(ISystemContext context, NodeState predefinedNode)
         {
-            if (!(predefinedNode is BaseObjectState passiveNode))
+            if (predefinedNode is not BaseObjectState passiveNode)
             {
                 return predefinedNode;
             }
@@ -783,7 +783,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            if (!(node is BaseTypeState type))
+            if (node is not BaseTypeState type)
             {
                 return;
             }
@@ -1909,17 +1909,17 @@ namespace Opc.Ua.Server
             // check if the changed property is one that can trigger semantic changes
             string propertyName = property.BrowseName.Name;
 
-            if (propertyName != BrowseNames.EURange &&
-                propertyName != BrowseNames.InstrumentRange &&
-                propertyName != BrowseNames.EngineeringUnits &&
-                propertyName != BrowseNames.Title &&
-                propertyName != BrowseNames.AxisDefinition &&
-                propertyName != BrowseNames.FalseState &&
-                propertyName != BrowseNames.TrueState &&
-                propertyName != BrowseNames.EnumStrings &&
-                propertyName != BrowseNames.XAxisDefinition &&
-                propertyName != BrowseNames.YAxisDefinition &&
-                propertyName != BrowseNames.ZAxisDefinition)
+            if (propertyName is not BrowseNames.EURange and
+                not BrowseNames.InstrumentRange and
+                not BrowseNames.EngineeringUnits and
+                not BrowseNames.Title and
+                not BrowseNames.AxisDefinition and
+                not BrowseNames.FalseState and
+                not BrowseNames.TrueState and
+                not BrowseNames.EnumStrings and
+                not BrowseNames.XAxisDefinition and
+                not BrowseNames.YAxisDefinition and
+                not BrowseNames.ZAxisDefinition)
             {
                 return;
             }
@@ -2289,7 +2289,7 @@ namespace Opc.Ua.Server
             }
 
             // check timestamps to return.
-            if (timestampsToReturn < TimestampsToReturn.Source || timestampsToReturn > TimestampsToReturn.Neither)
+            if (timestampsToReturn is < TimestampsToReturn.Source or > TimestampsToReturn.Neither)
             {
                 throw new ServiceResultException(StatusCodes.BadTimestampsToReturnInvalid);
             }
@@ -3644,9 +3644,10 @@ namespace Opc.Ua.Server
             error = ReadInitialValue(context, handle, dataChangeMonitoredItem);
             if (ServiceResult.IsBad(error))
             {
-                if (error.StatusCode == StatusCodes.BadAttributeIdInvalid ||
-                    error.StatusCode == StatusCodes.BadDataEncodingInvalid ||
-                    error.StatusCode == StatusCodes.BadDataEncodingUnsupported)
+                if (error.StatusCode.Code is
+                    StatusCodes.BadAttributeIdInvalid or
+                    StatusCodes.BadDataEncodingInvalid or
+                    StatusCodes.BadDataEncodingUnsupported)
                 {
                     return error;
                 }
@@ -3839,7 +3840,7 @@ namespace Opc.Ua.Server
                 return StatusCodes.BadFilterNotAllowed;
             }
 
-            if (!(handle.Node is BaseVariableState variable))
+            if (handle.Node is not BaseVariableState variable)
             {
                 return StatusCodes.BadFilterNotAllowed;
             }
@@ -4037,7 +4038,7 @@ namespace Opc.Ua.Server
             filterResult = null;
 
             // check for valid monitored item.
-            ISampledDataChangeMonitoredItem datachangeItem = monitoredItem as ISampledDataChangeMonitoredItem;
+            var datachangeItem = monitoredItem as ISampledDataChangeMonitoredItem;
 
             // validate parameters.
             MonitoringParameters parameters = itemToModify.RequestedParameters;
@@ -4449,7 +4450,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public virtual bool IsNodeInView(OperationContext context, NodeId viewId, object nodeHandle)
         {
-            if (!(nodeHandle is NodeHandle handle))
+            if (nodeHandle is not NodeHandle handle)
             {
                 return false;
             }

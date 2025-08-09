@@ -205,13 +205,11 @@ namespace Opc.Ua.Gds.Tests
 
         private async Task ApplyNewApplicationInstanceCertificateAsync(byte[] certificate, byte[] privateKey)
         {
-            using (X509Certificate2 x509 = X509CertificateLoader.LoadCertificate(certificate))
-            {
-                X509Certificate2 certWithPrivateKey = CertificateFactory.CreateCertificateWithPEMPrivateKey(x509, privateKey);
-                m_client.Configuration.SecurityConfiguration.ApplicationCertificate = new CertificateIdentifier(certWithPrivateKey);
-                ICertificateStore store = m_client.Configuration.SecurityConfiguration.ApplicationCertificate.OpenStore();
-                await store.AddAsync(certWithPrivateKey).ConfigureAwait(false);
-            }
+            using X509Certificate2 x509 = X509CertificateLoader.LoadCertificate(certificate);
+            X509Certificate2 certWithPrivateKey = CertificateFactory.CreateCertificateWithPEMPrivateKey(x509, privateKey);
+            m_client.Configuration.SecurityConfiguration.ApplicationCertificate = new CertificateIdentifier(certWithPrivateKey);
+            ICertificateStore store = m_client.Configuration.SecurityConfiguration.ApplicationCertificate.OpenStore();
+            await store.AddAsync(certWithPrivateKey).ConfigureAwait(false);
         }
 
         private void FinishKeyPair(ApplicationTestData ownApplicationTestData, out byte[] certificate, out byte[] privateKey)

@@ -250,7 +250,8 @@ namespace Opc.Ua.PubSub.Tests.Transport
                         }
                     }
                 }
-                else { continue; }
+                else
+                { continue; }
             }
 
             return null;
@@ -281,7 +282,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 if (isValidIP)
                 {
                     byte[] ipAddressBytes = validIp.GetAddressBytes();
-                    ipAddressBytes[ipAddressBytes.Length - 1] = lastIpByte;
+                    ipAddressBytes[^1] = lastIpByte;
                     return new IPAddress(ipAddressBytes);
                 }
             }

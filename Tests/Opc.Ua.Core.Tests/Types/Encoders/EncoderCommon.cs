@@ -215,15 +215,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             TestContext.Out.WriteLine("Expected:");
             TestContext.Out.WriteLine(expected);
             Assert.IsNotNull(expected, "Expected DataValue is Null, " + encodeInfo);
-            using (MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType))
+            using MemoryStream encoderStream = CreateEncoderMemoryStream(memoryStreamType);
+            using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, typeof(DataValue), encoding))
             {
-                using (IEncoder encoder = CreateEncoder(encoderType, Context, encoderStream, typeof(DataValue), encoding))
-                {
-                    encoder.WriteDataValue("DataValue", expected);
-                }
-                byte[] buffer = encoderStream.ToArray();
-                return Encoding.UTF8.GetString(buffer);
+                encoder.WriteDataValue("DataValue", expected);
             }
+            byte[] buffer = encoderStream.ToArray();
+            return Encoding.UTF8.GetString(buffer);
         }
 
         /// <summary>
@@ -457,30 +455,28 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             try
             {
-                using (var reader = new MemoryStream(xml))
-                using (var xmlReader = XmlReader.Create(reader, Utils.DefaultXmlReaderSettings()))
+                using var reader = new MemoryStream(xml);
+                using var xmlReader = XmlReader.Create(reader, Utils.DefaultXmlReaderSettings());
+                var document = new XmlDocument();
+                document.Load(xmlReader);
+
+                var settings = new XmlWriterSettings {
+                    OmitXmlDeclaration = true,
+                    Indent = true,
+                    NewLineOnAttributes = true
+                };
+
+                var stringBuilder = new StringBuilder();
+                using (var xmlWriter = XmlWriter.Create(stringBuilder, settings))
                 {
-                    var document = new XmlDocument();
-                    document.Load(xmlReader);
-
-                    var settings = new XmlWriterSettings {
-                        OmitXmlDeclaration = true,
-                        Indent = true,
-                        NewLineOnAttributes = true
-                    };
-
-                    var stringBuilder = new StringBuilder();
-                    using (var xmlWriter = XmlWriter.Create(stringBuilder, settings))
-                    {
-                        document.Save(xmlWriter);
-                    }
-                    string formattedXml = stringBuilder.ToString();
-                    if (outputFormatted)
-                    {
-                        TestContext.Out.WriteLine(formattedXml);
-                    }
-                    return formattedXml;
+                    document.Save(xmlWriter);
                 }
+                string formattedXml = stringBuilder.ToString();
+                if (outputFormatted)
+                {
+                    TestContext.Out.WriteLine(formattedXml);
+                }
+                return formattedXml;
             }
             catch (Exception ex)
             {
@@ -505,23 +501,21 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             try
             {
-                using (var stringWriter = new StringWriter())
-                using (var stringReader = new StringReader(json))
-                using (var jsonReader = new JsonTextReader(stringReader))
-                using (var jsonWriter = new JsonTextWriter(stringWriter) {
+                using var stringWriter = new StringWriter();
+                using var stringReader = new StringReader(json);
+                using var jsonReader = new JsonTextReader(stringReader);
+                using var jsonWriter = new JsonTextWriter(stringWriter) {
                     FloatFormatHandling = FloatFormatHandling.String,
                     Formatting = Newtonsoft.Json.Formatting.Indented,
                     Culture = System.Globalization.CultureInfo.InvariantCulture
-                })
+                };
+                jsonWriter.WriteToken(jsonReader);
+                string formattedJson = stringWriter.ToString();
+                if (outputFormatted)
                 {
-                    jsonWriter.WriteToken(jsonReader);
-                    string formattedJson = stringWriter.ToString();
-                    if (outputFormatted)
-                    {
-                        TestContext.Out.WriteLine(formattedJson);
-                    }
-                    return formattedJson;
+                    TestContext.Out.WriteLine(formattedJson);
                 }
+                return formattedJson;
             }
             catch (Exception ex)
             {
@@ -636,51 +630,97 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 switch (builtInType)
                 {
-                    case BuiltInType.Null: encoder.WriteVariant(fieldName, new Variant(value)); return;
+                    case BuiltInType.Null:
+                        encoder.WriteVariant(fieldName, new Variant(value));
+                        return;
 
-                    case BuiltInType.Boolean: encoder.WriteBoolean(fieldName, (bool)value); return;
+                    case BuiltInType.Boolean:
+                        encoder.WriteBoolean(fieldName, (bool)value);
+                        return;
 
-                    case BuiltInType.SByte: encoder.WriteSByte(fieldName, (sbyte)value); return;
+                    case BuiltInType.SByte:
+                        encoder.WriteSByte(fieldName, (sbyte)value);
+                        return;
 
-                    case BuiltInType.Byte: encoder.WriteByte(fieldName, (byte)value); return;
+                    case BuiltInType.Byte:
+                        encoder.WriteByte(fieldName, (byte)value);
+                        return;
 
-                    case BuiltInType.Int16: encoder.WriteInt16(fieldName, (short)value); return;
+                    case BuiltInType.Int16:
+                        encoder.WriteInt16(fieldName, (short)value);
+                        return;
 
-                    case BuiltInType.UInt16: encoder.WriteUInt16(fieldName, (ushort)value); return;
+                    case BuiltInType.UInt16:
+                        encoder.WriteUInt16(fieldName, (ushort)value);
+                        return;
 
-                    case BuiltInType.Int32: encoder.WriteInt32(fieldName, (int)value); return;
+                    case BuiltInType.Int32:
+                        encoder.WriteInt32(fieldName, (int)value);
+                        return;
 
-                    case BuiltInType.UInt32: encoder.WriteUInt32(fieldName, (uint)value); return;
+                    case BuiltInType.UInt32:
+                        encoder.WriteUInt32(fieldName, (uint)value);
+                        return;
 
-                    case BuiltInType.Int64: encoder.WriteInt64(fieldName, (long)value); return;
+                    case BuiltInType.Int64:
+                        encoder.WriteInt64(fieldName, (long)value);
+                        return;
 
-                    case BuiltInType.UInt64: encoder.WriteUInt64(fieldName, (ulong)value); return;
+                    case BuiltInType.UInt64:
+                        encoder.WriteUInt64(fieldName, (ulong)value);
+                        return;
 
-                    case BuiltInType.Float: encoder.WriteFloat(fieldName, (float)value); return;
+                    case BuiltInType.Float:
+                        encoder.WriteFloat(fieldName, (float)value);
+                        return;
 
-                    case BuiltInType.Double: encoder.WriteDouble(fieldName, (double)value); return;
+                    case BuiltInType.Double:
+                        encoder.WriteDouble(fieldName, (double)value);
+                        return;
 
-                    case BuiltInType.String: encoder.WriteString(fieldName, (string)value); return;
+                    case BuiltInType.String:
+                        encoder.WriteString(fieldName, (string)value);
+                        return;
 
-                    case BuiltInType.DateTime: encoder.WriteDateTime(fieldName, (DateTime)value); return;
+                    case BuiltInType.DateTime:
+                        encoder.WriteDateTime(fieldName, (DateTime)value);
+                        return;
 
-                    case BuiltInType.Guid: encoder.WriteGuid(fieldName, (Uuid)value); return;
+                    case BuiltInType.Guid:
+                        encoder.WriteGuid(fieldName, (Uuid)value);
+                        return;
 
-                    case BuiltInType.ByteString: encoder.WriteByteString(fieldName, (byte[])value); return;
+                    case BuiltInType.ByteString:
+                        encoder.WriteByteString(fieldName, (byte[])value);
+                        return;
 
-                    case BuiltInType.XmlElement: encoder.WriteXmlElement(fieldName, (XmlElement)value); return;
+                    case BuiltInType.XmlElement:
+                        encoder.WriteXmlElement(fieldName, (XmlElement)value);
+                        return;
 
-                    case BuiltInType.NodeId: encoder.WriteNodeId(fieldName, (NodeId)value); return;
+                    case BuiltInType.NodeId:
+                        encoder.WriteNodeId(fieldName, (NodeId)value);
+                        return;
 
-                    case BuiltInType.ExpandedNodeId: encoder.WriteExpandedNodeId(fieldName, (ExpandedNodeId)value); return;
+                    case BuiltInType.ExpandedNodeId:
+                        encoder.WriteExpandedNodeId(fieldName, (ExpandedNodeId)value);
+                        return;
 
-                    case BuiltInType.StatusCode: encoder.WriteStatusCode(fieldName, (StatusCode)value); return;
+                    case BuiltInType.StatusCode:
+                        encoder.WriteStatusCode(fieldName, (StatusCode)value);
+                        return;
 
-                    case BuiltInType.QualifiedName: encoder.WriteQualifiedName(fieldName, (QualifiedName)value); return;
+                    case BuiltInType.QualifiedName:
+                        encoder.WriteQualifiedName(fieldName, (QualifiedName)value);
+                        return;
 
-                    case BuiltInType.LocalizedText: encoder.WriteLocalizedText(fieldName, (LocalizedText)value); return;
+                    case BuiltInType.LocalizedText:
+                        encoder.WriteLocalizedText(fieldName, (LocalizedText)value);
+                        return;
 
-                    case BuiltInType.ExtensionObject: encoder.WriteExtensionObject(fieldName, (ExtensionObject)value); return;
+                    case BuiltInType.ExtensionObject:
+                        encoder.WriteExtensionObject(fieldName, (ExtensionObject)value);
+                        return;
 
                     case BuiltInType.DataValue:
                         encoder.WriteDataValue(fieldName, (DataValue)value);
@@ -734,60 +774,87 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             switch (builtInType)
             {
-                case BuiltInType.Null: Variant variant = decoder.ReadVariant(fieldName); return variant.Value;
+                case BuiltInType.Null:
+                    Variant variant = decoder.ReadVariant(fieldName);
+                    return variant.Value;
 
-                case BuiltInType.Boolean: return decoder.ReadBoolean(fieldName);
+                case BuiltInType.Boolean:
+                    return decoder.ReadBoolean(fieldName);
 
-                case BuiltInType.SByte: return decoder.ReadSByte(fieldName);
+                case BuiltInType.SByte:
+                    return decoder.ReadSByte(fieldName);
 
-                case BuiltInType.Byte: return decoder.ReadByte(fieldName);
+                case BuiltInType.Byte:
+                    return decoder.ReadByte(fieldName);
 
-                case BuiltInType.Int16: return decoder.ReadInt16(fieldName);
+                case BuiltInType.Int16:
+                    return decoder.ReadInt16(fieldName);
 
-                case BuiltInType.UInt16: return decoder.ReadUInt16(fieldName);
+                case BuiltInType.UInt16:
+                    return decoder.ReadUInt16(fieldName);
 
-                case BuiltInType.Int32: return decoder.ReadInt32(fieldName);
+                case BuiltInType.Int32:
+                    return decoder.ReadInt32(fieldName);
 
-                case BuiltInType.UInt32: return decoder.ReadUInt32(fieldName);
+                case BuiltInType.UInt32:
+                    return decoder.ReadUInt32(fieldName);
 
-                case BuiltInType.Int64: return decoder.ReadInt64(fieldName);
+                case BuiltInType.Int64:
+                    return decoder.ReadInt64(fieldName);
 
-                case BuiltInType.UInt64: return decoder.ReadUInt64(fieldName);
+                case BuiltInType.UInt64:
+                    return decoder.ReadUInt64(fieldName);
 
-                case BuiltInType.Float: return decoder.ReadFloat(fieldName);
+                case BuiltInType.Float:
+                    return decoder.ReadFloat(fieldName);
 
-                case BuiltInType.Double: return decoder.ReadDouble(fieldName);
+                case BuiltInType.Double:
+                    return decoder.ReadDouble(fieldName);
 
-                case BuiltInType.String: return decoder.ReadString(fieldName);
+                case BuiltInType.String:
+                    return decoder.ReadString(fieldName);
 
-                case BuiltInType.DateTime: return decoder.ReadDateTime(fieldName);
+                case BuiltInType.DateTime:
+                    return decoder.ReadDateTime(fieldName);
 
-                case BuiltInType.Guid: return decoder.ReadGuid(fieldName);
+                case BuiltInType.Guid:
+                    return decoder.ReadGuid(fieldName);
 
-                case BuiltInType.ByteString: return decoder.ReadByteString(fieldName);
+                case BuiltInType.ByteString:
+                    return decoder.ReadByteString(fieldName);
 
-                case BuiltInType.XmlElement: return decoder.ReadXmlElement(fieldName);
+                case BuiltInType.XmlElement:
+                    return decoder.ReadXmlElement(fieldName);
 
-                case BuiltInType.NodeId: return decoder.ReadNodeId(fieldName);
+                case BuiltInType.NodeId:
+                    return decoder.ReadNodeId(fieldName);
 
-                case BuiltInType.ExpandedNodeId: return decoder.ReadExpandedNodeId(fieldName);
+                case BuiltInType.ExpandedNodeId:
+                    return decoder.ReadExpandedNodeId(fieldName);
 
-                case BuiltInType.StatusCode: return decoder.ReadStatusCode(fieldName);
+                case BuiltInType.StatusCode:
+                    return decoder.ReadStatusCode(fieldName);
 
-                case BuiltInType.QualifiedName: return decoder.ReadQualifiedName(fieldName);
+                case BuiltInType.QualifiedName:
+                    return decoder.ReadQualifiedName(fieldName);
 
-                case BuiltInType.LocalizedText: return decoder.ReadLocalizedText(fieldName);
+                case BuiltInType.LocalizedText:
+                    return decoder.ReadLocalizedText(fieldName);
 
-                case BuiltInType.ExtensionObject: return decoder.ReadExtensionObject(fieldName);
+                case BuiltInType.ExtensionObject:
+                    return decoder.ReadExtensionObject(fieldName);
 
-                case BuiltInType.DataValue: return decoder.ReadDataValue(fieldName);
+                case BuiltInType.DataValue:
+                    return decoder.ReadDataValue(fieldName);
 
                 case BuiltInType.Enumeration:
                     return type.IsEnum ? decoder.ReadEnumerated(fieldName, type) : decoder.ReadInt32(fieldName);
 
-                case BuiltInType.DiagnosticInfo: return decoder.ReadDiagnosticInfo(fieldName);
+                case BuiltInType.DiagnosticInfo:
+                    return decoder.ReadDiagnosticInfo(fieldName);
 
-                case BuiltInType.Variant: return decoder.ReadVariant(fieldName);
+                case BuiltInType.Variant:
+                    return decoder.ReadVariant(fieldName);
                 case BuiltInType.Number:
                 case BuiltInType.Integer:
                 case BuiltInType.UInteger:

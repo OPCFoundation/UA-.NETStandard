@@ -400,11 +400,11 @@ namespace Opc.Ua.Client
                         Utils.LogWarning("Reconnect failed. Reason={0}.", sre.Result);
 
                         // check if the server endpoint could not be reached.
-                        if (sre.StatusCode == StatusCodes.BadTcpInternalError ||
-                            sre.StatusCode == StatusCodes.BadCommunicationError ||
-                            sre.StatusCode == StatusCodes.BadNotConnected ||
-                            sre.StatusCode == StatusCodes.BadRequestTimeout ||
-                            sre.StatusCode == StatusCodes.BadTimeout)
+                        if (sre.StatusCode is StatusCodes.BadTcpInternalError or
+                            StatusCodes.BadCommunicationError or
+                            StatusCodes.BadNotConnected or
+                            StatusCodes.BadRequestTimeout or
+                            StatusCodes.BadTimeout)
                         {
                             // check if reactivating is still an option.
                             int timeout = Convert.ToInt32(m_session.SessionTimeout) - (HiResClock.TickCount - m_session.LastKeepAliveTickCount);
@@ -416,8 +416,8 @@ namespace Opc.Ua.Client
                         }
 
                         // check if the security configuration may have changed
-                        if (sre.StatusCode == StatusCodes.BadSecurityChecksFailed ||
-                            sre.StatusCode == StatusCodes.BadCertificateInvalid)
+                        if (sre.StatusCode is StatusCodes.BadSecurityChecksFailed or
+                            StatusCodes.BadCertificateInvalid)
                         {
                             m_updateFromServer = true;
                             Utils.LogInfo("Reconnect failed due to security check. Request endpoint update from server. {0}", sre.Message);

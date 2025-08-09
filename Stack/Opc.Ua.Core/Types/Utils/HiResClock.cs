@@ -154,7 +154,10 @@ namespace Opc.Ua
         /// Helper for tick functions.
         /// </summary>
         private delegate long TicksDelegate();
-        private long UtcNowTicks() => DateTime.UtcNow.Ticks;
+        private long UtcNowTicks()
+        {
+            return DateTime.UtcNow.Ticks;
+        }
 
         /// <summary>
         /// Defines a global instance.

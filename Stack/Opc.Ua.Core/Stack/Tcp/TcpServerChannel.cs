@@ -141,22 +141,20 @@ namespace Opc.Ua.Bindings
                 ar.Socket.ReadNextMessage();
 
                 // send reverse hello message.
-                using (var encoder = new BinaryEncoder(buffer, 0, SendBufferSize, Quotas.MessageContext))
-                {
-                    encoder.WriteUInt32(null, TcpMessageType.ReverseHello);
-                    encoder.WriteUInt32(null, 0);
-                    encoder.WriteString(null, EndpointDescription.Server.ApplicationUri);
-                    encoder.WriteString(null, EndpointDescription.EndpointUrl);
-                    int size = encoder.Close();
-                    UpdateMessageSize(buffer, 0, size);
+                using var encoder = new BinaryEncoder(buffer, 0, SendBufferSize, Quotas.MessageContext);
+                encoder.WriteUInt32(null, TcpMessageType.ReverseHello);
+                encoder.WriteUInt32(null, 0);
+                encoder.WriteString(null, EndpointDescription.Server.ApplicationUri);
+                encoder.WriteString(null, EndpointDescription.EndpointUrl);
+                int size = encoder.Close();
+                UpdateMessageSize(buffer, 0, size);
 
-                    // set state to waiting for hello.
-                    State = TcpChannelState.Connecting;
-                    m_pendingReverseHello = ar;
+                // set state to waiting for hello.
+                State = TcpChannelState.Connecting;
+                m_pendingReverseHello = ar;
 
-                    BeginWriteMessage(new ArraySegment<byte>(buffer, 0, size), null);
-                    buffer = null;
-                }
+                BeginWriteMessage(new ArraySegment<byte>(buffer, 0, size), null);
+                buffer = null;
             }
             catch (Exception e)
             {
@@ -830,10 +828,10 @@ namespace Opc.Ua.Bindings
                 // get the chunks to process.
                 chunksToProcess = GetSavedChunks(requestId, messageBody, true);
 
-                if (!(BinaryDecoder.DecodeMessage(
+                if (BinaryDecoder.DecodeMessage(
                     new ArraySegmentStream(chunksToProcess),
                     typeof(CloseSecureChannelRequest),
-                    Quotas.MessageContext) is CloseSecureChannelRequest request))
+                    Quotas.MessageContext) is not CloseSecureChannelRequest request)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadStructureMissing, "Could not parse CloseSecureChannel request body.");
                 }
@@ -979,7 +977,7 @@ namespace Opc.Ua.Bindings
                 chunksToProcess = GetSavedChunks(requestId, messageBody, true);
 
                 // decode the request.
-                if (!(BinaryDecoder.DecodeMessage(new ArraySegmentStream(chunksToProcess), null, Quotas.MessageContext) is IServiceRequest request))
+                if (BinaryDecoder.DecodeMessage(new ArraySegmentStream(chunksToProcess), null, Quotas.MessageContext) is not IServiceRequest request)
                 {
                     SendServiceFault(token, requestId, ServiceResult.Create(StatusCodes.BadStructureMissing, "Could not parse request body."));
                     return true;
@@ -1111,21 +1109,19 @@ namespace Opc.Ua.Bindings
         private bool ValidateDiscoveryServiceCall(ChannelToken token, uint requestId, ArraySegment<byte> messageBody, out BufferCollection chunksToProcess)
         {
             chunksToProcess = null;
-            using (var decoder = new BinaryDecoder(messageBody, Quotas.MessageContext))
-            {
-                // read the type of the message before more chunks are processed.
-                NodeId typeId = decoder.ReadNodeId(null);
+            using var decoder = new BinaryDecoder(messageBody, Quotas.MessageContext);
+            // read the type of the message before more chunks are processed.
+            NodeId typeId = decoder.ReadNodeId(null);
 
-                if (typeId != ObjectIds.GetEndpointsRequest_Encoding_DefaultBinary &&
-                    typeId != ObjectIds.FindServersRequest_Encoding_DefaultBinary &&
-                    typeId != ObjectIds.FindServersOnNetworkRequest_Encoding_DefaultBinary)
-                {
-                    chunksToProcess = GetSavedChunks(0, messageBody, true);
-                    SendServiceFault(token, requestId, ServiceResult.Create(StatusCodes.BadSecurityPolicyRejected, "Channel can only be used for discovery."));
-                    return false;
-                }
-                return true;
+            if (typeId != ObjectIds.GetEndpointsRequest_Encoding_DefaultBinary &&
+                typeId != ObjectIds.FindServersRequest_Encoding_DefaultBinary &&
+                typeId != ObjectIds.FindServersOnNetworkRequest_Encoding_DefaultBinary)
+            {
+                chunksToProcess = GetSavedChunks(0, messageBody, true);
+                SendServiceFault(token, requestId, ServiceResult.Create(StatusCodes.BadSecurityPolicyRejected, "Channel can only be used for discovery."));
+                return false;
             }
+            return true;
         }
 
         private SortedDictionary<uint, IServiceResponse> m_queuedResponses;

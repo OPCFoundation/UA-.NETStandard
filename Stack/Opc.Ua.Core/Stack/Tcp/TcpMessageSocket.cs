@@ -240,14 +240,9 @@ namespace Opc.Ua.Bindings
             BufferManager bufferManager,
             int receiveBufferSize)
         {
-            if (bufferManager == null)
-            {
-                throw new ArgumentNullException(nameof(bufferManager));
-            }
-
             m_sink = sink;
             m_socket = null;
-            m_bufferManager = bufferManager;
+            m_bufferManager = bufferManager ?? throw new ArgumentNullException(nameof(bufferManager));
             m_receiveBufferSize = receiveBufferSize;
             m_incomingMessageSize = -1;
             m_readComplete = OnReadComplete;

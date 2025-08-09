@@ -46,9 +46,6 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
-        /// <remarks>
-        /// Initializes the object with default values.
-        /// </remarks>
         internal QualifiedName()
         {
             XmlEncodedNamespaceIndex = 0;
@@ -58,9 +55,6 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a deep copy of the value.
         /// </summary>
-        /// <remarks>
-        /// Creates a deep copy of the value.
-        /// </remarks>
         /// <param name="value">The qualified name to copy</param>
         /// <exception cref="ArgumentNullException">Thrown if the provided value is null</exception>
         public QualifiedName(QualifiedName value)
@@ -77,9 +71,6 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with a name.
         /// </summary>
-        /// <remarks>
-        /// Initializes the object with a name.
-        /// </remarks>
         /// <param name="name">The name-portion to store as part of the fully qualified name</param>
         public QualifiedName(string name)
         {
@@ -90,9 +81,6 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with a name and a namespace index.
         /// </summary>
-        /// <remarks>
-        /// Initializes the object with a name and a namespace index.
-        /// </remarks>
         /// <param name="name">The name-portion of the fully qualified name</param>
         /// <param name="namespaceIndex">The index of the namespace within the namespace-table</param>
         public QualifiedName(string name, ushort namespaceIndex)
@@ -104,9 +92,6 @@ namespace Opc.Ua
         /// <summary>
         /// The index of the namespace that qualifies the name.
         /// </summary>
-        /// <remarks>
-        /// The index of the namespace that qualifies the name.
-        /// </remarks>
         public ushort NamespaceIndex => XmlEncodedNamespaceIndex;
 
         /// <inheritdoc/>
@@ -116,9 +101,6 @@ namespace Opc.Ua
         /// <summary>
         /// The unqualified name.
         /// </summary>
-        /// <remarks>
-        /// The unqualified name.
-        /// </remarks>
         public string Name => XmlEncodedName;
 
         /// <summary>
@@ -148,7 +130,7 @@ namespace Opc.Ua
                 return 0;
             }
 
-            if (!(obj is QualifiedName qname))
+            if (obj is not QualifiedName qname)
             {
                 return typeof(QualifiedName).GetTypeInfo().GUID.CompareTo(obj.GetType().GetTypeInfo().GUID);
             }
@@ -217,9 +199,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if the objects are equal.
         /// </summary>
-        /// <remarks>
-        /// Returns true if the objects are equal.
-        /// </remarks>
         /// <param name="obj">The object to compare to this/me</param>
         public override bool Equals(object obj)
         {
@@ -233,7 +212,7 @@ namespace Opc.Ua
                 return true;
             }
 
-            if (!(obj is QualifiedName qname))
+            if (obj is not QualifiedName qname)
             {
                 return false;
             }
@@ -249,9 +228,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if the objects are equal.
         /// </summary>
-        /// <remarks>
-        /// Returns true if the objects are equal.
-        /// </remarks>
         /// <param name="value1">The first value to compare</param>
         /// <param name="value2">The second value to compare</param>
         public static bool operator ==(QualifiedName value1, QualifiedName value2)
@@ -285,9 +261,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the string representation of the object.
         /// </summary>
-        /// <remarks>
-        /// Returns the string representation of the object.
-        /// </remarks>
         public override string ToString()
         {
             return ToString(null, null);
@@ -296,9 +269,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the string representation of the object.
         /// </summary>
-        /// <remarks>
-        /// Returns the string representation of the object.
-        /// </remarks>
         /// <param name="format">(Unused) Always pass null</param>
         /// <param name="formatProvider">(Unused) Always pass null</param>
         /// <exception cref="FormatException">Thrown if non-null parameters are passed</exception>
@@ -313,14 +283,9 @@ namespace Opc.Ua
                 if (XmlEncodedNamespaceIndex == 0)
                 {
                     // prepend the namespace index if the name contains a colon.
-                    if (XmlEncodedName != null)
+                    if (XmlEncodedName != null && XmlEncodedName.Contains(':', StringComparison.Ordinal))
                     {
-                        int index = XmlEncodedName.IndexOf(':', StringComparison.Ordinal);
-
-                        if (index != -1)
-                        {
-                            builder.Append("0:");
-                        }
+                        builder.Append("0:");
                     }
                 }
                 else
@@ -349,9 +314,6 @@ namespace Opc.Ua
         /// <summary>
         /// Makes a deep copy of the object.
         /// </summary>
-        /// <remarks>
-        /// Makes a deep copy of the object.
-        /// </remarks>
         public new object MemberwiseClone()
         {
             // this object cannot be altered after it is created so no new allocation is necessary.
@@ -581,9 +543,6 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a string to a qualified name.
         /// </summary>
-        /// <remarks>
-        /// Converts a string to a qualified name.
-        /// </remarks>
         /// <param name="value">The string to turn into a fully qualified name</param>
         public static QualifiedName ToQualifiedName(string value)
         {
@@ -593,9 +552,6 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a string to a qualified name.
         /// </summary>
-        /// <remarks>
-        /// Converts a string to a qualified name.
-        /// </remarks>
         /// <param name="value">The string to turn into a fully qualified name</param>
         public static implicit operator QualifiedName(string value)
         {
@@ -620,35 +576,23 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        /// <remarks>
-        /// Initializes an empty collection.
-        /// </remarks>
         public QualifiedNameCollection() { }
 
         /// <summary>
         /// Initializes the collection from another collection.
         /// </summary>
-        /// <remarks>
-        /// Initializes the collection from another collection.
-        /// </remarks>
         /// <param name="collection">The enumerated collection of qualified names to add to this new collection</param>
         public QualifiedNameCollection(IEnumerable<QualifiedName> collection) : base(collection) { }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
-        /// <remarks>
-        /// Initializes the collection with the specified capacity.
-        /// </remarks>
         /// <param name="capacity">Max capacity of this collection</param>
         public QualifiedNameCollection(int capacity) : base(capacity) { }
 
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
-        /// <remarks>
-        /// Converts an array to a collection.
-        /// </remarks>
         /// <param name="values">The array to turn into a collection</param>
         public static QualifiedNameCollection ToQualifiedNameCollection(QualifiedName[] values)
         {
@@ -663,9 +607,6 @@ namespace Opc.Ua
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
-        /// <remarks>
-        /// Converts an array to a collection.
-        /// </remarks>
         /// <param name="values">The array to turn into a collection</param>
         public static implicit operator QualifiedNameCollection(QualifiedName[] values)
         {
@@ -681,9 +622,6 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
-        /// <remarks>
-        /// Creates a deep copy of the collection.
-        /// </remarks>
         public new object MemberwiseClone()
         {
             var clone = new QualifiedNameCollection(Count);

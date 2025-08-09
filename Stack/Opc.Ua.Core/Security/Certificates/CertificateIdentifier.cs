@@ -158,13 +158,17 @@ namespace Opc.Ua
         /// </summary>
         [Obsolete("Use LoadPrivateKeyAsync instead")]
         public Task<X509Certificate2> LoadPrivateKey(string password, string applicationUri = null)
-            => LoadPrivateKeyExAsync(password != null ? new CertificatePasswordProvider(password) : null, applicationUri);
+        {
+            return LoadPrivateKeyExAsync(password != null ? new CertificatePasswordProvider(password) : null, applicationUri);
+        }
 
         /// <summary>
         /// Loads the private key for the certificate with an optional password.
         /// </summary>
         public Task<X509Certificate2> LoadPrivateKeyAsync(string password, string applicationUri = null)
-            => LoadPrivateKeyExAsync(password != null ? new CertificatePasswordProvider(password) : null, applicationUri);
+        {
+            return LoadPrivateKeyExAsync(password != null ? new CertificatePasswordProvider(password) : null, applicationUri);
+        }
 
         /// <summary>
         /// Loads the private key for the certificate with an optional password provider.
@@ -183,21 +187,19 @@ namespace Opc.Ua
             if (StoreType != CertificateStoreType.X509Store)
             {
                 var certificateStoreIdentifier = new CertificateStoreIdentifier(StorePath, StoreType, false);
-                using (ICertificateStore store = certificateStoreIdentifier.OpenStore())
+                using ICertificateStore store = certificateStoreIdentifier.OpenStore();
+                if (store?.SupportsLoadPrivateKey == true)
                 {
-                    if (store?.SupportsLoadPrivateKey == true)
+                    string password = passwordProvider?.GetPassword(this);
+                    m_certificate = await store.LoadPrivateKeyAsync(Thumbprint, SubjectName, null, CertificateType, password).ConfigureAwait(false);
+
+                    //find certificate by applicationUri instead of subjectName, as the subjectName could have changed after a certificate update
+                    if (m_certificate == null && !string.IsNullOrEmpty(applicationUri))
                     {
-                        string password = passwordProvider?.GetPassword(this);
-                        m_certificate = await store.LoadPrivateKeyAsync(Thumbprint, SubjectName, null, CertificateType, password).ConfigureAwait(false);
-
-                        //find certificate by applicationUri instead of subjectName, as the subjectName could have changed after a certificate update
-                        if (m_certificate == null && !string.IsNullOrEmpty(applicationUri))
-                        {
-                            m_certificate = await store.LoadPrivateKeyAsync(Thumbprint, null, applicationUri, CertificateType, password).ConfigureAwait(false);
-                        }
-
-                        return m_certificate;
+                        m_certificate = await store.LoadPrivateKeyAsync(Thumbprint, null, applicationUri, CertificateType, password).ConfigureAwait(false);
                     }
+
+                    return m_certificate;
                 }
                 return null;
             }
@@ -239,29 +241,27 @@ namespace Opc.Ua
             {
                 // open store.
                 var certificateStoreIdentifier = new CertificateStoreIdentifier(StorePath, false);
-                using (ICertificateStore store = certificateStoreIdentifier.OpenStore())
+                using ICertificateStore store = certificateStoreIdentifier.OpenStore();
+                if (store == null)
                 {
-                    if (store == null)
+                    return null;
+                }
+
+                X509Certificate2Collection collection = await store.EnumerateAsync().ConfigureAwait(false);
+
+                certificate = Find(collection, m_thumbprint, m_subjectName, applicationUri, m_certificateType, needPrivateKey);
+
+                if (certificate != null)
+                {
+                    if (needPrivateKey && store.SupportsLoadPrivateKey)
                     {
-                        return null;
+                        var message = new StringBuilder();
+                        message.AppendLine("Loaded a certificate with private key from store {0}.");
+                        message.AppendLine("Ensure to call LoadPrivateKeyEx with password provider before calling Find(true).");
+                        Utils.LogWarning(message.ToString(), StoreType);
                     }
 
-                    X509Certificate2Collection collection = await store.EnumerateAsync().ConfigureAwait(false);
-
-                    certificate = Find(collection, m_thumbprint, m_subjectName, applicationUri, m_certificateType, needPrivateKey);
-
-                    if (certificate != null)
-                    {
-                        if (needPrivateKey && store.SupportsLoadPrivateKey)
-                        {
-                            var message = new StringBuilder();
-                            message.AppendLine("Loaded a certificate with private key from store {0}.");
-                            message.AppendLine("Ensure to call LoadPrivateKeyEx with password provider before calling Find(true).");
-                            Utils.LogWarning(message.ToString(), StoreType);
-                        }
-
-                        m_certificate = certificate;
-                    }
+                    m_certificate = certificate;
                 }
             }
 
@@ -479,8 +479,9 @@ namespace Opc.Ua
                     return ObjectTypeIds.RsaSha256ApplicationCertificateType;
                 case Oids.RsaPkcs1Sha1:
                     return ObjectTypeIds.RsaMinApplicationCertificateType;
+                default:
+                    return NodeId.Null;
             }
-            return NodeId.Null;
         }
 
         /// <summary>

@@ -130,33 +130,60 @@ namespace Opc.Ua
         {
             switch (attributeId)
             {
-                case Value: return BuiltInType.Variant;
-                case DisplayName: return BuiltInType.LocalizedText;
-                case Description: return BuiltInType.LocalizedText;
-                case WriteMask: return BuiltInType.UInt32;
-                case UserWriteMask: return BuiltInType.UInt32;
-                case NodeId: return BuiltInType.NodeId;
-                case NodeClass: return BuiltInType.Int32;
-                case BrowseName: return BuiltInType.QualifiedName;
-                case IsAbstract: return BuiltInType.Boolean;
-                case Symmetric: return BuiltInType.Boolean;
-                case InverseName: return BuiltInType.LocalizedText;
-                case ContainsNoLoops: return BuiltInType.Boolean;
-                case EventNotifier: return BuiltInType.Byte;
-                case DataType: return BuiltInType.NodeId;
-                case ValueRank: return BuiltInType.Int32;
-                case AccessLevel: return BuiltInType.Byte;
-                case UserAccessLevel: return BuiltInType.Byte;
-                case MinimumSamplingInterval: return BuiltInType.Double;
-                case Historizing: return BuiltInType.Boolean;
-                case Executable: return BuiltInType.Boolean;
-                case UserExecutable: return BuiltInType.Boolean;
-                case ArrayDimensions: return BuiltInType.UInt32;
-                case DataTypeDefinition: return BuiltInType.ExtensionObject;
-                case RolePermissions: return BuiltInType.Variant;
-                case UserRolePermissions: return BuiltInType.Variant;
-                case AccessRestrictions: return BuiltInType.UInt16;
-                case AccessLevelEx: return BuiltInType.UInt32;
+                case Value:
+                    return BuiltInType.Variant;
+                case DisplayName:
+                    return BuiltInType.LocalizedText;
+                case Description:
+                    return BuiltInType.LocalizedText;
+                case WriteMask:
+                    return BuiltInType.UInt32;
+                case UserWriteMask:
+                    return BuiltInType.UInt32;
+                case NodeId:
+                    return BuiltInType.NodeId;
+                case NodeClass:
+                    return BuiltInType.Int32;
+                case BrowseName:
+                    return BuiltInType.QualifiedName;
+                case IsAbstract:
+                    return BuiltInType.Boolean;
+                case Symmetric:
+                    return BuiltInType.Boolean;
+                case InverseName:
+                    return BuiltInType.LocalizedText;
+                case ContainsNoLoops:
+                    return BuiltInType.Boolean;
+                case EventNotifier:
+                    return BuiltInType.Byte;
+                case DataType:
+                    return BuiltInType.NodeId;
+                case ValueRank:
+                    return BuiltInType.Int32;
+                case AccessLevel:
+                    return BuiltInType.Byte;
+                case UserAccessLevel:
+                    return BuiltInType.Byte;
+                case MinimumSamplingInterval:
+                    return BuiltInType.Double;
+                case Historizing:
+                    return BuiltInType.Boolean;
+                case Executable:
+                    return BuiltInType.Boolean;
+                case UserExecutable:
+                    return BuiltInType.Boolean;
+                case ArrayDimensions:
+                    return BuiltInType.UInt32;
+                case DataTypeDefinition:
+                    return BuiltInType.ExtensionObject;
+                case RolePermissions:
+                    return BuiltInType.Variant;
+                case UserRolePermissions:
+                    return BuiltInType.Variant;
+                case AccessRestrictions:
+                    return BuiltInType.UInt16;
+                case AccessLevelEx:
+                    return BuiltInType.UInt32;
             }
 
             return BuiltInType.Null;
@@ -169,33 +196,60 @@ namespace Opc.Ua
         {
             switch (attributeId)
             {
-                case Value: return DataTypeIds.BaseDataType;
-                case DisplayName: return DataTypeIds.LocalizedText;
-                case Description: return DataTypeIds.LocalizedText;
-                case WriteMask: return DataTypeIds.UInt32;
-                case UserWriteMask: return DataTypeIds.UInt32;
-                case NodeId: return DataTypeIds.NodeId;
-                case NodeClass: return DataTypeIds.Enumeration;
-                case BrowseName: return DataTypeIds.QualifiedName;
-                case IsAbstract: return DataTypeIds.Boolean;
-                case Symmetric: return DataTypeIds.Boolean;
-                case InverseName: return DataTypeIds.LocalizedText;
-                case ContainsNoLoops: return DataTypeIds.Boolean;
-                case EventNotifier: return DataTypeIds.Byte;
-                case DataType: return DataTypeIds.NodeId;
-                case ValueRank: return DataTypeIds.Int32;
-                case AccessLevel: return DataTypeIds.Byte;
-                case UserAccessLevel: return DataTypeIds.Byte;
-                case MinimumSamplingInterval: return DataTypeIds.Duration;
-                case Historizing: return DataTypeIds.Boolean;
-                case Executable: return DataTypeIds.Boolean;
-                case UserExecutable: return DataTypeIds.Boolean;
-                case ArrayDimensions: return DataTypeIds.UInt32;
-                case DataTypeDefinition: return DataTypeIds.Structure;
-                case RolePermissions: return DataTypeIds.RolePermissionType;
-                case UserRolePermissions: return DataTypeIds.RolePermissionType;
-                case AccessRestrictions: return DataTypeIds.UInt16;
-                case AccessLevelEx: return DataTypeIds.UInt32;
+                case Value:
+                    return DataTypeIds.BaseDataType;
+                case DisplayName:
+                    return DataTypeIds.LocalizedText;
+                case Description:
+                    return DataTypeIds.LocalizedText;
+                case WriteMask:
+                    return DataTypeIds.UInt32;
+                case UserWriteMask:
+                    return DataTypeIds.UInt32;
+                case NodeId:
+                    return DataTypeIds.NodeId;
+                case NodeClass:
+                    return DataTypeIds.Enumeration;
+                case BrowseName:
+                    return DataTypeIds.QualifiedName;
+                case IsAbstract:
+                    return DataTypeIds.Boolean;
+                case Symmetric:
+                    return DataTypeIds.Boolean;
+                case InverseName:
+                    return DataTypeIds.LocalizedText;
+                case ContainsNoLoops:
+                    return DataTypeIds.Boolean;
+                case EventNotifier:
+                    return DataTypeIds.Byte;
+                case DataType:
+                    return DataTypeIds.NodeId;
+                case ValueRank:
+                    return DataTypeIds.Int32;
+                case AccessLevel:
+                    return DataTypeIds.Byte;
+                case UserAccessLevel:
+                    return DataTypeIds.Byte;
+                case MinimumSamplingInterval:
+                    return DataTypeIds.Duration;
+                case Historizing:
+                    return DataTypeIds.Boolean;
+                case Executable:
+                    return DataTypeIds.Boolean;
+                case UserExecutable:
+                    return DataTypeIds.Boolean;
+                case ArrayDimensions:
+                    return DataTypeIds.UInt32;
+                case DataTypeDefinition:
+                    return DataTypeIds.Structure;
+                case RolePermissions:
+                    return DataTypeIds.RolePermissionType;
+                case UserRolePermissions:
+                    return DataTypeIds.RolePermissionType;
+                case AccessRestrictions:
+                    return DataTypeIds.UInt16;
+                case AccessLevelEx:
+                    return DataTypeIds.UInt32;
             }
 
             return null;
@@ -208,32 +262,58 @@ namespace Opc.Ua
         {
             switch (attributeId)
             {
-                case Value: return (writeMask & (uint)AttributeWriteMask.ValueForVariableType) != 0;
-                case DisplayName: return (writeMask & (uint)AttributeWriteMask.DisplayName) != 0;
-                case Description: return (writeMask & (uint)AttributeWriteMask.Description) != 0;
-                case WriteMask: return (writeMask & (uint)AttributeWriteMask.WriteMask) != 0;
-                case UserWriteMask: return (writeMask & (uint)AttributeWriteMask.UserWriteMask) != 0;
-                case NodeId: return (writeMask & (uint)AttributeWriteMask.NodeId) != 0;
-                case NodeClass: return (writeMask & (uint)AttributeWriteMask.NodeClass) != 0;
-                case BrowseName: return (writeMask & (uint)AttributeWriteMask.BrowseName) != 0;
-                case IsAbstract: return (writeMask & (uint)AttributeWriteMask.IsAbstract) != 0;
-                case Symmetric: return (writeMask & (uint)AttributeWriteMask.Symmetric) != 0;
-                case InverseName: return (writeMask & (uint)AttributeWriteMask.InverseName) != 0;
-                case ContainsNoLoops: return (writeMask & (uint)AttributeWriteMask.ContainsNoLoops) != 0;
-                case EventNotifier: return (writeMask & (uint)AttributeWriteMask.EventNotifier) != 0;
-                case DataType: return (writeMask & (uint)AttributeWriteMask.DataType) != 0;
-                case ValueRank: return (writeMask & (uint)AttributeWriteMask.ValueRank) != 0;
-                case AccessLevel: return (writeMask & (uint)AttributeWriteMask.AccessLevel) != 0;
-                case UserAccessLevel: return (writeMask & (uint)AttributeWriteMask.UserAccessLevel) != 0;
-                case MinimumSamplingInterval: return (writeMask & (uint)AttributeWriteMask.MinimumSamplingInterval) != 0;
-                case Historizing: return (writeMask & (uint)AttributeWriteMask.Historizing) != 0;
-                case Executable: return (writeMask & (uint)AttributeWriteMask.Executable) != 0;
-                case UserExecutable: return (writeMask & (uint)AttributeWriteMask.UserExecutable) != 0;
-                case ArrayDimensions: return (writeMask & (uint)AttributeWriteMask.ArrayDimensions) != 0;
-                case DataTypeDefinition: return (writeMask & (uint)AttributeWriteMask.DataTypeDefinition) != 0;
-                case RolePermissions: return (writeMask & (uint)AttributeWriteMask.RolePermissions) != 0;
-                case AccessRestrictions: return (writeMask & (uint)AttributeWriteMask.AccessRestrictions) != 0;
-                case AccessLevelEx: return (writeMask & (uint)AttributeWriteMask.AccessLevelEx) != 0;
+                case Value:
+                    return (writeMask & (uint)AttributeWriteMask.ValueForVariableType) != 0;
+                case DisplayName:
+                    return (writeMask & (uint)AttributeWriteMask.DisplayName) != 0;
+                case Description:
+                    return (writeMask & (uint)AttributeWriteMask.Description) != 0;
+                case WriteMask:
+                    return (writeMask & (uint)AttributeWriteMask.WriteMask) != 0;
+                case UserWriteMask:
+                    return (writeMask & (uint)AttributeWriteMask.UserWriteMask) != 0;
+                case NodeId:
+                    return (writeMask & (uint)AttributeWriteMask.NodeId) != 0;
+                case NodeClass:
+                    return (writeMask & (uint)AttributeWriteMask.NodeClass) != 0;
+                case BrowseName:
+                    return (writeMask & (uint)AttributeWriteMask.BrowseName) != 0;
+                case IsAbstract:
+                    return (writeMask & (uint)AttributeWriteMask.IsAbstract) != 0;
+                case Symmetric:
+                    return (writeMask & (uint)AttributeWriteMask.Symmetric) != 0;
+                case InverseName:
+                    return (writeMask & (uint)AttributeWriteMask.InverseName) != 0;
+                case ContainsNoLoops:
+                    return (writeMask & (uint)AttributeWriteMask.ContainsNoLoops) != 0;
+                case EventNotifier:
+                    return (writeMask & (uint)AttributeWriteMask.EventNotifier) != 0;
+                case DataType:
+                    return (writeMask & (uint)AttributeWriteMask.DataType) != 0;
+                case ValueRank:
+                    return (writeMask & (uint)AttributeWriteMask.ValueRank) != 0;
+                case AccessLevel:
+                    return (writeMask & (uint)AttributeWriteMask.AccessLevel) != 0;
+                case UserAccessLevel:
+                    return (writeMask & (uint)AttributeWriteMask.UserAccessLevel) != 0;
+                case MinimumSamplingInterval:
+                    return (writeMask & (uint)AttributeWriteMask.MinimumSamplingInterval) != 0;
+                case Historizing:
+                    return (writeMask & (uint)AttributeWriteMask.Historizing) != 0;
+                case Executable:
+                    return (writeMask & (uint)AttributeWriteMask.Executable) != 0;
+                case UserExecutable:
+                    return (writeMask & (uint)AttributeWriteMask.UserExecutable) != 0;
+                case ArrayDimensions:
+                    return (writeMask & (uint)AttributeWriteMask.ArrayDimensions) != 0;
+                case DataTypeDefinition:
+                    return (writeMask & (uint)AttributeWriteMask.DataTypeDefinition) != 0;
+                case RolePermissions:
+                    return (writeMask & (uint)AttributeWriteMask.RolePermissions) != 0;
+                case AccessRestrictions:
+                    return (writeMask & (uint)AttributeWriteMask.AccessRestrictions) != 0;
+                case AccessLevelEx:
+                    return (writeMask & (uint)AttributeWriteMask.AccessLevelEx) != 0;
             }
 
             return false;
@@ -246,32 +326,58 @@ namespace Opc.Ua
         {
             switch (attributeId)
             {
-                case Value: return writeMask | (uint)AttributeWriteMask.ValueForVariableType;
-                case DisplayName: return writeMask | (uint)AttributeWriteMask.DisplayName;
-                case Description: return writeMask | (uint)AttributeWriteMask.Description;
-                case WriteMask: return writeMask | (uint)AttributeWriteMask.WriteMask;
-                case UserWriteMask: return writeMask | (uint)AttributeWriteMask.UserWriteMask;
-                case NodeId: return writeMask | (uint)AttributeWriteMask.NodeId;
-                case NodeClass: return writeMask | (uint)AttributeWriteMask.NodeClass;
-                case BrowseName: return writeMask | (uint)AttributeWriteMask.BrowseName;
-                case IsAbstract: return writeMask | (uint)AttributeWriteMask.IsAbstract;
-                case Symmetric: return writeMask | (uint)AttributeWriteMask.Symmetric;
-                case InverseName: return writeMask | (uint)AttributeWriteMask.InverseName;
-                case ContainsNoLoops: return writeMask | (uint)AttributeWriteMask.ContainsNoLoops;
-                case EventNotifier: return writeMask | (uint)AttributeWriteMask.EventNotifier;
-                case DataType: return writeMask | (uint)AttributeWriteMask.DataType;
-                case ValueRank: return writeMask | (uint)AttributeWriteMask.ValueRank;
-                case AccessLevel: return writeMask | (uint)AttributeWriteMask.AccessLevel;
-                case UserAccessLevel: return writeMask | (uint)AttributeWriteMask.UserAccessLevel;
-                case MinimumSamplingInterval: return writeMask | (uint)AttributeWriteMask.MinimumSamplingInterval;
-                case Historizing: return writeMask | (uint)AttributeWriteMask.Historizing;
-                case Executable: return writeMask | (uint)AttributeWriteMask.Executable;
-                case UserExecutable: return writeMask | (uint)AttributeWriteMask.UserExecutable;
-                case ArrayDimensions: return writeMask | (uint)AttributeWriteMask.ArrayDimensions;
-                case DataTypeDefinition: return writeMask | (uint)AttributeWriteMask.DataTypeDefinition;
-                case RolePermissions: return writeMask | (uint)AttributeWriteMask.RolePermissions;
-                case AccessRestrictions: return writeMask | (uint)AttributeWriteMask.AccessRestrictions;
-                case AccessLevelEx: return writeMask | (uint)AttributeWriteMask.AccessLevelEx;
+                case Value:
+                    return writeMask | (uint)AttributeWriteMask.ValueForVariableType;
+                case DisplayName:
+                    return writeMask | (uint)AttributeWriteMask.DisplayName;
+                case Description:
+                    return writeMask | (uint)AttributeWriteMask.Description;
+                case WriteMask:
+                    return writeMask | (uint)AttributeWriteMask.WriteMask;
+                case UserWriteMask:
+                    return writeMask | (uint)AttributeWriteMask.UserWriteMask;
+                case NodeId:
+                    return writeMask | (uint)AttributeWriteMask.NodeId;
+                case NodeClass:
+                    return writeMask | (uint)AttributeWriteMask.NodeClass;
+                case BrowseName:
+                    return writeMask | (uint)AttributeWriteMask.BrowseName;
+                case IsAbstract:
+                    return writeMask | (uint)AttributeWriteMask.IsAbstract;
+                case Symmetric:
+                    return writeMask | (uint)AttributeWriteMask.Symmetric;
+                case InverseName:
+                    return writeMask | (uint)AttributeWriteMask.InverseName;
+                case ContainsNoLoops:
+                    return writeMask | (uint)AttributeWriteMask.ContainsNoLoops;
+                case EventNotifier:
+                    return writeMask | (uint)AttributeWriteMask.EventNotifier;
+                case DataType:
+                    return writeMask | (uint)AttributeWriteMask.DataType;
+                case ValueRank:
+                    return writeMask | (uint)AttributeWriteMask.ValueRank;
+                case AccessLevel:
+                    return writeMask | (uint)AttributeWriteMask.AccessLevel;
+                case UserAccessLevel:
+                    return writeMask | (uint)AttributeWriteMask.UserAccessLevel;
+                case MinimumSamplingInterval:
+                    return writeMask | (uint)AttributeWriteMask.MinimumSamplingInterval;
+                case Historizing:
+                    return writeMask | (uint)AttributeWriteMask.Historizing;
+                case Executable:
+                    return writeMask | (uint)AttributeWriteMask.Executable;
+                case UserExecutable:
+                    return writeMask | (uint)AttributeWriteMask.UserExecutable;
+                case ArrayDimensions:
+                    return writeMask | (uint)AttributeWriteMask.ArrayDimensions;
+                case DataTypeDefinition:
+                    return writeMask | (uint)AttributeWriteMask.DataTypeDefinition;
+                case RolePermissions:
+                    return writeMask | (uint)AttributeWriteMask.RolePermissions;
+                case AccessRestrictions:
+                    return writeMask | (uint)AttributeWriteMask.AccessRestrictions;
+                case AccessLevelEx:
+                    return writeMask | (uint)AttributeWriteMask.AccessLevelEx;
             }
 
             return writeMask;
@@ -360,32 +466,57 @@ namespace Opc.Ua
         {
             switch (attributeId)
             {
-                case NodeId: return AttributeWriteMask.NodeId;
-                case NodeClass: return AttributeWriteMask.NodeClass;
-                case BrowseName: return AttributeWriteMask.BrowseName;
-                case DisplayName: return AttributeWriteMask.DisplayName;
-                case Description: return AttributeWriteMask.Description;
-                case WriteMask: return AttributeWriteMask.WriteMask;
-                case UserWriteMask: return AttributeWriteMask.UserWriteMask;
-                case DataType: return AttributeWriteMask.DataType;
-                case ValueRank: return AttributeWriteMask.ValueRank;
-                case ArrayDimensions: return AttributeWriteMask.ArrayDimensions;
-                case IsAbstract: return AttributeWriteMask.IsAbstract;
-                case Symmetric: return AttributeWriteMask.Symmetric;
-                case InverseName: return AttributeWriteMask.InverseName;
-                case ContainsNoLoops: return AttributeWriteMask.ContainsNoLoops;
-                case EventNotifier: return AttributeWriteMask.EventNotifier;
-                case AccessLevel: return AttributeWriteMask.AccessLevel;
-                case UserAccessLevel: return AttributeWriteMask.UserAccessLevel;
-                case MinimumSamplingInterval: return AttributeWriteMask.MinimumSamplingInterval;
-                case Historizing: return AttributeWriteMask.Historizing;
-                case Executable: return AttributeWriteMask.Executable;
-                case UserExecutable: return AttributeWriteMask.UserExecutable;
-                case DataTypeDefinition: return AttributeWriteMask.DataTypeDefinition;
-                case RolePermissions: return AttributeWriteMask.RolePermissions;
+                case NodeId:
+                    return AttributeWriteMask.NodeId;
+                case NodeClass:
+                    return AttributeWriteMask.NodeClass;
+                case BrowseName:
+                    return AttributeWriteMask.BrowseName;
+                case DisplayName:
+                    return AttributeWriteMask.DisplayName;
+                case Description:
+                    return AttributeWriteMask.Description;
+                case WriteMask:
+                    return AttributeWriteMask.WriteMask;
+                case UserWriteMask:
+                    return AttributeWriteMask.UserWriteMask;
+                case DataType:
+                    return AttributeWriteMask.DataType;
+                case ValueRank:
+                    return AttributeWriteMask.ValueRank;
+                case ArrayDimensions:
+                    return AttributeWriteMask.ArrayDimensions;
+                case IsAbstract:
+                    return AttributeWriteMask.IsAbstract;
+                case Symmetric:
+                    return AttributeWriteMask.Symmetric;
+                case InverseName:
+                    return AttributeWriteMask.InverseName;
+                case ContainsNoLoops:
+                    return AttributeWriteMask.ContainsNoLoops;
+                case EventNotifier:
+                    return AttributeWriteMask.EventNotifier;
+                case AccessLevel:
+                    return AttributeWriteMask.AccessLevel;
+                case UserAccessLevel:
+                    return AttributeWriteMask.UserAccessLevel;
+                case MinimumSamplingInterval:
+                    return AttributeWriteMask.MinimumSamplingInterval;
+                case Historizing:
+                    return AttributeWriteMask.Historizing;
+                case Executable:
+                    return AttributeWriteMask.Executable;
+                case UserExecutable:
+                    return AttributeWriteMask.UserExecutable;
+                case DataTypeDefinition:
+                    return AttributeWriteMask.DataTypeDefinition;
+                case RolePermissions:
+                    return AttributeWriteMask.RolePermissions;
                 //case UserRolePermissions:     return AttributeWriteMask.UserRolePermissions;
-                case AccessRestrictions: return AttributeWriteMask.AccessRestrictions;
-                case AccessLevelEx: return AttributeWriteMask.AccessLevelEx;
+                case AccessRestrictions:
+                    return AttributeWriteMask.AccessRestrictions;
+                case AccessLevelEx:
+                    return AttributeWriteMask.AccessLevelEx;
             }
 
             return 0;

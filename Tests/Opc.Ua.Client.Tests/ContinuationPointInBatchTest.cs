@@ -86,7 +86,8 @@ namespace Opc.Ua.Client.Tests
             using (var sr = new StreamReader(m_stream))
             {
                 string line;
-                while ((line = sr.ReadLine()) != null) { entries.Add(line); }
+                while ((line = sr.ReadLine()) != null)
+                { entries.Add(line); }
             }
             // get entries closes the stream.
             m_stream = new MemoryStream(64000);
@@ -468,7 +469,8 @@ namespace Opc.Ua.Client.Tests
             VerifyExpectedResults(memoryLogPass1, pass1ExpectedResults);
 #endif
 
-            memoryWriter.Close(); memoryWriter.Dispose();
+            memoryWriter.Close();
+            memoryWriter.Dispose();
 
             // reset memory log
             memoryWriter = new CPBatchTestMemoryWriter();
@@ -498,7 +500,8 @@ namespace Opc.Ua.Client.Tests
             // since there is no randomness in this test, we can verify the results directly
             VerifyExpectedResults(memoryLogPass2, pass2ExpectedResults);
 #endif
-            memoryWriter.Close(); memoryWriter.Dispose();
+            memoryWriter.Close();
+            memoryWriter.Dispose();
 
             ClientFixture.SetTraceOutput(TestContext.Out);
             // reset the log level
@@ -603,7 +606,8 @@ namespace Opc.Ua.Client.Tests
             // this is no typo - we expect no error, hence we use pass2ExpectedResults
             VerifyExpectedResults(memoryLogPass1, pass2ExpectedResults);
 
-            memoryWriter.Close(); memoryWriter.Dispose();
+            memoryWriter.Close();
+            memoryWriter.Dispose();
 
             // reset memory log
             memoryWriter = new CPBatchTestMemoryWriter();
@@ -636,7 +640,8 @@ namespace Opc.Ua.Client.Tests
             // since there is no randomness in this test, we can verify the results directly
             VerifyExpectedResults(memoryLogPass2, pass2ExpectedResults);
 
-            memoryWriter.Close(); memoryWriter.Dispose();
+            memoryWriter.Close();
+            memoryWriter.Dispose();
 
             ClientFixture.SetTraceOutput(TestContext.Out);
             // reset the log level
@@ -752,7 +757,8 @@ namespace Opc.Ua.Client.Tests
             List<string> memoryLogPass1 = memoryWriter.getEntries();
             WriteMemoryLogToTextOut(memoryLogPass1, "memoryLogPass1");
 
-            memoryWriter.Close(); memoryWriter.Dispose();
+            memoryWriter.Close();
+            memoryWriter.Dispose();
 
             // reset memory log
             memoryWriter = new CPBatchTestMemoryWriter();
@@ -1001,7 +1007,8 @@ namespace Opc.Ua.Client.Tests
             VerifyExpectedResults(memoryLogPass1, pass1ExpectedResults);
 #endif
 
-            memoryWriter.Close(); memoryWriter.Dispose();
+            memoryWriter.Close();
+            memoryWriter.Dispose();
         }
 
         private void WriteMemoryLogToTextOut(List<string> memoryLog, string contextInfo)

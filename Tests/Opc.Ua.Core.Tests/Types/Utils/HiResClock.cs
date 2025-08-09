@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2018 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -42,7 +42,11 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
     [TestFixture, Category("Utils")]
     [SetCulture("en-us"), SetUICulture("en-us")]
     [NonParallelizable]
-    public class HiResClockTests
+    public
+#if NET8_0_OR_GREATER
+        partial
+#endif
+        class HiResClockTests
     {
         /// <summary>
         /// How long the tests are running.
@@ -216,9 +220,6 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             _ = Environment.TickCount;
         }
 
-        [DllImport("kernel32")]
-        private extern static ulong GetTickCount64();
-
         [Benchmark]
         public void WindowsGetTickCount64()
         {
@@ -232,5 +233,13 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             _ = Environment.TickCount64;
 #endif
         }
+
+#if NET8_0_OR_GREATER
+        [LibraryImport("kernel32")]
+        private static partial ulong GetTickCount64();
+#else
+        [DllImport("kernel32")]
+        private static extern ulong GetTickCount64();
+#endif
     }
 }

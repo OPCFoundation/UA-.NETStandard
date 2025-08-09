@@ -15,7 +15,9 @@ using System.IO;
 using System.Net;
 using System.Net.Security;
 using System.Security.Authentication;
+#if NETCOREAPP3_1_OR_GREATER || NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
 using System.Security.Cryptography;
+#endif
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -505,12 +507,10 @@ namespace Opc.Ua.Bindings
 
         private static async Task<byte[]> ReadBodyAsync(HttpRequest req)
         {
-            using (var memory = new MemoryStream())
-            using (var reader = new StreamReader(req.Body))
-            {
-                await reader.BaseStream.CopyToAsync(memory).ConfigureAwait(false);
-                return memory.ToArray();
-            }
+            using var memory = new MemoryStream();
+            using var reader = new StreamReader(req.Body);
+            await reader.BaseStream.CopyToAsync(memory).ConfigureAwait(false);
+            return memory.ToArray();
         }
 
         /// <summary>

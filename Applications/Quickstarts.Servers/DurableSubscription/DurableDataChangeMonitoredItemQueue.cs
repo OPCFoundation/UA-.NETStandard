@@ -149,7 +149,7 @@ namespace Quickstarts.Servers
                     m_dataChangeBatches.Add(batchToStore);
                     if (m_dataChangeBatches.Count > 1)
                     {
-                        m_batchPersistor.RequestBatchPersist(m_dataChangeBatches[m_dataChangeBatches.Count - 2]);
+                        m_batchPersistor.RequestBatchPersist(m_dataChangeBatches[^2]);
                     }
 
                     m_enqueueBatch = new DataChangeBatch([], kBatchSize, MonitoredItemId);
@@ -165,16 +165,16 @@ namespace Quickstarts.Servers
             }
             if (m_enqueueBatch.Values.Count > 0)
             {
-                m_enqueueBatch.Values[m_enqueueBatch.Values.Count - 1] = (value, error);
+                m_enqueueBatch.Values[^1] = (value, error);
             }
             else if (m_dataChangeBatches.Count > 0)
             {
                 DataChangeBatch batch = m_dataChangeBatches[^1];
-                batch.Values[batch.Values.Count - 1] = (value, error);
+                batch.Values[^1] = (value, error);
             }
             else
             {
-                m_dequeueBatch.Values[m_dequeueBatch.Values.Count - 1] = (value, error);
+                m_dequeueBatch.Values[^1] = (value, error);
             }
         }
 
@@ -205,16 +205,16 @@ namespace Quickstarts.Servers
 
             if (m_enqueueBatch.Values.Count > 0)
             {
-                return m_enqueueBatch.Values[m_enqueueBatch.Values.Count - 1].Item1;
+                return m_enqueueBatch.Values[^1].Item1;
             }
             else if (m_dataChangeBatches.Count > 0)
             {
                 DataChangeBatch batch = m_dataChangeBatches[^1];
-                return batch.Values[batch.Values.Count - 1].Item1;
+                return batch.Values[^1].Item1;
             }
             else
             {
-                return m_dequeueBatch.Values[m_dequeueBatch.Values.Count - 1].Item1;
+                return m_dequeueBatch.Values[^1].Item1;
             }
         }
 

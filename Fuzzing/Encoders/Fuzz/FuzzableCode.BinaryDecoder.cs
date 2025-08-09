@@ -44,10 +44,8 @@ namespace Opc.Ua.Fuzzing
         /// <param name="stream">The stdin stream from the afl-fuzz process.</param>
         public static void AflfuzzBinaryDecoder(Stream stream)
         {
-            using (MemoryStream memoryStream = PrepareArraySegmentStream(stream))
-            {
-                FuzzBinaryDecoderCore(memoryStream);
-            }
+            using MemoryStream memoryStream = PrepareArraySegmentStream(stream);
+            FuzzBinaryDecoderCore(memoryStream);
         }
 
         /// <summary>
@@ -106,10 +104,8 @@ namespace Opc.Ua.Fuzzing
         /// </summary>
         public static void LibfuzzBinaryDecoder(ReadOnlySpan<byte> input)
         {
-            using (var memoryStream = new MemoryStream(input.ToArray()))
-            {
-                _ = FuzzBinaryDecoderCore(memoryStream);
-            }
+            using var memoryStream = new MemoryStream(input.ToArray());
+            _ = FuzzBinaryDecoderCore(memoryStream);
         }
 
         /// <summary>
@@ -169,10 +165,8 @@ namespace Opc.Ua.Fuzzing
         {
             try
             {
-                using (var decoder = new BinaryDecoder(stream, s_messageContext))
-                {
-                    return decoder.DecodeMessage(null);
-                }
+                using var decoder = new BinaryDecoder(stream, s_messageContext);
+                return decoder.DecodeMessage(null);
             }
             catch (ServiceResultException sre)
             {
@@ -207,26 +201,22 @@ namespace Opc.Ua.Fuzzing
                 return;
             }
 
-            using (var memoryStream = new MemoryStream(serialized))
+            using var memoryStream = new MemoryStream(serialized);
+            IEncodeable encodeable2 = FuzzBinaryDecoderCore(memoryStream, true);
+            byte[] serialized2 = BinaryEncoder.EncodeMessage(encodeable2, s_messageContext);
+
+            using var memoryStream2 = new MemoryStream(serialized2);
+            IEncodeable encodeable3 = FuzzBinaryDecoderCore(memoryStream2, true);
+
+            string encodeableTypeName = encodeable2?.GetType().Name ?? "unknown type";
+            if (serialized2 == null || !serialized.SequenceEqual(serialized2))
             {
-                IEncodeable encodeable2 = FuzzBinaryDecoderCore(memoryStream, true);
-                byte[] serialized2 = BinaryEncoder.EncodeMessage(encodeable2, s_messageContext);
+                throw new Exception(Utils.Format("Idempotent encoding failed. Type={0}.", encodeableTypeName));
+            }
 
-                using (var memoryStream2 = new MemoryStream(serialized2))
-                {
-                    IEncodeable encodeable3 = FuzzBinaryDecoderCore(memoryStream2, true);
-
-                    string encodeableTypeName = encodeable2?.GetType().Name ?? "unknown type";
-                    if (serialized2 == null || !serialized.SequenceEqual(serialized2))
-                    {
-                        throw new Exception(Utils.Format("Idempotent encoding failed. Type={0}.", encodeableTypeName));
-                    }
-
-                    if (!Utils.IsEqual(encodeable2, encodeable3))
-                    {
-                        throw new Exception(Utils.Format("Idempotent 3rd gen decoding failed. Type={0}.", encodeableTypeName));
-                    }
-                }
+            if (!Utils.IsEqual(encodeable2, encodeable3))
+            {
+                throw new Exception(Utils.Format("Idempotent 3rd gen decoding failed. Type={0}.", encodeableTypeName));
             }
         }
     }

@@ -223,12 +223,12 @@ namespace TestData
             }
 
             // apply the timestamps filter.
-            if (timestampsToReturn == TimestampsToReturn.Neither || timestampsToReturn == TimestampsToReturn.Server)
+            if (timestampsToReturn is TimestampsToReturn.Neither or TimestampsToReturn.Server)
             {
                 value.SourceTimestamp = DateTime.MinValue;
             }
 
-            if (timestampsToReturn == TimestampsToReturn.Neither || timestampsToReturn == TimestampsToReturn.Source)
+            if (timestampsToReturn is TimestampsToReturn.Neither or TimestampsToReturn.Source)
             {
                 value.ServerTimestamp = DateTime.MinValue;
             }

@@ -202,47 +202,45 @@ namespace Opc.Ua.Gds.Server
                 throw new ArgumentNullException(nameof(application), "ApplicationNames is null");
             }
 
-            using (X509Certificate2 signingKey = await LoadSigningKeyAsync(Certificates[certificateType], string.Empty).ConfigureAwait(false))
-            {
-                X509Certificate2 certificate;
+            using X509Certificate2 signingKey = await LoadSigningKeyAsync(Certificates[certificateType], string.Empty).ConfigureAwait(false);
+            X509Certificate2 certificate;
 
-                ICertificateBuilderIssuer builder = CertificateFactory.CreateCertificate(
-                    application.ApplicationUri,
-                    application.ApplicationNames.Count > 0 ? application.ApplicationNames[0].Text : "ApplicationName",
-                    subjectName,
-                    domainNames)
-                    .SetIssuer(signingKey);
+            ICertificateBuilderIssuer builder = CertificateFactory.CreateCertificate(
+                application.ApplicationUri,
+                application.ApplicationNames.Count > 0 ? application.ApplicationNames[0].Text : "ApplicationName",
+                subjectName,
+                domainNames)
+                .SetIssuer(signingKey);
 #if ECC_SUPPORT
-                certificate = TryGetECCCurve(certificateType, out ECCurve curve) ?
-                   builder.SetECCurve(curve).CreateForECDsa() :
-                   builder.CreateForRSA();
+            certificate = TryGetECCCurve(certificateType, out ECCurve curve) ?
+               builder.SetECCurve(curve).CreateForECDsa() :
+               builder.CreateForRSA();
 #else
-                certificate = builder
-                       .CreateForRSA();
+            certificate = builder
+                   .CreateForRSA();
 #endif
 
-                byte[] privateKey;
-                if (privateKeyFormat == "PFX")
-                {
-                    privateKey = certificate.Export(X509ContentType.Pfx, privateKeyPassword);
-                }
-                else if (privateKeyFormat == "PEM")
-                {
-                    privateKey = PEMWriter.ExportPrivateKeyAsPEM(certificate, privateKeyPassword);
-                }
-                else
-                {
-                    throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Invalid private key format");
-                }
-
-                X509Certificate2 publicKey = X509CertificateLoader.LoadCertificate(certificate.RawData);
-                Utils.SilentDispose(certificate);
-
-                return new X509Certificate2KeyPair(publicKey, privateKeyFormat, privateKey);
+            byte[] privateKey;
+            if (privateKeyFormat == "PFX")
+            {
+                privateKey = certificate.Export(X509ContentType.Pfx, privateKeyPassword);
             }
+            else if (privateKeyFormat == "PEM")
+            {
+                privateKey = PEMWriter.ExportPrivateKeyAsPEM(certificate, privateKeyPassword);
+            }
+            else
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Invalid private key format");
+            }
+
+            X509Certificate2 publicKey = X509CertificateLoader.LoadCertificate(certificate.RawData);
+            Utils.SilentDispose(certificate);
+
+            return new X509Certificate2KeyPair(publicKey, privateKeyFormat, privateKey);
         }
 
-        public async virtual Task<X509CRL> RevokeCertificateAsync(
+        public virtual async Task<X509CRL> RevokeCertificateAsync(
             X509Certificate2 certificate)
         {
             X509CRL crl = await RevokeCertificateAsync(
@@ -338,36 +336,34 @@ namespace Opc.Ua.Gds.Server
                 }
 
                 DateTime yesterday = DateTime.Today.AddDays(-1);
-                using (X509Certificate2 signingKey = await LoadSigningKeyAsync(Certificates[certificateType], string.Empty).ConfigureAwait(false))
-                {
-                    var subjectName = new X500DistinguishedName(info.Subject.GetEncoded());
+                using X509Certificate2 signingKey = await LoadSigningKeyAsync(Certificates[certificateType], string.Empty).ConfigureAwait(false);
+                var subjectName = new X500DistinguishedName(info.Subject.GetEncoded());
 
-                    X509Certificate2 certificate;
+                X509Certificate2 certificate;
 
-                    ICertificateBuilder builder = CertificateBuilder.Create(subjectName)
-                        .AddExtension(new X509SubjectAltNameExtension(application.ApplicationUri, domainNames))
-                        .SetNotBefore(yesterday)
-                        .SetLifeTime(Configuration.DefaultCertificateLifetime);
+                ICertificateBuilder builder = CertificateBuilder.Create(subjectName)
+                    .AddExtension(new X509SubjectAltNameExtension(application.ApplicationUri, domainNames))
+                    .SetNotBefore(yesterday)
+                    .SetLifeTime(Configuration.DefaultCertificateLifetime);
 
 #if ECC_SUPPORT
-                    certificate = TryGetECCCurve(certificateType, out ECCurve curve) ?
-                       builder
-                       .SetIssuer(signingKey)
-                       .SetECDsaPublicKey(info.SubjectPublicKeyInfo.GetEncoded())
-                       .CreateForECDsa() :
-                       builder.SetHashAlgorithm(X509Utils.GetRSAHashAlgorithmName(Configuration.DefaultCertificateHashSize))
+                certificate = TryGetECCCurve(certificateType, out ECCurve curve) ?
+                   builder
+                   .SetIssuer(signingKey)
+                   .SetECDsaPublicKey(info.SubjectPublicKeyInfo.GetEncoded())
+                   .CreateForECDsa() :
+                   builder.SetHashAlgorithm(X509Utils.GetRSAHashAlgorithmName(Configuration.DefaultCertificateHashSize))
+                            .SetIssuer(signingKey)
+                            .SetRSAPublicKey(info.SubjectPublicKeyInfo.GetEncoded())
+                            .CreateForRSA();
+#else
+                certificate = builder.SetHashAlgorithm(X509Utils.GetRSAHashAlgorithmName(Configuration.DefaultCertificateHashSize))
                                 .SetIssuer(signingKey)
                                 .SetRSAPublicKey(info.SubjectPublicKeyInfo.GetEncoded())
                                 .CreateForRSA();
-#else
-                    certificate = builder.SetHashAlgorithm(X509Utils.GetRSAHashAlgorithmName(Configuration.DefaultCertificateHashSize))
-                                    .SetIssuer(signingKey)
-                                    .SetRSAPublicKey(info.SubjectPublicKeyInfo.GetEncoded())
-                                    .CreateForRSA();
 #endif
 
-                    return certificate;
-                }
+                return certificate;
             }
             catch (Exception ex) when (ex is not ServiceResultException)
             {
@@ -605,10 +601,8 @@ namespace Opc.Ua.Gds.Server
                         X509Certificate2Collection certs = await trustedOrIssuerStore.FindByThumbprintAsync(certificate.Thumbprint).ConfigureAwait(false);
                         if (certs.Count == 0)
                         {
-                            using (X509Certificate2 x509 = X509CertificateLoader.LoadCertificate(certificate.RawData))
-                            {
-                                await trustedOrIssuerStore.AddAsync(x509).ConfigureAwait(false);
-                            }
+                            using X509Certificate2 x509 = X509CertificateLoader.LoadCertificate(certificate.RawData);
+                            await trustedOrIssuerStore.AddAsync(x509).ConfigureAwait(false);
                         }
 
                         // delete existing CRL in trusted list
@@ -645,7 +639,7 @@ namespace Opc.Ua.Gds.Server
                     var oid = Org.BouncyCastle.Asn1.DerObjectIdentifier.GetInstance(sequence[0].ToAsn1Object());
                     if (oid.Equals(Org.BouncyCastle.Asn1.Pkcs.PkcsObjectIdentifiers.Pkcs9AtExtensionRequest))
                     {
-                        Org.BouncyCastle.Asn1.Asn1Set extensionInstance = Org.BouncyCastle.Asn1.Asn1Set.GetInstance(sequence[1]);
+                        var extensionInstance = Org.BouncyCastle.Asn1.Asn1Set.GetInstance(sequence[1]);
                         var extensionSequence = Org.BouncyCastle.Asn1.Asn1Sequence.GetInstance(extensionInstance[0]);
                         var extensions = Org.BouncyCastle.Asn1.X509.X509Extensions.GetInstance(extensionSequence);
                         Org.BouncyCastle.Asn1.X509.X509Extension extension = extensions.GetExtension(Org.BouncyCastle.Asn1.X509.X509Extensions.SubjectAlternativeName);

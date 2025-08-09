@@ -418,7 +418,7 @@ namespace Opc.Ua.PubSub.Configuration
         {
             lock (m_lock)
             {
-                if (!(FindObjectById(publishedDataSetId) is PublishedDataSetDataType publishedDataSetDataType))
+                if (FindObjectById(publishedDataSetId) is not PublishedDataSetDataType publishedDataSetDataType)
                 {
                     // Unexpected exception
                     Utils.Trace(Utils.TraceMasks.Information, "Current configuration does not contain PublishedDataSetDataType with ConfigId = {0}", publishedDataSetId);
@@ -498,7 +498,7 @@ namespace Opc.Ua.PubSub.Configuration
         {
             lock (m_lock)
             {
-                if (!(FindObjectById(publishedDataSetConfigId) is PublishedDataSetDataType publishedDataSetDataType))
+                if (FindObjectById(publishedDataSetConfigId) is not PublishedDataSetDataType publishedDataSetDataType)
                 {
                     return StatusCodes.BadNodeIdInvalid;
                 }
@@ -547,7 +547,8 @@ namespace Opc.Ua.PubSub.Configuration
         {
             lock (m_lock)
             {
-                if (!(FindObjectById(publishedDataSetConfigId) is PublishedDataSetDataType publishedDataSetDataType) || !(FindObjectById(extensionFieldConfigId) is KeyValuePair extensionFieldToRemove))
+                if ((FindObjectById(publishedDataSetConfigId) is not PublishedDataSetDataType publishedDataSetDataType) ||
+                    (FindObjectById(extensionFieldConfigId) is not KeyValuePair extensionFieldToRemove))
                 {
                     return StatusCodes.BadNodeIdInvalid;
                 }
@@ -672,7 +673,7 @@ namespace Opc.Ua.PubSub.Configuration
         {
             lock (m_lock)
             {
-                if (!(FindObjectById(connectionId) is PubSubConnectionDataType pubSubConnectionDataType))
+                if (FindObjectById(connectionId) is not PubSubConnectionDataType pubSubConnectionDataType)
                 {
                     // Unexpected exception
                     Utils.Trace(Utils.TraceMasks.Information, "Current configuration does not contain PubSubConnectionDataType with ConfigId = {0}", connectionId);
@@ -831,7 +832,7 @@ namespace Opc.Ua.PubSub.Configuration
         {
             lock (m_lock)
             {
-                if (!(FindObjectById(writerGroupId) is WriterGroupDataType writerGroupDataType))
+                if (FindObjectById(writerGroupId) is not WriterGroupDataType writerGroupDataType)
                 {
                     // Unexpected exception
                     Utils.Trace(Utils.TraceMasks.Information, "Current configuration does not contain WriterGroupDataType with ConfigId = {0}", writerGroupId);
@@ -980,7 +981,7 @@ namespace Opc.Ua.PubSub.Configuration
         {
             lock (m_lock)
             {
-                if (!(FindObjectById(dataSetWriterId) is DataSetWriterDataType dataSetWriterDataType))
+                if (FindObjectById(dataSetWriterId) is not DataSetWriterDataType dataSetWriterDataType)
                 {
                     // Unexpected exception
                     Utils.Trace(Utils.TraceMasks.Information, "Current configuration does not contain DataSetWriterDataType with ConfigId = {0}", dataSetWriterId);
@@ -1138,7 +1139,7 @@ namespace Opc.Ua.PubSub.Configuration
         {
             lock (m_lock)
             {
-                if (!(FindObjectById(readerGroupId) is ReaderGroupDataType readerGroupDataType))
+                if (FindObjectById(readerGroupId) is not ReaderGroupDataType readerGroupDataType)
                 {
                     Utils.Trace(Utils.TraceMasks.Information, "Current configuration does not contain ReaderGroupDataType with ConfigId = {0}", readerGroupId);
                     return StatusCodes.BadInvalidArgument;
@@ -1286,7 +1287,7 @@ namespace Opc.Ua.PubSub.Configuration
         {
             lock (m_lock)
             {
-                if (!(FindObjectById(dataSetReaderId) is DataSetReaderDataType dataSetReaderDataType))
+                if (FindObjectById(dataSetReaderId) is not DataSetReaderDataType dataSetReaderDataType)
                 {
                     // Unexpected exception
                     Utils.Trace(Utils.TraceMasks.Information, "Current configuration does not contain DataSetReaderDataType with ConfigId = {0}", dataSetReaderId);

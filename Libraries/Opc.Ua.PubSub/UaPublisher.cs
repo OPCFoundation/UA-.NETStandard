@@ -50,17 +50,8 @@ namespace Opc.Ua.PubSub
         /// </summary>
         internal UaPublisher(IUaPubSubConnection pubSubConnection, WriterGroupDataType writerGroupConfiguration)
         {
-            if (pubSubConnection == null)
-            {
-                throw new ArgumentNullException(nameof(pubSubConnection));
-            }
-            if (writerGroupConfiguration == null)
-            {
-                throw new ArgumentNullException(nameof(writerGroupConfiguration));
-            }
-
-            PubSubConnection = pubSubConnection;
-            WriterGroupConfiguration = writerGroupConfiguration;
+            PubSubConnection = pubSubConnection ?? throw new ArgumentNullException(nameof(pubSubConnection));
+            WriterGroupConfiguration = writerGroupConfiguration ?? throw new ArgumentNullException(nameof(writerGroupConfiguration));
             m_writerGroupPublishState = new WriterGroupPublishState();
 
             m_intervalRunner = new IntervalRunner(WriterGroupConfiguration.Name, WriterGroupConfiguration.PublishingInterval, CanPublish, PublishMessages);

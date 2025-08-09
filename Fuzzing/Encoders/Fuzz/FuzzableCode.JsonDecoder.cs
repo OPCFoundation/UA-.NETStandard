@@ -63,11 +63,9 @@ namespace Opc.Ua.Fuzzing
             // encode the fuzzed object and see if it crashes
             if (encodeable != null)
             {
-                using (var encoder = new JsonEncoder(s_messageContext, true))
-                {
-                    encoder.EncodeMessage(encodeable);
-                    encoder.Close();
-                }
+                using var encoder = new JsonEncoder(s_messageContext, true);
+                encoder.EncodeMessage(encodeable);
+                encoder.Close();
             }
         }
 
@@ -107,11 +105,9 @@ namespace Opc.Ua.Fuzzing
             // encode the fuzzed object and see if it crashes
             if (encodeable != null)
             {
-                using (var encoder = new JsonEncoder(s_messageContext, true))
-                {
-                    encoder.EncodeMessage(encodeable);
-                    encoder.Close();
-                }
+                using var encoder = new JsonEncoder(s_messageContext, true);
+                encoder.EncodeMessage(encodeable);
+                encoder.Close();
             }
         }
 
@@ -123,10 +119,8 @@ namespace Opc.Ua.Fuzzing
         {
             try
             {
-                using (var decoder = new JsonDecoder(json, s_messageContext))
-                {
-                    return decoder.DecodeMessage(null);
-                }
+                using var decoder = new JsonDecoder(json, s_messageContext);
+                return decoder.DecodeMessage(null);
             }
             catch (ServiceResultException sre)
             {

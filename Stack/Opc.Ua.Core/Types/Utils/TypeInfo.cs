@@ -262,63 +262,92 @@ namespace Opc.Ua
         {
             switch (typeInfo.BuiltInType)
             {
-                case BuiltInType.Boolean: return DataTypeIds.Boolean;
+                case BuiltInType.Boolean:
+                    return DataTypeIds.Boolean;
 
-                case BuiltInType.SByte: return DataTypeIds.SByte;
+                case BuiltInType.SByte:
+                    return DataTypeIds.SByte;
 
-                case BuiltInType.Byte: return DataTypeIds.Byte;
+                case BuiltInType.Byte:
+                    return DataTypeIds.Byte;
 
-                case BuiltInType.Int16: return DataTypeIds.Int16;
+                case BuiltInType.Int16:
+                    return DataTypeIds.Int16;
 
-                case BuiltInType.UInt16: return DataTypeIds.UInt16;
+                case BuiltInType.UInt16:
+                    return DataTypeIds.UInt16;
 
-                case BuiltInType.Int32: return DataTypeIds.Int32;
+                case BuiltInType.Int32:
+                    return DataTypeIds.Int32;
 
-                case BuiltInType.UInt32: return DataTypeIds.UInt32;
+                case BuiltInType.UInt32:
+                    return DataTypeIds.UInt32;
 
-                case BuiltInType.Int64: return DataTypeIds.Int64;
+                case BuiltInType.Int64:
+                    return DataTypeIds.Int64;
 
-                case BuiltInType.UInt64: return DataTypeIds.UInt64;
+                case BuiltInType.UInt64:
+                    return DataTypeIds.UInt64;
 
-                case BuiltInType.Float: return DataTypeIds.Float;
+                case BuiltInType.Float:
+                    return DataTypeIds.Float;
 
-                case BuiltInType.Double: return DataTypeIds.Double;
+                case BuiltInType.Double:
+                    return DataTypeIds.Double;
 
-                case BuiltInType.String: return DataTypeIds.String;
+                case BuiltInType.String:
+                    return DataTypeIds.String;
 
-                case BuiltInType.DateTime: return DataTypeIds.DateTime;
+                case BuiltInType.DateTime:
+                    return DataTypeIds.DateTime;
 
-                case BuiltInType.Guid: return DataTypeIds.Guid;
+                case BuiltInType.Guid:
+                    return DataTypeIds.Guid;
 
-                case BuiltInType.ByteString: return DataTypeIds.ByteString;
+                case BuiltInType.ByteString:
+                    return DataTypeIds.ByteString;
 
-                case BuiltInType.XmlElement: return DataTypeIds.XmlElement;
+                case BuiltInType.XmlElement:
+                    return DataTypeIds.XmlElement;
 
-                case BuiltInType.NodeId: return DataTypeIds.NodeId;
+                case BuiltInType.NodeId:
+                    return DataTypeIds.NodeId;
 
-                case BuiltInType.ExpandedNodeId: return DataTypeIds.ExpandedNodeId;
+                case BuiltInType.ExpandedNodeId:
+                    return DataTypeIds.ExpandedNodeId;
 
-                case BuiltInType.StatusCode: return DataTypeIds.StatusCode;
+                case BuiltInType.StatusCode:
+                    return DataTypeIds.StatusCode;
 
-                case BuiltInType.DiagnosticInfo: return DataTypeIds.DiagnosticInfo;
+                case BuiltInType.DiagnosticInfo:
+                    return DataTypeIds.DiagnosticInfo;
 
-                case BuiltInType.QualifiedName: return DataTypeIds.QualifiedName;
+                case BuiltInType.QualifiedName:
+                    return DataTypeIds.QualifiedName;
 
-                case BuiltInType.LocalizedText: return DataTypeIds.LocalizedText;
+                case BuiltInType.LocalizedText:
+                    return DataTypeIds.LocalizedText;
 
-                case BuiltInType.ExtensionObject: return DataTypeIds.Structure;
+                case BuiltInType.ExtensionObject:
+                    return DataTypeIds.Structure;
 
-                case BuiltInType.DataValue: return DataTypeIds.DataValue;
+                case BuiltInType.DataValue:
+                    return DataTypeIds.DataValue;
 
-                case BuiltInType.Variant: return DataTypeIds.BaseDataType;
+                case BuiltInType.Variant:
+                    return DataTypeIds.BaseDataType;
 
-                case BuiltInType.Number: return DataTypeIds.Number;
+                case BuiltInType.Number:
+                    return DataTypeIds.Number;
 
-                case BuiltInType.Integer: return DataTypeIds.Integer;
+                case BuiltInType.Integer:
+                    return DataTypeIds.Integer;
 
-                case BuiltInType.UInteger: return DataTypeIds.UInteger;
+                case BuiltInType.UInteger:
+                    return DataTypeIds.UInteger;
 
-                case BuiltInType.Enumeration: return DataTypeIds.Enumeration;
+                case BuiltInType.Enumeration:
+                    return DataTypeIds.Enumeration;
             }
 
             return NodeId.Null;
@@ -387,7 +416,8 @@ namespace Opc.Ua
             switch ((uint)datatypeId.Identifier)
             {
                 // subtype of DateTime
-                case DataTypes.UtcTime: return BuiltInType.DateTime;
+                case DataTypes.UtcTime:
+                    return BuiltInType.DateTime;
                 // subtype of ByteString
                 case DataTypes.ApplicationInstanceCertificate:
                 case DataTypes.AudioDataType:
@@ -396,18 +426,23 @@ namespace Opc.Ua
                 case DataTypes.ImageBMP:
                 case DataTypes.ImageGIF:
                 case DataTypes.ImageJPG:
-                case DataTypes.ImagePNG: return BuiltInType.ByteString;
+                case DataTypes.ImagePNG:
+                    return BuiltInType.ByteString;
                 // subtype of NodeId
-                case DataTypes.SessionAuthenticationToken: return BuiltInType.NodeId;
+                case DataTypes.SessionAuthenticationToken:
+                    return BuiltInType.NodeId;
                 // subtype of Double
-                case DataTypes.Duration: return BuiltInType.Double;
+                case DataTypes.Duration:
+                    return BuiltInType.Double;
                 // subtype of UInt32
                 case DataTypes.IntegerId:
                 case DataTypes.Index:
                 case DataTypes.VersionTime:
-                case DataTypes.Counter: return BuiltInType.UInt32;
+                case DataTypes.Counter:
+                    return BuiltInType.UInt32;
                 // subtype of UInt64
-                case DataTypes.BitFieldMaskDataType: return BuiltInType.UInt64;
+                case DataTypes.BitFieldMaskDataType:
+                    return BuiltInType.UInt64;
                 // subtype of String
                 case DataTypes.DateString:
                 case DataTypes.DecimalString:
@@ -415,7 +450,8 @@ namespace Opc.Ua
                 case DataTypes.LocaleId:
                 case DataTypes.NormalizedString:
                 case DataTypes.NumericRange:
-                case DataTypes.TimeString: return BuiltInType.String;
+                case DataTypes.TimeString:
+                    return BuiltInType.String;
             }
 
             var builtInType = (BuiltInType)Enum.ToObject(typeof(BuiltInType), datatypeId.Identifier);
@@ -588,66 +624,96 @@ namespace Opc.Ua
 
             switch ((uint)datatypeId.Identifier)
             {
-                case DataTypes.Boolean: return typeof(bool);
+                case DataTypes.Boolean:
+                    return typeof(bool);
 
-                case DataTypes.SByte: return typeof(sbyte);
+                case DataTypes.SByte:
+                    return typeof(sbyte);
 
-                case DataTypes.Byte: return typeof(byte);
+                case DataTypes.Byte:
+                    return typeof(byte);
 
-                case DataTypes.Int16: return typeof(short);
+                case DataTypes.Int16:
+                    return typeof(short);
 
-                case DataTypes.UInt16: return typeof(ushort);
+                case DataTypes.UInt16:
+                    return typeof(ushort);
 
-                case DataTypes.Int32: return typeof(int);
+                case DataTypes.Int32:
+                    return typeof(int);
 
-                case DataTypes.UInt32: return typeof(uint);
+                case DataTypes.UInt32:
+                    return typeof(uint);
 
-                case DataTypes.Int64: return typeof(long);
+                case DataTypes.Int64:
+                    return typeof(long);
 
-                case DataTypes.UInt64: return typeof(ulong);
+                case DataTypes.UInt64:
+                    return typeof(ulong);
 
-                case DataTypes.Float: return typeof(float);
+                case DataTypes.Float:
+                    return typeof(float);
 
-                case DataTypes.Double: return typeof(double);
+                case DataTypes.Double:
+                    return typeof(double);
 
-                case DataTypes.String: return typeof(string);
+                case DataTypes.String:
+                    return typeof(string);
 
-                case DataTypes.DateTime: return typeof(DateTime);
+                case DataTypes.DateTime:
+                    return typeof(DateTime);
 
-                case DataTypes.Guid: return typeof(Uuid);
+                case DataTypes.Guid:
+                    return typeof(Uuid);
 
-                case DataTypes.ByteString: return typeof(byte[]);
+                case DataTypes.ByteString:
+                    return typeof(byte[]);
 
-                case DataTypes.XmlElement: return typeof(XmlElement);
+                case DataTypes.XmlElement:
+                    return typeof(XmlElement);
 
-                case DataTypes.NodeId: return typeof(NodeId);
+                case DataTypes.NodeId:
+                    return typeof(NodeId);
 
-                case DataTypes.ExpandedNodeId: return typeof(ExpandedNodeId);
+                case DataTypes.ExpandedNodeId:
+                    return typeof(ExpandedNodeId);
 
-                case DataTypes.StatusCode: return typeof(StatusCode);
+                case DataTypes.StatusCode:
+                    return typeof(StatusCode);
 
-                case DataTypes.DiagnosticInfo: return typeof(DiagnosticInfo);
+                case DataTypes.DiagnosticInfo:
+                    return typeof(DiagnosticInfo);
 
-                case DataTypes.QualifiedName: return typeof(QualifiedName);
+                case DataTypes.QualifiedName:
+                    return typeof(QualifiedName);
 
-                case DataTypes.LocalizedText: return typeof(LocalizedText);
+                case DataTypes.LocalizedText:
+                    return typeof(LocalizedText);
 
-                case DataTypes.DataValue: return typeof(DataValue);
+                case DataTypes.DataValue:
+                    return typeof(DataValue);
 
-                case DataTypes.BaseDataType: return typeof(Variant);
+                case DataTypes.BaseDataType:
+                    return typeof(Variant);
 
-                case DataTypes.Structure: return typeof(ExtensionObject);
+                case DataTypes.Structure:
+                    return typeof(ExtensionObject);
 
-                case DataTypes.Number: return typeof(Variant);
+                case DataTypes.Number:
+                    return typeof(Variant);
 
-                case DataTypes.Integer: return typeof(Variant);
+                case DataTypes.Integer:
+                    return typeof(Variant);
 
-                case DataTypes.UInteger: return typeof(Variant);
+                case DataTypes.UInteger:
+                    return typeof(Variant);
 
-                case DataTypes.Enumeration: return typeof(int);
+                case DataTypes.Enumeration:
+                    return typeof(int);
 
                 // subtype of DateTime
-                case DataTypes.UtcTime: goto case DataTypes.DateTime;
+                case DataTypes.UtcTime:
+                    goto case DataTypes.DateTime;
                 // subtype of ByteString
                 case DataTypes.ApplicationInstanceCertificate:
                 case DataTypes.AudioDataType:
@@ -656,18 +722,23 @@ namespace Opc.Ua
                 case DataTypes.ImageBMP:
                 case DataTypes.ImageGIF:
                 case DataTypes.ImageJPG:
-                case DataTypes.ImagePNG: goto case DataTypes.ByteString;
+                case DataTypes.ImagePNG:
+                    goto case DataTypes.ByteString;
                 // subtype of NodeId
-                case DataTypes.SessionAuthenticationToken: goto case DataTypes.NodeId;
+                case DataTypes.SessionAuthenticationToken:
+                    goto case DataTypes.NodeId;
                 // subtype of Double
-                case DataTypes.Duration: goto case DataTypes.Double;
+                case DataTypes.Duration:
+                    goto case DataTypes.Double;
                 // subtype of UInt32
                 case DataTypes.IntegerId:
                 case DataTypes.Index:
                 case DataTypes.VersionTime:
-                case DataTypes.Counter: goto case DataTypes.UInt32;
+                case DataTypes.Counter:
+                    goto case DataTypes.UInt32;
                 // subtype of UInt64
-                case DataTypes.BitFieldMaskDataType: goto case DataTypes.UInt64;
+                case DataTypes.BitFieldMaskDataType:
+                    goto case DataTypes.UInt64;
                 // subtype of String
                 case DataTypes.DateString:
                 case DataTypes.DecimalString:
@@ -675,7 +746,8 @@ namespace Opc.Ua
                 case DataTypes.LocaleId:
                 case DataTypes.NormalizedString:
                 case DataTypes.NumericRange:
-                case DataTypes.TimeString: goto case DataTypes.String;
+                case DataTypes.TimeString:
+                    goto case DataTypes.String;
             }
 
             return factory.GetSystemType(datatypeId);
@@ -1053,105 +1125,190 @@ namespace Opc.Ua
             {
                 switch (builtInType)
                 {
-                    case BuiltInType.Boolean: return typeof(bool);
-                    case BuiltInType.SByte: return typeof(sbyte);
-                    case BuiltInType.Byte: return typeof(byte);
-                    case BuiltInType.Int16: return typeof(short);
-                    case BuiltInType.UInt16: return typeof(ushort);
-                    case BuiltInType.Int32: return typeof(int);
-                    case BuiltInType.UInt32: return typeof(uint);
-                    case BuiltInType.Int64: return typeof(long);
-                    case BuiltInType.UInt64: return typeof(ulong);
-                    case BuiltInType.Float: return typeof(float);
-                    case BuiltInType.Double: return typeof(double);
-                    case BuiltInType.String: return typeof(string);
-                    case BuiltInType.DateTime: return typeof(DateTime);
-                    case BuiltInType.Guid: return typeof(Uuid);
-                    case BuiltInType.ByteString: return typeof(byte[]);
-                    case BuiltInType.XmlElement: return typeof(XmlElement);
-                    case BuiltInType.NodeId: return typeof(NodeId);
-                    case BuiltInType.ExpandedNodeId: return typeof(ExpandedNodeId);
-                    case BuiltInType.LocalizedText: return typeof(LocalizedText);
-                    case BuiltInType.QualifiedName: return typeof(QualifiedName);
-                    case BuiltInType.StatusCode: return typeof(StatusCode);
-                    case BuiltInType.DiagnosticInfo: return typeof(DiagnosticInfo);
-                    case BuiltInType.DataValue: return typeof(DataValue);
-                    case BuiltInType.Variant: return typeof(Variant);
-                    case BuiltInType.ExtensionObject: return typeof(ExtensionObject);
-                    case BuiltInType.Enumeration: return typeof(int);
-                    case BuiltInType.Number: return typeof(Variant);
-                    case BuiltInType.Integer: return typeof(Variant);
-                    case BuiltInType.UInteger: return typeof(Variant);
+                    case BuiltInType.Boolean:
+                        return typeof(bool);
+                    case BuiltInType.SByte:
+                        return typeof(sbyte);
+                    case BuiltInType.Byte:
+                        return typeof(byte);
+                    case BuiltInType.Int16:
+                        return typeof(short);
+                    case BuiltInType.UInt16:
+                        return typeof(ushort);
+                    case BuiltInType.Int32:
+                        return typeof(int);
+                    case BuiltInType.UInt32:
+                        return typeof(uint);
+                    case BuiltInType.Int64:
+                        return typeof(long);
+                    case BuiltInType.UInt64:
+                        return typeof(ulong);
+                    case BuiltInType.Float:
+                        return typeof(float);
+                    case BuiltInType.Double:
+                        return typeof(double);
+                    case BuiltInType.String:
+                        return typeof(string);
+                    case BuiltInType.DateTime:
+                        return typeof(DateTime);
+                    case BuiltInType.Guid:
+                        return typeof(Uuid);
+                    case BuiltInType.ByteString:
+                        return typeof(byte[]);
+                    case BuiltInType.XmlElement:
+                        return typeof(XmlElement);
+                    case BuiltInType.NodeId:
+                        return typeof(NodeId);
+                    case BuiltInType.ExpandedNodeId:
+                        return typeof(ExpandedNodeId);
+                    case BuiltInType.LocalizedText:
+                        return typeof(LocalizedText);
+                    case BuiltInType.QualifiedName:
+                        return typeof(QualifiedName);
+                    case BuiltInType.StatusCode:
+                        return typeof(StatusCode);
+                    case BuiltInType.DiagnosticInfo:
+                        return typeof(DiagnosticInfo);
+                    case BuiltInType.DataValue:
+                        return typeof(DataValue);
+                    case BuiltInType.Variant:
+                        return typeof(Variant);
+                    case BuiltInType.ExtensionObject:
+                        return typeof(ExtensionObject);
+                    case BuiltInType.Enumeration:
+                        return typeof(int);
+                    case BuiltInType.Number:
+                        return typeof(Variant);
+                    case BuiltInType.Integer:
+                        return typeof(Variant);
+                    case BuiltInType.UInteger:
+                        return typeof(Variant);
                 }
             }
             else if (valueRank == ValueRanks.OneDimension)
             {
                 switch (builtInType)
                 {
-                    case BuiltInType.Boolean: return typeof(bool[]);
-                    case BuiltInType.SByte: return typeof(sbyte[]);
-                    case BuiltInType.Byte: return typeof(byte[]);
-                    case BuiltInType.Int16: return typeof(short[]);
-                    case BuiltInType.UInt16: return typeof(ushort[]);
-                    case BuiltInType.Int32: return typeof(int[]);
-                    case BuiltInType.UInt32: return typeof(uint[]);
-                    case BuiltInType.Int64: return typeof(long[]);
-                    case BuiltInType.UInt64: return typeof(ulong[]);
-                    case BuiltInType.Float: return typeof(float[]);
-                    case BuiltInType.Double: return typeof(double[]);
-                    case BuiltInType.String: return typeof(string[]);
-                    case BuiltInType.DateTime: return typeof(DateTime[]);
-                    case BuiltInType.Guid: return typeof(Uuid[]);
-                    case BuiltInType.ByteString: return typeof(byte[][]);
-                    case BuiltInType.XmlElement: return typeof(XmlElement[]);
-                    case BuiltInType.NodeId: return typeof(NodeId[]);
-                    case BuiltInType.ExpandedNodeId: return typeof(ExpandedNodeId[]);
-                    case BuiltInType.LocalizedText: return typeof(LocalizedText[]);
-                    case BuiltInType.QualifiedName: return typeof(QualifiedName[]);
-                    case BuiltInType.StatusCode: return typeof(StatusCode[]);
-                    case BuiltInType.DiagnosticInfo: return typeof(DiagnosticInfo[]);
-                    case BuiltInType.DataValue: return typeof(DataValue[]);
-                    case BuiltInType.Variant: return typeof(Variant[]);
-                    case BuiltInType.ExtensionObject: return typeof(ExtensionObject[]);
-                    case BuiltInType.Enumeration: return typeof(int[]);
-                    case BuiltInType.Number: return typeof(Variant[]);
-                    case BuiltInType.Integer: return typeof(Variant[]);
-                    case BuiltInType.UInteger: return typeof(Variant[]);
+                    case BuiltInType.Boolean:
+                        return typeof(bool[]);
+                    case BuiltInType.SByte:
+                        return typeof(sbyte[]);
+                    case BuiltInType.Byte:
+                        return typeof(byte[]);
+                    case BuiltInType.Int16:
+                        return typeof(short[]);
+                    case BuiltInType.UInt16:
+                        return typeof(ushort[]);
+                    case BuiltInType.Int32:
+                        return typeof(int[]);
+                    case BuiltInType.UInt32:
+                        return typeof(uint[]);
+                    case BuiltInType.Int64:
+                        return typeof(long[]);
+                    case BuiltInType.UInt64:
+                        return typeof(ulong[]);
+                    case BuiltInType.Float:
+                        return typeof(float[]);
+                    case BuiltInType.Double:
+                        return typeof(double[]);
+                    case BuiltInType.String:
+                        return typeof(string[]);
+                    case BuiltInType.DateTime:
+                        return typeof(DateTime[]);
+                    case BuiltInType.Guid:
+                        return typeof(Uuid[]);
+                    case BuiltInType.ByteString:
+                        return typeof(byte[][]);
+                    case BuiltInType.XmlElement:
+                        return typeof(XmlElement[]);
+                    case BuiltInType.NodeId:
+                        return typeof(NodeId[]);
+                    case BuiltInType.ExpandedNodeId:
+                        return typeof(ExpandedNodeId[]);
+                    case BuiltInType.LocalizedText:
+                        return typeof(LocalizedText[]);
+                    case BuiltInType.QualifiedName:
+                        return typeof(QualifiedName[]);
+                    case BuiltInType.StatusCode:
+                        return typeof(StatusCode[]);
+                    case BuiltInType.DiagnosticInfo:
+                        return typeof(DiagnosticInfo[]);
+                    case BuiltInType.DataValue:
+                        return typeof(DataValue[]);
+                    case BuiltInType.Variant:
+                        return typeof(Variant[]);
+                    case BuiltInType.ExtensionObject:
+                        return typeof(ExtensionObject[]);
+                    case BuiltInType.Enumeration:
+                        return typeof(int[]);
+                    case BuiltInType.Number:
+                        return typeof(Variant[]);
+                    case BuiltInType.Integer:
+                        return typeof(Variant[]);
+                    case BuiltInType.UInteger:
+                        return typeof(Variant[]);
                 }
             }
             else if (valueRank >= ValueRanks.TwoDimensions)
             {
                 switch (builtInType)
                 {
-                    case BuiltInType.Boolean: return typeof(bool).MakeArrayType(valueRank);
-                    case BuiltInType.SByte: return typeof(sbyte).MakeArrayType(valueRank);
-                    case BuiltInType.Byte: return typeof(byte).MakeArrayType(valueRank);
-                    case BuiltInType.Int16: return typeof(short).MakeArrayType(valueRank);
-                    case BuiltInType.UInt16: return typeof(ushort).MakeArrayType(valueRank);
-                    case BuiltInType.Int32: return typeof(int).MakeArrayType(valueRank);
-                    case BuiltInType.UInt32: return typeof(uint).MakeArrayType(valueRank);
-                    case BuiltInType.Int64: return typeof(long).MakeArrayType(valueRank);
-                    case BuiltInType.UInt64: return typeof(ulong).MakeArrayType(valueRank);
-                    case BuiltInType.Float: return typeof(float).MakeArrayType(valueRank);
-                    case BuiltInType.Double: return typeof(double).MakeArrayType(valueRank);
-                    case BuiltInType.String: return typeof(string).MakeArrayType(valueRank);
-                    case BuiltInType.DateTime: return typeof(DateTime).MakeArrayType(valueRank);
-                    case BuiltInType.Guid: return typeof(Uuid).MakeArrayType(valueRank);
-                    case BuiltInType.ByteString: return typeof(byte[]).MakeArrayType(valueRank);
-                    case BuiltInType.XmlElement: return typeof(XmlElement).MakeArrayType(valueRank);
-                    case BuiltInType.NodeId: return typeof(NodeId).MakeArrayType(valueRank);
-                    case BuiltInType.ExpandedNodeId: return typeof(ExpandedNodeId).MakeArrayType(valueRank);
-                    case BuiltInType.LocalizedText: return typeof(LocalizedText).MakeArrayType(valueRank);
-                    case BuiltInType.QualifiedName: return typeof(QualifiedName).MakeArrayType(valueRank);
-                    case BuiltInType.StatusCode: return typeof(StatusCode).MakeArrayType(valueRank);
-                    case BuiltInType.DiagnosticInfo: return typeof(DiagnosticInfo).MakeArrayType(valueRank);
-                    case BuiltInType.DataValue: return typeof(DataValue).MakeArrayType(valueRank);
-                    case BuiltInType.Variant: return typeof(Variant).MakeArrayType(valueRank);
-                    case BuiltInType.ExtensionObject: return typeof(ExtensionObject).MakeArrayType(valueRank);
-                    case BuiltInType.Enumeration: return typeof(int).MakeArrayType(valueRank);
+                    case BuiltInType.Boolean:
+                        return typeof(bool).MakeArrayType(valueRank);
+                    case BuiltInType.SByte:
+                        return typeof(sbyte).MakeArrayType(valueRank);
+                    case BuiltInType.Byte:
+                        return typeof(byte).MakeArrayType(valueRank);
+                    case BuiltInType.Int16:
+                        return typeof(short).MakeArrayType(valueRank);
+                    case BuiltInType.UInt16:
+                        return typeof(ushort).MakeArrayType(valueRank);
+                    case BuiltInType.Int32:
+                        return typeof(int).MakeArrayType(valueRank);
+                    case BuiltInType.UInt32:
+                        return typeof(uint).MakeArrayType(valueRank);
+                    case BuiltInType.Int64:
+                        return typeof(long).MakeArrayType(valueRank);
+                    case BuiltInType.UInt64:
+                        return typeof(ulong).MakeArrayType(valueRank);
+                    case BuiltInType.Float:
+                        return typeof(float).MakeArrayType(valueRank);
+                    case BuiltInType.Double:
+                        return typeof(double).MakeArrayType(valueRank);
+                    case BuiltInType.String:
+                        return typeof(string).MakeArrayType(valueRank);
+                    case BuiltInType.DateTime:
+                        return typeof(DateTime).MakeArrayType(valueRank);
+                    case BuiltInType.Guid:
+                        return typeof(Uuid).MakeArrayType(valueRank);
+                    case BuiltInType.ByteString:
+                        return typeof(byte[]).MakeArrayType(valueRank);
+                    case BuiltInType.XmlElement:
+                        return typeof(XmlElement).MakeArrayType(valueRank);
+                    case BuiltInType.NodeId:
+                        return typeof(NodeId).MakeArrayType(valueRank);
+                    case BuiltInType.ExpandedNodeId:
+                        return typeof(ExpandedNodeId).MakeArrayType(valueRank);
+                    case BuiltInType.LocalizedText:
+                        return typeof(LocalizedText).MakeArrayType(valueRank);
+                    case BuiltInType.QualifiedName:
+                        return typeof(QualifiedName).MakeArrayType(valueRank);
+                    case BuiltInType.StatusCode:
+                        return typeof(StatusCode).MakeArrayType(valueRank);
+                    case BuiltInType.DiagnosticInfo:
+                        return typeof(DiagnosticInfo).MakeArrayType(valueRank);
+                    case BuiltInType.DataValue:
+                        return typeof(DataValue).MakeArrayType(valueRank);
+                    case BuiltInType.Variant:
+                        return typeof(Variant).MakeArrayType(valueRank);
+                    case BuiltInType.ExtensionObject:
+                        return typeof(ExtensionObject).MakeArrayType(valueRank);
+                    case BuiltInType.Enumeration:
+                        return typeof(int).MakeArrayType(valueRank);
                     case BuiltInType.Number:
                     case BuiltInType.Integer:
-                    case BuiltInType.UInteger: return typeof(Variant).MakeArrayType(valueRank);
+                    case BuiltInType.UInteger:
+                        return typeof(Variant).MakeArrayType(valueRank);
                 }
             }
 
@@ -1201,7 +1358,7 @@ namespace Opc.Ua
             // parse array types.
             string dimensions = null;
 
-            if (name[name.Length - 1] == ']')
+            if (name[^1] == ']')
             {
                 int index = name.IndexOf('[', StringComparison.Ordinal);
 
@@ -1355,59 +1512,86 @@ namespace Opc.Ua
         {
             switch (type)
             {
-                case BuiltInType.Boolean: return false;
+                case BuiltInType.Boolean:
+                    return false;
 
-                case BuiltInType.SByte: return (sbyte)0;
+                case BuiltInType.SByte:
+                    return (sbyte)0;
 
-                case BuiltInType.Byte: return (byte)0;
+                case BuiltInType.Byte:
+                    return (byte)0;
 
-                case BuiltInType.Int16: return (short)0;
+                case BuiltInType.Int16:
+                    return (short)0;
 
-                case BuiltInType.UInt16: return (ushort)0;
+                case BuiltInType.UInt16:
+                    return (ushort)0;
 
-                case BuiltInType.Int32: return 0;
+                case BuiltInType.Int32:
+                    return 0;
 
-                case BuiltInType.UInt32: return (uint)0;
+                case BuiltInType.UInt32:
+                    return (uint)0;
 
-                case BuiltInType.Int64: return (long)0;
+                case BuiltInType.Int64:
+                    return (long)0;
 
-                case BuiltInType.UInt64: return (ulong)0;
+                case BuiltInType.UInt64:
+                    return (ulong)0;
 
-                case BuiltInType.Float: return (float)0;
+                case BuiltInType.Float:
+                    return (float)0;
 
-                case BuiltInType.Double: return (double)0;
+                case BuiltInType.Double:
+                    return (double)0;
 
-                case BuiltInType.String: return null;
+                case BuiltInType.String:
+                    return null;
 
-                case BuiltInType.DateTime: return DateTime.MinValue;
+                case BuiltInType.DateTime:
+                    return DateTime.MinValue;
 
-                case BuiltInType.Guid: return Uuid.Empty;
+                case BuiltInType.Guid:
+                    return Uuid.Empty;
 
-                case BuiltInType.ByteString: return null;
+                case BuiltInType.ByteString:
+                    return null;
 
-                case BuiltInType.XmlElement: return null;
+                case BuiltInType.XmlElement:
+                    return null;
 
-                case BuiltInType.StatusCode: return new StatusCode(StatusCodes.Good);
+                case BuiltInType.StatusCode:
+                    return new StatusCode(StatusCodes.Good);
 
-                case BuiltInType.NodeId: return NodeId.Null;
+                case BuiltInType.NodeId:
+                    return NodeId.Null;
 
-                case BuiltInType.ExpandedNodeId: return ExpandedNodeId.Null;
+                case BuiltInType.ExpandedNodeId:
+                    return ExpandedNodeId.Null;
 
-                case BuiltInType.QualifiedName: return QualifiedName.Null;
+                case BuiltInType.QualifiedName:
+                    return QualifiedName.Null;
 
-                case BuiltInType.LocalizedText: return LocalizedText.Null;
+                case BuiltInType.LocalizedText:
+                    return LocalizedText.Null;
 
-                case BuiltInType.Variant: return Variant.Null;
+                case BuiltInType.Variant:
+                    return Variant.Null;
 
-                case BuiltInType.DataValue: return null;
+                case BuiltInType.DataValue:
+                    return null;
 
-                case BuiltInType.Enumeration: return 0;
+                case BuiltInType.Enumeration:
+                    return 0;
 
-                case BuiltInType.Number: return (double)0;
+                case BuiltInType.Number:
+                    return (double)0;
 
-                case BuiltInType.Integer: return (long)0;
+                case BuiltInType.Integer:
+                    return (long)0;
 
-                case BuiltInType.UInteger: return (ulong)0;
+                case BuiltInType.UInteger:
+                    return (ulong)0;
             }
 
             return null;
@@ -1452,25 +1636,35 @@ namespace Opc.Ua
 
                 switch (id)
                 {
-                    case DataTypes.Duration: return (double)0;
+                    case DataTypes.Duration:
+                        return (double)0;
 
-                    case DataTypes.UtcTime: return DateTime.MinValue;
+                    case DataTypes.UtcTime:
+                        return DateTime.MinValue;
 
-                    case DataTypes.Counter: return (uint)0;
+                    case DataTypes.Counter:
+                        return (uint)0;
 
-                    case DataTypes.IntegerId: return (uint)0;
+                    case DataTypes.IntegerId:
+                        return (uint)0;
 
-                    case DataTypes.Number: return (double)0;
+                    case DataTypes.Number:
+                        return (double)0;
 
-                    case DataTypes.UInteger: return (ulong)0;
+                    case DataTypes.UInteger:
+                        return (ulong)0;
 
-                    case DataTypes.Integer: return (long)0;
+                    case DataTypes.Integer:
+                        return (long)0;
 
-                    case DataTypes.IdType: return (int)IdType.Numeric;
+                    case DataTypes.IdType:
+                        return (int)IdType.Numeric;
 
-                    case DataTypes.NodeClass: return (int)NodeClass.Unspecified;
+                    case DataTypes.NodeClass:
+                        return (int)NodeClass.Unspecified;
 
-                    case DataTypes.Enumeration: return 0;
+                    case DataTypes.Enumeration:
+                        return 0;
                 }
             }
 
@@ -1505,65 +1699,95 @@ namespace Opc.Ua
             {
                 switch (type)
                 {
-                    case BuiltInType.Null: return new object[length];
+                    case BuiltInType.Null:
+                        return new object[length];
 
-                    case BuiltInType.Boolean: return new bool[length];
+                    case BuiltInType.Boolean:
+                        return new bool[length];
 
-                    case BuiltInType.SByte: return new sbyte[length];
+                    case BuiltInType.SByte:
+                        return new sbyte[length];
 
-                    case BuiltInType.Byte: return new byte[length];
+                    case BuiltInType.Byte:
+                        return new byte[length];
 
-                    case BuiltInType.Int16: return new short[length];
+                    case BuiltInType.Int16:
+                        return new short[length];
 
-                    case BuiltInType.UInt16: return new ushort[length];
+                    case BuiltInType.UInt16:
+                        return new ushort[length];
 
-                    case BuiltInType.Int32: return new int[length];
+                    case BuiltInType.Int32:
+                        return new int[length];
 
-                    case BuiltInType.UInt32: return new uint[length];
+                    case BuiltInType.UInt32:
+                        return new uint[length];
 
-                    case BuiltInType.Int64: return new long[length];
+                    case BuiltInType.Int64:
+                        return new long[length];
 
-                    case BuiltInType.UInt64: return new ulong[length];
+                    case BuiltInType.UInt64:
+                        return new ulong[length];
 
-                    case BuiltInType.Float: return new float[length];
+                    case BuiltInType.Float:
+                        return new float[length];
 
-                    case BuiltInType.Double: return new double[length];
+                    case BuiltInType.Double:
+                        return new double[length];
 
-                    case BuiltInType.String: return new string[length];
+                    case BuiltInType.String:
+                        return new string[length];
 
-                    case BuiltInType.DateTime: return new DateTime[length];
+                    case BuiltInType.DateTime:
+                        return new DateTime[length];
 
-                    case BuiltInType.Guid: return new Uuid[length];
+                    case BuiltInType.Guid:
+                        return new Uuid[length];
 
-                    case BuiltInType.ByteString: return new byte[length][];
+                    case BuiltInType.ByteString:
+                        return new byte[length][];
 
-                    case BuiltInType.XmlElement: return new XmlElement[length];
+                    case BuiltInType.XmlElement:
+                        return new XmlElement[length];
 
-                    case BuiltInType.StatusCode: return new StatusCode[length];
+                    case BuiltInType.StatusCode:
+                        return new StatusCode[length];
 
-                    case BuiltInType.NodeId: return new NodeId[length];
+                    case BuiltInType.NodeId:
+                        return new NodeId[length];
 
-                    case BuiltInType.ExpandedNodeId: return new ExpandedNodeId[length];
+                    case BuiltInType.ExpandedNodeId:
+                        return new ExpandedNodeId[length];
 
-                    case BuiltInType.QualifiedName: return new QualifiedName[length];
+                    case BuiltInType.QualifiedName:
+                        return new QualifiedName[length];
 
-                    case BuiltInType.LocalizedText: return new LocalizedText[length];
+                    case BuiltInType.LocalizedText:
+                        return new LocalizedText[length];
 
-                    case BuiltInType.Variant: return new Variant[length];
+                    case BuiltInType.Variant:
+                        return new Variant[length];
 
-                    case BuiltInType.DataValue: return new DataValue[length];
+                    case BuiltInType.DataValue:
+                        return new DataValue[length];
 
-                    case BuiltInType.ExtensionObject: return new ExtensionObject[length];
+                    case BuiltInType.ExtensionObject:
+                        return new ExtensionObject[length];
 
-                    case BuiltInType.DiagnosticInfo: return new DiagnosticInfo[length];
+                    case BuiltInType.DiagnosticInfo:
+                        return new DiagnosticInfo[length];
 
-                    case BuiltInType.Enumeration: return new int[length];
+                    case BuiltInType.Enumeration:
+                        return new int[length];
 
-                    case BuiltInType.Number: return new Variant[length];
+                    case BuiltInType.Number:
+                        return new Variant[length];
 
-                    case BuiltInType.Integer: return new Variant[length];
+                    case BuiltInType.Integer:
+                        return new Variant[length];
 
-                    case BuiltInType.UInteger: return new Variant[length];
+                    case BuiltInType.UInteger:
+                        return new Variant[length];
                 }
             }
 
@@ -1572,65 +1796,95 @@ namespace Opc.Ua
             {
                 switch (type)
                 {
-                    case BuiltInType.Null: return Array.CreateInstance(typeof(object), dimensions);
+                    case BuiltInType.Null:
+                        return Array.CreateInstance(typeof(object), dimensions);
 
-                    case BuiltInType.Boolean: return Array.CreateInstance(typeof(bool), dimensions);
+                    case BuiltInType.Boolean:
+                        return Array.CreateInstance(typeof(bool), dimensions);
 
-                    case BuiltInType.SByte: return Array.CreateInstance(typeof(sbyte), dimensions);
+                    case BuiltInType.SByte:
+                        return Array.CreateInstance(typeof(sbyte), dimensions);
 
-                    case BuiltInType.Byte: return Array.CreateInstance(typeof(byte), dimensions);
+                    case BuiltInType.Byte:
+                        return Array.CreateInstance(typeof(byte), dimensions);
 
-                    case BuiltInType.Int16: return Array.CreateInstance(typeof(short), dimensions);
+                    case BuiltInType.Int16:
+                        return Array.CreateInstance(typeof(short), dimensions);
 
-                    case BuiltInType.UInt16: return Array.CreateInstance(typeof(ushort), dimensions);
+                    case BuiltInType.UInt16:
+                        return Array.CreateInstance(typeof(ushort), dimensions);
 
-                    case BuiltInType.Int32: return Array.CreateInstance(typeof(int), dimensions);
+                    case BuiltInType.Int32:
+                        return Array.CreateInstance(typeof(int), dimensions);
 
-                    case BuiltInType.UInt32: return Array.CreateInstance(typeof(uint), dimensions);
+                    case BuiltInType.UInt32:
+                        return Array.CreateInstance(typeof(uint), dimensions);
 
-                    case BuiltInType.Int64: return Array.CreateInstance(typeof(long), dimensions);
+                    case BuiltInType.Int64:
+                        return Array.CreateInstance(typeof(long), dimensions);
 
-                    case BuiltInType.UInt64: return Array.CreateInstance(typeof(ulong), dimensions);
+                    case BuiltInType.UInt64:
+                        return Array.CreateInstance(typeof(ulong), dimensions);
 
-                    case BuiltInType.Float: return Array.CreateInstance(typeof(float), dimensions);
+                    case BuiltInType.Float:
+                        return Array.CreateInstance(typeof(float), dimensions);
 
-                    case BuiltInType.Double: return Array.CreateInstance(typeof(double), dimensions);
+                    case BuiltInType.Double:
+                        return Array.CreateInstance(typeof(double), dimensions);
 
-                    case BuiltInType.String: return Array.CreateInstance(typeof(string), dimensions);
+                    case BuiltInType.String:
+                        return Array.CreateInstance(typeof(string), dimensions);
 
-                    case BuiltInType.DateTime: return Array.CreateInstance(typeof(DateTime), dimensions);
+                    case BuiltInType.DateTime:
+                        return Array.CreateInstance(typeof(DateTime), dimensions);
 
-                    case BuiltInType.Guid: return Array.CreateInstance(typeof(Uuid), dimensions);
+                    case BuiltInType.Guid:
+                        return Array.CreateInstance(typeof(Uuid), dimensions);
 
-                    case BuiltInType.ByteString: return Array.CreateInstance(typeof(byte[]), dimensions);
+                    case BuiltInType.ByteString:
+                        return Array.CreateInstance(typeof(byte[]), dimensions);
 
-                    case BuiltInType.XmlElement: return Array.CreateInstance(typeof(XmlElement), dimensions);
+                    case BuiltInType.XmlElement:
+                        return Array.CreateInstance(typeof(XmlElement), dimensions);
 
-                    case BuiltInType.StatusCode: return Array.CreateInstance(typeof(StatusCode), dimensions);
+                    case BuiltInType.StatusCode:
+                        return Array.CreateInstance(typeof(StatusCode), dimensions);
 
-                    case BuiltInType.NodeId: return Array.CreateInstance(typeof(NodeId), dimensions);
+                    case BuiltInType.NodeId:
+                        return Array.CreateInstance(typeof(NodeId), dimensions);
 
-                    case BuiltInType.ExpandedNodeId: return Array.CreateInstance(typeof(ExpandedNodeId), dimensions);
+                    case BuiltInType.ExpandedNodeId:
+                        return Array.CreateInstance(typeof(ExpandedNodeId), dimensions);
 
-                    case BuiltInType.QualifiedName: return Array.CreateInstance(typeof(QualifiedName), dimensions);
+                    case BuiltInType.QualifiedName:
+                        return Array.CreateInstance(typeof(QualifiedName), dimensions);
 
-                    case BuiltInType.LocalizedText: return Array.CreateInstance(typeof(LocalizedText), dimensions);
+                    case BuiltInType.LocalizedText:
+                        return Array.CreateInstance(typeof(LocalizedText), dimensions);
 
-                    case BuiltInType.Variant: return Array.CreateInstance(typeof(Variant), dimensions);
+                    case BuiltInType.Variant:
+                        return Array.CreateInstance(typeof(Variant), dimensions);
 
-                    case BuiltInType.DataValue: return Array.CreateInstance(typeof(DataValue), dimensions);
+                    case BuiltInType.DataValue:
+                        return Array.CreateInstance(typeof(DataValue), dimensions);
 
-                    case BuiltInType.ExtensionObject: return Array.CreateInstance(typeof(ExtensionObject), dimensions);
+                    case BuiltInType.ExtensionObject:
+                        return Array.CreateInstance(typeof(ExtensionObject), dimensions);
 
-                    case BuiltInType.DiagnosticInfo: return Array.CreateInstance(typeof(DiagnosticInfo), dimensions);
+                    case BuiltInType.DiagnosticInfo:
+                        return Array.CreateInstance(typeof(DiagnosticInfo), dimensions);
 
-                    case BuiltInType.Enumeration: return Array.CreateInstance(typeof(int), dimensions);
+                    case BuiltInType.Enumeration:
+                        return Array.CreateInstance(typeof(int), dimensions);
 
-                    case BuiltInType.Number: return Array.CreateInstance(typeof(Variant), dimensions);
+                    case BuiltInType.Number:
+                        return Array.CreateInstance(typeof(Variant), dimensions);
 
-                    case BuiltInType.Integer: return Array.CreateInstance(typeof(Variant), dimensions);
+                    case BuiltInType.Integer:
+                        return Array.CreateInstance(typeof(Variant), dimensions);
 
-                    case BuiltInType.UInteger: return Array.CreateInstance(typeof(Variant), dimensions);
+                    case BuiltInType.UInteger:
+                        return Array.CreateInstance(typeof(Variant), dimensions);
                 }
             }
 
@@ -1687,32 +1941,58 @@ namespace Opc.Ua
 
             switch (targetType)
             {
-                case BuiltInType.Boolean: return Cast(source, sourceType, ToBoolean);
-                case BuiltInType.SByte: return Cast(source, sourceType, ToSByte);
-                case BuiltInType.Byte: return Cast(source, sourceType, ToByte);
-                case BuiltInType.Int16: return Cast(source, sourceType, ToInt16);
-                case BuiltInType.UInt16: return Cast(source, sourceType, ToUInt16);
-                case BuiltInType.Int32: return Cast(source, sourceType, ToInt32);
-                case BuiltInType.UInt32: return Cast(source, sourceType, ToUInt32);
-                case BuiltInType.Int64: return Cast(source, sourceType, ToInt64);
-                case BuiltInType.UInt64: return Cast(source, sourceType, ToUInt64);
-                case BuiltInType.Float: return Cast(source, sourceType, ToFloat);
-                case BuiltInType.Double: return Cast(source, sourceType, ToDouble);
-                case BuiltInType.String: return Cast(source, sourceType, ToString);
-                case BuiltInType.DateTime: return Cast(source, sourceType, ToDateTime);
-                case BuiltInType.Guid: return Cast(source, sourceType, ToGuid);
-                case BuiltInType.ByteString: return Cast(source, sourceType, ToByteString);
-                case BuiltInType.NodeId: return Cast(source, sourceType, ToNodeId);
-                case BuiltInType.ExpandedNodeId: return Cast(source, sourceType, ToExpandedNodeId);
-                case BuiltInType.StatusCode: return Cast(source, sourceType, ToStatusCode);
-                case BuiltInType.QualifiedName: return Cast(source, sourceType, ToQualifiedName);
-                case BuiltInType.LocalizedText: return Cast(source, sourceType, ToLocalizedText);
-                case BuiltInType.Variant: return Cast(source, sourceType, ToVariant);
-                case BuiltInType.Number: return Cast(source, sourceType, ToDouble);
-                case BuiltInType.Integer: return Cast(source, sourceType, ToInt64);
-                case BuiltInType.UInteger: return Cast(source, sourceType, ToUInt64);
-                case BuiltInType.Enumeration: return Cast(source, sourceType, ToInt32);
-                case BuiltInType.XmlElement: return Cast(source, sourceType, ToXmlElement);
+                case BuiltInType.Boolean:
+                    return Cast(source, sourceType, ToBoolean);
+                case BuiltInType.SByte:
+                    return Cast(source, sourceType, ToSByte);
+                case BuiltInType.Byte:
+                    return Cast(source, sourceType, ToByte);
+                case BuiltInType.Int16:
+                    return Cast(source, sourceType, ToInt16);
+                case BuiltInType.UInt16:
+                    return Cast(source, sourceType, ToUInt16);
+                case BuiltInType.Int32:
+                    return Cast(source, sourceType, ToInt32);
+                case BuiltInType.UInt32:
+                    return Cast(source, sourceType, ToUInt32);
+                case BuiltInType.Int64:
+                    return Cast(source, sourceType, ToInt64);
+                case BuiltInType.UInt64:
+                    return Cast(source, sourceType, ToUInt64);
+                case BuiltInType.Float:
+                    return Cast(source, sourceType, ToFloat);
+                case BuiltInType.Double:
+                    return Cast(source, sourceType, ToDouble);
+                case BuiltInType.String:
+                    return Cast(source, sourceType, ToString);
+                case BuiltInType.DateTime:
+                    return Cast(source, sourceType, ToDateTime);
+                case BuiltInType.Guid:
+                    return Cast(source, sourceType, ToGuid);
+                case BuiltInType.ByteString:
+                    return Cast(source, sourceType, ToByteString);
+                case BuiltInType.NodeId:
+                    return Cast(source, sourceType, ToNodeId);
+                case BuiltInType.ExpandedNodeId:
+                    return Cast(source, sourceType, ToExpandedNodeId);
+                case BuiltInType.StatusCode:
+                    return Cast(source, sourceType, ToStatusCode);
+                case BuiltInType.QualifiedName:
+                    return Cast(source, sourceType, ToQualifiedName);
+                case BuiltInType.LocalizedText:
+                    return Cast(source, sourceType, ToLocalizedText);
+                case BuiltInType.Variant:
+                    return Cast(source, sourceType, ToVariant);
+                case BuiltInType.Number:
+                    return Cast(source, sourceType, ToDouble);
+                case BuiltInType.Integer:
+                    return Cast(source, sourceType, ToInt64);
+                case BuiltInType.UInteger:
+                    return Cast(source, sourceType, ToUInt64);
+                case BuiltInType.Enumeration:
+                    return Cast(source, sourceType, ToInt32);
+                case BuiltInType.XmlElement:
+                    return Cast(source, sourceType, ToXmlElement);
             }
 
             throw new InvalidCastException();
@@ -1849,34 +2129,62 @@ namespace Opc.Ua
         {
             switch (typeName)
             {
-                case "Boolean": return BuiltInType.Boolean;
-                case "SByte": return BuiltInType.SByte;
-                case "Byte": return BuiltInType.Byte;
-                case "Int16": return BuiltInType.Int16;
-                case "UInt16": return BuiltInType.UInt16;
-                case "Int32": return BuiltInType.Int32;
-                case "UInt32": return BuiltInType.UInt32;
-                case "Int64": return BuiltInType.Int64;
-                case "UInt64": return BuiltInType.UInt64;
-                case "Float": return BuiltInType.Float;
-                case "Single": return BuiltInType.Float;
-                case "Double": return BuiltInType.Double;
-                case "String": return BuiltInType.String;
-                case "DateTime": return BuiltInType.DateTime;
-                case "Guid": return BuiltInType.Guid;
-                case "Uuid": return BuiltInType.Guid;
-                case "ByteString": return BuiltInType.ByteString;
-                case "XmlElement": return BuiltInType.XmlElement;
-                case "NodeId": return BuiltInType.NodeId;
-                case "ExpandedNodeId": return BuiltInType.ExpandedNodeId;
-                case "LocalizedText": return BuiltInType.LocalizedText;
-                case "QualifiedName": return BuiltInType.QualifiedName;
-                case "StatusCode": return BuiltInType.StatusCode;
-                case "DiagnosticInfo": return BuiltInType.DiagnosticInfo;
-                case "DataValue": return BuiltInType.DataValue;
-                case "Variant": return BuiltInType.Variant;
-                case "ExtensionObject": return BuiltInType.ExtensionObject;
-                case "Object": return BuiltInType.Variant;
+                case "Boolean":
+                    return BuiltInType.Boolean;
+                case "SByte":
+                    return BuiltInType.SByte;
+                case "Byte":
+                    return BuiltInType.Byte;
+                case "Int16":
+                    return BuiltInType.Int16;
+                case "UInt16":
+                    return BuiltInType.UInt16;
+                case "Int32":
+                    return BuiltInType.Int32;
+                case "UInt32":
+                    return BuiltInType.UInt32;
+                case "Int64":
+                    return BuiltInType.Int64;
+                case "UInt64":
+                    return BuiltInType.UInt64;
+                case "Float":
+                    return BuiltInType.Float;
+                case "Single":
+                    return BuiltInType.Float;
+                case "Double":
+                    return BuiltInType.Double;
+                case "String":
+                    return BuiltInType.String;
+                case "DateTime":
+                    return BuiltInType.DateTime;
+                case "Guid":
+                    return BuiltInType.Guid;
+                case "Uuid":
+                    return BuiltInType.Guid;
+                case "ByteString":
+                    return BuiltInType.ByteString;
+                case "XmlElement":
+                    return BuiltInType.XmlElement;
+                case "NodeId":
+                    return BuiltInType.NodeId;
+                case "ExpandedNodeId":
+                    return BuiltInType.ExpandedNodeId;
+                case "LocalizedText":
+                    return BuiltInType.LocalizedText;
+                case "QualifiedName":
+                    return BuiltInType.QualifiedName;
+                case "StatusCode":
+                    return BuiltInType.StatusCode;
+                case "DiagnosticInfo":
+                    return BuiltInType.DiagnosticInfo;
+                case "DataValue":
+                    return BuiltInType.DataValue;
+                case "Variant":
+                    return BuiltInType.Variant;
+                case "ExtensionObject":
+                    return BuiltInType.ExtensionObject;
+                case "Object":
+                    return BuiltInType.Variant;
             }
 
             return BuiltInType.Null;
@@ -1893,16 +2201,26 @@ namespace Opc.Ua
                 case BuiltInType.Boolean:
                     return (bool)value;
 
-                case BuiltInType.SByte: return Convert.ToBoolean((sbyte)value);
-                case BuiltInType.Byte: return Convert.ToBoolean((byte)value);
-                case BuiltInType.Int16: return Convert.ToBoolean((short)value);
-                case BuiltInType.UInt16: return Convert.ToBoolean((ushort)value);
-                case BuiltInType.Int32: return Convert.ToBoolean((int)value);
-                case BuiltInType.UInt32: return Convert.ToBoolean((uint)value);
-                case BuiltInType.Int64: return Convert.ToBoolean((long)value);
-                case BuiltInType.UInt64: return Convert.ToBoolean((ulong)value);
-                case BuiltInType.Float: return Convert.ToBoolean((float)value);
-                case BuiltInType.Double: return Convert.ToBoolean((double)value);
+                case BuiltInType.SByte:
+                    return Convert.ToBoolean((sbyte)value);
+                case BuiltInType.Byte:
+                    return Convert.ToBoolean((byte)value);
+                case BuiltInType.Int16:
+                    return Convert.ToBoolean((short)value);
+                case BuiltInType.UInt16:
+                    return Convert.ToBoolean((ushort)value);
+                case BuiltInType.Int32:
+                    return Convert.ToBoolean((int)value);
+                case BuiltInType.UInt32:
+                    return Convert.ToBoolean((uint)value);
+                case BuiltInType.Int64:
+                    return Convert.ToBoolean((long)value);
+                case BuiltInType.UInt64:
+                    return Convert.ToBoolean((ulong)value);
+                case BuiltInType.Float:
+                    return Convert.ToBoolean((float)value);
+                case BuiltInType.Double:
+                    return Convert.ToBoolean((double)value);
 
                 case BuiltInType.String:
                     return XmlConvert.ToBoolean((string)value);
@@ -1923,16 +2241,26 @@ namespace Opc.Ua
                 case BuiltInType.SByte:
                     return (sbyte)value;
 
-                case BuiltInType.Boolean: return Convert.ToSByte((bool)value);
-                case BuiltInType.Byte: return Convert.ToSByte((byte)value);
-                case BuiltInType.Int16: return Convert.ToSByte((short)value);
-                case BuiltInType.UInt16: return Convert.ToSByte((ushort)value);
-                case BuiltInType.Int32: return Convert.ToSByte((int)value);
-                case BuiltInType.UInt32: return Convert.ToSByte((uint)value);
-                case BuiltInType.Int64: return Convert.ToSByte((long)value);
-                case BuiltInType.UInt64: return Convert.ToSByte((ulong)value);
-                case BuiltInType.Float: return Convert.ToSByte((float)value);
-                case BuiltInType.Double: return Convert.ToSByte((double)value);
+                case BuiltInType.Boolean:
+                    return Convert.ToSByte((bool)value);
+                case BuiltInType.Byte:
+                    return Convert.ToSByte((byte)value);
+                case BuiltInType.Int16:
+                    return Convert.ToSByte((short)value);
+                case BuiltInType.UInt16:
+                    return Convert.ToSByte((ushort)value);
+                case BuiltInType.Int32:
+                    return Convert.ToSByte((int)value);
+                case BuiltInType.UInt32:
+                    return Convert.ToSByte((uint)value);
+                case BuiltInType.Int64:
+                    return Convert.ToSByte((long)value);
+                case BuiltInType.UInt64:
+                    return Convert.ToSByte((ulong)value);
+                case BuiltInType.Float:
+                    return Convert.ToSByte((float)value);
+                case BuiltInType.Double:
+                    return Convert.ToSByte((double)value);
 
                 case BuiltInType.String:
                     return XmlConvert.ToSByte((string)value);
@@ -1953,16 +2281,26 @@ namespace Opc.Ua
                 case BuiltInType.Byte:
                     return (byte)value;
 
-                case BuiltInType.Boolean: return Convert.ToByte((bool)value);
-                case BuiltInType.SByte: return Convert.ToByte((sbyte)value);
-                case BuiltInType.Int16: return Convert.ToByte((short)value);
-                case BuiltInType.UInt16: return Convert.ToByte((ushort)value);
-                case BuiltInType.Int32: return Convert.ToByte((int)value);
-                case BuiltInType.UInt32: return Convert.ToByte((uint)value);
-                case BuiltInType.Int64: return Convert.ToByte((long)value);
-                case BuiltInType.UInt64: return Convert.ToByte((ulong)value);
-                case BuiltInType.Float: return Convert.ToByte((float)value);
-                case BuiltInType.Double: return Convert.ToByte((double)value);
+                case BuiltInType.Boolean:
+                    return Convert.ToByte((bool)value);
+                case BuiltInType.SByte:
+                    return Convert.ToByte((sbyte)value);
+                case BuiltInType.Int16:
+                    return Convert.ToByte((short)value);
+                case BuiltInType.UInt16:
+                    return Convert.ToByte((ushort)value);
+                case BuiltInType.Int32:
+                    return Convert.ToByte((int)value);
+                case BuiltInType.UInt32:
+                    return Convert.ToByte((uint)value);
+                case BuiltInType.Int64:
+                    return Convert.ToByte((long)value);
+                case BuiltInType.UInt64:
+                    return Convert.ToByte((ulong)value);
+                case BuiltInType.Float:
+                    return Convert.ToByte((float)value);
+                case BuiltInType.Double:
+                    return Convert.ToByte((double)value);
 
                 case BuiltInType.String:
                     return XmlConvert.ToByte((string)value);
@@ -1983,16 +2321,26 @@ namespace Opc.Ua
                 case BuiltInType.Int16:
                     return (short)value;
 
-                case BuiltInType.Boolean: return Convert.ToInt16((bool)value);
-                case BuiltInType.SByte: return Convert.ToInt16((sbyte)value);
-                case BuiltInType.Byte: return Convert.ToInt16((byte)value);
-                case BuiltInType.UInt16: return Convert.ToInt16((ushort)value);
-                case BuiltInType.Int32: return Convert.ToInt16((int)value);
-                case BuiltInType.UInt32: return Convert.ToInt16((uint)value);
-                case BuiltInType.Int64: return Convert.ToInt16((long)value);
-                case BuiltInType.UInt64: return Convert.ToInt16((ulong)value);
-                case BuiltInType.Float: return Convert.ToInt16((float)value);
-                case BuiltInType.Double: return Convert.ToInt16((double)value);
+                case BuiltInType.Boolean:
+                    return Convert.ToInt16((bool)value);
+                case BuiltInType.SByte:
+                    return Convert.ToInt16((sbyte)value);
+                case BuiltInType.Byte:
+                    return Convert.ToInt16((byte)value);
+                case BuiltInType.UInt16:
+                    return Convert.ToInt16((ushort)value);
+                case BuiltInType.Int32:
+                    return Convert.ToInt16((int)value);
+                case BuiltInType.UInt32:
+                    return Convert.ToInt16((uint)value);
+                case BuiltInType.Int64:
+                    return Convert.ToInt16((long)value);
+                case BuiltInType.UInt64:
+                    return Convert.ToInt16((ulong)value);
+                case BuiltInType.Float:
+                    return Convert.ToInt16((float)value);
+                case BuiltInType.Double:
+                    return Convert.ToInt16((double)value);
 
                 case BuiltInType.String:
                     return XmlConvert.ToInt16((string)value);
@@ -2013,16 +2361,26 @@ namespace Opc.Ua
                 case BuiltInType.UInt16:
                     return (ushort)value;
 
-                case BuiltInType.Boolean: return Convert.ToUInt16((bool)value);
-                case BuiltInType.SByte: return Convert.ToUInt16((sbyte)value);
-                case BuiltInType.Byte: return Convert.ToUInt16((byte)value);
-                case BuiltInType.Int16: return Convert.ToUInt16((short)value);
-                case BuiltInType.Int32: return Convert.ToUInt16((int)value);
-                case BuiltInType.UInt32: return Convert.ToUInt16((uint)value);
-                case BuiltInType.Int64: return Convert.ToUInt16((long)value);
-                case BuiltInType.UInt64: return Convert.ToUInt16((ulong)value);
-                case BuiltInType.Float: return Convert.ToUInt16((float)value);
-                case BuiltInType.Double: return Convert.ToUInt16((double)value);
+                case BuiltInType.Boolean:
+                    return Convert.ToUInt16((bool)value);
+                case BuiltInType.SByte:
+                    return Convert.ToUInt16((sbyte)value);
+                case BuiltInType.Byte:
+                    return Convert.ToUInt16((byte)value);
+                case BuiltInType.Int16:
+                    return Convert.ToUInt16((short)value);
+                case BuiltInType.Int32:
+                    return Convert.ToUInt16((int)value);
+                case BuiltInType.UInt32:
+                    return Convert.ToUInt16((uint)value);
+                case BuiltInType.Int64:
+                    return Convert.ToUInt16((long)value);
+                case BuiltInType.UInt64:
+                    return Convert.ToUInt16((ulong)value);
+                case BuiltInType.Float:
+                    return Convert.ToUInt16((float)value);
+                case BuiltInType.Double:
+                    return Convert.ToUInt16((double)value);
 
                 case BuiltInType.String:
                     return XmlConvert.ToUInt16((string)value);
@@ -2047,16 +2405,26 @@ namespace Opc.Ua
                 case BuiltInType.Int32:
                     return (int)value;
 
-                case BuiltInType.Boolean: return Convert.ToInt32((bool)value);
-                case BuiltInType.SByte: return Convert.ToInt32((sbyte)value);
-                case BuiltInType.Byte: return Convert.ToInt32((byte)value);
-                case BuiltInType.Int16: return Convert.ToInt32((short)value);
-                case BuiltInType.UInt16: return Convert.ToInt32((ushort)value);
-                case BuiltInType.UInt32: return Convert.ToInt32((uint)value);
-                case BuiltInType.Int64: return Convert.ToInt32((long)value);
-                case BuiltInType.UInt64: return Convert.ToInt32((ulong)value);
-                case BuiltInType.Float: return Convert.ToInt32((float)value);
-                case BuiltInType.Double: return Convert.ToInt32((double)value);
+                case BuiltInType.Boolean:
+                    return Convert.ToInt32((bool)value);
+                case BuiltInType.SByte:
+                    return Convert.ToInt32((sbyte)value);
+                case BuiltInType.Byte:
+                    return Convert.ToInt32((byte)value);
+                case BuiltInType.Int16:
+                    return Convert.ToInt32((short)value);
+                case BuiltInType.UInt16:
+                    return Convert.ToInt32((ushort)value);
+                case BuiltInType.UInt32:
+                    return Convert.ToInt32((uint)value);
+                case BuiltInType.Int64:
+                    return Convert.ToInt32((long)value);
+                case BuiltInType.UInt64:
+                    return Convert.ToInt32((ulong)value);
+                case BuiltInType.Float:
+                    return Convert.ToInt32((float)value);
+                case BuiltInType.Double:
+                    return Convert.ToInt32((double)value);
 
                 case BuiltInType.String:
                     return XmlConvert.ToInt32((string)value);
@@ -2080,16 +2448,26 @@ namespace Opc.Ua
                 case BuiltInType.UInt32:
                     return (uint)value;
 
-                case BuiltInType.Boolean: return Convert.ToUInt32((bool)value);
-                case BuiltInType.SByte: return Convert.ToUInt32((sbyte)value);
-                case BuiltInType.Byte: return Convert.ToUInt32((byte)value);
-                case BuiltInType.Int16: return Convert.ToUInt32((short)value);
-                case BuiltInType.UInt16: return Convert.ToUInt32((ushort)value);
-                case BuiltInType.Int32: return Convert.ToUInt32((int)value);
-                case BuiltInType.Int64: return Convert.ToUInt32((long)value);
-                case BuiltInType.UInt64: return Convert.ToUInt32((ulong)value);
-                case BuiltInType.Float: return Convert.ToUInt32((float)value);
-                case BuiltInType.Double: return Convert.ToUInt32((double)value);
+                case BuiltInType.Boolean:
+                    return Convert.ToUInt32((bool)value);
+                case BuiltInType.SByte:
+                    return Convert.ToUInt32((sbyte)value);
+                case BuiltInType.Byte:
+                    return Convert.ToUInt32((byte)value);
+                case BuiltInType.Int16:
+                    return Convert.ToUInt32((short)value);
+                case BuiltInType.UInt16:
+                    return Convert.ToUInt32((ushort)value);
+                case BuiltInType.Int32:
+                    return Convert.ToUInt32((int)value);
+                case BuiltInType.Int64:
+                    return Convert.ToUInt32((long)value);
+                case BuiltInType.UInt64:
+                    return Convert.ToUInt32((ulong)value);
+                case BuiltInType.Float:
+                    return Convert.ToUInt32((float)value);
+                case BuiltInType.Double:
+                    return Convert.ToUInt32((double)value);
 
                 case BuiltInType.String:
                     return XmlConvert.ToUInt32((string)value);
@@ -2113,16 +2491,26 @@ namespace Opc.Ua
                 case BuiltInType.Int64:
                     return (long)value;
 
-                case BuiltInType.Boolean: return Convert.ToInt64((bool)value);
-                case BuiltInType.SByte: return Convert.ToInt64((sbyte)value);
-                case BuiltInType.Byte: return Convert.ToInt64((byte)value);
-                case BuiltInType.Int16: return Convert.ToInt64((short)value);
-                case BuiltInType.UInt16: return Convert.ToInt64((ushort)value);
-                case BuiltInType.Int32: return Convert.ToInt64((int)value);
-                case BuiltInType.UInt32: return Convert.ToInt64((uint)value);
-                case BuiltInType.UInt64: return Convert.ToInt64((ulong)value);
-                case BuiltInType.Float: return Convert.ToInt64((float)value);
-                case BuiltInType.Double: return Convert.ToInt64((double)value);
+                case BuiltInType.Boolean:
+                    return Convert.ToInt64((bool)value);
+                case BuiltInType.SByte:
+                    return Convert.ToInt64((sbyte)value);
+                case BuiltInType.Byte:
+                    return Convert.ToInt64((byte)value);
+                case BuiltInType.Int16:
+                    return Convert.ToInt64((short)value);
+                case BuiltInType.UInt16:
+                    return Convert.ToInt64((ushort)value);
+                case BuiltInType.Int32:
+                    return Convert.ToInt64((int)value);
+                case BuiltInType.UInt32:
+                    return Convert.ToInt64((uint)value);
+                case BuiltInType.UInt64:
+                    return Convert.ToInt64((ulong)value);
+                case BuiltInType.Float:
+                    return Convert.ToInt64((float)value);
+                case BuiltInType.Double:
+                    return Convert.ToInt64((double)value);
 
                 case BuiltInType.String:
                     return XmlConvert.ToInt64((string)value);
@@ -2146,16 +2534,26 @@ namespace Opc.Ua
                 case BuiltInType.UInt64:
                     return (ulong)value;
 
-                case BuiltInType.Boolean: return Convert.ToUInt64((bool)value);
-                case BuiltInType.SByte: return Convert.ToUInt64((sbyte)value);
-                case BuiltInType.Byte: return Convert.ToUInt64((byte)value);
-                case BuiltInType.Int16: return Convert.ToUInt64((short)value);
-                case BuiltInType.UInt16: return Convert.ToUInt64((ushort)value);
-                case BuiltInType.Int32: return Convert.ToUInt64((int)value);
-                case BuiltInType.UInt32: return Convert.ToUInt64((uint)value);
-                case BuiltInType.Int64: return Convert.ToUInt64((long)value);
-                case BuiltInType.Float: return Convert.ToUInt64((float)value);
-                case BuiltInType.Double: return Convert.ToUInt64((double)value);
+                case BuiltInType.Boolean:
+                    return Convert.ToUInt64((bool)value);
+                case BuiltInType.SByte:
+                    return Convert.ToUInt64((sbyte)value);
+                case BuiltInType.Byte:
+                    return Convert.ToUInt64((byte)value);
+                case BuiltInType.Int16:
+                    return Convert.ToUInt64((short)value);
+                case BuiltInType.UInt16:
+                    return Convert.ToUInt64((ushort)value);
+                case BuiltInType.Int32:
+                    return Convert.ToUInt64((int)value);
+                case BuiltInType.UInt32:
+                    return Convert.ToUInt64((uint)value);
+                case BuiltInType.Int64:
+                    return Convert.ToUInt64((long)value);
+                case BuiltInType.Float:
+                    return Convert.ToUInt64((float)value);
+                case BuiltInType.Double:
+                    return Convert.ToUInt64((double)value);
 
                 case BuiltInType.String:
                     return XmlConvert.ToUInt64((string)value);
@@ -2179,16 +2577,26 @@ namespace Opc.Ua
                 case BuiltInType.Float:
                     return (float)value;
 
-                case BuiltInType.Boolean: return Convert.ToSingle((bool)value);
-                case BuiltInType.SByte: return Convert.ToSingle((sbyte)value);
-                case BuiltInType.Byte: return Convert.ToSingle((byte)value);
-                case BuiltInType.Int16: return Convert.ToSingle((short)value);
-                case BuiltInType.UInt16: return Convert.ToSingle((ushort)value);
-                case BuiltInType.Int32: return Convert.ToSingle((int)value);
-                case BuiltInType.UInt32: return Convert.ToSingle((uint)value);
-                case BuiltInType.Int64: return Convert.ToSingle((long)value);
-                case BuiltInType.UInt64: return Convert.ToSingle((ulong)value);
-                case BuiltInType.Double: return Convert.ToSingle((double)value);
+                case BuiltInType.Boolean:
+                    return Convert.ToSingle((bool)value);
+                case BuiltInType.SByte:
+                    return Convert.ToSingle((sbyte)value);
+                case BuiltInType.Byte:
+                    return Convert.ToSingle((byte)value);
+                case BuiltInType.Int16:
+                    return Convert.ToSingle((short)value);
+                case BuiltInType.UInt16:
+                    return Convert.ToSingle((ushort)value);
+                case BuiltInType.Int32:
+                    return Convert.ToSingle((int)value);
+                case BuiltInType.UInt32:
+                    return Convert.ToSingle((uint)value);
+                case BuiltInType.Int64:
+                    return Convert.ToSingle((long)value);
+                case BuiltInType.UInt64:
+                    return Convert.ToSingle((ulong)value);
+                case BuiltInType.Double:
+                    return Convert.ToSingle((double)value);
 
                 case BuiltInType.String:
                     return XmlConvert.ToSingle((string)value);
@@ -2209,16 +2617,26 @@ namespace Opc.Ua
                 case BuiltInType.Double:
                     return (double)value;
 
-                case BuiltInType.Boolean: return Convert.ToDouble((bool)value);
-                case BuiltInType.SByte: return Convert.ToDouble((sbyte)value);
-                case BuiltInType.Byte: return Convert.ToDouble((byte)value);
-                case BuiltInType.Int16: return Convert.ToDouble((short)value);
-                case BuiltInType.UInt16: return Convert.ToDouble((ushort)value);
-                case BuiltInType.Int32: return Convert.ToDouble((int)value);
-                case BuiltInType.UInt32: return Convert.ToDouble((uint)value);
-                case BuiltInType.Int64: return Convert.ToDouble((long)value);
-                case BuiltInType.UInt64: return Convert.ToDouble((ulong)value);
-                case BuiltInType.Float: return Convert.ToDouble((float)value);
+                case BuiltInType.Boolean:
+                    return Convert.ToDouble((bool)value);
+                case BuiltInType.SByte:
+                    return Convert.ToDouble((sbyte)value);
+                case BuiltInType.Byte:
+                    return Convert.ToDouble((byte)value);
+                case BuiltInType.Int16:
+                    return Convert.ToDouble((short)value);
+                case BuiltInType.UInt16:
+                    return Convert.ToDouble((ushort)value);
+                case BuiltInType.Int32:
+                    return Convert.ToDouble((int)value);
+                case BuiltInType.UInt32:
+                    return Convert.ToDouble((uint)value);
+                case BuiltInType.Int64:
+                    return Convert.ToDouble((long)value);
+                case BuiltInType.UInt64:
+                    return Convert.ToDouble((ulong)value);
+                case BuiltInType.Float:
+                    return Convert.ToDouble((float)value);
 
                 case BuiltInType.String:
                     return XmlConvert.ToDouble((string)value);

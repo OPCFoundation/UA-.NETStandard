@@ -13,7 +13,6 @@
 using System;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using System.Text;
 using Opc.Ua.Security.Certificates;
 
 #if CURVE25519
@@ -99,14 +98,19 @@ namespace Opc.Ua
             switch (BitConverter.ToString(encodedPublicKey.EncodedParameters.RawData))
             {
                 // nistP256
-                case NistP256KeyParameters: return ObjectTypeIds.EccNistP256ApplicationCertificateType;
+                case NistP256KeyParameters:
+                    return ObjectTypeIds.EccNistP256ApplicationCertificateType;
                 // nistP384
-                case NistP384KeyParameters: return ObjectTypeIds.EccNistP384ApplicationCertificateType;
+                case NistP384KeyParameters:
+                    return ObjectTypeIds.EccNistP384ApplicationCertificateType;
                 // brainpoolP256r1
-                case BrainpoolP256r1KeyParameters: return ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType;
+                case BrainpoolP256r1KeyParameters:
+                    return ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType;
                 // brainpoolP384r1
-                case BrainpoolP384r1KeyParameters: return ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType;
-                default: return NodeId.Null;
+                case BrainpoolP384r1KeyParameters:
+                    return ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType;
+                default:
+                    return NodeId.Null;
             }
         }
 
@@ -299,15 +303,13 @@ namespace Opc.Ua
             {
                 throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
             }
-            using (ECDsa publicKey = GetPublicKey(signingCertificate))
+            using ECDsa publicKey = GetPublicKey(signingCertificate);
+            if (publicKey == null)
             {
-                if (publicKey == null)
-                {
-                    throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
-                }
-
-                return publicKey.KeySize / 4;
+                throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
             }
+
+            return publicKey.KeySize / 4;
         }
 
         /// <summary>
@@ -484,10 +486,8 @@ namespace Opc.Ua
                 return true;
             }
 #endif
-            using (ECDsa ecdsa = GetPublicKey(signingCertificate))
-            {
-                return ecdsa.VerifyData(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count, signature, algorithm);
-            }
+            using ECDsa ecdsa = GetPublicKey(signingCertificate);
+            return ecdsa.VerifyData(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count, signature, algorithm);
         }
     }
 
@@ -596,15 +596,13 @@ namespace Opc.Ua
                 aes.Key = encryptingKey;
                 aes.IV = iv;
 
-                using (ICryptoTransform encryptor = aes.CreateEncryptor())
+                using ICryptoTransform encryptor = aes.CreateEncryptor();
+                if (dataToEncrypt.Length % encryptor.InputBlockSize != 0)
                 {
-                    if (dataToEncrypt.Length % encryptor.InputBlockSize != 0)
-                    {
-                        throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "Input data is not an even number of encryption blocks.");
-                    }
-
-                    encryptor.TransformBlock(dataToEncrypt, 0, dataToEncrypt.Length, dataToEncrypt, 0);
+                    throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "Input data is not an even number of encryption blocks.");
                 }
+
+                encryptor.TransformBlock(dataToEncrypt, 0, dataToEncrypt.Length, dataToEncrypt, 0);
             }
 
             return dataToEncrypt;
@@ -756,15 +754,13 @@ namespace Opc.Ua
                 aes.Key = encryptingKey;
                 aes.IV = iv;
 
-                using (ICryptoTransform decryptor = aes.CreateDecryptor())
+                using ICryptoTransform decryptor = aes.CreateDecryptor();
+                if (count % decryptor.InputBlockSize != 0)
                 {
-                    if (count % decryptor.InputBlockSize != 0)
-                    {
-                        throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "Input data is not an even number of encryption blocks.");
-                    }
-
-                    decryptor.TransformBlock(dataToDecrypt, offset, count, dataToDecrypt, offset);
+                    throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "Input data is not an even number of encryption blocks.");
                 }
+
+                decryptor.TransformBlock(dataToDecrypt, offset, count, dataToDecrypt, offset);
             }
 
             ushort paddingSize = dataToDecrypt[offset + count - 1];
@@ -793,7 +789,7 @@ namespace Opc.Ua
             return new ArraySegment<byte>(dataToDecrypt, offset, count - paddingSize);
         }
 
-        private static readonly byte[] s_Label = Encoding.UTF8.GetBytes("opcua-secret");
+        private static readonly byte[] s_Label = System.Text.Encoding.UTF8.GetBytes("opcua-secret");
 
         /// <summary>
         /// Creates the encrypting key and initialization vector (IV) for Elliptic Curve Cryptography (ECC) encryption or decryption.
@@ -983,129 +979,127 @@ namespace Opc.Ua
             ArraySegment<byte> dataToDecrypt,
             DateTime earliestTime)
         {
-            using (var decoder = new BinaryDecoder(dataToDecrypt.Array, dataToDecrypt.Offset, dataToDecrypt.Count, ServiceMessageContext.GlobalContext))
+            using var decoder = new BinaryDecoder(dataToDecrypt.Array, dataToDecrypt.Offset, dataToDecrypt.Count, ServiceMessageContext.GlobalContext);
+            NodeId typeId = decoder.ReadNodeId(null);
+
+            if (typeId != DataTypeIds.EccEncryptedSecret)
             {
-                NodeId typeId = decoder.ReadNodeId(null);
-
-                if (typeId != DataTypeIds.EccEncryptedSecret)
-                {
-                    throw new ServiceResultException(StatusCodes.BadDataTypeIdUnknown);
-                }
-
-                var encoding = (ExtensionObjectEncoding)decoder.ReadByte(null);
-
-                if (encoding != ExtensionObjectEncoding.Binary)
-                {
-                    throw new ServiceResultException(StatusCodes.BadDataEncodingUnsupported);
-                }
-
-                uint length = decoder.ReadUInt32(null);
-
-                // get the start of data.
-                int startOfData = decoder.Position + dataToDecrypt.Offset;
-
-                SecurityPolicyUri = decoder.ReadString(null);
-
-                if (!EccUtils.IsEccPolicy(SecurityPolicyUri))
-                {
-                    throw new ServiceResultException(StatusCodes.BadSecurityPolicyRejected);
-                }
-
-                // get the algorithm used for the signature.
-                HashAlgorithmName signatureAlgorithm = HashAlgorithmName.SHA256;
-
-                switch (SecurityPolicyUri)
-                {
-                    case SecurityPolicies.ECC_nistP384:
-                    case SecurityPolicies.ECC_brainpoolP384r1:
-                        signatureAlgorithm = HashAlgorithmName.SHA384;
-                        break;
-                }
-
-                // extract the send certificate and any chain.
-                byte[] senderCertificate = decoder.ReadByteString(null);
-
-                if (senderCertificate == null || senderCertificate.Length == 0)
-                {
-                    if (SenderCertificate == null)
-                    {
-                        throw new ServiceResultException(StatusCodes.BadCertificateInvalid);
-                    }
-                }
-                else
-                {
-                    X509Certificate2Collection senderCertificateChain = Utils.ParseCertificateChainBlob(senderCertificate);
-
-                    SenderCertificate = senderCertificateChain[0];
-                    SenderIssuerCertificates = [];
-
-                    for (int ii = 1; ii < senderCertificateChain.Count; ii++)
-                    {
-                        SenderIssuerCertificates.Add(senderCertificateChain[ii]);
-                    }
-
-                    // validate the sender.
-                    if (Validator != null)
-                    {
-                        Validator.Validate(senderCertificateChain);
-                    }
-                }
-
-                // extract the send certificate and any chain.
-                DateTime signingTime = decoder.ReadDateTime(null);
-
-                if (signingTime < earliestTime)
-                {
-                    throw new ServiceResultException(StatusCodes.BadInvalidTimestamp);
-                }
-
-                // extract the policy header.
-                ushort headerLength = decoder.ReadUInt16(null);
-
-                if (headerLength == 0 || headerLength > length)
-                {
-                    throw new ServiceResultException(StatusCodes.BadDecodingError);
-                }
-
-                // read the policy header.
-                byte[] senderPublicKey = decoder.ReadByteString(null);
-                byte[] receiverPublicKey = decoder.ReadByteString(null);
-
-                if (headerLength != senderPublicKey.Length + receiverPublicKey.Length + 8)
-                {
-                    throw new ServiceResultException(StatusCodes.BadDecodingError, "Unexpected policy header length");
-                }
-
-                int startOfEncryption = decoder.Position;
-
-                SenderNonce = Nonce.CreateNonce(SecurityPolicyUri, senderPublicKey);
-
-                if (!Utils.IsEqual(receiverPublicKey, ReceiverNonce.Data))
-                {
-                    throw new ServiceResultException(StatusCodes.BadDecodingError, "Unexpected receiver nonce.");
-                }
-
-                // check the signature.
-                int signatureLength = EccUtils.GetSignatureLength(SenderCertificate);
-
-                if (signatureLength >= length)
-                {
-                    throw new ServiceResultException(StatusCodes.BadDecodingError);
-                }
-
-                byte[] signature = new byte[signatureLength];
-                Buffer.BlockCopy(dataToDecrypt.Array, startOfData + (int)length - signatureLength, signature, 0, signatureLength);
-
-                var dataToSign = new ArraySegment<byte>(dataToDecrypt.Array, 0, startOfData + (int)length - signatureLength);
-
-                if (!EccUtils.Verify(dataToSign, signature, SenderCertificate, signatureAlgorithm))
-                {
-                    throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "Could not verify signature.");
-                }
-
-                // extract the encrypted data.
-                return new ArraySegment<byte>(dataToDecrypt.Array, startOfEncryption, (int)length - (startOfEncryption - startOfData + signatureLength));
+                throw new ServiceResultException(StatusCodes.BadDataTypeIdUnknown);
             }
+
+            var encoding = (ExtensionObjectEncoding)decoder.ReadByte(null);
+
+            if (encoding != ExtensionObjectEncoding.Binary)
+            {
+                throw new ServiceResultException(StatusCodes.BadDataEncodingUnsupported);
+            }
+
+            uint length = decoder.ReadUInt32(null);
+
+            // get the start of data.
+            int startOfData = decoder.Position + dataToDecrypt.Offset;
+
+            SecurityPolicyUri = decoder.ReadString(null);
+
+            if (!EccUtils.IsEccPolicy(SecurityPolicyUri))
+            {
+                throw new ServiceResultException(StatusCodes.BadSecurityPolicyRejected);
+            }
+
+            // get the algorithm used for the signature.
+            HashAlgorithmName signatureAlgorithm = HashAlgorithmName.SHA256;
+
+            switch (SecurityPolicyUri)
+            {
+                case SecurityPolicies.ECC_nistP384:
+                case SecurityPolicies.ECC_brainpoolP384r1:
+                    signatureAlgorithm = HashAlgorithmName.SHA384;
+                    break;
+            }
+
+            // extract the send certificate and any chain.
+            byte[] senderCertificate = decoder.ReadByteString(null);
+
+            if (senderCertificate == null || senderCertificate.Length == 0)
+            {
+                if (SenderCertificate == null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadCertificateInvalid);
+                }
+            }
+            else
+            {
+                X509Certificate2Collection senderCertificateChain = Utils.ParseCertificateChainBlob(senderCertificate);
+
+                SenderCertificate = senderCertificateChain[0];
+                SenderIssuerCertificates = [];
+
+                for (int ii = 1; ii < senderCertificateChain.Count; ii++)
+                {
+                    SenderIssuerCertificates.Add(senderCertificateChain[ii]);
+                }
+
+                // validate the sender.
+                if (Validator != null)
+                {
+                    Validator.Validate(senderCertificateChain);
+                }
+            }
+
+            // extract the send certificate and any chain.
+            DateTime signingTime = decoder.ReadDateTime(null);
+
+            if (signingTime < earliestTime)
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidTimestamp);
+            }
+
+            // extract the policy header.
+            ushort headerLength = decoder.ReadUInt16(null);
+
+            if (headerLength == 0 || headerLength > length)
+            {
+                throw new ServiceResultException(StatusCodes.BadDecodingError);
+            }
+
+            // read the policy header.
+            byte[] senderPublicKey = decoder.ReadByteString(null);
+            byte[] receiverPublicKey = decoder.ReadByteString(null);
+
+            if (headerLength != senderPublicKey.Length + receiverPublicKey.Length + 8)
+            {
+                throw new ServiceResultException(StatusCodes.BadDecodingError, "Unexpected policy header length");
+            }
+
+            int startOfEncryption = decoder.Position;
+
+            SenderNonce = Nonce.CreateNonce(SecurityPolicyUri, senderPublicKey);
+
+            if (!Utils.IsEqual(receiverPublicKey, ReceiverNonce.Data))
+            {
+                throw new ServiceResultException(StatusCodes.BadDecodingError, "Unexpected receiver nonce.");
+            }
+
+            // check the signature.
+            int signatureLength = EccUtils.GetSignatureLength(SenderCertificate);
+
+            if (signatureLength >= length)
+            {
+                throw new ServiceResultException(StatusCodes.BadDecodingError);
+            }
+
+            byte[] signature = new byte[signatureLength];
+            Buffer.BlockCopy(dataToDecrypt.Array, startOfData + (int)length - signatureLength, signature, 0, signatureLength);
+
+            var dataToSign = new ArraySegment<byte>(dataToDecrypt.Array, 0, startOfData + (int)length - signatureLength);
+
+            if (!EccUtils.Verify(dataToSign, signature, SenderCertificate, signatureAlgorithm))
+            {
+                throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "Could not verify signature.");
+            }
+
+            // extract the encrypted data.
+            return new ArraySegment<byte>(dataToDecrypt.Array, startOfEncryption, (int)length - (startOfEncryption - startOfData + signatureLength));
         }
 
         /// <summary>
@@ -1208,10 +1202,8 @@ namespace Opc.Ua
                 return true;
             }
 #endif
-            using (ECDsa ecdsa = GetPublicKey(signingCertificate))
-            {
-                return ecdsa.VerifyData(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count, signature, algorithm);
-            }
+            using ECDsa ecdsa = GetPublicKey(signingCertificate);
+            return ecdsa.VerifyData(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count, signature, algorithm);
         }
 
         /// <summary>

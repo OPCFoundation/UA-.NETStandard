@@ -476,7 +476,7 @@ namespace Opc.Ua.Client
         {
             CallMethodRequestCollection requests = CreateCallRequestsForResendData(subscriptions);
 
-            IList<ServiceResult> errors = new List<ServiceResult>(requests.Count);
+            var errors = new List<ServiceResult>(requests.Count);
             try
             {
                 CallResponse response = await CallAsync(null, requests, ct).ConfigureAwait(false);
@@ -1524,7 +1524,7 @@ namespace Opc.Ua.Client
                 await ManagedBrowseAsync(
                     null,
                     null,
-                    new NodeId[] { nodeId },
+                    [nodeId],
                     0,
                     BrowseDirection.Both,
                     null,
@@ -1538,17 +1538,19 @@ namespace Opc.Ua.Client
         public Task<(IList<ReferenceDescriptionCollection>, IList<ServiceResult>)> FetchReferencesAsync(
             IList<NodeId> nodeIds,
             CancellationToken ct = default)
-            => ManagedBrowseAsync(
-                null,
-                null,
-                nodeIds,
-                0,
-                BrowseDirection.Both,
-                null,
-                true,
-                0,
-                ct
-                );
+        {
+            return ManagedBrowseAsync(
+                        null,
+                        null,
+                        nodeIds,
+                        0,
+                        BrowseDirection.Both,
+                        null,
+                        true,
+                        0,
+                        ct
+                        );
+        }
 
         /// <summary>
         /// Recreates a session based on a specified template.
@@ -1708,7 +1710,9 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
         public Task<StatusCode> CloseAsync(int timeout, CancellationToken ct = default)
-            => CloseAsync(timeout, true, ct);
+        {
+            return CloseAsync(timeout, true, ct);
+        }
 
         /// <inheritdoc/>
         public virtual async Task<StatusCode> CloseAsync(int timeout, bool closeChannel, CancellationToken ct = default)
@@ -1782,15 +1786,21 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
         public Task ReconnectAsync(CancellationToken ct)
-            => ReconnectAsync(null, null, ct);
+        {
+            return ReconnectAsync(null, null, ct);
+        }
 
         /// <inheritdoc/>
         public Task ReconnectAsync(ITransportWaitingConnection connection, CancellationToken ct)
-            => ReconnectAsync(connection, null, ct);
+        {
+            return ReconnectAsync(connection, null, ct);
+        }
 
         /// <inheritdoc/>
         public Task ReconnectAsync(ITransportChannel channel, CancellationToken ct)
-            => ReconnectAsync(null, channel, ct);
+        {
+            return ReconnectAsync(null, channel, ct);
+        }
 
         /// <inheritdoc/>
         public async Task ReloadInstanceCertificateAsync(CancellationToken ct = default)

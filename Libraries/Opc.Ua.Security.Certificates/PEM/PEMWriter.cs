@@ -29,7 +29,9 @@
 
 using System;
 using System.IO;
+#if NETSTANDARD2_1 || NET5_0_OR_GREATER
 using System.Security.Cryptography;
+#endif
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 
@@ -131,16 +133,14 @@ namespace Opc.Ua.Security.Certificates
                 }
                 else
                 {
-                    using (ECDsa ecdsaPrivateKey = certificate.GetECDsaPrivateKey())
+                    using ECDsa ecdsaPrivateKey = certificate.GetECDsaPrivateKey();
+                    if (ecdsaPrivateKey != null)
                     {
-                        if (ecdsaPrivateKey != null)
-                        {
-                            // write private key as PKCS#8
-                            exportedPkcs8PrivateKey = string.IsNullOrEmpty(password) ?
-                                ecdsaPrivateKey.ExportPkcs8PrivateKey() :
-                                ecdsaPrivateKey.ExportEncryptedPkcs8PrivateKey(password.ToCharArray(),
-                                    new PbeParameters(PbeEncryptionAlgorithm.TripleDes3KeyPkcs12, HashAlgorithmName.SHA1, 2000));
-                        }
+                        // write private key as PKCS#8
+                        exportedPkcs8PrivateKey = string.IsNullOrEmpty(password) ?
+                            ecdsaPrivateKey.ExportPkcs8PrivateKey() :
+                            ecdsaPrivateKey.ExportEncryptedPkcs8PrivateKey(password.ToCharArray(),
+                                new PbeParameters(PbeEncryptionAlgorithm.TripleDes3KeyPkcs12, HashAlgorithmName.SHA1, 2000));
                     }
                 }
             }
@@ -223,34 +223,32 @@ namespace Opc.Ua.Security.Certificates
 
             const int LineLength = 64;
             string base64 = Convert.ToBase64String(content);
-            using (var textWriter = new StringWriter())
+            using var textWriter = new StringWriter();
+            textWriter.WriteLine("-----BEGIN {0}-----", contentType);
+
+            int offset = 0;
+            while (base64.Length - offset > LineLength)
             {
-                textWriter.WriteLine("-----BEGIN {0}-----", contentType);
-
-                int offset = 0;
-                while (base64.Length - offset > LineLength)
-                {
 #if NETSTANDARD2_1 || NET5_0_OR_GREATER
-                    textWriter.WriteLine(base64.AsSpan(offset, LineLength));
+                textWriter.WriteLine(base64.AsSpan(offset, LineLength));
 #else
-                    textWriter.WriteLine(base64.Substring(offset, LineLength));
+                textWriter.WriteLine(base64.Substring(offset, LineLength));
 #endif
-                    offset += LineLength;
-                }
-
-                int length = base64.Length - offset;
-                if (length > 0)
-                {
-#if NETSTANDARD2_1 || NET5_0_OR_GREATER
-                    textWriter.WriteLine(base64.AsSpan(offset, length));
-#else
-                    textWriter.WriteLine(base64.Substring(offset, length));
-#endif
-                }
-
-                textWriter.WriteLine("-----END {0}-----", contentType);
-                return Encoding.ASCII.GetBytes(textWriter.ToString());
+                offset += LineLength;
             }
+
+            int length = base64.Length - offset;
+            if (length > 0)
+            {
+#if NETSTANDARD2_1 || NET5_0_OR_GREATER
+                textWriter.WriteLine(base64.AsSpan(offset, length));
+#else
+                textWriter.WriteLine(base64.Substring(offset, length));
+#endif
+            }
+
+            textWriter.WriteLine("-----END {0}-----", contentType);
+            return Encoding.ASCII.GetBytes(textWriter.ToString());
         }
     }
 }

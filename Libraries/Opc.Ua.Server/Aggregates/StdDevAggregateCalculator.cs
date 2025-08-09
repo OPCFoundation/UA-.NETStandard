@@ -195,11 +195,17 @@ namespace Opc.Ua.Server
 
             switch (valueType)
             {
-                case 1: result = regSlope; break;
+                case 1:
+                    result = regSlope;
+                    break;
 
-                case 2: result = regConst; break;
+                case 2:
+                    result = regConst;
+                    break;
 
-                case 3: result = regStdDev; break;
+                case 3:
+                    result = regStdDev;
+                    break;
             }
 
             // set the timestamp and status.
@@ -304,9 +310,13 @@ namespace Opc.Ua.Server
 
             switch (valueType)
             {
-                case 1: result = Math.Sqrt(variance); break;
+                case 1:
+                    result = Math.Sqrt(variance);
+                    break;
 
-                case 2: result = variance; break;
+                case 2:
+                    result = variance;
+                    break;
             }
 
             // set the timestamp and status.

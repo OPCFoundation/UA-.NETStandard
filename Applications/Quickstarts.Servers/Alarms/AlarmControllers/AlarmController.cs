@@ -137,7 +137,7 @@ namespace Alarms
             {
                 // Don't let anyone write a value out of range
                 int potentialWrite = (int)value;
-                if (potentialWrite >= AlarmDefines.MIN_VALUE && potentialWrite <= AlarmDefines.MAX_VALUE)
+                if (potentialWrite is >= AlarmDefines.MIN_VALUE and <= AlarmDefines.MAX_VALUE)
                 {
                     m_value = potentialWrite;
                 }
@@ -234,7 +234,7 @@ namespace Alarms
         public bool IsBooleanActive()
         {
             bool isActive = false;
-            if (m_value >= AlarmDefines.BOOL_HIGH_ALARM || m_value <= AlarmDefines.BOOL_LOW_ALARM)
+            if (m_value is >= AlarmDefines.BOOL_HIGH_ALARM or <= AlarmDefines.BOOL_LOW_ALARM)
             {
                 isActive = true;
             }

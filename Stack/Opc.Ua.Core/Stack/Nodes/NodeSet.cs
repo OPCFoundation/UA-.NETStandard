@@ -49,11 +49,9 @@ namespace Opc.Ua
         /// <returns>The set of nodes</returns>
         public static NodeSet Read(Stream istrm)
         {
-            using (var reader = XmlReader.Create(istrm, Utils.DefaultXmlReaderSettings()))
-            {
-                var serializer = new DataContractSerializer(typeof(NodeSet));
-                return serializer.ReadObject(reader) as NodeSet;
-            }
+            using var reader = XmlReader.Create(istrm, Utils.DefaultXmlReaderSettings());
+            var serializer = new DataContractSerializer(typeof(NodeSet));
+            return serializer.ReadObject(reader) as NodeSet;
         }
 
         /// <summary>
@@ -267,11 +265,11 @@ namespace Opc.Ua
 
             foreach (IReference referenceToExport in nodeToExport.References)
             {
-                var reference = new ReferenceNode();
-
-                reference.ReferenceTypeId = Translate(referenceToExport.ReferenceTypeId, m_namespaceUris, namespaceUris);
-                reference.IsInverse = referenceToExport.IsInverse;
-                reference.TargetId = Translate(referenceToExport.TargetId, m_namespaceUris, m_serverUris, namespaceUris, serverUris);
+                var reference = new ReferenceNode {
+                    ReferenceTypeId = Translate(referenceToExport.ReferenceTypeId, m_namespaceUris, namespaceUris),
+                    IsInverse = referenceToExport.IsInverse,
+                    TargetId = Translate(referenceToExport.TargetId, m_namespaceUris, m_serverUris, namespaceUris, serverUris)
+                };
 
                 node.References.Add(reference);
             }
@@ -290,11 +288,11 @@ namespace Opc.Ua
         /// <param name="serverUris">The server URIs.</param>
         public void AddReference(Node node, ReferenceNode referenceToExport, NamespaceTable namespaceUris, StringTable serverUris)
         {
-            var reference = new ReferenceNode();
-
-            reference.ReferenceTypeId = Translate(referenceToExport.ReferenceTypeId, m_namespaceUris, namespaceUris);
-            reference.IsInverse = referenceToExport.IsInverse;
-            reference.TargetId = Translate(referenceToExport.TargetId, m_namespaceUris, m_serverUris, namespaceUris, serverUris);
+            var reference = new ReferenceNode {
+                ReferenceTypeId = Translate(referenceToExport.ReferenceTypeId, m_namespaceUris, namespaceUris),
+                IsInverse = referenceToExport.IsInverse,
+                TargetId = Translate(referenceToExport.TargetId, m_namespaceUris, m_serverUris, namespaceUris, serverUris)
+            };
 
             node.References.Add(reference);
         }
@@ -441,11 +439,11 @@ namespace Opc.Ua
 
             foreach (ReferenceNode referenceToImport in nodeToImport.References)
             {
-                var reference = new ReferenceNode();
-
-                reference.ReferenceTypeId = Translate(referenceToImport.ReferenceTypeId, namespaceUris, m_namespaceUris);
-                reference.IsInverse = referenceToImport.IsInverse;
-                reference.TargetId = Translate(referenceToImport.TargetId, namespaceUris, serverUris, m_namespaceUris, m_serverUris);
+                var reference = new ReferenceNode {
+                    ReferenceTypeId = Translate(referenceToImport.ReferenceTypeId, namespaceUris, m_namespaceUris),
+                    IsInverse = referenceToImport.IsInverse,
+                    TargetId = Translate(referenceToImport.TargetId, namespaceUris, serverUris, m_namespaceUris, m_serverUris)
+                };
 
                 node.References.Add(reference);
             }

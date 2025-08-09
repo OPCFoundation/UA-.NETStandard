@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -29,7 +29,6 @@
 #if !NETSTANDARD2_1 && !NET472_OR_GREATER && !NET5_0_OR_GREATER
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -151,19 +150,17 @@ namespace Opc.Ua.Security.Certificates
             string passcode)
         {
             Org.BouncyCastle.X509.X509Certificate x509 = new X509CertificateParser().ReadCertificate(certificate.RawData);
-            using (var cfrg = new CryptoApiRandomGenerator())
-            {
-                return X509Utils.CreatePfxWithPrivateKey(
-                    x509, friendlyName,
-                    X509Utils.GetRsaPrivateKeyParameter(privateKey),
-                    passcode,
-                    new SecureRandom(cfrg));
-            }
+            using var cfrg = new CryptoApiRandomGenerator();
+            return X509Utils.CreatePfxWithPrivateKey(
+                x509, friendlyName,
+                X509Utils.GetRsaPrivateKeyParameter(privateKey),
+                passcode,
+                new SecureRandom(cfrg));
         }
 
 #if NET472_OR_GREATER
         /// <summary>
-        /// Create a Pfx with a private key by combining 
+        /// Create a Pfx with a private key by combining
         /// an existing X509Certificate2 and a RSA private key.
         /// </summary>
         public static byte[] CreatePfxWithECdsaPrivateKey(
@@ -198,79 +195,77 @@ namespace Opc.Ua.Security.Certificates
                 throw new ArgumentNullException(nameof(certificate));
             }
 
-            using (var cfrg = new CryptoApiRandomGenerator())
+            using var cfrg = new CryptoApiRandomGenerator();
+            var random = new SecureRandom(cfrg);
+
+            // try to get signing/private key from certificate passed in
+            AsymmetricKeyParameter signingKey = X509Utils.GetRsaPrivateKeyParameter(certificate);
+            RsaKeyParameters publicKey = X509Utils.GetRsaPublicKeyParameter(certificate);
+
+            ISignatureFactory signatureFactory =
+                new Asn1SignatureFactory(X509Utils.GetRSAHashAlgorithm(X509Defaults.HashAlgorithmName), signingKey, random);
+
+            Asn1Set attributes = null;
+            X509SubjectAltNameExtension san = certificate.FindExtension<X509SubjectAltNameExtension>();
+            var alternateName = new X509SubjectAltNameExtension(san, san.Critical);
+
+            string applicationUri = null;
+            domainNames ??= [];
+            if (alternateName != null)
             {
-                var random = new SecureRandom(cfrg);
-
-                // try to get signing/private key from certificate passed in
-                AsymmetricKeyParameter signingKey = X509Utils.GetRsaPrivateKeyParameter(certificate);
-                RsaKeyParameters publicKey = X509Utils.GetRsaPublicKeyParameter(certificate);
-
-                ISignatureFactory signatureFactory =
-                    new Asn1SignatureFactory(X509Utils.GetRSAHashAlgorithm(X509Defaults.HashAlgorithmName), signingKey, random);
-
-                Asn1Set attributes = null;
-                X509SubjectAltNameExtension san = certificate.FindExtension<X509SubjectAltNameExtension>();
-                var alternateName = new X509SubjectAltNameExtension(san, san.Critical);
-
-                string applicationUri = null;
-                domainNames ??= [];
-                if (alternateName != null)
+                if (alternateName.Uris.Count > 0)
                 {
-                    if (alternateName.Uris.Count > 0)
+                    applicationUri = alternateName.Uris[0];
+                }
+                foreach (string name in alternateName.DomainNames)
+                {
+                    if (!domainNames.Any(s => s.Equals(name, StringComparison.OrdinalIgnoreCase)))
                     {
-                        applicationUri = alternateName.Uris[0];
-                    }
-                    foreach (string name in alternateName.DomainNames)
-                    {
-                        if (!domainNames.Any(s => s.Equals(name, StringComparison.OrdinalIgnoreCase)))
-                        {
-                            domainNames.Add(name);
-                        }
-                    }
-                    foreach (string ipAddress in alternateName.IPAddresses)
-                    {
-                        if (!domainNames.Any(s => s.Equals(ipAddress, StringComparison.OrdinalIgnoreCase)))
-                        {
-                            domainNames.Add(ipAddress);
-                        }
+                        domainNames.Add(name);
                     }
                 }
-
-                // build CSR extensions
-                var generalNames = new List<GeneralName>();
-
-                if (applicationUri != null)
+                foreach (string ipAddress in alternateName.IPAddresses)
                 {
-                    generalNames.Add(new GeneralName(GeneralName.UniformResourceIdentifier, applicationUri));
+                    if (!domainNames.Any(s => s.Equals(ipAddress, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        domainNames.Add(ipAddress);
+                    }
                 }
-
-                if (domainNames.Count > 0)
-                {
-                    generalNames.AddRange(domainNames.CreateSubjectAlternateNameDomains());
-                }
-
-                if (generalNames.Count > 0)
-                {
-                    IList<DerObjectIdentifier> oids = [];
-                    IList<Org.BouncyCastle.Asn1.X509.X509Extension> values
-                        = [];
-                    oids.Add(Org.BouncyCastle.Asn1.X509.X509Extensions.SubjectAlternativeName);
-                    values.Add(new Org.BouncyCastle.Asn1.X509.X509Extension(false,
-                        new DerOctetString(new GeneralNames([.. generalNames]).GetDerEncoded())));
-                    var attribute = new Org.BouncyCastle.Asn1.Pkcs.AttributePkcs(Org.BouncyCastle.Asn1.Pkcs.PkcsObjectIdentifiers.Pkcs9AtExtensionRequest,
-                        new DerSet(new Org.BouncyCastle.Asn1.X509.X509Extensions(oids, values)));
-                    attributes = new DerSet(attribute);
-                }
-
-                var pkcs10CertificationRequest = new Pkcs10CertificationRequest(
-                    signatureFactory,
-                    new CertificateFactoryX509Name(certificate.SubjectName),
-                    publicKey,
-                    attributes);
-
-                return pkcs10CertificationRequest.GetEncoded();
             }
+
+            // build CSR extensions
+            var generalNames = new List<GeneralName>();
+
+            if (applicationUri != null)
+            {
+                generalNames.Add(new GeneralName(GeneralName.UniformResourceIdentifier, applicationUri));
+            }
+
+            if (domainNames.Count > 0)
+            {
+                generalNames.AddRange(domainNames.CreateSubjectAlternateNameDomains());
+            }
+
+            if (generalNames.Count > 0)
+            {
+                IList<DerObjectIdentifier> oids = [];
+                IList<Org.BouncyCastle.Asn1.X509.X509Extension> values
+                    = [];
+                oids.Add(Org.BouncyCastle.Asn1.X509.X509Extensions.SubjectAlternativeName);
+                values.Add(new Org.BouncyCastle.Asn1.X509.X509Extension(false,
+                    new DerOctetString(new GeneralNames([.. generalNames]).GetDerEncoded())));
+                var attribute = new Org.BouncyCastle.Asn1.Pkcs.AttributePkcs(Org.BouncyCastle.Asn1.Pkcs.PkcsObjectIdentifiers.Pkcs9AtExtensionRequest,
+                    new DerSet(new Org.BouncyCastle.Asn1.X509.X509Extensions(oids, values)));
+                attributes = new DerSet(attribute);
+            }
+
+            var pkcs10CertificationRequest = new Pkcs10CertificationRequest(
+                signatureFactory,
+                new CertificateFactoryX509Name(certificate.SubjectName),
+                publicKey,
+                attributes);
+
+            return pkcs10CertificationRequest.GetEncoded();
         }
 
         /// <summary>
@@ -305,7 +300,7 @@ namespace Opc.Ua.Security.Certificates
             }
             else
             {
-                // self signed 
+                // self signed
                 m_issuerDN = m_subjectDN;
                 m_issuerIssuerAKI = m_subjectDN;
             }
@@ -376,7 +371,7 @@ namespace Opc.Ua.Security.Certificates
 
             if (!m_isCA)
             {
-                // Key usage 
+                // Key usage
                 int keyUsage = KeyUsage.DataEncipherment | KeyUsage.DigitalSignature |
                         KeyUsage.NonRepudiation | KeyUsage.KeyEncipherment;
                 if (IssuerCAKeyCert == null)
@@ -472,50 +467,48 @@ namespace Opc.Ua.Security.Certificates
                 throw new NotSupportedException("Need an issuer certificate with a private key or a signature generator.");
             }
 
-            using (var cfrg = new CryptoApiRandomGenerator())
+            using var cfrg = new CryptoApiRandomGenerator();
+            // cert generators
+            var random = new SecureRandom(cfrg);
+
+            CreateDefaults(cfrg);
+
+            var cg = new X509V3CertificateGenerator();
+            CreateMandatoryFields(cg);
+
+            // create Private/Public Keypair
+            AsymmetricKeyParameter subjectPublicKey = null;
+            AsymmetricKeyParameter subjectPrivateKey = null;
+            using (var rsa = new RSACryptoServiceProvider(m_keySize == 0 ? X509Defaults.RSAKeySize : m_keySize))
             {
-                // cert generators
-                var random = new SecureRandom(cfrg);
-
-                CreateDefaults(cfrg);
-
-                var cg = new X509V3CertificateGenerator();
-                CreateMandatoryFields(cg);
-
-                // create Private/Public Keypair
-                AsymmetricKeyParameter subjectPublicKey = null;
-                AsymmetricKeyParameter subjectPrivateKey = null;
-                using (var rsa = new RSACryptoServiceProvider(m_keySize == 0 ? X509Defaults.RSAKeySize : m_keySize))
-                {
-                    subjectPublicKey = X509Utils.GetRsaPublicKeyParameter(rsa);
-                    subjectPrivateKey = X509Utils.GetRsaPrivateKeyParameter(rsa);
-                }
-
-                cg.SetPublicKey(subjectPublicKey);
-                CreateExtensions(cg, subjectPublicKey);
-
-                // sign certificate
-                if (signatureFactory == null)
-                {
-                    AsymmetricKeyParameter signingKey;
-                    if (IssuerCAKeyCert != null)
-                    {
-                        // signed by issuer
-                        signingKey = X509Utils.GetRsaPrivateKeyParameter(IssuerCAKeyCert);
-                    }
-                    else
-                    {
-                        // self signed
-                        signingKey = subjectPrivateKey;
-                    }
-                    signatureFactory = new Asn1SignatureFactory(
-                        X509Utils.GetRSAHashAlgorithm(HashAlgorithmName), signingKey, random);
-                }
-                Org.BouncyCastle.X509.X509Certificate x509 = cg.Generate(signatureFactory);
-
-                // note: this Pfx has a private key!
-                return X509Utils.CreatePfxWithPrivateKey(x509, null, subjectPrivateKey, passcode, random);
+                subjectPublicKey = X509Utils.GetRsaPublicKeyParameter(rsa);
+                subjectPrivateKey = X509Utils.GetRsaPrivateKeyParameter(rsa);
             }
+
+            cg.SetPublicKey(subjectPublicKey);
+            CreateExtensions(cg, subjectPublicKey);
+
+            // sign certificate
+            if (signatureFactory == null)
+            {
+                AsymmetricKeyParameter signingKey;
+                if (IssuerCAKeyCert != null)
+                {
+                    // signed by issuer
+                    signingKey = X509Utils.GetRsaPrivateKeyParameter(IssuerCAKeyCert);
+                }
+                else
+                {
+                    // self signed
+                    signingKey = subjectPrivateKey;
+                }
+                signatureFactory = new Asn1SignatureFactory(
+                    X509Utils.GetRSAHashAlgorithm(HashAlgorithmName), signingKey, random);
+            }
+            Org.BouncyCastle.X509.X509Certificate x509 = cg.Generate(signatureFactory);
+
+            // note: this Pfx has a private key!
+            return X509Utils.CreatePfxWithPrivateKey(x509, null, subjectPrivateKey, passcode, random);
         }
 
         /// <summary>

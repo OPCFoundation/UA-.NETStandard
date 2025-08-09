@@ -441,19 +441,15 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Category("WriteByteString")]
         public void BinaryEncoder_WriteByteString()
         {
-            using (var stream = new MemoryStream())
+            using var stream = new MemoryStream();
+            string text;
+            using (var encoder = new BinaryEncoder(stream, new ServiceMessageContext(), true))
             {
-                string text;
-                using (var encoder = new BinaryEncoder(stream, new ServiceMessageContext(), true))
-                {
-                    text = WriteByteStringData(encoder);
-                }
-                stream.Position = 0;
-                using (var decoder = new BinaryDecoder(stream, new ServiceMessageContext()))
-                {
-                    ReadByteStringData(decoder);
-                }
+                text = WriteByteStringData(encoder);
             }
+            stream.Position = 0;
+            using var decoder = new BinaryDecoder(stream, new ServiceMessageContext());
+            ReadByteStringData(decoder);
         }
 
         [Test]
@@ -461,42 +457,34 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2265:Do not compare Span<T> to 'null' or 'default'", Justification = "Null compare works with ReadOnlySpan<byte>")]
         public void XmlEncoder_WriteByteString()
         {
-            using (var stream = new MemoryStream())
+            using var stream = new MemoryStream();
+            XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
+            using (var writer = XmlWriter.Create(stream, settings))
+            using (var encoder = new XmlEncoder(new XmlQualifiedName("ByteStrings", Namespaces.OpcUaXsd), writer, new ServiceMessageContext()))
             {
-                XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
-                using (var writer = XmlWriter.Create(stream, settings))
-                using (var encoder = new XmlEncoder(new XmlQualifiedName("ByteStrings", Namespaces.OpcUaXsd), writer, new ServiceMessageContext()))
-                {
-                    string text = WriteByteStringData(encoder);
-                }
-                stream.Position = 0;
-                using (var reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings()))
-                using (var decoder = new XmlDecoder(null, reader, new ServiceMessageContext()))
-                {
-                    ReadByteStringData(decoder);
-                }
+                string text = WriteByteStringData(encoder);
             }
+            stream.Position = 0;
+            using var reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings());
+            using var decoder = new XmlDecoder(null, reader, new ServiceMessageContext());
+            ReadByteStringData(decoder);
         }
 
         [Test]
         [Category("WriteByteString")]
         public void JsonEncoder_WriteByteString()
         {
-            using (var stream = new MemoryStream())
+            using var stream = new MemoryStream();
+            string text;
+            using (var encoder = new JsonEncoder(new ServiceMessageContext(), true, false, stream, true))
             {
-                string text;
-                using (var encoder = new JsonEncoder(new ServiceMessageContext(), true, false, stream, true))
-                {
-                    text = WriteByteStringData(encoder);
-                }
-
-                stream.Position = 0;
-                var jsonTextReader = new JsonTextReader(new StreamReader(stream));
-                using (var decoder = new JsonDecoder(null, jsonTextReader, new ServiceMessageContext()))
-                {
-                    ReadByteStringData(decoder);
-                }
+                text = WriteByteStringData(encoder);
             }
+
+            stream.Position = 0;
+            var jsonTextReader = new JsonTextReader(new StreamReader(stream));
+            using var decoder = new JsonDecoder(null, jsonTextReader, new ServiceMessageContext());
+            ReadByteStringData(decoder);
         }
 
         /// <summary>
@@ -941,14 +929,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     break;
             }
 
-            using (var decoderStream = new MemoryStream(buffer))
-            using (IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, type))
-            {
-                ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(
-                    () => decoder.ReadArray(builtInType.ToString(), matrix.TypeInfo.ValueRank, builtInType));
+            using var decoderStream = new MemoryStream(buffer);
+            using IDecoder decoder = CreateDecoder(encoderType, Context, decoderStream, type);
+            ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(
+                () => decoder.ReadArray(builtInType.ToString(), matrix.TypeInfo.ValueRank, builtInType));
 
-                Assert.AreEqual((StatusCode)StatusCodes.BadEncodingLimitsExceeded, (StatusCode)sre.StatusCode, sre.Message);
-            }
+            Assert.AreEqual((StatusCode)StatusCodes.BadEncodingLimitsExceeded, (StatusCode)sre.StatusCode, sre.Message);
         }
 
         /// <summary>

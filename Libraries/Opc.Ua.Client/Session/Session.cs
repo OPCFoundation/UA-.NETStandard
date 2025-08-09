@@ -743,7 +743,7 @@ namespace Opc.Ua.Client
             {
                 lock (SyncRoot)
                 {
-                    if (value >= kDefaultPublishRequestCount && value <= kMinPublishRequestCountMax)
+                    if (value is >= kDefaultPublishRequestCount and <= kMinPublishRequestCountMax)
                     {
                         m_minPublishRequestCount = value;
                     }
@@ -766,7 +766,7 @@ namespace Opc.Ua.Client
             {
                 lock (SyncRoot)
                 {
-                    if (value >= kDefaultPublishRequestCount && value <= kMaxPublishRequestCountMax)
+                    if (value is >= kDefaultPublishRequestCount and <= kMaxPublishRequestCountMax)
                     {
                         m_maxPublishRequestCount = value;
                     }
@@ -1330,26 +1330,30 @@ namespace Opc.Ua.Client
             if (stream != null)
             {
                 XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
-                using (var writer = XmlWriter.Create(stream, settings))
-                {
-                    var serializer = new DataContractSerializer(typeof(SessionConfiguration));
-                    serializer.WriteObject(writer, sessionConfiguration);
-                }
+                using var writer = XmlWriter.Create(stream, settings);
+                var serializer = new DataContractSerializer(typeof(SessionConfiguration));
+                serializer.WriteObject(writer, sessionConfiguration);
             }
             return sessionConfiguration;
         }
 
         /// <inheritdoc/>
         public void Reconnect()
-            => Reconnect(null, null);
+        {
+            Reconnect(null, null);
+        }
 
         /// <inheritdoc/>
         public void Reconnect(ITransportWaitingConnection connection)
-            => Reconnect(connection, null);
+        {
+            Reconnect(connection, null);
+        }
 
         /// <inheritdoc/>
         public void Reconnect(ITransportChannel channel)
-            => Reconnect(null, channel);
+        {
+            Reconnect(null, channel);
+        }
 
         /// <summary>
         /// Reconnects to the server after a network failure using a waiting connection.
@@ -1444,20 +1448,16 @@ namespace Opc.Ua.Client
             var subscriptionList = new SubscriptionCollection(subscriptions);
             XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
 
-            using (var writer = XmlWriter.Create(stream, settings))
-            {
-                var serializer = new DataContractSerializer(typeof(SubscriptionCollection), knownTypes);
-                serializer.WriteObject(writer, subscriptionList);
-            }
+            using var writer = XmlWriter.Create(stream, settings);
+            var serializer = new DataContractSerializer(typeof(SubscriptionCollection), knownTypes);
+            serializer.WriteObject(writer, subscriptionList);
         }
 
         /// <inheritdoc/>
         public void Save(string filePath, IEnumerable<Subscription> subscriptions, IEnumerable<Type> knownTypes = null)
         {
-            using (var stream = new FileStream(filePath, FileMode.Create))
-            {
-                Save(stream, subscriptions, knownTypes);
-            }
+            using var stream = new FileStream(filePath, FileMode.Create);
+            Save(stream, subscriptions, knownTypes);
         }
 
         /// <inheritdoc/>
@@ -1467,34 +1467,30 @@ namespace Opc.Ua.Client
             XmlReaderSettings settings = Utils.DefaultXmlReaderSettings();
             settings.CloseInput = true;
 
-            using (var reader = XmlReader.Create(stream, settings))
+            using var reader = XmlReader.Create(stream, settings);
+            var serializer = new DataContractSerializer(typeof(SubscriptionCollection), knownTypes);
+            var subscriptions = (SubscriptionCollection)serializer.ReadObject(reader);
+            foreach (Subscription subscription in subscriptions)
             {
-                var serializer = new DataContractSerializer(typeof(SubscriptionCollection), knownTypes);
-                var subscriptions = (SubscriptionCollection)serializer.ReadObject(reader);
-                foreach (Subscription subscription in subscriptions)
+                if (!transferSubscriptions)
                 {
-                    if (!transferSubscriptions)
+                    // ServerId must be reset if the saved list of subscriptions
+                    // is not used to transfer a subscription
+                    foreach (MonitoredItem monitoredItem in subscription.MonitoredItems)
                     {
-                        // ServerId must be reset if the saved list of subscriptions
-                        // is not used to transfer a subscription
-                        foreach (MonitoredItem monitoredItem in subscription.MonitoredItems)
-                        {
-                            monitoredItem.ServerId = 0;
-                        }
+                        monitoredItem.ServerId = 0;
                     }
-                    AddSubscription(subscription);
                 }
-                return subscriptions;
+                AddSubscription(subscription);
             }
+            return subscriptions;
         }
 
         /// <inheritdoc/>
         public IEnumerable<Subscription> Load(string filePath, bool transferSubscriptions = false, IEnumerable<Type> knownTypes = null)
         {
-            using (FileStream stream = File.OpenRead(filePath))
-            {
-                return Load(stream, transferSubscriptions, knownTypes);
-            }
+            using FileStream stream = File.OpenRead(filePath);
+            return Load(stream, transferSubscriptions, knownTypes);
         }
 
         /// <inheritdoc/>
@@ -1635,7 +1631,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ReferenceDescriptionCollection ReadAvailableEncodings(NodeId variableId)
         {
-            if (!(NodeCache.Find(variableId) is VariableNode variable))
+            if (NodeCache.Find(variableId) is not VariableNode variable)
             {
                 throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, "NodeId does not refer to a valid variable node.");
             }
@@ -2872,7 +2868,9 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
         public StatusCode Close(int timeout)
-            => Close(timeout, true);
+        {
+            return Close(timeout, true);
+        }
 
         /// <inheritdoc/>
         public virtual StatusCode Close(int timeout, bool closeChannel)
@@ -4201,17 +4199,17 @@ namespace Opc.Ua.Client
                     // ignore errors on optional attributes
                     if (StatusCode.IsBad(values[ii].StatusCode))
                     {
-                        if (attributeId == Attributes.AccessRestrictions ||
-                            attributeId == Attributes.Description ||
-                            attributeId == Attributes.RolePermissions ||
-                            attributeId == Attributes.UserRolePermissions ||
-                            attributeId == Attributes.UserWriteMask ||
-                            attributeId == Attributes.WriteMask ||
-                            attributeId == Attributes.AccessLevelEx ||
-                            attributeId == Attributes.ArrayDimensions ||
-                            attributeId == Attributes.DataTypeDefinition ||
-                            attributeId == Attributes.InverseName ||
-                            attributeId == Attributes.MinimumSamplingInterval)
+                        if (attributeId is Attributes.AccessRestrictions or
+                            Attributes.Description or
+                            Attributes.RolePermissions or
+                            Attributes.UserRolePermissions or
+                            Attributes.UserWriteMask or
+                            Attributes.WriteMask or
+                            Attributes.AccessLevelEx or
+                            Attributes.ArrayDimensions or
+                            Attributes.DataTypeDefinition or
+                            Attributes.InverseName or
+                            Attributes.MinimumSamplingInterval)
                         {
                             continue;
                         }
@@ -6269,7 +6267,7 @@ namespace Opc.Ua.Client
                                 "Server could not provide an ECDHKey. User authentication not possible.");
                         }
 
-                        if (!(ExtensionObject.ToEncodeable(ii.Value.Value as ExtensionObject) is EphemeralKeyType key))
+                        if (ExtensionObject.ToEncodeable(ii.Value.Value as ExtensionObject) is not EphemeralKeyType key)
                         {
                             throw new ServiceResultException(
                                 StatusCodes.BadDecodingError,

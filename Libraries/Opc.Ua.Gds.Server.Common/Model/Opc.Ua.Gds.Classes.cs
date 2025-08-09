@@ -40,7 +40,7 @@ using Opc.Ua;
 namespace Opc.Ua.Gds
 {
 
-    #if (!OPCUA_EXCLUDE_FindApplicationsMethodState)
+#if (!OPCUA_EXCLUDE_FindApplicationsMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -58,7 +58,7 @@ namespace Opc.Ua.Gds
             return new FindApplicationsMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -81,7 +81,7 @@ namespace Opc.Ua.Gds
            "dW1lbnRzAQEEAAAuAEQEAAAAlgEAAAABACoBASEAAAAMAAAAQXBwbGljYXRpb25zAQEBAAEAAAABAAAA" +
            "AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
 
-        #endif
+#endif
 
         /// <remarks />
         public FindApplicationsMethodStateMethodCallHandler OnCall;
@@ -100,7 +100,7 @@ namespace Opc.Ua.Gds
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -127,7 +127,7 @@ namespace Opc.Ua.Gds
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -163,7 +163,7 @@ namespace Opc.Ua.Gds
 
             return _result.ServiceResult;
         }
-        #endif
+#endif
 
     }
 
@@ -195,9 +195,9 @@ namespace Opc.Ua.Gds
         NodeId _objectId,
         string applicationUri,
         CancellationToken cancellationToken);
-    #endif
+#endif
 
-    #if (!OPCUA_EXCLUDE_RegisterApplicationMethodState)
+#if (!OPCUA_EXCLUDE_RegisterApplicationMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -215,7 +215,7 @@ namespace Opc.Ua.Gds
             return new RegisterApplicationMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -238,7 +238,7 @@ namespace Opc.Ua.Gds
            "cmd1bWVudHMBAQcAAC4ARAcAAACWAQAAAAEAKgEBHAAAAA0AAABBcHBsaWNhdGlvbklkABH/////AAAA" +
            "AAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
 
-        #endif
+#endif
 
         /// <remarks />
         public RegisterApplicationMethodStateMethodCallHandler OnCall;
@@ -257,7 +257,7 @@ namespace Opc.Ua.Gds
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -284,7 +284,7 @@ namespace Opc.Ua.Gds
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -320,7 +320,7 @@ namespace Opc.Ua.Gds
 
             return _result.ServiceResult;
         }
-        #endif
+#endif
 
     }
 
@@ -352,9 +352,9 @@ namespace Opc.Ua.Gds
         NodeId _objectId,
         ApplicationRecordDataType application,
         CancellationToken cancellationToken);
-    #endif
+#endif
 
-    #if (!OPCUA_EXCLUDE_UpdateApplicationMethodState)
+#if (!OPCUA_EXCLUDE_UpdateApplicationMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -372,7 +372,7 @@ namespace Opc.Ua.Gds
             return new UpdateApplicationMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -393,7 +393,7 @@ namespace Opc.Ua.Gds
            "AAAASW5wdXRBcmd1bWVudHMBAbsAAC4ARLsAAACWAQAAAAEAKgEBHAAAAAsAAABBcHBsaWNhdGlvbgEB" +
            "AQD/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
 
-        #endif
+#endif
 
         /// <remarks />
         public UpdateApplicationMethodStateMethodCallHandler OnCall;
@@ -412,7 +412,7 @@ namespace Opc.Ua.Gds
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -434,7 +434,7 @@ namespace Opc.Ua.Gds
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -468,7 +468,7 @@ namespace Opc.Ua.Gds
 
             return _result.ServiceResult;
         }
-        #endif
+#endif
 
     }
 
@@ -497,9 +497,9 @@ namespace Opc.Ua.Gds
         NodeId _objectId,
         ApplicationRecordDataType application,
         CancellationToken cancellationToken);
-    #endif
+#endif
 
-    #if (!OPCUA_EXCLUDE_UnregisterApplicationMethodState)
+#if (!OPCUA_EXCLUDE_UnregisterApplicationMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -517,7 +517,7 @@ namespace Opc.Ua.Gds
             return new UnregisterApplicationMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -538,7 +538,7 @@ namespace Opc.Ua.Gds
            "AAAADgAAAElucHV0QXJndW1lbnRzAQEJAAAuAEQJAAAAlgEAAAABACoBARwAAAANAAAAQXBwbGljYXRp" +
            "b25JZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
 
-        #endif
+#endif
 
         /// <remarks />
         public UnregisterApplicationMethodStateMethodCallHandler OnCall;
@@ -557,7 +557,7 @@ namespace Opc.Ua.Gds
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -579,7 +579,7 @@ namespace Opc.Ua.Gds
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -613,7 +613,7 @@ namespace Opc.Ua.Gds
 
             return _result.ServiceResult;
         }
-        #endif
+#endif
 
     }
 
@@ -642,9 +642,9 @@ namespace Opc.Ua.Gds
         NodeId _objectId,
         NodeId applicationId,
         CancellationToken cancellationToken);
-    #endif
+#endif
 
-    #if (!OPCUA_EXCLUDE_GetApplicationMethodState)
+#if (!OPCUA_EXCLUDE_GetApplicationMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -662,7 +662,7 @@ namespace Opc.Ua.Gds
             return new GetApplicationMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -685,7 +685,7 @@ namespace Opc.Ua.Gds
            "bnRzAQHRAAAuAETRAAAAlgEAAAABACoBARwAAAALAAAAQXBwbGljYXRpb24BAQEA/////wAAAAAAAQAo" +
            "AQEAAAABAAAAAQAAAAEB/////wAAAAA=";
 
-        #endif
+#endif
 
         /// <remarks />
         public GetApplicationMethodStateMethodCallHandler OnCall;
@@ -704,7 +704,7 @@ namespace Opc.Ua.Gds
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -731,7 +731,7 @@ namespace Opc.Ua.Gds
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -767,7 +767,7 @@ namespace Opc.Ua.Gds
 
             return _result.ServiceResult;
         }
-        #endif
+#endif
 
     }
 
@@ -799,9 +799,9 @@ namespace Opc.Ua.Gds
         NodeId _objectId,
         NodeId applicationId,
         CancellationToken cancellationToken);
-    #endif
+#endif
 
-    #if (!OPCUA_EXCLUDE_QueryApplicationsMethodState)
+#if (!OPCUA_EXCLUDE_QueryApplicationsMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -819,7 +819,7 @@ namespace Opc.Ua.Gds
             return new QueryApplicationsMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -847,7 +847,7 @@ namespace Opc.Ua.Gds
            "AAAAAAEAKgEBGwAAAAwAAABOZXh0UmVjb3JkSWQAB/////8AAAAAAAEAKgEBIQAAAAwAAABBcHBsaWNh" +
            "dGlvbnMBADQBAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAMAAAABAf////8AAAAA";
 
-        #endif
+#endif
 
         /// <remarks />
         public QueryApplicationsMethodStateMethodCallHandler OnCall;
@@ -866,7 +866,7 @@ namespace Opc.Ua.Gds
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -911,7 +911,7 @@ namespace Opc.Ua.Gds
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -961,7 +961,7 @@ namespace Opc.Ua.Gds
 
             return _result.ServiceResult;
         }
-        #endif
+#endif
 
     }
 
@@ -1011,9 +1011,9 @@ namespace Opc.Ua.Gds
         string productUri,
         string[] capabilities,
         CancellationToken cancellationToken);
-    #endif
+#endif
 
-    #if (!OPCUA_EXCLUDE_QueryServersMethodState)
+#if (!OPCUA_EXCLUDE_QueryServersMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -1031,7 +1031,7 @@ namespace Opc.Ua.Gds
             return new QueryServersMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -1058,7 +1058,7 @@ namespace Opc.Ua.Gds
            "bnRlclJlc2V0VGltZQEAJgH/////AAAAAAABACoBARwAAAAHAAAAU2VydmVycwEAnS8BAAAAAQAAAAAA" +
            "AAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAA=";
 
-        #endif
+#endif
 
         /// <remarks />
         public QueryServersMethodStateMethodCallHandler OnCall;
@@ -1077,7 +1077,7 @@ namespace Opc.Ua.Gds
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -1117,7 +1117,7 @@ namespace Opc.Ua.Gds
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -1164,7 +1164,7 @@ namespace Opc.Ua.Gds
 
             return _result.ServiceResult;
         }
-        #endif
+#endif
 
     }
 
@@ -1209,9 +1209,9 @@ namespace Opc.Ua.Gds
         string productUri,
         string[] serverCapabilities,
         CancellationToken cancellationToken);
-    #endif
+#endif
 
-    #if (!OPCUA_EXCLUDE_DirectoryState)
+#if (!OPCUA_EXCLUDE_DirectoryState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -1229,7 +1229,7 @@ namespace Opc.Ua.Gds
             return Opc.Ua.NodeId.Create(Opc.Ua.Gds.ObjectTypes.DirectoryType, Opc.Ua.Gds.Namespaces.OpcUaGds, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -1294,7 +1294,7 @@ namespace Opc.Ua.Gds
            "////AAAAAAABACoBARwAAAAHAAAAU2VydmVycwEAnS8BAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAgAA" +
            "AAEB/////wAAAAA=";
 
-        #endif
+#endif
 
         /// <remarks />
         public FolderState Applications
@@ -1495,7 +1495,7 @@ namespace Opc.Ua.Gds
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -1699,9 +1699,9 @@ namespace Opc.Ua.Gds
         private QueryServersMethodState m_queryServersMethod;
 
     }
-    #endif
+#endif
 
-    #if (!OPCUA_EXCLUDE_ApplicationRegistrationChangedAuditEventState)
+#if (!OPCUA_EXCLUDE_ApplicationRegistrationChangedAuditEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -1719,7 +1719,7 @@ namespace Opc.Ua.Gds
             return Opc.Ua.NodeId.Create(Opc.Ua.Gds.ObjectTypes.ApplicationRegistrationChangedAuditEventType, Opc.Ua.Gds.Namespaces.OpcUaGds, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -1760,12 +1760,12 @@ namespace Opc.Ua.Gds
            "YIkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAgEAVUIPAAAuAERVQg8AABgBAAAAAQAAAAAAAAABAf//" +
            "//8AAAAA";
 
-        #endif
+#endif
 
     }
-    #endif
+#endif
 
-    #if (!OPCUA_EXCLUDE_StartSigningRequestMethodState)
+#if (!OPCUA_EXCLUDE_StartSigningRequestMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -1783,7 +1783,7 @@ namespace Opc.Ua.Gds
             return new StartSigningRequestMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -1808,7 +1808,7 @@ namespace Opc.Ua.Gds
            "dHB1dEFyZ3VtZW50cwEBNQAALgBENQAAAJYBAAAAAQAqAQEYAAAACQAAAFJlcXVlc3RJZAAR/////wAA" +
            "AAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
 
-        #endif
+#endif
 
         /// <remarks />
         public StartSigningRequestMethodStateMethodCallHandler OnCall;
@@ -1827,7 +1827,7 @@ namespace Opc.Ua.Gds
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -1860,7 +1860,7 @@ namespace Opc.Ua.Gds
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -1902,7 +1902,7 @@ namespace Opc.Ua.Gds
 
             return _result.ServiceResult;
         }
-        #endif
+#endif
 
     }
 
@@ -1940,9 +1940,9 @@ namespace Opc.Ua.Gds
         NodeId certificateTypeId,
         byte[] certificateRequest,
         CancellationToken cancellationToken);
-    #endif
+#endif
 
-    #if (!OPCUA_EXCLUDE_StartNewKeyPairRequestMethodState)
+#if (!OPCUA_EXCLUDE_StartNewKeyPairRequestMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -1960,7 +1960,7 @@ namespace Opc.Ua.Gds
             return new StartNewKeyPairRequestMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -1987,7 +1987,7 @@ namespace Opc.Ua.Gds
            "dEFyZ3VtZW50cwEBMgAALgBEMgAAAJYBAAAAAQAqAQEYAAAACQAAAFJlcXVlc3RJZAAR/////wAAAAAA" +
            "AQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
 
-        #endif
+#endif
 
         /// <remarks />
         public StartNewKeyPairRequestMethodStateMethodCallHandler OnCall;
@@ -2006,7 +2006,7 @@ namespace Opc.Ua.Gds
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -2045,7 +2045,7 @@ namespace Opc.Ua.Gds
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -2093,7 +2093,7 @@ namespace Opc.Ua.Gds
 
             return _result.ServiceResult;
         }
-        #endif
+#endif
 
     }
 
@@ -2137,9 +2137,9 @@ namespace Opc.Ua.Gds
         string privateKeyFormat,
         string privateKeyPassword,
         CancellationToken cancellationToken);
-    #endif
+#endif
 
-    #if (!OPCUA_EXCLUDE_FinishRequestMethodState)
+#if (!OPCUA_EXCLUDE_FinishRequestMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -2157,7 +2157,7 @@ namespace Opc.Ua.Gds
             return new FinishRequestMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -2182,7 +2182,7 @@ namespace Opc.Ua.Gds
            "AAEAKgEBJQAAABIAAABJc3N1ZXJDZXJ0aWZpY2F0ZXMADwEAAAABAAAAAAAAAAABACgBAQAAAAEAAAAD" +
            "AAAAAQH/////AAAAAA==";
 
-        #endif
+#endif
 
         /// <remarks />
         public FinishRequestMethodStateMethodCallHandler OnCall;
@@ -2201,7 +2201,7 @@ namespace Opc.Ua.Gds
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -2236,7 +2236,7 @@ namespace Opc.Ua.Gds
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -2276,7 +2276,7 @@ namespace Opc.Ua.Gds
 
             return _result.ServiceResult;
         }
-        #endif
+#endif
 
     }
 
@@ -2316,9 +2316,9 @@ namespace Opc.Ua.Gds
         NodeId applicationId,
         NodeId requestId,
         CancellationToken cancellationToken);
-    #endif
+#endif
 
-    #if (!OPCUA_EXCLUDE_GetCertificateGroupsMethodState)
+#if (!OPCUA_EXCLUDE_GetCertificateGroupsMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -2336,7 +2336,7 @@ namespace Opc.Ua.Gds
             return new GetCertificateGroupsMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -2359,7 +2359,7 @@ namespace Opc.Ua.Gds
            "QXJndW1lbnRzAQHoAAAuAEToAAAAlgEAAAABACoBASYAAAATAAAAQ2VydGlmaWNhdGVHcm91cElkcwAR" +
            "AQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAA";
 
-        #endif
+#endif
 
         /// <remarks />
         public GetCertificateGroupsMethodStateMethodCallHandler OnCall;
@@ -2378,7 +2378,7 @@ namespace Opc.Ua.Gds
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -2405,7 +2405,7 @@ namespace Opc.Ua.Gds
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -2441,7 +2441,7 @@ namespace Opc.Ua.Gds
 
             return _result.ServiceResult;
         }
-        #endif
+#endif
 
     }
 
@@ -2473,9 +2473,9 @@ namespace Opc.Ua.Gds
         NodeId _objectId,
         NodeId applicationId,
         CancellationToken cancellationToken);
-    #endif
+#endif
 
-    #if (!OPCUA_EXCLUDE_GetTrustListMethodState)
+#if (!OPCUA_EXCLUDE_GetTrustListMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -2493,7 +2493,7 @@ namespace Opc.Ua.Gds
             return new GetTrustListMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -2517,7 +2517,7 @@ namespace Opc.Ua.Gds
            "AQAqAQEaAAAACwAAAFRydXN0TGlzdElkABH/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAA" +
            "AA==";
 
-        #endif
+#endif
 
         /// <remarks />
         public GetTrustListMethodStateMethodCallHandler OnCall;
@@ -2536,7 +2536,7 @@ namespace Opc.Ua.Gds
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -2565,7 +2565,7 @@ namespace Opc.Ua.Gds
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -2603,7 +2603,7 @@ namespace Opc.Ua.Gds
 
             return _result.ServiceResult;
         }
-        #endif
+#endif
 
     }
 
@@ -2637,9 +2637,9 @@ namespace Opc.Ua.Gds
         NodeId applicationId,
         NodeId certificateGroupId,
         CancellationToken cancellationToken);
-    #endif
+#endif
 
-    #if (!OPCUA_EXCLUDE_RevokeCertificateMethodState)
+#if (!OPCUA_EXCLUDE_RevokeCertificateMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -2657,7 +2657,7 @@ namespace Opc.Ua.Gds
             return new RevokeCertificateMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -2679,7 +2679,7 @@ namespace Opc.Ua.Gds
            "ABH/////AAAAAAABACoBARoAAAALAAAAQ2VydGlmaWNhdGUAD/////8AAAAAAAEAKAEBAAAAAQAAAAIA" +
            "AAABAf////8AAAAA";
 
-        #endif
+#endif
 
         /// <remarks />
         public RevokeCertificateMethodStateMethodCallHandler OnCall;
@@ -2698,7 +2698,7 @@ namespace Opc.Ua.Gds
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -2722,7 +2722,7 @@ namespace Opc.Ua.Gds
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -2758,7 +2758,7 @@ namespace Opc.Ua.Gds
 
             return _result.ServiceResult;
         }
-        #endif
+#endif
 
     }
 
@@ -2789,9 +2789,9 @@ namespace Opc.Ua.Gds
         NodeId applicationId,
         byte[] certificate,
         CancellationToken cancellationToken);
-    #endif
+#endif
 
-    #if (!OPCUA_EXCLUDE_GetCertificateStatusMethodState)
+#if (!OPCUA_EXCLUDE_GetCertificateStatusMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -2809,7 +2809,7 @@ namespace Opc.Ua.Gds
             return new GetCertificateStatusMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -2833,7 +2833,7 @@ namespace Opc.Ua.Gds
            "AAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAd0AAC4ARN0AAACWAQAAAAEAKgEBHQAAAA4A" +
            "AABVcGRhdGVSZXF1aXJlZAAB/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
 
-        #endif
+#endif
 
         /// <remarks />
         public GetCertificateStatusMethodStateMethodCallHandler OnCall;
@@ -2852,7 +2852,7 @@ namespace Opc.Ua.Gds
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -2883,7 +2883,7 @@ namespace Opc.Ua.Gds
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -2923,7 +2923,7 @@ namespace Opc.Ua.Gds
 
             return _result.ServiceResult;
         }
-        #endif
+#endif
 
     }
 
@@ -2959,9 +2959,9 @@ namespace Opc.Ua.Gds
         NodeId certificateGroupId,
         NodeId certificateTypeId,
         CancellationToken cancellationToken);
-    #endif
+#endif
 
-    #if (!OPCUA_EXCLUDE_GetCertificatesMethodState)
+#if (!OPCUA_EXCLUDE_GetCertificatesMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -2979,7 +2979,7 @@ namespace Opc.Ua.Gds
             return new GetCertificatesMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -3003,7 +3003,7 @@ namespace Opc.Ua.Gds
            "AAAAAQAqAQElAAAAEgAAAENlcnRpZmljYXRlVHlwZUlkcwARAQAAAAEAAAAAAAAAAAEAKgEBHwAAAAwA" +
            "AABDZXJ0aWZpY2F0ZXMADwEAAAABAAAAAAAAAAABACgBAQAAAAEAAAACAAAAAQH/////AAAAAA==";
 
-        #endif
+#endif
 
         /// <remarks />
         public GetCertificatesMethodStateMethodCallHandler OnCall;
@@ -3022,7 +3022,7 @@ namespace Opc.Ua.Gds
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -3054,7 +3054,7 @@ namespace Opc.Ua.Gds
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -3093,7 +3093,7 @@ namespace Opc.Ua.Gds
 
             return _result.ServiceResult;
         }
-        #endif
+#endif
 
     }
 
@@ -3130,9 +3130,9 @@ namespace Opc.Ua.Gds
         NodeId applicationId,
         NodeId certificateGroupId,
         CancellationToken cancellationToken);
-    #endif
+#endif
 
-    #if (!OPCUA_EXCLUDE_CheckRevocationStatusMethodState)
+#if (!OPCUA_EXCLUDE_CheckRevocationStatusMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -3150,7 +3150,7 @@ namespace Opc.Ua.Gds
             return new CheckRevocationStatusMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -3174,7 +3174,7 @@ namespace Opc.Ua.Gds
            "/wAAAAAAAQAqAQEdAAAADAAAAFZhbGlkaXR5VGltZQEAJgH/////AAAAAAABACgBAQAAAAEAAAACAAAA" +
            "AQH/////AAAAAA==";
 
-        #endif
+#endif
 
         /// <remarks />
         public CheckRevocationStatusMethodStateMethodCallHandler OnCall;
@@ -3193,7 +3193,7 @@ namespace Opc.Ua.Gds
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -3223,7 +3223,7 @@ namespace Opc.Ua.Gds
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -3260,7 +3260,7 @@ namespace Opc.Ua.Gds
 
             return _result.ServiceResult;
         }
-        #endif
+#endif
 
     }
 
@@ -3295,9 +3295,9 @@ namespace Opc.Ua.Gds
         NodeId _objectId,
         byte[] certificate,
         CancellationToken cancellationToken);
-    #endif
+#endif
 
-    #if (!OPCUA_EXCLUDE_CertificateDirectoryState)
+#if (!OPCUA_EXCLUDE_CertificateDirectoryState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -3315,7 +3315,7 @@ namespace Opc.Ua.Gds
             return Opc.Ua.NodeId.Create(Opc.Ua.Gds.ObjectTypes.CertificateDirectoryType, Opc.Ua.Gds.Namespaces.OpcUaGds, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -3517,7 +3517,7 @@ namespace Opc.Ua.Gds
            "AENlcnRpZmljYXRlU3RhdHVzABP/////AAAAAAABACoBAR0AAAAMAAAAVmFsaWRpdHlUaW1lAQAmAf//" +
            "//8AAAAAAAEAKAEBAAAAAQAAAAIAAAABAf////8AAAAA";
 
-        #endif
+#endif
 
         /// <remarks />
         public CertificateGroupFolderState CertificateGroups
@@ -3766,7 +3766,7 @@ namespace Opc.Ua.Gds
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -4014,9 +4014,9 @@ namespace Opc.Ua.Gds
         private CheckRevocationStatusMethodState m_checkRevocationStatusMethod;
 
     }
-    #endif
+#endif
 
-    #if (!OPCUA_EXCLUDE_CertificateRequestedAuditEventState)
+#if (!OPCUA_EXCLUDE_CertificateRequestedAuditEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -4034,7 +4034,7 @@ namespace Opc.Ua.Gds
             return Opc.Ua.NodeId.Create(Opc.Ua.Gds.ObjectTypes.CertificateRequestedAuditEventType, Opc.Ua.Gds.Namespaces.OpcUaGds, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -4076,7 +4076,7 @@ namespace Opc.Ua.Gds
            "AgAAAAEAEAAAAENlcnRpZmljYXRlR3JvdXABAc0CAC4ARM0CAAAAEf////8BAf////8AAAAAFWCJCgIA" +
            "AAABAA8AAABDZXJ0aWZpY2F0ZVR5cGUBAc4CAC4ARM4CAAAAEf////8BAf////8AAAAA";
 
-        #endif
+#endif
 
         /// <remarks />
         public PropertyState<NodeId> CertificateGroup
@@ -4133,7 +4133,7 @@ namespace Opc.Ua.Gds
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -4205,9 +4205,9 @@ namespace Opc.Ua.Gds
         private PropertyState<NodeId> m_certificateType;
 
     }
-    #endif
+#endif
 
-    #if (!OPCUA_EXCLUDE_CertificateDeliveredAuditEventState)
+#if (!OPCUA_EXCLUDE_CertificateDeliveredAuditEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -4225,7 +4225,7 @@ namespace Opc.Ua.Gds
             return Opc.Ua.NodeId.Create(Opc.Ua.Gds.ObjectTypes.CertificateDeliveredAuditEventType, Opc.Ua.Gds.Namespaces.OpcUaGds, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -4267,7 +4267,7 @@ namespace Opc.Ua.Gds
            "AgAAAAEAEAAAAENlcnRpZmljYXRlR3JvdXABAc8CAC4ARM8CAAAAEf////8BAf////8AAAAAFWCJCgIA" +
            "AAABAA8AAABDZXJ0aWZpY2F0ZVR5cGUBAdACAC4ARNACAAAAEf////8BAf////8AAAAA";
 
-        #endif
+#endif
 
         /// <remarks />
         public PropertyState<NodeId> CertificateGroup
@@ -4324,7 +4324,7 @@ namespace Opc.Ua.Gds
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -4396,9 +4396,9 @@ namespace Opc.Ua.Gds
         private PropertyState<NodeId> m_certificateType;
 
     }
-    #endif
+#endif
 
-    #if (!OPCUA_EXCLUDE_CertificateRevokedAuditEventState)
+#if (!OPCUA_EXCLUDE_CertificateRevokedAuditEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -4416,7 +4416,7 @@ namespace Opc.Ua.Gds
             return Opc.Ua.NodeId.Create(Opc.Ua.Gds.ObjectTypes.CertificateRevokedAuditEventType, Opc.Ua.Gds.Namespaces.OpcUaGds, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -4456,12 +4456,12 @@ namespace Opc.Ua.Gds
            "AAAAAAgAAABNZXRob2RJZAIBAKlCDwAALgBEqUIPAAAR/////wEB/////wAAAAAXYIkKAgAAAAAADgAA" +
            "AElucHV0QXJndW1lbnRzAgEAq0IPAAAuAESrQg8AABgBAAAAAQAAAAAAAAABAf////8AAAAA";
 
-        #endif
+#endif
 
     }
-    #endif
+#endif
 
-    #if (!OPCUA_EXCLUDE_KeyCredentialManagementFolderState)
+#if (!OPCUA_EXCLUDE_KeyCredentialManagementFolderState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -4479,7 +4479,7 @@ namespace Opc.Ua.Gds
             return Opc.Ua.NodeId.Create(Opc.Ua.Gds.ObjectTypes.KeyCredentialManagementFolderType, Opc.Ua.Gds.Namespaces.OpcUaGds, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -4505,12 +4505,12 @@ namespace Opc.Ua.Gds
            "AQAAACAAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvR0RTL/////8EYIACAQAAAAEAKQAAAEtl" +
            "eUNyZWRlbnRpYWxNYW5hZ2VtZW50Rm9sZGVyVHlwZUluc3RhbmNlAQE3AAEBNwA3AAAA/////wAAAAA=";
 
-        #endif
+#endif
 
     }
-    #endif
+#endif
 
-    #if (!OPCUA_EXCLUDE_KeyCredentialServiceState)
+#if (!OPCUA_EXCLUDE_KeyCredentialServiceState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -4528,7 +4528,7 @@ namespace Opc.Ua.Gds
             return Opc.Ua.NodeId.Create(Opc.Ua.Gds.ObjectTypes.KeyCredentialServiceType, Opc.Ua.Gds.Namespaces.OpcUaGds, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -4594,7 +4594,7 @@ namespace Opc.Ua.Gds
            "dEFyZ3VtZW50cwEBBgQALgBEBgQAAJYBAAAAAQAqAQEbAAAADAAAAENyZWRlbnRpYWxJZAAM/////wAA" +
            "AAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
 
-        #endif
+#endif
 
         /// <remarks />
         public PropertyState<string> ResourceUri
@@ -4747,7 +4747,7 @@ namespace Opc.Ua.Gds
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -4907,9 +4907,9 @@ namespace Opc.Ua.Gds
         private KeyCredentialRevokeMethodState m_revokeMethod;
 
     }
-    #endif
+#endif
 
-    #if (!OPCUA_EXCLUDE_KeyCredentialStartRequestMethodState)
+#if (!OPCUA_EXCLUDE_KeyCredentialStartRequestMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -4927,7 +4927,7 @@ namespace Opc.Ua.Gds
             return new KeyCredentialStartRequestMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -4952,7 +4952,7 @@ namespace Opc.Ua.Gds
            "dXRBcmd1bWVudHMBAQkEAC4ARAkEAACWAQAAAAEAKgEBGAAAAAkAAABSZXF1ZXN0SWQAEf////8AAAAA" +
            "AAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAA";
 
-        #endif
+#endif
 
         /// <remarks />
         public KeyCredentialStartRequestMethodStateMethodCallHandler OnCall;
@@ -4971,7 +4971,7 @@ namespace Opc.Ua.Gds
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -5004,7 +5004,7 @@ namespace Opc.Ua.Gds
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -5046,7 +5046,7 @@ namespace Opc.Ua.Gds
 
             return _result.ServiceResult;
         }
-        #endif
+#endif
 
     }
 
@@ -5084,9 +5084,9 @@ namespace Opc.Ua.Gds
         string securityPolicyUri,
         NodeId[] requestedRoles,
         CancellationToken cancellationToken);
-    #endif
+#endif
 
-    #if (!OPCUA_EXCLUDE_KeyCredentialFinishRequestMethodState)
+#if (!OPCUA_EXCLUDE_KeyCredentialFinishRequestMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -5104,7 +5104,7 @@ namespace Opc.Ua.Gds
             return new KeyCredentialFinishRequestMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -5130,7 +5130,7 @@ namespace Opc.Ua.Gds
            "/wAAAAAAAQAqAQEgAAAAEQAAAFNlY3VyaXR5UG9saWN5VXJpAAz/////AAAAAAABACoBAR8AAAAMAAAA" +
            "R3JhbnRlZFJvbGVzABEBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAABQAAAAEB/////wAAAAA=";
 
-        #endif
+#endif
 
         /// <remarks />
         public KeyCredentialFinishRequestMethodStateMethodCallHandler OnCall;
@@ -5149,7 +5149,7 @@ namespace Opc.Ua.Gds
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -5190,7 +5190,7 @@ namespace Opc.Ua.Gds
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -5232,7 +5232,7 @@ namespace Opc.Ua.Gds
 
             return _result.ServiceResult;
         }
-        #endif
+#endif
 
     }
 
@@ -5278,9 +5278,9 @@ namespace Opc.Ua.Gds
         NodeId requestId,
         bool cancelRequest,
         CancellationToken cancellationToken);
-    #endif
+#endif
 
-    #if (!OPCUA_EXCLUDE_KeyCredentialRevokeMethodState)
+#if (!OPCUA_EXCLUDE_KeyCredentialRevokeMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -5298,7 +5298,7 @@ namespace Opc.Ua.Gds
             return new KeyCredentialRevokeMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -5319,7 +5319,7 @@ namespace Opc.Ua.Gds
            "AA4AAABJbnB1dEFyZ3VtZW50cwEBDgQALgBEDgQAAJYBAAAAAQAqAQEbAAAADAAAAENyZWRlbnRpYWxJ" +
            "ZAAM/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
 
-        #endif
+#endif
 
         /// <remarks />
         public KeyCredentialRevokeMethodStateMethodCallHandler OnCall;
@@ -5338,7 +5338,7 @@ namespace Opc.Ua.Gds
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -5360,7 +5360,7 @@ namespace Opc.Ua.Gds
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -5394,7 +5394,7 @@ namespace Opc.Ua.Gds
 
             return _result.ServiceResult;
         }
-        #endif
+#endif
 
     }
 
@@ -5423,9 +5423,9 @@ namespace Opc.Ua.Gds
         NodeId _objectId,
         string credentialId,
         CancellationToken cancellationToken);
-    #endif
+#endif
 
-    #if (!OPCUA_EXCLUDE_KeyCredentialRequestedAuditEventState)
+#if (!OPCUA_EXCLUDE_KeyCredentialRequestedAuditEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -5443,7 +5443,7 @@ namespace Opc.Ua.Gds
             return Opc.Ua.NodeId.Create(Opc.Ua.Gds.ObjectTypes.KeyCredentialRequestedAuditEventType, Opc.Ua.Gds.Namespaces.OpcUaGds, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -5484,12 +5484,12 @@ namespace Opc.Ua.Gds
            "AA4AAABJbnB1dEFyZ3VtZW50cwIBAM1CDwAALgBEzUIPAAAYAQAAAAEAAAAAAAAAAQH/////AAAAABVg" +
            "iQoCAAAAAAALAAAAUmVzb3VyY2VVcmkCAQDPQg8AAC4ARM9CDwAADP////8BAf////8AAAAA";
 
-        #endif
+#endif
 
     }
-    #endif
+#endif
 
-    #if (!OPCUA_EXCLUDE_KeyCredentialDeliveredAuditEventState)
+#if (!OPCUA_EXCLUDE_KeyCredentialDeliveredAuditEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -5507,7 +5507,7 @@ namespace Opc.Ua.Gds
             return Opc.Ua.NodeId.Create(Opc.Ua.Gds.ObjectTypes.KeyCredentialDeliveredAuditEventType, Opc.Ua.Gds.Namespaces.OpcUaGds, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -5548,12 +5548,12 @@ namespace Opc.Ua.Gds
            "AA4AAABJbnB1dEFyZ3VtZW50cwIBAORCDwAALgBE5EIPAAAYAQAAAAEAAAAAAAAAAQH/////AAAAABVg" +
            "iQoCAAAAAAALAAAAUmVzb3VyY2VVcmkCAQDmQg8AAC4AROZCDwAADP////8BAf////8AAAAA";
 
-        #endif
+#endif
 
     }
-    #endif
+#endif
 
-    #if (!OPCUA_EXCLUDE_KeyCredentialRevokedAuditEventState)
+#if (!OPCUA_EXCLUDE_KeyCredentialRevokedAuditEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -5571,7 +5571,7 @@ namespace Opc.Ua.Gds
             return Opc.Ua.NodeId.Create(Opc.Ua.Gds.ObjectTypes.KeyCredentialRevokedAuditEventType, Opc.Ua.Gds.Namespaces.OpcUaGds, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -5612,12 +5612,12 @@ namespace Opc.Ua.Gds
            "AAAASW5wdXRBcmd1bWVudHMCAQD7Qg8AAC4ARPtCDwAAGAEAAAABAAAAAAAAAAEB/////wAAAAAVYIkK" +
            "AgAAAAAACwAAAFJlc291cmNlVXJpAgEA/UIPAAAuAET9Qg8AAAz/////AQH/////AAAAAA==";
 
-        #endif
+#endif
 
     }
-    #endif
+#endif
 
-    #if (!OPCUA_EXCLUDE_AuthorizationServicesFolderState)
+#if (!OPCUA_EXCLUDE_AuthorizationServicesFolderState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -5635,7 +5635,7 @@ namespace Opc.Ua.Gds
             return Opc.Ua.NodeId.Create(Opc.Ua.Gds.ObjectTypes.AuthorizationServicesFolderType, Opc.Ua.Gds.Namespaces.OpcUaGds, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -5661,12 +5661,12 @@ namespace Opc.Ua.Gds
            "AQAAACAAAABodHRwOi8vb3BjZm91bmRhdGlvbi5vcmcvVUEvR0RTL/////8EYIACAQAAAAEAJwAAAEF1" +
            "dGhvcml6YXRpb25TZXJ2aWNlc0ZvbGRlclR5cGVJbnN0YW5jZQEB6QABAekA6QAAAP////8AAAAA";
 
-        #endif
+#endif
 
     }
-    #endif
+#endif
 
-    #if (!OPCUA_EXCLUDE_AuthorizationServiceState)
+#if (!OPCUA_EXCLUDE_AuthorizationServiceState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -5684,7 +5684,7 @@ namespace Opc.Ua.Gds
             return Opc.Ua.NodeId.Create(Opc.Ua.Gds.ObjectTypes.AuthorizationServiceType, Opc.Ua.Gds.Namespaces.OpcUaGds, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -5745,7 +5745,7 @@ namespace Opc.Ua.Gds
            "AETLAwAAlgEAAAABACoBARoAAAALAAAAQWNjZXNzVG9rZW4ADP////8AAAAAAAEAKAEBAAAAAQAAAAEA" +
            "AAABAf////8AAAAA";
 
-        #endif
+#endif
 
         /// <remarks />
         public PropertyState<string> ServiceUri
@@ -5874,7 +5874,7 @@ namespace Opc.Ua.Gds
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -6012,9 +6012,9 @@ namespace Opc.Ua.Gds
         private RequestAccessTokenMethodState m_requestAccessTokenMethod;
 
     }
-    #endif
+#endif
 
-    #if (!OPCUA_EXCLUDE_GetServiceDescriptionMethodState)
+#if (!OPCUA_EXCLUDE_GetServiceDescriptionMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -6032,7 +6032,7 @@ namespace Opc.Ua.Gds
             return new GetServiceDescriptionMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -6055,7 +6055,7 @@ namespace Opc.Ua.Gds
            "JgAAABEAAABVc2VyVG9rZW5Qb2xpY2llcwEAMAEBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAwAAAAEB" +
            "/////wAAAAA=";
 
-        #endif
+#endif
 
         /// <remarks />
         public GetServiceDescriptionMethodStateMethodCallHandler OnCall;
@@ -6074,7 +6074,7 @@ namespace Opc.Ua.Gds
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -6104,7 +6104,7 @@ namespace Opc.Ua.Gds
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -6139,7 +6139,7 @@ namespace Opc.Ua.Gds
 
             return _result.ServiceResult;
         }
-        #endif
+#endif
 
     }
 
@@ -6175,9 +6175,9 @@ namespace Opc.Ua.Gds
         MethodState _method,
         NodeId _objectId,
         CancellationToken cancellationToken);
-    #endif
+#endif
 
-    #if (!OPCUA_EXCLUDE_RequestAccessTokenMethodState)
+#if (!OPCUA_EXCLUDE_RequestAccessTokenMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -6195,7 +6195,7 @@ namespace Opc.Ua.Gds
             return new RequestAccessTokenMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -6219,7 +6219,7 @@ namespace Opc.Ua.Gds
            "AQAqAQEaAAAACwAAAEFjY2Vzc1Rva2VuAAz/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAA" +
            "AA==";
 
-        #endif
+#endif
 
         /// <remarks />
         public RequestAccessTokenMethodStateMethodCallHandler OnCall;
@@ -6238,7 +6238,7 @@ namespace Opc.Ua.Gds
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -6267,7 +6267,7 @@ namespace Opc.Ua.Gds
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -6305,7 +6305,7 @@ namespace Opc.Ua.Gds
 
             return _result.ServiceResult;
         }
-        #endif
+#endif
 
     }
 
@@ -6339,9 +6339,9 @@ namespace Opc.Ua.Gds
         Opc.Ua.UserIdentityToken identityToken,
         string resourceId,
         CancellationToken cancellationToken);
-    #endif
+#endif
 
-    #if (!OPCUA_EXCLUDE_AccessTokenIssuedAuditEventState)
+#if (!OPCUA_EXCLUDE_AccessTokenIssuedAuditEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -6359,7 +6359,7 @@ namespace Opc.Ua.Gds
             return Opc.Ua.NodeId.Create(Opc.Ua.Gds.ObjectTypes.AccessTokenIssuedAuditEventType, Opc.Ua.Gds.Namespaces.OpcUaGds, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -6399,9 +6399,9 @@ namespace Opc.Ua.Gds
            "AAAACAAAAE1ldGhvZElkAgEAGUMPAAAuAEQZQw8AABH/////AQH/////AAAAABdgiQoCAAAAAAAOAAAA" +
            "SW5wdXRBcmd1bWVudHMCAQAbQw8AAC4ARBtDDwAAGAEAAAABAAAAAAAAAAEB/////wAAAAA=";
 
-        #endif
+#endif
 
     }
-    #endif
+#endif
 
 }

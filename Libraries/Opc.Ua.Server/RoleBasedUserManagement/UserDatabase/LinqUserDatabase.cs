@@ -203,25 +203,22 @@ namespace Opc.Ua.Server.UserDatabase
         {
 #if NETSTANDARD2_0 || NET462
 #pragma warning disable CA5379 // Ensure Key Derivation Function algorithm is sufficiently strong
-            using (var algorithm = new Rfc2898DeriveBytes(
+            using var algorithm = new Rfc2898DeriveBytes(
                 password,
                 kSaltSize,
-                kIterations))
-            {
+                kIterations);
 #pragma warning restore CA5379 // Ensure Key Derivation Function algorithm is sufficiently strong
 #else
-            using (var algorithm = new Rfc2898DeriveBytes(
+            using var algorithm = new Rfc2898DeriveBytes(
                 password,
                 kSaltSize,
                 kIterations,
-                HashAlgorithmName.SHA512))
-            {
+                HashAlgorithmName.SHA512);
 #endif
-                string key = Convert.ToBase64String(algorithm.GetBytes(kKeySize));
-                string salt = Convert.ToBase64String(algorithm.Salt);
+            string key = Convert.ToBase64String(algorithm.GetBytes(kKeySize));
+            string salt = Convert.ToBase64String(algorithm.Salt);
 
-                return $"{kIterations}.{salt}.{key}";
-            }
+            return $"{kIterations}.{salt}.{key}";
         }
 
         private static bool Check(string hash, string password)
@@ -241,24 +238,21 @@ namespace Opc.Ua.Server.UserDatabase
 
 #if NETSTANDARD2_0 || NET462
 #pragma warning disable CA5379 // Ensure Key Derivation Function algorithm is sufficiently strong
-            using (var algorithm = new Rfc2898DeriveBytes(
+            using var algorithm = new Rfc2898DeriveBytes(
                 password,
                 salt,
-                iterations))
-            {
+                iterations);
 #pragma warning restore CA5379 // Ensure Key Derivation Function algorithm is sufficiently strong
 #else
-            using (var algorithm = new Rfc2898DeriveBytes(
+            using var algorithm = new Rfc2898DeriveBytes(
                 password,
                 salt,
                 iterations,
-                HashAlgorithmName.SHA512))
-            {
+                HashAlgorithmName.SHA512);
 #endif
-                byte[] keyToCheck = algorithm.GetBytes(kKeySize);
+            byte[] keyToCheck = algorithm.GetBytes(kKeySize);
 
-                return keyToCheck.SequenceEqual(key);
-            }
+            return keyToCheck.SequenceEqual(key);
         }
 
         [OnDeserialized]

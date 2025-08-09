@@ -48,7 +48,7 @@ namespace Opc.Ua.Client.Tests
     [NonParallelizable]
     public class ReverseConnectTest : ClientTestFramework
     {
-        Uri m_endpointUrl;
+        private Uri m_endpointUrl;
 
         [DatapointSource]
         public static readonly ISessionFactory[] SessionFactories = [TraceableSessionFactory.Instance, TestableSessionFactory.Instance, DefaultSessionFactory.Instance];
@@ -142,11 +142,9 @@ namespace Opc.Ua.Client.Tests
             {
                 var endpointConfiguration = EndpointConfiguration.Create();
                 endpointConfiguration.OperationTimeout = MaxTimeout;
-                using (var client = DiscoveryClient.Create(config, connection, endpointConfiguration))
-                {
-                    Endpoints = await client.GetEndpointsAsync(null, cancellationTokenSource.Token).ConfigureAwait(false);
-                    await client.CloseAsync(cancellationTokenSource.Token).ConfigureAwait(false);
-                }
+                using var client = DiscoveryClient.Create(config, connection, endpointConfiguration);
+                Endpoints = await client.GetEndpointsAsync(null, cancellationTokenSource.Token).ConfigureAwait(false);
+                await client.CloseAsync(cancellationTokenSource.Token).ConfigureAwait(false);
             }
         }
 

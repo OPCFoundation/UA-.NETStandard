@@ -64,10 +64,8 @@ namespace Opc.Ua.Schema.Xml
         /// </summary>
         public void Validate(string inputPath)
         {
-            using (Stream istrm = File.OpenRead(inputPath))
-            {
-                Validate(istrm);
-            }
+            using Stream istrm = File.OpenRead(inputPath);
+            Validate(istrm);
         }
 
         /// <summary>
@@ -75,44 +73,38 @@ namespace Opc.Ua.Schema.Xml
         /// </summary>
         public void Validate(Stream stream)
         {
-            using (var xmlReader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings()))
+            using var xmlReader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings());
+            m_schema = XmlSchema.Read(xmlReader, new ValidationEventHandler(OnValidate));
+
+            Assembly assembly = typeof(XmlSchemaValidator).GetTypeInfo().Assembly;
+            foreach (XmlSchemaImport import in m_schema.Includes.OfType<XmlSchemaImport>())
             {
-                m_schema = XmlSchema.Read(xmlReader, new ValidationEventHandler(OnValidate));
+                string location = null;
 
-                Assembly assembly = typeof(XmlSchemaValidator).GetTypeInfo().Assembly;
-                foreach (XmlSchemaImport import in m_schema.Includes.OfType<XmlSchemaImport>())
+                if (!KnownFiles.TryGetValue(import.Namespace, out location))
                 {
-                    string location = null;
-
-                    if (!KnownFiles.TryGetValue(import.Namespace, out location))
-                    {
-                        location = import.SchemaLocation;
-                    }
-
-                    var fileInfo = new FileInfo(location);
-                    XmlReaderSettings settings = Utils.DefaultXmlReaderSettings();
-                    if (!fileInfo.Exists)
-                    {
-                        using (var strm = new StreamReader(assembly.GetManifestResourceStream(location)))
-                        using (var schemaReader = XmlReader.Create(strm, settings))
-                        {
-                            import.Schema = XmlSchema.Read(schemaReader, new ValidationEventHandler(OnValidate));
-                        }
-                    }
-                    else
-                    {
-                        using (Stream strm = File.OpenRead(location))
-                        using (var schemaReader = XmlReader.Create(strm, settings))
-                        {
-                            import.Schema = XmlSchema.Read(schemaReader, new ValidationEventHandler(OnValidate));
-                        }
-                    }
+                    location = import.SchemaLocation;
                 }
 
-                m_schemaSet = new XmlSchemaSet();
-                m_schemaSet.Add(m_schema);
-                m_schemaSet.Compile();
+                var fileInfo = new FileInfo(location);
+                XmlReaderSettings settings = Utils.DefaultXmlReaderSettings();
+                if (!fileInfo.Exists)
+                {
+                    using var strm = new StreamReader(assembly.GetManifestResourceStream(location));
+                    using var schemaReader = XmlReader.Create(strm, settings);
+                    import.Schema = XmlSchema.Read(schemaReader, new ValidationEventHandler(OnValidate));
+                }
+                else
+                {
+                    using Stream strm = File.OpenRead(location);
+                    using var schemaReader = XmlReader.Create(strm, settings);
+                    import.Schema = XmlSchema.Read(schemaReader, new ValidationEventHandler(OnValidate));
+                }
             }
+
+            m_schemaSet = new XmlSchemaSet();
+            m_schemaSet.Add(m_schema);
+            m_schemaSet.Compile();
         }
 
         /// <summary>

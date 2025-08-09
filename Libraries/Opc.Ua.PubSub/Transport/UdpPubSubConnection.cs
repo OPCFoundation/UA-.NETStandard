@@ -180,12 +180,12 @@ namespace Opc.Ua.PubSub.Transport
         /// </summary>
         public override IList<UaNetworkMessage> CreateNetworkMessages(WriterGroupDataType writerGroupConfiguration, WriterGroupPublishState state)
         {
-            if (!(ExtensionObject.ToEncodeable(writerGroupConfiguration.MessageSettings) is UadpWriterGroupMessageDataType messageSettings))
+            if (ExtensionObject.ToEncodeable(writerGroupConfiguration.MessageSettings) is not UadpWriterGroupMessageDataType messageSettings)
             {
                 //Wrong configuration of writer group MessageSettings
                 return null;
             }
-            if (!(ExtensionObject.ToEncodeable(writerGroupConfiguration.TransportSettings) is DatagramWriterGroupTransportDataType transportSettings))
+            if (ExtensionObject.ToEncodeable(writerGroupConfiguration.TransportSettings) is not DatagramWriterGroupTransportDataType transportSettings)
             {
                 //Wrong configuration of writer group TransportSettings
                 return null;

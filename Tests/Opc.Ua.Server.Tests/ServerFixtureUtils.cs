@@ -284,13 +284,11 @@ namespace Opc.Ua.Server.Tests
         public static int GetNextFreeIPPort()
         {
             var endpoint = new IPEndPoint(IPAddress.Any, 0);
-            using (var socket = new Socket(endpoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp))
+            using var socket = new Socket(endpoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+            socket.Bind(endpoint);
+            if (socket.LocalEndPoint is IPEndPoint ep)
             {
-                socket.Bind(endpoint);
-                if (socket.LocalEndPoint is IPEndPoint ep)
-                {
-                    return ep.Port;
-                }
+                return ep.Port;
             }
             return 0;
         }

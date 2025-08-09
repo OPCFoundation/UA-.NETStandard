@@ -64,7 +64,7 @@ namespace Opc.Ua
         [DataMember(Name = "String", Order = 1)]
         public string GuidString
         {
-            get => m_guid.ToString();
+            readonly get => m_guid.ToString();
 
             set
             {
@@ -188,7 +188,7 @@ namespace Opc.Ua
         /// Returns true if the objects are equal.
         /// </remarks>
         /// <param name="obj">The object being compared to *this* object</param>
-        public override bool Equals(object obj)
+        public override readonly bool Equals(object obj)
         {
             return CompareTo(obj) == 0;
         }
@@ -200,7 +200,7 @@ namespace Opc.Ua
         /// Returns true if the objects are equal.
         /// </remarks>
         /// <param name="other">The object being compared to *this* object</param>
-        public bool Equals(Uuid other)
+        public readonly bool Equals(Uuid other)
         {
             return CompareTo(other) == 0;
         }
@@ -211,7 +211,7 @@ namespace Opc.Ua
         /// <remarks>
         /// Returns a unique hash code for the object.
         /// </remarks>
-        public override int GetHashCode()
+        public override readonly int GetHashCode()
         {
             return m_guid.GetHashCode();
         }
@@ -222,7 +222,7 @@ namespace Opc.Ua
         /// <remarks>
         /// Converts the object to a string.
         /// </remarks>
-        public override string ToString()
+        public override readonly string ToString()
         {
             return m_guid.ToString();
         }
@@ -235,7 +235,7 @@ namespace Opc.Ua
         /// passed in is a <see cref="Guid"/> or <see cref="Uuid"/>.
         /// </remarks>
         /// <param name="obj">The object being compared to *this* object</param>
-		public int CompareTo(object obj)
+		public readonly int CompareTo(object obj)
         {
             // check for uuids.
             if (obj is Uuid uuidValue)
@@ -260,7 +260,7 @@ namespace Opc.Ua
         /// </remarks>
         /// <param name="format">The format you want to apply to the string</param>
         /// <param name="formatProvider">The FormatProvider</param>
-        public string ToString(string format, IFormatProvider formatProvider)
+        public readonly string ToString(string format, IFormatProvider formatProvider)
         {
             return m_guid.ToString(format);
         }

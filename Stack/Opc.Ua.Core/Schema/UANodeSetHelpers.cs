@@ -39,12 +39,10 @@ namespace Opc.Ua.Export
         /// <returns>The set of nodes</returns>
         public static UANodeSet Read(Stream istrm)
         {
-            using (var reader = new StreamReader(istrm))
-            using (var xmlReader = XmlReader.Create(reader, Utils.DefaultXmlReaderSettings()))
-            {
-                var serializer = new XmlSerializer(typeof(UANodeSet));
-                return serializer.Deserialize(xmlReader) as UANodeSet;
-            }
+            using var reader = new StreamReader(istrm);
+            using var xmlReader = XmlReader.Create(reader, Utils.DefaultXmlReaderSettings());
+            var serializer = new XmlSerializer(typeof(UANodeSet));
+            return serializer.Deserialize(xmlReader) as UANodeSet;
         }
 
         /// <summary>
@@ -135,9 +133,10 @@ namespace Opc.Ua.Export
                 case NodeClass.Object:
                 {
                     var o = (BaseObjectState)node;
-                    var value = new UAObject();
-                    value.EventNotifier = o.EventNotifier;
-                    value.DesignToolOnly = node.DesignToolOnly;
+                    var value = new UAObject {
+                        EventNotifier = o.EventNotifier,
+                        DesignToolOnly = node.DesignToolOnly
+                    };
 
                     if (o.Parent != null)
                     {
@@ -151,14 +150,15 @@ namespace Opc.Ua.Export
                 case NodeClass.Variable:
                 {
                     var o = (BaseVariableState)node;
-                    var value = new UAVariable();
-                    value.DataType = ExportAlias(o.DataType, context.NamespaceUris);
-                    value.ValueRank = o.ValueRank;
-                    value.ArrayDimensions = Export(o.ArrayDimensions);
-                    value.AccessLevel = o.AccessLevelEx;
-                    value.MinimumSamplingInterval = o.MinimumSamplingInterval;
-                    value.Historizing = o.Historizing;
-                    value.DesignToolOnly = node.DesignToolOnly;
+                    var value = new UAVariable {
+                        DataType = ExportAlias(o.DataType, context.NamespaceUris),
+                        ValueRank = o.ValueRank,
+                        ArrayDimensions = Export(o.ArrayDimensions),
+                        AccessLevel = o.AccessLevelEx,
+                        MinimumSamplingInterval = o.MinimumSamplingInterval,
+                        Historizing = o.Historizing,
+                        DesignToolOnly = node.DesignToolOnly
+                    };
 
                     if (o.Parent != null)
                     {
@@ -167,15 +167,13 @@ namespace Opc.Ua.Export
 
                     if (o.Value != null)
                     {
-                        using (XmlEncoder encoder = CreateEncoder(context))
-                        {
-                            var variant = new Variant(o.Value);
-                            encoder.WriteVariantContents(variant.Value, variant.TypeInfo);
+                        using XmlEncoder encoder = CreateEncoder(context);
+                        var variant = new Variant(o.Value);
+                        encoder.WriteVariantContents(variant.Value, variant.TypeInfo);
 
-                            var document = new XmlDocument();
-                            document.LoadInnerXml(encoder.CloseAndReturnText());
-                            value.Value = document.DocumentElement;
-                        }
+                        var document = new XmlDocument();
+                        document.LoadInnerXml(encoder.CloseAndReturnText());
+                        value.Value = document.DocumentElement;
                     }
 
                     exportedNode = value;
@@ -185,9 +183,10 @@ namespace Opc.Ua.Export
                 case NodeClass.Method:
                 {
                     var o = (MethodState)node;
-                    var value = new UAMethod();
-                    value.Executable = o.Executable;
-                    value.DesignToolOnly = node.DesignToolOnly;
+                    var value = new UAMethod {
+                        Executable = o.Executable,
+                        DesignToolOnly = node.DesignToolOnly
+                    };
 
                     if (o.MethodDeclarationId != null && !o.MethodDeclarationId.IsNullNodeId && o.MethodDeclarationId != o.NodeId)
                     {
@@ -206,42 +205,41 @@ namespace Opc.Ua.Export
                 case NodeClass.View:
                 {
                     var o = (ViewState)node;
-                    var value = new UAView();
-                    value.ContainsNoLoops = o.ContainsNoLoops;
-                    value.DesignToolOnly = node.DesignToolOnly;
-                    exportedNode = value;
+                    exportedNode = new UAView {
+                        ContainsNoLoops = o.ContainsNoLoops,
+                        DesignToolOnly = node.DesignToolOnly
+                    };
                     break;
                 }
 
                 case NodeClass.ObjectType:
                 {
                     var o = (BaseObjectTypeState)node;
-                    var value = new UAObjectType();
-                    value.IsAbstract = o.IsAbstract;
-                    exportedNode = value;
+                    exportedNode = new UAObjectType {
+                        IsAbstract = o.IsAbstract
+                    };
                     break;
                 }
 
                 case NodeClass.VariableType:
                 {
                     var o = (BaseVariableTypeState)node;
-                    var value = new UAVariableType();
-                    value.IsAbstract = o.IsAbstract;
-                    value.DataType = ExportAlias(o.DataType, context.NamespaceUris);
-                    value.ValueRank = o.ValueRank;
-                    value.ArrayDimensions = Export(o.ArrayDimensions);
+                    var value = new UAVariableType {
+                        IsAbstract = o.IsAbstract,
+                        DataType = ExportAlias(o.DataType, context.NamespaceUris),
+                        ValueRank = o.ValueRank,
+                        ArrayDimensions = Export(o.ArrayDimensions)
+                    };
 
                     if (o.Value != null)
                     {
-                        using (XmlEncoder encoder = CreateEncoder(context))
-                        {
-                            var variant = new Variant(o.Value);
-                            encoder.WriteVariantContents(variant.Value, variant.TypeInfo);
+                        using XmlEncoder encoder = CreateEncoder(context);
+                        var variant = new Variant(o.Value);
+                        encoder.WriteVariantContents(variant.Value, variant.TypeInfo);
 
-                            var document = new XmlDocument();
-                            document.LoadInnerXml(encoder.CloseAndReturnText());
-                            value.Value = document.DocumentElement;
-                        }
+                        var document = new XmlDocument();
+                        document.LoadInnerXml(encoder.CloseAndReturnText());
+                        value.Value = document.DocumentElement;
                     }
 
                     exportedNode = value;
@@ -251,19 +249,20 @@ namespace Opc.Ua.Export
                 case NodeClass.DataType:
                 {
                     var o = (DataTypeState)node;
-                    var value = new UADataType();
-                    value.IsAbstract = o.IsAbstract;
-                    value.Definition = Export(o, o.DataTypeDefinition, context.NamespaceUris, outputRedundantNames);
-                    value.Purpose = o.Purpose;
-                    exportedNode = value;
+                    exportedNode = new UADataType {
+                        IsAbstract = o.IsAbstract,
+                        Definition = Export(o, o.DataTypeDefinition, context.NamespaceUris, outputRedundantNames),
+                        Purpose = o.Purpose
+                    };
                     break;
                 }
 
                 case NodeClass.ReferenceType:
                 {
                     var o = (ReferenceTypeState)node;
-                    var value = new UAReferenceType();
-                    value.IsAbstract = o.IsAbstract;
+                    var value = new UAReferenceType {
+                        IsAbstract = o.IsAbstract
+                    };
 
                     if (!Ua.LocalizedText.IsNullOrEmpty(o.InverseName))
                     {
@@ -348,11 +347,11 @@ namespace Opc.Ua.Export
                     continue;
                 }
 
-                var exportedReference = new Reference();
-
-                exportedReference.ReferenceType = ExportAlias(reference.ReferenceTypeId, context.NamespaceUris);
-                exportedReference.IsForward = !reference.IsInverse;
-                exportedReference.Value = Export(reference.TargetId, context.NamespaceUris, context.ServerUris);
+                var exportedReference = new Reference {
+                    ReferenceType = ExportAlias(reference.ReferenceTypeId, context.NamespaceUris),
+                    IsForward = !reference.IsInverse,
+                    Value = Export(reference.TargetId, context.NamespaceUris, context.ServerUris)
+                };
                 exportedReferences.Add(exportedReference);
 
                 reference = browser.Next();
@@ -513,10 +512,10 @@ namespace Opc.Ua.Export
                 case NodeClass.Object:
                 {
                     var o = (UAObject)node;
-                    var value = new BaseObjectState(null);
-                    value.EventNotifier = o.EventNotifier;
-                    value.DesignToolOnly = o.DesignToolOnly;
-                    importedNode = value;
+                    importedNode = new BaseObjectState(null) {
+                        EventNotifier = o.EventNotifier,
+                        DesignToolOnly = o.DesignToolOnly
+                    };
                     break;
                 }
 
@@ -564,12 +563,10 @@ namespace Opc.Ua.Export
 
                     if (o.Value != null)
                     {
-                        using (XmlDecoder decoder = CreateDecoder(context, o.Value))
-                        {
-                            TypeInfo typeInfo = null;
-                            value.Value = decoder.ReadVariantContents(out typeInfo);
-                            decoder.Close();
-                        }
+                        using XmlDecoder decoder = CreateDecoder(context, o.Value);
+                        TypeInfo typeInfo = null;
+                        value.Value = decoder.ReadVariantContents(out typeInfo);
+                        decoder.Close();
                     }
 
                     importedNode = value;
@@ -579,51 +576,50 @@ namespace Opc.Ua.Export
                 case NodeClass.Method:
                 {
                     var o = (UAMethod)node;
-                    var value = new MethodState(null);
-                    value.Executable = o.Executable;
-                    value.UserExecutable = o.Executable;
-                    value.MethodDeclarationId = ImportNodeId(o.MethodDeclarationId, context.NamespaceUris, true);
-                    value.DesignToolOnly = o.DesignToolOnly;
-                    importedNode = value;
+                    importedNode = new MethodState(null) {
+                        Executable = o.Executable,
+                        UserExecutable = o.Executable,
+                        MethodDeclarationId = ImportNodeId(o.MethodDeclarationId, context.NamespaceUris, true),
+                        DesignToolOnly = o.DesignToolOnly
+                    };
                     break;
                 }
 
                 case NodeClass.View:
                 {
                     var o = (UAView)node;
-                    var value = new ViewState();
-                    value.ContainsNoLoops = o.ContainsNoLoops;
-                    value.DesignToolOnly = o.DesignToolOnly;
-                    importedNode = value;
+                    importedNode = new ViewState {
+                        ContainsNoLoops = o.ContainsNoLoops,
+                        DesignToolOnly = o.DesignToolOnly
+                    };
                     break;
                 }
 
                 case NodeClass.ObjectType:
                 {
                     var o = (UAObjectType)node;
-                    var value = new BaseObjectTypeState();
-                    value.IsAbstract = o.IsAbstract;
-                    importedNode = value;
+                    importedNode = new BaseObjectTypeState {
+                        IsAbstract = o.IsAbstract
+                    };
                     break;
                 }
 
                 case NodeClass.VariableType:
                 {
                     var o = (UAVariableType)node;
-                    BaseVariableTypeState value = new BaseDataVariableTypeState();
-                    value.IsAbstract = o.IsAbstract;
-                    value.DataType = ImportNodeId(o.DataType, context.NamespaceUris, true);
-                    value.ValueRank = o.ValueRank;
-                    value.ArrayDimensions = ImportArrayDimensions(o.ArrayDimensions);
+                    BaseVariableTypeState value = new BaseDataVariableTypeState {
+                        IsAbstract = o.IsAbstract,
+                        DataType = ImportNodeId(o.DataType, context.NamespaceUris, true),
+                        ValueRank = o.ValueRank,
+                        ArrayDimensions = ImportArrayDimensions(o.ArrayDimensions)
+                    };
 
                     if (o.Value != null)
                     {
-                        using (XmlDecoder decoder = CreateDecoder(context, o.Value))
-                        {
-                            TypeInfo typeInfo = null;
-                            value.Value = decoder.ReadVariantContents(out typeInfo);
-                            decoder.Close();
-                        }
+                        using XmlDecoder decoder = CreateDecoder(context, o.Value);
+                        TypeInfo typeInfo = null;
+                        value.Value = decoder.ReadVariantContents(out typeInfo);
+                        decoder.Close();
                     }
 
                     importedNode = value;
@@ -633,8 +629,9 @@ namespace Opc.Ua.Export
                 case NodeClass.DataType:
                 {
                     var o = (UADataType)node;
-                    var value = new DataTypeState();
-                    value.IsAbstract = o.IsAbstract;
+                    var value = new DataTypeState {
+                        IsAbstract = o.IsAbstract
+                    };
                     Ua.DataTypeDefinition dataTypeDefinition = Import(o, o.Definition, context.NamespaceUris);
                     value.DataTypeDefinition = new ExtensionObject(dataTypeDefinition);
                     value.Purpose = o.Purpose;
@@ -645,11 +642,11 @@ namespace Opc.Ua.Export
                 case NodeClass.ReferenceType:
                 {
                     var o = (UAReferenceType)node;
-                    var value = new ReferenceTypeState();
-                    value.IsAbstract = o.IsAbstract;
-                    value.InverseName = Import(o.InverseName);
-                    value.Symmetric = o.Symmetric;
-                    importedNode = value;
+                    importedNode = new ReferenceTypeState {
+                        IsAbstract = o.IsAbstract,
+                        InverseName = Import(o.InverseName),
+                        Symmetric = o.Symmetric
+                    };
                     break;
                 }
             }
@@ -951,10 +948,10 @@ namespace Opc.Ua.Export
                     {
                         StructureField field = sd.Fields[ii];
 
-                        var output = new DataTypeField();
-
-                        output.Name = field.Name;
-                        output.Description = Export([field.Description]);
+                        var output = new DataTypeField {
+                            Name = field.Name,
+                            Description = Export([field.Description])
+                        };
 
                         if (sd.StructureType == StructureType.StructureWithOptionalFields)
                         {
@@ -1011,9 +1008,9 @@ namespace Opc.Ua.Export
 
                     foreach (EnumField field in ed.Fields)
                     {
-                        var output = new DataTypeField();
-
-                        output.Name = field.Name;
+                        var output = new DataTypeField {
+                            Name = field.Name
+                        };
 
                         if (field.DisplayName != null && output.Name != field.DisplayName.Text)
                         {
@@ -1053,12 +1050,13 @@ namespace Opc.Ua.Export
             if (source.Field != null)
             {
                 // check if definition is for enumeration or structure.
-                bool isEnumeration = Array.Exists(source.Field, (DataTypeField fieldLookup) => fieldLookup.Value != -1);
+                bool isEnumeration = Array.Exists(source.Field, fieldLookup => fieldLookup.Value != -1);
 
                 if (!isEnumeration)
                 {
-                    var sd = new StructureDefinition();
-                    sd.BaseDataType = ImportNodeId(source.BaseType, namespaceUris, true);
+                    var sd = new StructureDefinition {
+                        BaseDataType = ImportNodeId(source.BaseType, namespaceUris, true)
+                    };
 
                     if (source.IsUnion)
                     {
@@ -1091,12 +1089,12 @@ namespace Opc.Ua.Export
                                 }
                             }
 
-                            var output = new StructureField();
-
-                            output.Name = field.Name;
-                            output.Description = Import(field.Description);
-                            output.DataType = ImportNodeId(field.DataType, namespaceUris, true);
-                            output.ValueRank = field.ValueRank;
+                            var output = new StructureField {
+                                Name = field.Name,
+                                Description = Import(field.Description),
+                                DataType = ImportNodeId(field.DataType, namespaceUris, true),
+                                ValueRank = field.ValueRank
+                            };
                             if (!string.IsNullOrWhiteSpace(field.ArrayDimensions))
                             {
                                 if (output.ValueRank > 1 || field.ArrayDimensions[0] > 0)
@@ -1132,8 +1130,9 @@ namespace Opc.Ua.Export
                 }
                 else
                 {
-                    var ed = new EnumDefinition();
-                    ed.IsOptionSet = source.IsOptionSet;
+                    var ed = new EnumDefinition {
+                        IsOptionSet = source.IsOptionSet
+                    };
 
                     if (source.Field != null)
                     {
@@ -1141,12 +1140,12 @@ namespace Opc.Ua.Export
 
                         foreach (DataTypeField field in source.Field)
                         {
-                            var output = new EnumField();
-
-                            output.Name = field.Name;
-                            output.DisplayName = Import(field.DisplayName);
-                            output.Description = Import(field.Description);
-                            output.Value = field.Value;
+                            var output = new EnumField {
+                                Name = field.Name,
+                                DisplayName = Import(field.DisplayName),
+                                Description = Import(field.Description),
+                                Value = field.Value
+                            };
 
                             fields.Add(output);
                         }
@@ -1251,9 +1250,10 @@ namespace Opc.Ua.Export
             {
                 if (input[ii] != null)
                 {
-                    var text = new LocalizedText();
-                    text.Locale = input[ii].Locale;
-                    text.Value = input[ii].Text;
+                    var text = new LocalizedText {
+                        Locale = input[ii].Locale,
+                        Value = input[ii].Text
+                    };
                     output.Add(text);
                 }
             }
@@ -1271,10 +1271,10 @@ namespace Opc.Ua.Export
                 return null;
             }
 
-            var text = new LocalizedText();
-            text.Locale = input.Locale;
-            text.Value = input.Text;
-            return text;
+            return new LocalizedText {
+                Locale = input.Locale,
+                Value = input.Text
+            };
         }
 
         /// <summary>

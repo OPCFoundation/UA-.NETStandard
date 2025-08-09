@@ -114,10 +114,10 @@ namespace Opc.Ua
         /// </summary>
         public void AddSelectClause(NodeId eventTypeId, QualifiedName propertyName)
         {
-            var clause = new SimpleAttributeOperand();
-
-            clause.TypeDefinitionId = eventTypeId;
-            clause.AttributeId = Attributes.Value;
+            var clause = new SimpleAttributeOperand {
+                TypeDefinitionId = eventTypeId,
+                AttributeId = Attributes.Value
+            };
 
             clause.BrowsePath.Add(propertyName);
 
@@ -129,10 +129,10 @@ namespace Opc.Ua
         /// </summary>
         public void AddSelectClause(NodeId eventTypeId, string browsePath, uint attributeId)
         {
-            var clause = new SimpleAttributeOperand();
-
-            clause.TypeDefinitionId = eventTypeId;
-            clause.AttributeId = attributeId;
+            var clause = new SimpleAttributeOperand {
+                TypeDefinitionId = eventTypeId,
+                AttributeId = attributeId
+            };
 
             if (!string.IsNullOrEmpty(browsePath))
             {
@@ -159,9 +159,9 @@ namespace Opc.Ua
             /// </summary>
             public static implicit operator Result(ServiceResult status)
             {
-                var result = new Result();
-                result.Status = status;
-                return result;
+                return new Result {
+                    Status = status
+                };
             }
 
             /// <summary>

@@ -82,13 +82,8 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(requestHeader));
             }
 
-            if (session == null)
-            {
-                throw new ArgumentNullException(nameof(session));
-            }
-
             ChannelContext = SecureChannelContext.Current;
-            Session = session;
+            Session = session ?? throw new ArgumentNullException(nameof(session));
             UserIdentity = session.EffectiveIdentity;
             PreferredLocales = session.PreferredLocales;
             DiagnosticsMask = (DiagnosticsMasks)requestHeader.ReturnDiagnostics;
@@ -112,13 +107,8 @@ namespace Opc.Ua.Server
         /// <param name="diagnosticsMasks">The diagnostics masks.</param>
         public OperationContext(ISession session, DiagnosticsMasks diagnosticsMasks)
         {
-            if (session == null)
-            {
-                throw new ArgumentNullException(nameof(session));
-            }
-
             ChannelContext = null;
-            Session = session;
+            Session = session ?? throw new ArgumentNullException(nameof(session));
             UserIdentity = session.EffectiveIdentity;
             PreferredLocales = session.PreferredLocales;
             DiagnosticsMask = diagnosticsMasks;

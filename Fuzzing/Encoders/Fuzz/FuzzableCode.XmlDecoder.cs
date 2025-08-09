@@ -65,11 +65,9 @@ namespace Opc.Ua.Fuzzing
             // encode the fuzzed object and see if it crashes
             if (encodeable != null)
             {
-                using (var encoder = new JsonEncoder(s_messageContext, true))
-                {
-                    encoder.EncodeMessage(encodeable);
-                    encoder.Close();
-                }
+                using var encoder = new JsonEncoder(s_messageContext, true);
+                encoder.EncodeMessage(encodeable);
+                encoder.Close();
             }
         }
 
@@ -78,10 +76,8 @@ namespace Opc.Ua.Fuzzing
         /// </summary>
         public static void LibfuzzXmlDecoder(ReadOnlySpan<byte> input)
         {
-            using (var memoryStream = new MemoryStream(input.ToArray()))
-            {
-                _ = FuzzXmlDecoderCore(memoryStream);
-            }
+            using var memoryStream = new MemoryStream(input.ToArray());
+            _ = FuzzXmlDecoderCore(memoryStream);
         }
 
         /// <summary>
@@ -92,10 +88,8 @@ namespace Opc.Ua.Fuzzing
             IEncodeable encodeable;
             try
             {
-                using (var memoryStream = new MemoryStream(input.ToArray()))
-                {
-                    encodeable = FuzzXmlDecoderCore(memoryStream);
-                }
+                using var memoryStream = new MemoryStream(input.ToArray());
+                encodeable = FuzzXmlDecoderCore(memoryStream);
             }
             catch
             {
@@ -105,11 +99,9 @@ namespace Opc.Ua.Fuzzing
             // encode the fuzzed object and see if it crashes
             if (encodeable != null)
             {
-                using (var encoder = new XmlEncoder(s_messageContext))
-                {
-                    encoder.EncodeMessage(encodeable);
-                    encoder.Close();
-                }
+                using var encoder = new XmlEncoder(s_messageContext);
+                encoder.EncodeMessage(encodeable);
+                encoder.Close();
             }
         }
 
@@ -155,10 +147,8 @@ namespace Opc.Ua.Fuzzing
                     }
 
                     // TODO: match ns GetEncodeableFactory(typeName, namespaceUri, out IEncodeable encodeable, out _);
-                    using (var decoder = new XmlDecoder(reader, s_messageContext))
-                    {
-                        return decoder.DecodeMessage(systemType);
-                    }
+                    using var decoder = new XmlDecoder(reader, s_messageContext);
+                    return decoder.DecodeMessage(systemType);
                 }
                 finally
                 {

@@ -144,122 +144,118 @@ namespace Opc.Ua.Buffers.Tests
 
             // Arrange
             var bufferManager = new BufferManager(nameof(ArraySegmentStreamWhenConstructedWithDefaultOptionsShouldNotThrow), defaultBufferSize);
-            using (var writer = new ArraySegmentStream(bufferManager))
+            using var writer = new ArraySegmentStream(bufferManager);
+            // Act
+            for (int i = 0; i <= byte.MaxValue; i++)
             {
-                // Act
-                for (int i = 0; i <= byte.MaxValue; i++)
+                // fill chunk with a byte
+                for (int v = 0; v < chunkSize; v++)
                 {
-                    // fill chunk with a byte
-                    for (int v = 0; v < chunkSize; v++)
-                    {
-                        buffer[v] = (byte)i;
-                    }
+                    buffer[v] = (byte)i;
+                }
 
-                    // write next chunk
-                    switch (random.Next(3))
-                    {
-                        case 0:
-                            for (int v = 0; v < chunkSize; v++)
-                            {
-                                writer.WriteByte((byte)i);
-                            }
+                // write next chunk
+                switch (random.Next(3))
+                {
+                    case 0:
+                        for (int v = 0; v < chunkSize; v++)
+                        {
+                            writer.WriteByte((byte)i);
+                        }
 
-                            break;
-                        case 1:
-                            writer.Write(buffer, 0, chunkSize);
-                            break;
+                        break;
+                    case 1:
+                        writer.Write(buffer, 0, chunkSize);
+                        break;
 #if NET5_0_OR_GREATER
-                        default:
-                            writer.Write(buffer.AsSpan(0, chunkSize));
-                            break;
+                    default:
+                        writer.Write(buffer.AsSpan(0, chunkSize));
+                        break;
 #else
-                        default:
-                            writer.Write(buffer, 0, chunkSize);
-                            break;
+                    default:
+                        writer.Write(buffer, 0, chunkSize);
+                        break;
 #endif
-                    }
+                }
+            }
+
+            length = (byte.MaxValue + 1) * chunkSize;
+            long result = writer.Seek(0, SeekOrigin.Begin);
+            Assert.That(result, Is.EqualTo(0));
+
+            result = writer.Seek(0, SeekOrigin.End);
+            Assert.That(result, Is.EqualTo(length));
+
+            // read back from writer MemoryStream
+            result = writer.Seek(0, SeekOrigin.Begin);
+            Assert.That(result, Is.EqualTo(0));
+
+            Assert.That(writer.Length, Is.EqualTo(length));
+
+            long position;
+            for (int i = 0; i <= byte.MaxValue; i++)
+            {
+                if (random.Next(2) == 0)
+                {
+                    position = writer.Seek(chunkSize * i, SeekOrigin.Begin);
+                    Assert.That(position, Is.EqualTo(chunkSize * i));
                 }
 
-                length = (byte.MaxValue + 1) * chunkSize;
-                long result = writer.Seek(0, SeekOrigin.Begin);
-                Assert.That(result, Is.EqualTo(0));
-
-                result = writer.Seek(0, SeekOrigin.End);
-                Assert.That(result, Is.EqualTo(length));
-
-                // read back from writer MemoryStream
-                result = writer.Seek(0, SeekOrigin.Begin);
-                Assert.That(result, Is.EqualTo(0));
-
-                Assert.That(writer.Length, Is.EqualTo(length));
-
-                long position;
-                for (int i = 0; i <= byte.MaxValue; i++)
+                int bytesRead;
+                switch (random.Next(3))
                 {
-                    if (random.Next(2) == 0)
-                    {
-                        position = writer.Seek(chunkSize * i, SeekOrigin.Begin);
-                        Assert.That(position, Is.EqualTo(chunkSize * i));
-                    }
-
-                    int bytesRead;
-                    switch (random.Next(3))
-                    {
-                        case 0:
-                            for (int v = 0; v < chunkSize; v++)
-                            {
-                                Assert.That(writer.ReadByte(), Is.EqualTo((byte)i));
-                            }
-                            break;
-                        default:
+                    case 0:
+                        for (int v = 0; v < chunkSize; v++)
+                        {
+                            Assert.That(writer.ReadByte(), Is.EqualTo((byte)i));
+                        }
+                        break;
+                    default:
 #if NET5_0_OR_GREATER
-                            bytesRead = writer.Read(buffer.AsSpan(0, chunkSize));
-                            Assert.That(chunkSize, Is.EqualTo(bytesRead));
-                            for (int v = 0; v < chunkSize; v++)
-                            {
-                                Assert.That(buffer[v], Is.EqualTo((byte)i));
-                            }
-                            break;
-#endif
-                        case 1:
-                            bytesRead = writer.Read(buffer, 0, chunkSize);
-                            Assert.That(chunkSize, Is.EqualTo(bytesRead));
-                            for (int v = 0; v < chunkSize; v++)
-                            {
-                                Assert.That(buffer[v], Is.EqualTo((byte)i));
-                            }
-                            break;
-                    }
-                }
-
-                position = writer.Seek(0, SeekOrigin.Begin);
-                Assert.That(position, Is.EqualTo(0));
-
-                using (BufferSequence bufferSequence = writer.GetSequence("Test"))
-                {
-                    ReadOnlySequence<byte> sequence = bufferSequence.Sequence;
-                    buffer = sequence.ToArray();
-
-                    // Assert sequence properties
-                    Assert.That(buffer.Length, Is.EqualTo(length));
-                    Assert.That(sequence.Length, Is.EqualTo(length));
-
-                    for (int i = 0; i < buffer.Length; i++)
-                    {
-                        Assert.That(buffer[i], Is.EqualTo((byte)(i / chunkSize)));
-                    }
-
-                    for (int i = 0; i <= byte.MaxValue; i++)
-                    {
-                        ReadOnlySequence<byte> chunkSequence = sequence.Slice(i * chunkSize, chunkSize);
-                        Assert.That(chunkSequence.Length, Is.EqualTo((long)chunkSize));
-
-                        buffer = chunkSequence.ToArray();
+                        bytesRead = writer.Read(buffer.AsSpan(0, chunkSize));
+                        Assert.That(chunkSize, Is.EqualTo(bytesRead));
                         for (int v = 0; v < chunkSize; v++)
                         {
                             Assert.That(buffer[v], Is.EqualTo((byte)i));
                         }
-                    }
+                        break;
+#endif
+                    case 1:
+                        bytesRead = writer.Read(buffer, 0, chunkSize);
+                        Assert.That(chunkSize, Is.EqualTo(bytesRead));
+                        for (int v = 0; v < chunkSize; v++)
+                        {
+                            Assert.That(buffer[v], Is.EqualTo((byte)i));
+                        }
+                        break;
+                }
+            }
+
+            position = writer.Seek(0, SeekOrigin.Begin);
+            Assert.That(position, Is.EqualTo(0));
+
+            using BufferSequence bufferSequence = writer.GetSequence("Test");
+            ReadOnlySequence<byte> sequence = bufferSequence.Sequence;
+            buffer = sequence.ToArray();
+
+            // Assert sequence properties
+            Assert.That(buffer.Length, Is.EqualTo(length));
+            Assert.That(sequence.Length, Is.EqualTo(length));
+
+            for (int i = 0; i < buffer.Length; i++)
+            {
+                Assert.That(buffer[i], Is.EqualTo((byte)(i / chunkSize)));
+            }
+
+            for (int i = 0; i <= byte.MaxValue; i++)
+            {
+                ReadOnlySequence<byte> chunkSequence = sequence.Slice(i * chunkSize, chunkSize);
+                Assert.That(chunkSequence.Length, Is.EqualTo((long)chunkSize));
+
+                buffer = chunkSequence.ToArray();
+                for (int v = 0; v < chunkSize; v++)
+                {
+                    Assert.That(buffer[v], Is.EqualTo((byte)i));
                 }
             }
         }

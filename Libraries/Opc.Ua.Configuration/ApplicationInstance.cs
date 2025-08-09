@@ -32,7 +32,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
+#if ECC_SUPPORT
 using System.Security.Cryptography;
+#endif
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
@@ -966,13 +968,11 @@ namespace Opc.Ua.Configuration
             // delete certificate and private key from owner store.
             if (certificate != null)
             {
-                using (ICertificateStore store = id.OpenStore())
+                using ICertificateStore store = id.OpenStore();
+                bool deleted = await store.DeleteAsync(certificate.Thumbprint).ConfigureAwait(false);
+                if (deleted)
                 {
-                    bool deleted = await store.DeleteAsync(certificate.Thumbprint).ConfigureAwait(false);
-                    if (deleted)
-                    {
-                        LogCertificate(TraceMasks.Security, "Application certificate and private key deleted.", certificate);
-                    }
+                    LogCertificate(TraceMasks.Security, "Application certificate and private key deleted.", certificate);
                 }
             }
 

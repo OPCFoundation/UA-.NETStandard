@@ -14,7 +14,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+#if NETSTANDARD2_1_OR_GREATER || NET472_OR_GREATER || NET5_0_OR_GREATER
 using System.Runtime.InteropServices;
+#endif
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;

@@ -46,12 +46,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public NodeCache(ISession session)
         {
-            if (session == null)
-            {
-                throw new ArgumentNullException(nameof(session));
-            }
-
-            m_session = session;
+            m_session = session ?? throw new ArgumentNullException(nameof(session));
             m_typeTree = new TypeTable(m_session.NamespaceUris);
             m_nodes = new NodeTable(m_session.NamespaceUris, m_session.ServerUris, m_typeTree);
             m_uaTypesLoaded = false;
@@ -226,7 +221,7 @@ namespace Opc.Ua.Client
             QualifiedName browseName)
         {
             // find the source.
-            if (!(Find(sourceId) is Node source))
+            if (Find(sourceId) is not Node source)
             {
                 return null;
             }
@@ -273,7 +268,7 @@ namespace Opc.Ua.Client
             var hits = new List<INode>();
 
             // find the source.
-            if (!(Find(sourceId) is Node source))
+            if (Find(sourceId) is not Node source)
             {
                 return hits;
             }
@@ -431,7 +426,7 @@ namespace Opc.Ua.Client
                 return true;
             }
 
-            if (!(Find(subTypeId) is ILocalNode subtype))
+            if (Find(subTypeId) is not ILocalNode subtype)
             {
                 return false;
             }
@@ -471,7 +466,7 @@ namespace Opc.Ua.Client
                 return true;
             }
 
-            if (!(Find(subTypeId) is ILocalNode subtype))
+            if (Find(subTypeId) is not ILocalNode subtype)
             {
                 return false;
             }
@@ -534,7 +529,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public bool IsEncodingOf(ExpandedNodeId encodingId, ExpandedNodeId datatypeId)
         {
-            if (!(Find(encodingId) is ILocalNode encoding))
+            if (Find(encodingId) is not ILocalNode encoding)
             {
                 return false;
             }
@@ -579,7 +574,7 @@ namespace Opc.Ua.Client
             }
 
             // find the encoding.
-            if (!(Find(value.TypeId) is ILocalNode encoding))
+            if (Find(value.TypeId) is not ILocalNode encoding)
             {
                 return false;
             }
@@ -672,7 +667,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public NodeId FindDataTypeId(ExpandedNodeId encodingId)
         {
-            if (!(Find(encodingId) is ILocalNode encoding))
+            if (Find(encodingId) is not ILocalNode encoding)
             {
                 return NodeId.Null;
             }
@@ -700,7 +695,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public NodeId FindDataTypeId(NodeId encodingId)
         {
-            if (!(Find(encodingId) is ILocalNode encoding))
+            if (Find(encodingId) is not ILocalNode encoding)
             {
                 return NodeId.Null;
             }
@@ -742,7 +737,7 @@ namespace Opc.Ua.Client
             {
                 for (int ii = 0; ii < predefinedNodes.Count; ii++)
                 {
-                    if (!(predefinedNodes[ii] is BaseTypeState type))
+                    if (predefinedNodes[ii] is not BaseTypeState type)
                     {
                         continue;
                     }
@@ -894,7 +889,7 @@ namespace Opc.Ua.Client
         public void FetchSuperTypes(ExpandedNodeId nodeId)
         {
             // find the target node,
-            if (!(Find(nodeId) is ILocalNode source))
+            if (Find(nodeId) is not ILocalNode source)
             {
                 return;
             }
@@ -926,7 +921,7 @@ namespace Opc.Ua.Client
         {
             IList<INode> targets = [];
 
-            if (!(Find(nodeId) is Node source))
+            if (Find(nodeId) is not Node source)
             {
                 return targets;
             }
@@ -971,7 +966,7 @@ namespace Opc.Ua.Client
             var targetIds = new ExpandedNodeIdCollection();
             foreach (INode source in Find(nodeIds))
             {
-                if (!(source is Node node))
+                if (source is not Node node)
                 {
                     continue;
                 }
@@ -1016,7 +1011,7 @@ namespace Opc.Ua.Client
             }
 
             // check for remote node.
-            if (!(node is Node target))
+            if (node is not Node target)
             {
                 return node.ToString();
             }
@@ -1050,7 +1045,7 @@ namespace Opc.Ua.Client
                 }
 
                 // use the type node as the parent for other modelling rules.
-                if (parent is VariableTypeNode || parent is ObjectTypeNode)
+                if (parent is VariableTypeNode or ObjectTypeNode)
                 {
                     displayText = GetDisplayText(parent);
                     break;

@@ -54,12 +54,7 @@ namespace Opc.Ua
         /// <param name="host">The host.</param>
         protected EndpointBase(IServiceHostBase host)
         {
-            if (host == null)
-            {
-                throw new ArgumentNullException(nameof(host));
-            }
-
-            m_host = host;
+            m_host = host ?? throw new ArgumentNullException(nameof(host));
             m_server = host.Server;
 
             SupportedServices = [];
@@ -70,13 +65,8 @@ namespace Opc.Ua
         /// </summary>
         protected EndpointBase(ServerBase server)
         {
-            if (server == null)
-            {
-                throw new ArgumentNullException(nameof(server));
-            }
-
             m_host = null;
-            m_server = server;
+            m_server = server ?? throw new ArgumentNullException(nameof(server));
 
             SupportedServices = [];
         }
@@ -351,9 +341,9 @@ namespace Opc.Ua
                 IServiceResponse response = ProcessRequestAsyncResult.WaitForComplete(result, false);
 
                 // encode the response.
-                var outgoing = new InvokeServiceResponseMessage();
-                outgoing.InvokeServiceResponse = BinaryEncoder.EncodeMessage(response, MessageContext);
-                return outgoing;
+                return new InvokeServiceResponseMessage {
+                    InvokeServiceResponse = BinaryEncoder.EncodeMessage(response, MessageContext)
+                };
             }
             catch (Exception e)
             {
@@ -361,9 +351,9 @@ namespace Opc.Ua
                 ServiceFault fault = CreateFault(ProcessRequestAsyncResult.GetRequest(result), e);
 
                 // encode the fault as a response.
-                var outgoing = new InvokeServiceResponseMessage();
-                outgoing.InvokeServiceResponse = BinaryEncoder.EncodeMessage(fault, MessageContext);
-                return outgoing;
+                return new InvokeServiceResponseMessage {
+                    InvokeServiceResponse = BinaryEncoder.EncodeMessage(fault, MessageContext)
+                };
             }
         }
 #endif
@@ -846,11 +836,9 @@ namespace Opc.Ua
                         if (m_request.RequestHeader?.AdditionalHeader?.Body is AdditionalParametersType parameters &&
                             TryExtractActivityContextFromParameters(parameters, out ActivityContext activityContext))
                         {
-                            using (Activity activity = ActivitySource.StartActivity(m_request.GetType().Name, ActivityKind.Server, activityContext))
-                            {
-                                // call the service.
-                                m_response = m_service.Invoke(m_request);
-                            }
+                            using Activity activity = ActivitySource.StartActivity(m_request.GetType().Name, ActivityKind.Server, activityContext);
+                            // call the service.
+                            m_response = m_service.Invoke(m_request);
                         }
                         else
                         {

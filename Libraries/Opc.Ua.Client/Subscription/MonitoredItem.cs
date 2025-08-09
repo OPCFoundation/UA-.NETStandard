@@ -228,7 +228,7 @@ namespace Opc.Ua.Client
                     if (((int)value & ((int)NodeClass.Object | (int)NodeClass.View)) != 0)
                     {
                         // ensure a valid event filter.
-                        if (!(m_filter is EventFilter))
+                        if (m_filter is not EventFilter)
                         {
                             UseDefaultEventFilter();
                         }
@@ -763,7 +763,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public string GetFieldName(int index)
         {
-            if (!(m_filter is EventFilter filter))
+            if (m_filter is not EventFilter filter)
             {
                 return null;
             }
@@ -817,7 +817,7 @@ namespace Opc.Ua.Client
                 return null;
             }
 
-            if (!(m_filter is EventFilter filter))
+            if (m_filter is not EventFilter filter)
             {
                 return null;
             }
@@ -929,7 +929,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public static ServiceResult GetServiceResult(IEncodeable notification)
         {
-            if (!(notification is MonitoredItemNotification datachange))
+            if (notification is not MonitoredItemNotification datachange)
             {
                 return null;
             }
@@ -949,7 +949,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public static ServiceResult GetServiceResult(IEncodeable notification, int index)
         {
-            if (!(notification is EventFieldList eventFields))
+            if (notification is not EventFieldList eventFields)
             {
                 return null;
             }
@@ -966,7 +966,7 @@ namespace Opc.Ua.Client
                 return null;
             }
 
-            if (!(ExtensionObject.ToEncodeable(eventFields.EventFields[index].Value as ExtensionObject) is StatusResult status))
+            if (ExtensionObject.ToEncodeable(eventFields.EventFields[index].Value as ExtensionObject) is not StatusResult status)
             {
                 return null;
             }

@@ -30,16 +30,13 @@
 #if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
 
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Numerics;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 #if NET472_OR_GREATER
 using Org.BouncyCastle.Asn1;
 using Org.BouncyCastle.Asn1.X509;
 using Org.BouncyCastle.Asn1.X9;
-using Org.BouncyCastle.Math.EC;
 using Opc.Ua.Security.Certificates.BouncyCastle;
 #endif
 using ECCurve = System.Security.Cryptography.ECCurve;
@@ -112,16 +109,14 @@ namespace Opc.Ua.Security.Certificates
             byte[] serialNumber = [.. m_serialNumber.Reverse()];
             if (IssuerCAKeyCert != null)
             {
-                using (RSA rsaIssuerKey = IssuerCAKeyCert.GetRSAPrivateKey())
-                {
-                    signedCert = request.Create(
-                        IssuerCAKeyCert.SubjectName,
-                        X509SignatureGenerator.CreateForRSA(rsaIssuerKey, padding),
-                        NotBefore,
-                        NotAfter,
-                        serialNumber
-                        );
-                }
+                using RSA rsaIssuerKey = IssuerCAKeyCert.GetRSAPrivateKey();
+                signedCert = request.Create(
+                    IssuerCAKeyCert.SubjectName,
+                    X509SignatureGenerator.CreateForRSA(rsaIssuerKey, padding),
+                    NotBefore,
+                    NotAfter,
+                    serialNumber
+                    );
             }
             else
             {
@@ -209,16 +204,14 @@ namespace Opc.Ua.Security.Certificates
             X509Certificate2 cert;
             if (IssuerCAKeyCert != null)
             {
-                using (ECDsa issuerKey = IssuerCAKeyCert.GetECDsaPrivateKey())
-                {
-                    cert = request.Create(
-                        IssuerCAKeyCert.SubjectName,
-                        X509SignatureGenerator.CreateForECDsa(issuerKey),
-                        NotBefore,
-                        NotAfter,
-                        serialNumber
-                        );
-                }
+                using ECDsa issuerKey = IssuerCAKeyCert.GetECDsaPrivateKey();
+                cert = request.Create(
+                    IssuerCAKeyCert.SubjectName,
+                    X509SignatureGenerator.CreateForECDsa(issuerKey),
+                    NotBefore,
+                    NotAfter,
+                    serialNumber
+                    );
             }
             else
             {
@@ -287,7 +280,7 @@ namespace Opc.Ua.Security.Certificates
                 m_ecdsaPublicKey = ECDsa.Create();
 #if NET472_OR_GREATER
 
-                if (!(Org.BouncyCastle.Security.PublicKeyFactory.CreateKey(publicKey) is Org.BouncyCastle.Crypto.Parameters.ECPublicKeyParameters asymmetricPubKeyParameters))
+                if (Org.BouncyCastle.Security.PublicKeyFactory.CreateKey(publicKey) is not Org.BouncyCastle.Crypto.Parameters.ECPublicKeyParameters asymmetricPubKeyParameters)
                 {
                     throw new ArgumentException("Invalid public key format or key type.");
                 }
@@ -309,7 +302,7 @@ namespace Opc.Ua.Security.Certificates
                     // Named
                     var namedCurveOid = (DerObjectIdentifier)x962Params.Parameters;
                     string curveName = namedCurveOid.Id;
-                    ecParameters.Curve = System.Security.Cryptography.ECCurve.CreateFromOid(new Oid(curveName));
+                    ecParameters.Curve = ECCurve.CreateFromOid(new Oid(curveName));
                 }
                 else
                 {
@@ -322,7 +315,7 @@ namespace Opc.Ua.Security.Certificates
                 byte[] x = X509Utils.PadWithLeadingZeros(q.AffineXCoord.ToBigInteger().ToByteArrayUnsigned(), keySizeBytes);
                 byte[] y = X509Utils.PadWithLeadingZeros(q.AffineYCoord.ToBigInteger().ToByteArrayUnsigned(), keySizeBytes);
                 // Use the Q point
-                ecParameters.Q = new System.Security.Cryptography.ECPoint {
+                ecParameters.Q = new ECPoint {
                     X = x,
                     Y = y
                 };

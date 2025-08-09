@@ -63,7 +63,7 @@ namespace Opc.Ua.Client.Tests
             return OneTimeSetUpAsync(writer: null, securityNone: true);
         }
 
-        override public async Task CreateReferenceServerFixture(
+        public override async Task CreateReferenceServerFixture(
             bool enableTracing,
             bool disableActivityLogging,
             bool securityNone,
@@ -373,7 +373,7 @@ namespace Opc.Ua.Client.Tests
                         SamplingInterval = 1000,
                         QueueSize = 100,
                     };
-                    monitoredItem.Notification += (MonitoredItem item, MonitoredItemNotificationEventArgs e) => {
+                    monitoredItem.Notification += (item, e) => {
                         List<DateTime> list = valueTimeStamps[nodeId];
 
                         foreach (DataValue value in item.DequeueValues())
@@ -650,7 +650,7 @@ namespace Opc.Ua.Client.Tests
         {
             var whereClause = new ContentFilter();
 
-            whereClause.Push(FilterOperator.Equals, new FilterOperand[] {
+            whereClause.Push(FilterOperator.Equals, [
                 new SimpleAttributeOperand() {
                     AttributeId = Attributes.Value,
                     TypeDefinitionId = ObjectTypeIds.BaseEventType,
@@ -659,7 +659,7 @@ namespace Opc.Ua.Client.Tests
                 new LiteralOperand {
                     Value = new Variant(new NodeId(ObjectTypeIds.BaseEventType))
                 }
-            });
+            ]);
 
             return new MonitoredItem() {
                 AttributeId = Attributes.EventNotifier,

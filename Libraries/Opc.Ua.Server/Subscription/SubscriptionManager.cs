@@ -48,17 +48,12 @@ namespace Opc.Ua.Server
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
-            if (server == null)
-            {
-                throw new ArgumentNullException(nameof(server));
-            }
-
             if (configuration == null)
             {
                 throw new ArgumentNullException(nameof(configuration));
             }
 
-            m_server = server;
+            m_server = server ?? throw new ArgumentNullException(nameof(server));
 
             m_minPublishingInterval = configuration.ServerConfiguration.MinPublishingInterval;
             m_maxPublishingInterval = configuration.ServerConfiguration.MaxPublishingInterval;
@@ -1431,8 +1426,8 @@ namespace Opc.Ua.Server
                     if (validIdentity && (ownerIdentity is AnonymousIdentityToken))
                     {
                         MessageSecurityMode securityMode = context.ChannelContext.EndpointDescription.SecurityMode;
-                        if (securityMode != MessageSecurityMode.Sign &&
-                            securityMode != MessageSecurityMode.SignAndEncrypt)
+                        if (securityMode is not MessageSecurityMode.Sign and
+                            not MessageSecurityMode.SignAndEncrypt)
                         {
                             validIdentity = false;
                         }

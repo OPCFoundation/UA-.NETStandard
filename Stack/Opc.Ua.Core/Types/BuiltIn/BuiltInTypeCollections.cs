@@ -39,9 +39,6 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        /// <remarks>
-        /// Initializes an empty collection.
-        /// </remarks>
         public BooleanCollection() { }
 
         /// <summary>
@@ -57,17 +54,11 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
-        /// <remarks>
-        /// Initializes the collection with the specified capacity.
-        /// </remarks>
         public BooleanCollection(int capacity) : base(capacity) { }
 
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
-        /// <remarks>
-        /// Converts an array to a collection.
-        /// </remarks>
         /// <param name="values">An array of boolean values to convert to a strong-collection of this class type</param>
         public static BooleanCollection ToBooleanCollection(bool[] values)
         {
@@ -82,9 +73,6 @@ namespace Opc.Ua
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
-        /// <remarks>
-        /// Converts an array to a collection.
-        /// </remarks>
         /// <param name="values">An array of boolean values to convert to a strong-collection of this class type</param>
         public static implicit operator BooleanCollection(bool[] values)
         {
@@ -121,35 +109,23 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        /// <remarks>
-        /// Initializes an empty collection.
-        /// </remarks>
         public SByteCollection() { }
 
         /// <summary>
         /// Initializes the collection and sets the maximum capacity
         /// </summary>
-        /// <remarks>
-        /// Initializes the collection and sets the maximum capacity
-        /// </remarks>
         /// <param name="capacity">The maximum size of this collection</param>
         public SByteCollection(int capacity) : base(capacity) { }
 
         /// <summary>
         /// Initializes the collection and populates it with the specified collection of SByte values
         /// </summary>
-        /// <remarks>
-        /// Initializes the collection and populates it with the specified collection of SByte values
-        /// </remarks>
         /// <param name="collection">A collection of <see cref="sbyte"/> values to populate this collection with</param>
         public SByteCollection(IEnumerable<sbyte> collection) : base(collection) { }
 
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
-        /// <remarks>
-        /// Converts an array to a collection.
-        /// </remarks>
         /// <param name="values">An array of <see cref="sbyte"/> values to convert from</param>
         public static SByteCollection ToSByteCollection(sbyte[] values)
         {
@@ -182,9 +158,6 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
-        /// <remarks>
-        /// Creates a deep copy of the collection.
-        /// </remarks>
         public new object MemberwiseClone()
         {
             return new SByteCollection(this);
@@ -203,35 +176,23 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        /// <remarks>
-        /// Initializes an empty collection.
-        /// </remarks>
         public ByteCollection() { }
 
         /// <summary>
         /// Initializes the collection and sets the maximum capacity
         /// </summary>
-        /// <remarks>
-        /// Initializes the collection and sets the maximum capacity
-        /// </remarks>
         /// <param name="capacity">The maximum size of this collection</param>
         public ByteCollection(int capacity) : base(capacity) { }
 
         /// <summary>
         /// Initializes the collection and populates it with the specified collection of Byte values
         /// </summary>
-        /// <remarks>
-        /// Initializes the collection and populates it with the specified collection of Byte values
-        /// </remarks>
         /// <param name="collection">A collection of <see cref="byte"/> values to populate this collection with</param>
         public ByteCollection(IEnumerable<byte> collection) : base(collection) { }
 
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
-        /// <remarks>
-        /// Converts an array to a collection.
-        /// </remarks>
         /// <param name="values">An array of <see cref="byte"/> values to convert from</param>
         public static ByteCollection ToByteCollection(byte[] values)
         {
@@ -264,9 +225,6 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
-        /// <remarks>
-        /// Creates a deep copy of the collection.
-        /// </remarks>
         public new object MemberwiseClone()
         {
             return new ByteCollection(this);
@@ -285,35 +243,23 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        /// <remarks>
-        /// Initializes an empty collection.
-        /// </remarks>
         public Int16Collection() { }
 
         /// <summary>
         /// Initializes the collection and specifies the capacity
         /// </summary>
-        /// <remarks>
-        /// Initializes the collection and specifies the capacity
-        /// </remarks>
         /// <param name="capacity">The max size of the collection</param>
         public Int16Collection(int capacity) : base(capacity) { }
 
         /// <summary>
         /// Initializes the collection and populates it with the values passed-in
         /// </summary>
-        /// <remarks>
-        /// Initializes the collection and populates it with the values passed-in
-        /// </remarks>
         /// <param name="collection">A collection of <see cref="short"/> values to populate the collection with</param>
         public Int16Collection(IEnumerable<short> collection) : base(collection) { }
 
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
-        /// <remarks>
-        /// Converts an array to a collection.
-        /// </remarks>
         /// <param name="values">An array of <see cref="short"/> values to convert to a collection</param>
         public static Int16Collection ToInt16Collection(short[] values)
         {
@@ -328,9 +274,6 @@ namespace Opc.Ua
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
-        /// <remarks>
-        /// Converts an array to a collection.
-        /// </remarks>
         /// <param name="values">An array of <see cref="short"/> values to convert to a collection</param>
         public static implicit operator Int16Collection(short[] values)
         {
@@ -346,9 +289,6 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
-        /// <remarks>
-        /// Creates a deep copy of the collection.
-        /// </remarks>
         public new object MemberwiseClone()
         {
             return new Int16Collection(this);
@@ -358,44 +298,29 @@ namespace Opc.Ua
     /// <summary>
     /// A collection of UInt16 values.
     /// </summary>
-    /// <remarks>
-    /// A collection of UInt16 values.
-    /// </remarks>
     [CollectionDataContract(Name = "ListOfUInt16", Namespace = Namespaces.OpcUaXsd, ItemName = "UInt16")]
     public class UInt16Collection : List<ushort>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        /// <remarks>
-        /// Initializes an empty collection.
-        /// </remarks>
         public UInt16Collection() { }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
-        /// <remarks>
-        /// Initializes the collection with the specified capacity.
-        /// </remarks>
         /// <param name="capacity">The max capacity size of this collection</param>
         public UInt16Collection(int capacity) : base(capacity) { }
 
         /// <summary>
         /// Initializes the collection from another collection.
         /// </summary>
-        /// <remarks>
-        /// Initializes the collection from another collection.
-        /// </remarks>
         /// <param name="collection">A Collection of <see cref="ushort"/> to pre-populate the collection with</param>
         public UInt16Collection(IEnumerable<ushort> collection) : base(collection) { }
 
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
-        /// <remarks>
-        /// Converts an array to a collection.
-        /// </remarks>
         /// <param name="values">An array of <see cref="ushort"/> values to convert to a collection</param>
         public static UInt16Collection ToUInt16Collection(ushort[] values)
         {
@@ -410,9 +335,6 @@ namespace Opc.Ua
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
-        /// <remarks>
-        /// Converts an array to a collection.
-        /// </remarks>
         /// <param name="values">An array of <see cref="ushort"/> values to convert to a collection</param>
         public static implicit operator UInt16Collection(ushort[] values)
         {
@@ -428,9 +350,6 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
-        /// <remarks>
-        /// Creates a deep copy of the collection.
-        /// </remarks>
         public new object MemberwiseClone()
         {
             return new UInt16Collection(this);
@@ -454,27 +373,18 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
-        /// <remarks>
-        /// Initializes the collection with the specified capacity.
-        /// </remarks>
         /// <param name="capacity">Max capacity of this collection</param>
         public Int32Collection(int capacity) : base(capacity) { }
 
         /// <summary>
         /// Initializes the collection from another collection
         /// </summary>
-        /// <remarks>
-        /// Initializes the collection from another collection
-        /// </remarks>
         /// <param name="collection">A collection of <see cref="int"/> to pre-populate this collection with</param>
         public Int32Collection(IEnumerable<int> collection) : base(collection) { }
 
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
-        /// <remarks>
-        /// Converts an array to a collection.
-        /// </remarks>
         /// <param name="values">An array of <see cref="int"/> to convert to a collection</param>
         public static Int32Collection ToInt32Collection(int[] values)
         {
@@ -489,9 +399,6 @@ namespace Opc.Ua
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
-        /// <remarks>
-        /// Converts an array to a collection.
-        /// </remarks>
         /// <param name="values">An array of <see cref="int"/> to convert to a collection</param>
         public static implicit operator Int32Collection(int[] values)
         {
@@ -507,9 +414,6 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
-        /// <remarks>
-        /// Creates a deep copy of the collection.
-        /// </remarks>
         public new object MemberwiseClone()
         {
             return new Int32Collection(this);
@@ -519,9 +423,6 @@ namespace Opc.Ua
     /// <summary>
     /// A collection of UInt32 values.
     /// </summary>
-    /// <remarks>
-    /// A collection of UInt32 values.
-    /// </remarks>
     [CollectionDataContract(Name = "ListOfUInt32", Namespace = Namespaces.OpcUaXsd, ItemName = "UInt32")]
     public class UInt32Collection : List<uint>, ICloneable
     {
@@ -536,27 +437,18 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
-        /// <remarks>
-        /// Initializes the collection with the specified capacity.
-        /// </remarks>
         /// <param name="capacity">Max capacity of the collection</param>
         public UInt32Collection(int capacity) : base(capacity) { }
 
         /// <summary>
         /// Initializes the collection from another collection.
         /// </summary>
-        /// <remarks>
-        /// Initializes the collection from another collection.
-        /// </remarks>
         /// <param name="collection">A collection of <see cref="uint"/> to pre-populate the collection with</param>
         public UInt32Collection(IEnumerable<uint> collection) : base(collection) { }
 
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
-        /// <remarks>
-        /// Converts an array to a collection.
-        /// </remarks>
         /// <param name="values">
         /// An array of <see cref="uint"/> values to return as a strongly-typed collection
         /// </param>
@@ -573,9 +465,6 @@ namespace Opc.Ua
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
-        /// <remarks>
-        /// Converts an array to a collection.
-        /// </remarks>
         /// <param name="values">
         /// An array of <see cref="uint"/> values to return as a strongly-typed collection
         /// </param>
@@ -593,9 +482,6 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
-        /// <remarks>
-        /// Creates a deep copy of the collection.
-        /// </remarks>
         public new object MemberwiseClone()
         {
             return new UInt32Collection(this);
@@ -622,27 +508,18 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
-        /// <remarks>
-        /// Initializes the collection with the specified capacity.
-        /// </remarks>
         /// <param name="capacity">Max capacity of the collection</param>
         public Int64Collection(int capacity) : base(capacity) { }
 
         /// <summary>
         /// Initializes the collection from another collection.
         /// </summary>
-        /// <remarks>
-        /// Initializes the collection from another collection.
-        /// </remarks>
         /// <param name="collection">A colleciton of <see cref="long"/> to pre-populate the collection with</param>
         public Int64Collection(IEnumerable<long> collection) : base(collection) { }
 
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
-        /// <remarks>
-        /// Converts an array to a collection.
-        /// </remarks>
         /// <param name="values">An array of <see cref="long"/> to convert to a collection</param>
         public static Int64Collection ToInt64Collection(long[] values)
         {
@@ -657,9 +534,6 @@ namespace Opc.Ua
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
-        /// <remarks>
-        /// Converts an array to a collection.
-        /// </remarks>
         /// <param name="values">An array of <see cref="long"/> to convert to a collection</param>
         public static implicit operator Int64Collection(long[] values)
         {
@@ -675,9 +549,6 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
-        /// <remarks>
-        /// Creates a deep copy of the collection.
-        /// </remarks>
         public new object MemberwiseClone()
         {
             return new Int64Collection(this);
@@ -696,35 +567,23 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        /// <remarks>
-        /// Initializes an empty collection.
-        /// </remarks>
         public UInt64Collection() { }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
-        /// <remarks>
-        /// Initializes the collection with the specified capacity.
-        /// </remarks>
         /// <param name="capacity">Max capacity of collection</param>
         public UInt64Collection(int capacity) : base(capacity) { }
 
         /// <summary>
         /// Initializes the collection from another collection.
         /// </summary>
-        /// <remarks>
-        /// Initializes the collection from another collection.
-        /// </remarks>
         /// <param name="collection">A collection of <see cref="ulong"/> to pre-populate the collection with</param>
         public UInt64Collection(IEnumerable<ulong> collection) : base(collection) { }
 
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
-        /// <remarks>
-        /// Converts an array to a collection.
-        /// </remarks>
         /// <param name="values">An array of <see cref="ulong"/> to return as a collection</param>
         public static UInt64Collection ToUInt64Collection(ulong[] values)
         {
@@ -739,9 +598,6 @@ namespace Opc.Ua
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
-        /// <remarks>
-        /// Converts an array to a collection.
-        /// </remarks>
         /// <param name="values">An array of <see cref="ulong"/> to return as a collection</param>
         public static implicit operator UInt64Collection(ulong[] values)
         {
@@ -757,9 +613,6 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
-        /// <remarks>
-        /// Creates a deep copy of the collection.
-        /// </remarks>
         public new object MemberwiseClone()
         {
             return new UInt64Collection(this);
@@ -778,35 +631,23 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        /// <remarks>
-        /// Initializes an empty collection.
-        /// </remarks>
         public FloatCollection() { }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
-        /// <remarks>
-        /// Initializes the collection with the specified capacity.
-        /// </remarks>
         /// <param name="capacity">The max capacity of this collection</param>
         public FloatCollection(int capacity) : base(capacity) { }
 
         /// <summary>
         /// Initializes the collection from another collection.
         /// </summary>
-        /// <remarks>
-        /// Initializes the collection from another collection.
-        /// </remarks>
         /// <param name="collection">The collection of values to add into this collection</param>
         public FloatCollection(IEnumerable<float> collection) : base(collection) { }
 
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
-        /// <remarks>
-        /// Converts an array to a collection.
-        /// </remarks>
         /// <param name="values">An array of floats to return as a collection</param>
         public static FloatCollection ToFloatCollection(float[] values)
         {
@@ -821,9 +662,6 @@ namespace Opc.Ua
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
-        /// <remarks>
-        /// Converts an array to a collection.
-        /// </remarks>
         /// <param name="values">An array of floats to return as a collection</param>
         public static implicit operator FloatCollection(float[] values)
         {
@@ -839,9 +677,6 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
-        /// <remarks>
-        /// Creates a deep copy of the collection.
-        /// </remarks>
         public new object MemberwiseClone()
         {
             return new FloatCollection(this);
@@ -851,44 +686,29 @@ namespace Opc.Ua
     /// <summary>
     /// A collection of Double values.
     /// </summary>
-    /// <remarks>
-    /// A collection of Double values.
-    /// </remarks>
     [CollectionDataContract(Name = "ListOfDouble", Namespace = Namespaces.OpcUaXsd, ItemName = "Double")]
     public class DoubleCollection : List<double>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        /// <remarks>
-        /// Initializes an empty collection.
-        /// </remarks>
         public DoubleCollection() { }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
-        /// <remarks>
-        /// Initializes the collection with the specified capacity.
-        /// </remarks>
         /// <param name="capacity">max capacity of collection</param>
         public DoubleCollection(int capacity) : base(capacity) { }
 
         /// <summary>
         /// Initializes the collection from another collection.
         /// </summary>
-        /// <remarks>
-        /// Initializes the collection from another collection.
-        /// </remarks>
         /// <param name="collection">A collection of doubles to add into this collection</param>
         public DoubleCollection(IEnumerable<double> collection) : base(collection) { }
 
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
-        /// <remarks>
-        /// Converts an array to a collection.
-        /// </remarks>
         /// <param name="values">an array of doubles to return as a collection</param>
         public static DoubleCollection ToDoubleCollection(double[] values)
         {
@@ -903,9 +723,6 @@ namespace Opc.Ua
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
-        /// <remarks>
-        /// Converts an array to a collection.
-        /// </remarks>
         /// <param name="values">an array of doubles to return as a collection</param>
         public static implicit operator DoubleCollection(double[] values)
         {
@@ -921,9 +738,6 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
-        /// <remarks>
-        /// Creates a deep copy of the collection.
-        /// </remarks>
         public new object MemberwiseClone()
         {
             return new DoubleCollection(this);
@@ -942,35 +756,23 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        /// <remarks>
-        /// Initializes an empty collection.
-        /// </remarks>
         public StringCollection() { }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
-        /// <remarks>
-        /// Initializes the collection with the specified capacity.
-        /// </remarks>
         /// <param name="capacity">Max capacity of collection</param>
         public StringCollection(int capacity) : base(capacity) { }
 
         /// <summary>
         /// Initializes the collection from another collection.
         /// </summary>
-        /// <remarks>
-        /// Initializes the collection from another collection.
-        /// </remarks>
         /// <param name="collection">A collection of strings to add to this collection</param>
         public StringCollection(IEnumerable<string> collection) : base(collection) { }
 
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
-        /// <remarks>
-        /// Converts an array to a collection.
-        /// </remarks>
         /// <param name="values">A collection of strings to add to this collection</param>
         public static StringCollection ToStringCollection(string[] values)
         {
@@ -984,9 +786,6 @@ namespace Opc.Ua
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
-        /// <remarks>
-        /// Converts an array to a collection.
-        /// </remarks>
         /// <param name="values">A collection of strings to add to this collection</param>
         public static implicit operator StringCollection(string[] values)
         {
@@ -1002,9 +801,6 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
-        /// <remarks>
-        /// Creates a deep copy of the collection.
-        /// </remarks>
         public new object MemberwiseClone()
         {
             return new StringCollection(this);
@@ -1023,35 +819,23 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        /// <remarks>
-        /// Initializes an empty collection.
-        /// </remarks>
         public DateTimeCollection() { }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
-        /// <remarks>
-        /// Initializes the collection with the specified capacity.
-        /// </remarks>
         /// <param name="capacity">Max capacity of collection</param>
         public DateTimeCollection(int capacity) : base(capacity) { }
 
         /// <summary>
         /// Initializes the collection from another collection.
         /// </summary>
-        /// <remarks>
-        /// Initializes the collection from another collection.
-        ///</remarks>
         ///<param name="collection">A collection of DateTime to add to this collection</param>
         public DateTimeCollection(IEnumerable<DateTime> collection) : base(collection) { }
 
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
-        /// <remarks>
-        /// Converts an array to a collection.
-        /// </remarks>
         /// <param name="values">Array of DateTime to return as a collection</param>
         public static DateTimeCollection ToDateTimeCollection(DateTime[] values)
         {
@@ -1066,9 +850,6 @@ namespace Opc.Ua
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
-        /// <remarks>
-        /// Converts an array to a collection.
-        /// </remarks>
         /// <param name="values">Array of DateTime to return as a collection</param>
         public static implicit operator DateTimeCollection(DateTime[] values)
         {
@@ -1084,9 +865,6 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
-        /// <remarks>
-        /// Creates a deep copy of the collection.
-        /// </remarks>
         public new object MemberwiseClone()
         {
             return new DateTimeCollection(this);
@@ -1096,44 +874,29 @@ namespace Opc.Ua
     /// <summary>
     /// A collection of ByteString values.
     /// </summary>
-    /// <remarks>
-    /// A collection of ByteString values.
-    /// </remarks>
     [CollectionDataContract(Name = "ListOfByteString", Namespace = Namespaces.OpcUaXsd, ItemName = "ByteString")]
     public class ByteStringCollection : List<byte[]>, ICloneable
     {
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        /// <remarks>
-        /// Initializes an empty collection.
-        /// </remarks>
         public ByteStringCollection() { }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
-        /// <remarks>
-        /// Initializes the collection with the specified capacity.
-        /// </remarks>
         /// <param name="capacity">Max size of collection</param>
         public ByteStringCollection(int capacity) : base(capacity) { }
 
         /// <summary>
         /// Initializes the collection from another collection.
         /// </summary>
-        /// <remarks>
-        /// Initializes the collection from another collection.
-        /// </remarks>
         /// <param name="collection">A collection of byte to add to this collection</param>
         public ByteStringCollection(IEnumerable<byte[]> collection) : base(collection) { }
 
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
-        /// <remarks>
-        /// Converts an array to a collection.
-        /// </remarks>
         /// <param name="values">Array of bytes to return as a collection</param>
         public static ByteStringCollection ToByteStringCollection(byte[][] values)
         {
@@ -1148,9 +911,6 @@ namespace Opc.Ua
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
-        /// <remarks>
-        /// Converts an array to a collection.
-        /// </remarks>
         /// <param name="values">Array of bytes to return as a collection</param>
         public static implicit operator ByteStringCollection(byte[][] values)
         {
@@ -1166,9 +926,6 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
-        /// <remarks>
-        /// Creates a deep copy of the collection.
-        /// </remarks>
         public new object MemberwiseClone()
         {
             var clone = new ByteStringCollection(Count);
@@ -1194,35 +951,23 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes an empty collection.
         /// </summary>
-        /// <remarks>
-        /// Initializes an empty collection.
-        /// </remarks>
         public XmlElementCollection() { }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
-        /// <remarks>
-        /// Initializes the collection with the specified capacity.
-        /// </remarks>
         /// <param name="capacity">Max size of collection</param>
         public XmlElementCollection(int capacity) : base(capacity) { }
 
         /// <summary>
         /// Initializes the collection from another collection.
         /// </summary>
-        /// <remarks>
-        /// Initializes the collection from another collection.
-        /// </remarks>
         /// <param name="collection">A collection of XmlElement's to add to this collection</param>
         public XmlElementCollection(IEnumerable<XmlElement> collection) : base(collection) { }
 
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
-        /// <remarks>
-        /// Converts an array to a collection.
-        /// </remarks>
         /// <param name="values">An array of XmlElement's to return as a collection</param>
         public static XmlElementCollection ToXmlElementCollection(XmlElement[] values)
         {
@@ -1237,9 +982,6 @@ namespace Opc.Ua
         /// <summary>
         /// Converts an array to a collection.
         /// </summary>
-        /// <remarks>
-        /// Converts an array to a collection.
-        /// </remarks>
         /// <param name="values">An array of XmlElement's to return as a collection</param>
         public static implicit operator XmlElementCollection(XmlElement[] values)
         {
@@ -1255,9 +997,6 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a deep copy of the collection.
         /// </summary>
-        /// <remarks>
-        /// Creates a deep copy of the collection.
-        /// </remarks>
         public new object MemberwiseClone()
         {
             var clone = new XmlElementCollection(Count);

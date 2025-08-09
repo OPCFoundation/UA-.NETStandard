@@ -385,33 +385,31 @@ namespace Opc.Ua.Bindings
             try
             {
                 var ostrm = new MemoryStream(buffer, 0, SendBufferSize);
-                using (var encoder = new BinaryEncoder(ostrm, Quotas.MessageContext, false))
+                using var encoder = new BinaryEncoder(ostrm, Quotas.MessageContext, false);
+                encoder.WriteUInt32(null, TcpMessageType.Hello);
+                encoder.WriteUInt32(null, 0);
+                encoder.WriteUInt32(null, 0); // ProtocolVersion
+                encoder.WriteUInt32(null, (uint)ReceiveBufferSize);
+                encoder.WriteUInt32(null, (uint)SendBufferSize);
+                encoder.WriteUInt32(null, (uint)MaxResponseMessageSize);
+                encoder.WriteUInt32(null, (uint)MaxResponseChunkCount);
+
+                byte[] endpointUrl = Encoding.UTF8.GetBytes(m_url.ToString());
+
+                if (endpointUrl.Length > TcpMessageLimits.MaxEndpointUrlLength)
                 {
-                    encoder.WriteUInt32(null, TcpMessageType.Hello);
-                    encoder.WriteUInt32(null, 0);
-                    encoder.WriteUInt32(null, 0); // ProtocolVersion
-                    encoder.WriteUInt32(null, (uint)ReceiveBufferSize);
-                    encoder.WriteUInt32(null, (uint)SendBufferSize);
-                    encoder.WriteUInt32(null, (uint)MaxResponseMessageSize);
-                    encoder.WriteUInt32(null, (uint)MaxResponseChunkCount);
-
-                    byte[] endpointUrl = Encoding.UTF8.GetBytes(m_url.ToString());
-
-                    if (endpointUrl.Length > TcpMessageLimits.MaxEndpointUrlLength)
-                    {
-                        byte[] truncatedUrl = new byte[TcpMessageLimits.MaxEndpointUrlLength];
-                        Array.Copy(endpointUrl, truncatedUrl, TcpMessageLimits.MaxEndpointUrlLength);
-                        endpointUrl = truncatedUrl;
-                    }
-
-                    encoder.WriteByteString(null, endpointUrl);
-
-                    int size = encoder.Close();
-                    UpdateMessageSize(buffer, 0, size);
-
-                    BeginWriteMessage(new ArraySegment<byte>(buffer, 0, size), operation);
-                    buffer = null;
+                    byte[] truncatedUrl = new byte[TcpMessageLimits.MaxEndpointUrlLength];
+                    Array.Copy(endpointUrl, truncatedUrl, TcpMessageLimits.MaxEndpointUrlLength);
+                    endpointUrl = truncatedUrl;
                 }
+
+                encoder.WriteByteString(null, endpointUrl);
+
+                int size = encoder.Close();
+                UpdateMessageSize(buffer, 0, size);
+
+                BeginWriteMessage(new ArraySegment<byte>(buffer, 0, size), operation);
+                buffer = null;
             }
             finally
             {
@@ -643,7 +641,7 @@ namespace Opc.Ua.Bindings
 
                 // read message body.
 
-                if (!(ParseResponse(chunksToProcess) is OpenSecureChannelResponse response))
+                if (ParseResponse(chunksToProcess) is not OpenSecureChannelResponse response)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadTypeMismatch, "Server did not return a valid OpenSecureChannelResponse.");
                 }
@@ -1095,7 +1093,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private IServiceResponse ParseResponse(BufferCollection chunksToProcess)
         {
-            if (!(BinaryDecoder.DecodeMessage(new ArraySegmentStream(chunksToProcess), null, Quotas.MessageContext) is IServiceResponse response))
+            if (BinaryDecoder.DecodeMessage(new ArraySegmentStream(chunksToProcess), null, Quotas.MessageContext) is not IServiceResponse response)
             {
                 throw ServiceResultException.Create(StatusCodes.BadStructureMissing, "Could not parse response body.");
             }
@@ -1286,8 +1284,9 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private WriteOperation BeginOperation(int timeout, AsyncCallback callback, object state)
         {
-            var operation = new WriteOperation(timeout, callback, state);
-            operation.RequestId = Utils.IncrementIdentifier(ref m_lastRequestId);
+            var operation = new WriteOperation(timeout, callback, state) {
+                RequestId = Utils.IncrementIdentifier(ref m_lastRequestId)
+            };
             if (!m_requests.TryAdd(operation.RequestId, operation))
             {
                 throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Could not add request {0} to list of pending operations.", operation.RequestId);

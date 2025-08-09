@@ -29,7 +29,9 @@
 
 using System;
 using System.Linq;
+#if NETSTANDARD2_1_OR_GREATER || NET472_OR_GREATER || NET5_0_OR_GREATER
 using System.Runtime.InteropServices;
+#endif
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
@@ -97,30 +99,28 @@ namespace Opc.Ua.Security.Certificates
             try
             {
                 // verify the public and private key match
-                using (RSA rsaPrivateKey = certWithPrivateKey.GetRSAPrivateKey())
-                using (RSA rsaPublicKey = certWithPublicKey.GetRSAPublicKey())
+                using RSA rsaPrivateKey = certWithPrivateKey.GetRSAPrivateKey();
+                using RSA rsaPublicKey = certWithPublicKey.GetRSAPublicKey();
+                // For non RSA certificates, RSA keys are null
+                if (rsaPrivateKey != null && rsaPublicKey != null)
                 {
-                    // For non RSA certificates, RSA keys are null
-                    if (rsaPrivateKey != null && rsaPublicKey != null)
+                    X509KeyUsageFlags keyUsage = GetKeyUsage(certWithPublicKey);
+                    if ((keyUsage & X509KeyUsageFlags.DataEncipherment) != 0)
                     {
-                        X509KeyUsageFlags keyUsage = GetKeyUsage(certWithPublicKey);
-                        if ((keyUsage & X509KeyUsageFlags.DataEncipherment) != 0)
-                        {
-                            result = VerifyRSAKeyPairCrypt(rsaPublicKey, rsaPrivateKey);
-                        }
-                        else if ((keyUsage & X509KeyUsageFlags.DigitalSignature) != 0)
-                        {
-                            result = VerifyRSAKeyPairSign(rsaPublicKey, rsaPrivateKey);
-                        }
-                        else
-                        {
-                            throw new CryptographicException("Don't know how to verify the public/private key pair.");
-                        }
+                        result = VerifyRSAKeyPairCrypt(rsaPublicKey, rsaPrivateKey);
+                    }
+                    else if ((keyUsage & X509KeyUsageFlags.DigitalSignature) != 0)
+                    {
+                        result = VerifyRSAKeyPairSign(rsaPublicKey, rsaPrivateKey);
                     }
                     else
                     {
-                        throw new CryptographicException("The certificate does not contain a RSA public/private key pair.");
+                        throw new CryptographicException("Don't know how to verify the public/private key pair.");
                     }
+                }
+                else
+                {
+                    throw new CryptographicException("The certificate does not contain a RSA public/private key pair.");
                 }
             }
             catch (Exception) when (!throwOnError)

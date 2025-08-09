@@ -120,7 +120,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             /// </summary>
             public IBlockResult GetResult()
             {
-                if (!(Stream is MemoryStream memStream))
+                if (Stream is not MemoryStream memStream)
                 {
                     throw new ArgumentNullException(nameof(Stream));
                 }

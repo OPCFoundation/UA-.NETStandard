@@ -90,28 +90,26 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             ApplicationTestData app = appTestGenerator
                 .ApplicationTestSet(1)
                 .First();
-            using (X509Certificate2 cert = CertificateFactory.CreateCertificate(app.ApplicationUri, app.ApplicationName, app.Subject, app.DomainNames)
+            using X509Certificate2 cert = CertificateFactory.CreateCertificate(app.ApplicationUri, app.ApplicationName, app.Subject, app.DomainNames)
                 .SetHashAlgorithm(keyHashPair.HashAlgorithmName)
                 .SetRSAKeySize(keyHashPair.KeySize)
-                .CreateForRSA())
+                .CreateForRSA();
+            Assert.NotNull(cert);
+            Assert.NotNull(cert.RawData);
+            Assert.True(cert.HasPrivateKey);
+            using (RSA rsa = cert.GetRSAPrivateKey())
             {
-                Assert.NotNull(cert);
-                Assert.NotNull(cert.RawData);
-                Assert.True(cert.HasPrivateKey);
-                using (RSA rsa = cert.GetRSAPrivateKey())
-                {
-                    rsa.ExportParameters(true);
-                }
-                using (RSA rsa = cert.GetRSAPublicKey())
-                {
-                    rsa.ExportParameters(false);
-                }
-                X509Certificate2 plainCert = X509CertificateLoader.LoadCertificate(cert.RawData);
-                Assert.NotNull(plainCert);
-                VerifyApplicationCert(app, plainCert);
-                X509Utils.VerifyRSAKeyPair(cert, cert, true);
-                Assert.True(X509Utils.VerifySelfSigned(cert), "Verify Self signed.");
+                rsa.ExportParameters(true);
             }
+            using (RSA rsa = cert.GetRSAPublicKey())
+            {
+                rsa.ExportParameters(false);
+            }
+            X509Certificate2 plainCert = X509CertificateLoader.LoadCertificate(cert.RawData);
+            Assert.NotNull(plainCert);
+            VerifyApplicationCert(app, plainCert);
+            X509Utils.VerifyRSAKeyPair(cert, cert, true);
+            Assert.True(X509Utils.VerifySelfSigned(cert), "Verify Self signed.");
         }
 
         /// <summary>
@@ -128,23 +126,19 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.True(issuerCertificate.HasPrivateKey);
             var appTestGenerator = new ApplicationTestDataGenerator(keyHashPair.KeySize);
             ApplicationTestData app = appTestGenerator.ApplicationTestSet(1).First();
-            using (X509Certificate2 cert = CertificateFactory.CreateCertificate(
+            using X509Certificate2 cert = CertificateFactory.CreateCertificate(
                 app.ApplicationUri, app.ApplicationName, app.Subject, app.DomainNames)
                 .SetHashAlgorithm(keyHashPair.HashAlgorithmName)
                 .SetIssuer(issuerCertificate)
                 .SetRSAKeySize(keyHashPair.KeySize)
-                .CreateForRSA())
-            {
-                Assert.NotNull(cert);
-                Assert.NotNull(cert.RawData);
-                Assert.True(cert.HasPrivateKey);
-                using (X509Certificate2 plainCert = X509CertificateLoader.LoadCertificate(cert.RawData))
-                {
-                    Assert.NotNull(plainCert);
-                    VerifyApplicationCert(app, plainCert, issuerCertificate);
-                    X509Utils.VerifyRSAKeyPair(plainCert, cert, true);
-                }
-            }
+                .CreateForRSA();
+            Assert.NotNull(cert);
+            Assert.NotNull(cert.RawData);
+            Assert.True(cert.HasPrivateKey);
+            using X509Certificate2 plainCert = X509CertificateLoader.LoadCertificate(cert.RawData);
+            Assert.NotNull(plainCert);
+            VerifyApplicationCert(app, plainCert, issuerCertificate);
+            X509Utils.VerifyRSAKeyPair(plainCert, cert, true);
         }
 
         /// <summary>
@@ -186,79 +180,77 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             X509Certificate2 issuerCertificate = GetIssuer(keyHashPair);
             Assert.True(X509Utils.VerifySelfSigned(issuerCertificate));
 
-            using (X509Certificate2 otherIssuerCertificate = CertificateFactory.CreateCertificate(issuerCertificate.Subject)
+            using X509Certificate2 otherIssuerCertificate = CertificateFactory.CreateCertificate(issuerCertificate.Subject)
                 .SetLifeTime(TimeSpan.FromDays(180))
                 .SetHashAlgorithm(keyHashPair.HashAlgorithmName)
                 .SetCAConstraint(pathLengthConstraint)
-                .CreateForRSA())
+                .CreateForRSA();
+            Assert.True(X509Utils.VerifySelfSigned(otherIssuerCertificate));
+
+            var revokedCerts = new X509Certificate2Collection();
+            try
             {
-                Assert.True(X509Utils.VerifySelfSigned(otherIssuerCertificate));
-
-                var revokedCerts = new X509Certificate2Collection();
-                try
+                for (int i = 0; i < 10; i++)
                 {
-                    for (int i = 0; i < 10; i++)
-                    {
-                        X509Certificate2 cert = CertificateFactory.CreateCertificate($"CN=Test Cert {i}, O=Contoso")
-                            .SetIssuer(issuerCertificate)
-                            .SetRSAKeySize((ushort)(keyHashPair.KeySize <= 2048 ? keyHashPair.KeySize : 2048))
-                            .CreateForRSA();
-                        revokedCerts.Add(cert);
-                        Assert.False(X509Utils.VerifySelfSigned(cert));
-                    }
+                    X509Certificate2 cert = CertificateFactory.CreateCertificate($"CN=Test Cert {i}, O=Contoso")
+                        .SetIssuer(issuerCertificate)
+                        .SetRSAKeySize((ushort)(keyHashPair.KeySize <= 2048 ? keyHashPair.KeySize : 2048))
+                        .CreateForRSA();
+                    revokedCerts.Add(cert);
+                    Assert.False(X509Utils.VerifySelfSigned(cert));
+                }
 
-                    Assert.NotNull(issuerCertificate);
-                    Assert.NotNull(issuerCertificate.RawData);
-                    Assert.True(issuerCertificate.HasPrivateKey);
-                    using (RSA rsa = issuerCertificate.GetRSAPrivateKey())
-                    {
-                        Assert.NotNull(rsa);
-                    }
+                Assert.NotNull(issuerCertificate);
+                Assert.NotNull(issuerCertificate.RawData);
+                Assert.True(issuerCertificate.HasPrivateKey);
+                using (RSA rsa = issuerCertificate.GetRSAPrivateKey())
+                {
+                    Assert.NotNull(rsa);
+                }
 
-                    using (X509Certificate2 plainCert = X509CertificateLoader.LoadCertificate(issuerCertificate.RawData))
-                    {
-                        Assert.NotNull(plainCert);
-                        VerifyCACert(plainCert, issuerCertificate.Subject, pathLengthConstraint);
-                    }
-                    Assert.True(X509Utils.VerifySelfSigned(issuerCertificate));
-                    X509Utils.VerifyRSAKeyPair(issuerCertificate, issuerCertificate, true);
+                using (X509Certificate2 plainCert = X509CertificateLoader.LoadCertificate(issuerCertificate.RawData))
+                {
+                    Assert.NotNull(plainCert);
+                    VerifyCACert(plainCert, issuerCertificate.Subject, pathLengthConstraint);
+                }
+                Assert.True(X509Utils.VerifySelfSigned(issuerCertificate));
+                X509Utils.VerifyRSAKeyPair(issuerCertificate, issuerCertificate, true);
 
-                    X509CRL crl = CertificateFactory.RevokeCertificate(issuerCertificate, null, null);
-                    Assert.NotNull(crl);
-                    Assert.True(crl.VerifySignature(issuerCertificate, true));
-                    X509CrlNumberExtension extension = crl.CrlExtensions.FindExtension<X509CrlNumberExtension>();
-                    var crlCounter = new BigInteger(1);
-                    Assert.AreEqual(crlCounter, extension.CrlNumber);
-                    var revokedList = new X509CRLCollection {
+                X509CRL crl = CertificateFactory.RevokeCertificate(issuerCertificate, null, null);
+                Assert.NotNull(crl);
+                Assert.True(crl.VerifySignature(issuerCertificate, true));
+                X509CrlNumberExtension extension = crl.CrlExtensions.FindExtension<X509CrlNumberExtension>();
+                var crlCounter = new BigInteger(1);
+                Assert.AreEqual(crlCounter, extension.CrlNumber);
+                var revokedList = new X509CRLCollection {
                         crl
                     };
 
-                    foreach (X509Certificate2 cert in revokedCerts)
-                    {
-                        NUnit.Framework.Assert.Throws<CryptographicException>(() => crl.VerifySignature(otherIssuerCertificate, true));
-                        Assert.False(crl.IsRevoked(cert));
-                        X509CRL nextCrl = CertificateFactory.RevokeCertificate(issuerCertificate, revokedList, new X509Certificate2Collection(cert));
-                        crlCounter++;
-                        Assert.NotNull(nextCrl);
-                        Assert.True(nextCrl.IsRevoked(cert));
-                        extension = nextCrl.CrlExtensions.FindExtension<X509CrlNumberExtension>();
-                        Assert.AreEqual(crlCounter, extension.CrlNumber);
-                        Assert.True(crl.VerifySignature(issuerCertificate, true));
-                        revokedList.Add(nextCrl);
-                        crl = nextCrl;
-                    }
-
-                    foreach (X509Certificate2 cert in revokedCerts)
-                    {
-                        Assert.True(crl.IsRevoked(cert));
-                    }
-                }
-                finally
+                foreach (X509Certificate2 cert in revokedCerts)
                 {
-                    foreach (X509Certificate2 cert in revokedCerts)
-                    {
-                        Utils.SilentDispose(cert);
-                    }
+                    NUnit.Framework.Assert.Throws<CryptographicException>(() => crl.VerifySignature(otherIssuerCertificate, true));
+                    Assert.False(crl.IsRevoked(cert));
+                    X509CRL nextCrl = CertificateFactory.RevokeCertificate(issuerCertificate, revokedList, new X509Certificate2Collection(cert));
+                    crlCounter++;
+                    Assert.NotNull(nextCrl);
+                    Assert.True(nextCrl.IsRevoked(cert));
+                    extension = nextCrl.CrlExtensions.FindExtension<X509CrlNumberExtension>();
+                    Assert.AreEqual(crlCounter, extension.CrlNumber);
+                    Assert.True(crl.VerifySignature(issuerCertificate, true));
+                    revokedList.Add(nextCrl);
+                    crl = nextCrl;
+                }
+
+                foreach (X509Certificate2 cert in revokedCerts)
+                {
+                    Assert.True(crl.IsRevoked(cert));
+                }
+            }
+            finally
+            {
+                foreach (X509Certificate2 cert in revokedCerts)
+                {
+                    Utils.SilentDispose(cert);
                 }
             }
         }

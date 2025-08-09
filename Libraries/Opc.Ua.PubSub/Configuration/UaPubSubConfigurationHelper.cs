@@ -53,11 +53,9 @@ namespace Opc.Ua.PubSub.Configuration
             XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
             settings.CloseOutput = true;
 
-            using (var writer = XmlWriter.Create(ostrm, settings))
-            {
-                var serializer = new DataContractSerializer(typeof(PubSubConfigurationDataType));
-                serializer.WriteObject(writer, pubSubConfiguration);
-            }
+            using var writer = XmlWriter.Create(ostrm, settings);
+            var serializer = new DataContractSerializer(typeof(PubSubConfigurationDataType));
+            serializer.WriteObject(writer, pubSubConfiguration);
         }
 
         /// <summary>
@@ -68,11 +66,9 @@ namespace Opc.Ua.PubSub.Configuration
         {
             try
             {
-                using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
-                {
-                    var serializer = new DataContractSerializer(typeof(PubSubConfigurationDataType));
-                    return (PubSubConfigurationDataType)serializer.ReadObject(stream);
-                }
+                using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+                var serializer = new DataContractSerializer(typeof(PubSubConfigurationDataType));
+                return (PubSubConfigurationDataType)serializer.ReadObject(stream);
             }
             catch (Exception e)
             {

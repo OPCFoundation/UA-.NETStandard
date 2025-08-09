@@ -29,13 +29,8 @@ namespace Opc.Ua
         /// </summary>
         public XmlDecoder(XmlReader reader, IServiceMessageContext context)
         {
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
-
             Initialize();
-            Context = context;
+            Context = context ?? throw new ArgumentNullException(nameof(context));
             m_nestingLevel = 0;
             m_reader = reader;
         }
@@ -45,14 +40,9 @@ namespace Opc.Ua
         /// </summary>
         public XmlDecoder(XmlElement element, IServiceMessageContext context)
         {
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
-
             Initialize();
             m_reader = XmlReader.Create(new StringReader(element.OuterXml), Utils.DefaultXmlReaderSettings());
-            Context = context;
+            Context = context ?? throw new ArgumentNullException(nameof(context));
             m_nestingLevel = 0;
         }
 
@@ -441,53 +431,101 @@ namespace Opc.Ua
 
                             return null;
 
-                        case "Boolean": typeInfo = TypeInfo.Scalars.Boolean; return ReadBoolean(typeName);
+                        case "Boolean":
+                            typeInfo = TypeInfo.Scalars.Boolean;
+                            return ReadBoolean(typeName);
 
-                        case "SByte": typeInfo = TypeInfo.Scalars.SByte; return ReadSByte(typeName);
+                        case "SByte":
+                            typeInfo = TypeInfo.Scalars.SByte;
+                            return ReadSByte(typeName);
 
-                        case "Byte": typeInfo = TypeInfo.Scalars.Byte; return ReadByte(typeName);
+                        case "Byte":
+                            typeInfo = TypeInfo.Scalars.Byte;
+                            return ReadByte(typeName);
 
-                        case "Int16": typeInfo = TypeInfo.Scalars.Int16; return ReadInt16(typeName);
+                        case "Int16":
+                            typeInfo = TypeInfo.Scalars.Int16;
+                            return ReadInt16(typeName);
 
-                        case "UInt16": typeInfo = TypeInfo.Scalars.UInt16; return ReadUInt16(typeName);
+                        case "UInt16":
+                            typeInfo = TypeInfo.Scalars.UInt16;
+                            return ReadUInt16(typeName);
 
-                        case "Int32": typeInfo = TypeInfo.Scalars.Int32; return ReadInt32(typeName);
+                        case "Int32":
+                            typeInfo = TypeInfo.Scalars.Int32;
+                            return ReadInt32(typeName);
 
-                        case "UInt32": typeInfo = TypeInfo.Scalars.UInt32; return ReadUInt32(typeName);
+                        case "UInt32":
+                            typeInfo = TypeInfo.Scalars.UInt32;
+                            return ReadUInt32(typeName);
 
-                        case "Int64": typeInfo = TypeInfo.Scalars.Int64; return ReadInt64(typeName);
+                        case "Int64":
+                            typeInfo = TypeInfo.Scalars.Int64;
+                            return ReadInt64(typeName);
 
-                        case "UInt64": typeInfo = TypeInfo.Scalars.UInt64; return ReadUInt64(typeName);
+                        case "UInt64":
+                            typeInfo = TypeInfo.Scalars.UInt64;
+                            return ReadUInt64(typeName);
 
-                        case "Float": typeInfo = TypeInfo.Scalars.Float; return ReadFloat(typeName);
+                        case "Float":
+                            typeInfo = TypeInfo.Scalars.Float;
+                            return ReadFloat(typeName);
 
-                        case "Double": typeInfo = TypeInfo.Scalars.Double; return ReadDouble(typeName);
+                        case "Double":
+                            typeInfo = TypeInfo.Scalars.Double;
+                            return ReadDouble(typeName);
 
-                        case "String": typeInfo = TypeInfo.Scalars.String; return ReadString(typeName);
+                        case "String":
+                            typeInfo = TypeInfo.Scalars.String;
+                            return ReadString(typeName);
 
-                        case "DateTime": typeInfo = TypeInfo.Scalars.DateTime; return ReadDateTime(typeName);
+                        case "DateTime":
+                            typeInfo = TypeInfo.Scalars.DateTime;
+                            return ReadDateTime(typeName);
 
-                        case "Guid": typeInfo = TypeInfo.Scalars.Guid; return ReadGuid(typeName);
+                        case "Guid":
+                            typeInfo = TypeInfo.Scalars.Guid;
+                            return ReadGuid(typeName);
 
-                        case "ByteString": typeInfo = TypeInfo.Scalars.ByteString; return ReadByteString(typeName);
+                        case "ByteString":
+                            typeInfo = TypeInfo.Scalars.ByteString;
+                            return ReadByteString(typeName);
 
-                        case "XmlElement": typeInfo = TypeInfo.Scalars.XmlElement; return ReadXmlElement(typeName);
+                        case "XmlElement":
+                            typeInfo = TypeInfo.Scalars.XmlElement;
+                            return ReadXmlElement(typeName);
 
-                        case "NodeId": typeInfo = TypeInfo.Scalars.NodeId; return ReadNodeId(typeName);
+                        case "NodeId":
+                            typeInfo = TypeInfo.Scalars.NodeId;
+                            return ReadNodeId(typeName);
 
-                        case "ExpandedNodeId": typeInfo = TypeInfo.Scalars.ExpandedNodeId; return ReadExpandedNodeId(typeName);
+                        case "ExpandedNodeId":
+                            typeInfo = TypeInfo.Scalars.ExpandedNodeId;
+                            return ReadExpandedNodeId(typeName);
 
-                        case "StatusCode": typeInfo = TypeInfo.Scalars.StatusCode; return ReadStatusCode(typeName);
+                        case "StatusCode":
+                            typeInfo = TypeInfo.Scalars.StatusCode;
+                            return ReadStatusCode(typeName);
 
-                        case "DiagnosticInfo": typeInfo = TypeInfo.Scalars.DiagnosticInfo; return ReadDiagnosticInfo(typeName);
+                        case "DiagnosticInfo":
+                            typeInfo = TypeInfo.Scalars.DiagnosticInfo;
+                            return ReadDiagnosticInfo(typeName);
 
-                        case "QualifiedName": typeInfo = TypeInfo.Scalars.QualifiedName; return ReadQualifiedName(typeName);
+                        case "QualifiedName":
+                            typeInfo = TypeInfo.Scalars.QualifiedName;
+                            return ReadQualifiedName(typeName);
 
-                        case "LocalizedText": typeInfo = TypeInfo.Scalars.LocalizedText; return ReadLocalizedText(typeName);
+                        case "LocalizedText":
+                            typeInfo = TypeInfo.Scalars.LocalizedText;
+                            return ReadLocalizedText(typeName);
 
-                        case "ExtensionObject": typeInfo = TypeInfo.Scalars.ExtensionObject; return ReadExtensionObject(typeName);
+                        case "ExtensionObject":
+                            typeInfo = TypeInfo.Scalars.ExtensionObject;
+                            return ReadExtensionObject(typeName);
 
-                        case "DataValue": typeInfo = TypeInfo.Scalars.DataValue; return ReadDataValue(typeName);
+                        case "DataValue":
+                            typeInfo = TypeInfo.Scalars.DataValue;
+                            return ReadDataValue(typeName);
 
                         case "Matrix":
                             Matrix matrix = ReadMatrix(typeName);
@@ -1384,7 +1422,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(systemType));
             }
 
-            if (!(Activator.CreateInstance(systemType) is IEncodeable value))
+            if (Activator.CreateInstance(systemType) is not IEncodeable value)
             {
                 throw ServiceResultException.Create(StatusCodes.BadDecodingError,
                     "Type does not support IEncodeable interface: '{0}'", systemType.FullName);
@@ -2410,7 +2448,10 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public uint ReadEncodingMask(IList<string> masks) => ReadUInt32("EncodingMask");
+        public uint ReadEncodingMask(IList<string> masks)
+        {
+            return ReadUInt32("EncodingMask");
+        }
 
         /// <summary>
         /// Reads an DiagnosticInfo from the stream.

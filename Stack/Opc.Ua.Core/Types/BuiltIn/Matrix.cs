@@ -28,12 +28,7 @@ namespace Opc.Ua
         /// </summary>
         public Matrix(Array value, BuiltInType builtInType)
         {
-            if (value == null)
-            {
-                throw new ArgumentNullException(nameof(value));
-            }
-
-            Elements = value;
+            Elements = value ?? throw new ArgumentNullException(nameof(value));
             Dimensions = new int[value.Rank];
 
             for (int ii = 0; ii < Dimensions.Length; ii++)
@@ -50,12 +45,7 @@ namespace Opc.Ua
         /// </summary>
         public Matrix(Array elements, BuiltInType builtInType, params int[] dimensions)
         {
-            if (elements == null)
-            {
-                throw new ArgumentNullException(nameof(elements));
-            }
-
-            Elements = elements;
+            Elements = elements ?? throw new ArgumentNullException(nameof(elements));
             Dimensions = dimensions;
 
             if (dimensions != null && dimensions.Length > 0)

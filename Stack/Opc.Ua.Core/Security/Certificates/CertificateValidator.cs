@@ -1359,7 +1359,7 @@ namespace Opc.Ua
             bool issuedByCA = !X509Utils.IsSelfSigned(certificate);
             if (issuers.Count > 0)
             {
-                X509Certificate2 rootCertificate = issuers[issuers.Count - 1].Certificate;
+                X509Certificate2 rootCertificate = issuers[^1].Certificate;
                 if (!X509Utils.IsSelfSigned(rootCertificate))
                 {
                     chainIncomplete = true;
@@ -1865,33 +1865,31 @@ namespace Opc.Ua
         /// <param name="requiredKeySizeInBits">The required key size in bits.</param>
         public static bool IsECSecureForProfile(X509Certificate2 certificate, int requiredKeySizeInBits)
         {
-            using (ECDsa ecdsa = certificate.GetECDsaPublicKey())
+            using ECDsa ecdsa = certificate.GetECDsaPublicKey();
+            if (ecdsa == null)
             {
-                if (ecdsa == null)
-                {
-                    throw new ArgumentException("Certificate does not contain an ECC public key");
-                }
+                throw new ArgumentException("Certificate does not contain an ECC public key");
+            }
 
-                if (ecdsa.KeySize != 0)
+            if (ecdsa.KeySize != 0)
+            {
+                return ecdsa.KeySize >= requiredKeySizeInBits;
+            }
+            else
+            {
+                ECCurve curve = ecdsa.ExportParameters(false).Curve;
+
+                if (curve.IsNamed)
                 {
-                    return ecdsa.KeySize >= requiredKeySizeInBits;
+                    if (NamedCurveBitSizes.TryGetValue(curve.Oid.Value, out int curveSize))
+                    {
+                        return curveSize >= requiredKeySizeInBits;
+                    }
+                    throw new NotSupportedException($"Unknown named curve: {curve.Oid.Value}");
                 }
                 else
                 {
-                    ECCurve curve = ecdsa.ExportParameters(false).Curve;
-
-                    if (curve.IsNamed)
-                    {
-                        if (NamedCurveBitSizes.TryGetValue(curve.Oid.Value, out int curveSize))
-                        {
-                            return curveSize >= requiredKeySizeInBits;
-                        }
-                        throw new NotSupportedException($"Unknown named curve: {curve.Oid.Value}");
-                    }
-                    else
-                    {
-                        throw new NotSupportedException("Unsupported curve type.");
-                    }
+                    throw new NotSupportedException("Unsupported curve type.");
                 }
             }
         }
@@ -1904,6 +1902,7 @@ namespace Opc.Ua
         [Flags]
         private enum ProtectFlags
         {
+            None = 0,
             AutoAcceptUntrustedCertificates = 1,
             RejectSHA1SignedCertificates = 2,
             RejectUnknownRevocationStatus = 4,

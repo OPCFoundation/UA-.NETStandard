@@ -42,12 +42,7 @@ namespace Opc.Ua.Server
         /// </summary>
         public EventManager(IServerInternal server, uint maxQueueSize, uint maxDurableQueueSize)
         {
-            if (server == null)
-            {
-                throw new ArgumentNullException(nameof(server));
-            }
-
-            m_server = server;
+            m_server = server ?? throw new ArgumentNullException(nameof(server));
             m_monitoredItems = [];
             m_maxEventQueueSize = maxQueueSize;
             m_maxDurableEventQueueSize = maxDurableQueueSize;

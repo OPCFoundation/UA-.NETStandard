@@ -59,12 +59,7 @@ namespace Opc.Ua.Redaction
         /// </summary>
         public static void SetStrategy(IRedactionStrategy strategy)
         {
-            if (strategy == null)
-            {
-                throw new ArgumentNullException(nameof(strategy));
-            }
-
-            CurrentStrategy = strategy;
+            CurrentStrategy = strategy ?? throw new ArgumentNullException(nameof(strategy));
         }
 
         /// <summary>

@@ -624,7 +624,7 @@ namespace Opc.Ua
                 {
                     var encodings = new NodeId[typeInfo.Encodings.Length + 1];
                     System.Array.Copy(typeInfo.Encodings, encodings, typeInfo.Encodings.Length);
-                    encodings[encodings.Length - 1] = localId;
+                    encodings[^1] = localId;
                     typeInfo.Encodings = encodings;
                 }
 

@@ -116,7 +116,7 @@ namespace Opc.Ua.Bindings
                 return false;
             }
 
-            if (!(Activator.CreateInstance(bindingType) is T listener))
+            if (Activator.CreateInstance(bindingType) is not T listener)
             {
                 return false;
             }

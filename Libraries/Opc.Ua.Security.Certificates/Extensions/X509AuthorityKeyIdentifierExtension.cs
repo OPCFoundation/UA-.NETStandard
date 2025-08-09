@@ -83,12 +83,7 @@ namespace Opc.Ua.Security.Certificates
             byte[] subjectKeyIdentifier
             )
         {
-            if (subjectKeyIdentifier == null)
-            {
-                throw new ArgumentNullException(nameof(subjectKeyIdentifier));
-            }
-
-            m_keyIdentifier = subjectKeyIdentifier;
+            m_keyIdentifier = subjectKeyIdentifier ?? throw new ArgumentNullException(nameof(subjectKeyIdentifier));
             Oid = new Oid(AuthorityKeyIdentifier2Oid, kFriendlyName);
             Critical = false;
             RawData = Encode();
@@ -217,7 +212,10 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// The identifier for the key as a byte array.
         /// </summary>
-        public byte[] GetKeyIdentifier() => m_keyIdentifier;
+        public byte[] GetKeyIdentifier()
+        {
+            return m_keyIdentifier;
+        }
 
         /// <summary>
         /// A list of distinguished names for the issuer.
@@ -232,7 +230,10 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// The serial number of the authority key as a byte array in little endian order.
         /// </summary>
-        public byte[] GetSerialNumber() => m_serialNumber;
+        public byte[] GetSerialNumber()
+        {
+            return m_serialNumber;
+        }
 
         private byte[] Encode()
         {

@@ -40,9 +40,10 @@ namespace Opc.Ua
         /// <param name="password">The password.</param>
         public UserIdentity(string username, string password)
         {
-            var token = new UserNameIdentityToken();
-            token.UserName = username;
-            token.DecryptedPassword = password;
+            var token = new UserNameIdentityToken {
+                UserName = username,
+                DecryptedPassword = password
+            };
             Initialize(token);
         }
 
@@ -168,13 +169,8 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize(UserIdentityToken token)
         {
-            if (token == null)
-            {
-                throw new ArgumentNullException(nameof(token));
-            }
-
             m_grantedRoleIds = [];
-            m_token = token;
+            m_token = token ?? throw new ArgumentNullException(nameof(token));
 
             if (token is UserNameIdentityToken usernameToken)
             {
@@ -236,9 +232,10 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize(X509Certificate2 certificate)
         {
-            var token = new X509IdentityToken();
-            token.CertificateData = certificate.RawData;
-            token.Certificate = certificate;
+            var token = new X509IdentityToken {
+                CertificateData = certificate.RawData,
+                Certificate = certificate
+            };
             Initialize(token);
         }
 

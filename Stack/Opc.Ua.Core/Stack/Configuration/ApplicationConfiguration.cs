@@ -47,11 +47,9 @@ namespace Opc.Ua
                 element = element.NextSibling;
             }
 
-            using (var reader = XmlReader.Create(new StringReader(element.OuterXml), Utils.DefaultXmlReaderSettings()))
-            {
-                var serializer = new DataContractSerializer(typeof(ConfigurationLocation));
-                return serializer.ReadObject(reader) as ConfigurationLocation;
-            }
+            using var reader = XmlReader.Create(new StringReader(element.OuterXml), Utils.DefaultXmlReaderSettings());
+            var serializer = new DataContractSerializer(typeof(ConfigurationLocation));
+            return serializer.ReadObject(reader) as ConfigurationLocation;
         }
     }
 
@@ -250,30 +248,28 @@ namespace Opc.Ua
         /// <remarks>Use this method to ensure the configuration is not changed during loading.</remarks>
         public static ApplicationConfiguration LoadWithNoValidation(FileInfo file, Type systemType)
         {
-            using (var stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read))
+            using var stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read);
+            try
             {
-                try
+                var serializer = new DataContractSerializer(systemType);
+
+                var configuration = serializer.ReadObject(stream) as ApplicationConfiguration;
+
+                if (configuration != null)
                 {
-                    var serializer = new DataContractSerializer(systemType);
-
-                    var configuration = serializer.ReadObject(stream) as ApplicationConfiguration;
-
-                    if (configuration != null)
-                    {
-                        configuration.m_sourceFilePath = file.FullName;
-                    }
-
-                    return configuration;
+                    configuration.m_sourceFilePath = file.FullName;
                 }
-                catch (Exception e)
-                {
-                    var message = new StringBuilder();
-                    message.AppendFormat(CultureInfo.InvariantCulture, "Configuration file could not be loaded: {0}", file.FullName);
-                    message.AppendLine();
-                    message.AppendFormat(CultureInfo.InvariantCulture, "Error is: {0}", e.Message);
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadConfigurationError, e, message.ToString());
-                }
+
+                return configuration;
+            }
+            catch (Exception e)
+            {
+                var message = new StringBuilder();
+                message.AppendFormat(CultureInfo.InvariantCulture, "Configuration file could not be loaded: {0}", file.FullName);
+                message.AppendLine();
+                message.AppendFormat(CultureInfo.InvariantCulture, "Error is: {0}", e.Message);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError, e, message.ToString());
             }
         }
 
@@ -342,10 +338,8 @@ namespace Opc.Ua
 
             try
             {
-                using (var stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read))
-                {
-                    configuration = await LoadAsync(stream, applicationType, systemType, applyTraceSettings, certificatePasswordProvider).ConfigureAwait(false);
-                }
+                using var stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read);
+                configuration = await LoadAsync(stream, applicationType, systemType, applyTraceSettings, certificatePasswordProvider).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -458,12 +452,10 @@ namespace Opc.Ua
             XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
             settings.CloseOutput = true;
 
-            using (Stream ostrm = File.Open(filePath, FileMode.Create, FileAccess.ReadWrite))
-            using (XmlWriter writer = XmlWriter.Create(ostrm, settings))
-            {
-                var serializer = new DataContractSerializer(GetType());
-                serializer.WriteObject(writer, this);
-            }
+            using Stream ostrm = File.Open(filePath, FileMode.Create, FileAccess.ReadWrite);
+            using var writer = XmlWriter.Create(ostrm, settings);
+            var serializer = new DataContractSerializer(GetType());
+            serializer.WriteObject(writer, this);
         }
 
         /// <summary>

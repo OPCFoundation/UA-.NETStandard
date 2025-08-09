@@ -311,19 +311,15 @@ namespace Opc.Ua
             request.CertificateExtensions.Add(new X509Extension(subjectAltName, false));
             if (!isECDsaSignature)
             {
-                using (RSA rsa = certificate.GetRSAPrivateKey())
-                {
-                    var x509SignatureGenerator = X509SignatureGenerator.CreateForRSA(rsa, RSASignaturePadding.Pkcs1);
-                    return request.CreateSigningRequest(x509SignatureGenerator);
-                }
+                using RSA rsa = certificate.GetRSAPrivateKey();
+                var x509SignatureGenerator = X509SignatureGenerator.CreateForRSA(rsa, RSASignaturePadding.Pkcs1);
+                return request.CreateSigningRequest(x509SignatureGenerator);
             }
             else
             {
-                using (ECDsa key = certificate.GetECDsaPrivateKey())
-                {
-                    var x509SignatureGenerator = X509SignatureGenerator.CreateForECDsa(key);
-                    return request.CreateSigningRequest(x509SignatureGenerator);
-                }
+                using ECDsa key = certificate.GetECDsaPrivateKey();
+                var x509SignatureGenerator = X509SignatureGenerator.CreateForECDsa(key);
+                return request.CreateSigningRequest(x509SignatureGenerator);
             }
         }
 
@@ -346,10 +342,8 @@ namespace Opc.Ua
                 {
                     throw new NotSupportedException("The public and the private key pair doesn't match.");
                 }
-                using (ECDsa privateKey = certificateWithPrivateKey.GetECDsaPrivateKey())
-                {
-                    return certificate.CopyWithPrivateKey(privateKey);
-                }
+                using ECDsa privateKey = certificateWithPrivateKey.GetECDsaPrivateKey();
+                return certificate.CopyWithPrivateKey(privateKey);
             }
             else
             {
@@ -357,10 +351,8 @@ namespace Opc.Ua
                 {
                     throw new NotSupportedException("The public and the private key pair doesn't match.");
                 }
-                using (RSA privateKey = certificateWithPrivateKey.GetRSAPrivateKey())
-                {
-                    return certificate.CopyWithPrivateKey(privateKey);
-                }
+                using RSA privateKey = certificateWithPrivateKey.GetRSAPrivateKey();
+                return certificate.CopyWithPrivateKey(privateKey);
             }
         }
 
@@ -375,17 +367,13 @@ namespace Opc.Ua
         {
             if (X509Utils.IsECDsaSignature(certificate))
             {
-                using (ECDsa ecdsaPrivateKey = PEMReader.ImportECDsaPrivateKeyFromPEM(pemDataBlob, password))
-                {
-                    return X509CertificateLoader.LoadCertificate(certificate.RawData).CopyWithPrivateKey(ecdsaPrivateKey);
-                }
+                using ECDsa ecdsaPrivateKey = PEMReader.ImportECDsaPrivateKeyFromPEM(pemDataBlob, password);
+                return X509CertificateLoader.LoadCertificate(certificate.RawData).CopyWithPrivateKey(ecdsaPrivateKey);
             }
             else
             {
-                using (RSA rsaPrivateKey = PEMReader.ImportRsaPrivateKeyFromPEM(pemDataBlob, password))
-                {
-                    return X509CertificateLoader.LoadCertificate(certificate.RawData).CopyWithPrivateKey(rsaPrivateKey);
-                }
+                using RSA rsaPrivateKey = PEMReader.ImportRsaPrivateKeyFromPEM(pemDataBlob, password);
+                return X509CertificateLoader.LoadCertificate(certificate.RawData).CopyWithPrivateKey(rsaPrivateKey);
             }
         }
 #else
@@ -421,12 +409,10 @@ namespace Opc.Ua
             }
 
             string passcode = X509Utils.GeneratePasscode();
-            using (RSA rsaPrivateKey = certificateWithPrivateKey.GetRSAPrivateKey())
-            {
-                byte[] pfxData = CertificateBuilder.CreatePfxWithRSAPrivateKey(
-                    certificate, certificate.FriendlyName, rsaPrivateKey, passcode);
-                return X509Utils.CreateCertificateFromPKCS12(pfxData, passcode);
-            }
+            using RSA rsaPrivateKey = certificateWithPrivateKey.GetRSAPrivateKey();
+            byte[] pfxData = CertificateBuilder.CreatePfxWithRSAPrivateKey(
+                certificate, certificate.FriendlyName, rsaPrivateKey, passcode);
+            return X509Utils.CreateCertificateFromPKCS12(pfxData, passcode);
         }
 
         /// <summary>
@@ -457,18 +443,16 @@ namespace Opc.Ua
             else
 #endif
             {
-                using (RSA privateKey = PEMReader.ImportRsaPrivateKeyFromPEM(pemDataBlob, password))
+                using RSA privateKey = PEMReader.ImportRsaPrivateKeyFromPEM(pemDataBlob, password);
+                if (privateKey == null)
                 {
-                    if (privateKey == null)
-                    {
-                        throw new ServiceResultException("PEM data blob does not contain a private key.");
-                    }
-
-                    string passcode = X509Utils.GeneratePasscode();
-                    byte[] pfxData = CertificateBuilder.CreatePfxWithRSAPrivateKey(
-                        certificate, certificate.FriendlyName, privateKey, passcode);
-                    return X509Utils.CreateCertificateFromPKCS12(pfxData, passcode);
+                    throw new ServiceResultException("PEM data blob does not contain a private key.");
                 }
+
+                string passcode = X509Utils.GeneratePasscode();
+                byte[] pfxData = CertificateBuilder.CreatePfxWithRSAPrivateKey(
+                    certificate, certificate.FriendlyName, privateKey, passcode);
+                return X509Utils.CreateCertificateFromPKCS12(pfxData, passcode);
             }
         }
 #endif

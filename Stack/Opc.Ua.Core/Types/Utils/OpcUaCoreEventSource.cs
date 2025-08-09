@@ -144,18 +144,33 @@ namespace Opc.Ua
                 message = formatter(state, exception);
                 switch (logLevel)
                 {
-                    case LogLevel.Trace: Trace(eventId.Id, eventId.Name, message); break;
-                    case LogLevel.Debug: Debug(eventId.Id, eventId.Name, message); break;
-                    case LogLevel.Information: Info(eventId.Id, eventId.Name, message); break;
-                    case LogLevel.Warning: Warning(eventId.Id, eventId.Name, message); break;
-                    case LogLevel.Error: Error(eventId.Id, eventId.Name, message); break;
-                    case LogLevel.Critical: Critical(eventId.Id, eventId.Name, message); break;
+                    case LogLevel.Trace:
+                        Trace(eventId.Id, eventId.Name, message);
+                        break;
+                    case LogLevel.Debug:
+                        Debug(eventId.Id, eventId.Name, message);
+                        break;
+                    case LogLevel.Information:
+                        Info(eventId.Id, eventId.Name, message);
+                        break;
+                    case LogLevel.Warning:
+                        Warning(eventId.Id, eventId.Name, message);
+                        break;
+                    case LogLevel.Error:
+                        Error(eventId.Id, eventId.Name, message);
+                        break;
+                    case LogLevel.Critical:
+                        Critical(eventId.Id, eventId.Name, message);
+                        break;
                 }
             }
         }
 
         [NonEvent]
-        public bool IsEnabled(LogLevel logLevel) => logLevel != LogLevel.None && IsEnabled();
+        public bool IsEnabled(LogLevel logLevel)
+        {
+            return logLevel != LogLevel.None && IsEnabled();
+        }
 
         [NonEvent]
         public IDisposable BeginScope<TState>(TState state)

@@ -54,11 +54,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void StreamWriter()
         {
-            using (var memoryStream = new MemoryStream())
-            using (var test = new StreamWriter(memoryStream, Encoding.UTF8, StreamSize, true))
-            {
-                test.Flush();
-            }
+            using var memoryStream = new MemoryStream();
+            using var test = new StreamWriter(memoryStream, Encoding.UTF8, StreamSize, true);
+            test.Flush();
         }
 
         /// <summary>
@@ -67,11 +65,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void StreamWriterRecyclableMemoryStream()
         {
-            using (var memoryStream = new RecyclableMemoryStream(m_memoryManager))
-            using (var test = new StreamWriter(memoryStream, Encoding.UTF8, StreamSize))
-            {
-                test.Flush();
-            }
+            using var memoryStream = new RecyclableMemoryStream(m_memoryManager);
+            using var test = new StreamWriter(memoryStream, Encoding.UTF8, StreamSize);
+            test.Flush();
         }
 
         /// <summary>
@@ -80,11 +76,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void StreamWriterMemoryStream()
         {
-            using (var memoryStream = new MemoryStream())
-            using (var test = new StreamWriter(memoryStream, Encoding.UTF8, StreamSize))
-            {
-                test.Flush();
-            }
+            using var memoryStream = new MemoryStream();
+            using var test = new StreamWriter(memoryStream, Encoding.UTF8, StreamSize);
+            test.Flush();
         }
 
         /// <summary>
@@ -93,11 +87,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void JsonEncoderConstructor()
         {
-            using (var jsonEncoder = new JsonEncoder(m_context, false))
-            {
-                TestEncoding(jsonEncoder);
-                _ = jsonEncoder.CloseAndReturnText();
-            }
+            using var jsonEncoder = new JsonEncoder(m_context, false);
+            TestEncoding(jsonEncoder);
+            _ = jsonEncoder.CloseAndReturnText();
         }
 
         /// <summary>
@@ -106,10 +98,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Theory]
         public void JsonEncoderArraySegmentStreamTest(bool toText)
         {
-            using (var memoryStream = new ArraySegmentStream(m_bufferManager, StreamBufferSize, 0, StreamBufferSize))
-            {
-                TestStreamEncode(memoryStream, toText);
-            }
+            using var memoryStream = new ArraySegmentStream(m_bufferManager, StreamBufferSize, 0, StreamBufferSize);
+            TestStreamEncode(memoryStream, toText);
         }
 
         /// <summary>
@@ -118,10 +108,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Theory]
         public void JsonEncoderMemoryStreamTest(bool toText)
         {
-            using (var memoryStream = new MemoryStream(StreamBufferSize))
-            {
-                TestStreamEncode(memoryStream, toText);
-            }
+            using var memoryStream = new MemoryStream(StreamBufferSize);
+            TestStreamEncode(memoryStream, toText);
         }
 
         /// <summary>
@@ -130,10 +118,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Theory]
         public void JsonEncoderRecyclableMemoryStream(bool toText)
         {
-            using (var memoryStream = new RecyclableMemoryStream(m_memoryManager))
-            {
-                TestStreamEncode(memoryStream, toText);
-            }
+            using var memoryStream = new RecyclableMemoryStream(m_memoryManager);
+            TestStreamEncode(memoryStream, toText);
         }
 
         /// <summary>
@@ -143,12 +129,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void JsonEncoderMemoryStream()
         {
-            using (var memoryStream = new MemoryStream(StreamBufferSize))
-            {
-                JsonEncoder_StreamLeaveOpen(memoryStream);
-                // get buffer for write
-                _ = memoryStream.ToArray();
-            }
+            using var memoryStream = new MemoryStream(StreamBufferSize);
+            JsonEncoder_StreamLeaveOpen(memoryStream);
+            // get buffer for write
+            _ = memoryStream.ToArray();
         }
 
         /// <summary>
@@ -158,12 +142,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void JsonEncoderRecyclableMemoryStream()
         {
-            using (var recyclableMemoryStream = new RecyclableMemoryStream(m_memoryManager))
-            {
-                JsonEncoder_StreamLeaveOpen(recyclableMemoryStream);
-                // get buffers for write
-                _ = recyclableMemoryStream.GetReadOnlySequence();
-            }
+            using var recyclableMemoryStream = new RecyclableMemoryStream(m_memoryManager);
+            JsonEncoder_StreamLeaveOpen(recyclableMemoryStream);
+            // get buffers for write
+            _ = recyclableMemoryStream.GetReadOnlySequence();
         }
 
         /// <summary>
@@ -173,14 +155,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void JsonEncoderArraySegmentStream()
         {
-            using (var arraySegmentStream = new ArraySegmentStream(m_bufferManager))
+            using var arraySegmentStream = new ArraySegmentStream(m_bufferManager);
+            JsonEncoder_StreamLeaveOpen(arraySegmentStream);
+            // get buffers and return them to buffer manager
+            foreach (System.ArraySegment<byte> buffer in arraySegmentStream.GetBuffers("writer"))
             {
-                JsonEncoder_StreamLeaveOpen(arraySegmentStream);
-                // get buffers and return them to buffer manager
-                foreach (System.ArraySegment<byte> buffer in arraySegmentStream.GetBuffers("writer"))
-                {
-                    m_bufferManager.ReturnBuffer(buffer.Array, "testreturn");
-                }
+                m_bufferManager.ReturnBuffer(buffer.Array, "testreturn");
             }
         }
 
@@ -193,17 +173,15 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             // ECC_SUPPORT is used to distinguish also from platforms which do not support Span
 #if NET6_0_OR_GREATER && ECC_SUPPORT
-            using (var arraySegmentStream = new ArraySegmentStreamNoSpan(m_bufferManager))
+            using var arraySegmentStream = new ArraySegmentStreamNoSpan(m_bufferManager);
 #else
-            using (var arraySegmentStream = new ArraySegmentStream(m_bufferManager))
+            using var arraySegmentStream = new ArraySegmentStream(m_bufferManager);
 #endif
+            JsonEncoder_StreamLeaveOpen(arraySegmentStream);
+            // get buffers and return them to buffer manager
+            foreach (System.ArraySegment<byte> buffer in arraySegmentStream.GetBuffers("writer"))
             {
-                JsonEncoder_StreamLeaveOpen(arraySegmentStream);
-                // get buffers and return them to buffer manager
-                foreach (System.ArraySegment<byte> buffer in arraySegmentStream.GetBuffers("writer"))
-                {
-                    m_bufferManager.ReturnBuffer(buffer.Array, "testreturn");
-                }
+                m_bufferManager.ReturnBuffer(buffer.Array, "testreturn");
             }
         }
 
@@ -258,21 +236,33 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
         [OneTimeSetUp]
-        public new void OneTimeSetUp() => base.OneTimeSetUp();
+        public new void OneTimeSetUp()
+        {
+            base.OneTimeSetUp();
+        }
 
         [OneTimeTearDown]
-        public new void OneTimeTearDown() => base.OneTimeTearDown();
+        public new void OneTimeTearDown()
+        {
+            base.OneTimeTearDown();
+        }
 
         /// <summary>
         /// Set up some variables for benchmarks.
         /// </summary>
         [GlobalSetup]
-        public new void GlobalSetup() => base.GlobalSetup();
+        public new void GlobalSetup()
+        {
+            base.GlobalSetup();
+        }
 
         /// <summary>
         /// Tear down benchmark variables.
         /// </summary>
         [GlobalCleanup]
-        public new void GlobalCleanup() => base.GlobalCleanup();
+        public new void GlobalCleanup()
+        {
+            base.GlobalCleanup();
+        }
     }
 }

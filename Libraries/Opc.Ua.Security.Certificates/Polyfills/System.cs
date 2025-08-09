@@ -27,8 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#if NETSTANDARD2_0 || NETFRAMEWORK
 using System;
 using System.Linq;
+#endif
 
 namespace System
 {
