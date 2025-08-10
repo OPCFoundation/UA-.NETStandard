@@ -4197,9 +4197,9 @@ namespace Opc.Ua.Client
                     }
 
                     // ignore errors on optional attributes
-                    if (StatusCode.IsBad(values[ii].StatusCode))
-                    {
-                        if (attributeId is Attributes.AccessRestrictions or
+                    if (StatusCode.IsBad(values[ii].StatusCode) &&
+                        attributeId is
+                            Attributes.AccessRestrictions or
                             Attributes.Description or
                             Attributes.RolePermissions or
                             Attributes.UserRolePermissions or
@@ -4210,9 +4210,8 @@ namespace Opc.Ua.Client
                             Attributes.DataTypeDefinition or
                             Attributes.InverseName or
                             Attributes.MinimumSamplingInterval)
-                        {
-                            continue;
-                        }
+                    {
+                        continue;
                     }
 
                     // all supported attributes must be readable.

@@ -566,12 +566,10 @@ namespace Opc.Ua.Server
                 }
 
                 // look up type definition.
-                if (((int)resultMask & (int)BrowseResultMask.TypeDefinition) != 0)
+                if (((int)resultMask & (int)BrowseResultMask.TypeDefinition) != 0 &&
+                    target.NodeClass is NodeClass.Variable or NodeClass.Object)
                 {
-                    if (target.NodeClass is NodeClass.Variable or NodeClass.Object)
-                    {
-                        metadata.TypeDefinition = target.TypeDefinitionId;
-                    }
+                    metadata.TypeDefinition = target.TypeDefinitionId;
                 }
 
                 // Set AccessRestrictions and RolePermissions

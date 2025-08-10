@@ -245,7 +245,7 @@ namespace Opc.Ua
         /// Returns true if the objects are equal.
         /// </remarks>
         /// <param name="obj">The object to test against this</param>
-        public override bool Equals(object obj)
+        public override readonly bool Equals(object obj)
         {
             if (obj is NumericRange numericRange)
             {
@@ -309,7 +309,7 @@ namespace Opc.Ua
         /// <remarks>
         /// Returns the string representation of the object.
         /// </remarks>
-        public override string ToString()
+        public override readonly string ToString()
         {
             return ToString(null, null);
         }
@@ -582,7 +582,7 @@ namespace Opc.Ua
         /// <summary>
         /// Applies the multidimensional index range.
         /// </summary>
-        public StatusCode UpdateRange(ref object dst, object src)
+        public readonly StatusCode UpdateRange(ref object dst, object src)
         {
             // check for trivial case.
             if (dst == null)
@@ -906,7 +906,7 @@ namespace Opc.Ua
         /// <param name="value">The array to subset.</param>
         /// <returns>The reason for the failure if the range could not be applied.</returns>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1007:UseGenericsWhereAppropriate")]
-        public StatusCode ApplyRange(ref object value)
+        public readonly StatusCode ApplyRange(ref object value)
         {
             // check for empty range.
             if (m_begin == -1 && m_end == -1)
