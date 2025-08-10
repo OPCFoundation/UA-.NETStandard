@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -216,7 +216,7 @@ namespace TestData
         protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
         {
             var predefinedNodes = new NodeStateCollection();
-            predefinedNodes.LoadFromBinaryResource(context, "Quickstarts.Servers.TestData.TestData.PredefinedNodes.uanodes", GetType().GetTypeInfo().Assembly, true);
+            predefinedNodes.LoadFromBinaryResource(context, "Quickstarts.Servers.TestData.Generated.TestData.PredefinedNodes.uanodes", GetType().GetTypeInfo().Assembly, true);
             return predefinedNodes;
         }
 
@@ -731,7 +731,7 @@ namespace TestData
             lock (Lock)
             {
                 try
-                {  
+                {
                     // create the dialog.
                     if (m_dialog == null)
                     {
@@ -746,7 +746,7 @@ namespace TestData
 
                         m_dialog.OnAfterResponse = OnDialogComplete;
                     }
-        
+
                     StatusCode systemStatus = m_system.SystemStatus;
                     m_systemStatusCondition.UpdateStatus(systemStatus);
 
@@ -771,12 +771,12 @@ namespace TestData
                     if (StatusCode.IsBad(systemStatus))
                     {
                         m_dialog.RequestResponse(
-                            SystemContext, 
-                            "Reset the test system?", 
+                            SystemContext,
+                            "Reset the test system?",
                             (uint)(int)(DialogConditionChoice.Ok | DialogConditionChoice.Cancel),
                             (ushort)EventSeverity.MediumHigh);
                     }
-                                        
+
                     // report the event.
                     TranslationInfo info = new TranslationInfo(
                         "TestSystemStatusChange",
@@ -801,8 +801,8 @@ namespace TestData
         /// Handles a user response to a dialog.
         /// </summary>
         private ServiceResult OnDialogComplete(
-            ISystemContext context, 
-            DialogConditionState dialog, 
+            ISystemContext context,
+            DialogConditionState dialog,
             DialogConditionChoice response)
         {
             if (m_dialog != null)

@@ -19,8 +19,8 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Boiler\Generated\Boiler.PredefinedNodes.uanodes" />
-    <!--<EmbeddedResource Include="TestData\Generated\TestData.PredefinedNodes.uanodes" />-->
-    <!--<EmbeddedResource Include="MemoryBuffer\Generated\MemoryBuffer.PredefinedNodes.uanodes" />-->
+    <EmbeddedResource Include="TestData\Generated\TestData.PredefinedNodes.uanodes" />
+    <EmbeddedResource Include="MemoryBuffer\Generated\MemoryBuffer.PredefinedNodes.uanodes" />
   </ItemGroup>
 
   <ItemGroup>

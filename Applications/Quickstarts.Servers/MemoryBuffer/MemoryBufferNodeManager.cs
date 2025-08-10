@@ -139,7 +139,7 @@ namespace MemoryBuffer
         protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
         {
             var predefinedNodes = new NodeStateCollection();
-            predefinedNodes.LoadFromBinaryResource(context, "Quickstarts.Servers.MemoryBuffer.MemoryBuffer.PredefinedNodes.uanodes", GetType().GetTypeInfo().Assembly, true);
+            predefinedNodes.LoadFromBinaryResource(context, "Quickstarts.Servers.MemoryBuffer.Generated.MemoryBuffer.PredefinedNodes.uanodes", GetType().GetTypeInfo().Assembly, true);
             return predefinedNodes;
         }
 
