@@ -278,7 +278,7 @@ namespace Opc.Ua
         public ExtensionObject()
         {
             TypeId = ExpandedNodeId.Null;
-            m_encoding = ExtensionObjectEncoding.None;
+            Encoding = ExtensionObjectEncoding.None;
             m_body = null;
             m_context = MessageContextExtension.CurrentContext;
         }
@@ -342,7 +342,7 @@ namespace Opc.Ua
         private void Initialize(StreamingContext context)
         {
             TypeId = ExpandedNodeId.Null;
-            m_encoding = ExtensionObjectEncoding.None;
+            Encoding = ExtensionObjectEncoding.None;
             m_body = null;
             m_context = MessageContextExtension.CurrentContext;
         }
@@ -357,7 +357,7 @@ namespace Opc.Ua
         /// The encoding to use when the deserializing/serializing the body.
         /// </summary>
         /// <value>The encoding for the embedded object.</value>
-        public ExtensionObjectEncoding Encoding => m_encoding;
+        public ExtensionObjectEncoding Encoding { get; private set; }
 
         /// <summary>
         /// The body (embedded object) of the extension object.
@@ -383,23 +383,23 @@ namespace Opc.Ua
 
                 if (m_body == null)
                 {
-                    m_encoding = ExtensionObjectEncoding.None;
+                    Encoding = ExtensionObjectEncoding.None;
                 }
                 else if (m_body is IEncodeable)
                 {
-                    m_encoding = ExtensionObjectEncoding.EncodeableObject;
+                    Encoding = ExtensionObjectEncoding.EncodeableObject;
                 }
                 else if (m_body is byte[])
                 {
-                    m_encoding = ExtensionObjectEncoding.Binary;
+                    Encoding = ExtensionObjectEncoding.Binary;
                 }
                 else if (m_body is XmlElement)
                 {
-                    m_encoding = ExtensionObjectEncoding.Xml;
+                    Encoding = ExtensionObjectEncoding.Xml;
                 }
                 else if (m_body is JObject)
                 {
-                    m_encoding = ExtensionObjectEncoding.Json;
+                    Encoding = ExtensionObjectEncoding.Json;
                 }
                 else
                 {
@@ -419,7 +419,7 @@ namespace Opc.Ua
         /// </returns>
         public override bool Equals(object obj)
         {
-            if (ReferenceEquals(obj, null))
+            if (obj is null)
             {
                 return IsNull(this);
             }
@@ -750,7 +750,6 @@ namespace Opc.Ua
             }
         }
 
-        private ExtensionObjectEncoding m_encoding;
         private object m_body;
         private IServiceMessageContext m_context;
     }

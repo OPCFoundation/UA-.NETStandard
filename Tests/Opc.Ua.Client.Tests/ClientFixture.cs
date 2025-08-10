@@ -97,7 +97,8 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         public async Task LoadClientConfiguration(string pkiRoot = null, string clientName = "TestClient")
         {
-            var application = new ApplicationInstance {
+            var application = new ApplicationInstance
+            {
                 ApplicationName = clientName
             };
 
@@ -117,7 +118,8 @@ namespace Opc.Ua.Client.Tests
                 .SetMaxByteStringLength(4 * 1024 * 1024)
                 .SetMaxArrayLength(1024 * 1024)
                 .AsClient()
-                .SetClientOperationLimits(new OperationLimits {
+                .SetClientOperationLimits(new OperationLimits
+                {
                     MaxNodesPerBrowse = kDefaultOperationLimits,
                     MaxNodesPerRead = kDefaultOperationLimits,
                     MaxMonitoredItemsPerCall = kDefaultOperationLimits,
@@ -196,7 +198,6 @@ namespace Opc.Ua.Client.Tests
             bool serverHalted;
             do
             {
-                serverHalted = false;
                 try
                 {
                     EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(Config, endpointUrl, true);
@@ -398,11 +399,12 @@ namespace Opc.Ua.Client.Tests
             if (disableActivityLogging)
             {
                 // Create an instance of ActivityListener without logging
-                ActivityListener = new ActivityListener() {
+                ActivityListener = new ActivityListener()
+                {
                     ShouldListenTo = (source) => source.Name == TraceableSession.ActivitySourceName,
 
                     // Sample all data and recorded activities
-                    Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,
+                    Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
                     // Do not log during benchmarks
                     ActivityStarted = _ => { },
                     ActivityStopped = _ => { }
@@ -411,11 +413,12 @@ namespace Opc.Ua.Client.Tests
             else
             {
                 // Create an instance of ActivityListener and configure its properties with logging
-                ActivityListener = new ActivityListener() {
+                ActivityListener = new ActivityListener()
+                {
                     ShouldListenTo = (source) => source.Name == TraceableSession.ActivitySourceName,
 
                     // Sample all data and recorded activities
-                    Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,
+                    Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
                     ActivityStarted = activity => Utils.LogInfo("Client Started: {0,-15} - TraceId: {1,-32} SpanId: {2,-16}",
                         activity.OperationName, activity.TraceId, activity.SpanId),
                     ActivityStopped = activity => Utils.LogInfo("Client Stopped: {0,-15} - TraceId: {1,-32} SpanId: {2,-16} Duration: {3}",

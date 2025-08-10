@@ -42,7 +42,6 @@ namespace Opc.Ua.PubSub
     internal abstract class UaPubSubConnection : IUaPubSubConnection
     {
         protected readonly object Lock = new();
-        private bool m_isRunning;
         private readonly List<IUaPublisher> m_publishers;
         protected TransportProtocol m_transportProtocol = TransportProtocol.NotAvailable;
 
@@ -52,7 +51,8 @@ namespace Opc.Ua.PubSub
         internal UaPubSubConnection(UaPubSubApplication parentUaPubSubApplication, PubSubConnectionDataType pubSubConnectionDataType)
         {
             // set the default message context that uses the GlobalContext
-            MessageContext = new ServiceMessageContext {
+            MessageContext = new ServiceMessageContext
+            {
                 NamespaceUris = ServiceMessageContext.GlobalContext.NamespaceUris,
                 ServerUris = ServiceMessageContext.GlobalContext.ServerUris
             };
@@ -88,7 +88,7 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Get flag that indicates if the Connection is in running state
         /// </summary>
-        public bool IsRunning => m_isRunning;
+        public bool IsRunning { get; private set; }
 
         /// <summary>
         /// Get/Set the current <see cref="IServiceMessageContext"/>
@@ -140,7 +140,7 @@ namespace Opc.Ua.PubSub
 
             lock (Lock)
             {
-                m_isRunning = true;
+                IsRunning = true;
                 foreach (IUaPublisher publisher in m_publishers)
                 {
                     publisher.Start();
@@ -156,7 +156,7 @@ namespace Opc.Ua.PubSub
             InternalStop().Wait();
             lock (Lock)
             {
-                m_isRunning = false;
+                IsRunning = false;
                 foreach (IUaPublisher publisher in m_publishers)
                 {
                     publisher.Stop();
@@ -172,7 +172,7 @@ namespace Opc.Ua.PubSub
         /// <returns></returns>
         public bool CanPublish(WriterGroupDataType writerGroupConfiguration)
         {
-            if (!m_isRunning)
+            if (!IsRunning)
             {
                 return false;
             }
@@ -285,7 +285,8 @@ namespace Opc.Ua.PubSub
                     if (raiseChangedEvent)
                     {
                         // raise event
-                        var metaDataUpdatedEventArgs = new ConfigurationUpdatingEventArgs() {
+                        var metaDataUpdatedEventArgs = new ConfigurationUpdatingEventArgs()
+                        {
                             ChangedProperty = ConfigurationProperty.DataSetMetaData,
                             Parent = reader,
                             NewValue = networkMessage.DataSetMetaData,
@@ -309,7 +310,8 @@ namespace Opc.Ua.PubSub
                     }
                 }
 
-                var subscribedDataEventArgs = new SubscribedDataEventArgs() {
+                var subscribedDataEventArgs = new SubscribedDataEventArgs()
+                {
                     NetworkMessage = networkMessage,
                     Source = source
                 };
@@ -324,7 +326,8 @@ namespace Opc.Ua.PubSub
             }
             else if (networkMessage.DataSetMessages != null && networkMessage.DataSetMessages.Count > 0)
             {
-                var subscribedDataEventArgs = new SubscribedDataEventArgs() {
+                var subscribedDataEventArgs = new SubscribedDataEventArgs()
+                {
                     NetworkMessage = networkMessage,
                     Source = source
                 };
@@ -339,14 +342,13 @@ namespace Opc.Ua.PubSub
             }
             else if (networkMessage is Encoding.UadpNetworkMessage)
             {
-                var uadpNetworkMessage = networkMessage as Encoding.UadpNetworkMessage;
-
-                if (uadpNetworkMessage != null)
+                if (networkMessage is Encoding.UadpNetworkMessage uadpNetworkMessage)
                 {
                     if (uadpNetworkMessage.UADPDiscoveryType == UADPNetworkMessageDiscoveryType.DataSetWriterConfiguration &&
                         uadpNetworkMessage.UADPNetworkMessageType == UADPNetworkMessageType.DiscoveryResponse)
                     {
-                        var eventArgs = new DataSetWriterConfigurationEventArgs() {
+                        var eventArgs = new DataSetWriterConfigurationEventArgs()
+                        {
                             DataSetWriterIds = uadpNetworkMessage.DataSetWriterIds,
                             Source = source,
                             DataSetWriterConfiguration = uadpNetworkMessage.DataSetWriterConfiguration,
@@ -365,7 +367,8 @@ namespace Opc.Ua.PubSub
                     else if (uadpNetworkMessage.UADPDiscoveryType == UADPNetworkMessageDiscoveryType.PublisherEndpoint &&
                         uadpNetworkMessage.UADPNetworkMessageType == UADPNetworkMessageType.DiscoveryResponse)
                     {
-                        var publisherEndpointsEventArgs = new PublisherEndpointsEventArgs() {
+                        var publisherEndpointsEventArgs = new PublisherEndpointsEventArgs()
+                        {
                             PublisherEndpoints = uadpNetworkMessage.PublisherEndpoints,
                             Source = source,
                             PublisherId = uadpNetworkMessage.PublisherId,
@@ -475,7 +478,7 @@ namespace Opc.Ua.PubSub
             //check if dataSetWriter enabled
             if (dataSetWriter.Enabled)
             {
-                uint sequenceNumber = 0;
+                uint sequenceNumber;
                 bool isDeltaFrame = state.IsDeltaFrame(dataSetWriter, out sequenceNumber);
 
                 dataSet = Application.DataCollector.CollectData(dataSetWriter.DataSetName);

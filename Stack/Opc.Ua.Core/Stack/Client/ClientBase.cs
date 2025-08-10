@@ -51,7 +51,7 @@ namespace Opc.Ua
         {
             CloseChannel();
 
-            m_disposed = true;
+            Disposed = true;
         }
 
         /// <inheritdoc/>
@@ -70,7 +70,7 @@ namespace Opc.Ua
             {
                 ITransportChannel channel = m_channel;
 
-                if (channel != null && m_disposed)
+                if (channel != null && Disposed)
                 {
                     throw new ServiceResultException(StatusCodes.BadSecureChannelClosed, "Channel has been closed.");
                 }
@@ -88,7 +88,7 @@ namespace Opc.Ua
 
                 if (channel != null)
                 {
-                    if (!m_disposed)
+                    if (!Disposed)
                     {
                         return channel;
                     }
@@ -199,7 +199,7 @@ namespace Opc.Ua
         /// Whether the object has been disposed.
         /// </summary>
         /// <value><c>true</c> if disposed; otherwise, <c>false</c>.</value>
-        public bool Disposed => m_disposed;
+        public bool Disposed { get; private set; }
 
         /// <summary>
         /// Generates a unique request handle.
@@ -506,7 +506,6 @@ namespace Opc.Ua
         private ITransportChannel m_channel;
         private int m_nextRequestHandle;
         private int m_pendingRequestCount;
-        private bool m_disposed;
         private bool m_useTransportChannel;
     }
 }

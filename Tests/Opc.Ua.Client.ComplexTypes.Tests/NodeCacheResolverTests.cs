@@ -101,7 +101,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         public async Task LoadStandardDataTypeSystemAsync()
         {
             var nodeResolver = new NodeCacheResolver(Session);
-            ServiceResultException sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () => {
+            ServiceResultException sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+            {
                 System.Collections.Generic.IReadOnlyDictionary<NodeId, DataDictionary> t = await nodeResolver.LoadDataTypeSystem(ObjectIds.ObjectAttributes_Encoding_DefaultJson).ConfigureAwait(false);
             });
             Assert.AreEqual((StatusCode)StatusCodes.BadNodeIdInvalid, (StatusCode)sre.StatusCode);
@@ -118,7 +119,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         public async Task LoadAllServerDataTypeSystemsAsync(NodeId dataTypeSystem)
         {
             // find the dictionary for the description.
-            var browser = new Browser(Session) {
+            var browser = new Browser(Session)
+            {
                 BrowseDirection = BrowseDirection.Forward,
                 ReferenceTypeId = ReferenceTypeIds.HasComponent,
                 IncludeSubtypes = false,

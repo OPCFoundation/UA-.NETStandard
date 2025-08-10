@@ -275,7 +275,8 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
                 if (msFriendlyName.StartsWith(nistCurveName))
                 {
                     const string patternMatch = @"(.*?)(\d+)$"; // divide string in two capture groups (string & numeric)
-                    bcFriendlyName = Regex.Replace(msFriendlyName, patternMatch, m => {
+                    bcFriendlyName = Regex.Replace(msFriendlyName, patternMatch, m =>
+                    {
                         string lastChar = m.Groups[1].Value.Length > 0 ? m.Groups[1].Value[^1].ToString() : "";
                         string number = m.Groups[2].Value;
                         return lastChar + "-" + number;
@@ -294,12 +295,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         {
             ECParameters ecParams = ec.ExportParameters(false);
 
-            X9ECParameters curve = GetX9ECParameters(ecParams);
-
-            if (curve == null)
-            {
-                throw new ArgumentException("Curve OID is not recognized ", ecParams.Curve.Oid.ToString());
-            }
+            X9ECParameters curve = GetX9ECParameters(ecParams) ?? throw new ArgumentException("Curve OID is not recognized ", ecParams.Curve.Oid.ToString());
 
             Org.BouncyCastle.Math.EC.ECPoint q = curve.Curve.CreatePoint(
                 new BigInteger(1, ecParams.Q.X),
@@ -352,7 +348,8 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         {
             AsymmetricKeyParameter asymmetricKeyParameter = PublicKeyFactory.CreateKey(publicKey);
             var rsaKeyParameters = asymmetricKeyParameter as RsaKeyParameters;
-            var parameters = new RSAParameters {
+            var parameters = new RSAParameters
+            {
                 Exponent = rsaKeyParameters.Exponent.ToByteArrayUnsigned(),
                 Modulus = rsaKeyParameters.Modulus.ToByteArrayUnsigned()
             };

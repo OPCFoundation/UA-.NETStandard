@@ -71,8 +71,10 @@ namespace Opc.Ua.Client.Tests
         public override Encoding Encoding => Encoding.Default;
         public CPBatchTestMemoryWriter()
         {
-            m_writer = new StreamWriter(m_stream);
-            m_writer.AutoFlush = true;
+            m_writer = new StreamWriter(m_stream)
+            {
+                AutoFlush = true
+            };
         }
         public override void Write(char value)
         {
@@ -91,8 +93,10 @@ namespace Opc.Ua.Client.Tests
             }
             // get entries closes the stream.
             m_stream = new MemoryStream(64000);
-            m_writer = new StreamWriter(m_stream);
-            m_writer.AutoFlush = true;
+            m_writer = new StreamWriter(m_stream)
+            {
+                AutoFlush = true
+            };
             return entries;
         }
 
@@ -125,25 +129,29 @@ namespace Opc.Ua.Client.Tests
         [DatapointSource]
         public IEnumerable<ManagedBrowseTestDataProvider> ManagedBrowseTestDataValues()
         {
-            yield return new ManagedBrowseTestDataProvider {
+            yield return new ManagedBrowseTestDataProvider
+            {
                 MaxNumberOfContinuationPoints = 2,
                 MaxNumberOfReferencesPerNode = 10,
                 ExpectedNumberOfPasses = 5,
                 ExpectedNumberOfBadNoCPSCs = [15, 9, 5, 3, 1]
             };
-            yield return new ManagedBrowseTestDataProvider {
+            yield return new ManagedBrowseTestDataProvider
+            {
                 MaxNumberOfContinuationPoints = 4,
                 MaxNumberOfReferencesPerNode = 10,
                 ExpectedNumberOfPasses = 2,
                 ExpectedNumberOfBadNoCPSCs = [5, 1]
             };
-            yield return new ManagedBrowseTestDataProvider {
+            yield return new ManagedBrowseTestDataProvider
+            {
                 MaxNumberOfContinuationPoints = 20,
                 MaxNumberOfReferencesPerNode = 50,
                 ExpectedNumberOfPasses = 1,
                 ExpectedNumberOfBadNoCPSCs = []
             };
-            yield return new ManagedBrowseTestDataProvider {
+            yield return new ManagedBrowseTestDataProvider
+            {
                 MaxNumberOfContinuationPoints = 5,
                 MaxNumberOfReferencesPerNode = 10,
                 ExpectedNumberOfPasses = 1,
@@ -163,7 +171,8 @@ namespace Opc.Ua.Client.Tests
             TextWriter localWriter = enableTracing ? writer : null;
             {
                 // start Ref server
-                ServerFixtureWithLimits = new ServerFixture<ReferenceServerWithLimits>(enableTracing, disableActivityLogging) {
+                ServerFixtureWithLimits = new ServerFixture<ReferenceServerWithLimits>(enableTracing, disableActivityLogging)
+                {
                     UriScheme = UriScheme,
                     SecurityNone = securityNone,
                     AutoAccept = true,
@@ -278,7 +287,8 @@ namespace Opc.Ua.Client.Tests
             theSession.ContinuationPointPolicy = ContinuationPointPolicy.Default;
 
             // the ExpectedNumber* parameters are not relevant/correct for this test.
-            var pass1ExpectedResults = new ManagedBrowseExpectedResultValues {
+            var pass1ExpectedResults = new ManagedBrowseExpectedResultValues
+            {
                 InputMaxNumberOfContinuationPoints = testData.MaxNumberOfContinuationPoints,
                 InputMaxNumberOfReferencesPerNode = testData.MaxNumberOfReferencesPerNode,
                 ExpectedNumberOfPasses = testData.ExpectedNumberOfPasses,
@@ -342,7 +352,8 @@ namespace Opc.Ua.Client.Tests
             theSession.ContinuationPointPolicy = policy;
 
             // the ExpectedNumber* parameters are not relevant/correct for this test.
-            var pass1ExpectedResults = new ManagedBrowseExpectedResultValues {
+            var pass1ExpectedResults = new ManagedBrowseExpectedResultValues
+            {
                 InputMaxNumberOfContinuationPoints = testData.MaxNumberOfContinuationPoints,
                 InputMaxNumberOfReferencesPerNode = testData.MaxNumberOfReferencesPerNode,
                 ExpectedNumberOfPasses = testData.ExpectedNumberOfPasses,
@@ -432,14 +443,16 @@ namespace Opc.Ua.Client.Tests
 
             theSession.ContinuationPointPolicy = ContinuationPointPolicy.Default;
 
-            var pass1ExpectedResults = new ManagedBrowseExpectedResultValues {
+            var pass1ExpectedResults = new ManagedBrowseExpectedResultValues
+            {
                 InputMaxNumberOfContinuationPoints = testData.MaxNumberOfContinuationPoints,
                 InputMaxNumberOfReferencesPerNode = testData.MaxNumberOfReferencesPerNode,
                 ExpectedNumberOfPasses = testData.ExpectedNumberOfPasses,
                 ExpectedNumberOfBadNoCPSCs = testData.ExpectedNumberOfBadNoCPSCs
             };
 
-            var pass2ExpectedResults = new ManagedBrowseExpectedResultValues {
+            var pass2ExpectedResults = new ManagedBrowseExpectedResultValues
+            {
                 InputMaxNumberOfContinuationPoints = 0,
                 InputMaxNumberOfReferencesPerNode = 1000,
                 ExpectedNumberOfPasses = 1,
@@ -570,14 +583,16 @@ namespace Opc.Ua.Client.Tests
 
             theSession.ContinuationPointPolicy = ContinuationPointPolicy.Balanced;
 
-            var pass1ExpectedResults = new ManagedBrowseExpectedResultValues {
+            var pass1ExpectedResults = new ManagedBrowseExpectedResultValues
+            {
                 InputMaxNumberOfContinuationPoints = testData.MaxNumberOfContinuationPoints,
                 InputMaxNumberOfReferencesPerNode = testData.MaxNumberOfReferencesPerNode,
                 ExpectedNumberOfPasses = testData.ExpectedNumberOfPasses,
                 ExpectedNumberOfBadNoCPSCs = testData.ExpectedNumberOfBadNoCPSCs
             };
 
-            var pass2ExpectedResults = new ManagedBrowseExpectedResultValues {
+            var pass2ExpectedResults = new ManagedBrowseExpectedResultValues
+            {
                 InputMaxNumberOfContinuationPoints = 0,
                 InputMaxNumberOfReferencesPerNode = 1000,
                 ExpectedNumberOfPasses = 1,
@@ -710,14 +725,16 @@ namespace Opc.Ua.Client.Tests
 
             theSession.ContinuationPointPolicy = policy;
 
-            var pass1ExpectedResults = new ManagedBrowseExpectedResultValues {
+            var pass1ExpectedResults = new ManagedBrowseExpectedResultValues
+            {
                 InputMaxNumberOfContinuationPoints = testData.MaxNumberOfContinuationPoints,
                 InputMaxNumberOfReferencesPerNode = testData.MaxNumberOfReferencesPerNode,
                 ExpectedNumberOfPasses = testData.ExpectedNumberOfPasses,
                 ExpectedNumberOfBadNoCPSCs = testData.ExpectedNumberOfBadNoCPSCs
             };
 
-            var pass2ExpectedResults = new ManagedBrowseExpectedResultValues {
+            var pass2ExpectedResults = new ManagedBrowseExpectedResultValues
+            {
                 InputMaxNumberOfContinuationPoints = 0,
                 InputMaxNumberOfReferencesPerNode = 1000,
                 ExpectedNumberOfPasses = 1,
@@ -824,7 +841,8 @@ namespace Opc.Ua.Client.Tests
             theSession.ContinuationPointPolicy = ContinuationPointPolicy.Default;
 
             // the ExpectedNumber* parameters are not relevant/correct for this test.
-            var pass1ExpectedResults = new ManagedBrowseExpectedResultValues {
+            var pass1ExpectedResults = new ManagedBrowseExpectedResultValues
+            {
                 InputMaxNumberOfContinuationPoints = testData.MaxNumberOfContinuationPoints,
                 InputMaxNumberOfReferencesPerNode = testData.MaxNumberOfReferencesPerNode,
                 ExpectedNumberOfPasses = testData.ExpectedNumberOfPasses,
@@ -896,7 +914,8 @@ namespace Opc.Ua.Client.Tests
             theSession.ContinuationPointPolicy = policy;
 
             // the ExpectedNumber* parameters are not relevant/correct for this test.
-            var pass1ExpectedResults = new ManagedBrowseExpectedResultValues {
+            var pass1ExpectedResults = new ManagedBrowseExpectedResultValues
+            {
                 InputMaxNumberOfContinuationPoints = testData.MaxNumberOfContinuationPoints,
                 InputMaxNumberOfReferencesPerNode = testData.MaxNumberOfReferencesPerNode,
                 ExpectedNumberOfPasses = testData.ExpectedNumberOfPasses,
@@ -966,14 +985,16 @@ namespace Opc.Ua.Client.Tests
 
             theSession.ContinuationPointPolicy = ContinuationPointPolicy.Default;
 
-            var pass1ExpectedResults = new ManagedBrowseExpectedResultValues {
+            var pass1ExpectedResults = new ManagedBrowseExpectedResultValues
+            {
                 InputMaxNumberOfContinuationPoints = testData.MaxNumberOfContinuationPoints,
                 InputMaxNumberOfReferencesPerNode = testData.MaxNumberOfReferencesPerNode,
                 ExpectedNumberOfPasses = testData.ExpectedNumberOfPasses,
                 ExpectedNumberOfBadNoCPSCs = testData.ExpectedNumberOfBadNoCPSCs
             };
 
-            var pass2ExpectedResults = new ManagedBrowseExpectedResultValues {
+            var pass2ExpectedResults = new ManagedBrowseExpectedResultValues
+            {
                 InputMaxNumberOfContinuationPoints = 0,
                 InputMaxNumberOfReferencesPerNode = 1000,
                 ExpectedNumberOfPasses = 1,

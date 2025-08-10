@@ -29,11 +29,13 @@ namespace Opc.Ua
             EventSeverity severity,
             LocalizedText message)
         {
-            m_eventId = new PropertyState<byte[]>(this) {
+            m_eventId = new PropertyState<byte[]>(this)
+            {
                 Value = Guid.NewGuid().ToByteArray()
             };
 
-            m_eventType = new PropertyState<NodeId>(this) {
+            m_eventType = new PropertyState<NodeId>(this)
+            {
                 Value = GetDefaultTypeDefinitionId(context.NamespaceUris)
             };
 
@@ -43,7 +45,8 @@ namespace Opc.Ua
             {
                 if (!NodeId.IsNull(source.NodeId))
                 {
-                    m_sourceNode = new PropertyState<NodeId>(this) {
+                    m_sourceNode = new PropertyState<NodeId>(this)
+                    {
                         Value = source.NodeId,
                         RolePermissions = source.RolePermissions,
                         UserRolePermissions = source.UserRolePermissions,
@@ -53,25 +56,30 @@ namespace Opc.Ua
 
                 if (!QualifiedName.IsNull(source.BrowseName))
                 {
-                    m_sourceName = new PropertyState<string>(this) {
+                    m_sourceName = new PropertyState<string>(this)
+                    {
                         Value = source.BrowseName.Name
                     };
                 }
             }
 
-            m_time = new PropertyState<DateTime>(this) {
+            m_time = new PropertyState<DateTime>(this)
+            {
                 Value = DateTime.UtcNow
             };
 
-            m_receiveTime = new PropertyState<DateTime>(this) {
+            m_receiveTime = new PropertyState<DateTime>(this)
+            {
                 Value = DateTime.UtcNow
             };
 
-            m_severity = new PropertyState<ushort>(this) {
+            m_severity = new PropertyState<ushort>(this)
+            {
                 Value = (ushort)severity
             };
 
-            m_message = new PropertyState<LocalizedText>(this) {
+            m_message = new PropertyState<LocalizedText>(this)
+            {
                 Value = message
             };
         }

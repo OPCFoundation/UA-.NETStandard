@@ -69,7 +69,8 @@ namespace Opc.Ua.Client.Tests
             PkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
 
             // start ref server with reverse connect
-            ServerFixture = new ServerFixture<ReferenceServer> {
+            ServerFixture = new ServerFixture<ReferenceServer>
+            {
                 AutoAccept = true,
                 SecurityNone = true,
                 ReverseConnectTimeout = MaxTimeout,
@@ -192,9 +193,11 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(session);
 
             // default request header
-            var requestHeader = new RequestHeader();
-            requestHeader.Timestamp = DateTime.UtcNow;
-            requestHeader.TimeoutHint = MaxTimeout;
+            var requestHeader = new RequestHeader
+            {
+                Timestamp = DateTime.UtcNow,
+                TimeoutHint = MaxTimeout
+            };
 
             // Browse
             var clientTestServices = new ClientTestServices(session);
@@ -232,9 +235,11 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(session);
 
             // header
-            var requestHeader = new RequestHeader();
-            requestHeader.Timestamp = DateTime.UtcNow;
-            requestHeader.TimeoutHint = MaxTimeout;
+            var requestHeader = new RequestHeader
+            {
+                Timestamp = DateTime.UtcNow,
+                TimeoutHint = MaxTimeout
+            };
 
             // Browse
             var clientTestServices = new ClientTestServices(session);

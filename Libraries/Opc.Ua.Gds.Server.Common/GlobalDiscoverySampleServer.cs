@@ -118,7 +118,8 @@ namespace Opc.Ua.Gds.Server
         /// </remarks>
         protected override ServerProperties LoadServerProperties()
         {
-            return new ServerProperties {
+            return new ServerProperties
+            {
                 ManufacturerName = "Some Company Inc",
                 ProductName = "Global Discovery Server",
                 ProductUri = "http://somecompany.com/GlobalDiscoveryServer",
@@ -157,8 +158,7 @@ namespace Opc.Ua.Gds.Server
                 UserIdentityToken securityToken = context.UserIdentity.GetIdentityToken();
 
                 // check for a user name token.
-                var userNameToken = securityToken as UserNameIdentityToken;
-                if (userNameToken != null)
+                if (securityToken is UserNameIdentityToken userNameToken)
                 {
                     lock (Lock)
                     {
@@ -175,10 +175,9 @@ namespace Opc.Ua.Gds.Server
         /// </summary>
         protected override void OnRequestComplete(OperationContext context)
         {
-            ImpersonationContext impersonationContext = null;
-
             lock (Lock)
             {
+                ImpersonationContext impersonationContext;
                 if (m_contexts.TryGetValue(context.RequestId, out impersonationContext))
                 {
                     m_contexts.Remove(context.RequestId);
@@ -194,8 +193,7 @@ namespace Opc.Ua.Gds.Server
         private void SessionManager_ImpersonateUser(ISession session, ImpersonateEventArgs args)
         {
             // check for a user name token
-            var userNameToken = args.NewIdentity as UserNameIdentityToken;
-            if (userNameToken != null && VerifyPassword(userNameToken))
+            if (args.NewIdentity is UserNameIdentityToken userNameToken && VerifyPassword(userNameToken))
             {
                 IEnumerable<Role> roles = m_userDatabase.GetUserRoles(userNameToken.UserName);
 
@@ -204,8 +202,7 @@ namespace Opc.Ua.Gds.Server
             }
 
             // check for x509 user token.
-            var x509Token = args.NewIdentity as X509IdentityToken;
-            if (x509Token != null)
+            if (args.NewIdentity is X509IdentityToken x509Token)
             {
                 VerifyUserTokenCertificate(x509Token.Certificate);
 
@@ -283,8 +280,7 @@ namespace Opc.Ua.Gds.Server
             {
                 TranslationInfo info;
                 StatusCode result = StatusCodes.BadIdentityTokenRejected;
-                var se = e as ServiceResultException;
-                if (se != null && se.StatusCode == StatusCodes.BadCertificateUseNotAllowed)
+                if (e is ServiceResultException se && se.StatusCode == StatusCodes.BadCertificateUseNotAllowed)
                 {
                     info = new TranslationInfo(
                         "InvalidCertificate",

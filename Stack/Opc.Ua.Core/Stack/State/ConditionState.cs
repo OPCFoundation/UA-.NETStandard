@@ -63,10 +63,7 @@ namespace Opc.Ua
         /// <value>
         /// 	<c>true</c> if the condition automatically reports ecents; otherwise, <c>false</c>.
         /// </value>
-        public bool AutoReportStateChanges
-        {
-            get => m_autoReportStateChanges; set => m_autoReportStateChanges = value;
-        }
+        public bool AutoReportStateChanges { get; set; }
 
         /// <summary>
         /// Called when one or more sub-states change state.
@@ -442,10 +439,7 @@ namespace Opc.Ua
             {
                 string currentUserId = GetCurrentUserId(context);
                 ConditionState branch = GetBranch(eventId);
-                if (branch != null)
-                {
-                    branch.OnAddCommentCalled(context, method, objectId, eventId, comment);
-                }
+                branch?.OnAddCommentCalled(context, method, objectId, eventId, comment);
 
                 SetComment(context, comment, currentUserId);
             }
@@ -744,7 +738,6 @@ namespace Opc.Ua
             return !BranchId.Value.IsNullNodeId;
         }
 
-        private bool m_autoReportStateChanges;
         /// <summary>
         /// Branches
         /// </summary>

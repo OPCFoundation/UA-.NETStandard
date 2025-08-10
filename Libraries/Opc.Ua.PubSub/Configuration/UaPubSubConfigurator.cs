@@ -141,9 +141,11 @@ namespace Opc.Ua.PubSub.Configuration
             m_idsToPubSubState = [];
             m_idsToParentId = [];
 
-            PubSubConfiguration = new PubSubConfigurationDataType();
-            PubSubConfiguration.Connections = [];
-            PubSubConfiguration.PublishedDataSets = [];
+            PubSubConfiguration = new PubSubConfigurationDataType
+            {
+                Connections = [],
+                PublishedDataSets = []
+            };
 
             //remember configuration id
             uint id = m_nextId++;
@@ -471,7 +473,8 @@ namespace Opc.Ua.PubSub.Configuration
                         m_idsToParentId.Remove(publishedDataSetId);
                         m_idsToPubSubState.Remove(publishedDataSetId);
 
-                        PublishedDataSetRemoved?.Invoke(this, new PublishedDataSetEventArgs() {
+                        PublishedDataSetRemoved?.Invoke(this, new PublishedDataSetEventArgs()
+                        {
                             PublishedDataSetId = publishedDataSetId,
                             PublishedDataSetDataType = publishedDataSetDataType
                         });
@@ -718,7 +721,8 @@ namespace Opc.Ua.PubSub.Configuration
                         m_idsToParentId.Remove(connectionId);
                         m_idsToPubSubState.Remove(connectionId);
 
-                        ConnectionRemoved?.Invoke(this, new ConnectionEventArgs() {
+                        ConnectionRemoved?.Invoke(this, new ConnectionEventArgs()
+                        {
                             ConnectionId = connectionId,
                             PubSubConnectionDataType = pubSubConnectionDataType
                         });
@@ -878,7 +882,8 @@ namespace Opc.Ua.PubSub.Configuration
                             m_idsToParentId.Remove(writerGroupId);
                             m_idsToPubSubState.Remove(writerGroupId);
 
-                            WriterGroupRemoved?.Invoke(this, new WriterGroupEventArgs() {
+                            WriterGroupRemoved?.Invoke(this, new WriterGroupEventArgs()
+                            {
                                 WriterGroupId = writerGroupId,
                                 WriterGroupDataType = writerGroupDataType,
                                 ConnectionId = parentConnectionId
@@ -1022,7 +1027,8 @@ namespace Opc.Ua.PubSub.Configuration
                             m_idsToParentId.Remove(dataSetWriterId);
                             m_idsToPubSubState.Remove(dataSetWriterId);
 
-                            DataSetWriterRemoved?.Invoke(this, new DataSetWriterEventArgs() {
+                            DataSetWriterRemoved?.Invoke(this, new DataSetWriterEventArgs()
+                            {
                                 WriterGroupId = parentWriterGroupId,
                                 DataSetWriterDataType = dataSetWriterDataType,
                                 DataSetWriterId = dataSetWriterId
@@ -1184,7 +1190,8 @@ namespace Opc.Ua.PubSub.Configuration
                             m_idsToParentId.Remove(readerGroupId);
                             m_idsToPubSubState.Remove(readerGroupId);
 
-                            ReaderGroupRemoved?.Invoke(this, new ReaderGroupEventArgs() {
+                            ReaderGroupRemoved?.Invoke(this, new ReaderGroupEventArgs()
+                            {
                                 ReaderGroupId = readerGroupId,
                                 ReaderGroupDataType = readerGroupDataType,
                                 ConnectionId = parentConnectionId
@@ -1328,7 +1335,8 @@ namespace Opc.Ua.PubSub.Configuration
                             m_idsToParentId.Remove(dataSetReaderId);
                             m_idsToPubSubState.Remove(dataSetReaderId);
 
-                            DataSetReaderRemoved?.Invoke(this, new DataSetReaderEventArgs() {
+                            DataSetReaderRemoved?.Invoke(this, new DataSetReaderEventArgs()
+                            {
                                 ReaderGroupId = parenReaderGroupId,
                                 DataSetReaderDataType = dataSetReaderDataType,
                                 DataSetReaderId = dataSetReaderId
@@ -1448,7 +1456,8 @@ namespace Opc.Ua.PubSub.Configuration
             if (id != InvalidId && m_idsToPubSubState.TryGetValue(id, out PubSubState oldState))
             {
                 m_idsToPubSubState[id] = newState;
-                PubSubStateChanged?.Invoke(this, new PubSubStateChangedEventArgs() {
+                PubSubStateChanged?.Invoke(this, new PubSubStateChangedEventArgs()
+                {
                     ConfigurationObject = configurationObject,
                     ConfigurationObjectId = id,
                     NewState = newState,
@@ -1559,9 +1568,9 @@ namespace Opc.Ua.PubSub.Configuration
         /// <returns></returns>
         private PubSubState GetInitialPubSubState(object configurationObject)
         {
-            bool configurationObjectEnabled = false;
             PubSubState parentPubSubState = PubSubState.Operational;
 
+            bool configurationObjectEnabled;
             switch (configurationObject)
             {
                 case PubSubConfigurationDataType:

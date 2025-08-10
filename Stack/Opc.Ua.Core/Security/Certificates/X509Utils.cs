@@ -363,7 +363,6 @@ namespace Opc.Ua
 
             // determine the delimiter used.
             char delimiter = ',';
-            bool found = false;
             bool quoted = false;
 
             for (int ii = name.Length - 1; ii >= 0; ii--)
@@ -407,8 +406,7 @@ namespace Opc.Ua
             var buffer = new StringBuilder();
 
             string key = null;
-            string value = null;
-            found = false;
+            bool found = false;
 
             for (int ii = 0; ii < name.Length; ii++)
             {
@@ -452,7 +450,7 @@ namespace Opc.Ua
                         ii++;
                     }
 
-                    value = buffer.ToString().TrimEnd();
+                    string value = buffer.ToString().TrimEnd();
                     found = false;
 
                     buffer.Length = 0;
@@ -659,11 +657,7 @@ namespace Opc.Ua
             if (!string.IsNullOrEmpty(storePath) && !string.IsNullOrEmpty(storeType))
             {
                 var certificateStoreIdentifier = new CertificateStoreIdentifier(storePath, storeType, false);
-                using ICertificateStore store = certificateStoreIdentifier.OpenStore();
-                if (store == null)
-                {
-                    throw new ArgumentException("Invalid store type");
-                }
+                using ICertificateStore store = certificateStoreIdentifier.OpenStore() ?? throw new ArgumentException("Invalid store type");
 
                 store.Open(storePath, false);
                 store.AddAsync(certificate, password).Wait();
@@ -732,11 +726,7 @@ namespace Opc.Ua
             if (!string.IsNullOrEmpty(storePath) && !string.IsNullOrEmpty(storeType))
             {
                 var certificateStoreIdentifier = new CertificateStoreIdentifier(storePath, storeType, false);
-                using ICertificateStore store = certificateStoreIdentifier.OpenStore();
-                if (store == null)
-                {
-                    throw new ArgumentException("Invalid store type");
-                }
+                using ICertificateStore store = certificateStoreIdentifier.OpenStore() ?? throw new ArgumentException("Invalid store type");
 
                 await store.AddAsync(certificate, password).ConfigureAwait(false);
                 store.Close();

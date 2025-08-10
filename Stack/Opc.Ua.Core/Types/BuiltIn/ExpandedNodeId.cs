@@ -50,7 +50,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(value));
             }
 
-            m_namespaceUri = value.m_namespaceUri;
+            NamespaceUri = value.NamespaceUri;
 
             if (value.InnerNodeId != null)
             {
@@ -85,8 +85,8 @@ namespace Opc.Ua
         public ExpandedNodeId(object identifier, ushort namespaceIndex, string namespaceUri, uint serverIndex)
         {
             InnerNodeId = new NodeId(identifier, namespaceIndex);
-            m_namespaceUri = namespaceUri;
-            m_serverIndex = serverIndex;
+            NamespaceUri = namespaceUri;
+            ServerIndex = serverIndex;
         }
 
         /// <summary>
@@ -137,7 +137,7 @@ namespace Opc.Ua
                 SetNamespaceUri(namespaceUri);
             }
 
-            m_serverIndex = serverIndex;
+            ServerIndex = serverIndex;
         }
 
         /// <summary>
@@ -323,8 +323,8 @@ namespace Opc.Ua
         private void Initialize()
         {
             InnerNodeId = null;
-            m_namespaceUri = null;
-            m_serverIndex = 0;
+            NamespaceUri = null;
+            ServerIndex = 0;
         }
 
         /// <summary>
@@ -385,7 +385,7 @@ namespace Opc.Ua
         /// <remarks>
         /// Returns the namespace that the node belongs to
         /// </remarks>
-        public string NamespaceUri => m_namespaceUri;
+        public string NamespaceUri { get; private set; }
 
         /// <summary>
         /// The index of the server where the node exists.
@@ -393,7 +393,7 @@ namespace Opc.Ua
         /// <remarks>
         /// Returns the index of the server where the node resides
         /// </remarks>
-        public uint ServerIndex => m_serverIndex;
+        public uint ServerIndex { get; private set; }
 
         /// <summary>
         /// Whether the object represents a Null NodeId.
@@ -405,12 +405,12 @@ namespace Opc.Ua
         {
             get
             {
-                if (!string.IsNullOrEmpty(m_namespaceUri))
+                if (!string.IsNullOrEmpty(NamespaceUri))
                 {
                     return false;
                 }
 
-                if (m_serverIndex > 0)
+                if (ServerIndex > 0)
                 {
                     return false;
                 }
@@ -422,7 +422,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns true if the expanded node id is an absolute identifier that contains a namespace URI instead of a server dependent index.
         /// </summary>
-        public bool IsAbsolute => !string.IsNullOrEmpty(m_namespaceUri) || m_serverIndex > 0;
+        public bool IsAbsolute => !string.IsNullOrEmpty(NamespaceUri) || ServerIndex > 0;
 
         /// <summary>
         /// Returns the inner node id.
@@ -441,8 +441,8 @@ namespace Opc.Ua
                 ExpandedNodeId nodeId = Parse(value);
 
                 InnerNodeId = nodeId.InnerNodeId;
-                m_namespaceUri = nodeId.m_namespaceUri;
-                m_serverIndex = nodeId.m_serverIndex;
+                NamespaceUri = nodeId.NamespaceUri;
+                ServerIndex = nodeId.ServerIndex;
             }
         }
 
@@ -488,11 +488,11 @@ namespace Opc.Ua
         {
             if (InnerNodeId != null)
             {
-                Format(formatProvider, buffer, InnerNodeId.Identifier, InnerNodeId.IdType, InnerNodeId.NamespaceIndex, m_namespaceUri, m_serverIndex);
+                Format(formatProvider, buffer, InnerNodeId.Identifier, InnerNodeId.IdType, InnerNodeId.NamespaceIndex, NamespaceUri, ServerIndex);
             }
             else
             {
-                Format(formatProvider, buffer, null, IdType.Numeric, 0, m_namespaceUri, m_serverIndex);
+                Format(formatProvider, buffer, null, IdType.Numeric, 0, NamespaceUri, ServerIndex);
             }
         }
 
@@ -546,7 +546,7 @@ namespace Opc.Ua
             ExpandedNodeId nodeId = Parse(text);
 
             // lookup the namespace uri.
-            string uri = nodeId.m_namespaceUri;
+            string uri = nodeId.NamespaceUri;
 
             if (nodeId.InnerNodeId.NamespaceIndex != 0)
             {
@@ -575,13 +575,13 @@ namespace Opc.Ua
             if (nodeId.ServerIndex != 0)
             {
                 nodeId.InnerNodeId = new NodeId(nodeId.InnerNodeId.Identifier, 0);
-                nodeId.m_namespaceUri = uri;
+                nodeId.NamespaceUri = uri;
                 return nodeId;
             }
 
             // local node id.
             nodeId.InnerNodeId = new NodeId(nodeId.InnerNodeId.Identifier, namespaceIndex);
-            nodeId.m_namespaceUri = null;
+            nodeId.NamespaceUri = null;
 
             return nodeId;
         }
@@ -676,7 +676,7 @@ namespace Opc.Ua
         public int CompareTo(object obj)
         {
             // check for null.
-            if (ReferenceEquals(obj, null))
+            if (obj is null)
             {
                 return -1;
             }
@@ -738,7 +738,7 @@ namespace Opc.Ua
         /// </summary>
         public static bool operator >(ExpandedNodeId value1, object value2)
         {
-            if (!ReferenceEquals(value1, null))
+            if (value1 is not null)
             {
                 return value1.CompareTo(value2) > 0;
             }
@@ -751,7 +751,7 @@ namespace Opc.Ua
         /// </summary>
         public static bool operator <(ExpandedNodeId value1, object value2)
         {
-            if (!ReferenceEquals(value1, null))
+            if (value1 is not null)
             {
                 return value1.CompareTo(value2) < 0;
             }
@@ -805,9 +805,9 @@ namespace Opc.Ua
         /// </summary>
         public static bool operator ==(ExpandedNodeId value1, object value2)
         {
-            if (ReferenceEquals(value1, null))
+            if (value1 is null)
             {
-                return ReferenceEquals(value2, null);
+                return value2 is null;
             }
 
             return value1.CompareTo(value2) == 0;
@@ -818,9 +818,9 @@ namespace Opc.Ua
         /// </summary>
         public static bool operator !=(ExpandedNodeId value1, object value2)
         {
-            if (ReferenceEquals(value1, null))
+            if (value1 is null)
             {
-                return !ReferenceEquals(value2, null);
+                return value2 is not null;
             }
 
             return value1.CompareTo(value2) != 0;
@@ -895,7 +895,7 @@ namespace Opc.Ua
             }
 
             // return a reference to the internal node id object.
-            if (string.IsNullOrEmpty(nodeId.m_namespaceUri) && nodeId.m_serverIndex == 0)
+            if (string.IsNullOrEmpty(nodeId.NamespaceUri) && nodeId.ServerIndex == 0)
             {
                 return nodeId.InnerNodeId;
             }
@@ -926,7 +926,7 @@ namespace Opc.Ua
         internal void SetNamespaceIndex(ushort namespaceIndex)
         {
             InnerNodeId.SetNamespaceIndex(namespaceIndex);
-            m_namespaceUri = null;
+            NamespaceUri = null;
         }
 
         /// <summary>
@@ -935,7 +935,7 @@ namespace Opc.Ua
         internal void SetNamespaceUri(string uri)
         {
             InnerNodeId.SetNamespaceIndex(0);
-            m_namespaceUri = uri;
+            NamespaceUri = uri;
         }
 
         /// <summary>
@@ -943,7 +943,7 @@ namespace Opc.Ua
         /// </summary>
         internal void SetServerIndex(uint serverIndex)
         {
-            m_serverIndex = serverIndex;
+            ServerIndex = serverIndex;
         }
 
         /// <summary>
@@ -1053,11 +1053,11 @@ namespace Opc.Ua
 
             var buffer = new StringBuilder();
 
-            if (m_serverIndex > 0)
+            if (ServerIndex > 0)
             {
                 if (useUris)
                 {
-                    string serverUri = context.ServerUris.GetString(m_serverIndex);
+                    string serverUri = context.ServerUris.GetString(ServerIndex);
 
                     if (!string.IsNullOrEmpty(serverUri))
                     {
@@ -1068,22 +1068,22 @@ namespace Opc.Ua
                     else
                     {
                         buffer.Append("svr=");
-                        buffer.Append(m_serverIndex);
+                        buffer.Append(ServerIndex);
                         buffer.Append(';');
                     }
                 }
                 else
                 {
                     buffer.Append("svr=");
-                    buffer.Append(m_serverIndex);
+                    buffer.Append(ServerIndex);
                     buffer.Append(';');
                 }
             }
 
-            if (!string.IsNullOrEmpty(m_namespaceUri))
+            if (!string.IsNullOrEmpty(NamespaceUri))
             {
                 buffer.Append("nsu=");
-                buffer.Append(Utils.EscapeUri(m_namespaceUri));
+                buffer.Append(Utils.EscapeUri(NamespaceUri));
                 buffer.Append(';');
             }
 
@@ -1109,14 +1109,8 @@ namespace Opc.Ua
                 return nodeId.InnerNodeId;
             }
 
-            NodeId localId = ToNodeId(nodeId, namespaceUris);
-
-            if (localId == null)
-            {
+            return ToNodeId(nodeId, namespaceUris) ??
                 throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, "NamespaceUri ({0}) is not in the namespace table.", nodeId.NamespaceUri);
-            }
-
-            return localId;
         }
 
         /// <summary>
@@ -1237,12 +1231,9 @@ namespace Opc.Ua
 
             // set the properties.
             InnerNodeId = NodeId.InternalParse(text, serverIndex != 0 || !string.IsNullOrEmpty(namespaceUri));
-            m_namespaceUri = namespaceUri;
-            m_serverIndex = serverIndex;
+            NamespaceUri = namespaceUri;
+            ServerIndex = serverIndex;
         }
-
-        private string m_namespaceUri;
-        private uint m_serverIndex;
     }
 
     /// <summary>

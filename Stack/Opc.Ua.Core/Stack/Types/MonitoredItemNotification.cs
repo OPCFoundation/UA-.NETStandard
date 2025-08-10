@@ -20,20 +20,11 @@ namespace Opc.Ua
         /// <summary>
         /// The notification message that the item belongs to.
         /// </summary>
-        public NotificationMessage Message
-        {
-            get => m_message; set => m_message = value;
-        }
+        public NotificationMessage Message { get; set; }
 
         /// <summary>
         /// The diagnostic info associated with the notification.
         /// </summary>
-        public DiagnosticInfo DiagnosticInfo
-        {
-            get => m_diagnosticInfo; set => m_diagnosticInfo = value;
-        }
-
-        private NotificationMessage m_message;
-        private DiagnosticInfo m_diagnosticInfo;
+        public DiagnosticInfo DiagnosticInfo { get; set; }
     }
 }

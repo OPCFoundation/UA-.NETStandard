@@ -32,7 +32,7 @@ namespace Opc.Ua
         {
             Initialize();
 
-            m_defaultConfiguration = (EndpointConfiguration)configuration.Clone();
+            DefaultConfiguration = (EndpointConfiguration)configuration.Clone();
         }
 
         /// <summary>
@@ -42,7 +42,7 @@ namespace Opc.Ua
         {
             Initialize();
 
-            m_defaultConfiguration = EndpointConfiguration.Create(configuration);
+            DefaultConfiguration = EndpointConfiguration.Create(configuration);
 
             if (configuration.ClientConfiguration != null)
             {
@@ -65,7 +65,7 @@ namespace Opc.Ua
         {
             ConfiguredEndpointCollection endpoints = Load(filePath);
 
-            endpoints.m_defaultConfiguration = EndpointConfiguration.Create(configuration);
+            endpoints.DefaultConfiguration = EndpointConfiguration.Create(configuration);
 
             // override the settings in the configuration.
             foreach (ConfiguredEndpoint endpoint in endpoints.Endpoints)
@@ -107,7 +107,8 @@ namespace Opc.Ua
                 // set a default value for the server.
                 if (endpoint.Description.Server == null)
                 {
-                    endpoint.Description.Server = new ApplicationDescription {
+                    endpoint.Description.Server = new ApplicationDescription
+                    {
                         ApplicationType = ApplicationType.Server
                     };
                 }
@@ -141,8 +142,7 @@ namespace Opc.Ua
                     endpoint.Description.TransportProfileUri = Profiles.NormalizeUri(endpoint.Description.TransportProfileUri);
                 }
 
-                ApplicationDescription server = null;
-
+                ApplicationDescription server;
                 if (!servers.TryGetValue(endpoint.Description.Server.ApplicationUri, out server))
                 {
                     // use the first description in the file as the correct master.
@@ -239,10 +239,11 @@ namespace Opc.Ua
         /// </summary>
         public new object MemberwiseClone()
         {
-            var clone = new ConfiguredEndpointCollection {
+            var clone = new ConfiguredEndpointCollection
+            {
                 m_filepath = m_filepath,
                 m_knownHosts = [.. m_knownHosts],
-                m_defaultConfiguration = (EndpointConfiguration)m_defaultConfiguration.MemberwiseClone()
+                DefaultConfiguration = (EndpointConfiguration)DefaultConfiguration.MemberwiseClone()
             };
 
             foreach (ConfiguredEndpoint endpoint in m_endpoints)
@@ -434,10 +435,7 @@ namespace Opc.Ua
             ValidateEndpoint(endpoint.Description);
 
             // update collection.
-            if (endpoint.Collection != null)
-            {
-                endpoint.Collection.Remove(endpoint);
-            }
+            endpoint.Collection?.Remove(endpoint);
 
             endpoint.Collection = this;
 
@@ -633,7 +631,8 @@ namespace Opc.Ua
 
             var uri = new Uri(url);
 
-            var description = new EndpointDescription {
+            var description = new EndpointDescription
+            {
                 EndpointUrl = uri.ToString(),
                 SecurityMode = securityMode,
                 SecurityPolicyUri = securityPolicyUri
@@ -718,7 +717,7 @@ namespace Opc.Ua
         /// <summary>
         /// The default configuration for new ConfiguredEndpoints.
         /// </summary>
-        public EndpointConfiguration DefaultConfiguration => m_defaultConfiguration;
+        public EndpointConfiguration DefaultConfiguration { get; private set; }
 
         private static readonly char[] separator = ['-', '[', ':', ']'];
 
@@ -739,7 +738,8 @@ namespace Opc.Ua
 
             if (endpoint.Server == null)
             {
-                endpoint.Server = new ApplicationDescription {
+                endpoint.Server = new ApplicationDescription
+                {
                     ApplicationType = ApplicationType.Server
                 };
             }
@@ -769,7 +769,7 @@ namespace Opc.Ua
             EndpointConfiguration configuration)
         {
             m_description = new EndpointDescription();
-            m_updateBeforeConnect = true;
+            UpdateBeforeConnect = true;
 
             m_description.Server = server ?? throw new ArgumentNullException(nameof(server));
 
@@ -839,7 +839,7 @@ namespace Opc.Ua
         {
             m_collection = collection;
             m_description = description ?? throw new ArgumentNullException(nameof(description));
-            m_updateBeforeConnect = true;
+            UpdateBeforeConnect = true;
 
             // ensure a default configuration.
             if (configuration == null)
@@ -868,7 +868,8 @@ namespace Opc.Ua
         /// </summary>
         public new object MemberwiseClone()
         {
-            var clone = new ConfiguredEndpoint {
+            var clone = new ConfiguredEndpoint
+            {
                 Collection = Collection
             };
             clone.Update(this);
@@ -936,13 +937,13 @@ namespace Opc.Ua
                 m_description.TransportProfileUri = Profiles.NormalizeUri(m_description.TransportProfileUri);
             }
 
-            m_updateBeforeConnect = endpoint.m_updateBeforeConnect;
-            m_selectedUserTokenPolicyIndex = endpoint.m_selectedUserTokenPolicyIndex;
-            m_binaryEncodingSupport = endpoint.m_binaryEncodingSupport;
+            UpdateBeforeConnect = endpoint.UpdateBeforeConnect;
+            SelectedUserTokenPolicyIndex = endpoint.SelectedUserTokenPolicyIndex;
+            BinaryEncodingSupport = endpoint.BinaryEncodingSupport;
 
-            if (endpoint.m_userIdentity != null)
+            if (endpoint.UserIdentity != null)
             {
-                m_userIdentity = (UserIdentityToken)endpoint.m_userIdentity.MemberwiseClone();
+                UserIdentity = (UserIdentityToken)endpoint.UserIdentity.MemberwiseClone();
             }
         }
 
@@ -988,7 +989,7 @@ namespace Opc.Ua
             // check if the configuration restricts the encoding if the endpoint supports both.
             if (binaryEncodingSupport == BinaryEncodingSupport.Optional)
             {
-                binaryEncodingSupport = m_binaryEncodingSupport;
+                binaryEncodingSupport = BinaryEncodingSupport;
             }
 
             if (binaryEncodingSupport == BinaryEncodingSupport.None)
@@ -1217,11 +1218,7 @@ namespace Opc.Ua
         public ConfiguredEndpointCollection Collection
         {
             get => m_collection;
-
-            internal set
-            {
-                m_collection = value ?? throw new ArgumentNullException(nameof(value));
-            }
+            internal set => m_collection = value ?? throw new ArgumentNullException(nameof(value));
         }
 
         /// <summary>
@@ -1261,9 +1258,9 @@ namespace Opc.Ua
                 {
                     UserTokenPolicyCollection policies = m_description.UserIdentityTokens;
 
-                    if (m_selectedUserTokenPolicyIndex >= 0 && policies.Count > m_selectedUserTokenPolicyIndex)
+                    if (SelectedUserTokenPolicyIndex >= 0 && policies.Count > SelectedUserTokenPolicyIndex)
                     {
-                        return policies[m_selectedUserTokenPolicyIndex];
+                        return policies[SelectedUserTokenPolicyIndex];
                     }
                 }
 
@@ -1280,13 +1277,13 @@ namespace Opc.Ua
                     {
                         if (ReferenceEquals(policies[ii], value))
                         {
-                            m_selectedUserTokenPolicyIndex = ii;
+                            SelectedUserTokenPolicyIndex = ii;
                             break;
                         }
                     }
                 }
 
-                m_selectedUserTokenPolicyIndex = -1;
+                SelectedUserTokenPolicyIndex = -1;
             }
         }
 
@@ -1412,7 +1409,8 @@ namespace Opc.Ua
                 Uri matchUrl = Utils.ParseUri(match.EndpointUrl);
                 if (matchUrl == null || !string.Equals(discoveryUrl.DnsSafeHost, matchUrl.DnsSafeHost, StringComparison.OrdinalIgnoreCase))
                 {
-                    var uri = new UriBuilder(matchUrl) {
+                    var uri = new UriBuilder(matchUrl)
+                    {
                         Host = discoveryUrl.DnsSafeHost,
                         Port = discoveryUrl.Port
                     };

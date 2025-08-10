@@ -129,7 +129,8 @@ namespace Opc.Ua.Client.ComplexTypes
                 throw new ArgumentNullException(nameof(structureDefinition));
             }
 
-            Type baseType = structureDefinition.StructureType switch {
+            Type baseType = structureDefinition.StructureType switch
+            {
                 StructureType.StructureWithOptionalFields => typeof(OptionalFieldsComplexType),
                 StructureType.UnionWithSubtypedValues or StructureType.Union => typeof(UnionComplexType),
                 StructureType.StructureWithSubtypedValues or StructureType.Structure => typeof(BaseComplexType),

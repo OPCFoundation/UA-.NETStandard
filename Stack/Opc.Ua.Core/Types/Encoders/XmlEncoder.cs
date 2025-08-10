@@ -895,10 +895,7 @@ namespace Opc.Ua
 
             if (BeginField(fieldName, value == null, true))
             {
-                if (value != null)
-                {
-                    value.Encode(this);
-                }
+                value?.Encode(this);
 
                 EndField(fieldName);
             }

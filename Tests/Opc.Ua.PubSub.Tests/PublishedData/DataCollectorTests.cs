@@ -74,8 +74,10 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
         {
             //Arrange
             var dataCollector = new DataCollector(new UaPubSubDataStore());
-            var publishedDataSet = new PublishedDataSetDataType();
-            publishedDataSet.Name = "Name";
+            var publishedDataSet = new PublishedDataSetDataType
+            {
+                Name = "Name"
+            };
             //Act  
             dataCollector.AddPublishedDataSet(publishedDataSet);
             dataCollector.RemovePublishedDataSet(publishedDataSet);
@@ -105,51 +107,58 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
 
             var dataCollector = new DataCollector(dataStore);
 
-            var publishedDataSetSimple = new PublishedDataSetDataType();
-            publishedDataSetSimple.Name = "Simple";
+            var publishedDataSetSimple = new PublishedDataSetDataType
+            {
+                Name = "Simple"
+            };
             // Define  publishedDataSetSimple.DataSetMetaData
-            publishedDataSetSimple.DataSetMetaData = new DataSetMetaDataType();
-            publishedDataSetSimple.DataSetMetaData.DataSetClassId = new Uuid(Guid.Empty);
-            publishedDataSetSimple.DataSetMetaData.Name = publishedDataSetSimple.Name;
-            publishedDataSetSimple.DataSetMetaData.Fields =
-                [
-                    new FieldMetaData()
-                    {
-                        Name = "BoolToggle",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        DataType = DataTypeIds.Boolean,
-                        ValueRank = ValueRanks.Scalar
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "Int32",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        DataType = DataTypeIds.Int32,
-                        ValueRank = ValueRanks.Scalar
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "Int32Fast",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        DataType = DataTypeIds.Int32,
-                        ValueRank = ValueRanks.Scalar
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "DateTime",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        DataType = DataTypeIds.DateTime,
-                        ValueRank = ValueRanks.Scalar
-                    }
-                ];
+            publishedDataSetSimple.DataSetMetaData = new DataSetMetaDataType
+            {
+                DataSetClassId = new Uuid(Guid.Empty),
+                Name = publishedDataSetSimple.Name,
+                Fields =
+                    [
+                        new FieldMetaData()
+                        {
+                            Name = "BoolToggle",
+                            DataSetFieldId = new Uuid(Guid.NewGuid()),
+                            DataType = DataTypeIds.Boolean,
+                            ValueRank = ValueRanks.Scalar
+                        },
+                        new FieldMetaData()
+                        {
+                            Name = "Int32",
+                            DataSetFieldId = new Uuid(Guid.NewGuid()),
+                            DataType = DataTypeIds.Int32,
+                            ValueRank = ValueRanks.Scalar
+                        },
+                        new FieldMetaData()
+                        {
+                            Name = "Int32Fast",
+                            DataSetFieldId = new Uuid(Guid.NewGuid()),
+                            DataType = DataTypeIds.Int32,
+                            ValueRank = ValueRanks.Scalar
+                        },
+                        new FieldMetaData()
+                        {
+                            Name = "DateTime",
+                            DataSetFieldId = new Uuid(Guid.NewGuid()),
+                            DataType = DataTypeIds.DateTime,
+                            ValueRank = ValueRanks.Scalar
+                        }
+                    ]
+            };
 
-            var publishedDataItems = new PublishedDataItemsDataType();
-            publishedDataItems.PublishedData = [];
+            var publishedDataItems = new PublishedDataItemsDataType
+            {
+                PublishedData = []
+            };
             //create PublishedData based on metadata names
             foreach (FieldMetaData field in publishedDataSetSimple.DataSetMetaData.Fields)
             {
                 publishedDataItems.PublishedData.Add(
-                    new PublishedVariableDataType() {
+                    new PublishedVariableDataType()
+                    {
                         PublishedVariable = new NodeId(field.Name, NamespaceIndex),
                         AttributeId = Attributes.Value,
                     });
@@ -181,43 +190,47 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             var dataStore = new UaPubSubDataStore();
             var dataCollector = new DataCollector(dataStore);
 
-            var publishedDataSetSimple = new PublishedDataSetDataType();
-            publishedDataSetSimple.Name = "Simple";
+            var publishedDataSetSimple = new PublishedDataSetDataType
+            {
+                Name = "Simple"
+            };
             // Define  publishedDataSetSimple.DataSetMetaData
-            publishedDataSetSimple.DataSetMetaData = new DataSetMetaDataType();
-            publishedDataSetSimple.DataSetMetaData.DataSetClassId = new Uuid(Guid.Empty);
-            publishedDataSetSimple.DataSetMetaData.Name = publishedDataSetSimple.Name;
-            publishedDataSetSimple.DataSetMetaData.Fields =
-                [
-                    new FieldMetaData()
-                    {
-                        Name = "BoolToggle",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        DataType = DataTypeIds.Boolean,
-                        ValueRank = ValueRanks.Scalar
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "Int32",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        DataType = DataTypeIds.Int32,
-                        ValueRank = ValueRanks.Scalar
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "Int32Fast",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        DataType = DataTypeIds.Int32,
-                        ValueRank = ValueRanks.Scalar
-                    },
-                    new FieldMetaData()
-                    {
-                        Name = "DateTime",
-                        DataSetFieldId = new Uuid(Guid.NewGuid()),
-                        DataType = DataTypeIds.DateTime,
-                        ValueRank = ValueRanks.Scalar
-                    }
-                ];
+            publishedDataSetSimple.DataSetMetaData = new DataSetMetaDataType
+            {
+                DataSetClassId = new Uuid(Guid.Empty),
+                Name = publishedDataSetSimple.Name,
+                Fields =
+                    [
+                        new FieldMetaData()
+                        {
+                            Name = "BoolToggle",
+                            DataSetFieldId = new Uuid(Guid.NewGuid()),
+                            DataType = DataTypeIds.Boolean,
+                            ValueRank = ValueRanks.Scalar
+                        },
+                        new FieldMetaData()
+                        {
+                            Name = "Int32",
+                            DataSetFieldId = new Uuid(Guid.NewGuid()),
+                            DataType = DataTypeIds.Int32,
+                            ValueRank = ValueRanks.Scalar
+                        },
+                        new FieldMetaData()
+                        {
+                            Name = "Int32Fast",
+                            DataSetFieldId = new Uuid(Guid.NewGuid()),
+                            DataType = DataTypeIds.Int32,
+                            ValueRank = ValueRanks.Scalar
+                        },
+                        new FieldMetaData()
+                        {
+                            Name = "DateTime",
+                            DataSetFieldId = new Uuid(Guid.NewGuid()),
+                            DataType = DataTypeIds.DateTime,
+                            ValueRank = ValueRanks.Scalar
+                        }
+                    ]
+            };
 
             //initialize Extension fields collection
             publishedDataSetSimple.ExtensionFields =
@@ -244,13 +257,16 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                     }
                 ];
 
-            var publishedDataItems = new PublishedDataItemsDataType();
-            publishedDataItems.PublishedData = [];
+            var publishedDataItems = new PublishedDataItemsDataType
+            {
+                PublishedData = []
+            };
             //create PublishedData based on metadata names
             foreach (FieldMetaData field in publishedDataSetSimple.DataSetMetaData.Fields)
             {
                 publishedDataItems.PublishedData.Add(
-                    new PublishedVariableDataType() {
+                    new PublishedVariableDataType()
+                    {
                         SubstituteValue = new QualifiedName(field.Name)
                     });
             }

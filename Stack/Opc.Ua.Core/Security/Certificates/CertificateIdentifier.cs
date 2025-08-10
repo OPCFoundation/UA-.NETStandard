@@ -106,7 +106,7 @@ namespace Opc.Ua
         /// <returns></returns>
         public override int GetHashCode()
         {
-            return HashCode.Combine(Thumbprint, m_storePath, m_storeType, SubjectName, CertificateType);
+            return HashCode.Combine(Thumbprint, m_storePath, StoreType, SubjectName, CertificateType);
         }
 
         /// <summary>
@@ -115,10 +115,7 @@ namespace Opc.Ua
         /// <value>
         /// The validation options that can be used to suppress certificate validation errors.
         /// </value>
-        public CertificateValidationOptions ValidationOptions
-        {
-            get => m_validationOptions; set => m_validationOptions = value;
-        }
+        public CertificateValidationOptions ValidationOptions { get; set; }
 
         /// <summary>
         /// Gets or sets the actual certificate.
@@ -132,7 +129,7 @@ namespace Opc.Ua
                 m_certificate = value;
                 if (m_certificate != null)
                 {
-                    m_certificateType = GetCertificateType(m_certificate);
+                    CertificateType = GetCertificateType(m_certificate);
                 }
             }
         }
@@ -249,7 +246,7 @@ namespace Opc.Ua
 
                 X509Certificate2Collection collection = await store.EnumerateAsync().ConfigureAwait(false);
 
-                certificate = Find(collection, m_thumbprint, m_subjectName, applicationUri, m_certificateType, needPrivateKey);
+                certificate = Find(collection, m_thumbprint, m_subjectName, applicationUri, CertificateType, needPrivateKey);
 
                 if (certificate != null)
                 {

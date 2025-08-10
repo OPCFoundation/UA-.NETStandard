@@ -145,7 +145,8 @@ namespace Opc.Ua
             else
             {
 #if ECC_SUPPORT
-                var secret = new EncryptedSecret {
+                var secret = new EncryptedSecret
+                {
                     ReceiverCertificate = receiverCertificate,
                     SecurityPolicyUri = securityPolicyUri,
                     ReceiverNonce = receiverEphemeralKey,
@@ -206,7 +207,8 @@ namespace Opc.Ua
             // handle RSA encryption.
             if (!EccUtils.IsEccPolicy(securityPolicyUri))
             {
-                var encryptedData = new EncryptedData {
+                var encryptedData = new EncryptedData
+                {
                     Data = m_password,
                     Algorithm = m_encryptionAlgorithm
                 };
@@ -248,7 +250,8 @@ namespace Opc.Ua
             else
             {
 #if ECC_SUPPORT
-                var secret = new EncryptedSecret {
+                var secret = new EncryptedSecret
+                {
                     SenderCertificate = senderCertificate,
                     SenderIssuerCertificates = senderIssuerCertificates,
                     Validator = validator,
@@ -374,10 +377,7 @@ namespace Opc.Ua
         /// <summary>
         /// The decrypted password associated with the token.
         /// </summary>
-        public byte[] DecryptedTokenData
-        {
-            get => m_decryptedTokenData; set => m_decryptedTokenData = value;
-        }
+        public byte[] DecryptedTokenData { get; set; }
 
         /// <summary>
         /// Encrypts the DecryptedTokenData using the EncryptionAlgorithm and places the result in Password
@@ -394,12 +394,12 @@ namespace Opc.Ua
             // handle no encryption.
             if (string.IsNullOrEmpty(securityPolicyUri) || securityPolicyUri == SecurityPolicies.None)
             {
-                m_tokenData = m_decryptedTokenData;
+                m_tokenData = DecryptedTokenData;
                 m_encryptionAlgorithm = string.Empty;
                 return;
             }
 
-            byte[] dataToEncrypt = Utils.Append(m_decryptedTokenData, receiverNonce);
+            byte[] dataToEncrypt = Utils.Append(DecryptedTokenData, receiverNonce);
 
             EncryptedData encryptedData = SecurityPolicies.Encrypt(
                 receiverCertificate,
@@ -425,11 +425,12 @@ namespace Opc.Ua
             // handle no encryption.
             if (string.IsNullOrEmpty(securityPolicyUri) || securityPolicyUri == SecurityPolicies.None)
             {
-                m_decryptedTokenData = m_tokenData;
+                DecryptedTokenData = m_tokenData;
                 return;
             }
 
-            var encryptedData = new EncryptedData {
+            var encryptedData = new EncryptedData
+            {
                 Data = m_tokenData,
                 Algorithm = m_encryptionAlgorithm
             };
@@ -456,8 +457,8 @@ namespace Opc.Ua
             }
 
             // copy results.
-            m_decryptedTokenData = new byte[startOfNonce];
-            Array.Copy(decryptedTokenData, m_decryptedTokenData, startOfNonce);
+            DecryptedTokenData = new byte[startOfNonce];
+            Array.Copy(decryptedTokenData, DecryptedTokenData, startOfNonce);
         }
 
         /// <summary>
@@ -475,7 +476,5 @@ namespace Opc.Ua
         {
             return true;
         }
-
-        private byte[] m_decryptedTokenData;
     }
 }

@@ -44,7 +44,8 @@ namespace Opc.Ua
         {
             Initialize();
 
-            var element = new RelativePathElement {
+            var element = new RelativePathElement
+            {
                 ReferenceTypeId = referenceTypeId,
                 IsInverse = isInverse,
                 IncludeSubtypes = includeSubtypes,
@@ -94,7 +95,8 @@ namespace Opc.Ua
 
             foreach (RelativePathFormatter.Element element in formatter.Elements)
             {
-                var parsedElement = new RelativePathElement {
+                var parsedElement = new RelativePathElement
+                {
                     ReferenceTypeId = null,
                     IsInverse = false,
                     IncludeSubtypes = element.IncludeSubtypes,
@@ -153,7 +155,8 @@ namespace Opc.Ua
 
             foreach (RelativePathFormatter.Element element in formatter.Elements)
             {
-                var parsedElement = new RelativePathElement {
+                var parsedElement = new RelativePathElement
+                {
                     ReferenceTypeId = null,
                     IsInverse = false,
                     IncludeSubtypes = element.IncludeSubtypes,
@@ -411,10 +414,7 @@ namespace Opc.Ua
         {
             RelativePathFormatter path = Parse(textToParse);
 
-            if (path != null)
-            {
-                path.TranslateNamespaceIndexes(currentTable, targetTable);
-            }
+            path?.TranslateNamespaceIndexes(currentTable, targetTable);
 
             return path;
         }

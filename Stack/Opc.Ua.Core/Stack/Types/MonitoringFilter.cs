@@ -114,7 +114,8 @@ namespace Opc.Ua
         /// </summary>
         public void AddSelectClause(NodeId eventTypeId, QualifiedName propertyName)
         {
-            var clause = new SimpleAttributeOperand {
+            var clause = new SimpleAttributeOperand
+            {
                 TypeDefinitionId = eventTypeId,
                 AttributeId = Attributes.Value
             };
@@ -129,7 +130,8 @@ namespace Opc.Ua
         /// </summary>
         public void AddSelectClause(NodeId eventTypeId, string browsePath, uint attributeId)
         {
-            var clause = new SimpleAttributeOperand {
+            var clause = new SimpleAttributeOperand
+            {
                 TypeDefinitionId = eventTypeId,
                 AttributeId = attributeId
             };
@@ -159,7 +161,8 @@ namespace Opc.Ua
             /// </summary>
             public static implicit operator Result(ServiceResult status)
             {
-                return new Result {
+                return new Result
+                {
                     Status = status
                 };
             }
@@ -448,7 +451,7 @@ namespace Opc.Ua
         /// <remarks>
         /// Set when Validate() is called.
         /// </remarks>
-        public bool Validated => m_validated;
+        public bool Validated { get; private set; }
 
         /// <summary>
         /// Stores the parsed form of the IndexRange parameter.
@@ -463,7 +466,7 @@ namespace Opc.Ua
         /// </summary>
         public override ServiceResult Validate(FilterContext context, int index)
         {
-            m_validated = false;
+            Validated = false;
 
             // verify attribute id.
             if (!Attributes.IsValid(m_attributeId))
@@ -502,7 +505,7 @@ namespace Opc.Ua
                 }
             }
 
-            m_validated = true;
+            Validated = true;
 
             return ServiceResult.Good;
         }
@@ -640,7 +643,6 @@ namespace Opc.Ua
             return browseNames;
         }
 
-        private bool m_validated;
         private NumericRange m_parsedIndexRange;
     }
 }

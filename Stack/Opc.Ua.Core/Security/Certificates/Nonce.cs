@@ -116,7 +116,8 @@ namespace Opc.Ua
 
                 byte[] output = new byte[length];
 
-                HMAC hmac = algorithm.Name switch {
+                HMAC hmac = algorithm.Name switch
+                {
                     "SHA256" => new HMACSHA256(secret),
                     "SHA384" => new HMACSHA384(secret),
                     _ => new HMACSHA256(secret),
@@ -199,7 +200,8 @@ namespace Opc.Ua
 #endif
                 default:
                     uint rsaNonceLength = GetNonceLength(securityPolicyUri);
-                    return new Nonce() {
+                    return new Nonce()
+                    {
                         Data = CreateRandomNonceData(rsaNonceLength)
                     };
             }
@@ -223,7 +225,8 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(nonceData));
             }
 
-            var nonce = new Nonce() {
+            var nonce = new Nonce()
+            {
                 Data = nonceData
             };
 
@@ -380,7 +383,8 @@ namespace Opc.Ua
         /// <returns>A new Nonce object.</returns>
         private static Nonce CreateNonceForCurve25519(byte[] nonceData)
         {
-            return new Nonce() {
+            return new Nonce()
+            {
                 Data = nonceData,
             };
         }
@@ -392,7 +396,8 @@ namespace Opc.Ua
         /// <returns>A new Nonce instance.</returns>
         private static Nonce CreateNonceForCurve448(byte[] nonceData)
         {
-            return new Nonce() {
+            return new Nonce()
+            {
                 Data = nonceData,
             };
         }
@@ -405,7 +410,8 @@ namespace Opc.Ua
         /// <returns>A new Nonce instance with the specified curve and nonce data.</returns>
         private static Nonce CreateNonce(ECCurve curve, byte[] nonceData)
         {
-            var nonce = new Nonce() {
+            var nonce = new Nonce()
+            {
                 Data = nonceData
             };
 
@@ -416,7 +422,8 @@ namespace Opc.Ua
             Buffer.BlockCopy(nonceData, 0, qx, 0, keyLength / 2);
             Buffer.BlockCopy(nonceData, keyLength / 2, qy, 0, keyLength / 2);
 
-            var ecdhParameters = new ECParameters {
+            var ecdhParameters = new ECParameters
+            {
                 Curve = curve,
                 Q = { X = qx, Y = qy }
             };
@@ -455,7 +462,8 @@ namespace Opc.Ua
             Array.Copy(ecdhParameters.Q.X, senderNonce, xLen);
             Array.Copy(ecdhParameters.Q.Y, 0, senderNonce, xLen, yLen);
 
-            return new Nonce() {
+            return new Nonce()
+            {
                 Data = senderNonce,
                 m_ecdh = ecdh
             };
@@ -522,9 +530,11 @@ namespace Opc.Ua
 
             if (curveName != null)
             {
-                var ecParams = new ECParameters {
+                var ecParams = new ECParameters
+                {
                     Curve = ECCurve.CreateFromFriendlyName(curveName),
-                    Q = new ECPoint {
+                    Q = new ECPoint
+                    {
                         X = (byte[])info.GetValue("QX", typeof(byte[])),
                         Y = (byte[])info.GetValue("QY", typeof(byte[])),
                     }

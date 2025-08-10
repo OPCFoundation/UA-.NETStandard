@@ -179,7 +179,8 @@ namespace Opc.Ua.PubSub.Transport
             QualifiedName qTrustedIssuerCertificatesStorePath = nameof(EnumMqttClientConfigurationParameters.TrustedIssuerCertificatesStorePath);
             string issuerCertificatesStorePath = kvpMqttOptions.Find(kvp => kvp.Key.Name.Equals(qTrustedIssuerCertificatesStorePath.Name, StringComparison.Ordinal))?.Value.Value as string;
 
-            TrustedIssuerCertificates = new CertificateTrustList {
+            TrustedIssuerCertificates = new CertificateTrustList
+            {
                 StoreType = issuerCertificatesStoreType,
                 StorePath = issuerCertificatesStorePath
             };
@@ -189,7 +190,8 @@ namespace Opc.Ua.PubSub.Transport
             QualifiedName qTrustedPeerCertificatesStorePath = nameof(EnumMqttClientConfigurationParameters.TrustedPeerCertificatesStorePath);
             string peerCertificatesStorePath = kvpMqttOptions.Find(kvp => kvp.Key.Name.Equals(qTrustedPeerCertificatesStorePath.Name, StringComparison.Ordinal))?.Value.Value as string;
 
-            TrustedPeerCertificates = new CertificateTrustList {
+            TrustedPeerCertificates = new CertificateTrustList
+            {
                 StoreType = peerCertificatesStoreType,
                 StorePath = peerCertificatesStorePath
             };
@@ -199,7 +201,8 @@ namespace Opc.Ua.PubSub.Transport
             QualifiedName qRejectedCertificateStoreStorePath = nameof(EnumMqttClientConfigurationParameters.RejectedCertificateStoreStorePath);
             string rejectedCertificateStoreStorePath = kvpMqttOptions.Find(kvp => kvp.Key.Name.Equals(qRejectedCertificateStoreStorePath.Name, StringComparison.Ordinal))?.Value.Value as string;
 
-            RejectedCertificateStore = new CertificateTrustList {
+            RejectedCertificateStore = new CertificateTrustList
+            {
                 StoreType = rejectedCertificateStoreStoreType,
                 StorePath = rejectedCertificateStoreStorePath
             };
@@ -245,55 +248,65 @@ namespace Opc.Ua.PubSub.Transport
                 KeyValuePairs.AddRange(Certificates.KeyValuePairs);
             }
 
-            var kvpTlsProtocolVersion = new KeyValuePair {
+            var kvpTlsProtocolVersion = new KeyValuePair
+            {
                 Key = nameof(EnumMqttClientConfigurationParameters.TlsProtocolVersion),
                 Value = (int)SslProtocolVersion
             };
             KeyValuePairs.Add(kvpTlsProtocolVersion);
-            var kvpAllowUntrustedCertificates = new KeyValuePair {
+            var kvpAllowUntrustedCertificates = new KeyValuePair
+            {
                 Key = nameof(EnumMqttClientConfigurationParameters.TlsAllowUntrustedCertificates),
                 Value = AllowUntrustedCertificates
             };
             KeyValuePairs.Add(kvpAllowUntrustedCertificates);
-            var kvpIgnoreCertificateChainErrors = new KeyValuePair {
+            var kvpIgnoreCertificateChainErrors = new KeyValuePair
+            {
                 Key = nameof(EnumMqttClientConfigurationParameters.TlsIgnoreCertificateChainErrors),
                 Value = IgnoreCertificateChainErrors
             };
             KeyValuePairs.Add(kvpIgnoreCertificateChainErrors);
-            var kvpIgnoreRevocationListErrors = new KeyValuePair {
+            var kvpIgnoreRevocationListErrors = new KeyValuePair
+            {
                 Key = nameof(EnumMqttClientConfigurationParameters.TlsIgnoreRevocationListErrors),
                 Value = IgnoreRevocationListErrors
             };
             KeyValuePairs.Add(kvpIgnoreRevocationListErrors);
 
-            var kvpTrustedIssuerCertificatesStoreType = new KeyValuePair {
+            var kvpTrustedIssuerCertificatesStoreType = new KeyValuePair
+            {
                 Key = nameof(EnumMqttClientConfigurationParameters.TrustedIssuerCertificatesStoreType),
                 Value = TrustedIssuerCertificates?.StoreType
             };
             KeyValuePairs.Add(kvpTrustedIssuerCertificatesStoreType);
-            var kvpTrustedIssuerCertificatesStorePath = new KeyValuePair {
+            var kvpTrustedIssuerCertificatesStorePath = new KeyValuePair
+            {
                 Key = nameof(EnumMqttClientConfigurationParameters.TrustedIssuerCertificatesStorePath),
                 Value = TrustedIssuerCertificates?.StorePath
             };
             KeyValuePairs.Add(kvpTrustedIssuerCertificatesStorePath);
 
-            var kvpTrustedPeerCertificatesStoreType = new KeyValuePair {
+            var kvpTrustedPeerCertificatesStoreType = new KeyValuePair
+            {
                 Key = nameof(EnumMqttClientConfigurationParameters.TrustedPeerCertificatesStoreType),
                 Value = TrustedPeerCertificates?.StoreType
             };
             KeyValuePairs.Add(kvpTrustedPeerCertificatesStoreType);
-            var kvpTrustedPeerCertificatesStorePath = new KeyValuePair {
+            var kvpTrustedPeerCertificatesStorePath = new KeyValuePair
+            {
                 Key = nameof(EnumMqttClientConfigurationParameters.TrustedPeerCertificatesStorePath),
                 Value = TrustedPeerCertificates?.StorePath
             };
             KeyValuePairs.Add(kvpTrustedPeerCertificatesStorePath);
 
-            var kvpRejectedCertificateStoreStoreType = new KeyValuePair {
+            var kvpRejectedCertificateStoreStoreType = new KeyValuePair
+            {
                 Key = nameof(EnumMqttClientConfigurationParameters.RejectedCertificateStoreStoreType),
                 Value = RejectedCertificateStore?.StoreType
             };
             KeyValuePairs.Add(kvpRejectedCertificateStoreStoreType);
-            var kvpRejectedCertificateStoreStorePath = new KeyValuePair {
+            var kvpRejectedCertificateStoreStorePath = new KeyValuePair
+            {
                 Key = nameof(EnumMqttClientConfigurationParameters.RejectedCertificateStoreStorePath),
                 Value = RejectedCertificateStore?.StorePath
             };
@@ -355,27 +368,32 @@ namespace Opc.Ua.PubSub.Transport
 
             ConnectionProperties = [];
 
-            var kvpUserName = new KeyValuePair {
+            var kvpUserName = new KeyValuePair
+            {
                 Key = nameof(EnumMqttClientConfigurationParameters.UserName),
                 Value = new System.Net.NetworkCredential(string.Empty, UserName).Password
             };
             ConnectionProperties.Add(kvpUserName);
-            var kvpPassword = new KeyValuePair {
+            var kvpPassword = new KeyValuePair
+            {
                 Key = nameof(EnumMqttClientConfigurationParameters.Password),
                 Value = new System.Net.NetworkCredential(string.Empty, Password).Password
             };
             ConnectionProperties.Add(kvpPassword);
-            var kvpAzureClientId = new KeyValuePair {
+            var kvpAzureClientId = new KeyValuePair
+            {
                 Key = nameof(EnumMqttClientConfigurationParameters.AzureClientId),
                 Value = AzureClientId
             };
             ConnectionProperties.Add(kvpAzureClientId);
-            var kvpCleanSession = new KeyValuePair {
+            var kvpCleanSession = new KeyValuePair
+            {
                 Key = nameof(EnumMqttClientConfigurationParameters.CleanSession),
                 Value = CleanSession
             };
             ConnectionProperties.Add(kvpCleanSession);
-            var kvpProtocolVersion = new KeyValuePair {
+            var kvpProtocolVersion = new KeyValuePair
+            {
                 Key = nameof(EnumMqttClientConfigurationParameters.ProtocolVersion),
                 Value = (int)ProtocolVersion
             };

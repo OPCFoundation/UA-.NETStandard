@@ -75,7 +75,8 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             var uri = new Uri(urlString);
             Assert.True(uri.IsWellFormedOriginalString());
 
-            var uriBuilder = new UriBuilder {
+            var uriBuilder = new UriBuilder
+            {
                 Scheme = uri.Scheme,
                 Host = uri.DnsSafeHost,
                 Port = uri.Port,
@@ -88,10 +89,12 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         [Test]
         public void ValidateAppConfigWithoutAppCert()
         {
-            var appConfig = new ApplicationConfiguration() {
+            var appConfig = new ApplicationConfiguration()
+            {
                 ApplicationName = "Test",
                 ClientConfiguration = new ClientConfiguration(),
-                SecurityConfiguration = new SecurityConfiguration() {
+                SecurityConfiguration = new SecurityConfiguration()
+                {
                     ApplicationCertificate = new CertificateIdentifier(),
                     TrustedPeerCertificates = new CertificateTrustList { StorePath = "Test" },
                     TrustedIssuerCertificates = new CertificateTrustList { StorePath = "Test" },

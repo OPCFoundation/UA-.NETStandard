@@ -23,18 +23,12 @@ namespace Opc.Ua
         /// <summary>
         /// The string table that was received with the message.
         /// </summary>
-        public StringCollection StringTable
-        {
-            get => m_stringTable; set => m_stringTable = value;
-        }
+        public StringCollection StringTable { get; set; }
 
         /// <summary>
         /// Gets a value indicating whether there are more NotificationMessages for this publish interval.
         /// </summary>
-        public bool MoreNotifications
-        {
-            get => m_moreNotifications; set => m_moreNotifications = value;
-        }
+        public bool MoreNotifications { get; set; }
 
         /// <summary>
         /// Gets a value indicating whether this NotificationMessage is empty.
@@ -147,8 +141,5 @@ namespace Opc.Ua
 
             return events;
         }
-
-        private bool m_moreNotifications;
-        private StringCollection m_stringTable;
     }
 }

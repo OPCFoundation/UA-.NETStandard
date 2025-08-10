@@ -460,7 +460,8 @@ namespace Opc.Ua.PubSub.Encoding
             {
                 minorVersion = decoder.ReadUInt32("ConfigurationMinorVersion");
             }
-            MetaDataVersion = new ConfigurationVersionDataType() {
+            MetaDataVersion = new ConfigurationVersionDataType()
+            {
                 MinorVersion = minorVersion,
                 MajorVersion = majorVersion
             };
@@ -532,9 +533,11 @@ namespace Opc.Ua.PubSub.Encoding
 
                 for (int i = 0; i < dataValues.Count; i++)
                 {
-                    var dataField = new Field();
-                    dataField.FieldMetaData = dataSetMetaData?.Fields[i];
-                    dataField.Value = dataValues[i];
+                    var dataField = new Field
+                    {
+                        FieldMetaData = dataSetMetaData?.Fields[i],
+                        Value = dataValues[i]
+                    };
 
                     if (ExtensionObject.ToEncodeable(dataSetReader.SubscribedDataSet) is TargetVariablesDataType targetVariablesData && targetVariablesData.TargetVariables != null
                         && i < targetVariablesData.TargetVariables.Count)
@@ -551,11 +554,13 @@ namespace Opc.Ua.PubSub.Encoding
                     return null; //the dataset cannot be decoded
                 }
 
-                var dataSet = new DataSet(dataSetMetaData?.Name);
-                dataSet.DataSetMetaData = dataSetMetaData;
-                dataSet.Fields = [.. dataFields];
-                dataSet.DataSetWriterId = DataSetWriterId;
-                dataSet.SequenceNumber = SequenceNumber;
+                var dataSet = new DataSet(dataSetMetaData?.Name)
+                {
+                    DataSetMetaData = dataSetMetaData,
+                    Fields = [.. dataFields],
+                    DataSetWriterId = DataSetWriterId,
+                    SequenceNumber = SequenceNumber
+                };
                 return dataSet;
             }
             catch (Exception ex)
@@ -584,8 +589,10 @@ namespace Opc.Ua.PubSub.Encoding
                     var dataFields = new List<Field>();
                     for (int i = 0; i < dataSetMetaData.Fields.Count; i++)
                     {
-                        var dataField = new Field();
-                        dataField.FieldMetaData = dataSetMetaData?.Fields[i];
+                        var dataField = new Field
+                        {
+                            FieldMetaData = dataSetMetaData?.Fields[i]
+                        };
 
                         if (ExtensionObject.ToEncodeable(dataSetReader.SubscribedDataSet) is TargetVariablesDataType targetVariablesData && targetVariablesData.TargetVariables != null
                             && i < targetVariablesData.TargetVariables.Count)
@@ -627,12 +634,14 @@ namespace Opc.Ua.PubSub.Encoding
                         }
                     }
 
-                    var dataSet = new DataSet(dataSetMetaData?.Name);
-                    dataSet.DataSetMetaData = dataSetMetaData;
-                    dataSet.Fields = [.. dataFields];
-                    dataSet.IsDeltaFrame = true;
-                    dataSet.DataSetWriterId = DataSetWriterId;
-                    dataSet.SequenceNumber = SequenceNumber;
+                    var dataSet = new DataSet(dataSetMetaData?.Name)
+                    {
+                        DataSetMetaData = dataSetMetaData,
+                        Fields = [.. dataFields],
+                        IsDeltaFrame = true,
+                        DataSetWriterId = DataSetWriterId,
+                        SequenceNumber = SequenceNumber
+                    };
                     return dataSet;
                 }
             }

@@ -121,13 +121,13 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
-                Utils.SilentDispose(m_resourceManager);
-                Utils.SilentDispose(m_requestManager);
-                Utils.SilentDispose(m_aggregateManager);
-                Utils.SilentDispose(m_nodeManager);
-                Utils.SilentDispose(m_sessionManager);
-                Utils.SilentDispose(m_subscriptionManager);
-                Utils.SilentDispose(m_monitoredItemQueueFactory);
+                Utils.SilentDispose(ResourceManager);
+                Utils.SilentDispose(RequestManager);
+                Utils.SilentDispose(AggregateManager);
+                Utils.SilentDispose(NodeManager);
+                Utils.SilentDispose(SessionManager);
+                Utils.SilentDispose(SubscriptionManager);
+                Utils.SilentDispose(MonitoredItemQueueFactory);
             }
         }
 
@@ -135,13 +135,13 @@ namespace Opc.Ua.Server
         /// The session manager to use with the server.
         /// </summary>
         /// <value>The session manager.</value>
-        public ISessionManager SessionManager => m_sessionManager;
+        public ISessionManager SessionManager { get; private set; }
 
         /// <summary>
         /// The subscription manager to use with the server.
         /// </summary>
         /// <value>The subscription manager.</value>
-        public ISubscriptionManager SubscriptionManager => m_subscriptionManager;
+        public ISubscriptionManager SubscriptionManager { get; private set; }
 
         /// <summary>
         /// Stores the MasterNodeManager and the CoreNodeManager
@@ -149,9 +149,9 @@ namespace Opc.Ua.Server
         /// <param name="nodeManager">The node manager.</param>
         public void SetNodeManager(MasterNodeManager nodeManager)
         {
-            m_nodeManager = nodeManager;
-            m_diagnosticsNodeManager = nodeManager.DiagnosticsNodeManager;
-            m_coreNodeManager = nodeManager.CoreNodeManager;
+            NodeManager = nodeManager;
+            DiagnosticsNodeManager = nodeManager.DiagnosticsNodeManager;
+            CoreNodeManager = nodeManager.CoreNodeManager;
         }
 
         /// <summary>
@@ -165,9 +165,9 @@ namespace Opc.Ua.Server
             ResourceManager resourceManager,
             RequestManager requestManager)
         {
-            m_eventManager = eventManager;
-            m_resourceManager = resourceManager;
-            m_requestManager = requestManager;
+            EventManager = eventManager;
+            ResourceManager = resourceManager;
+            RequestManager = requestManager;
 
             // create the server object.
             CreateServerObject();
@@ -182,8 +182,8 @@ namespace Opc.Ua.Server
             ISessionManager sessionManager,
             ISubscriptionManager subscriptionManager)
         {
-            m_sessionManager = sessionManager;
-            m_subscriptionManager = subscriptionManager;
+            SessionManager = sessionManager;
+            SubscriptionManager = subscriptionManager;
         }
 
         /// <summary>
@@ -193,7 +193,7 @@ namespace Opc.Ua.Server
         public void SetMonitoredItemQueueFactory(
             IMonitoredItemQueueFactory monitoredItemQueueFactory)
         {
-            m_monitoredItemQueueFactory = monitoredItemQueueFactory;
+            MonitoredItemQueueFactory = monitoredItemQueueFactory;
         }
 
         /// <summary>
@@ -203,7 +203,7 @@ namespace Opc.Ua.Server
         public void SetSubscriptionStore(
             ISubscriptionStore subscriptionStore)
         {
-            m_subscriptionStore = subscriptionStore;
+            SubscriptionStore = subscriptionStore;
         }
 
         /// <summary>
@@ -213,7 +213,7 @@ namespace Opc.Ua.Server
         public void SetAggregateManager(
             AggregateManager aggregateManager)
         {
-            m_aggregateManager = aggregateManager;
+            AggregateManager = aggregateManager;
         }
 
         /// <summary>
@@ -267,71 +267,71 @@ namespace Opc.Ua.Server
         /// The master node manager for the server.
         /// </summary>
         /// <value>The node manager.</value>
-        public MasterNodeManager NodeManager => m_nodeManager;
+        public MasterNodeManager NodeManager { get; private set; }
 
         /// <summary>
         /// The internal node manager for the servers.
         /// </summary>
         /// <value>The core node manager.</value>
-        public CoreNodeManager CoreNodeManager => m_coreNodeManager;
+        public CoreNodeManager CoreNodeManager { get; private set; }
 
         /// <summary>
         /// Returns the node manager that managers the server diagnostics.
         /// </summary>
         /// <value>The diagnostics node manager.</value>
-        public DiagnosticsNodeManager DiagnosticsNodeManager => m_diagnosticsNodeManager;
+        public DiagnosticsNodeManager DiagnosticsNodeManager { get; private set; }
 
         /// <summary>
         /// The manager for events that all components use to queue events that occur.
         /// </summary>
         /// <value>The event manager.</value>
-        public EventManager EventManager => m_eventManager;
+        public EventManager EventManager { get; private set; }
 
         /// <summary>
         /// A manager for localized resources that components can use to localize text.
         /// </summary>
         /// <value>The resource manager.</value>
-        public ResourceManager ResourceManager => m_resourceManager;
+        public ResourceManager ResourceManager { get; private set; }
 
         /// <summary>
         /// A manager for outstanding requests that allows components to receive notifications if the timeout or are cancelled.
         /// </summary>
         /// <value>The request manager.</value>
-        public RequestManager RequestManager => m_requestManager;
+        public RequestManager RequestManager { get; private set; }
 
         /// <summary>
         /// A manager for aggregate calculators supported by the server.
         /// </summary>
         /// <value>The aggregate manager.</value>
-        public AggregateManager AggregateManager => m_aggregateManager;
+        public AggregateManager AggregateManager { get; private set; }
 
         /// <summary>
         /// The manager for active sessions.
         /// </summary>
         /// <value>The session manager.</value>
-        ISessionManager IServerInternal.SessionManager => m_sessionManager;
+        ISessionManager IServerInternal.SessionManager => SessionManager;
 
         /// <summary>
         /// The manager for active subscriptions.
         /// </summary>
-        ISubscriptionManager IServerInternal.SubscriptionManager => m_subscriptionManager;
+        ISubscriptionManager IServerInternal.SubscriptionManager => SubscriptionManager;
 
         /// <summary>
         /// The factory for durable monitored item queues
         /// </summary>
-        public IMonitoredItemQueueFactory MonitoredItemQueueFactory => m_monitoredItemQueueFactory;
+        public IMonitoredItemQueueFactory MonitoredItemQueueFactory { get; private set; }
 
         /// <summary>
         /// The store to persist and retrieve subscriptions
         /// </summary>
-        public ISubscriptionStore SubscriptionStore => m_subscriptionStore;
+        public ISubscriptionStore SubscriptionStore { get; private set; }
 
         /// <summary>
         /// Returns the status object for the server.
         /// </summary>
         /// <value>The status.</value>
         [Obsolete("No longer thread safe. To read the value use CurrentState, to write use UpdateServerStatus.")]
-        public ServerStatusValue Status => m_serverStatus;
+        public ServerStatusValue Status { get; private set; }
 
         /// <summary>
         /// Gets or sets the current state of the server.
@@ -341,17 +341,17 @@ namespace Opc.Ua.Server
         {
             get
             {
-                lock (m_serverStatus.Lock)
+                lock (Status.Lock)
                 {
-                    return m_serverStatus.Value.State;
+                    return Status.Value.State;
                 }
             }
 
             set
             {
-                lock (m_serverStatus.Lock)
+                lock (Status.Lock)
                 {
-                    m_serverStatus.Value.State = value;
+                    Status.Value.State = value;
                 }
             }
         }
@@ -360,7 +360,7 @@ namespace Opc.Ua.Server
         /// Returns the Server object node
         /// </summary>
         /// <value>The Server object node.</value>
-        public ServerObjectState ServerObject => m_serverObject;
+        public ServerObjectState ServerObject { get; private set; }
 
         /// <summary>
         /// Used to synchronize access to the server diagnostics.
@@ -378,10 +378,7 @@ namespace Opc.Ua.Server
             get
             {
                 // implicitly force diagnostics update
-                if (DiagnosticsNodeManager != null)
-                {
-                    DiagnosticsNodeManager.ForceDiagnosticsScan();
-                }
+                DiagnosticsNodeManager?.ForceDiagnosticsScan();
                 return DiagnosticsLock;
             }
         }
@@ -390,7 +387,7 @@ namespace Opc.Ua.Server
         /// Returns the diagnostics structure for the server.
         /// </summary>
         /// <value>The server diagnostics.</value>
-        public ServerDiagnosticsSummaryDataType ServerDiagnostics => m_serverDiagnostics;
+        public ServerDiagnosticsSummaryDataType ServerDiagnostics { get; private set; }
 
         /// <summary>
         /// Whether the server is currently running.
@@ -406,20 +403,20 @@ namespace Opc.Ua.Server
         {
             get
             {
-                if (m_serverStatus == null)
+                if (Status == null)
                 {
                     return false;
                 }
 
-                lock (m_serverStatus.Lock)
+                lock (Status.Lock)
                 {
-                    if (m_serverStatus.Value.State == ServerState.Running)
+                    if (Status.Value.State == ServerState.Running)
                     {
                         return true;
                     }
 
-                    if (m_serverStatus.Value.State == ServerState.Shutdown &&
-                        m_serverStatus.Value.SecondsTillShutdown > 0)
+                    if (Status.Value.State == ServerState.Shutdown &&
+                        Status.Value.SecondsTillShutdown > 0)
                     {
                         return true;
                     }
@@ -437,12 +434,12 @@ namespace Opc.Ua.Server
         {
             get
             {
-                if (m_diagnosticsNodeManager == null)
+                if (DiagnosticsNodeManager == null)
                 {
                     return false;
                 }
 
-                return m_diagnosticsNodeManager.DiagnosticsEnabled;
+                return DiagnosticsNodeManager.DiagnosticsEnabled;
             }
         }
 
@@ -454,9 +451,9 @@ namespace Opc.Ua.Server
         /// <param name="deleteSubscriptions">if set to <c>true</c> subscriptions are to be deleted.</param>
         public void CloseSession(OperationContext context, NodeId sessionId, bool deleteSubscriptions)
         {
-            m_nodeManager.SessionClosing(context, sessionId, deleteSubscriptions);
-            m_subscriptionManager.SessionClosing(context, sessionId, deleteSubscriptions);
-            m_sessionManager.CloseSession(sessionId);
+            NodeManager.SessionClosing(context, sessionId, deleteSubscriptions);
+            SubscriptionManager.SessionClosing(context, sessionId, deleteSubscriptions);
+            SessionManager.CloseSession(sessionId);
         }
 
         /// <summary>
@@ -465,7 +462,7 @@ namespace Opc.Ua.Server
         /// <param name="subscriptionId">The subscription identifier.</param>
         public void DeleteSubscription(uint subscriptionId)
         {
-            m_subscriptionManager.DeleteSubscription(null, subscriptionId);
+            SubscriptionManager.DeleteSubscription(null, subscriptionId);
         }
 
         /// <summary>
@@ -490,7 +487,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            m_serverObject?.ReportEvent(context, e);
+            ServerObject?.ReportEvent(context, e);
         }
 
         /// <summary>
@@ -500,7 +497,7 @@ namespace Opc.Ua.Server
         /// <param name="subscriptionId">The subscription identifier.</param>
         public void ConditionRefresh(OperationContext context, uint subscriptionId)
         {
-            m_subscriptionManager.ConditionRefresh(context, subscriptionId);
+            SubscriptionManager.ConditionRefresh(context, subscriptionId);
         }
 
         /// <summary>
@@ -511,7 +508,7 @@ namespace Opc.Ua.Server
         /// <param name="monitoredItemId">The monitored item identifier.</param>
         public void ConditionRefresh2(OperationContext context, uint subscriptionId, uint monitoredItemId)
         {
-            m_subscriptionManager.ConditionRefresh2(context, subscriptionId, monitoredItemId);
+            SubscriptionManager.ConditionRefresh2(context, subscriptionId, monitoredItemId);
         }
 
         /// <summary>
@@ -527,12 +524,12 @@ namespace Opc.Ua.Server
 
             lock (DiagnosticsLock)
             {
-                action.Invoke(m_serverStatus);
+                action.Invoke(Status);
             }
         }
 
         /// <inheritdoc/>
-        public bool Auditing => m_auditing;
+        public bool Auditing { get; private set; }
 
         /// <inheritdoc/>
         public ISystemContext DefaultAuditContext => DefaultSystemContext.Copy();
@@ -554,16 +551,16 @@ namespace Opc.Ua.Server
         /// </summary>
         private void CreateServerObject()
         {
-            lock (m_diagnosticsNodeManager.Lock)
+            lock (DiagnosticsNodeManager.Lock)
             {
                 // get the server object.
-                ServerObjectState serverObject = m_serverObject = (ServerObjectState)m_diagnosticsNodeManager.FindPredefinedNode(
+                ServerObjectState serverObject = ServerObject = (ServerObjectState)DiagnosticsNodeManager.FindPredefinedNode(
                     ObjectIds.Server,
                     typeof(ServerObjectState));
 
                 // update server capabilities.
                 serverObject.ServiceLevel.Value = 255;
-                serverObject.ServerCapabilities.LocaleIdArray.Value = m_resourceManager.GetAvailableLocales();
+                serverObject.ServerCapabilities.LocaleIdArray.Value = ResourceManager.GetAvailableLocales();
                 serverObject.ServerCapabilities.ServerProfileArray.Value = [.. m_configuration.ServerConfiguration.ServerProfileArray];
                 serverObject.ServerCapabilities.MinSupportedSampleRate.Value = 0;
                 serverObject.ServerCapabilities.MaxBrowseContinuationPoints.Value = (ushort)m_configuration.ServerConfiguration.MaxBrowseContinuationPoints;
@@ -610,13 +607,13 @@ namespace Opc.Ua.Server
                 // setup PublishSubscribe Status State value
                 const PubSubState pubSubState = PubSubState.Disabled;
 
-                var default_PubSubState = (BaseVariableState)m_diagnosticsNodeManager.FindPredefinedNode(
+                var default_PubSubState = (BaseVariableState)DiagnosticsNodeManager.FindPredefinedNode(
                     VariableIds.PublishSubscribe_Status_State,
                     typeof(BaseVariableState));
                 default_PubSubState.Value = pubSubState;
 
                 // setup value for SupportedTransportProfiles
-                var default_SupportedTransportProfiles = (BaseVariableState)m_diagnosticsNodeManager.FindPredefinedNode(
+                var default_SupportedTransportProfiles = (BaseVariableState)DiagnosticsNodeManager.FindPredefinedNode(
                    VariableIds.PublishSubscribe_SupportedTransportProfiles,
                    typeof(BaseVariableState));
                 default_SupportedTransportProfiles.Value = "uadp";
@@ -636,13 +633,15 @@ namespace Opc.Ua.Server
                 serverObject.ServerDiagnostics.EnabledFlag.MinimumSamplingInterval = 1000;
 
                 // initialize status.
-                var serverStatus = new ServerStatusDataType {
+                var serverStatus = new ServerStatusDataType
+                {
                     StartTime = DateTime.UtcNow,
                     CurrentTime = DateTime.UtcNow,
                     State = ServerState.Shutdown
                 };
 
-                var buildInfo = new BuildInfo() {
+                var buildInfo = new BuildInfo()
+                {
                     ProductName = m_serverDescription.ProductName,
                     ProductUri = m_serverDescription.ProductUri,
                     ManufacturerName = m_serverDescription.ManufacturerName,
@@ -650,23 +649,25 @@ namespace Opc.Ua.Server
                     BuildNumber = m_serverDescription.BuildNumber,
                     BuildDate = m_serverDescription.BuildDate,
                 };
-                var buildInfoVariableState = (BuildInfoVariableState)m_diagnosticsNodeManager.FindPredefinedNode(VariableIds.Server_ServerStatus_BuildInfo, typeof(BuildInfoVariableState));
+                var buildInfoVariableState = (BuildInfoVariableState)DiagnosticsNodeManager.FindPredefinedNode(VariableIds.Server_ServerStatus_BuildInfo, typeof(BuildInfoVariableState));
                 var buildInfoVariable = new BuildInfoVariableValue(buildInfoVariableState, buildInfo, null);
                 serverStatus.BuildInfo = buildInfoVariable.Value;
 
                 serverObject.ServerStatus.MinimumSamplingInterval = 1000;
                 serverObject.ServerStatus.CurrentTime.MinimumSamplingInterval = 1000;
 
-                m_serverStatus = new ServerStatusValue(
+                Status = new ServerStatusValue(
                     serverObject.ServerStatus,
                     serverStatus,
-                    DiagnosticsLock);
-
-                m_serverStatus.Timestamp = DateTime.UtcNow;
-                m_serverStatus.OnBeforeRead = OnReadServerStatus;
+                    DiagnosticsLock)
+                {
+                    Timestamp = DateTime.UtcNow,
+                    OnBeforeRead = OnReadServerStatus
+                };
 
                 // initialize diagnostics.
-                m_serverDiagnostics = new ServerDiagnosticsSummaryDataType {
+                ServerDiagnostics = new ServerDiagnosticsSummaryDataType
+                {
                     ServerViewCount = 0,
                     CurrentSessionCount = 0,
                     CumulatedSessionCount = 0,
@@ -681,26 +682,26 @@ namespace Opc.Ua.Server
                     RejectedRequestsCount = 0
                 };
 
-                m_diagnosticsNodeManager.CreateServerDiagnostics(
+                DiagnosticsNodeManager.CreateServerDiagnostics(
                     DefaultSystemContext,
-                    m_serverDiagnostics,
+                    ServerDiagnostics,
                     OnUpdateDiagnostics);
 
                 // set the diagnostics enabled state.
-                m_diagnosticsNodeManager.SetDiagnosticsEnabled(
+                DiagnosticsNodeManager.SetDiagnosticsEnabled(
                     DefaultSystemContext,
                     m_configuration.ServerConfiguration.DiagnosticsEnabled);
 
-                var configurationNodeManager = m_diagnosticsNodeManager as ConfigurationNodeManager;
+                var configurationNodeManager = DiagnosticsNodeManager as ConfigurationNodeManager;
                 configurationNodeManager?.CreateServerConfiguration(
                     DefaultSystemContext,
                     m_configuration);
 
-                m_auditing = m_configuration.ServerConfiguration.AuditingEnabled;
+                Auditing = m_configuration.ServerConfiguration.AuditingEnabled;
                 PropertyState<bool> auditing = serverObject.Auditing;
                 auditing.OnSimpleWriteValue += OnWriteAuditing;
                 auditing.OnSimpleReadValue += OnReadAuditing;
-                auditing.Value = m_auditing;
+                auditing.Value = Auditing;
                 auditing.RolePermissions = [
                         new RolePermissionType {
                             RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
@@ -727,8 +728,8 @@ namespace Opc.Ua.Server
             lock (DiagnosticsLock)
             {
                 DateTime now = DateTime.UtcNow;
-                m_serverStatus.Timestamp = now;
-                m_serverStatus.Value.CurrentTime = now;
+                Status.Timestamp = now;
+                Status.Value.CurrentTime = now;
                 // update other timestamps in NodeState objects which are used to derive the source timestamp
                 if (variable is ServerStatusValue serverStatusValue &&
                     serverStatusValue.Variable is ServerStatusState serverStatusState)
@@ -771,7 +772,7 @@ namespace Opc.Ua.Server
             NodeState node,
             ref object value)
         {
-            value = m_diagnosticsNodeManager.DiagnosticsEnabled;
+            value = DiagnosticsNodeManager.DiagnosticsEnabled;
             return ServiceResult.Good;
         }
 
@@ -784,7 +785,7 @@ namespace Opc.Ua.Server
             ref object value)
         {
             bool enabled = (bool)value;
-            m_diagnosticsNodeManager.SetDiagnosticsEnabled(
+            DiagnosticsNodeManager.SetDiagnosticsEnabled(
                 DefaultSystemContext,
                 enabled);
 
@@ -799,7 +800,7 @@ namespace Opc.Ua.Server
             NodeState node,
             ref object value)
         {
-            m_auditing = Convert.ToBoolean(value, CultureInfo.InvariantCulture);
+            Auditing = Convert.ToBoolean(value, CultureInfo.InvariantCulture);
             return ServiceResult.Good;
         }
 
@@ -811,7 +812,7 @@ namespace Opc.Ua.Server
             NodeState node,
             ref object value)
         {
-            value = m_auditing;
+            value = Auditing;
             return ServiceResult.Good;
         }
 
@@ -823,9 +824,9 @@ namespace Opc.Ua.Server
             NodeState node,
             ref object value)
         {
-            lock (m_serverDiagnostics)
+            lock (ServerDiagnostics)
             {
-                value = Utils.Clone(m_serverDiagnostics);
+                value = Utils.Clone(ServerDiagnostics);
             }
 
             return ServiceResult.Good;
@@ -851,20 +852,5 @@ namespace Opc.Ua.Server
         private readonly ServerProperties m_serverDescription;
         private readonly ApplicationConfiguration m_configuration;
         private readonly List<Uri> m_endpointAddresses;
-        private ResourceManager m_resourceManager;
-        private RequestManager m_requestManager;
-        private AggregateManager m_aggregateManager;
-        private MasterNodeManager m_nodeManager;
-        private CoreNodeManager m_coreNodeManager;
-        private DiagnosticsNodeManager m_diagnosticsNodeManager;
-        private EventManager m_eventManager;
-        private ISessionManager m_sessionManager;
-        private ISubscriptionManager m_subscriptionManager;
-        private IMonitoredItemQueueFactory m_monitoredItemQueueFactory;
-        private ISubscriptionStore m_subscriptionStore;
-        private ServerObjectState m_serverObject;
-        private ServerStatusValue m_serverStatus;
-        private bool m_auditing;
-        private ServerDiagnosticsSummaryDataType m_serverDiagnostics;
     }
 }

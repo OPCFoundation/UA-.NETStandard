@@ -158,7 +158,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                 if (record == null)
                 {
                     applicationId = Guid.NewGuid();
-                    record = new Application() {
+                    record = new Application()
+                    {
                         ApplicationId = applicationId,
                         ID = 0
                     };
@@ -183,7 +184,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                     foreach (string discoveryUrl in application.DiscoveryUrls)
                     {
                         ServerEndpoints.Add(
-                            new ServerEndpoint() {
+                            new ServerEndpoint()
+                            {
                                 ApplicationId = record.ApplicationId,
                                 DiscoveryUrl = discoveryUrl
                             });
@@ -194,7 +196,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                 {
                     foreach (LocalizedText applicationName in application.ApplicationNames)
                     {
-                        ApplicationNames.Add(new ApplicationName() {
+                        ApplicationNames.Add(new ApplicationName()
+                        {
                             ApplicationId = record.ApplicationId,
                             Locale = applicationName.Locale,
                             Text = applicationName.Text
@@ -218,12 +221,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             {
                 Application application = (from ii in Applications
                                            where ii.ApplicationId == id
-                                           select ii).SingleOrDefault();
-
-                if (application == null)
-                {
-                    throw new ArgumentException("A record with the specified application id does not exist.", nameof(applicationId));
-                }
+                                           select ii).SingleOrDefault() ?? throw new ArgumentException("A record with the specified application id does not exist.", nameof(applicationId));
 
                 IEnumerable<CertificateRequest> certificateRequests =
                     from ii in CertificateRequests
@@ -312,7 +310,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                     capabilities.AddRange(result.ServerCapabilities.Split(','));
                 }
 
-                return new ApplicationRecordDataType() {
+                return new ApplicationRecordDataType()
+                {
                     ApplicationId = new NodeId(result.ApplicationId, NamespaceIndex),
                     ApplicationUri = result.ApplicationUri,
                     ApplicationType = (ApplicationType)result.ApplicationType,
@@ -368,7 +367,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                         capabilities = result.ServerCapabilities.Split(',');
                     }
 
-                    records.Add(new ApplicationRecordDataType() {
+                    records.Add(new ApplicationRecordDataType()
+                    {
                         ApplicationId = new NodeId(result.ApplicationId, NamespaceIndex),
                         ApplicationUri = result.ApplicationUri,
                         ApplicationType = (ApplicationType)result.ApplicationType,
@@ -491,7 +491,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                         lastID = result.ID;
                     }
 
-                    records.Add(new ApplicationDescription() {
+                    records.Add(new ApplicationDescription()
+                    {
                         ApplicationUri = result.ApplicationUri,
                         ProductUri = result.ProductUri,
                         ApplicationName = result.ApplicationName,
@@ -523,7 +524,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                               join y in Applications on x.ApplicationId equals y.ApplicationId
                               where y.ID >= startingRecordId
                               orderby y.ID
-                              select new {
+                              select new
+                              {
                                   y.ID,
                                   y.ApplicationName,
                                   y.ApplicationUri,
@@ -585,7 +587,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                     }
                     lastID = result.ID;
 
-                    records.Add(new ServerOnNetwork() {
+                    records.Add(new ServerOnNetwork()
+                    {
                         RecordId = result.ID,
                         ServerName = result.ApplicationName,
                         DiscoveryUrl = result.DiscoveryUrl,
@@ -639,12 +642,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             {
                 Application application = (from ii in Applications
                                            where ii.ApplicationId == id
-                                           select ii).SingleOrDefault();
-
-                if (application == null)
-                {
-                    throw new ArgumentException("A record with the specified application id does not exist.", nameof(applicationId));
-                }
+                                           select ii).SingleOrDefault() ?? throw new ArgumentException("A record with the specified application id does not exist.", nameof(applicationId));
 
                 if (!application.Certificate.TryGetValue(certificateTypeId, out certificate))
                 {
@@ -712,12 +710,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
             lock (Lock)
             {
-                Application application = (from x in Applications where x.ApplicationId == id select x).SingleOrDefault();
-
-                if (application == null)
-                {
-                    throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
-                }
+                Application application = (from x in Applications where x.ApplicationId == id select x).SingleOrDefault() ?? throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
 
                 CertificateRequest request = (from x in CertificateRequests where x.AuthorityId == authorityId && x.ApplicationId == id select x).SingleOrDefault();
 
@@ -764,12 +757,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
             lock (Lock)
             {
-                Application application = (from x in Applications where x.ApplicationId == id select x).SingleOrDefault();
-
-                if (application == null)
-                {
-                    throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
-                }
+                Application application = (from x in Applications where x.ApplicationId == id select x).SingleOrDefault() ?? throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
 
                 CertificateRequest request = (from x in CertificateRequests where x.AuthorityId == authorityId && x.ApplicationId == id select x).SingleOrDefault();
 
@@ -777,7 +765,8 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
                 if (request == null)
                 {
-                    request = new CertificateRequest() {
+                    request = new CertificateRequest()
+                    {
                         RequestId = Guid.NewGuid(),
                         AuthorityId = authorityId
                     };
@@ -814,12 +803,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
             lock (Lock)
             {
-                CertificateRequest request = (from x in CertificateRequests where x.RequestId == id select x).SingleOrDefault();
-
-                if (request == null)
-                {
-                    throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
-                }
+                CertificateRequest request = (from x in CertificateRequests where x.RequestId == id select x).SingleOrDefault() ?? throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
 
                 if (isRejected)
                 {
@@ -845,12 +829,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
             lock (Lock)
             {
-                CertificateRequest request = (from x in CertificateRequests where x.RequestId == id select x).SingleOrDefault();
-
-                if (request == null)
-                {
-                    throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
-                }
+                CertificateRequest request = (from x in CertificateRequests where x.RequestId == id select x).SingleOrDefault() ?? throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
 
                 request.State = (int)CertificateRequestState.Accepted;
 
@@ -883,12 +862,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
             lock (Lock)
             {
-                CertificateRequest request = (from x in CertificateRequests where x.RequestId == reqId select x).SingleOrDefault();
-
-                if (request == null)
-                {
-                    throw new ServiceResultException(StatusCodes.BadInvalidArgument);
-                }
+                CertificateRequest request = (from x in CertificateRequests where x.RequestId == reqId select x).SingleOrDefault() ?? throw new ServiceResultException(StatusCodes.BadInvalidArgument);
 
                 switch (request.State)
                 {
@@ -934,12 +908,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
             lock (Lock)
             {
-                CertificateRequest request = (from x in CertificateRequests where x.RequestId == reqId select x).SingleOrDefault();
-
-                if (request == null)
-                {
-                    throw new ServiceResultException(StatusCodes.BadInvalidArgument);
-                }
+                CertificateRequest request = (from x in CertificateRequests where x.RequestId == reqId select x).SingleOrDefault() ?? throw new ServiceResultException(StatusCodes.BadInvalidArgument);
 
                 switch (request.State)
                 {

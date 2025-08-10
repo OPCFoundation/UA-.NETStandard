@@ -59,7 +59,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             // The instance BaseAnalogState node is a subtype of BaseVariableState for
             // which valueRank attribute is tested
-            var instanceNode = new BaseAnalogState(typeNode) {
+            var instanceNode = new BaseAnalogState(typeNode)
+            {
                 ValueRank = valueRank
             };
             var loadedVariable = new BaseAnalogState(typeNode);

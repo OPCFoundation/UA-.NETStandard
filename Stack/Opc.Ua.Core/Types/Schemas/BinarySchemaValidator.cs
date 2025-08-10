@@ -104,8 +104,7 @@ namespace Opc.Ua.Schema.Binary
                 }
                 else
                 {
-                    TypeDescription description = null;
-
+                    TypeDescription description;
                     if (!m_descriptions.TryGetValue(new XmlQualifiedName(typeName, Dictionary.TargetNamespace), out description))
                     {
                         var serializer = new XmlSerializer(typeof(TypeDictionary));
@@ -248,8 +247,7 @@ namespace Opc.Ua.Schema.Binary
         /// </summary>
         private bool IsIntegerType(FieldType field)
         {
-            TypeDescription description = null;
-
+            TypeDescription description;
             if (!m_descriptions.TryGetValue(field.TypeName, out description))
             {
                 return false;
@@ -273,8 +271,7 @@ namespace Opc.Ua.Schema.Binary
         /// </summary>
         private int GetFieldLength(FieldType field)
         {
-            TypeDescription description = null;
-
+            TypeDescription description;
             if (!m_descriptions.TryGetValue(field.TypeName, out description))
             {
                 return -1;

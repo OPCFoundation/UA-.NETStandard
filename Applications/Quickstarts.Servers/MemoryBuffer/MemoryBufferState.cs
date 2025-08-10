@@ -80,17 +80,17 @@ namespace MemoryBuffer
         /// <summary>
         /// The server that the buffer belongs to.
         /// </summary>
-        public IServerInternal Server => m_server;
+        public IServerInternal Server { get; private set; }
 
         /// <summary>
         /// The node manager that the buffer belongs to.
         /// </summary>
-        public INodeManager NodeManager => m_nodeManager;
+        public INodeManager NodeManager { get; private set; }
 
         /// <summary>
         /// The built-in type for the values stored in the buffer.
         /// </summary>
-        public BuiltInType ElementType => m_elementType;
+        public BuiltInType ElementType { get; private set; }
 
         /// <summary>
         /// The size of each element in the buffer.
@@ -100,7 +100,7 @@ namespace MemoryBuffer
         /// <summary>
         /// The rate at which the buffer is scanned.
         /// </summary>
-        public int MaximumScanRate => m_maximumScanRate;
+        public int MaximumScanRate { get; private set; }
 
         /// <summary>
         /// Initializes the buffer with enough space to hold the specified number of elements.
@@ -135,10 +135,10 @@ namespace MemoryBuffer
         {
             lock (m_dataLock)
             {
-                m_elementType = elementType;
+                ElementType = elementType;
                 m_elementSize = 1;
 
-                switch (m_elementType)
+                switch (ElementType)
                 {
                     case BuiltInType.UInt32:
                         m_elementSize = 4;
@@ -150,7 +150,7 @@ namespace MemoryBuffer
                 }
 
                 m_lastScanTime = DateTime.UtcNow;
-                m_maximumScanRate = 1000;
+                MaximumScanRate = 1000;
 
                 m_buffer = new byte[m_elementSize * noOfElements];
                 SizeInBytes.Value = (uint)m_buffer.Length;
@@ -290,7 +290,7 @@ namespace MemoryBuffer
 
                 byte[] bytes = null;
 
-                switch (m_elementType)
+                switch (ElementType)
                 {
                     case BuiltInType.UInt32:
                     {
@@ -358,7 +358,7 @@ namespace MemoryBuffer
                     return Variant.Null;
                 }
 
-                switch (m_elementType)
+                switch (ElementType)
                 {
                     case BuiltInType.UInt32:
                         return new Variant(BitConverter.ToUInt32(m_buffer, offset));
@@ -380,8 +380,8 @@ namespace MemoryBuffer
         {
             lock (m_dataLock)
             {
-                m_server = server;
-                m_nodeManager = nodeManager;
+                Server = server;
+                NodeManager = nodeManager;
                 m_nonValueMonitoredItems = [];
             }
         }
@@ -416,8 +416,8 @@ namespace MemoryBuffer
             lock (m_dataLock)
             {
                 var monitoredItem = new MemoryBufferMonitoredItem(
-                    m_server,
-                    m_nodeManager,
+                    Server,
+                    NodeManager,
                     this,
                     tag.Offset,
                     0,
@@ -466,8 +466,8 @@ namespace MemoryBuffer
             lock (m_dataLock)
             {
                 var monitoredItem = new MemoryBufferMonitoredItem(
-                    m_server,
-                    m_nodeManager,
+                    Server,
+                    NodeManager,
                     this,
                     tag.Offset,
                     storedMonitoredItem);
@@ -613,12 +613,13 @@ namespace MemoryBuffer
 
                     if (monitoredItems != null)
                     {
-                        var value = new DataValue();
-
-                        value.WrappedValue = GetValueAtOffset(offset);
-                        value.StatusCode = StatusCodes.Good;
-                        value.ServerTimestamp = DateTime.UtcNow;
-                        value.SourceTimestamp = m_lastScanTime;
+                        var value = new DataValue
+                        {
+                            WrappedValue = GetValueAtOffset(offset),
+                            StatusCode = StatusCodes.Good,
+                            ServerTimestamp = DateTime.UtcNow,
+                            SourceTimestamp = m_lastScanTime
+                        };
 
                         for (int ii = 0; ii < monitoredItems.Length; ii++)
                         {
@@ -660,14 +661,10 @@ namespace MemoryBuffer
         }
 
         private readonly object m_dataLock = new();
-        private IServerInternal m_server;
-        private INodeManager m_nodeManager;
         private MemoryBufferMonitoredItem[][] m_monitoringTable;
         private Dictionary<uint, MemoryBufferMonitoredItem> m_nonValueMonitoredItems;
-        private BuiltInType m_elementType;
         private int m_elementSize;
         private DateTime m_lastScanTime;
-        private int m_maximumScanRate;
         private byte[] m_buffer;
         private Timer m_scanTimer;
         private int m_updateCount;

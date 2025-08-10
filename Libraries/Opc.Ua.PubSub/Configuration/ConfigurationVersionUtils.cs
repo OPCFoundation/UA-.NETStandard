@@ -97,7 +97,8 @@ namespace Opc.Ua.PubSub.Configuration
                 if (hasMajorVersionChange)
                 {
                     // Change both minor and major version
-                    return new ConfigurationVersionDataType() {
+                    return new ConfigurationVersionDataType()
+                    {
                         MinorVersion = versionTime,
                         MajorVersion = versionTime
                     };
@@ -105,7 +106,8 @@ namespace Opc.Ua.PubSub.Configuration
                 else
                 {
                     // only minor version was changed
-                    return new ConfigurationVersionDataType() {
+                    return new ConfigurationVersionDataType()
+                    {
                         MinorVersion = versionTime,
                         MajorVersion = newMetaData.ConfigurationVersion.MajorVersion
                     };
@@ -113,7 +115,8 @@ namespace Opc.Ua.PubSub.Configuration
             }
 
             // there is no change 
-            return new ConfigurationVersionDataType() {
+            return new ConfigurationVersionDataType()
+            {
                 MinorVersion = newMetaData.ConfigurationVersion.MinorVersion,
                 MajorVersion = newMetaData.ConfigurationVersion.MajorVersion
             };

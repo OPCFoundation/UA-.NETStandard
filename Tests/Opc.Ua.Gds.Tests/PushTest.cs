@@ -708,7 +708,8 @@ namespace Opc.Ua.Gds.Tests
             {
                 EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(m_gdsClient.Configuration, discoveryUrl, true);
                 ApplicationDescription description = endpointDescription.Server;
-                m_applicationRecord = new ApplicationRecordDataType {
+                m_applicationRecord = new ApplicationRecordDataType
+                {
                     ApplicationNames = [description.ApplicationName],
                     ApplicationUri = description.ApplicationUri,
                     ApplicationType = description.ApplicationType,

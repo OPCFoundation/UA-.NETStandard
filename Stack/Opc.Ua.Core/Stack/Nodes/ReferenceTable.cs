@@ -289,8 +289,7 @@ namespace Opc.Ua
             int index)
         {
             // get the list of matching references.
-            IList<IReference> references = null;
-
+            IList<IReference> references;
             if (!includeSubtypes || typeTree == null)
             {
                 references = m_references.Find(referenceTypeId, isInverse);
@@ -454,8 +453,7 @@ namespace Opc.Ua
             }
 
             // look up the reference type.
-            ReferenceTypeEntry entry = null;
-
+            ReferenceTypeEntry entry;
             if (!m_references.TryGetValue(referenceTypeId, out entry))
             {
                 return hits;
@@ -545,8 +543,7 @@ namespace Opc.Ua
             }
 
             // look up the reference type.
-            ReferenceTypeEntry entry = null;
-
+            ReferenceTypeEntry entry;
             if (!m_references.TryGetValue(referenceTypeId, out entry))
             {
                 return false;
@@ -660,8 +657,7 @@ namespace Opc.Ua
             m_version++;
 
             // look up the reference type.
-            ReferenceTypeEntry entry = null;
-
+            ReferenceTypeEntry entry;
             if (!m_references.TryGetValue(key.ReferenceTypeId, out entry))
             {
                 return false;
@@ -670,8 +666,7 @@ namespace Opc.Ua
             // handle reference to external targets.
             if (key.TargetId.IsAbsolute)
             {
-                Dictionary<ExpandedNodeId, LinkedListNode<KeyValuePair<IReference, T>>> targets = null;
-
+                Dictionary<ExpandedNodeId, LinkedListNode<KeyValuePair<IReference, T>>> targets;
                 if (key.IsInverse)
                 {
                     targets = entry.InverseExternalTargets;
@@ -700,8 +695,7 @@ namespace Opc.Ua
             // handle reference to internal target.
             else
             {
-                NodeIdDictionary<LinkedListNode<KeyValuePair<IReference, T>>> targets = null;
-
+                NodeIdDictionary<LinkedListNode<KeyValuePair<IReference, T>>> targets;
                 if (key.IsInverse)
                 {
                     targets = entry.InverseTargets;
@@ -950,8 +944,7 @@ namespace Opc.Ua
             }
 
             // look up the reference type.
-            ReferenceTypeEntry entry = null;
-
+            ReferenceTypeEntry entry;
             if (!m_references.TryGetValue(key.ReferenceTypeId, out entry))
             {
                 return false;
@@ -960,8 +953,7 @@ namespace Opc.Ua
             // handle reference to external targets.
             if (key.TargetId.IsAbsolute)
             {
-                Dictionary<ExpandedNodeId, LinkedListNode<KeyValuePair<IReference, T>>> targets = null;
-
+                Dictionary<ExpandedNodeId, LinkedListNode<KeyValuePair<IReference, T>>> targets;
                 if (key.IsInverse)
                 {
                     targets = entry.InverseExternalTargets;
@@ -988,8 +980,7 @@ namespace Opc.Ua
             // handle reference to internal target.
             else
             {
-                NodeIdDictionary<LinkedListNode<KeyValuePair<IReference, T>>> targets = null;
-
+                NodeIdDictionary<LinkedListNode<KeyValuePair<IReference, T>>> targets;
                 if (key.IsInverse)
                 {
                     targets = entry.InverseTargets;
@@ -1030,8 +1021,7 @@ namespace Opc.Ua
             m_version++;
 
             // look up the reference type.
-            ReferenceTypeEntry entry = null;
-
+            ReferenceTypeEntry entry;
             if (!m_references.TryGetValue(key.ReferenceTypeId, out entry))
             {
                 entry = new ReferenceTypeEntry();
@@ -1041,8 +1031,7 @@ namespace Opc.Ua
             // handle reference to external targets.
             if (key.TargetId.IsAbsolute)
             {
-                Dictionary<ExpandedNodeId, LinkedListNode<KeyValuePair<IReference, T>>> targets = null;
-
+                Dictionary<ExpandedNodeId, LinkedListNode<KeyValuePair<IReference, T>>> targets;
                 if (key.IsInverse)
                 {
                     if (entry.InverseExternalTargets == null)
@@ -1066,11 +1055,9 @@ namespace Opc.Ua
                 var node = new LinkedListNode<KeyValuePair<IReference, T>>(new KeyValuePair<IReference, T>(key, value));
 
                 // check if target already exists.
-                LinkedListNode<KeyValuePair<IReference, T>> existingNode = null;
-
+                LinkedListNode<KeyValuePair<IReference, T>> existingNode;
                 if (!targets.TryGetValue(key.TargetId, out existingNode))
                 {
-                    existingNode = node;
                     m_list.AddLast(node);
                 }
 
@@ -1092,8 +1079,7 @@ namespace Opc.Ua
             // handle reference to internal target.
             else
             {
-                NodeIdDictionary<LinkedListNode<KeyValuePair<IReference, T>>> targets = null;
-
+                NodeIdDictionary<LinkedListNode<KeyValuePair<IReference, T>>> targets;
                 if (key.IsInverse)
                 {
                     if (entry.InverseTargets == null)
@@ -1119,11 +1105,9 @@ namespace Opc.Ua
                 var node = new LinkedListNode<KeyValuePair<IReference, T>>(new KeyValuePair<IReference, T>(key, value));
 
                 // check if target already exists.
-                LinkedListNode<KeyValuePair<IReference, T>> existingNode = null;
-
+                LinkedListNode<KeyValuePair<IReference, T>> existingNode;
                 if (!targets.TryGetValue(targetId, out existingNode))
                 {
-                    existingNode = node;
                     m_list.AddLast(node);
                 }
 
@@ -1156,8 +1140,7 @@ namespace Opc.Ua
             // handle reference to external targets.
             if (reference.TargetId.IsAbsolute)
             {
-                Dictionary<ExpandedNodeId, LinkedListNode<KeyValuePair<IReference, T>>> targets = null;
-
+                Dictionary<ExpandedNodeId, LinkedListNode<KeyValuePair<IReference, T>>> targets;
                 if (reference.IsInverse)
                 {
                     targets = entry.InverseExternalTargets;
@@ -1178,8 +1161,7 @@ namespace Opc.Ua
             // handle reference to internal target.
             else
             {
-                NodeIdDictionary<LinkedListNode<KeyValuePair<IReference, T>>> targets = null;
-
+                NodeIdDictionary<LinkedListNode<KeyValuePair<IReference, T>>> targets;
                 if (reference.IsInverse)
                 {
                     targets = entry.InverseTargets;

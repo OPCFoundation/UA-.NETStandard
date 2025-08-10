@@ -64,14 +64,12 @@ namespace MemoryBuffer
             OnReadValue = parent.ReadTagValue;
             OnWriteValue = parent.WriteTagValue;
 
-            m_offset = offet;
+            Offset = offet;
         }
 
         /// <summary>
         /// The offset of the tag address in the memory buffer.
         /// </summary>
-        public uint Offset => m_offset;
-
-        private readonly uint m_offset;
+        public uint Offset { get; }
     }
 }

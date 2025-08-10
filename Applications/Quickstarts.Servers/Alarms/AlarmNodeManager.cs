@@ -88,16 +88,9 @@ namespace Alarms
         /// </summary>
         public override NodeId New(ISystemContext context, NodeState node)
         {
-            var instance = node as BaseInstanceState;
-
-            if (instance != null && instance.Parent != null)
+            if (node is BaseInstanceState instance && instance.Parent != null && instance.Parent.NodeId.Identifier is string id)
             {
-                string id = instance.Parent.NodeId.Identifier as string;
-
-                if (id != null)
-                {
-                    return new NodeId(id + "_" + instance.SymbolicName, instance.Parent.NodeId.NamespaceIndex);
-                }
+                return new NodeId(id + "_" + instance.SymbolicName, instance.Parent.NodeId.NamespaceIndex);
             }
 
             return node.NodeId;
@@ -224,7 +217,8 @@ namespace Alarms
         /// </summary>
         private FolderState CreateFolder(NodeState parent, string path, string name)
         {
-            var folder = new FolderState(parent) {
+            var folder = new FolderState(parent)
+            {
                 SymbolicName = name,
                 ReferenceTypeId = ReferenceTypes.Organizes,
                 TypeDefinitionId = ObjectTypeIds.FolderType,
@@ -236,10 +230,7 @@ namespace Alarms
                 EventNotifier = EventNotifiers.None
             };
 
-            if (parent != null)
-            {
-                parent.AddChild(folder);
-            }
+            parent?.AddChild(folder);
 
             return folder;
         }
@@ -824,11 +815,12 @@ namespace Alarms
 
                         if (state != null)
                         {
-                            nodeHandle = new NodeHandle();
-
-                            nodeHandle.NodeId = methodToCall.ObjectId;
-                            nodeHandle.Node = state;
-                            nodeHandle.Validated = true;
+                            nodeHandle = new NodeHandle
+                            {
+                                NodeId = methodToCall.ObjectId,
+                                Node = state,
+                                Validated = true
+                            };
                         }
                     }
                 }

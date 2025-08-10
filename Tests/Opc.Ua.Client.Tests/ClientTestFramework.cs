@@ -185,7 +185,8 @@ namespace Opc.Ua.Client.Tests
             TextWriter writer)
         {
             // start Ref server
-            ServerFixture = new ServerFixture<ReferenceServer>(enableTracing, disableActivityLogging) {
+            ServerFixture = new ServerFixture<ReferenceServer>(enableTracing, disableActivityLogging)
+            {
                 UriScheme = UriScheme,
                 SecurityNone = securityNone,
                 AutoAccept = true,
@@ -207,48 +208,60 @@ namespace Opc.Ua.Client.Tests
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
                 new UserTokenPolicy(UserTokenType.IssuedToken) { IssuedTokenType = Profiles.JwtUserToken });
 
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.UserName) {
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.UserName)
+            {
                 SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1"
             });
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.UserName) {
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.UserName)
+            {
                 SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1"
             });
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.UserName) {
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.UserName)
+            {
                 SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256"
             });
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.UserName) {
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.UserName)
+            {
                 SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP384"
             });
 
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.Certificate) {
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.Certificate)
+            {
                 SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1"
             });
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.Certificate) {
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.Certificate)
+            {
                 SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1"
             });
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.Certificate) {
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.Certificate)
+            {
                 SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256"
             });
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.Certificate) {
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.Certificate)
+            {
                 SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP384"
             });
 
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.IssuedToken) {
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.IssuedToken)
+            {
                 IssuedTokenType = Profiles.JwtUserToken,
                 PolicyId = Profiles.JwtUserToken,
                 SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1"
             });
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.IssuedToken) {
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.IssuedToken)
+            {
                 IssuedTokenType = Profiles.JwtUserToken,
                 PolicyId = Profiles.JwtUserToken,
                 SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1"
             });
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.IssuedToken) {
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.IssuedToken)
+            {
                 IssuedTokenType = Profiles.JwtUserToken,
                 PolicyId = Profiles.JwtUserToken,
                 SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP256"
             });
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.IssuedToken) {
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.IssuedToken)
+            {
                 IssuedTokenType = Profiles.JwtUserToken,
                 PolicyId = Profiles.JwtUserToken,
                 SecurityPolicyUri = "http://opcfoundation.org/UA/SecurityPolicy#ECC_nistP384"
@@ -416,7 +429,8 @@ namespace Opc.Ua.Client.Tests
 
         public void GetOperationLimits()
         {
-            OperationLimits = new OperationLimits() {
+            OperationLimits = new OperationLimits()
+            {
                 MaxNodesPerRead = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerRead),
                 MaxNodesPerHistoryReadData = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadData),
                 MaxNodesPerHistoryReadEvents = GetOperationLimitValue(VariableIds.Server_ServerCapabilities_OperationLimits_MaxNodesPerHistoryReadEvents),

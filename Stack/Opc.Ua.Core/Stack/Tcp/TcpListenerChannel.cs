@@ -64,7 +64,7 @@ namespace Opc.Ua.Bindings
         {
             lock (DataLock)
             {
-                m_requestReceived = callback;
+                RequestReceived = callback;
             }
         }
 
@@ -75,7 +75,7 @@ namespace Opc.Ua.Bindings
         {
             lock (DataLock)
             {
-                m_reportAuditOpenSecureChannelEvent = callback;
+                ReportAuditOpenSecureChannelEvent = callback;
             }
         }
 
@@ -86,7 +86,7 @@ namespace Opc.Ua.Bindings
         {
             lock (DataLock)
             {
-                m_reportAuditCloseSecureChannelEvent = callback;
+                ReportAuditCloseSecureChannelEvent = callback;
             }
         }
 
@@ -97,7 +97,7 @@ namespace Opc.Ua.Bindings
         {
             lock (DataLock)
             {
-                m_reportAuditCertificateEvent = callback;
+                ReportAuditCertificateEvent = callback;
             }
         }
 
@@ -250,11 +250,8 @@ namespace Opc.Ua.Bindings
                         (reason.StatusCode == StatusCodes.BadSecurityChecksFailed || reason.StatusCode == StatusCodes.BadTcpMessageTypeInvalid))
                     {
                         var tcpTransportListener = Listener as TcpTransportListener;
-                        if (tcpTransportListener != null)
-                        {
-                            tcpTransportListener.MarkAsPotentialProblematic
+                        tcpTransportListener?.MarkAsPotentialProblematic
                                 (((IPEndPoint)Socket.RemoteEndpoint).Address);
-                        }
                     }
 
                     // close channel immediately.
@@ -411,10 +408,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
-                if (buffers != null)
-                {
-                    buffers.Release(BufferManager, "SendServiceFault");
-                }
+                buffers?.Release(BufferManager, "SendServiceFault");
 
                 ForceChannelFault(ServiceResult.Create(e, StatusCodes.BadTcpInternalError, "Unexpected error sending a service fault."));
             }
@@ -485,10 +479,7 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
-                if (chunksToSend != null)
-                {
-                    chunksToSend.Release(BufferManager, "SendServiceFault");
-                }
+                chunksToSend?.Release(BufferManager, "SendServiceFault");
 
                 ForceChannelFault(ServiceResult.Create(e, StatusCodes.BadTcpInternalError, "Unexpected error sending a service fault."));
             }
@@ -521,28 +512,24 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The channel request event handler.
         /// </summary>
-        protected TcpChannelRequestEventHandler RequestReceived => m_requestReceived;
+        protected TcpChannelRequestEventHandler RequestReceived { get; private set; }
 
         /// <summary>
         /// The report open secure channel audit event handler.
         /// </summary>
-        protected ReportAuditOpenSecureChannelEventHandler ReportAuditOpenSecureChannelEvent => m_reportAuditOpenSecureChannelEvent;
+        protected ReportAuditOpenSecureChannelEventHandler ReportAuditOpenSecureChannelEvent { get; private set; }
 
         /// <summary>
         /// The report close secure channel audit event handler.
         /// </summary>
-        protected ReportAuditCloseSecureChannelEventHandler ReportAuditCloseSecureChannelEvent => m_reportAuditCloseSecureChannelEvent;
+        protected ReportAuditCloseSecureChannelEventHandler ReportAuditCloseSecureChannelEvent { get; private set; }
 
         /// <summary>
         /// The report certificate audit event handler.
         /// </summary>
-        protected ReportAuditCertificateEventHandler ReportAuditCertificateEvent => m_reportAuditCertificateEvent;
+        protected ReportAuditCertificateEventHandler ReportAuditCertificateEvent { get; private set; }
 
         private bool m_responseRequired;
-        private TcpChannelRequestEventHandler m_requestReceived;
-        private ReportAuditOpenSecureChannelEventHandler m_reportAuditOpenSecureChannelEvent;
-        private ReportAuditCloseSecureChannelEventHandler m_reportAuditCloseSecureChannelEvent;
-        private ReportAuditCertificateEventHandler m_reportAuditCertificateEvent;
         private long m_lastTokenId;
     }
 

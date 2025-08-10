@@ -265,7 +265,8 @@ namespace Opc.Ua
 
             foreach (IReference referenceToExport in nodeToExport.References)
             {
-                var reference = new ReferenceNode {
+                var reference = new ReferenceNode
+                {
                     ReferenceTypeId = Translate(referenceToExport.ReferenceTypeId, m_namespaceUris, namespaceUris),
                     IsInverse = referenceToExport.IsInverse,
                     TargetId = Translate(referenceToExport.TargetId, m_namespaceUris, m_serverUris, namespaceUris, serverUris)
@@ -288,7 +289,8 @@ namespace Opc.Ua
         /// <param name="serverUris">The server URIs.</param>
         public void AddReference(Node node, ReferenceNode referenceToExport, NamespaceTable namespaceUris, StringTable serverUris)
         {
-            var reference = new ReferenceNode {
+            var reference = new ReferenceNode
+            {
                 ReferenceTypeId = Translate(referenceToExport.ReferenceTypeId, m_namespaceUris, namespaceUris),
                 IsInverse = referenceToExport.IsInverse,
                 TargetId = Translate(referenceToExport.TargetId, m_namespaceUris, m_serverUris, namespaceUris, serverUris)
@@ -335,8 +337,7 @@ namespace Opc.Ua
         /// </remarks>
         public Node Find(NodeId nodeId)
         {
-            Node node = null;
-
+            Node node;
             if (m_nodes.TryGetValue(nodeId, out node))
             {
                 return node;
@@ -386,8 +387,7 @@ namespace Opc.Ua
             var localId = new NodeId(nodeId.Identifier, (ushort)nsIndex);
 
             // look up node.
-            Node node = null;
-
+            Node node;
             if (m_nodes.TryGetValue(localId, out node))
             {
                 return node;
@@ -439,7 +439,8 @@ namespace Opc.Ua
 
             foreach (ReferenceNode referenceToImport in nodeToImport.References)
             {
-                var reference = new ReferenceNode {
+                var reference = new ReferenceNode
+                {
                     ReferenceTypeId = Translate(referenceToImport.ReferenceTypeId, namespaceUris, m_namespaceUris),
                     IsInverse = referenceToImport.IsInverse,
                     TargetId = Translate(referenceToImport.TargetId, namespaceUris, serverUris, m_namespaceUris, m_serverUris)

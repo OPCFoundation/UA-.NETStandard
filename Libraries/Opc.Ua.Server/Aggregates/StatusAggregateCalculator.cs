@@ -136,10 +136,12 @@ namespace Opc.Ua.Server
             }
 
             // set the timestamp and status.
-            var value = new DataValue();
-            value.WrappedValue = new Variant(duration, TypeInfo.Scalars.Double);
-            value.SourceTimestamp = GetTimestamp(slice);
-            value.ServerTimestamp = GetTimestamp(slice);
+            var value = new DataValue
+            {
+                WrappedValue = new Variant(duration, TypeInfo.Scalars.Double),
+                SourceTimestamp = GetTimestamp(slice),
+                ServerTimestamp = GetTimestamp(slice)
+            };
             value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
 
             // return result.
@@ -152,8 +154,7 @@ namespace Opc.Ua.Server
         protected DataValue ComputeWorstQuality(TimeSlice slice, bool includeBounds)
         {
             // get the values in the slice.
-            List<DataValue> values = null;
-
+            List<DataValue> values;
             if (!includeBounds)
             {
                 values = GetValues(slice);
@@ -206,10 +207,12 @@ namespace Opc.Ua.Server
             }
 
             // set the timestamp and status.
-            var value = new DataValue();
-            value.WrappedValue = new Variant(worstQuality, TypeInfo.Scalars.StatusCode);
-            value.SourceTimestamp = GetTimestamp(slice);
-            value.ServerTimestamp = GetTimestamp(slice);
+            var value = new DataValue
+            {
+                WrappedValue = new Variant(worstQuality, TypeInfo.Scalars.StatusCode),
+                SourceTimestamp = GetTimestamp(slice),
+                ServerTimestamp = GetTimestamp(slice)
+            };
             value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
 
             if ((StatusCode.IsBad(worstQuality) && badQualityCount > 1) || (StatusCode.IsUncertain(worstQuality) && uncertainQualityCount > 1))

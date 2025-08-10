@@ -83,11 +83,13 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            var parsedNodeId = new ParsedNodeId();
-            parsedNodeId.NamespaceIndex = nodeId.NamespaceIndex;
+            var parsedNodeId = new ParsedNodeId
+            {
+                NamespaceIndex = nodeId.NamespaceIndex,
 
-            // extract the type of identifier.
-            parsedNodeId.RootType = 0;
+                // extract the type of identifier.
+                RootType = 0
+            };
 
             int start = 0;
 
@@ -154,11 +156,12 @@ namespace Opc.Ua.Server
         /// </summary>
         public static NodeId Construct(int rootType, string rootId, ushort namespaceIndex, params string[] componentNames)
         {
-            var pnd = new ParsedNodeId();
-
-            pnd.RootType = rootType;
-            pnd.RootId = rootId;
-            pnd.NamespaceIndex = namespaceIndex;
+            var pnd = new ParsedNodeId
+            {
+                RootType = rootType,
+                RootId = rootId,
+                NamespaceIndex = namespaceIndex
+            };
 
             if (componentNames != null)
             {
@@ -255,9 +258,8 @@ namespace Opc.Ua.Server
             }
 
             // components must be instances with a parent.
-            var instance = component as BaseInstanceState;
 
-            if (instance == null || instance.Parent == null)
+            if (component is not BaseInstanceState instance || instance.Parent == null)
             {
                 return component.NodeId;
             }

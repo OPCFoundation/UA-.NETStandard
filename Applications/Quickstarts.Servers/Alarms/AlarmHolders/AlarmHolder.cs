@@ -69,8 +69,7 @@ namespace Alarms
         {
             bool hasBranches = false;
 
-            var alarm = m_alarm as ConditionState;
-            if (alarm != null)
+            if (m_alarm is ConditionState alarm)
             {
                 hasBranches = alarm.GetBranchCount() > 0;
             }
@@ -82,8 +81,7 @@ namespace Alarms
         {
             BaseEventState state = null;
 
-            var alarm = m_alarm as ConditionState;
-            if (alarm != null)
+            if (m_alarm is ConditionState alarm)
             {
                 state = alarm.GetBranch(eventId);
             }
@@ -93,8 +91,7 @@ namespace Alarms
 
         public void ClearBranches()
         {
-            var alarm = m_alarm as ConditionState;
-            if (alarm != null)
+            if (m_alarm is ConditionState alarm)
             {
                 alarm.ClearBranches();
                 m_alarmController.SetBranchCount(0);
@@ -103,8 +100,7 @@ namespace Alarms
 
         public void GetBranchesForConditionRefresh(List<IFilterTarget> events)
         {
-            var alarm = m_alarm as ConditionState;
-            if (alarm != null)
+            if (m_alarm is ConditionState alarm)
             {
                 Dictionary<string, ConditionState> branches = alarm.GetBranches();
                 events.AddRange(branches.Values);
@@ -121,15 +117,11 @@ namespace Alarms
             string alarmNodeId = (string)m_parent.NodeId.Identifier + "." + AlarmName;
 
             alarm.SymbolicName = alarmName;
-
-            NodeId createNodeId = null;
             var createQualifiedName = new QualifiedName(alarmName, NamespaceIndex);
-            LocalizedText createLocalizedText = null;
 
             bool isBranch = IsBranch(branchId);
-            createNodeId = new NodeId(alarmNodeId, NamespaceIndex);
-            createLocalizedText = new LocalizedText(alarmName);
-
+            var createNodeId = new NodeId(alarmNodeId, NamespaceIndex);
+            var createLocalizedText = new LocalizedText(alarmName);
             alarm.ReferenceTypeId = ReferenceTypeIds.HasComponent;
             alarm.Create(
                 SystemContext,

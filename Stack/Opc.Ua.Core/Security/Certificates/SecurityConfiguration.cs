@@ -103,11 +103,7 @@ namespace Opc.Ua
             }
             try
             {
-                ICertificateStore store = storeIdentifier.OpenStore();
-                if (store == null)
-                {
-                    throw ServiceResultException.Create(StatusCodes.BadConfigurationError, $"Failed to open {storeName} store");
-                }
+                ICertificateStore store = storeIdentifier.OpenStore() ?? throw ServiceResultException.Create(StatusCodes.BadConfigurationError, $"Failed to open {storeName} store");
                 store?.Close();
             }
             catch (Exception ex)

@@ -70,24 +70,24 @@ namespace Opc.Ua.Server
             Initialize();
 
             m_server = server;
-            m_nodeManager = nodeManager;
-            m_managerHandle = managerHandle;
-            m_subscriptionId = subscriptionId;
-            m_id = id;
-            m_nodeId = itemToMonitor.NodeId;
-            m_attributeId = itemToMonitor.AttributeId;
+            NodeManager = nodeManager;
+            ManagerHandle = managerHandle;
+            SubscriptionId = subscriptionId;
+            Id = id;
+            NodeId = itemToMonitor.NodeId;
+            AttributeId = itemToMonitor.AttributeId;
             m_indexRange = itemToMonitor.IndexRange;
             m_parsedIndexRange = itemToMonitor.ParsedIndexRange;
-            m_encoding = itemToMonitor.DataEncoding;
-            m_diagnosticsMasks = diagnosticsMasks;
+            DataEncoding = itemToMonitor.DataEncoding;
+            DiagnosticsMasks = diagnosticsMasks;
             m_timestampsToReturn = timestampsToReturn;
-            m_monitoringMode = monitoringMode;
-            m_clientHandle = clientHandle;
-            m_originalFilter = originalFilter;
+            MonitoringMode = monitoringMode;
+            ClientHandle = clientHandle;
+            Filter = originalFilter;
             m_filterToUse = filterToUse;
             m_range = 0;
             m_samplingInterval = samplingInterval;
-            m_queueSize = queueSize;
+            QueueSize = queueSize;
             m_discardOldest = discardOldest;
             m_sourceSamplingInterval = (int)sourceSamplingInterval;
             m_calculator = null;
@@ -136,13 +136,13 @@ namespace Opc.Ua.Server
 
             // report change to item state.
             ServerUtils.ReportCreateMonitoredItem(
-                m_nodeId,
-                m_id,
+                NodeId,
+                Id,
                 m_samplingInterval,
-                m_queueSize,
+                QueueSize,
                 m_discardOldest,
                 m_filterToUse,
-                m_monitoringMode);
+                MonitoringMode);
 
             InitializeQueue();
         }
@@ -164,24 +164,24 @@ namespace Opc.Ua.Server
             Initialize();
 
             m_server = server;
-            m_nodeManager = nodeManager;
-            m_managerHandle = managerHandle;
-            m_subscriptionId = storedMonitoredItem.SubscriptionId;
-            m_id = storedMonitoredItem.Id;
-            m_nodeId = storedMonitoredItem.NodeId;
-            m_attributeId = storedMonitoredItem.AttributeId;
+            NodeManager = nodeManager;
+            ManagerHandle = managerHandle;
+            SubscriptionId = storedMonitoredItem.SubscriptionId;
+            Id = storedMonitoredItem.Id;
+            NodeId = storedMonitoredItem.NodeId;
+            AttributeId = storedMonitoredItem.AttributeId;
             m_indexRange = storedMonitoredItem.IndexRange;
             m_parsedIndexRange = storedMonitoredItem.ParsedIndexRange;
-            m_encoding = storedMonitoredItem.Encoding;
-            m_diagnosticsMasks = storedMonitoredItem.DiagnosticsMasks;
+            DataEncoding = storedMonitoredItem.Encoding;
+            DiagnosticsMasks = storedMonitoredItem.DiagnosticsMasks;
             m_timestampsToReturn = storedMonitoredItem.TimestampsToReturn;
-            m_monitoringMode = storedMonitoredItem.MonitoringMode;
-            m_clientHandle = storedMonitoredItem.ClientHandle;
-            m_originalFilter = storedMonitoredItem.OriginalFilter;
+            MonitoringMode = storedMonitoredItem.MonitoringMode;
+            ClientHandle = storedMonitoredItem.ClientHandle;
+            Filter = storedMonitoredItem.OriginalFilter;
             m_filterToUse = storedMonitoredItem.FilterToUse;
             m_range = storedMonitoredItem.Range;
             m_samplingInterval = storedMonitoredItem.SamplingInterval;
-            m_queueSize = storedMonitoredItem.QueueSize;
+            QueueSize = storedMonitoredItem.QueueSize;
             m_discardOldest = storedMonitoredItem.DiscardOldest;
             m_sourceSamplingInterval = storedMonitoredItem.SourceSamplingInterval;
             m_calculator = null;
@@ -208,13 +208,13 @@ namespace Opc.Ua.Server
 
             // report change to item state.
             ServerUtils.ReportCreateMonitoredItem(
-                m_nodeId,
-                m_id,
+                NodeId,
+                Id,
                 m_samplingInterval,
-                m_queueSize,
+                QueueSize,
                 m_discardOldest,
                 m_filterToUse,
-                m_monitoringMode);
+                MonitoringMode);
 
             RestoreQueue();
         }
@@ -225,21 +225,21 @@ namespace Opc.Ua.Server
         private void Initialize()
         {
             m_server = null;
-            m_nodeManager = null;
-            m_managerHandle = null;
-            m_subscriptionId = 0;
-            m_id = 0;
-            m_nodeId = null;
-            m_attributeId = 0;
+            NodeManager = null;
+            ManagerHandle = null;
+            SubscriptionId = 0;
+            Id = 0;
+            NodeId = null;
+            AttributeId = 0;
             m_indexRange = null;
             m_parsedIndexRange = NumericRange.Empty;
-            m_encoding = null;
-            m_clientHandle = 0;
-            m_monitoringMode = MonitoringMode.Disabled;
+            DataEncoding = null;
+            ClientHandle = 0;
+            MonitoringMode = MonitoringMode.Disabled;
             m_samplingInterval = 0;
-            m_queueSize = 0;
+            QueueSize = 0;
             m_discardOldest = true;
-            m_originalFilter = null;
+            Filter = null;
             m_lastValue = null;
             m_lastError = null;
             m_readyToPublish = false;
@@ -252,17 +252,17 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The node manager that created the item.
         /// </summary>
-        public INodeManager NodeManager => m_nodeManager;
+        public INodeManager NodeManager { get; private set; }
 
         /// <summary>
         /// The handle assigned by the node manager when it created the item.
         /// </summary>
-        public object ManagerHandle => m_managerHandle;
+        public object ManagerHandle { get; private set; }
 
         /// <summary>
         /// The identifier for the subscription that owns the monitored item.
         /// </summary>
-        public uint SubscriptionId => m_subscriptionId;
+        public uint SubscriptionId { get; private set; }
 
         /// <summary>
         /// A bit mask that indicates what the monitored item is.
@@ -289,21 +289,21 @@ namespace Opc.Ua.Server
                 // check if not ready to publish in case it doesn't ResendData
                 if (!m_readyToPublish)
                 {
-                    ServerUtils.EventLog.MonitoredItemReady(m_id, "FALSE");
+                    ServerUtils.EventLog.MonitoredItemReady(Id, "FALSE");
                     return false;
                 }
 
                 // check if it has been triggered.
-                if (m_monitoringMode != MonitoringMode.Disabled && m_triggered)
+                if (MonitoringMode != MonitoringMode.Disabled && m_triggered)
                 {
-                    ServerUtils.EventLog.MonitoredItemReady(m_id, "TRIGGERED");
+                    ServerUtils.EventLog.MonitoredItemReady(Id, "TRIGGERED");
                     return true;
                 }
 
                 // check if monitoring was turned off.
-                if (m_monitoringMode != MonitoringMode.Reporting)
+                if (MonitoringMode != MonitoringMode.Reporting)
                 {
-                    ServerUtils.EventLog.MonitoredItemReady(m_id, "FALSE");
+                    ServerUtils.EventLog.MonitoredItemReady(Id, "FALSE");
                     return false;
                 }
 
@@ -314,11 +314,11 @@ namespace Opc.Ua.Server
 
                     if (m_nextSamplingTime > now)
                     {
-                        ServerUtils.EventLog.MonitoredItemReady(m_id, Utils.Format("FALSE {0}ms", m_nextSamplingTime - now));
+                        ServerUtils.EventLog.MonitoredItemReady(Id, Utils.Format("FALSE {0}ms", m_nextSamplingTime - now));
                         return false;
                     }
                 }
-                ServerUtils.EventLog.MonitoredItemReady(m_id, "NORMAL");
+                ServerUtils.EventLog.MonitoredItemReady(Id, "NORMAL");
                 return true;
             }
         }
@@ -333,7 +333,7 @@ namespace Opc.Ua.Server
                 lock (m_lock)
                 {
                     // only allow to trigger if sampling or reporting.
-                    if (m_monitoringMode == MonitoringMode.Disabled)
+                    if (MonitoringMode == MonitoringMode.Disabled)
                     {
                         return false;
                     }
@@ -368,7 +368,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                if (m_monitoringMode == MonitoringMode.Reporting &&
+                if (MonitoringMode == MonitoringMode.Reporting &&
                     (MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0)
                 {
                     m_resendData = true;
@@ -385,7 +385,7 @@ namespace Opc.Ua.Server
             {
                 if (m_readyToPublish)
                 {
-                    Utils.LogTrace(Utils.TraceMasks.OperationDetail, "SetTriggered[{0}]", m_id);
+                    Utils.LogTrace(Utils.TraceMasks.OperationDetail, "SetTriggered[{0}]", Id);
                     m_triggered = true;
                     return true;
                 }
@@ -419,17 +419,17 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The filter used by the monitored item.
         /// </summary>
-        public MonitoringFilter Filter => m_originalFilter;
+        public MonitoringFilter Filter { get; private set; }
 
         /// <summary>
         /// The event filter used by the monitored item.
         /// </summary>
-        public EventFilter EventFilter => m_originalFilter as EventFilter;
+        public EventFilter EventFilter => Filter as EventFilter;
 
         /// <summary>
         /// The data change filter used by the monitored item.
         /// </summary>
-        public DataChangeFilter DataChangeFilter => m_originalFilter as DataChangeFilter;
+        public DataChangeFilter DataChangeFilter => Filter as DataChangeFilter;
 
         /// <summary>
         /// The session that owns the monitored item.
@@ -461,27 +461,27 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The identifier for the item that is unique within the server.
         /// </summary>
-        public uint Id => m_id;
+        public uint Id { get; private set; }
 
         /// <summary>
         /// The identifier for the client handle assigned to the monitored item.
         /// </summary>
-        public uint ClientHandle => m_clientHandle;
+        public uint ClientHandle { get; private set; }
 
         /// <summary>
         /// The node id being monitored.
         /// </summary>
-        public NodeId NodeId => m_nodeId;
+        public NodeId NodeId { get; private set; }
 
         /// <summary>
         /// The attribute being monitored.
         /// </summary>
-        public uint AttributeId => m_attributeId;
+        public uint AttributeId { get; private set; }
 
         /// <summary>
         /// The current monitoring mode for the item
         /// </summary>
-        public MonitoringMode MonitoringMode => m_monitoringMode;
+        public MonitoringMode MonitoringMode { get; private set; }
 
         /// <summary>
         /// The sampling interval for the item.
@@ -505,7 +505,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The queue size for the item.
         /// </summary>
-        public uint QueueSize => m_queueSize;
+        public uint QueueSize { get; private set; }
 
         /// <summary>
         /// Gets number of elements actually contained in value queue.
@@ -534,7 +534,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The diagnostics masks to use when collecting notifications for the item.
         /// </summary>
-        public DiagnosticsMasks DiagnosticsMasks => m_diagnosticsMasks;
+        public DiagnosticsMasks DiagnosticsMasks { get; private set; }
 
         /// <summary>
         /// The index range requested by the monitored item.
@@ -544,7 +544,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The data encoding requested by the monitored item.
         /// </summary>
-        public QualifiedName DataEncoding => m_encoding;
+        public QualifiedName DataEncoding { get; private set; }
 
         /// <summary>
         /// Whether the monitored item should report a value without checking if it was changed.
@@ -558,13 +558,14 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                return new ReadValueId {
-                    NodeId = m_nodeId,
-                    AttributeId = m_attributeId,
+                return new ReadValueId
+                {
+                    NodeId = NodeId,
+                    AttributeId = AttributeId,
                     IndexRange = m_indexRange,
                     ParsedIndexRange = m_parsedIndexRange,
-                    DataEncoding = m_encoding,
-                    Handle = m_managerHandle
+                    DataEncoding = DataEncoding,
+                    Handle = ManagerHandle
                 };
             }
         }
@@ -597,10 +598,11 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                result = new MonitoredItemCreateResult {
-                    MonitoredItemId = m_id,
+                result = new MonitoredItemCreateResult
+                {
+                    MonitoredItemId = Id,
                     RevisedSamplingInterval = m_samplingInterval,
-                    RevisedQueueSize = m_queueSize,
+                    RevisedQueueSize = QueueSize,
                     StatusCode = StatusCodes.Good
                 };
 
@@ -620,9 +622,10 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                result = new MonitoredItemModifyResult {
+                result = new MonitoredItemModifyResult
+                {
                     RevisedSamplingInterval = m_samplingInterval,
-                    RevisedQueueSize = m_queueSize,
+                    RevisedQueueSize = QueueSize,
                     StatusCode = StatusCodes.Good
                 };
 
@@ -651,12 +654,12 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                m_diagnosticsMasks = diagnosticsMasks;
+                DiagnosticsMasks = diagnosticsMasks;
                 m_timestampsToReturn = timestampsToReturn;
-                m_clientHandle = clientHandle;
+                ClientHandle = clientHandle;
                 m_discardOldest = discardOldest;
 
-                m_originalFilter = originalFilter;
+                Filter = originalFilter;
                 m_filterToUse = filterToUse;
 
                 if (range != null)
@@ -665,7 +668,7 @@ namespace Opc.Ua.Server
                 }
 
                 SetSamplingInterval(samplingInterval);
-                m_queueSize = queueSize;
+                QueueSize = queueSize;
 
                 // check if aggregate filter has been updated.
                 var aggregateFilter = filterToUse as ServerAggregateFilter;
@@ -710,13 +713,13 @@ namespace Opc.Ua.Server
 
                 // report change to item state.
                 ServerUtils.ReportModifyMonitoredItem(
-                    m_nodeId,
-                    m_id,
+                    NodeId,
+                    Id,
                     m_samplingInterval,
-                    m_queueSize,
+                    QueueSize,
                     m_discardOldest,
                     m_filterToUse,
-                    m_monitoringMode);
+                    MonitoringMode);
 
                 InitializeQueue();
 
@@ -767,14 +770,14 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                MonitoringMode previousMode = m_monitoringMode;
+                MonitoringMode previousMode = MonitoringMode;
 
                 if (previousMode == monitoringMode)
                 {
                     return previousMode;
                 }
 
-                Utils.LogTrace("MONITORING MODE[{0}] {1} -> {2}", m_id, m_monitoringMode, monitoringMode);
+                Utils.LogTrace("MONITORING MODE[{0}] {1} -> {2}", Id, MonitoringMode, monitoringMode);
 
                 if (previousMode == MonitoringMode.Disabled)
                 {
@@ -783,7 +786,7 @@ namespace Opc.Ua.Server
                     m_lastValue = null;
                 }
 
-                m_monitoringMode = monitoringMode;
+                MonitoringMode = monitoringMode;
 
                 if (monitoringMode == MonitoringMode.Disabled)
                 {
@@ -794,13 +797,13 @@ namespace Opc.Ua.Server
 
                 // report change to item state.
                 ServerUtils.ReportModifyMonitoredItem(
-                    m_nodeId,
-                    m_id,
+                    NodeId,
+                    Id,
                     m_samplingInterval,
-                    m_queueSize,
+                    QueueSize,
                     m_discardOldest,
                     m_filterToUse,
-                    m_monitoringMode);
+                    MonitoringMode);
 
                 InitializeQueue();
 
@@ -830,7 +833,7 @@ namespace Opc.Ua.Server
                 }
 
                 // check monitoring mode.
-                if (m_monitoringMode == MonitoringMode.Disabled)
+                if (MonitoringMode == MonitoringMode.Disabled)
                 {
                     return;
                 }
@@ -838,9 +841,10 @@ namespace Opc.Ua.Server
                 // make a shallow copy of the value.
                 if (value != null)
                 {
-                    Utils.LogTrace(Utils.TraceMasks.OperationDetail, "RECEIVED VALUE[{0}] Value={1}", m_id, value.WrappedValue);
+                    Utils.LogTrace(Utils.TraceMasks.OperationDetail, "RECEIVED VALUE[{0}] Value={1}", Id, value.WrappedValue);
 
-                    value = new DataValue {
+                    value = new DataValue
+                    {
                         WrappedValue = value.WrappedValue,
                         StatusCode = value.StatusCode,
                         SourceTimestamp = value.SourceTimestamp,
@@ -859,10 +863,12 @@ namespace Opc.Ua.Server
                 // create empty value if none provided.
                 if (ServiceResult.IsBad(error) && value == null)
                 {
-                    value = new DataValue();
-                    value.StatusCode = error.StatusCode;
-                    value.SourceTimestamp = DateTime.UtcNow;
-                    value.ServerTimestamp = DateTime.UtcNow;
+                    value = new DataValue
+                    {
+                        StatusCode = error.StatusCode,
+                        SourceTimestamp = DateTime.UtcNow,
+                        ServerTimestamp = DateTime.UtcNow
+                    };
                 }
 
                 // this should never happen.
@@ -877,7 +883,7 @@ namespace Opc.Ua.Server
                     if (!m_calculator.QueueRawValue(value))
                     {
                         Utils.LogTrace("Value received out of order: {1}, ServerHandle={0}",
-                            m_id, value.SourceTimestamp.ToLocalTime().ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture));
+                            Id, value.SourceTimestamp.ToLocalTime().ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture));
                     }
 
                     DataValue processedValue = m_calculator.GetProcessedValue(false);
@@ -894,11 +900,11 @@ namespace Opc.Ua.Server
                 // apply filter to incoming item.
                 if (!AlwaysReportUpdates && !ignoreFilters && !ApplyFilter(value, error))
                 {
-                    ServerUtils.ReportFilteredValue(m_nodeId, m_id, value);
+                    ServerUtils.ReportFilteredValue(NodeId, Id, value);
                     return;
                 }
 
-                ServerUtils.ReportQueuedValue(m_nodeId, m_id, value);
+                ServerUtils.ReportQueuedValue(NodeId, Id, value);
 
                 // add the value to the queue.
                 AddValueToQueue(value, error);
@@ -910,7 +916,7 @@ namespace Opc.Ua.Server
         /// </summary>
         private void AddValueToQueue(DataValue value, ServiceResult error)
         {
-            if (m_queueSize > 1)
+            if (QueueSize > 1)
             {
                 m_dataChangeQueueHandler.QueueValue(value, error);
             }
@@ -924,13 +930,13 @@ namespace Opc.Ua.Server
             m_lastValue = value;
             m_lastError = error;
             m_readyToPublish = true;
-            ServerUtils.EventLog.QueueValue(m_id, m_lastValue.WrappedValue, m_lastValue.StatusCode);
+            ServerUtils.EventLog.QueueValue(Id, m_lastValue.WrappedValue, m_lastValue.StatusCode);
         }
 
         /// <summary>
         /// Whether the item is monitoring all events produced by the server.
         /// </summary>
-        public bool MonitoringAllEvents => m_nodeId == ObjectIds.Server;
+        public bool MonitoringAllEvents => NodeId == ObjectIds.Server;
 
         /// <summary>
         /// Fetches the event fields from the event.
@@ -938,10 +944,11 @@ namespace Opc.Ua.Server
         private EventFieldList GetEventFields(FilterContext context, EventFilter filter, IFilterTarget instance)
         {
             // fetch the event fields.
-            var fields = new EventFieldList();
-
-            fields.ClientHandle = m_clientHandle;
-            fields.Handle = instance;
+            var fields = new EventFieldList
+            {
+                ClientHandle = ClientHandle,
+                Handle = instance
+            };
 
             foreach (SimpleAttributeOperand clause in filter.SelectClauses)
             {
@@ -1066,8 +1073,7 @@ namespace Opc.Ua.Server
 
             ConditionState alarmCondition = null;
             NodeId conditionId = null;
-            var instanceStateSnapshot = instance as InstanceStateSnapshot;
-            if (instanceStateSnapshot != null)
+            if (instance is InstanceStateSnapshot instanceStateSnapshot)
             {
                 alarmCondition = instanceStateSnapshot.Handle as ConditionState;
 
@@ -1410,10 +1416,11 @@ namespace Opc.Ua.Server
             }
 
             // copy data value.
-            var item = new MonitoredItemNotification();
-
-            item.ClientHandle = m_clientHandle;
-            item.Value = value;
+            var item = new MonitoredItemNotification
+            {
+                ClientHandle = ClientHandle,
+                Value = value
+            };
 
             // apply timestamp filter.
             if (m_timestampsToReturn is not TimestampsToReturn.Server and not TimestampsToReturn.Both)
@@ -1426,13 +1433,13 @@ namespace Opc.Ua.Server
                 item.Value.SourceTimestamp = DateTime.MinValue;
             }
 
-            ServerUtils.ReportPublishValue(m_nodeId, m_id, item.Value);
+            ServerUtils.ReportPublishValue(NodeId, Id, item.Value);
             notifications.Enqueue(item);
 
             // update diagnostic info.
             DiagnosticInfo diagnosticInfo = null;
 
-            if ((m_diagnosticsMasks & DiagnosticsMasks.OperationAll) != 0)
+            if ((DiagnosticsMasks & DiagnosticsMasks.OperationAll) != 0)
             {
                 diagnosticInfo = ServerUtils.CreateDiagnosticInfo(m_server, context, error);
             }
@@ -1473,7 +1480,7 @@ namespace Opc.Ua.Server
             {
                 lock (m_lock)
                 {
-                    if (m_monitoringMode == MonitoringMode.Disabled)
+                    if (MonitoringMode == MonitoringMode.Disabled)
                     {
                         return int.MaxValue;
                     }
@@ -1501,26 +1508,27 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public IStoredMonitoredItem ToStorableMonitoredItem()
         {
-            return new StoredMonitoredItem {
+            return new StoredMonitoredItem
+            {
                 SamplingInterval = m_samplingInterval,
                 SourceSamplingInterval = m_sourceSamplingInterval,
-                SubscriptionId = m_subscriptionId,
-                QueueSize = m_queueSize,
+                SubscriptionId = SubscriptionId,
+                QueueSize = QueueSize,
                 AlwaysReportUpdates = AlwaysReportUpdates,
-                AttributeId = m_attributeId,
-                ClientHandle = m_clientHandle,
-                DiagnosticsMasks = m_diagnosticsMasks,
+                AttributeId = AttributeId,
+                ClientHandle = ClientHandle,
+                DiagnosticsMasks = DiagnosticsMasks,
                 DiscardOldest = m_discardOldest,
                 IsDurable = IsDurable,
-                Encoding = m_encoding,
+                Encoding = DataEncoding,
                 FilterToUse = m_filterToUse,
-                Id = m_id,
+                Id = Id,
                 IndexRange = m_indexRange,
                 LastError = m_lastError,
                 LastValue = m_lastValue,
-                MonitoringMode = m_monitoringMode,
-                NodeId = m_nodeId,
-                OriginalFilter = m_originalFilter,
+                MonitoringMode = MonitoringMode,
+                NodeId = NodeId,
+                OriginalFilter = Filter,
                 Range = m_range,
                 TimestampsToReturn = m_timestampsToReturn,
                 TypeMask = MonitoredItemType,
@@ -1678,16 +1686,9 @@ namespace Opc.Ua.Server
                 return true;
             }
 
-            // check for arrays.
-            var array1 = value1 as Array;
-            var array2 = value2 as Array;
-
-            if (array1 == null || array2 == null)
+            if (value1 is not Array array1 || value2 is not Array array2)
             {
-                var xmlElement1 = value1 as XmlElement;
-                var xmlElement2 = value2 as XmlElement;
-
-                if (xmlElement1 != null && xmlElement2 != null)
+                if (value1 is XmlElement xmlElement1 && value2 is XmlElement xmlElement2)
                 {
                     return xmlElement1.OuterXml.Equals(xmlElement2.OuterXml, StringComparison.Ordinal);
                 }
@@ -1787,7 +1788,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected void InitializeQueue()
         {
-            switch (m_monitoringMode)
+            switch (MonitoringMode)
             {
                 case MonitoringMode.Disabled:
                 default:
@@ -1800,23 +1801,23 @@ namespace Opc.Ua.Server
                 case MonitoringMode.Reporting:
                 case MonitoringMode.Sampling:
                     // check if queuing is disabled.
-                    if (m_queueSize == 0)
+                    if (QueueSize == 0)
                     {
                         if (MonitoredItemType == MonitoredItemTypeMask.DataChange)
                         {
-                            m_queueSize = 1;
+                            QueueSize = 1;
                         }
 
                         if ((MonitoredItemType & MonitoredItemTypeMask.Events) != 0)
                         {
-                            m_queueSize = 1000;
+                            QueueSize = 1000;
                         }
                     }
 
                     // create data queue.
                     if (MonitoredItemType == MonitoredItemTypeMask.DataChange)
                     {
-                        if (m_queueSize <= 1)
+                        if (QueueSize <= 1)
                         {
                             Utils.SilentDispose(m_dataChangeQueueHandler);
                             m_dataChangeQueueHandler = null;
@@ -1831,7 +1832,7 @@ namespace Opc.Ua.Server
                             queueLastValue = true;
                         }
 
-                        m_dataChangeQueueHandler.SetQueueSize(m_queueSize, m_discardOldest, m_diagnosticsMasks);
+                        m_dataChangeQueueHandler.SetQueueSize(QueueSize, m_discardOldest, DiagnosticsMasks);
                         m_dataChangeQueueHandler.SetSamplingInterval(m_samplingInterval);
 
                         if (queueLastValue && m_lastValue != null)
@@ -1841,7 +1842,7 @@ namespace Opc.Ua.Server
                     }
                     else // create event queue.
                     {
-                        (m_eventQueueHandler ??= new EventQueueHandler(IsDurable, m_monitoredItemQueueFactory, Id)).SetQueueSize(m_queueSize, m_discardOldest);
+                        (m_eventQueueHandler ??= new EventQueueHandler(IsDurable, m_monitoredItemQueueFactory, Id)).SetQueueSize(QueueSize, m_discardOldest);
                     }
 
                     break;
@@ -1853,7 +1854,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected void RestoreQueue()
         {
-            switch (m_monitoringMode)
+            switch (MonitoringMode)
             {
                 case MonitoringMode.Disabled:
                 default:
@@ -1862,30 +1863,30 @@ namespace Opc.Ua.Server
                 case MonitoringMode.Reporting:
                 case MonitoringMode.Sampling:
                     // check if queuing is disabled.
-                    if (m_queueSize == 0)
+                    if (QueueSize == 0)
                     {
                         if (MonitoredItemType == MonitoredItemTypeMask.DataChange)
                         {
-                            m_queueSize = 1;
+                            QueueSize = 1;
                         }
 
                         if ((MonitoredItemType & MonitoredItemTypeMask.Events) != 0)
                         {
-                            m_queueSize = 1000;
+                            QueueSize = 1000;
                         }
                     }
 
                     // create data queue.
                     if (MonitoredItemType == MonitoredItemTypeMask.DataChange)
                     {
-                        if (m_queueSize <= 1)
+                        if (QueueSize <= 1)
                         {
                             break; // queueing is disabled
                         }
                         IDataChangeMonitoredItemQueue restoredQueue = null;
                         try
                         {
-                            restoredQueue = m_subscriptionStore.RestoreDataChangeMonitoredItemQueue(m_id);
+                            restoredQueue = m_subscriptionStore.RestoreDataChangeMonitoredItemQueue(Id);
                         }
                         catch (Exception ex)
                         {
@@ -1902,7 +1903,7 @@ namespace Opc.Ua.Server
                             // create new queue
                             m_dataChangeQueueHandler = new DataChangeQueueHandler(Id, IsDurable, m_monitoredItemQueueFactory, QueueOverflowHandler);
 
-                            m_dataChangeQueueHandler.SetQueueSize(m_queueSize, m_discardOldest, m_diagnosticsMasks);
+                            m_dataChangeQueueHandler.SetQueueSize(QueueSize, m_discardOldest, DiagnosticsMasks);
                             m_dataChangeQueueHandler.SetSamplingInterval(m_samplingInterval);
                         }
                     }
@@ -1911,7 +1912,7 @@ namespace Opc.Ua.Server
                         IEventMonitoredItemQueue restoredQueue = null;
                         try
                         {
-                            restoredQueue = m_subscriptionStore.RestoreEventMonitoredItemQueue(m_id);
+                            restoredQueue = m_subscriptionStore.RestoreEventMonitoredItemQueue(Id);
                         }
                         catch (Exception ex)
                         {
@@ -1926,7 +1927,7 @@ namespace Opc.Ua.Server
                         {
                             // create new queue
                             m_eventQueueHandler = new EventQueueHandler(IsDurable, m_monitoredItemQueueFactory, Id);
-                            m_eventQueueHandler.SetQueueSize(m_queueSize, m_discardOldest);
+                            m_eventQueueHandler.SetQueueSize(QueueSize, m_discardOldest);
                         }
                     }
 
@@ -1963,24 +1964,12 @@ namespace Opc.Ua.Server
 
         private readonly object m_lock = new();
         private IServerInternal m_server;
-        private INodeManager m_nodeManager;
-        private object m_managerHandle;
-        private uint m_subscriptionId;
-        private uint m_id;
-        private NodeId m_nodeId;
-        private uint m_attributeId;
         private string m_indexRange;
         private NumericRange m_parsedIndexRange;
-        private QualifiedName m_encoding;
-        private DiagnosticsMasks m_diagnosticsMasks;
         private TimestampsToReturn m_timestampsToReturn;
-        private uint m_clientHandle;
-        private MonitoringMode m_monitoringMode;
-        private MonitoringFilter m_originalFilter;
         private MonitoringFilter m_filterToUse;
         private double m_range;
         private double m_samplingInterval;
-        private uint m_queueSize;
         private bool m_discardOldest;
         private int m_sourceSamplingInterval;
         private DataValue m_lastValue;

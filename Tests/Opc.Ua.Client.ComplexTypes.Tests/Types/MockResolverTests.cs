@@ -167,10 +167,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             ushort nameSpaceIndex = mockResolver.NamespaceUris.GetIndexOrAppend(Namespaces.MockResolverUrl);
             uint nodeId = 100;
 
-            var structure = new StructureDefinition() {
+            var structure = new StructureDefinition()
+            {
                 BaseDataType = DataTypeIds.Structure
             };
-            var field = new StructureField() {
+            var field = new StructureField()
+            {
                 Name = "Make",
                 Description = new LocalizedText("The make"),
                 DataType = DataTypeIds.String,
@@ -180,7 +182,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 IsOptional = false
             };
             structure.Fields.Add(field);
-            field = new StructureField() {
+            field = new StructureField()
+            {
                 Name = "Model",
                 Description = new LocalizedText("The model"),
                 DataType = DataTypeIds.String,
@@ -190,7 +193,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 IsOptional = false
             };
             structure.Fields.Add(field);
-            field = new StructureField() {
+            field = new StructureField()
+            {
                 Name = "Engine",
                 Description = new LocalizedText("The engine"),
                 DataType = DataTypeIds.String,
@@ -200,7 +204,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 IsOptional = false
             };
             structure.Fields.Add(field);
-            field = new StructureField() {
+            field = new StructureField()
+            {
                 Name = "NoOfPassengers",
                 Description = new LocalizedText("The number of passengers"),
                 DataType = DataTypeIds.UInt32,
@@ -211,7 +216,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             };
             structure.Fields.Add(field);
 
-            var dataTypeNode = new DataTypeNode() {
+            var dataTypeNode = new DataTypeNode()
+            {
                 NodeId = new NodeId(nodeId++, nameSpaceIndex),
                 NodeClass = NodeClass.DataType,
                 BrowseName = new QualifiedName("CarType", nameSpaceIndex),
@@ -223,7 +229,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             foreach (string encodingName in DefaultEncodings)
             {
                 // binary encoding
-                var description = new ReferenceDescription() {
+                var description = new ReferenceDescription()
+                {
                     NodeId = new NodeId(nodeId++, nameSpaceIndex),
                     ReferenceTypeId = new NodeId(nodeId++, nameSpaceIndex),
                     BrowseName = encodingName,
@@ -234,7 +241,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 var encoding = new Node(description);
 
                 // add reference to encoding
-                var reference = new ReferenceNode() {
+                var reference = new ReferenceNode()
+                {
                     ReferenceTypeId = ReferenceTypeIds.HasEncoding,
                     IsInverse = false,
                     TargetId = description.NodeId
@@ -261,7 +269,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             TestContext.Out.WriteLine(car.ToString());
 
-            var encoderContext = new ServiceMessageContext {
+            var encoderContext = new ServiceMessageContext
+            {
                 Factory = mockResolver.Factory,
                 NamespaceUris = mockResolver.NamespaceUris,
             };
@@ -308,10 +317,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             ushort nameSpaceIndex = mockResolver.NamespaceUris.GetIndexOrAppend("http://opcfoundation.org/MockResolver");
             uint nodeId = 100;
 
-            var structure = new StructureDefinition() {
+            var structure = new StructureDefinition()
+            {
                 BaseDataType = DataTypeIds.Structure
             };
-            var field = new StructureField() {
+            var field = new StructureField()
+            {
                 Name = "ArrayOfInteger",
                 Description = new LocalizedText("Array of Integer"),
                 DataType = DataTypeIds.Int32,
@@ -322,7 +333,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             };
             structure.Fields.Add(field);
 
-            field = new StructureField() {
+            field = new StructureField()
+            {
                 Name = "Array2DOfInteger",
                 Description = new LocalizedText("2D Array of Integer"),
                 DataType = DataTypeIds.Int32,
@@ -333,7 +345,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             };
             structure.Fields.Add(field);
 
-            field = new StructureField() {
+            field = new StructureField()
+            {
                 Name = "Array3DOfInteger",
                 Description = new LocalizedText("3D Array of Integer"),
                 DataType = DataTypeIds.Int32,
@@ -344,7 +357,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             };
             structure.Fields.Add(field);
 
-            field = new StructureField() {
+            field = new StructureField()
+            {
                 Name = "ArrayOfNamingRuleType",
                 Description = new LocalizedText("Array of NamingRuleType"),
                 DataType = DataTypeIds.NamingRuleType,
@@ -355,7 +369,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             };
             structure.Fields.Add(field);
 
-            field = new StructureField() {
+            field = new StructureField()
+            {
                 Name = "Array2DOfNamingRuleType",
                 Description = new LocalizedText("Array 2D of NamingRuleType"),
                 DataType = DataTypeIds.NamingRuleType,
@@ -366,7 +381,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             };
             structure.Fields.Add(field);
 
-            field = new StructureField() {
+            field = new StructureField()
+            {
                 Name = "Array3DOfNamingRuleType",
                 Description = new LocalizedText("Array 3D of NamingRuleType"),
                 DataType = DataTypeIds.NamingRuleType,
@@ -377,7 +393,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             };
             structure.Fields.Add(field);
 
-            var dataTypeNode = new DataTypeNode() {
+            var dataTypeNode = new DataTypeNode()
+            {
                 NodeId = new NodeId(nodeId++, nameSpaceIndex),
                 NodeClass = NodeClass.DataType,
                 BrowseName = new QualifiedName("ArrayTypes", nameSpaceIndex),
@@ -389,7 +406,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             foreach (string encodingName in DefaultEncodings)
             {
                 // encoding
-                var description = new ReferenceDescription() {
+                var description = new ReferenceDescription()
+                {
                     NodeId = new NodeId(nodeId++, nameSpaceIndex),
                     ReferenceTypeId = new NodeId(nodeId++, nameSpaceIndex),
                     BrowseName = encodingName,
@@ -400,7 +418,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 var encoding = new Node(description);
 
                 // add reference to encoding
-                var reference = new ReferenceNode() {
+                var reference = new ReferenceNode()
+                {
                     ReferenceTypeId = ReferenceTypeIds.HasEncoding,
                     IsInverse = false,
                     TargetId = description.NodeId
@@ -441,7 +460,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             TestContext.Out.WriteLine(arrays.ToString());
 
-            var encoderContext = new ServiceMessageContext {
+            var encoderContext = new ServiceMessageContext
+            {
                 Factory = mockResolver.Factory,
                 NamespaceUris = mockResolver.NamespaceUris,
             };
@@ -490,7 +510,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             ushort nameSpaceIndex = mockResolver.NamespaceUris.GetIndexOrAppend("http://opcfoundation.org/MockResolver");
             uint nodeId = 100;
 
-            var structure = new StructureDefinition() {
+            var structure = new StructureDefinition()
+            {
                 BaseDataType = DataTypeIds.Structure
             };
 
@@ -498,7 +519,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             string typeName = typeDescription.Name;
             string arrayPrefix = Enum.GetName(typeof(TestRanks), valueRank);
             string seperator = valueRank > 0 ? "Of" : string.Empty;
-            var field = new StructureField() {
+            var field = new StructureField()
+            {
                 Name = arrayPrefix + seperator + typeName,
                 Description = new LocalizedText(arrayPrefix + " " + seperator + " " + typeName),
                 DataType = typeDescription.TypeId,
@@ -509,7 +531,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             };
             structure.Fields.Add(field);
 
-            var dataTypeNode = new DataTypeNode() {
+            var dataTypeNode = new DataTypeNode()
+            {
                 NodeId = new NodeId(nodeId++, nameSpaceIndex),
                 NodeClass = NodeClass.DataType,
                 BrowseName = new QualifiedName(field.Name + "TestType", nameSpaceIndex),
@@ -521,7 +544,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             foreach (string encodingName in DefaultEncodings)
             {
                 // encoding
-                var description = new ReferenceDescription() {
+                var description = new ReferenceDescription()
+                {
                     NodeId = new NodeId(nodeId++, nameSpaceIndex),
                     ReferenceTypeId = new NodeId(nodeId++, nameSpaceIndex),
                     BrowseName = encodingName,
@@ -532,7 +556,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 var encoding = new Node(description);
 
                 // add reference to encoding
-                var reference = new ReferenceNode() {
+                var reference = new ReferenceNode()
+                {
                     ReferenceTypeId = ReferenceTypeIds.HasEncoding,
                     IsInverse = false,
                     TargetId = description.NodeId
@@ -631,7 +656,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             TestContext.Out.WriteLine(testType.ToString());
 
-            var encoderContext = new ServiceMessageContext {
+            var encoderContext = new ServiceMessageContext
+            {
                 Factory = mockResolver.Factory,
                 NamespaceUris = mockResolver.NamespaceUris,
             };
@@ -662,7 +688,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         [Test]
         public void CreateBaseComplexTypeTest()
         {
-            var testDataComplexType = new TestDataComplexType() {
+            var testDataComplexType = new TestDataComplexType()
+            {
                 PropertyInt8 = 1,
                 PropertyInt16 = 2,
                 PropertyInt32 = 3,
@@ -693,7 +720,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             }
             if (valueType == DataTypeIds.BuildInfo)
             {
-                return new BuildInfo() {
+                return new BuildInfo()
+                {
                     BuildDate = DataGenerator.GetRandomDateTime(),
                     BuildNumber = "1.4." + DataGenerator.GetRandomByte().ToString(CultureInfo.InvariantCulture),
                     ManufacturerName = "OPC Foundation",

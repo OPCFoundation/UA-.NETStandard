@@ -133,18 +133,21 @@ namespace Opc.Ua.Core.Tests
         public CertificateValidator Update()
         {
             var certValidator = new CertificateValidator();
-            var issuerTrustList = new CertificateTrustList {
+            var issuerTrustList = new CertificateTrustList
+            {
                 StoreType = CertificateStoreType.Directory,
                 StorePath = m_issuerStore.Directory.FullName
             };
-            var trustedTrustList = new CertificateTrustList {
+            var trustedTrustList = new CertificateTrustList
+            {
                 StoreType = CertificateStoreType.Directory,
                 StorePath = m_trustedStore.Directory.FullName
             };
             CertificateStoreIdentifier rejectedList = null;
             if (m_rejectedStore != null)
             {
-                rejectedList = new CertificateStoreIdentifier {
+                rejectedList = new CertificateStoreIdentifier
+                {
                     StoreType = CertificateStoreType.Directory,
                     StorePath = m_rejectedStore.Directory.FullName
                 };

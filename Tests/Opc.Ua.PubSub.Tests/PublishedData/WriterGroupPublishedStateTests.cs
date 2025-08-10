@@ -127,8 +127,9 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
             Assert.GreaterOrEqual(networkMessages.Count, 1, "connection.CreateNetworkMessages shall have at least one network message");
 
-            object uaNetworkMessagesList = null;
             List<UaNetworkMessage> uaNetworkMessages = null;
+
+            object uaNetworkMessagesList;
             if (pubSubMessageType == PubSubMessageType.Uadp)
             {
                 uaNetworkMessagesList = MessagesHelper.GetUaDataNetworkMessages(networkMessages.Cast<PubSubEncoding.UadpNetworkMessage>().ToList());

@@ -77,7 +77,8 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             var matrix = new Matrix(int3x3Matrix, BuiltInType.Int32);
 
             // Positive test
-            var writeValue = new WriteValue() {
+            var writeValue = new WriteValue()
+            {
                 AttributeId = Attributes.Value,
                 NodeId = new NodeId(4000, 8),
                 Value = new DataValue(new Variant(matrix)),
@@ -112,7 +113,8 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         public void StringIndexRangeValidationTest()
         {
             // Positive test
-            var writeValue = new WriteValue() {
+            var writeValue = new WriteValue()
+            {
                 AttributeId = Attributes.Value,
                 NodeId = new NodeId(4000, 8),
                 Value = new DataValue(new Variant("Hello world")),
@@ -138,7 +140,8 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         public void ArrayIndexRangeValidationTest()
         {
             // Positive test
-            var writeValue = new WriteValue() {
+            var writeValue = new WriteValue()
+            {
                 AttributeId = Attributes.Value,
                 NodeId = new NodeId(4000, 8),
                 Value = new DataValue(new Variant(intValue)),
@@ -165,7 +168,8 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         public void ArraySubRangeIndexRangeValidationTest()
         {
             // Test with String array
-            var writeValue = new WriteValue() {
+            var writeValue = new WriteValue()
+            {
                 AttributeId = Attributes.Value,
                 NodeId = new NodeId(4000, 8),
                 Value = new DataValue(new Variant(s_stringValue)),

@@ -241,7 +241,7 @@ namespace Opc.Ua.Gds.Client
                 throw new ArgumentException(endpointUrl + " is not a valid URL.", nameof(endpointUrl));
             }
 
-            bool serverHalted = false;
+            bool serverHalted;
             do
             {
                 serverHalted = false;

@@ -129,10 +129,7 @@ namespace Opc.Ua
         /// <summary>
         /// Options that can be used to suppress certificate validation errors.
         /// </summary>
-        public CertificateValidationOptions ValidationOptions
-        {
-            get => m_validationOptions; set => m_validationOptions = value;
-        }
+        public CertificateValidationOptions ValidationOptions { get; set; }
 
         /// <summary>
         /// Detects the type of store represented by the path.
@@ -171,13 +168,12 @@ namespace Opc.Ua
         /// </summary>
         public static ICertificateStore CreateStore(string storeTypeName)
         {
-            ICertificateStore store = null;
-
             if (string.IsNullOrEmpty(storeTypeName))
             {
                 return new CertificateIdentifierCollection();
             }
 
+            ICertificateStore store;
             switch (storeTypeName)
             {
                 case CertificateStoreType.X509Store:

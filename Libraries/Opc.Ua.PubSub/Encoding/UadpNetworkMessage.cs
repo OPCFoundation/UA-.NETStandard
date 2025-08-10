@@ -51,8 +51,6 @@ namespace Opc.Ua.PubSub.Encoding
 
         private byte m_uadpVersion;
         private object m_publisherId;
-        private UADPNetworkMessageType m_uadpNetworkMessageType;
-        private UADPNetworkMessageDiscoveryType m_discoveryType;
 
         /// <summary>
         /// Create new instance of UadpNetworkMessage
@@ -73,7 +71,7 @@ namespace Opc.Ua.PubSub.Encoding
             DataSetClassId = Guid.Empty;
             Timestamp = DateTime.UtcNow;
 
-            m_uadpNetworkMessageType = UADPNetworkMessageType.DataSetMessage;
+            UADPNetworkMessageType = UADPNetworkMessageType.DataSetMessage;
         }
 
         /// <summary>
@@ -86,8 +84,8 @@ namespace Opc.Ua.PubSub.Encoding
             DataSetClassId = Guid.Empty;
             Timestamp = DateTime.UtcNow;
 
-            m_uadpNetworkMessageType = UADPNetworkMessageType.DiscoveryResponse;
-            m_discoveryType = UADPNetworkMessageDiscoveryType.DataSetMetaData;
+            UADPNetworkMessageType = UADPNetworkMessageType.DiscoveryResponse;
+            UADPDiscoveryType = UADPNetworkMessageDiscoveryType.DataSetMetaData;
 
             SetFlagsDiscoveryResponse();
         }
@@ -102,8 +100,8 @@ namespace Opc.Ua.PubSub.Encoding
             DataSetClassId = Guid.Empty;
             Timestamp = DateTime.UtcNow;
 
-            m_uadpNetworkMessageType = UADPNetworkMessageType.DiscoveryRequest;
-            m_discoveryType = discoveryType;
+            UADPNetworkMessageType = UADPNetworkMessageType.DiscoveryRequest;
+            UADPDiscoveryType = discoveryType;
 
             SetFlagsDiscoveryRequest();
         }
@@ -123,8 +121,8 @@ namespace Opc.Ua.PubSub.Encoding
             PublisherEndpoints = publisherEndpoints;
             PublisherProvideEndpoints = publisherProvidesEndpoints;
 
-            m_uadpNetworkMessageType = UADPNetworkMessageType.DiscoveryResponse;
-            m_discoveryType = UADPNetworkMessageDiscoveryType.PublisherEndpoint;
+            UADPNetworkMessageType = UADPNetworkMessageType.DiscoveryResponse;
+            UADPDiscoveryType = UADPNetworkMessageDiscoveryType.PublisherEndpoint;
 
             SetFlagsDiscoveryResponse();
         }
@@ -141,8 +139,8 @@ namespace Opc.Ua.PubSub.Encoding
 
             DataSetWriterIds = writerIds;
 
-            m_uadpNetworkMessageType = UADPNetworkMessageType.DiscoveryResponse;
-            m_discoveryType = UADPNetworkMessageDiscoveryType.DataSetWriterConfiguration;
+            UADPNetworkMessageType = UADPNetworkMessageType.DiscoveryResponse;
+            UADPDiscoveryType = UADPNetworkMessageDiscoveryType.DataSetWriterConfiguration;
             DataSetWriterConfiguration = writerConfig;
             MessageStatusCodes = streamStatusCodes;
 
@@ -157,12 +155,12 @@ namespace Opc.Ua.PubSub.Encoding
         /// <summary>
         /// Get the UADP network message type
         /// </summary>
-        public UADPNetworkMessageType UADPNetworkMessageType => m_uadpNetworkMessageType;
+        public UADPNetworkMessageType UADPNetworkMessageType { get; private set; }
 
         /// <summary>
         /// Get the UADP network message discovery type
         /// </summary>
-        public UADPNetworkMessageDiscoveryType UADPDiscoveryType => m_discoveryType;
+        public UADPNetworkMessageDiscoveryType UADPDiscoveryType { get; private set; }
 
         /// <summary>
         /// Get/Set the StatusCodes
@@ -379,7 +377,7 @@ namespace Opc.Ua.PubSub.Encoding
         public override void Encode(IServiceMessageContext messageContext, Stream stream)
         {
             using var binaryEncoder = new BinaryEncoder(stream, messageContext, true);
-            if (m_uadpNetworkMessageType == UADPNetworkMessageType.DataSetMessage)
+            if (UADPNetworkMessageType == UADPNetworkMessageType.DataSetMessage)
             {
                 EncodeDataSetNetworkMessageType(binaryEncoder);
             }
@@ -387,11 +385,11 @@ namespace Opc.Ua.PubSub.Encoding
             {
                 EncodeNetworkMessageHeader(binaryEncoder);
 
-                if (m_uadpNetworkMessageType == UADPNetworkMessageType.DiscoveryResponse)
+                if (UADPNetworkMessageType == UADPNetworkMessageType.DiscoveryResponse)
                 {
                     EncodeDiscoveryResponse(binaryEncoder);
                 }
-                else if (m_uadpNetworkMessageType == UADPNetworkMessageType.DiscoveryRequest)
+                else if (UADPNetworkMessageType == UADPNetworkMessageType.DiscoveryRequest)
                 {
                     EncodeDiscoveryRequest(binaryEncoder);
                 }
@@ -411,7 +409,7 @@ namespace Opc.Ua.PubSub.Encoding
             DecodeNetworkMessageHeader(binaryDecoder);
 
             //decode network messages according to their type
-            if (m_uadpNetworkMessageType == UADPNetworkMessageType.DataSetMessage)
+            if (UADPNetworkMessageType == UADPNetworkMessageType.DataSetMessage)
             {
                 if (dataSetReaders == null || dataSetReaders.Count == 0)
                 {
@@ -420,11 +418,11 @@ namespace Opc.Ua.PubSub.Encoding
                 //decode bytes using dataset reader information
                 DecodeSubscribedDataSets(binaryDecoder, dataSetReaders);
             }
-            else if (m_uadpNetworkMessageType == UADPNetworkMessageType.DiscoveryResponse)
+            else if (UADPNetworkMessageType == UADPNetworkMessageType.DiscoveryResponse)
             {
                 DecodeDiscoveryResponse(binaryDecoder);
             }
-            else if (m_uadpNetworkMessageType == UADPNetworkMessageType.DiscoveryRequest)
+            else if (UADPNetworkMessageType == UADPNetworkMessageType.DiscoveryRequest)
             {
                 DecodeDiscoveryRequest(binaryDecoder);
             }
@@ -944,8 +942,7 @@ namespace Opc.Ua.PubSub.Encoding
                 // Collect DataSetSetMessages headers
                 for (int index = 0; index < DataSetMessages.Count; index++)
                 {
-                    var uadpDataSetMessage = DataSetMessages[index] as UadpDataSetMessage;
-                    if (uadpDataSetMessage != null && uadpDataSetMessage.DataSet != null)
+                    if (DataSetMessages[index] is UadpDataSetMessage uadpDataSetMessage && uadpDataSetMessage.DataSet != null)
                     {
                         encoder.WriteUInt16("DataSetWriterId", uadpDataSetMessage.DataSetWriterId);
                     }
@@ -1051,11 +1048,11 @@ namespace Opc.Ua.PubSub.Encoding
 
         private void EncodeDiscoveryResponse(BinaryEncoder binaryEncoder)
         {
-            binaryEncoder.WriteByte("ResponseType", (byte)m_discoveryType);
+            binaryEncoder.WriteByte("ResponseType", (byte)UADPDiscoveryType);
             // A strictly monotonically increasing sequence number assigned to each discovery response sent in the scope of a PublisherId.
             binaryEncoder.WriteUInt16("SequenceNumber", SequenceNumber);
 
-            switch (m_discoveryType)
+            switch (UADPDiscoveryType)
             {
                 case UADPNetworkMessageDiscoveryType.DataSetMetaData:
                     EncodeDataSetMetaData(binaryEncoder);
@@ -1072,7 +1069,7 @@ namespace Opc.Ua.PubSub.Encoding
         private void EncodeDiscoveryRequest(BinaryEncoder binaryEncoder)
         {
             // RequestType => InformationType
-            binaryEncoder.WriteByte("RequestType", (byte)m_discoveryType);
+            binaryEncoder.WriteByte("RequestType", (byte)UADPDiscoveryType);
             binaryEncoder.WriteUInt16Array("DataSetWriterIds", DataSetWriterIds);
         }
 
@@ -1103,15 +1100,15 @@ namespace Opc.Ua.PubSub.Encoding
             // calculate UADPNetworkMessageType
             if ((ExtendedFlags2 & ExtendedFlags2EncodingMask.NetworkMessageWithDiscoveryRequest) != 0)
             {
-                m_uadpNetworkMessageType = UADPNetworkMessageType.DiscoveryRequest;
+                UADPNetworkMessageType = UADPNetworkMessageType.DiscoveryRequest;
             }
             else if ((ExtendedFlags2 & ExtendedFlags2EncodingMask.NetworkMessageWithDiscoveryResponse) != 0)
             {
-                m_uadpNetworkMessageType = UADPNetworkMessageType.DiscoveryResponse;
+                UADPNetworkMessageType = UADPNetworkMessageType.DiscoveryResponse;
             }
             else
             {
-                m_uadpNetworkMessageType = UADPNetworkMessageType.DataSetMessage;
+                UADPNetworkMessageType = UADPNetworkMessageType.DataSetMessage;
             }
 
             // Decode PublisherId
@@ -1295,7 +1292,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="binaryDecoder"></param>
         private void DecodeDiscoveryRequest(BinaryDecoder binaryDecoder)
         {
-            m_discoveryType = (UADPNetworkMessageDiscoveryType)binaryDecoder.ReadByte("RequestType");
+            UADPDiscoveryType = (UADPNetworkMessageDiscoveryType)binaryDecoder.ReadByte("RequestType");
             DataSetWriterIds = binaryDecoder.ReadUInt16Array("DataSetWriterIds")?.ToArray();
         }
 
@@ -1305,11 +1302,11 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="binaryDecoder"></param>
         private void DecodeDiscoveryResponse(BinaryDecoder binaryDecoder)
         {
-            m_discoveryType = (UADPNetworkMessageDiscoveryType)binaryDecoder.ReadByte("ResponseType");
+            UADPDiscoveryType = (UADPNetworkMessageDiscoveryType)binaryDecoder.ReadByte("ResponseType");
             // A strictly monotonically increasing sequence number assigned to each discovery response sent in the scope of a PublisherId.
             SequenceNumber = binaryDecoder.ReadUInt16("SequenceNumber");
 
-            switch (m_discoveryType)
+            switch (UADPDiscoveryType)
             {
                 case UADPNetworkMessageDiscoveryType.DataSetMetaData:
                     DecodeMetaDataMessage(binaryDecoder);

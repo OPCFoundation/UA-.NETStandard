@@ -67,7 +67,8 @@ namespace Opc.Ua.Client.Tests
             if (Session is Session session)
             {
                 session.OperationLimits = null;
-                session.OperationLimits = new OperationLimits() {
+                session.OperationLimits = new OperationLimits()
+                {
                     MaxMonitoredItemsPerCall = kOperationLimit,
                     MaxNodesPerBrowse = kOperationLimit,
                     MaxNodesPerHistoryReadData = kOperationLimit,
@@ -132,7 +133,8 @@ namespace Opc.Ua.Client.Tests
             }
 
             var requestHeader = new RequestHeader();
-            ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() => {
+            ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
+            {
                 ResponseHeader responseHeader = Session.AddNodes(requestHeader,
                     nodesToAdd,
                     out AddNodesResultCollection results,
@@ -158,7 +160,8 @@ namespace Opc.Ua.Client.Tests
             }
 
             var requestHeader = new RequestHeader();
-            ServiceResultException sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () => {
+            ServiceResultException sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+            {
                 AddNodesResponse response = await Session.AddNodesAsync(requestHeader,
                     nodesToAdd, CancellationToken.None).ConfigureAwait(false);
 
@@ -185,7 +188,8 @@ namespace Opc.Ua.Client.Tests
             }
 
             var requestHeader = new RequestHeader();
-            ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() => {
+            ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
+            {
                 ResponseHeader responseHeader = Session.AddReferences(requestHeader,
                     referencesToAdd,
                     out StatusCodeCollection results,
@@ -211,7 +215,8 @@ namespace Opc.Ua.Client.Tests
             }
 
             var requestHeader = new RequestHeader();
-            ServiceResultException sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () => {
+            ServiceResultException sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+            {
                 AddReferencesResponse response = await Session.AddReferencesAsync(requestHeader,
                     referencesToAdd, CancellationToken.None).ConfigureAwait(false);
 
@@ -238,7 +243,8 @@ namespace Opc.Ua.Client.Tests
             }
 
             var requestHeader = new RequestHeader();
-            ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() => {
+            ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
+            {
                 ResponseHeader responseHeader = Session.DeleteNodes(requestHeader,
                     nodesTDelete,
                     out StatusCodeCollection results,
@@ -264,7 +270,8 @@ namespace Opc.Ua.Client.Tests
             }
 
             var requestHeader = new RequestHeader();
-            ServiceResultException sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () => {
+            ServiceResultException sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+            {
                 DeleteNodesResponse response = await Session.DeleteNodesAsync(requestHeader,
                     nodesTDelete, CancellationToken.None).ConfigureAwait(false);
 
@@ -291,7 +298,8 @@ namespace Opc.Ua.Client.Tests
             }
 
             var requestHeader = new RequestHeader();
-            ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() => {
+            ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
+            {
                 ResponseHeader responseHeader = Session.DeleteReferences(requestHeader,
                     referencesToDelete,
                     out StatusCodeCollection results,
@@ -317,7 +325,8 @@ namespace Opc.Ua.Client.Tests
             }
 
             var requestHeader = new RequestHeader();
-            ServiceResultException sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () => {
+            ServiceResultException sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
+            {
                 DeleteReferencesResponse response = await Session.DeleteReferencesAsync(requestHeader,
                     referencesToDelete, CancellationToken.None).ConfigureAwait(false);
 
@@ -338,7 +347,8 @@ namespace Opc.Ua.Client.Tests
         {
             // Browse template
             const uint startingNode = Objects.RootFolder;
-            var browseTemplate = new BrowseDescription {
+            var browseTemplate = new BrowseDescription
+            {
                 NodeId = startingNode,
                 BrowseDirection = BrowseDirection.Forward,
                 ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
@@ -399,7 +409,8 @@ namespace Opc.Ua.Client.Tests
 
             // read values
             var nodesToRead = new ReadValueIdCollection(referenceDescriptions.Select(r =>
-                new ReadValueId() {
+                new ReadValueId()
+                {
                     NodeId = ExpandedNodeId.ToNodeId(r.NodeId, Session.NamespaceUris),
                     AttributeId = Attributes.Value
                 }));
@@ -421,7 +432,8 @@ namespace Opc.Ua.Client.Tests
             {
                 if (StatusCode.IsGood(result.StatusCode))
                 {
-                    var writeValue = new WriteValue() {
+                    var writeValue = new WriteValue()
+                    {
                         AttributeId = Attributes.Value,
                         NodeId = nodesToRead[ii].NodeId,
                         Value = new DataValue(result.WrappedValue)
@@ -446,7 +458,8 @@ namespace Opc.Ua.Client.Tests
         {
             // Browse template
             const uint startingNode = Objects.RootFolder;
-            var browseTemplate = new BrowseDescription {
+            var browseTemplate = new BrowseDescription
+            {
                 NodeId = startingNode,
                 BrowseDirection = BrowseDirection.Forward,
                 ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
@@ -505,7 +518,8 @@ namespace Opc.Ua.Client.Tests
 
             // read values
             var nodesToRead = new ReadValueIdCollection(referenceDescriptions.Select(r =>
-                new ReadValueId() {
+                new ReadValueId()
+                {
                     NodeId = ExpandedNodeId.ToNodeId(r.NodeId, Session.NamespaceUris),
                     AttributeId = Attributes.Value
                 }));
@@ -527,7 +541,8 @@ namespace Opc.Ua.Client.Tests
             {
                 if (StatusCode.IsGood(result.StatusCode))
                 {
-                    var writeValue = new WriteValue() {
+                    var writeValue = new WriteValue()
+                    {
                         AttributeId = Attributes.Value,
                         NodeId = nodesToRead[ii].NodeId,
                         Value = new DataValue(result.WrappedValue)
@@ -553,7 +568,8 @@ namespace Opc.Ua.Client.Tests
         public void TranslateBrowsePathsToNodeIds()
         {
             var browsePaths = new BrowsePathCollection();
-            var browsePath = new BrowsePath() {
+            var browsePath = new BrowsePath()
+            {
                 StartingNode = ObjectIds.RootFolder,
                 RelativePath = new RelativePath("Objects")
             };
@@ -579,7 +595,8 @@ namespace Opc.Ua.Client.Tests
         public async Task TranslateBrowsePathsToNodeIdsAsync()
         {
             var browsePaths = new BrowsePathCollection();
-            var browsePath = new BrowsePath() {
+            var browsePath = new BrowsePath()
+            {
                 StartingNode = ObjectIds.RootFolder,
                 RelativePath = new RelativePath("Types")
             };
@@ -610,14 +627,16 @@ namespace Opc.Ua.Client.Tests
             // create a mix of historizing and dynamic nodes
             System.Collections.Generic.IList<NodeId> testSet = GetTestSetSimulation(Session.NamespaceUris);
             var nodesToRead = new HistoryReadValueIdCollection(
-                testSet.Select(nodeId => new HistoryReadValueId {
+                testSet.Select(nodeId => new HistoryReadValueId
+                {
                     NodeId = nodeId
                 }));
 
             // add a some real history nodes
             testSet = GetTestSetHistory(Session.NamespaceUris);
             nodesToRead.AddRange(
-                testSet.Select(nodeId => new HistoryReadValueId {
+                testSet.Select(nodeId => new HistoryReadValueId
+                {
                     NodeId = nodeId
                 }));
 
@@ -643,14 +662,16 @@ namespace Opc.Ua.Client.Tests
             // there are no historizing nodes, but create some real ones
             System.Collections.Generic.IList<NodeId> testSet = GetTestSetSimulation(Session.NamespaceUris);
             var nodesToRead = new HistoryReadValueIdCollection(
-                testSet.Select(nodeId => new HistoryReadValueId {
+                testSet.Select(nodeId => new HistoryReadValueId
+                {
                     NodeId = nodeId
                 }));
 
             // add a some real history nodes
             testSet = GetTestSetHistory(Session.NamespaceUris);
             nodesToRead.AddRange(
-                testSet.Select(nodeId => new HistoryReadValueId {
+                testSet.Select(nodeId => new HistoryReadValueId
+                {
                     NodeId = nodeId
                 }));
 
@@ -739,7 +760,8 @@ namespace Opc.Ua.Client.Tests
 
         private static ExtensionObject ReadRawModifiedDetails()
         {
-            var details = new ReadRawModifiedDetails {
+            var details = new ReadRawModifiedDetails
+            {
                 StartTime = DateTime.MinValue,
                 EndTime = DateTime.UtcNow.AddDays(1),
                 NumValuesPerNode = 1,
@@ -750,7 +772,8 @@ namespace Opc.Ua.Client.Tests
         }
         private static ExtensionObject ReadEventDetails()
         {
-            var details = new ReadEventDetails {
+            var details = new ReadEventDetails
+            {
                 NumValuesPerNode = 10,
                 Filter = DefaultEventFilter(),
                 StartTime = DateTime.UtcNow.AddSeconds(30),

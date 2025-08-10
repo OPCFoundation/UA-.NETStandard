@@ -22,17 +22,12 @@ namespace Opc.Ua
         /// </summary>
         public NotificationMessage Message
         {
-            get => m_handle as NotificationMessage; set => m_handle = value;
+            get => Handle as NotificationMessage; set => Handle = value;
         }
 
         /// <summary>
         /// A handle associated withe the event instance.
         /// </summary>
-        public object Handle
-        {
-            get => m_handle; set => m_handle = value;
-        }
-
-        private object m_handle;
+        public object Handle { get; set; }
     }
 }

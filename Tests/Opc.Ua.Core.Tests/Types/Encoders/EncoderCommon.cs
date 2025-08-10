@@ -81,7 +81,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [OneTimeSetUp]
         protected void OneTimeSetUp()
         {
-            Context = new ServiceMessageContext() {
+            Context = new ServiceMessageContext()
+            {
                 MaxArrayLength = kMaxArrayLength
             };
             NameSpaceUris = Context.NamespaceUris;
@@ -419,7 +420,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 TestContext.Out.WriteLine("Result:");
                 result = Encoding.UTF8.GetString(buffer);
                 formattedResult = PrettifyAndValidateJson(result);
-                var jsonLoadSettings = new JsonLoadSettings() {
+                var jsonLoadSettings = new JsonLoadSettings()
+                {
                     CommentHandling = CommentHandling.Ignore,
                     LineInfoHandling = LineInfoHandling.Ignore
                 };
@@ -460,7 +462,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 var document = new XmlDocument();
                 document.Load(xmlReader);
 
-                var settings = new XmlWriterSettings {
+                var settings = new XmlWriterSettings
+                {
                     OmitXmlDeclaration = true,
                     Indent = true,
                     NewLineOnAttributes = true
@@ -504,7 +507,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 using var stringWriter = new StringWriter();
                 using var stringReader = new StringReader(json);
                 using var jsonReader = new JsonTextReader(stringReader);
-                using var jsonWriter = new JsonTextWriter(stringWriter) {
+                using var jsonWriter = new JsonTextWriter(stringWriter)
+                {
                     FloatFormatHandling = FloatFormatHandling.String,
                     Formatting = Newtonsoft.Json.Formatting.Indented,
                     Culture = System.Globalization.CultureInfo.InvariantCulture
@@ -751,7 +755,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             else
             {
                 Type arrayType = value.GetType().GetElementType();
-                var enumerable = value as IEnumerable;
                 var array = value as Array;
                 if (builtInType == BuiltInType.Variant)
                 {
@@ -957,9 +960,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 return false;
             }
 
-            var encodeable = Activator.CreateInstance(systemType) as IEncodeable;
 
-            return encodeable != null;
+            return Activator.CreateInstance(systemType) is IEncodeable encodeable;
         }
 
         /// <summary>
@@ -1101,7 +1103,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             public new object MemberwiseClone()
             {
-                return new FooBarEncodeable(FieldName, Foo) {
+                return new FooBarEncodeable(FieldName, Foo)
+                {
                     Count = Count
                 };
             }
@@ -1229,7 +1232,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             public new object MemberwiseClone()
             {
-                return new DynamicEncodeable(m_xmlName, m_xmlNamespace, TypeId, BinaryEncodingId, XmlEncodingId, JsonEncodingId, m_fields.ToDictionary(kv => kv.Key, kv => kv.Value)) {
+                return new DynamicEncodeable(m_xmlName, m_xmlNamespace, TypeId, BinaryEncodingId, XmlEncodingId, JsonEncodingId, m_fields.ToDictionary(kv => kv.Key, kv => kv.Value))
+                {
                     Count = Count
                 };
             }

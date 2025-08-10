@@ -42,7 +42,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
             uint index = 0;
             var referenceTargets = new BlockingCollection<ExpandedNodeId>();
 
-            var task = Task.Run(() => {
+            var task = Task.Run(() =>
+            {
                 DateTime utcNow = DateTime.UtcNow;
 
                 while (DateTime.UtcNow - utcNow < TimeSpan.FromSeconds(3))
@@ -94,7 +95,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
             uint index = 0;
             var notifierTargets = new BlockingCollection<NodeState>();
 
-            var task = Task.Run(() => {
+            var task = Task.Run(() =>
+            {
                 DateTime utcNow = DateTime.UtcNow;
 
                 while (DateTime.UtcNow - utcNow < TimeSpan.FromSeconds(3))
@@ -154,7 +156,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
             uint index = 0;
             var childrenCollection = new BlockingCollection<BaseInstanceState>();
 
-            var task = Task.Run(() => {
+            var task = Task.Run(() =>
+            {
                 DateTime utcNow = DateTime.UtcNow;
 
                 while (DateTime.UtcNow - utcNow < TimeSpan.FromSeconds(3))

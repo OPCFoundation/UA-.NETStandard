@@ -138,7 +138,7 @@ namespace Opc.Ua.Client
         /// Gets the session managed by the handler.
         /// </summary>
         /// <value>The session.</value>
-        public ISession Session => m_session;
+        public ISession Session { get; private set; }
 
         /// <summary>
         /// The internal state of the reconnect handler.
@@ -172,7 +172,7 @@ namespace Opc.Ua.Client
 
                 if (m_state == ReconnectState.Triggered)
                 {
-                    m_session = null;
+                    Session = null;
                     EnterReadyState();
                     return;
                 }
@@ -206,7 +206,7 @@ namespace Opc.Ua.Client
                 {
                     if (m_state == ReconnectState.Triggered)
                     {
-                        m_session = null;
+                        Session = null;
                         EnterReadyState();
                         return m_state;
                     }
@@ -221,7 +221,7 @@ namespace Opc.Ua.Client
                 // ignore subsequent trigger requests
                 if (m_state == ReconnectState.Ready)
                 {
-                    m_session = session;
+                    Session = session;
                     m_baseReconnectPeriod = reconnectPeriod;
                     m_reconnectFailed = false;
                     m_cancelReconnect = false;
@@ -289,7 +289,7 @@ namespace Opc.Ua.Client
                 // check for exit.
                 lock (m_lock)
                 {
-                    if (m_reconnectTimer == null || m_session == null)
+                    if (m_reconnectTimer == null || Session == null)
                     {
                         return;
                     }
@@ -304,18 +304,18 @@ namespace Opc.Ua.Client
                 bool keepaliveRecovered = false;
 
                 // preserve legacy behavior if reconnectAbort is not set
-                if (m_session != null && m_reconnectAbort &&
-                    m_session.Connected && !m_session.KeepAliveStopped)
+                if (Session != null && m_reconnectAbort &&
+                    Session.Connected && !Session.KeepAliveStopped)
                 {
                     keepaliveRecovered = true;
                     // breaking change, the callback must only assign the new
                     // session if the property is != null
-                    Utils.LogInfo("Reconnect {0} aborted, KeepAlive recovered.", m_session?.SessionId);
-                    m_session = null;
+                    Utils.LogInfo("Reconnect {0} aborted, KeepAlive recovered.", Session?.SessionId);
+                    Session = null;
                 }
                 else
                 {
-                    Utils.LogInfo("Reconnect {0}.", m_session?.SessionId);
+                    Utils.LogInfo("Reconnect {0}.", Session?.SessionId);
                 }
 
                 // do the reconnect or recover state.
@@ -378,15 +378,15 @@ namespace Opc.Ua.Client
                     if (m_reverseConnectManager != null)
                     {
                         ITransportWaitingConnection connection = await m_reverseConnectManager.WaitForConnectionAsync(
-                                new Uri(m_session.Endpoint.EndpointUrl),
-                                m_session.Endpoint.Server.ApplicationUri
+                                new Uri(Session.Endpoint.EndpointUrl),
+                                Session.Endpoint.Server.ApplicationUri
                             ).ConfigureAwait(false);
 
-                        await m_session.ReconnectAsync(connection).ConfigureAwait(false);
+                        await Session.ReconnectAsync(connection).ConfigureAwait(false);
                     }
                     else
                     {
-                        await m_session.ReconnectAsync().ConfigureAwait(false);
+                        await Session.ReconnectAsync().ConfigureAwait(false);
                     }
 
                     // monitored items should start updating on their own.
@@ -407,7 +407,7 @@ namespace Opc.Ua.Client
                             StatusCodes.BadTimeout)
                         {
                             // check if reactivating is still an option.
-                            int timeout = Convert.ToInt32(m_session.SessionTimeout) - (HiResClock.TickCount - m_session.LastKeepAliveTickCount);
+                            int timeout = Convert.ToInt32(Session.SessionTimeout) - (HiResClock.TickCount - Session.LastKeepAliveTickCount);
                             if (timeout > 0)
                             {
                                 Utils.LogInfo("Retry to reactivate, est. session timeout in {0} ms.", timeout);
@@ -425,8 +425,8 @@ namespace Opc.Ua.Client
                         // recreate session immediately, use existing channel
                         else if (sre.StatusCode == StatusCodes.BadSessionIdInvalid)
                         {
-                            transportChannel = m_session.NullableTransportChannel;
-                            m_session.DetachChannel();
+                            transportChannel = Session.NullableTransportChannel;
+                            Session.DetachChannel();
                         }
                         else
                         {
@@ -454,7 +454,7 @@ namespace Opc.Ua.Client
                     ITransportWaitingConnection connection;
                     do
                     {
-                        EndpointDescription endpointDescription = m_session.Endpoint ?? transportChannel.EndpointDescription;
+                        EndpointDescription endpointDescription = Session.Endpoint ?? transportChannel.EndpointDescription;
 
                         connection = await m_reverseConnectManager.WaitForConnectionAsync(
                                 new Uri(endpointDescription.EndpointUrl),
@@ -463,7 +463,7 @@ namespace Opc.Ua.Client
 
                         if (m_updateFromServer)
                         {
-                            ConfiguredEndpoint endpoint = m_session.ConfiguredEndpoint;
+                            ConfiguredEndpoint endpoint = Session.ConfiguredEndpoint;
                             await endpoint.UpdateFromServerAsync(
                                 endpoint.EndpointUrl, connection,
                                 endpoint.Description.SecurityMode,
@@ -473,13 +473,13 @@ namespace Opc.Ua.Client
                         }
                     } while (connection == null);
 
-                    session = await m_session.SessionFactory.RecreateAsync(m_session, connection).ConfigureAwait(false);
+                    session = await Session.SessionFactory.RecreateAsync(Session, connection).ConfigureAwait(false);
                 }
                 else
                 {
                     if (m_updateFromServer)
                     {
-                        ConfiguredEndpoint endpoint = m_session.ConfiguredEndpoint;
+                        ConfiguredEndpoint endpoint = Session.ConfiguredEndpoint;
                         await endpoint.UpdateFromServerAsync(
                             endpoint.EndpointUrl,
                             endpoint.Description.SecurityMode,
@@ -487,11 +487,11 @@ namespace Opc.Ua.Client
                         m_updateFromServer = false;
                     }
 
-                    session = await m_session.SessionFactory.RecreateAsync(m_session, transportChannel).ConfigureAwait(false);
+                    session = await Session.SessionFactory.RecreateAsync(Session, transportChannel).ConfigureAwait(false);
                 }
                 // note: the template session is not connected at this point
                 //       and must be disposed by the owner
-                m_session = session;
+                Session = session;
                 return true;
             }
             catch (ServiceResultException sre)
@@ -534,7 +534,6 @@ namespace Opc.Ua.Client
         }
 
         private readonly object m_lock = new();
-        private ISession m_session;
         private ReconnectState m_state;
         private readonly Random m_random;
         private bool m_reconnectFailed;

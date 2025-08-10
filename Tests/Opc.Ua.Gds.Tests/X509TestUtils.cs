@@ -71,8 +71,10 @@ namespace Opc.Ua.Gds.Tests
             // verify cert with issuer chain
             var certValidator = new CertificateValidator();
             var issuerStore = new CertificateTrustList();
-            var trustedStore = new CertificateTrustList();
-            trustedStore.TrustedCertificates = issuerCertIdCollection;
+            var trustedStore = new CertificateTrustList
+            {
+                TrustedCertificates = issuerCertIdCollection
+            };
             certValidator.Update(trustedStore, issuerStore, null);
             NUnit.Framework.Assert.That(() => certValidator.Validate(newCert), Throws.Exception);
             issuerStore.TrustedCertificates = issuerCertIdCollection;

@@ -30,7 +30,7 @@ namespace Opc.Ua
         /// <param name="nodeClass">The node class.</param>
         protected NodeState(NodeClass nodeClass)
         {
-            m_nodeClass = nodeClass;
+            NodeClass = nodeClass;
         }
 
         /// <summary>
@@ -131,10 +131,10 @@ namespace Opc.Ua
         /// <param name="source">The source node.</param>
         protected virtual void Initialize(ISystemContext context, NodeState source)
         {
-            m_handle = source.m_handle;
-            m_symbolicName = source.m_symbolicName;
+            Handle = source.Handle;
+            SymbolicName = source.SymbolicName;
             m_nodeId = source.m_nodeId;
-            m_nodeClass = source.m_nodeClass;
+            NodeClass = source.NodeClass;
             m_browseName = source.m_browseName;
             m_displayName = source.m_displayName;
             m_description = source.m_description;
@@ -144,7 +144,7 @@ namespace Opc.Ua
             m_changeMasks = NodeStateChangeMasks.None;
 
             // set the initialization flags.
-            m_initialized = true;
+            Initialized = true;
 
             var children = new List<BaseInstanceState>();
             source.GetChildren(context, children);
@@ -205,19 +205,16 @@ namespace Opc.Ua
 
             if (!QualifiedName.IsNull(m_browseName))
             {
-                return string.Format(formatProvider, "[{0}]{1}", m_nodeClass, m_displayName);
+                return string.Format(formatProvider, "[{0}]{1}", NodeClass, m_displayName);
             }
 
-            return string.Format(formatProvider, "[{0}]{1}", m_nodeClass, m_nodeId);
+            return string.Format(formatProvider, "[{0}]{1}", NodeClass, m_nodeId);
         }
 
         /// <summary>
         /// An arbitrary handle associated with the node.
         /// </summary>
-        public object Handle
-        {
-            get => m_handle; set => m_handle = value;
-        }
+        public object Handle { get; set; }
 
         /// <summary>
         /// What has changed in the node since <see cref="ClearChangeMasks"/> was last called.
@@ -235,10 +232,7 @@ namespace Opc.Ua
         /// <remarks>
         /// This string can only contain characters that are valid for an XML element name.
         /// </remarks>
-        public string SymbolicName
-        {
-            get => m_symbolicName; set => m_symbolicName = value;
-        }
+        public string SymbolicName { get; set; }
 
         /// <summary>
         /// The identifier for the node.
@@ -263,7 +257,7 @@ namespace Opc.Ua
         /// The class for the node.
         /// </summary>
         /// <value>The node class that is a description of the node.</value>
-        public NodeClass NodeClass => m_nodeClass;
+        public NodeClass NodeClass { get; private set; }
 
         /// <summary>
         /// The browse name of the node.
@@ -423,10 +417,7 @@ namespace Opc.Ua
         /// <value>
         /// The extensions.
         /// </value>
-        public XmlElement[] Extensions
-        {
-            get => m_extensions; set => m_extensions = value;
-        }
+        public XmlElement[] Extensions { get; set; }
 
         /// <summary>
         /// The categories assigned to the node.
@@ -445,8 +436,7 @@ namespace Opc.Ua
         /// <param name="table">A table of nodes.</param>
         public void Export(ISystemContext context, NodeTable table)
         {
-            Node node = null;
-
+            Node node;
             switch (NodeClass)
             {
                 case NodeClass.Object:
@@ -530,7 +520,8 @@ namespace Opc.Ua
         /// <param name="ostrm">The stream to write.</param>
         public void SaveAsXml(ISystemContext context, Stream ostrm)
         {
-            var messageContext = new ServiceMessageContext {
+            var messageContext = new ServiceMessageContext
+            {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
                 Factory = context.EncodeableFactory
@@ -559,7 +550,8 @@ namespace Opc.Ua
         /// <param name="ostrm">The stream to write.</param>
         public void SaveAsBinary(ISystemContext context, Stream ostrm)
         {
-            var messageContext = new ServiceMessageContext {
+            var messageContext = new ServiceMessageContext
+            {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
                 Factory = context.EncodeableFactory
@@ -601,7 +593,8 @@ namespace Opc.Ua
         /// <param name="istrm">The stream to read.</param>
         public void LoadAsBinary(ISystemContext context, Stream istrm)
         {
-            var messageContext = new ServiceMessageContext {
+            var messageContext = new ServiceMessageContext
+            {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
                 Factory = context.EncodeableFactory
@@ -810,9 +803,9 @@ namespace Opc.Ua
         {
             AttributesToSave attributesToSave = AttributesToSave.None;
 
-            if (!string.IsNullOrEmpty(m_symbolicName))
+            if (!string.IsNullOrEmpty(SymbolicName))
             {
-                if (m_browseName == null || m_symbolicName != m_browseName.Name)
+                if (m_browseName == null || SymbolicName != m_browseName.Name)
                 {
                     attributesToSave |= AttributesToSave.SymbolicName;
                 }
@@ -864,11 +857,11 @@ namespace Opc.Ua
         /// <param name="attributesToSave">The masks indicating what attributes to write.</param>
         public virtual void Save(ISystemContext context, BinaryEncoder encoder, AttributesToSave attributesToSave)
         {
-            encoder.WriteEnumerated(null, m_nodeClass);
+            encoder.WriteEnumerated(null, NodeClass);
 
             if ((attributesToSave & AttributesToSave.SymbolicName) != 0)
             {
-                encoder.WriteString(null, m_symbolicName);
+                encoder.WriteString(null, SymbolicName);
             }
 
             if ((attributesToSave & AttributesToSave.BrowseName) != 0)
@@ -912,12 +905,12 @@ namespace Opc.Ua
         {
             if ((attributesToLoad & AttributesToSave.NodeClass) != 0)
             {
-                m_nodeClass = (NodeClass)decoder.ReadEnumerated(null, typeof(NodeClass));
+                NodeClass = (NodeClass)decoder.ReadEnumerated(null, typeof(NodeClass));
             }
 
             if ((attributesToLoad & AttributesToSave.SymbolicName) != 0)
             {
-                m_symbolicName = decoder.ReadString(null);
+                SymbolicName = decoder.ReadString(null);
             }
 
             if ((attributesToLoad & AttributesToSave.BrowseName) != 0)
@@ -925,9 +918,9 @@ namespace Opc.Ua
                 m_browseName = decoder.ReadQualifiedName(null);
             }
 
-            if (string.IsNullOrEmpty(m_symbolicName) && m_browseName != null)
+            if (string.IsNullOrEmpty(SymbolicName) && m_browseName != null)
             {
-                m_symbolicName = m_browseName.Name;
+                SymbolicName = m_browseName.Name;
             }
 
             if ((attributesToLoad & AttributesToSave.NodeId) != 0)
@@ -1021,12 +1014,10 @@ namespace Opc.Ua
         protected BaseInstanceState UpdateChild(ISystemContext context, BinaryDecoder decoder)
         {
             var attributesToLoad = (AttributesToSave)decoder.ReadUInt32(null);
-
-            NodeClass nodeClass = NodeClass.Unspecified;
             string symbolicName = null;
             QualifiedName browseName = null;
 
-            nodeClass = (NodeClass)decoder.ReadEnumerated(null, typeof(NodeClass));
+            var nodeClass = (NodeClass)decoder.ReadEnumerated(null, typeof(NodeClass));
             attributesToLoad &= ~AttributesToSave.NodeClass;
 
             if ((attributesToLoad & AttributesToSave.SymbolicName) != 0)
@@ -1091,12 +1082,10 @@ namespace Opc.Ua
             BinaryDecoder decoder)
         {
             var attributesToLoad = (AttributesToSave)decoder.ReadUInt32(null);
-
-            NodeClass nodeClass = NodeClass.Unspecified;
             string symbolicName = null;
             QualifiedName browseName = null;
 
-            nodeClass = (NodeClass)decoder.ReadEnumerated(null, typeof(NodeClass));
+            var nodeClass = (NodeClass)decoder.ReadEnumerated(null, typeof(NodeClass));
             attributesToLoad &= ~AttributesToSave.NodeClass;
 
             if ((attributesToLoad & AttributesToSave.SymbolicName) != 0)
@@ -1223,7 +1212,8 @@ namespace Opc.Ua
         /// <param name="reader">The stream to read.</param>
         public void LoadFromXml(ISystemContext context, XmlReader reader)
         {
-            var messageContext = new ServiceMessageContext {
+            var messageContext = new ServiceMessageContext
+            {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
                 Factory = context.EncodeableFactory
@@ -1280,12 +1270,7 @@ namespace Opc.Ua
         public void LoadFromXml(ISystemContext context, XmlDecoder decoder)
         {
             // get the name of the child element.
-            XmlQualifiedName symbolicName = decoder.Peek(XmlNodeType.Element);
-
-            if (symbolicName == null)
-            {
-                throw ServiceResultException.Create(StatusCodes.BadDecodingError, "Expecting an XML start element in stream.");
-            }
+            XmlQualifiedName symbolicName = decoder.Peek(XmlNodeType.Element) ?? throw ServiceResultException.Create(StatusCodes.BadDecodingError, "Expecting an XML start element in stream.");
 
             // map to a namespace index.
             int namespaceIndex = context.NamespaceUris.GetIndex(symbolicName.Namespace);
@@ -1318,7 +1303,7 @@ namespace Opc.Ua
         {
             encoder.PushNamespace(Namespaces.OpcUaXsd);
 
-            encoder.WriteEnumerated("NodeClass", m_nodeClass);
+            encoder.WriteEnumerated("NodeClass", NodeClass);
 
             if (!NodeId.IsNull(m_nodeId))
             {
@@ -1423,7 +1408,7 @@ namespace Opc.Ua
             decoder.PopNamespace();
 
             // set the initialization flags.
-            m_initialized = true;
+            Initialized = true;
         }
 
         /// <summary>
@@ -1848,16 +1833,11 @@ namespace Opc.Ua
                 nodeClass,
                 browseName,
                 null,
-                null);
-
-            if (child == null)
-            {
-                throw ServiceResultException.Create(
+                null) ?? throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
                     "Could not load node '{0}', with NodeClass {1}",
                     browseName,
                     nodeClass);
-            }
 
             // update symbolic name.
             child.SymbolicName = symbolicName;
@@ -1910,16 +1890,11 @@ namespace Opc.Ua
                 nodeClass,
                 browseName,
                 null,
-                null);
-
-            if (child == null)
-            {
-                throw ServiceResultException.Create(
+                null) ?? throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
                     "Could not load node '{0}', with NodeClass {1}",
                     browseName,
                     nodeClass);
-            }
 
             // update symbolic name.
             child.SymbolicName = childName.Name;
@@ -2216,10 +2191,7 @@ namespace Opc.Ua
         /// <summary>
         /// True if the node and its children have been initialized.
         /// </summary>
-        public bool Initialized
-        {
-            get => m_initialized; set => m_initialized = value;
-        }
+        public bool Initialized { get; set; }
 
         /// <summary>
         /// True if the node must be validated with the underlying system before use.
@@ -2836,7 +2808,7 @@ namespace Opc.Ua
             IEnumerable<IReference> additionalReferences,
             bool internalOnly)
         {
-            NodeBrowser browser = OnCreateBrowser?.Invoke(
+            NodeBrowser browser = (OnCreateBrowser?.Invoke(
                 context,
                 this,
                 view,
@@ -2845,12 +2817,7 @@ namespace Opc.Ua
                 browseDirection,
                 browseName,
                 additionalReferences,
-                internalOnly);
-
-            // use default browser.
-            if (browser == null)
-            {
-                browser = new NodeBrowser(
+                internalOnly)) ?? new NodeBrowser(
                     context,
                     view,
                     referenceType,
@@ -2859,7 +2826,6 @@ namespace Opc.Ua
                     browseName,
                     additionalReferences,
                     internalOnly);
-            }
 
             PopulateBrowser(context, browser);
 
@@ -2928,8 +2894,7 @@ namespace Opc.Ua
                             continue;
                         }
 
-                        string targetPath = null;
-
+                        string targetPath;
                         if (!hierarchy.TryGetValue(targetId, out targetPath))
                         {
                             references.Add(new NodeStateHierarchyReference(browsePath, reference));
@@ -3123,8 +3088,7 @@ namespace Opc.Ua
                     }
                     else
                     {
-                        IList<IReference> references = null;
-
+                        IList<IReference> references;
                         if (browserBrowseDirection != BrowseDirection.Inverse)
                         {
                             if (browserIncludeSubtypes)
@@ -3269,9 +3233,10 @@ namespace Opc.Ua
                 return StatusCodes.BadStructureMissing;
             }
 
-            ServiceResult result = null;
             object valueToRead = value.Value;
 
+
+            ServiceResult result;
             // read value attribute.
             if (attributeId == Attributes.Value)
             {
@@ -3372,7 +3337,7 @@ namespace Opc.Ua
                     return result;
 
                 case Attributes.NodeClass:
-                    NodeClass nodeClass = m_nodeClass;
+                    NodeClass nodeClass = NodeClass;
 
                     NodeAttributeEventHandler<NodeClass> onReadNodeClass = OnReadNodeClass;
 
@@ -3717,7 +3682,7 @@ namespace Opc.Ua
 
                     if (ServiceResult.IsGood(result))
                     {
-                        m_nodeClass = nodeClass;
+                        NodeClass = nodeClass;
                     }
 
                     return result;
@@ -4147,7 +4112,8 @@ namespace Opc.Ua
         /// </summary>
         public PropertyState AddProperty<T>(string propertyName, NodeId dataTypeId, int valueRank)
         {
-            PropertyState property = new PropertyState<T>(this) {
+            PropertyState property = new PropertyState<T>(this)
+            {
                 ReferenceTypeId = ReferenceTypeIds.HasProperty,
                 ModellingRuleId = null,
                 TypeDefinitionId = VariableTypeIds.PropertyType,
@@ -4696,10 +4662,7 @@ namespace Opc.Ua
         private readonly object m_notifiersLock = new();
         private readonly object m_referencesLock = new();
         private readonly object m_childrenLock = new();
-        private object m_handle;
-        private string m_symbolicName;
         private NodeId m_nodeId;
-        private NodeClass m_nodeClass;
         private QualifiedName m_browseName;
         private LocalizedText m_displayName;
         private LocalizedText m_description;
@@ -4710,9 +4673,7 @@ namespace Opc.Ua
         private AccessRestrictionType? m_accessRestrictions;
         private IReferenceDictionary<object> m_references;
         private int m_areEventsMonitored;
-        private bool m_initialized;
         private List<Notifier> m_notifiers;
-        private XmlElement[] m_extensions;
     }
 
     /// <summary>

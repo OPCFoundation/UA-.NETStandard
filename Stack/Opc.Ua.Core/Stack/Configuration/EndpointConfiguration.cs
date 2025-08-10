@@ -24,7 +24,8 @@ namespace Opc.Ua
         /// </summary>
         public static EndpointConfiguration Create()
         {
-            return new EndpointConfiguration {
+            return new EndpointConfiguration
+            {
                 // message defaults
                 OperationTimeout = TcpMessageLimits.DefaultOperationTimeout,
                 UseBinaryEncoding = true,
@@ -52,7 +53,8 @@ namespace Opc.Ua
                 return Create();
             }
 
-            return new EndpointConfiguration {
+            return new EndpointConfiguration
+            {
                 OperationTimeout = applicationConfiguration.TransportQuotas.OperationTimeout,
                 UseBinaryEncoding = true,
                 MaxArrayLength = applicationConfiguration.TransportQuotas.MaxArrayLength,
@@ -81,14 +83,8 @@ namespace Opc.Ua
         /// The number of times the decoder can recover from an error
         /// caused by an encoded ExtensionObject before throwing a decoder error.
         /// </summary>
-        public int MaxDecoderRecoveries
-        {
-            get => m_maxDecoderRecoveries;
-
-            set => m_maxDecoderRecoveries = value;
-        }
+        public int MaxDecoderRecoveries { get; set; }
 
         private int m_maxEncodingNestingLevels;
-        private int m_maxDecoderRecoveries;
     }
 }

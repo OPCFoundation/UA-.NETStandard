@@ -88,7 +88,7 @@ namespace Opc.Ua
         /// <summary>
         /// The directory containing the certificate store.
         /// </summary>
-        public DirectoryInfo Directory => m_directory;
+        public DirectoryInfo Directory { get; private set; }
 
         /// <inheritdoc/>
         public void Open(string location, bool noPrivateKeys = false)
@@ -98,23 +98,23 @@ namespace Opc.Ua
                 string trimmedLocation = Utils.ReplaceSpecialFolderNames(location);
                 DirectoryInfo directory = !string.IsNullOrEmpty(trimmedLocation) ? new DirectoryInfo(trimmedLocation) : null;
                 if (directory == null ||
-                    m_directory?.FullName.Equals(directory.FullName, StringComparison.Ordinal) != true ||
+                    Directory?.FullName.Equals(directory.FullName, StringComparison.Ordinal) != true ||
                     NoPrivateKeys != noPrivateKeys)
                 {
                     NoPrivateKeys = noPrivateKeys;
                     StorePath = location;
-                    m_directory = directory;
-                    if (m_noSubDirs || m_directory == null)
+                    Directory = directory;
+                    if (m_noSubDirs || Directory == null)
                     {
-                        m_certificateSubdir = m_directory;
-                        m_crlSubdir = m_directory;
-                        m_privateKeySubdir = !noPrivateKeys ? m_directory : null;
+                        m_certificateSubdir = Directory;
+                        m_crlSubdir = Directory;
+                        m_privateKeySubdir = !noPrivateKeys ? Directory : null;
                     }
                     else
                     {
-                        m_certificateSubdir = new DirectoryInfo(Path.Combine(m_directory.FullName, kCertsPath));
-                        m_crlSubdir = new DirectoryInfo(Path.Combine(m_directory.FullName, kCrlPath));
-                        m_privateKeySubdir = !noPrivateKeys ? new DirectoryInfo(Path.Combine(m_directory.FullName, kPrivateKeyPath)) : null;
+                        m_certificateSubdir = new DirectoryInfo(Path.Combine(Directory.FullName, kCertsPath));
+                        m_crlSubdir = new DirectoryInfo(Path.Combine(Directory.FullName, kCrlPath));
+                        m_privateKeySubdir = !noPrivateKeys ? new DirectoryInfo(Path.Combine(Directory.FullName, kPrivateKeyPath)) : null;
                     }
 
                     // force load
@@ -269,7 +269,8 @@ namespace Opc.Ua
                         FileInfo fileInfo = WriteFile(certificate.RawData, fileName, false, true);
 
                         // add entry
-                        entry = new Entry {
+                        entry = new Entry
+                        {
                             Certificate = certificate,
                             CertificateFile = fileInfo,
                             PrivateKeyFile = null,
@@ -985,7 +986,8 @@ namespace Opc.Ua
 
                         foreach (X509Certificate2 certificate in certificatesInFile)
                         {
-                            var entry = new Entry {
+                            var entry = new Entry
+                            {
                                 Certificate = certificate,
                                 CertificateFile = file,
                                 PrivateKeyFile = null,
@@ -1125,9 +1127,9 @@ namespace Opc.Ua
         {
             var filePath = new StringBuilder();
 
-            if (!m_directory.Exists)
+            if (!Directory.Exists)
             {
-                m_directory.Create();
+                Directory.Create();
             }
 
             if (includePrivateKey)
@@ -1193,7 +1195,6 @@ namespace Opc.Ua
 
         private readonly object m_lock = new();
         private readonly bool m_noSubDirs;
-        private DirectoryInfo m_directory;
         private DirectoryInfo m_certificateSubdir;
         private DirectoryInfo m_crlSubdir;
         private DirectoryInfo m_privateKeySubdir;

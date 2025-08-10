@@ -54,7 +54,8 @@ namespace Opc.Ua.PubSub
         {
             DecodeErrorReason = DataSetDecodeErrorReason.NoError;
             Timestamp = DateTime.UtcNow;
-            MetaDataVersion = new ConfigurationVersionDataType() {
+            MetaDataVersion = new ConfigurationVersionDataType()
+            {
                 MajorVersion = kDefaultConfigMajorVersion,
                 MinorVersion = kDefaultConfigMinorVersion
             };

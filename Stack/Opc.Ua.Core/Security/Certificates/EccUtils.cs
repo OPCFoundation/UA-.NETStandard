@@ -303,11 +303,7 @@ namespace Opc.Ua
             {
                 throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
             }
-            using ECDsa publicKey = GetPublicKey(signingCertificate);
-            if (publicKey == null)
-            {
-                throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
-            }
+            using ECDsa publicKey = GetPublicKey(signingCertificate) ?? throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
 
             return publicKey.KeySize / 4;
         }
@@ -407,12 +403,7 @@ namespace Opc.Ua
                 return signature;
             }
 #endif
-            ECDsa senderPrivateKey = signingCertificate.GetECDsaPrivateKey();
-
-            if (senderPrivateKey == null)
-            {
-                throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Missing private key needed for create a signature.");
-            }
+            ECDsa senderPrivateKey = signingCertificate.GetECDsaPrivateKey() ?? throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Missing private key needed for create a signature.");
 
             using (senderPrivateKey)
             {
@@ -839,8 +830,7 @@ namespace Opc.Ua
             byte[] keyLength = BitConverter.GetBytes((ushort)(encryptingKeySize + blockSize));
             byte[] salt = Utils.Append(keyLength, s_Label, senderNonce.Data, receiverNonce.Data);
 
-            byte[] keyData = null;
-
+            byte[] keyData;
             if (forDecryption)
             {
                 keyData = receiverNonce.DeriveKey(senderNonce, salt, algorithmName, encryptingKeySize + blockSize);
@@ -1040,10 +1030,7 @@ namespace Opc.Ua
                 }
 
                 // validate the sender.
-                if (Validator != null)
-                {
-                    Validator.Validate(senderCertificateChain);
-                }
+                Validator?.Validate(senderCertificateChain);
             }
 
             // extract the send certificate and any chain.
@@ -1113,39 +1100,31 @@ namespace Opc.Ua
         /// <returns>The decrypted data.</returns>
         public byte[] Decrypt(DateTime earliestTime, byte[] expectedNonce, byte[] data, int offset, int count)
         {
-            byte[] encryptingKey = null;
-            byte[] iv = null;
-            byte[] secret = null;
-
             ArraySegment<byte> dataToDecrypt = VerifyHeaderForEcc(new ArraySegment<byte>(data, offset, count), earliestTime);
 
-            CreateKeysForEcc(SecurityPolicyUri, SenderNonce, ReceiverNonce, true, out encryptingKey, out iv);
+            CreateKeysForEcc(SecurityPolicyUri, SenderNonce, ReceiverNonce, true, out byte[] encryptingKey, out byte[] iv);
 
             ArraySegment<byte> plainText = DecryptSecret(dataToDecrypt.Array, dataToDecrypt.Offset, dataToDecrypt.Count, encryptingKey, iv);
 
-            using (var decoder = new BinaryDecoder(plainText.Array, plainText.Offset, plainText.Count, ServiceMessageContext.GlobalContext))
+            using var decoder = new BinaryDecoder(plainText.Array, plainText.Offset, plainText.Count, ServiceMessageContext.GlobalContext);
+            byte[] actualNonce = decoder.ReadByteString(null);
+
+            if (expectedNonce != null && expectedNonce.Length > 0)
             {
-                byte[] actualNonce = decoder.ReadByteString(null);
+                int notvalid = (expectedNonce.Length == actualNonce.Length) ? 0 : 1;
 
-                if (expectedNonce != null && expectedNonce.Length > 0)
+                for (int ii = 0; ii < expectedNonce.Length && ii < actualNonce.Length; ii++)
                 {
-                    int notvalid = (expectedNonce.Length == actualNonce.Length) ? 0 : 1;
-
-                    for (int ii = 0; ii < expectedNonce.Length && ii < actualNonce.Length; ii++)
-                    {
-                        notvalid |= expectedNonce[ii] ^ actualNonce[ii];
-                    }
-
-                    if (notvalid != 0)
-                    {
-                        throw new ServiceResultException(StatusCodes.BadNonceInvalid);
-                    }
+                    notvalid |= expectedNonce[ii] ^ actualNonce[ii];
                 }
 
-                secret = decoder.ReadByteString(null);
+                if (notvalid != 0)
+                {
+                    throw new ServiceResultException(StatusCodes.BadNonceInvalid);
+                }
             }
 
-            return secret;
+            return decoder.ReadByteString(null);
         }
 #else
         /// <summary>

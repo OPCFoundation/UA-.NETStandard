@@ -98,11 +98,7 @@ namespace Opc.Ua
         /// </summary>
         internal static int GetSignatureLength(X509Certificate2 signingCertificate)
         {
-            using RSA rsa = signingCertificate.GetRSAPublicKey();
-            if (rsa == null)
-            {
-                throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
-            }
+            using RSA rsa = signingCertificate.GetRSAPublicKey() ?? throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
             return rsa.KeySize / 8;
         }
 
@@ -116,11 +112,7 @@ namespace Opc.Ua
             RSASignaturePadding rsaSignaturePadding)
         {
             // extract the private key.
-            using RSA rsa = signingCertificate.GetRSAPrivateKey();
-            if (rsa == null)
-            {
-                throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No private key for certificate.");
-            }
+            using RSA rsa = signingCertificate.GetRSAPrivateKey() ?? throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No private key for certificate.");
 
             // create the signature.
             return rsa.SignData(dataToSign.Array, dataToSign.Offset, dataToSign.Count, hashAlgorithm, rsaSignaturePadding);
@@ -137,11 +129,7 @@ namespace Opc.Ua
             RSASignaturePadding rsaSignaturePadding)
         {
             // extract the public key.
-            using RSA rsa = signingCertificate.GetRSAPublicKey();
-            if (rsa == null)
-            {
-                throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
-            }
+            using RSA rsa = signingCertificate.GetRSAPublicKey() ?? throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
 
             // verify signature.
             return rsa.VerifyData(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count, signature, hashAlgorithm, rsaSignaturePadding);
@@ -155,11 +143,7 @@ namespace Opc.Ua
             X509Certificate2 encryptingCertificate,
             Padding padding)
         {
-            using RSA rsa = encryptingCertificate.GetRSAPublicKey();
-            if (rsa == null)
-            {
-                throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
-            }
+            using RSA rsa = encryptingCertificate.GetRSAPublicKey() ?? throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
 
             int plaintextBlockSize = GetPlainTextBlockSize(rsa, padding);
             int blockCount = ((dataToEncrypt.Length + 4) / plaintextBlockSize) + 1;
@@ -236,11 +220,7 @@ namespace Opc.Ua
             X509Certificate2 encryptingCertificate,
             Padding padding)
         {
-            using RSA rsa = encryptingCertificate.GetRSAPrivateKey();
-            if (rsa == null)
-            {
-                throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No private key for certificate.");
-            }
+            using RSA rsa = encryptingCertificate.GetRSAPrivateKey() ?? throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No private key for certificate.");
 
             int plainTextSize = dataToDecrypt.Count / GetCipherTextBlockSize(rsa, padding);
             plainTextSize *= GetPlainTextBlockSize(encryptingCertificate, padding);
@@ -331,7 +311,8 @@ namespace Opc.Ua
         /// <summary>
         /// Lazy helper to allow runtime to check for Pss support.
         /// </summary>
-        internal static readonly Lazy<bool> IsSupportingRSAPssSign = new(() => {
+        internal static readonly Lazy<bool> IsSupportingRSAPssSign = new(() =>
+        {
 #if NETFRAMEWORK
             // The Pss check returns false on .Net4.6/4.7, although it is always supported with certs.
             // but not supported with Mono

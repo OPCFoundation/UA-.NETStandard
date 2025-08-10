@@ -98,13 +98,15 @@ namespace Opc.Ua.Bindings
 
             m_activeClients.AddOrUpdate(ipAddress,
                 // If client is new , create a new entry
-                key => new ActiveClient {
+                key => new ActiveClient
+                {
                     LastActionTicks = currentTicks,
                     ActiveActionCount = 1,
                     BlockedUntilTicks = 0
                 },
                 // If the client exists, update its entry
-                (key, existingEntry) => {
+                (key, existingEntry) =>
+                {
                     // If IP currently blocked simply do nothing
                     if (IsBlockedTicks(existingEntry.BlockedUntilTicks, currentTicks))
                     {
@@ -294,7 +296,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The Id of the transport listener.
         /// </summary>
-        public string ListenerId => m_listenerId;
+        public string ListenerId { get; private set; }
 
         /// <summary>
         /// Opens the listener and starts accepting connection.
@@ -310,15 +312,16 @@ namespace Opc.Ua.Bindings
             ITransportListenerCallback callback)
         {
             // assign a unique guid to the listener.
-            m_listenerId = Guid.NewGuid().ToString();
+            ListenerId = Guid.NewGuid().ToString();
 
-            m_uri = baseAddress;
+            EndpointUrl = baseAddress;
             m_descriptions = settings.Descriptions;
             EndpointConfiguration configuration = settings.Configuration;
 
             // initialize the quotas.
             m_quotas = new ChannelQuotas();
-            var messageContext = new ServiceMessageContext() {
+            var messageContext = new ServiceMessageContext()
+            {
                 NamespaceUris = settings.NamespaceUris,
                 ServerUris = new StringTable(),
                 Factory = settings.Factory
@@ -348,7 +351,7 @@ namespace Opc.Ua.Bindings
             m_bufferManager = new BufferManager("Server", m_quotas.MaxBufferSize);
             m_channels = new ConcurrentDictionary<uint, TcpListenerChannel>();
             m_reverseConnectListener = settings.ReverseConnectListener;
-            m_maxChannelCount = settings.MaxChannelCount;
+            MaxChannelCount = settings.MaxChannelCount;
 
             // save the callback to the server.
             m_callback = callback;
@@ -391,7 +394,7 @@ namespace Opc.Ua.Bindings
         /// Gets the URL for the listener's endpoint.
         /// </summary>
         /// <value>The URL for the listener's endpoint.</value>
-        public Uri EndpointUrl => m_uri;
+        public Uri EndpointUrl { get; private set; }
 
         /// <summary>
         /// Binds a new socket to an existing channel.
@@ -452,7 +455,7 @@ namespace Opc.Ua.Bindings
         public void CreateReverseConnection(Uri url, int timeout)
         {
             var channel = new TcpServerChannel(
-                m_listenerId,
+                ListenerId,
                 this,
                 m_bufferManager,
                 m_quotas,
@@ -521,22 +524,23 @@ namespace Opc.Ua.Bindings
                 }
 
                 // ensure a valid port.
-                int port = m_uri.Port;
+                int port = EndpointUrl.Port;
 
                 if (port is <= 0 or > ushort.MaxValue)
                 {
                     port = Utils.UaTcpDefaultPort;
                 }
 
-                UriHostNameType hostType = Uri.CheckHostName(m_uri.Host);
+                UriHostNameType hostType = Uri.CheckHostName(EndpointUrl.Host);
                 bool bindToSpecifiedAddress = hostType is not UriHostNameType.Dns and not UriHostNameType.Unknown and not UriHostNameType.Basic;
-                IPAddress ipAddress = bindToSpecifiedAddress ? IPAddress.Parse(m_uri.Host) : IPAddress.Any;
+                IPAddress ipAddress = bindToSpecifiedAddress ? IPAddress.Parse(EndpointUrl.Host) : IPAddress.Any;
 
                 // create IPv4 or IPv6 socket.
                 try
                 {
                     var endpoint = new IPEndPoint(ipAddress, port);
-                    m_listeningSocket = new Socket(endpoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp) {
+                    m_listeningSocket = new Socket(endpoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp)
+                    {
                         NoDelay = true,
                         LingerState = new LingerOption(true, 5),
                     };
@@ -573,11 +577,13 @@ namespace Opc.Ua.Bindings
                     try
                     {
                         var endpointIPv6 = new IPEndPoint(IPAddress.IPv6Any, port);
-                        m_listeningSocketIPv6 = new Socket(endpointIPv6.AddressFamily, SocketType.Stream, ProtocolType.Tcp) {
+                        m_listeningSocketIPv6 = new Socket(endpointIPv6.AddressFamily, SocketType.Stream, ProtocolType.Tcp)
+                        {
                             NoDelay = true,
                             LingerState = new LingerOption(true, 5),
                         };
-                        var args = new SocketAsyncEventArgs() {
+                        var args = new SocketAsyncEventArgs()
+                        {
                             UserToken = m_listeningSocketIPv6
                         };
                         args.Completed += OnAccept;
@@ -761,7 +767,7 @@ namespace Opc.Ua.Bindings
 
                         // Remove oldest channel that does not have a session attached to it
                         // before reaching m_maxChannelCount
-                        if (m_maxChannelCount > 0 && m_maxChannelCount == channelCount)
+                        if (MaxChannelCount > 0 && MaxChannelCount == channelCount)
                         {
                             KeyValuePair<uint, TcpListenerChannel>[] snapshot = [.. channels];
 
@@ -783,11 +789,11 @@ namespace Opc.Ua.Bindings
                             }
                         }
 
-                        bool serveChannel = !(m_maxChannelCount > 0 && m_maxChannelCount < channelCount);
+                        bool serveChannel = !(MaxChannelCount > 0 && MaxChannelCount < channelCount);
                         if (!serveChannel)
                         {
                             Utils.LogError("OnAccept: Maximum number of channels {0} reached, serving channels is stopped until number is lower or equal than {1} ",
-                                channelCount, m_maxChannelCount);
+                                channelCount, MaxChannelCount);
                             Utils.SilentDispose(e.AcceptSocket);
                         }
 
@@ -801,7 +807,7 @@ namespace Opc.Ua.Bindings
                                 {
                                     // create the channel to manage incoming reverse connections.
                                     channel = new TcpReverseConnectChannel(
-                                        m_listenerId,
+                                        ListenerId,
                                         this,
                                         m_bufferManager,
                                         m_quotas,
@@ -811,7 +817,7 @@ namespace Opc.Ua.Bindings
                                 {
                                     // create the channel to manage incoming connections.
                                     channel = new TcpServerChannel(
-                                        m_listenerId,
+                                        ListenerId,
                                         this,
                                         m_bufferManager,
                                         m_quotas,
@@ -909,7 +915,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The maximum number of secure channels
         /// </summary>
-        public int MaxChannelCount => m_maxChannelCount;
+        public int MaxChannelCount { get; private set; }
 
         /// <summary>
         /// Handles requests arriving from a channel.
@@ -941,10 +947,7 @@ namespace Opc.Ua.Bindings
         {
             try
             {
-                if (m_callback != null)
-                {
-                    m_callback.ReportAuditOpenSecureChannelEvent(channel.GlobalChannelId, channel.EndpointDescription, request, clientCertificate, exception);
-                }
+                m_callback?.ReportAuditOpenSecureChannelEvent(channel.GlobalChannelId, channel.EndpointDescription, request, clientCertificate, exception);
             }
             catch (Exception e)
             {
@@ -959,10 +962,7 @@ namespace Opc.Ua.Bindings
         {
             try
             {
-                if (m_callback != null)
-                {
-                    m_callback.ReportAuditCloseSecureChannelEvent(channel.GlobalChannelId, exception);
-                }
+                m_callback?.ReportAuditCloseSecureChannelEvent(channel.GlobalChannelId, exception);
             }
             catch (Exception e)
             {
@@ -977,10 +977,7 @@ namespace Opc.Ua.Bindings
         {
             try
             {
-                if (m_callback != null)
-                {
-                    m_callback.ReportAuditCertificateEvent(clientCertificate, exception);
-                }
+                m_callback?.ReportAuditCertificateEvent(clientCertificate, exception);
             }
             catch (Exception e)
             {
@@ -1041,8 +1038,6 @@ namespace Opc.Ua.Bindings
         }
 
         private readonly object m_lock = new();
-        private string m_listenerId;
-        private Uri m_uri;
         private EndpointDescriptionCollection m_descriptions;
         private BufferManager m_bufferManager;
         private ChannelQuotas m_quotas;
@@ -1055,8 +1050,6 @@ namespace Opc.Ua.Bindings
         private bool m_reverseConnectListener;
         private int m_inactivityDetectPeriod;
         private Timer m_inactivityDetectionTimer;
-        private int m_maxChannelCount;
-
         private ActiveClientTracker m_activeClientTracker;
     }
 

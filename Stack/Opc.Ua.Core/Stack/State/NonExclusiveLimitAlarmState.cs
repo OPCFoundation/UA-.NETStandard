@@ -46,8 +46,7 @@ namespace Opc.Ua
             }
 
             // select an appropriate effective display name for the active state.
-            TranslationInfo displayName = null;
-
+            TranslationInfo displayName;
             if ((limit & LimitAlarmStates.HighHigh) != 0)
             {
                 displayName = new TranslationInfo(
@@ -96,8 +95,7 @@ namespace Opc.Ua
         /// <param name="active">if set to <c>true</c> is the state is active.</param>
         private static void UpdateState(TwoStateVariableState limit, bool active)
         {
-            TranslationInfo state = null;
-
+            TranslationInfo state;
             if (active)
             {
                 state = new TranslationInfo(

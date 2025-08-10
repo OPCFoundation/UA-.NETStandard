@@ -68,7 +68,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             var generalNames = new List<GeneralName>();
             for (int i = 0; i < domainNames.Count; i++)
             {
-                int domainType = GeneralName.OtherName;
+                int domainType;
                 switch (Uri.CheckHostName(domainNames[i]))
                 {
                     case UriHostNameType.Dns:

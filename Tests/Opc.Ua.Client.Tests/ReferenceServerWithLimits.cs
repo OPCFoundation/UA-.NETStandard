@@ -274,13 +274,8 @@ namespace Opc.Ua.Client.Tests
 
             if (view != null && !NodeId.IsNull(view.ViewId))
             {
-                INodeManager viewManager = null;
-                object viewHandle = GetManagerHandle(view.ViewId, out viewManager);
-
-                if (viewHandle == null)
-                {
-                    throw new ServiceResultException(StatusCodes.BadViewIdUnknown);
-                }
+                INodeManager viewManager;
+                object viewHandle = GetManagerHandle(view.ViewId, out viewManager) ?? throw new ServiceResultException(StatusCodes.BadViewIdUnknown);
 
                 NodeMetadata metadata = viewManager.GetNodeMetadata(context, viewHandle, BrowseResultMask.NodeClass);
 
@@ -325,11 +320,13 @@ namespace Opc.Ua.Client.Tests
                 BrowseDescription nodeToBrowse = nodesToBrowse[ii];
 
                 // initialize result.
-                var result = new BrowseResult();
-                result.StatusCode = StatusCodes.Good;
+                var result = new BrowseResult
+                {
+                    StatusCode = StatusCodes.Good
+                };
                 results.Add(result);
 
-                ServiceResult error = null;
+                ServiceResult error;
 
                 // need to trap unexpected exceptions to handle bugs in the node managers.
                 try

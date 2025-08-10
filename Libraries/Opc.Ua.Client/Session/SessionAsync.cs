@@ -128,7 +128,8 @@ namespace Opc.Ua.Client
             // send the application instance certificate for the client.
             BuildCertificateData(out byte[] clientCertificateData, out byte[] clientCertificateChainData);
 
-            var clientDescription = new ApplicationDescription {
+            var clientDescription = new ApplicationDescription
+            {
                 ApplicationUri = m_configuration.ApplicationUri,
                 ApplicationName = m_configuration.ApplicationName,
                 ApplicationType = ApplicationType.Client,
@@ -616,9 +617,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task FetchTypeTreeAsync(ExpandedNodeId typeId, CancellationToken ct = default)
         {
-            var node = await NodeCache.FindAsync(typeId, ct).ConfigureAwait(false) as Node;
-
-            if (node != null)
+            if (await NodeCache.FindAsync(typeId, ct).ConfigureAwait(false) is Node node)
             {
                 var subTypes = new ExpandedNodeIdCollection();
                 foreach (IReference reference in node.Find(ReferenceTypeIds.HasSubtype, false))
@@ -865,7 +864,8 @@ namespace Opc.Ua.Client
             var itemsToRead = new ReadValueIdCollection();
             foreach (uint attributeId in attributes.Keys)
             {
-                var itemToRead = new ReadValueId {
+                var itemToRead = new ReadValueId
+                {
                     NodeId = nodeId,
                     AttributeId = attributeId
                 };
@@ -893,7 +893,8 @@ namespace Opc.Ua.Client
             NodeId nodeId,
             CancellationToken ct = default)
         {
-            var itemToRead = new ReadValueId {
+            var itemToRead = new ReadValueId
+            {
                 NodeId = nodeId,
                 AttributeId = Attributes.Value
             };
@@ -938,7 +939,8 @@ namespace Opc.Ua.Client
             // read all values from server.
             var itemsToRead = new ReadValueIdCollection(
                 nodeIds.Select(nodeId =>
-                    new ReadValueId {
+                    new ReadValueId
+                    {
                         NodeId = nodeId,
                         AttributeId = Attributes.Value
                     }));
@@ -993,7 +995,8 @@ namespace Opc.Ua.Client
             using var bytes = new MemoryStream();
             while (true)
             {
-                var valueToRead = new ReadValueId {
+                var valueToRead = new ReadValueId
+                {
                     NodeId = nodeId,
                     AttributeId = Attributes.Value,
                     IndexRange = new NumericRange(offset, offset + count - 1).ToString(),
@@ -1035,8 +1038,7 @@ namespace Opc.Ua.Client
                     throw new ServiceResultException(serviceResult);
                 }
 
-                byte[] chunk = results[0].Value as byte[];
-                if (chunk == null || chunk.Length == 0)
+                if (results[0].Value is not byte[] chunk || chunk.Length == 0)
                 {
                     break;
                 }
@@ -1071,7 +1073,8 @@ namespace Opc.Ua.Client
             var browseDescriptions = new BrowseDescriptionCollection();
             foreach (NodeId nodeToBrowse in nodesToBrowse)
             {
-                var description = new BrowseDescription {
+                var description = new BrowseDescription
+                {
                     NodeId = nodeToBrowse,
                     BrowseDirection = browseDirection,
                     ReferenceTypeId = referenceTypeId,
@@ -1476,7 +1479,8 @@ namespace Opc.Ua.Client
                 }
             }
 
-            var request = new CallMethodRequest {
+            var request = new CallMethodRequest
+            {
                 ObjectId = objectId,
                 MethodId = methodId,
                 InputArguments = inputArguments
@@ -1750,10 +1754,11 @@ namespace Opc.Ua.Client
                 try
                 {
                     // close the session and delete all subscriptions if specified.
-                    var requestHeader = new RequestHeader() {
+                    var requestHeader = new RequestHeader()
+                    {
                         TimeoutHint = timeout > 0 ? (uint)timeout : (uint)(OperationTimeout > 0 ? OperationTimeout : 0),
                     };
-                    CloseSessionResponse response = await base.CloseSessionAsync(requestHeader, m_deleteSubscriptionsOnClose, ct).ConfigureAwait(false);
+                    CloseSessionResponse response = await base.CloseSessionAsync(requestHeader, DeleteSubscriptionsOnClose, ct).ConfigureAwait(false);
 
                     if (closeChannel)
                     {
@@ -1914,7 +1919,8 @@ namespace Opc.Ua.Client
         public async Task<(bool, ServiceResult)> RepublishAsync(uint subscriptionId, uint sequenceNumber, CancellationToken ct)
         {
             // send republish request.
-            var requestHeader = new RequestHeader {
+            var requestHeader = new RequestHeader
+            {
                 TimeoutHint = (uint)OperationTimeout,
                 ReturnDiagnostics = (uint)(int)ReturnDiagnostics,
                 RequestHandle = Utils.IncrementIdentifier(ref m_publishCounter)

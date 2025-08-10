@@ -189,10 +189,6 @@ namespace Opc.Ua
                 return false;
             }
 
-            ActivityTraceId traceId = default;
-            ActivitySpanId spanId = default;
-            ActivityTraceFlags traceFlags = ActivityTraceFlags.None;
-
             foreach (KeyValuePair item in parameters.Parameters)
             {
                 if (item.Key == "traceparent")
@@ -208,10 +204,9 @@ namespace Opc.Ua
                         ReadOnlySpan<char> spanIdSpan = traceparent.AsSpan(secondDash + 1, thirdDash - secondDash - 1);
                         ReadOnlySpan<char> traceFlagsSpan = traceparent.AsSpan(thirdDash + 1);
 
-                        traceId = ActivityTraceId.CreateFromString(traceIdSpan);
-                        spanId = ActivitySpanId.CreateFromString(spanIdSpan);
-                        traceFlags = traceFlagsSpan.SequenceEqual("01".AsSpan()) ? ActivityTraceFlags.Recorded : ActivityTraceFlags.None;
-
+                        var traceId = ActivityTraceId.CreateFromString(traceIdSpan);
+                        var spanId = ActivitySpanId.CreateFromString(spanIdSpan);
+                        ActivityTraceFlags traceFlags = traceFlagsSpan.SequenceEqual("01".AsSpan()) ? ActivityTraceFlags.Recorded : ActivityTraceFlags.None;
                         activityContext = new ActivityContext(traceId, spanId, traceFlags);
                         return true;
                     }
@@ -341,7 +336,8 @@ namespace Opc.Ua
                 IServiceResponse response = ProcessRequestAsyncResult.WaitForComplete(result, false);
 
                 // encode the response.
-                return new InvokeServiceResponseMessage {
+                return new InvokeServiceResponseMessage
+                {
                     InvokeServiceResponse = BinaryEncoder.EncodeMessage(response, MessageContext)
                 };
             }
@@ -351,7 +347,8 @@ namespace Opc.Ua
                 ServiceFault fault = CreateFault(ProcessRequestAsyncResult.GetRequest(result), e);
 
                 // encode the fault as a response.
-                return new InvokeServiceResponseMessage {
+                return new InvokeServiceResponseMessage
+                {
                     InvokeServiceResponse = BinaryEncoder.EncodeMessage(fault, MessageContext)
                 };
             }
@@ -389,12 +386,7 @@ namespace Opc.Ua
         protected IServerBase GetServerForContext()
         {
             // get the server associated with the host.
-            IServerBase server = HostForContext.Server;
-
-            if (server == null)
-            {
-                throw new ServiceResultException(StatusCodes.BadInternalError, "The endpoint is not associated with a server instance.");
-            }
+            IServerBase server = HostForContext.Server ?? throw new ServiceResultException(StatusCodes.BadInternalError, "The endpoint is not associated with a server instance.");
 
             // check the server status.
             if (ServiceResult.IsBad(server.ServerError))
@@ -418,8 +410,7 @@ namespace Opc.Ua
         /// </summary>
         protected ServiceDefinition FindService(ExpandedNodeId requestTypeId)
         {
-            ServiceDefinition service = null;
-
+            ServiceDefinition service;
             if (!SupportedServices.TryGetValue(requestTypeId, out service))
             {
                 throw ServiceResultException.Create(
@@ -454,8 +445,7 @@ namespace Opc.Ua
                 }
             }
 
-            ServiceResult result = null;
-
+            ServiceResult result;
             if (exception is ServiceResultException sre)
             {
                 result = new ServiceResult(sre);
@@ -635,13 +625,13 @@ namespace Opc.Ua
             /// Gets the request.
             /// </summary>
             /// <value>The request.</value>
-            public IServiceRequest Request => m_request;
+            public IServiceRequest Request { get; private set; }
 
             /// <summary>
             /// Gets the secure channel context associated with the request.
             /// </summary>
             /// <value>The secure channel context.</value>
-            public SecureChannelContext SecureChannelContext => m_context;
+            public SecureChannelContext SecureChannelContext { get; private set; }
 
             /// <summary>
             /// Gets or sets the call data associated with the request.
@@ -695,19 +685,19 @@ namespace Opc.Ua
                 SecureChannelContext context,
                 byte[] requestData)
             {
-                m_context = context;
+                SecureChannelContext = context;
 
                 try
                 {
                     // decoding incoming message.
-                    m_request = BinaryDecoder.DecodeMessage(requestData, null, m_endpoint.MessageContext) as IServiceRequest;
+                    Request = BinaryDecoder.DecodeMessage(requestData, null, m_endpoint.MessageContext) as IServiceRequest;
 
                     // find service.
-                    m_service = m_endpoint.FindService(m_request.TypeId);
+                    m_service = m_endpoint.FindService(Request.TypeId);
 
                     if (m_service == null)
                     {
-                        throw ServiceResultException.Create(StatusCodes.BadServiceUnsupported, "'{0}' is an unrecognized service type.", m_request.TypeId);
+                        throw ServiceResultException.Create(StatusCodes.BadServiceUnsupported, "'{0}' is an unrecognized service type.", Request.TypeId);
                     }
 
                     // queue request.
@@ -735,17 +725,17 @@ namespace Opc.Ua
                 SecureChannelContext context,
                 IServiceRequest request)
             {
-                m_context = context;
-                m_request = request;
+                SecureChannelContext = context;
+                Request = request;
 
                 try
                 {
                     // find service.
-                    m_service = m_endpoint.FindService(m_request.TypeId);
+                    m_service = m_endpoint.FindService(Request.TypeId);
 
                     if (m_service == null)
                     {
-                        throw ServiceResultException.Create(StatusCodes.BadServiceUnsupported, "'{0}' is an unrecognized service type.", m_request.TypeId);
+                        throw ServiceResultException.Create(StatusCodes.BadServiceUnsupported, "'{0}' is an unrecognized service type.", Request.TypeId);
                     }
 
                     // queue request.
@@ -798,7 +788,7 @@ namespace Opc.Ua
             {
                 if (ar is ProcessRequestAsyncResult result)
                 {
-                    return result.m_request;
+                    return result.Request;
                 }
 
                 return null;
@@ -812,7 +802,7 @@ namespace Opc.Ua
             {
                 try
                 {
-                    return CreateFault(m_request, e);
+                    return CreateFault(Request, e);
                 }
                 catch (Exception e2)
                 {
@@ -828,28 +818,28 @@ namespace Opc.Ua
                 try
                 {
                     // set the context.
-                    SecureChannelContext.Current = m_context;
+                    SecureChannelContext.Current = SecureChannelContext;
 
                     if (ActivitySource.HasListeners())
                     {
                         // extract trace information from the request header if available
-                        if (m_request.RequestHeader?.AdditionalHeader?.Body is AdditionalParametersType parameters &&
+                        if (Request.RequestHeader?.AdditionalHeader?.Body is AdditionalParametersType parameters &&
                             TryExtractActivityContextFromParameters(parameters, out ActivityContext activityContext))
                         {
-                            using Activity activity = ActivitySource.StartActivity(m_request.GetType().Name, ActivityKind.Server, activityContext);
+                            using Activity activity = ActivitySource.StartActivity(Request.GetType().Name, ActivityKind.Server, activityContext);
                             // call the service.
-                            m_response = m_service.Invoke(m_request);
+                            m_response = m_service.Invoke(Request);
                         }
                         else
                         {
                             // call the service even when there is no trace information
-                            m_response = m_service.Invoke(m_request);
+                            m_response = m_service.Invoke(Request);
                         }
                     }
                     else
                     {
                         // no listener, directly call the service.
-                        m_response = m_service.Invoke(m_request);
+                        m_response = m_service.Invoke(Request);
                     }
                 }
                 catch (Exception e)
@@ -864,8 +854,6 @@ namespace Opc.Ua
             }
 
             private readonly EndpointBase m_endpoint;
-            private SecureChannelContext m_context;
-            private IServiceRequest m_request;
             private IServiceResponse m_response;
             private ServiceDefinition m_service;
             private Exception m_error;

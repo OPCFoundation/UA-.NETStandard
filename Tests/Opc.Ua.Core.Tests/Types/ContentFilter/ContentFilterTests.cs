@@ -67,7 +67,8 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             FilterContext = new FilterContext(namespaceTable, typeTable);
 
             // event filter must be specified.
-            Filter = new EventFilter {
+            Filter = new EventFilter
+            {
                 WhereClause = new Ua.ContentFilter()
             };
 
@@ -108,7 +109,8 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             loperand2.Value = new Variant(operandFirst2);
             loperand3.Value = new Variant(operandFirst3);
 
-            var filterElement = new ContentFilterElement {
+            var filterElement = new ContentFilterElement
+            {
                 FilterOperator = FilterOperator.Between
             };
             filterElement.SetOperands(new List<LiteralOperand>() { loperand1, loperand2, loperand3 });
@@ -135,7 +137,8 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             loperand3.Value = new Variant(operandFirst3);
             loperand4.Value = new Variant(operandFirst4);
 
-            var filterElement = new ContentFilterElement {
+            var filterElement = new ContentFilterElement
+            {
                 FilterOperator = FilterOperator.InList
             };
             filterElement.SetOperands(new List<LiteralOperand>() { loperand1, loperand2, loperand3, loperand4 });
@@ -154,11 +157,13 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
 
         public void UnaryFilterOperators(object operandFirst1, FilterOperator filterOp, object expectedResult)
         {
-            var loperand1 = new LiteralOperand {
+            var loperand1 = new LiteralOperand
+            {
                 Value = new Variant(operandFirst1)
             };
 
-            var filterElement = new ContentFilterElement {
+            var filterElement = new ContentFilterElement
+            {
                 FilterOperator = filterOp
             };
             filterElement.SetOperands(new List<LiteralOperand>() { loperand1 });
@@ -205,7 +210,8 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
                 loperand2.Value = new Variant(operandFirst2);
             }
 
-            var filterElement = new ContentFilterElement {
+            var filterElement = new ContentFilterElement
+            {
                 FilterOperator = filterOp
             };
             filterElement.SetOperands(new List<LiteralOperand>() { loperand1, loperand2 });
@@ -237,17 +243,20 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
                 loperand2.Value = new Variant(operandFirst2);
             }
 
-            var filterElement1 = new ContentFilterElement {
+            var filterElement1 = new ContentFilterElement
+            {
                 FilterOperator = filterOp1
             };
             filterElement1.SetOperands([loperand1, loperand2]);
 
             // Setup the Second ContentfilterElement
-            var elementOperand = new ElementOperand {
+            var elementOperand = new ElementOperand
+            {
                 Index = 1 // link to filterElement1
             };
 
-            var filterElement2 = new ContentFilterElement {
+            var filterElement2 = new ContentFilterElement
+            {
                 FilterOperator = filterOp2
             };
             filterElement2.SetOperands([elementOperand]);
@@ -287,20 +296,24 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
                 loperand2.Value = new Variant(operandFirst2);
             }
 
-            var filterElement1 = new ContentFilterElement {
+            var filterElement1 = new ContentFilterElement
+            {
                 FilterOperator = filterOp1
             };
             filterElement1.SetOperands([loperand1, loperand2]);
 
             // Setup the Second ContentfilterElement
-            var lFirstOperand = new LiteralOperand {
+            var lFirstOperand = new LiteralOperand
+            {
                 Value = new Variant(operandSecondFilter)
             };
-            var elementOperand = new ElementOperand {
+            var elementOperand = new ElementOperand
+            {
                 Index = 1 // link to filterElement1
             };
 
-            var filterElement2 = new ContentFilterElement {
+            var filterElement2 = new ContentFilterElement
+            {
                 FilterOperator = filterOp2
             };
             filterElement2.SetOperands([lFirstOperand, elementOperand]);
@@ -325,7 +338,8 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             var loperand1 = new LiteralOperand { Value = new Variant(operandFirst1) };
             var loperand2 = new LiteralOperand { Value = new Variant(operandFirst2) };
 
-            var filterElement = new ContentFilterElement {
+            var filterElement = new ContentFilterElement
+            {
                 FilterOperator = FilterOperator.Equals
             };
             filterElement.SetOperands(new List<LiteralOperand>() { loperand1, loperand2 });

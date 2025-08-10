@@ -238,19 +238,23 @@ namespace Opc.Ua.Client.Tests
             // cast Innerchannel to ISessionChannel
             ITransportChannel channel = client.TransportChannel;
 
-            var sessionClient = new SessionClient(channel) {
+            var sessionClient = new SessionClient(channel)
+            {
                 ReturnDiagnostics = DiagnosticsMasks.All
             };
 
-            var request = new ReadRequest {
+            var request = new ReadRequest
+            {
                 RequestHeader = null
             };
 
-            var readMessage = new ReadMessage() {
+            var readMessage = new ReadMessage()
+            {
                 ReadRequest = request,
             };
 
-            var readValueId = new ReadValueId() {
+            var readValueId = new ReadValueId()
+            {
                 NodeId = new NodeId(Guid.NewGuid()),
                 AttributeId = Attributes.Value
             };
@@ -316,7 +320,8 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(110)]
         public async Task InvalidConfiguration()
         {
-            var applicationInstance = new ApplicationInstance() {
+            var applicationInstance = new ApplicationInstance()
+            {
                 ApplicationName = ClientFixture.Config.ApplicationName
             };
             Assert.NotNull(applicationInstance);
@@ -454,7 +459,8 @@ namespace Opc.Ua.Client.Tests
             var quitEvent = new ManualResetEvent(false);
             var reconnectHandler = new SessionReconnectHandler(reconnectAbort, useMaxReconnectPeriod ? MaxTimeout : -1);
             reconnectHandler.BeginReconnect(session, connectTimeout / 5,
-                (sender, e) => {
+                (sender, e) =>
+                {
                     // ignore callbacks from discarded objects.
                     if (!ReferenceEquals(sender, reconnectHandler))
                     {
@@ -510,7 +516,8 @@ namespace Opc.Ua.Client.Tests
         {
             const string identityToken = "fakeTokenString";
 
-            var issuedToken = new IssuedIdentityToken() {
+            var issuedToken = new IssuedIdentityToken()
+            {
                 IssuedTokenType = IssuedTokenType.JWT,
                 PolicyId = Profiles.JwtUserToken,
                 DecryptedTokenData = Encoding.UTF8.GetBytes(identityToken)
@@ -536,7 +543,8 @@ namespace Opc.Ua.Client.Tests
         {
             static UserIdentity CreateUserIdentity(string tokenData)
             {
-                var issuedToken = new IssuedIdentityToken() {
+                var issuedToken = new IssuedIdentityToken()
+                {
                     IssuedTokenType = IssuedTokenType.JWT,
                     PolicyId = Profiles.JwtUserToken,
                     DecryptedTokenData = Encoding.UTF8.GetBytes(tokenData)
@@ -556,7 +564,7 @@ namespace Opc.Ua.Client.Tests
             Assert.AreEqual(identityToken, receivedToken);
 
             const string newIdentityToken = "fakeTokenStringNew";
-            session.RenewUserIdentity += (s, i) => CreateUserIdentity(newIdentityToken);
+            session.RenewUserIdentity += (_, _) => CreateUserIdentity(newIdentityToken);
 
             session.Reconnect();
             receivedToken = Encoding.UTF8.GetString(TokenValidator.LastIssuedToken.DecryptedTokenData);
@@ -783,7 +791,7 @@ namespace Opc.Ua.Client.Tests
             bool success = session2.ApplySessionConfiguration(sessionConfiguration);
 
             // hook callback to renew the user identity
-            session2.RenewUserIdentity += (session, identity) => userIdentity;
+            session2.RenewUserIdentity += (_, _) => userIdentity;
 
             // activate the session from saved session secrets on the new channel
             if (asyncReconnect)
@@ -855,7 +863,7 @@ namespace Opc.Ua.Client.Tests
             Assert.NotNull(value1);
 
             // hook callback to renew the user identity
-            session1.RenewUserIdentity += (session, identity) => userIdentityPW;
+            session1.RenewUserIdentity += (_, _) => userIdentityPW;
 
             Session session2;
             if (async)
@@ -1086,9 +1094,11 @@ namespace Opc.Ua.Client.Tests
             if (OperationLimits == null)
             { GetOperationLimits(); }
 
-            var requestHeader = new RequestHeader();
-            requestHeader.Timestamp = DateTime.UtcNow;
-            requestHeader.TimeoutHint = MaxTimeout;
+            var requestHeader = new RequestHeader
+            {
+                Timestamp = DateTime.UtcNow,
+                TimeoutHint = MaxTimeout
+            };
 
             // Session
             ISession session;
@@ -1160,9 +1170,11 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(480)]
         public void Subscription()
         {
-            var requestHeader = new RequestHeader();
-            requestHeader.Timestamp = DateTime.UtcNow;
-            requestHeader.TimeoutHint = MaxTimeout;
+            var requestHeader = new RequestHeader
+            {
+                Timestamp = DateTime.UtcNow,
+                TimeoutHint = MaxTimeout
+            };
 
             var clientTestServices = new ClientTestServices(Session);
             CommonTestWorkers.SubscriptionTest(clientTestServices, requestHeader);
@@ -1385,7 +1397,8 @@ namespace Opc.Ua.Client.Tests
             ISession transferSession = null;
             try
             {
-                var requestHeader = new RequestHeader {
+                var requestHeader = new RequestHeader
+                {
                     Timestamp = DateTime.UtcNow,
                     TimeoutHint = MaxTimeout
                 };
@@ -1402,7 +1415,8 @@ namespace Opc.Ua.Client.Tests
                 transferSession = await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.Basic256Sha256, Endpoints).ConfigureAwait(false);
                 Assert.AreNotEqual(Session.SessionId, transferSession.SessionId);
 
-                requestHeader = new RequestHeader {
+                requestHeader = new RequestHeader
+                {
                     Timestamp = DateTime.UtcNow,
                     TimeoutHint = MaxTimeout
                 };
@@ -1410,7 +1424,8 @@ namespace Opc.Ua.Client.Tests
                 CommonTestWorkers.TransferSubscriptionTest(transferTestServices, requestHeader, subscriptionIds, sendInitialData, false);
 
                 // verify the notification of message transfer
-                requestHeader = new RequestHeader {
+                requestHeader = new RequestHeader
+                {
                     Timestamp = DateTime.UtcNow,
                     TimeoutHint = MaxTimeout
                 };
@@ -1455,10 +1470,6 @@ namespace Opc.Ua.Client.Tests
                 return default;
             }
 
-            ActivityTraceId traceId = default;
-            ActivitySpanId spanId = default;
-            ActivityTraceFlags traceFlags = ActivityTraceFlags.None;
-
             foreach (KeyValuePair item in parameters.Parameters)
             {
                 if (item.Key == "traceparent")
@@ -1474,10 +1485,9 @@ namespace Opc.Ua.Client.Tests
                         ReadOnlySpan<char> spanIdSpan = traceparent.AsSpan(secondDash + 1, thirdDash - secondDash - 1);
                         ReadOnlySpan<char> traceFlagsSpan = traceparent.AsSpan(thirdDash + 1);
 
-                        traceId = ActivityTraceId.CreateFromString(traceIdSpan);
-                        spanId = ActivitySpanId.CreateFromString(spanIdSpan);
-                        traceFlags = traceFlagsSpan.SequenceEqual("01".AsSpan()) ? ActivityTraceFlags.Recorded : ActivityTraceFlags.None;
-
+                        var traceId = ActivityTraceId.CreateFromString(traceIdSpan);
+                        var spanId = ActivitySpanId.CreateFromString(spanIdSpan);
+                        ActivityTraceFlags traceFlags = traceFlagsSpan.SequenceEqual("01".AsSpan()) ? ActivityTraceFlags.Recorded : ActivityTraceFlags.None;
                         return new ActivityContext(traceId, spanId, traceFlags);
                     }
                     return default;
@@ -1491,13 +1501,15 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(900)]
         public async Task ClientTestRequestHeaderUpdate()
         {
-            Activity rootActivity = new Activity("Test_Activity_Root") {
+            Activity rootActivity = new Activity("Test_Activity_Root")
+            {
                 ActivityTraceFlags = ActivityTraceFlags.Recorded,
             }.Start();
 
-            var activityListener = new ActivityListener {
-                ShouldListenTo = s => true,
-                Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllDataAndRecorded,
+            var activityListener = new ActivityListener
+            {
+                ShouldListenTo = _ => true,
+                Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
             };
 
             ActivitySource.AddActivityListener(activityListener);
@@ -1514,8 +1526,10 @@ namespace Opc.Ua.Client.Tests
                     Mock<ISessionChannel> sessionChannelMock = channelMock.As<ISessionChannel>();
 
                     var testableTraceableRequestHeaderClientSession = new TestableTraceableRequestHeaderClientSession(sessionChannelMock.Object, ClientFixture.Config, endpoint);
-                    var request = new CreateSessionRequest();
-                    request.RequestHeader = new RequestHeader();
+                    var request = new CreateSessionRequest
+                    {
+                        RequestHeader = new RequestHeader()
+                    };
 
                     // Mock call TestableUpdateRequestHeader() to simulate the header update
                     testableTraceableRequestHeaderClientSession.TestableUpdateRequestHeader(request, true);
@@ -1636,7 +1650,8 @@ namespace Opc.Ua.Client.Tests
             {
                 const string identityToken = "fakeTokenString";
 
-                var issuedToken = new IssuedIdentityToken() {
+                var issuedToken = new IssuedIdentityToken()
+                {
                     IssuedTokenType = IssuedTokenType.JWT,
                     PolicyId = Profiles.JwtUserToken,
                     DecryptedTokenData = Encoding.UTF8.GetBytes(identityToken),

@@ -250,7 +250,8 @@ namespace Opc.Ua.Client
                 m_browseInProgress = true;
 
                 // construct request.
-                var nodeToBrowse = new BrowseDescription {
+                var nodeToBrowse = new BrowseDescription
+                {
                     NodeId = nodeId,
                     BrowseDirection = m_browseDirection,
                     ReferenceTypeId = m_referenceTypeId,

@@ -141,8 +141,7 @@ namespace Opc.Ua.Gds.Server
         public override NodeId New(ISystemContext context, NodeState node)
         {
             // generate a numeric node id if the node has a parent and no node id assigned.
-            var instance = node as BaseInstanceState;
-            if (instance != null && instance.Parent != null)
+            if (node is BaseInstanceState instance && instance.Parent != null)
             {
                 return GenerateNodeId();
             }
@@ -157,7 +156,7 @@ namespace Opc.Ua.Gds.Server
                 certificateGroupId = m_defaultApplicationGroupId;
             }
 
-            ICertificateGroup certificateGroup = null;
+            ICertificateGroup certificateGroup;
             if (m_certificateGroups.TryGetValue(certificateGroupId, out certificateGroup))
             {
                 return certificateGroup.DefaultTrustList?.NodeId;
@@ -170,7 +169,7 @@ namespace Opc.Ua.Gds.Server
             NodeId certificateGroupId,
             NodeId certificateTypeId)
         {
-            ICertificateGroup certificateGroup = null;
+            ICertificateGroup certificateGroup;
             if (m_certificateGroups.TryGetValue(certificateGroupId, out certificateGroup))
             {
                 if (!NodeId.IsNull(certificateTypeId) && !certificateGroup.CertificateTypes.Contains(certificateTypeId))
@@ -351,11 +350,12 @@ namespace Opc.Ua.Gds.Server
                         break;
                     }
 
-                    var activeNode = new CertificateDirectoryState(passiveNode.Parent);
-
-                    activeNode.RevokeCertificate = new RevokeCertificateMethodState(passiveNode);
-                    activeNode.CheckRevocationStatus = new CheckRevocationStatusMethodState(passiveNode);
-                    activeNode.GetCertificates = new GetCertificatesMethodState(passiveNode);
+                    var activeNode = new CertificateDirectoryState(passiveNode.Parent)
+                    {
+                        RevokeCertificate = new RevokeCertificateMethodState(passiveNode),
+                        CheckRevocationStatus = new CheckRevocationStatusMethodState(passiveNode),
+                        GetCertificates = new GetCertificatesMethodState(passiveNode)
+                    };
 
                     activeNode.Create(context, passiveNode);
                     activeNode.QueryServers.OnCall = new QueryServersMethodStateMethodCallHandler(OnQueryServers);
@@ -410,10 +410,7 @@ namespace Opc.Ua.Gds.Server
                     activeNode.CertificateGroups.DefaultUserTokenGroup.TrustList.UserWritable.Value = false;
 
                     // replace the node in the parent.
-                    if (passiveNode.Parent != null)
-                    {
-                        passiveNode.Parent.ReplaceChild(context, activeNode);
-                    }
+                    passiveNode.Parent?.ReplaceChild(context, activeNode);
 
                     return activeNode;
             }
@@ -1425,10 +1422,7 @@ namespace Opc.Ua.Gds.Server
                 {
                     var handle = new NodeHandle(nodeId, node);
 
-                    if (cache != null)
-                    {
-                        cache.Add(nodeId, node);
-                    }
+                    cache?.Add(nodeId, node);
 
                     return handle;
                 }

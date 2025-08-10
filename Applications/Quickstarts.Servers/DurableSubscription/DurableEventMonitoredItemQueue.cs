@@ -54,7 +54,7 @@ namespace Quickstarts.Servers
             m_batchPersistor = batchPersistor;
             MonitoredItemId = monitoredItemId;
             QueueSize = 0;
-            m_itemsInQueue = 0;
+            ItemsInQueue = 0;
             m_enqueueBatch = new EventBatch([], kBatchSize, monitoredItemId);
             m_dequeueBatch = m_enqueueBatch;
         }
@@ -69,7 +69,7 @@ namespace Quickstarts.Servers
             m_eventBatches = queue.EventBatches;
             m_dequeueBatch = queue.DequeueBatch;
             QueueSize = queue.QueueSize;
-            m_itemsInQueue = 0;
+            ItemsInQueue = 0;
             MonitoredItemId = queue.MonitoredItemId;
             m_batchPersistor = batchPersistor;
         }
@@ -84,13 +84,13 @@ namespace Quickstarts.Servers
         public uint QueueSize { get; protected set; }
 
         /// <inheritdoc/>
-        public int ItemsInQueue => m_itemsInQueue;
+        public int ItemsInQueue { get; private set; }
 
         /// <inheritdoc/>
         public bool Dequeue(out EventFieldList value)
         {
             value = null;
-            if (m_itemsInQueue > 0)
+            if (ItemsInQueue > 0)
             {
                 if (m_dequeueBatch.IsPersisted)
                 {
@@ -107,7 +107,7 @@ namespace Quickstarts.Servers
 
                 value = m_dequeueBatch.Events[0];
                 m_dequeueBatch.Events.RemoveAt(0);
-                m_itemsInQueue--;
+                ItemsInQueue--;
                 HandleDequeBatching();
                 return true;
             }
@@ -123,13 +123,13 @@ namespace Quickstarts.Servers
             }
 
             //Discard oldest
-            if (m_itemsInQueue == QueueSize)
+            if (ItemsInQueue == QueueSize)
             {
                 Dequeue(out EventFieldList _);
             }
 
             m_enqueueBatch.Events.Add(value);
-            m_itemsInQueue++;
+            ItemsInQueue++;
             HandleEnqueueBatching();
         }
 
@@ -200,7 +200,7 @@ namespace Quickstarts.Servers
         /// <inheritdoc/>
         public bool IsEventContainedInQueue(IFilterTarget instance)
         {
-            int maxCount = m_itemsInQueue > kMaxNoOfEntriesCheckedForDuplicateEvents ? (int)kMaxNoOfEntriesCheckedForDuplicateEvents : m_itemsInQueue;
+            int maxCount = ItemsInQueue > kMaxNoOfEntriesCheckedForDuplicateEvents ? (int)kMaxNoOfEntriesCheckedForDuplicateEvents : ItemsInQueue;
 
             for (int i = 0; i < maxCount; i++)
             {
@@ -230,11 +230,11 @@ namespace Quickstarts.Servers
         {
             QueueSize = queueSize;
 
-            if (m_itemsInQueue > QueueSize)
+            if (ItemsInQueue > QueueSize)
             {
                 //ToDo: Remove files
 
-                int itemsToRemove = (int)(m_itemsInQueue - QueueSize);
+                int itemsToRemove = (int)(ItemsInQueue - QueueSize);
 
                 if (discardOldest)
                 {
@@ -244,7 +244,7 @@ namespace Quickstarts.Servers
                         // Remove from output batch
                         int removeCount = Math.Min(itemsToRemove, m_dequeueBatch.Events.Count);
                         m_dequeueBatch.Events.RemoveRange(0, removeCount);
-                        m_itemsInQueue -= removeCount;
+                        ItemsInQueue -= removeCount;
                         itemsToRemove -= removeCount;
                     }
 
@@ -258,13 +258,13 @@ namespace Quickstarts.Servers
                         if (itemsToRemove >= batchCount)
                         {
                             m_eventBatches.RemoveAt(0);
-                            m_itemsInQueue -= batchCount;
+                            ItemsInQueue -= batchCount;
                             itemsToRemove -= batchCount;
                         }
                         else
                         {
                             batch.Events.RemoveRange(0, itemsToRemove);
-                            m_itemsInQueue -= itemsToRemove;
+                            ItemsInQueue -= itemsToRemove;
                             itemsToRemove = 0;
                         }
                     }
@@ -275,7 +275,7 @@ namespace Quickstarts.Servers
                         // Remove from output batch
                         int removeCount = Math.Min(itemsToRemove, m_enqueueBatch.Events.Count);
                         m_enqueueBatch.Events.RemoveRange(0, removeCount);
-                        m_itemsInQueue -= removeCount;
+                        ItemsInQueue -= removeCount;
                         itemsToRemove -= removeCount;
                     }
                 }
@@ -286,7 +286,7 @@ namespace Quickstarts.Servers
                     {
                         int removeCount = Math.Min(itemsToRemove, m_enqueueBatch.Events.Count);
                         m_enqueueBatch.Events.RemoveRange(m_enqueueBatch.Events.Count - removeCount, removeCount);
-                        m_itemsInQueue -= removeCount;
+                        ItemsInQueue -= removeCount;
                         itemsToRemove -= removeCount;
                     }
 
@@ -300,13 +300,13 @@ namespace Quickstarts.Servers
                         if (itemsToRemove >= batchCount)
                         {
                             m_eventBatches.RemoveAt(m_eventBatches.Count - 1);
-                            m_itemsInQueue -= batchCount;
+                            ItemsInQueue -= batchCount;
                             itemsToRemove -= batchCount;
                         }
                         else
                         {
                             batch.Events.RemoveRange(batch.Events.Count - itemsToRemove, itemsToRemove);
-                            m_itemsInQueue -= itemsToRemove;
+                            ItemsInQueue -= itemsToRemove;
                             itemsToRemove = 0;
                         }
                     }
@@ -316,7 +316,7 @@ namespace Quickstarts.Servers
                     {
                         int removeCount = Math.Min(itemsToRemove, m_dequeueBatch.Events.Count);
                         m_dequeueBatch.Events.RemoveRange(m_dequeueBatch.Events.Count - removeCount, removeCount);
-                        m_itemsInQueue -= removeCount;
+                        ItemsInQueue -= removeCount;
                         itemsToRemove -= removeCount;
                     }
                 }
@@ -329,7 +329,8 @@ namespace Quickstarts.Servers
         /// <returns></returns>
         public StorableEventQueue ToStorableQueue()
         {
-            return new StorableEventQueue {
+            return new StorableEventQueue
+            {
                 IsDurable = IsDurable,
                 MonitoredItemId = MonitoredItemId,
                 DequeueBatch = m_dequeueBatch,
@@ -363,7 +364,6 @@ namespace Quickstarts.Servers
         private EventBatch m_enqueueBatch;
         private readonly List<EventBatch> m_eventBatches = [];
         private EventBatch m_dequeueBatch;
-        private int m_itemsInQueue;
         private readonly IBatchPersistor m_batchPersistor;
     }
 

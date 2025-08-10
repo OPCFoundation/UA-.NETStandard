@@ -148,8 +148,7 @@ namespace Opc.Ua
         /// <returns></returns>
         public virtual EndpointDescriptionCollection GetEndpoints(StringCollection profileUris)
         {
-            EndpointDescriptionCollection endpoints = null;
-
+            EndpointDescriptionCollection endpoints;
             GetEndpoints(
                 null,
                 Endpoint.EndpointUrl,
@@ -180,8 +179,7 @@ namespace Opc.Ua
         /// <returns></returns>
         public virtual ApplicationDescriptionCollection FindServers(StringCollection serverUris)
         {
-            ApplicationDescriptionCollection servers = null;
-
+            ApplicationDescriptionCollection servers;
             FindServers(
                 null,
                 Endpoint.EndpointUrl,
@@ -225,8 +223,7 @@ namespace Opc.Ua
             StringCollection serverCapabilityFilter,
             out DateTime lastCounterResetTime)
         {
-            ServerOnNetworkCollection servers = null;
-
+            ServerOnNetworkCollection servers;
             FindServersOnNetwork(
                 null,
                 startingRecordId,
@@ -263,7 +260,8 @@ namespace Opc.Ua
                     if ((endpointUrl.Scheme == discoveryEndPointUri.Scheme) &&
                         (endpointUrl.Port == discoveryEndPointUri.Port))
                     {
-                        var builder = new UriBuilder(discoveryEndPointUri) {
+                        var builder = new UriBuilder(discoveryEndPointUri)
+                        {
                             Host = endpointUrl.DnsSafeHost
                         };
                         discoveryEndPoint.EndpointUrl = builder.Uri.OriginalString;
@@ -301,7 +299,8 @@ namespace Opc.Ua
             X509Certificate2 clientCertificate = null)
         {
             // create a default description.
-            var endpoint = new EndpointDescription {
+            var endpoint = new EndpointDescription
+            {
                 EndpointUrl = discoveryUrl.OriginalString,
                 SecurityMode = MessageSecurityMode.None,
                 SecurityPolicyUri = SecurityPolicies.None
@@ -328,7 +327,8 @@ namespace Opc.Ua
             X509Certificate2 clientCertificate = null)
         {
             // create a default description.
-            var endpoint = new EndpointDescription {
+            var endpoint = new EndpointDescription
+            {
                 EndpointUrl = connection.EndpointUrl.OriginalString,
                 SecurityMode = MessageSecurityMode.None,
                 SecurityPolicyUri = SecurityPolicies.None
@@ -357,7 +357,8 @@ namespace Opc.Ua
             X509Certificate2 clientCertificate = null)
         {
             // create a default description.
-            var endpoint = new EndpointDescription {
+            var endpoint = new EndpointDescription
+            {
                 EndpointUrl = discoveryUrl.OriginalString,
                 SecurityMode = MessageSecurityMode.None,
                 SecurityPolicyUri = SecurityPolicies.None

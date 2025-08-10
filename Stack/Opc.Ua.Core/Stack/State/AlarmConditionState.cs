@@ -74,12 +74,7 @@ namespace Opc.Ua
         /// Defines how often to update the UnshelveTime when Shelving State is TimedShelve or OneShotShelved.
         /// Defaults to 1000 ms
         /// </summary>
-        public int UnshelveTimeUpdateRate
-        {
-            get => m_unshelveTimeUpdateRate;
-
-            set => m_unshelveTimeUpdateRate = value;
-        }
+        public int UnshelveTimeUpdateRate { get; set; } = 1000;
 
         /// <summary>
         /// Called when one or more sub-states change state.
@@ -111,7 +106,7 @@ namespace Opc.Ua
         /// Gets when the alarm is scheduled to be unshelved.
         /// </summary>
         /// <value>The unshelve time.</value>
-        public DateTime UnshelveTime => m_unshelveTime;
+        public DateTime UnshelveTime { get; private set; }
 
         /// <summary>
         /// Sets the active state of the condition.
@@ -122,8 +117,7 @@ namespace Opc.Ua
             ISystemContext context,
             bool active)
         {
-            TranslationInfo state = null;
-
+            TranslationInfo state;
             if (active)
             {
                 state = new TranslationInfo(
@@ -170,8 +164,7 @@ namespace Opc.Ua
                 return;
             }
 
-            TranslationInfo state = null;
-
+            TranslationInfo state;
             if (suppressed)
             {
                 SuppressedOrShelved.Value = true;
@@ -235,7 +228,7 @@ namespace Opc.Ua
                 m_updateUnshelveTimer = null;
             }
 
-            m_unshelveTime = DateTime.MinValue;
+            UnshelveTime = DateTime.MinValue;
 
             if (!shelved)
             {
@@ -274,9 +267,9 @@ namespace Opc.Ua
                 }
 
                 ShelvingState.UnshelveTime.Value = shelveTime;
-                m_unshelveTime = DateTime.UtcNow.AddMilliseconds((int)shelveTime);
+                UnshelveTime = DateTime.UtcNow.AddMilliseconds((int)shelveTime);
 
-                m_updateUnshelveTimer = new Timer(OnUnshelveTimeUpdate, context, m_unshelveTimeUpdateRate, m_unshelveTimeUpdateRate);
+                m_updateUnshelveTimer = new Timer(OnUnshelveTimeUpdate, context, UnshelveTimeUpdateRate, UnshelveTimeUpdateRate);
 
                 m_unshelveTimer = new Timer(OnTimerExpired, context, (int)shelveTime, Timeout.Infinite);
                 ShelvingState.CauseProcessingCompleted(context, state);
@@ -438,13 +431,13 @@ namespace Opc.Ua
         {
             double delta = 0;
 
-            if (m_unshelveTime != DateTime.MinValue)
+            if (UnshelveTime != DateTime.MinValue)
             {
-                delta = (m_unshelveTime - DateTime.UtcNow).TotalMilliseconds;
+                delta = (UnshelveTime - DateTime.UtcNow).TotalMilliseconds;
 
                 if (delta < 0)
                 {
-                    m_unshelveTime = DateTime.MinValue;
+                    UnshelveTime = DateTime.MinValue;
                 }
             }
 
@@ -740,11 +733,9 @@ namespace Opc.Ua
             }
         }
 
-        private DateTime m_unshelveTime;
         private bool m_oneShot;
         private Timer m_unshelveTimer;
         private Timer m_updateUnshelveTimer;
-        private int m_unshelveTimeUpdateRate = 1000;
     }
 
     /// <summary>

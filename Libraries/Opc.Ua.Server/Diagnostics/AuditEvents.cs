@@ -845,8 +845,10 @@ namespace Opc.Ua.Server
                     var signedSoftwareCertificates = new List<SignedSoftwareCertificate>();
                     foreach (SoftwareCertificate softwareCertificate in softwareCertificates)
                     {
-                        var item = new SignedSoftwareCertificate();
-                        item.CertificateData = softwareCertificate.SignedCertificate.RawData;
+                        var item = new SignedSoftwareCertificate
+                        {
+                            CertificateData = softwareCertificate.SignedCertificate.RawData
+                        };
                         signedSoftwareCertificates.Add(item);
                     }
                     e.SetChildValue(systemContext, BrowseNames.ClientSoftwareCertificates, signedSoftwareCertificates.ToArray(), false);

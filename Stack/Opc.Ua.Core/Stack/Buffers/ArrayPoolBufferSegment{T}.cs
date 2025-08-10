@@ -67,7 +67,8 @@ namespace Opc.Ua.Buffers
         /// </summary>
         public ArrayPoolBufferSegment<T> Append(T[] array, int offset, int length)
         {
-            var segment = new ArrayPoolBufferSegment<T>(array, offset, length) {
+            var segment = new ArrayPoolBufferSegment<T>(array, offset, length)
+            {
                 RunningIndex = RunningIndex + Memory.Length,
             };
             Next = segment;

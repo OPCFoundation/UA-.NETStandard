@@ -171,9 +171,8 @@ namespace MemoryBuffer
                     return null;
                 }
 
-                string id = nodeId.Identifier as string;
 
-                if (id != null)
+                if (nodeId.Identifier is string id)
                 {
                     // check for a reference to the buffer.
                     MemoryBufferState buffer = null;
@@ -299,12 +298,13 @@ namespace MemoryBuffer
             }
 
             // read initial value.
-            var initialValue = new DataValue();
-
-            initialValue.Value = null;
-            initialValue.ServerTimestamp = DateTime.UtcNow;
-            initialValue.SourceTimestamp = DateTime.MinValue;
-            initialValue.StatusCode = StatusCodes.Good;
+            var initialValue = new DataValue
+            {
+                Value = null,
+                ServerTimestamp = DateTime.UtcNow,
+                SourceTimestamp = DateTime.MinValue,
+                StatusCode = StatusCodes.Good
+            };
 
             ServiceResult error = source.ReadAttribute(
                 context,
@@ -411,7 +411,7 @@ namespace MemoryBuffer
             filterError = null;
 
             // check for valid handle.
-            if (monitoredItem.ManagerHandle is not MemoryBufferState buffer)
+            if (monitoredItem.ManagerHandle is not MemoryBufferState)
             {
                 return base.ModifyMonitoredItem(
                     context,
@@ -460,7 +460,6 @@ namespace MemoryBuffer
             IMonitoredItem monitoredItem,
             out bool processed)
         {
-            processed = false;
 
             // check for valid handle.
             if (monitoredItem.ManagerHandle is not MemoryBufferState buffer)
@@ -495,7 +494,6 @@ namespace MemoryBuffer
             MonitoringMode monitoringMode,
             out bool processed)
         {
-            processed = false;
 
             // check for valid handle.
             if (monitoredItem.ManagerHandle is not MemoryBufferState buffer)
@@ -522,12 +520,13 @@ namespace MemoryBuffer
             // need to provide an immediate update after enabling.
             if (previousMode == MonitoringMode.Disabled && monitoringMode != MonitoringMode.Disabled)
             {
-                var initialValue = new DataValue();
-
-                initialValue.Value = null;
-                initialValue.ServerTimestamp = DateTime.UtcNow;
-                initialValue.SourceTimestamp = DateTime.MinValue;
-                initialValue.StatusCode = StatusCodes.Good;
+                var initialValue = new DataValue
+                {
+                    Value = null,
+                    ServerTimestamp = DateTime.UtcNow,
+                    SourceTimestamp = DateTime.MinValue,
+                    StatusCode = StatusCodes.Good
+                };
 
                 var tag = new MemoryTagState(buffer, datachangeItem.Offset);
 

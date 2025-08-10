@@ -1230,7 +1230,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 "D1",
                 new Variant(new ExtensionObject(
                     Gds.DataTypeIds.ApplicationRecordDataType,
-                    new Gds.ApplicationRecordDataType() {
+                    new Gds.ApplicationRecordDataType()
+                    {
                         ApplicationId = new NodeId("urn:123456789", 1),
                         ApplicationUri = "urn:localhost:test.org:client",
                         ApplicationNames = new LocalizedText[] { new("en", "Test Client") },
@@ -1346,7 +1347,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 "D1",
                 new Variant(new ExtensionObject(
                     Gds.DataTypeIds.ApplicationRecordDataType,
-                    new Gds.ApplicationRecordDataType() {
+                    new Gds.ApplicationRecordDataType()
+                    {
                         ApplicationId = new NodeId("urn:123456789", 1),
                         ApplicationUri = "urn:localhost:test.org:client",
                         ApplicationType = ApplicationType.Client,
@@ -1463,7 +1465,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 "D1",
                 new Variant(new ExtensionObject(
                     Gds.DataTypeIds.ApplicationRecordDataType,
-                    new Gds.ApplicationRecordDataType() {
+                    new Gds.ApplicationRecordDataType()
+                    {
                         ApplicationId = new NodeId("urn:123456789", 1),
                         ApplicationUri = "urn:localhost:test.org:client",
                         ApplicationType = ApplicationType.Client,
@@ -1553,7 +1556,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 "D1",
                 new Variant(new ExtensionObject(
                     Gds.DataTypeIds.ApplicationRecordDataType,
-                    new Gds.ApplicationRecordDataType() {
+                    new Gds.ApplicationRecordDataType()
+                    {
                         ApplicationId = new NodeId("urn:123456789", 1),
                         ApplicationUri = "urn:localhost:test.org:client",
                         ApplicationType = ApplicationType.Client,

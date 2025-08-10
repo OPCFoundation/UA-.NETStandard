@@ -252,14 +252,16 @@ namespace Opc.Ua.Security.Certificates.Tests
         {
             // default cert
             NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(
-                () => {
+                () =>
+                {
                     CertificateBuilder.Create(Subject)
                     .SetSerialNumberLength(0)
                     .CreateForRSA();
                 }
             );
             NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(
-                () => {
+                () =>
+                {
                     CertificateBuilder.Create(Subject)
                     .SetSerialNumberLength(X509Defaults.SerialNumberLengthMax + 1)
                     .CreateForRSA();
@@ -283,14 +285,16 @@ namespace Opc.Ua.Security.Certificates.Tests
         {
             // default cert
             NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(
-                () => {
+                () =>
+                {
                     CertificateBuilder.Create(Subject)
                     .SetSerialNumber([])
                     .CreateForRSA();
                 }
             );
             NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(
-                () => {
+                () =>
+                {
                     CertificateBuilder.Create(Subject)
                     .SetSerialNumber(new byte[X509Defaults.SerialNumberLengthMax + 1])
                     .CreateForRSA();
@@ -448,7 +452,8 @@ namespace Opc.Ua.Security.Certificates.Tests
             }
 
             // ensure invalid path throws argument exception
-            NUnit.Framework.Assert.Throws<NotSupportedException>(() => {
+            NUnit.Framework.Assert.Throws<NotSupportedException>(() =>
+            {
                 using RSA rsaPrivateKey = signingCert.GetRSAPrivateKey();
                 var generator = X509SignatureGenerator.CreateForRSA(rsaPrivateKey, RSASignaturePadding.Pkcs1);
                 _ = CertificateBuilder.Create("CN=App Cert")

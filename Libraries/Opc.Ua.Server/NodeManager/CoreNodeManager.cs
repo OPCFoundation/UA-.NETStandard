@@ -174,9 +174,7 @@ namespace Opc.Ua.Server
                 // collect nodes to dispose.
                 foreach (INode node in m_nodes)
                 {
-                    var disposable = node as IDisposable;
-
-                    if (disposable != null)
+                    if (node is IDisposable disposable)
                     {
                         nodesToDispose.Add(disposable);
                     }
@@ -329,10 +327,9 @@ namespace Opc.Ua.Server
                 uint maxResultsToReturn = continuationPoint.MaxResultsToReturn;
 
                 // get previous enumerator.
-                var enumerator = continuationPoint.Data as IEnumerator<IReference>;
 
                 // fetch a snapshot all references for node.
-                if (enumerator == null)
+                if (continuationPoint.Data is not IEnumerator<IReference> enumerator)
                 {
                     var copy = new List<IReference>(source.References);
                     enumerator = copy.GetEnumerator();
@@ -358,9 +355,10 @@ namespace Opc.Ua.Server
 
                     if (include)
                     {
-                        var description = new ReferenceDescription();
-
-                        description.NodeId = reference.TargetId;
+                        var description = new ReferenceDescription
+                        {
+                            NodeId = reference.TargetId
+                        };
                         description.SetReferenceType(continuationPoint.ResultMask, reference.ReferenceTypeId, !reference.IsInverse);
 
                         // only fetch the metadata if it is requested.
@@ -781,11 +779,6 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(errors));
             }
-
-            var readRawModifiedDetails = details as ReadRawModifiedDetails;
-            var readAtTimeDetails = details as ReadAtTimeDetails;
-            var readProcessedDetails = details as ReadProcessedDetails;
-            var readEventDetails = details as ReadEventDetails;
 
             lock (DataLock)
             {
@@ -1313,9 +1306,8 @@ namespace Opc.Ua.Server
                     if (itemToCreate.ItemToMonitor.AttributeId == Attributes.Value)
                     {
                         // use the MinimumSamplingInterval attribute to limit the sampling rate for value attributes.
-                        var variableNode = node as IVariable;
 
-                        if (variableNode != null)
+                        if (node is IVariable variableNode)
                         {
                             minimumSamplingInterval = variableNode.MinimumSamplingInterval;
 
@@ -1443,7 +1435,8 @@ namespace Opc.Ua.Server
             ILocalNode node,
             IDataChangeMonitoredItem2 monitoredItem)
         {
-            var initialValue = new DataValue {
+            var initialValue = new DataValue
+            {
                 Value = null,
                 ServerTimestamp = DateTime.UtcNow,
                 SourceTimestamp = DateTime.MinValue,
@@ -1531,9 +1524,8 @@ namespace Opc.Ua.Server
                     }
 
                     // find the node being monitored.
-                    var node = monitoredItem.ManagerHandle as ILocalNode;
 
-                    if (node == null)
+                    if (monitoredItem.ManagerHandle is not ILocalNode node)
                     {
                         errors[ii] = StatusCodes.BadNodeIdUnknown;
                         continue;
@@ -1800,15 +1792,15 @@ namespace Opc.Ua.Server
                     // need to provide an immediate update after enabling.
                     if (previousMode == MonitoringMode.Disabled && monitoringMode != MonitoringMode.Disabled)
                     {
-                        var initialValue = new DataValue();
-
-                        initialValue.ServerTimestamp = DateTime.UtcNow;
-                        initialValue.StatusCode = StatusCodes.BadWaitingForInitialData;
+                        var initialValue = new DataValue
+                        {
+                            ServerTimestamp = DateTime.UtcNow,
+                            StatusCode = StatusCodes.BadWaitingForInitialData
+                        };
 
                         // read the initial value.
-                        var node = monitoredItem.ManagerHandle as Node;
 
-                        if (node != null)
+                        if (monitoredItem.ManagerHandle is Node node)
                         {
                             ServiceResult error = node.Read(context, monitoredItem.AttributeId, initialValue);
 
@@ -2034,13 +2026,10 @@ namespace Opc.Ua.Server
                 return targets;
             }
 
-            // look up source in this node manager.
-            ILocalNode source = null;
-
             lock (DataLock)
             {
-                source = GetLocalNode(sourceId);
-
+                // look up source in this node manager.
+                ILocalNode source = GetLocalNode(sourceId);
                 if (source == null)
                 {
                     return targets;
@@ -2112,10 +2101,11 @@ namespace Opc.Ua.Server
             // add instance declaration if provided.
             if (templateDeclaration != null)
             {
-                var declaration = new DeclarationNode();
-
-                declaration.Node = templateDeclaration;
-                declaration.BrowsePath = string.Empty;
+                var declaration = new DeclarationNode
+                {
+                    Node = templateDeclaration,
+                    BrowsePath = string.Empty
+                };
 
                 declarations.Add(declaration);
 
@@ -2168,8 +2158,7 @@ namespace Opc.Ua.Server
                 ILocalNode instanceDeclaration = current.Value;
 
                 // check if the same instance has multiple browse paths to it.
-                ILocalNode newInstance = null;
-
+                ILocalNode newInstance;
                 if (instancesToCreate.TryGetValue(instanceDeclaration.NodeId, out newInstance))
                 {
                     continue;
@@ -2231,8 +2220,7 @@ namespace Opc.Ua.Server
                     }
 
                     // ignore targets that are not in the instance tree.
-                    ILocalNode target = null;
-
+                    ILocalNode target;
                     if (!instancesToCreate.TryGetValue((NodeId)reference.TargetId, out target))
                     {
                         continue;
@@ -2293,8 +2281,7 @@ namespace Opc.Ua.Server
                     }
 
                     // add targets that are not in the instance tree.
-                    ILocalNode target = null;
-
+                    ILocalNode target;
                     if (!instancesToCreate.TryGetValue((NodeId)reference.TargetId, out target))
                     {
                         // don't update shared nodes because the reference should already exist.
@@ -2411,10 +2398,11 @@ namespace Opc.Ua.Server
             }
 
             // create the root declaration for the type.
-            var declaration = new DeclarationNode();
-
-            declaration.Node = typeDefinition;
-            declaration.BrowsePath = string.Empty;
+            var declaration = new DeclarationNode
+            {
+                Node = typeDefinition,
+                BrowsePath = string.Empty
+            };
 
             declarations.Add(declaration);
 
@@ -2468,10 +2456,11 @@ namespace Opc.Ua.Server
                 }
 
                 // create the declartion node.
-                var declaration = new DeclarationNode();
-
-                declaration.Node = child;
-                declaration.BrowsePath = Utils.Format("{0}.{1}", parent.BrowsePath, child.BrowseName);
+                var declaration = new DeclarationNode
+                {
+                    Node = child,
+                    BrowsePath = Utils.Format("{0}.{1}", parent.BrowsePath, child.BrowseName)
+                };
 
                 declarations.Add(declaration);
 
@@ -2528,12 +2517,7 @@ namespace Opc.Ua.Server
         {
             lock (DataLock)
             {
-                ILocalNode node = GetLocalNode(nodeId);
-
-                if (node == null)
-                {
-                    throw ServiceResultException.Create(StatusCodes.BadNodeIdUnknown, "NodeId ({0}) does not exist.", nodeId);
-                }
+                ILocalNode node = GetLocalNode(nodeId) ?? throw ServiceResultException.Create(StatusCodes.BadNodeIdUnknown, "NodeId ({0}) does not exist.", nodeId);
 
                 ExportNode(node, nodeSet, ((int)node.NodeClass & ((int)NodeClass.Object | (int)NodeClass.Variable)) != 0);
             }
@@ -2683,9 +2667,8 @@ namespace Opc.Ua.Server
             }
 
             // find the node to delete.
-            var node = GetManagerHandle(nodeId) as ILocalNode;
 
-            if (node == null)
+            if (GetManagerHandle(nodeId) is not ILocalNode node)
             {
                 if (!silent)
                 {
@@ -2757,9 +2740,8 @@ namespace Opc.Ua.Server
                     }
 
                     // find the target.
-                    var target = GetManagerHandle(reference.TargetId) as ILocalNode;
 
-                    if (target == null)
+                    if (GetManagerHandle(reference.TargetId) is not ILocalNode target)
                     {
                         referencesForNode.Add(reference);
                         continue;
@@ -3064,10 +3046,7 @@ namespace Opc.Ua.Server
                 {
                     var target = GetManagerHandle(targetId) as ILocalNode;
 
-                    if (target != null)
-                    {
-                        target.References.Remove(referenceTypeId, !isInverse, source.NodeId);
-                    }
+                    target?.References.Remove(referenceTypeId, !isInverse, source.NodeId);
                 }
 
                 return ServiceResult.Good;

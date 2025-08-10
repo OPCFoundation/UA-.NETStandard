@@ -20,20 +20,11 @@ namespace Opc.Ua
         /// <summary>
         /// A handle assigned to the item during processing.
         /// </summary>
-        public object Handle
-        {
-            get => m_handle; set => m_handle = value;
-        }
+        public object Handle { get; set; }
 
         /// <summary>
         /// Whether the value has been processed.
         /// </summary>
-        public bool Processed
-        {
-            get => m_processed; set => m_processed = value;
-        }
-
-        private object m_handle;
-        private bool m_processed;
+        public bool Processed { get; set; }
     }
 }

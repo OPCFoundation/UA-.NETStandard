@@ -181,7 +181,8 @@ namespace Opc.Ua.Client
             Uri endpointUrl = Utils.ParseUri(selectedEndpoint.EndpointUrl);
             if (endpointUrl != null && endpointUrl.Scheme == uri.Scheme)
             {
-                var builder = new UriBuilder(endpointUrl) {
+                var builder = new UriBuilder(endpointUrl)
+                {
                     Host = uri.DnsSafeHost,
                     Port = uri.Port
                 };

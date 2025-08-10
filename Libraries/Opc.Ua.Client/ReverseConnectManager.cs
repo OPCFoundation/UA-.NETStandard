@@ -506,23 +506,21 @@ namespace Opc.Ua.Client
                 (sender, e) => tcs.TrySetResult(e),
                 ReverseConnectStrategy.Once);
 
-            Func<Task> listenForCancelTaskFnc = async () => {
+            async Task ListenForCancelAsync(CancellationToken ct)
+            {
                 if (ct == default)
                 {
                     int waitTimeout = m_configuration.WaitTimeout > 0 ? m_configuration.WaitTimeout : DefaultWaitTimeout;
-                    await Task.Delay(waitTimeout).ConfigureAwait(false);
+                    await Task.Delay(waitTimeout, ct).ConfigureAwait(false);
                 }
                 else
                 {
-                    await Task.Delay(-1, ct).ContinueWith(tsk => { }).ConfigureAwait(false);
+                    await Task.Delay(-1, ct).ContinueWith(_ => { }, ct).ConfigureAwait(false);
                 }
-                tcs.TrySetCanceled();
-            };
+                tcs.TrySetCanceled(ct);
+            }
 
-            await Task.WhenAny([
-                tcs.Task,
-                listenForCancelTaskFnc()
-            ]).ConfigureAwait(false);
+            await Task.WhenAny([tcs.Task, ListenForCancelAsync(ct)]).ConfigureAwait(false);
 
             if (!tcs.Task.IsCompleted || tcs.Task.IsCanceled)
             {
@@ -552,7 +550,8 @@ namespace Opc.Ua.Client
                 throw new ArgumentNullException(nameof(endpointUrl));
             }
 
-            var registration = new Registration(serverUri, endpointUrl, onConnectionWaiting) {
+            var registration = new Registration(serverUri, endpointUrl, onConnectionWaiting)
+            {
                 ReverseConnectStrategy = reverseConnectStrategy
             };
             lock (m_registrationsLock)
@@ -674,7 +673,8 @@ namespace Opc.Ua.Client
                 int delay = endTime - HiResClock.TickCount;
                 if (delay > 0)
                 {
-                    await Task.Delay(delay, ct).ContinueWith(tsk => {
+                    await Task.Delay(delay, ct).ContinueWith(tsk =>
+                    {
                         if (tsk.IsCanceled)
                         {
                             matched = MatchRegistration(sender, e);

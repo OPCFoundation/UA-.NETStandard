@@ -100,7 +100,8 @@ namespace Opc.Ua.Core.Tests.Types.Schemas
             XmlReaderSettings settings = Utils.DefaultXmlReaderSettings();
             settings.CloseInput = true;
 
-            var localContext = new SystemContext {
+            var localContext = new SystemContext
+            {
                 NamespaceUris = new NamespaceTable()
             };
 

@@ -41,7 +41,7 @@ namespace Opc.Ua
             m_serverError = new ServiceResult(StatusCodes.BadServerHalted);
             ServiceHosts = [];
             TransportListeners = [];
-            m_endpoints = null;
+            Endpoints = null;
             m_requestQueue = new RequestQueue(this, 10, 100, 1000);
             m_userTokenPolicyId = 0;
         }
@@ -118,7 +118,7 @@ namespace Opc.Ua
         /// <returns>Returns a collection of EndpointDescription.</returns>
         public virtual EndpointDescriptionCollection GetEndpoints()
         {
-            ReadOnlyList<EndpointDescription> endpoints = m_endpoints;
+            ReadOnlyList<EndpointDescription> endpoints = Endpoints;
 
             if (endpoints != null)
             {
@@ -247,10 +247,12 @@ namespace Opc.Ua
             // initialize the base addresses.
             InitializeBaseAddresses(configuration);
 
-            // initialize the hosts.
-            ApplicationDescription serverDescription = null;
-            EndpointDescriptionCollection endpoints = null;
 
+
+            // initialize the hosts.
+            ApplicationDescription serverDescription;
+
+            EndpointDescriptionCollection endpoints;
             IList<ServiceHost> hosts = InitializeServiceHosts(
                 configuration,
                 bindingFactory,
@@ -259,7 +261,7 @@ namespace Opc.Ua
 
             // save discovery information.
             ServerDescription = serverDescription;
-            m_endpoints = new ReadOnlyList<EndpointDescription>(endpoints);
+            Endpoints = new ReadOnlyList<EndpointDescription>(endpoints);
 
             // start the application.
             StartApplication(configuration);
@@ -313,10 +315,12 @@ namespace Opc.Ua
             // initialize the base addresses.
             InitializeBaseAddresses(configuration);
 
-            // initialize the hosts.
-            ApplicationDescription serverDescription = null;
-            EndpointDescriptionCollection endpoints = null;
 
+
+            // initialize the hosts.
+            ApplicationDescription serverDescription;
+
+            EndpointDescriptionCollection endpoints;
             IList<ServiceHost> hosts = InitializeServiceHosts(
                 configuration,
                 bindingFactory,
@@ -325,7 +329,7 @@ namespace Opc.Ua
 
             // save discovery information.
             ServerDescription = serverDescription;
-            m_endpoints = new ReadOnlyList<EndpointDescription>(endpoints);
+            Endpoints = new ReadOnlyList<EndpointDescription>(endpoints);
 
             // start the application.
             StartApplication(configuration);
@@ -493,10 +497,7 @@ namespace Opc.Ua
                 maxQueuedRequestCount = 100;
             }
 
-            if (m_requestQueue != null)
-            {
-                m_requestQueue.Dispose();
-            }
+            m_requestQueue?.Dispose();
 
             m_requestQueue = new RequestQueue(this, minRequestThreadCount, maxRequestThreadCount, maxQueuedRequestCount);
         }
@@ -646,7 +647,7 @@ namespace Opc.Ua
         /// <summary>
         /// Gets the list of endpoints supported by the server.
         /// </summary>
-        protected ReadOnlyList<EndpointDescription> Endpoints => m_endpoints;
+        protected ReadOnlyList<EndpointDescription> Endpoints { get; private set; }
 
         /// <summary>
         /// The object used to verify client certificates
@@ -746,7 +747,7 @@ namespace Opc.Ua
             }
 
             //update certificate in the endpoint descriptions
-            foreach (EndpointDescription endpointDescription in m_endpoints)
+            foreach (EndpointDescription endpointDescription in Endpoints)
             {
                 SetServerCertificateInEndpointDescription(
                     endpointDescription,
@@ -778,7 +779,8 @@ namespace Opc.Ua
             // create the stack listener.
             try
             {
-                var settings = new TransportListenerSettings {
+                var settings = new TransportListenerSettings
+                {
                     Descriptions = endpoints,
                     Configuration = endpointConfiguration,
                     ServerCertificateTypesProvider = InstanceCertificateTypesProvider,
@@ -881,8 +883,7 @@ namespace Opc.Ua
             }
 
             // check if client is using an ip address.
-            IPAddress address = null;
-
+            IPAddress address;
             if (IPAddress.TryParse(hostname, out address))
             {
                 if (IPAddress.IsLoopback(address))
@@ -1080,7 +1081,8 @@ namespace Opc.Ua
             }
 
             // copy the description.
-            var copy = new ApplicationDescription {
+            var copy = new ApplicationDescription
+            {
                 ApplicationName = description.ApplicationName,
                 ApplicationUri = description.ApplicationUri,
                 ApplicationType = description.ApplicationType,
@@ -1150,7 +1152,8 @@ namespace Opc.Ua
                             continue;
                         }
 
-                        var translation = new EndpointDescription {
+                        var translation = new EndpointDescription
+                        {
                             EndpointUrl = baseAddress.Url.ToString()
                         };
 
@@ -1215,7 +1218,8 @@ namespace Opc.Ua
                 throw new ServiceResultException(statusCode);
             }
 
-            return new ResponseHeader {
+            return new ResponseHeader
+            {
                 Timestamp = DateTime.UtcNow,
                 RequestHandle = requestHeader.RequestHandle
             };
@@ -1229,7 +1233,8 @@ namespace Opc.Ua
         /// <returns>Returns a description for the ResponseHeader DataType. </returns>
         protected virtual ResponseHeader CreateResponse(RequestHeader requestHeader, Exception exception)
         {
-            var responseHeader = new ResponseHeader {
+            var responseHeader = new ResponseHeader
+            {
                 Timestamp = DateTime.UtcNow,
                 RequestHandle = requestHeader.RequestHandle
             };
@@ -1249,7 +1254,8 @@ namespace Opc.Ua
         /// <returns>Returns a description for the ResponseHeader DataType. </returns>
         protected virtual ResponseHeader CreateResponse(RequestHeader requestHeader, StringTable stringTable)
         {
-            var responseHeader = new ResponseHeader {
+            var responseHeader = new ResponseHeader
+            {
                 Timestamp = DateTime.UtcNow,
                 RequestHandle = requestHeader.RequestHandle
             };
@@ -1291,7 +1297,8 @@ namespace Opc.Ua
                 // ensure at least one user token policy exists.
                 if (configuration.ServerConfiguration.UserTokenPolicies.Count == 0)
                 {
-                    var userTokenPolicy = new UserTokenPolicy {
+                    var userTokenPolicy = new UserTokenPolicy
+                    {
                         TokenType = UserTokenType.Anonymous
                     };
                     userTokenPolicy.PolicyId = userTokenPolicy.TokenType.ToString();
@@ -1312,14 +1319,9 @@ namespace Opc.Ua
                     continue;
                 }
 
-                X509Certificate2 instanceCertificate = InstanceCertificateTypesProvider.GetInstanceCertificate(securityPolicy.SecurityPolicyUri);
-
-                if (instanceCertificate == null)
-                {
-                    throw new ServiceResultException(
+                X509Certificate2 instanceCertificate = InstanceCertificateTypesProvider.GetInstanceCertificate(securityPolicy.SecurityPolicyUri) ?? throw new ServiceResultException(
                         StatusCodes.BadConfigurationError,
                         "Server does not have an instance certificate assigned.");
-                }
 
                 if (!instanceCertificate.HasPrivateKey)
                 {
@@ -1552,7 +1554,8 @@ namespace Opc.Ua
                             Monitor.Exit(m_lock);
 
                             // new threads start in an active state
-                            var thread = new Thread(OnProcessRequestQueue) {
+                            var thread = new Thread(OnProcessRequestQueue)
+                            {
                                 IsBackground = true
                             };
                             thread.Start(null);
@@ -1670,7 +1673,6 @@ namespace Opc.Ua
         private object m_serverProperties;
         private object m_configuration;
         private object m_serverDescription;
-        private ReadOnlyList<EndpointDescription> m_endpoints;
         private RequestQueue m_requestQueue;
         /// <summary>
         /// identifier for the UserTokenPolicy should be unique within the context of a single Server

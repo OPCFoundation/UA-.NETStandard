@@ -34,11 +34,7 @@ namespace Opc.Ua.Bindings
             RSASignaturePadding padding)
         {
             // extract the private key.
-            using RSA rsa = signingCertificate.GetRSAPrivateKey();
-            if (rsa == null)
-            {
-                throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No private key for certificate.");
-            }
+            using RSA rsa = signingCertificate.GetRSAPrivateKey() ?? throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No private key for certificate.");
 
             // create the signature.
             return rsa.SignData(dataToSign.Array, dataToSign.Offset, dataToSign.Count, algorithm, padding);
@@ -55,11 +51,7 @@ namespace Opc.Ua.Bindings
             RSASignaturePadding padding)
         {
             // extract the public key.
-            using RSA rsa = signingCertificate.GetRSAPublicKey();
-            if (rsa == null)
-            {
-                throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
-            }
+            using RSA rsa = signingCertificate.GetRSAPublicKey() ?? throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
 
             // verify signature.
             if (!rsa.VerifyData(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count, signature, algorithm, padding))
@@ -86,11 +78,7 @@ namespace Opc.Ua.Bindings
             RsaUtils.Padding padding)
         {
             // get the encrypting key.
-            using RSA rsa = encryptingCertificate.GetRSAPublicKey();
-            if (rsa == null)
-            {
-                throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
-            }
+            using RSA rsa = encryptingCertificate.GetRSAPublicKey() ?? throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
 
             int inputBlockSize = RsaUtils.GetPlainTextBlockSize(rsa, padding);
             int outputBlockSize = RsaUtils.GetCipherTextBlockSize(rsa, padding);
@@ -134,11 +122,7 @@ namespace Opc.Ua.Bindings
             RsaUtils.Padding padding)
         {
             // get the encrypting key.
-            using RSA rsa = encryptingCertificate.GetRSAPrivateKey();
-            if (rsa == null)
-            {
-                throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No private key for certificate.");
-            }
+            using RSA rsa = encryptingCertificate.GetRSAPrivateKey() ?? throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No private key for certificate.");
 
             int inputBlockSize = RsaUtils.GetCipherTextBlockSize(rsa, padding);
             int outputBlockSize = RsaUtils.GetPlainTextBlockSize(rsa, padding);

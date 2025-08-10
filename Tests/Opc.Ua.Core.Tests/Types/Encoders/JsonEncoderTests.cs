@@ -508,7 +508,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void ConstructorRecyclableMemoryStream()
         {
-            var recyclableMemoryStreamManager = new RecyclableMemoryStreamManager(new RecyclableMemoryStreamManager.Options {
+            var recyclableMemoryStreamManager = new RecyclableMemoryStreamManager(new RecyclableMemoryStreamManager.Options
+            {
                 BlockSize = BufferManager.MaxSuggestedBufferSize,
             });
             using var memoryStream = new RecyclableMemoryStream(recyclableMemoryStreamManager);
@@ -876,7 +877,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             // "{{\"Foo\":\"bar_1\"},{\"Foo\":\"bar_2\"},{\"Foo\":\"bar_3\"}}"
             using var encodeable = new FooBarEncodeable();
             using var encoder = new JsonEncoder(Context, true, false);
-            NUnit.Framework.Assert.Throws<ServiceResultException>(() => {
+            NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
+            {
                 encoder.WriteEncodeable(null, encodeable, typeof(FooBarEncodeable));
                 encoder.WriteEncodeable(null, encodeable, typeof(FooBarEncodeable));
                 encoder.WriteEncodeable(null, encodeable, typeof(FooBarEncodeable));
@@ -1165,7 +1167,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             [ValueSource(nameof(GoodAndBadStatusCodes))] StatusCode statusCodeVariant,
             [ValueSource(nameof(GoodAndBadStatusCodes))] StatusCode statusCode)
         {
-            var dataValue = new DataValue() {
+            var dataValue = new DataValue()
+            {
                 WrappedValue = new Variant(statusCodeVariant),
                 ServerTimestamp = DateTime.UtcNow,
                 StatusCode = statusCode

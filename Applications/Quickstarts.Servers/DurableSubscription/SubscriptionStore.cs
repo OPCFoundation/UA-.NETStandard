@@ -40,7 +40,8 @@ namespace Quickstarts.Servers
 {
     public class SubscriptionStore : ISubscriptionStore
     {
-        private static readonly JsonSerializerSettings s_settings = new() {
+        private static readonly JsonSerializerSettings s_settings = new()
+        {
             TypeNameHandling = TypeNameHandling.All,
             Converters = { new ExtensionObjectConverter(), new NumericRangeConverter() },
         };
@@ -121,7 +122,8 @@ namespace Quickstarts.Servers
             public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
             {
                 var extensionObject = (ExtensionObject)value;
-                var jo = new JObject {
+                var jo = new JObject
+                {
                     ["Body"] = JToken.FromObject(extensionObject.Body, serializer),
                     ["TypeId"] = JToken.FromObject(extensionObject.TypeId, serializer)
                 };
@@ -147,7 +149,8 @@ namespace Quickstarts.Servers
             public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
             {
                 var extensionObject = (NumericRange)value;
-                var jo = new JObject {
+                var jo = new JObject
+                {
                     ["Begin"] = JToken.FromObject(extensionObject.Begin, serializer),
                     ["End"] = JToken.FromObject(extensionObject.End, serializer)
                 };

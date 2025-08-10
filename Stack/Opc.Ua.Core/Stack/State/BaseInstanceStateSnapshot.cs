@@ -172,7 +172,8 @@ namespace Opc.Ua
         /// <returns>A snapshot of a node.</returns>
         private ChildNode CreateChildNode(ISystemContext context, BaseInstanceState state)
         {
-            var node = new ChildNode {
+            var node = new ChildNode
+            {
                 NodeClass = state.NodeClass,
                 BrowseName = state.BrowseName
             };

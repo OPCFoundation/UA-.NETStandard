@@ -68,12 +68,12 @@ namespace Opc.Ua.Security.Certificates
         public X509CRL(IX509CRL crl)
         {
             m_decoded = true;
-            m_issuerName = crl.IssuerName;
-            m_hashAlgorithmName = crl.HashAlgorithmName;
-            m_thisUpdate = crl.ThisUpdate;
-            m_nextUpdate = crl.NextUpdate;
+            IssuerName = crl.IssuerName;
+            HashAlgorithmName = crl.HashAlgorithmName;
+            ThisUpdate = crl.ThisUpdate;
+            NextUpdate = crl.NextUpdate;
             m_revokedCertificates = [.. crl.RevokedCertificates];
-            m_crlExtensions = [.. crl.CrlExtensions];
+            CrlExtensions = [.. crl.CrlExtensions];
             RawData = crl.RawData;
             EnsureDecoded();
         }
@@ -84,32 +84,32 @@ namespace Opc.Ua.Security.Certificates
         internal X509CRL()
         {
             m_decoded = false;
-            m_thisUpdate = DateTime.MinValue;
-            m_nextUpdate = DateTime.MinValue;
+            ThisUpdate = DateTime.MinValue;
+            NextUpdate = DateTime.MinValue;
             m_revokedCertificates = [];
-            m_crlExtensions = [];
+            CrlExtensions = [];
         }
 
         /// <inheritdoc/>
-        public X500DistinguishedName IssuerName => m_issuerName;
+        public X500DistinguishedName IssuerName { get; private set; }
 
         /// <inheritdoc/>
         public string Issuer => IssuerName.Name;
 
         /// <inheritdoc/>
-        public DateTime ThisUpdate => m_thisUpdate;
+        public DateTime ThisUpdate { get; private set; }
 
         /// <inheritdoc/>
-        public DateTime NextUpdate => m_nextUpdate;
+        public DateTime NextUpdate { get; private set; }
 
         /// <inheritdoc/>
-        public HashAlgorithmName HashAlgorithmName => m_hashAlgorithmName;
+        public HashAlgorithmName HashAlgorithmName { get; private set; }
 
         /// <inheritdoc/>
         public IList<RevokedCertificate> RevokedCertificates => m_revokedCertificates.AsReadOnly();
 
         /// <inheritdoc/>
-        public X509ExtensionCollection CrlExtensions => m_crlExtensions;
+        public X509ExtensionCollection CrlExtensions { get; private set; }
 
         /// <inheritdoc/>
         public byte[] RawData { get; }
@@ -194,7 +194,7 @@ namespace Opc.Ua.Security.Certificates
                     // Signature Algorithm Identifier
                     AsnReader sigReader = seqReader.ReadSequence();
                     string oid = sigReader.ReadObjectIdentifier();
-                    m_hashAlgorithmName = Oids.GetHashAlgorithmName(oid);
+                    HashAlgorithmName = Oids.GetHashAlgorithmName(oid);
                     if (sigReader.HasData)
                     {
                         sigReader.ReadNull();
@@ -202,13 +202,13 @@ namespace Opc.Ua.Security.Certificates
                     sigReader.ThrowIfNotEmpty();
 
                     // Issuer
-                    m_issuerName = new X500DistinguishedName(seqReader.ReadEncodedValue().ToArray());
+                    IssuerName = new X500DistinguishedName(seqReader.ReadEncodedValue().ToArray());
 
                     // thisUpdate
-                    m_thisUpdate = ReadTime(seqReader, optional: false);
+                    ThisUpdate = ReadTime(seqReader, optional: false);
 
                     // nextUpdate is OPTIONAL
-                    m_nextUpdate = ReadTime(seqReader, optional: true);
+                    NextUpdate = ReadTime(seqReader, optional: true);
 
                     // revokedCertificates is OPTIONAL
                     if (seqReader.HasData)
@@ -224,8 +224,10 @@ namespace Opc.Ua.Security.Certificates
                             {
                                 AsnReader crlEntry = revReader.ReadSequence();
                                 System.Numerics.BigInteger serial = crlEntry.ReadInteger();
-                                var revokedCertificate = new RevokedCertificate(serial.ToByteArray());
-                                revokedCertificate.RevocationDate = ReadTime(crlEntry, optional: false);
+                                var revokedCertificate = new RevokedCertificate(serial.ToByteArray())
+                                {
+                                    RevocationDate = ReadTime(crlEntry, optional: false)
+                                };
                                 if (version == 1 &&
                                     crlEntry.HasData)
                                 {
@@ -258,7 +260,7 @@ namespace Opc.Ua.Security.Certificates
                                 X509Extension extension = crlExtensions.ReadExtension();
                                 crlExtensionList.Add(extension);
                             }
-                            m_crlExtensions = crlExtensionList;
+                            CrlExtensions = crlExtensionList;
                         }
                     }
                     seqReader.ThrowIfNotEmpty();
@@ -314,12 +316,7 @@ namespace Opc.Ua.Security.Certificates
 
         private bool m_decoded;
         private X509Signature m_signature;
-        private X500DistinguishedName m_issuerName;
-        private DateTime m_thisUpdate;
-        private DateTime m_nextUpdate;
-        private HashAlgorithmName m_hashAlgorithmName;
         private List<RevokedCertificate> m_revokedCertificates;
-        private X509ExtensionCollection m_crlExtensions;
     }
 
     /// <summary>

@@ -71,7 +71,8 @@ namespace Opc.Ua.Client.Tests
         {
             {
                 // start Ref server
-                ServerFixture = new ServerFixture<ReferenceServer>(enableTracing, disableActivityLogging) {
+                ServerFixture = new ServerFixture<ReferenceServer>(enableTracing, disableActivityLogging)
+                {
                     UriScheme = UriScheme,
                     SecurityNone = securityNone,
                     AutoAccept = true,
@@ -171,11 +172,12 @@ namespace Opc.Ua.Client.Tests
             uint expectedHours,
             uint expectedLifetime)
         {
-            var subscription = new TestableSubscription(Session.DefaultSubscription);
-
-            subscription.KeepAliveCount = keepAliveCount;
-            subscription.LifetimeCount = lifetimeCount;
-            subscription.PublishingInterval = publishingInterval;
+            var subscription = new TestableSubscription(Session.DefaultSubscription)
+            {
+                KeepAliveCount = keepAliveCount,
+                LifetimeCount = lifetimeCount,
+                PublishingInterval = publishingInterval
+            };
 
             Assert.True(Session.AddSubscription(subscription));
             subscription.Create();
@@ -183,7 +185,7 @@ namespace Opc.Ua.Client.Tests
             Dictionary<string, NodeId> desiredNodeIds = GetDesiredNodeIds(subscription.Id);
             Dictionary<string, object> initialValues = GetValues(desiredNodeIds);
 
-            uint revisedLifetimeInHours = 0;
+            uint revisedLifetimeInHours;
             Assert.True(subscription.SetSubscriptionDurable(requestedHours, out revisedLifetimeInHours));
 
             Assert.AreEqual(expectedHours, revisedLifetimeInHours);
@@ -221,7 +223,8 @@ namespace Opc.Ua.Client.Tests
             }
             else
             {
-                mi = new MonitoredItem {
+                mi = new MonitoredItem
+                {
                     AttributeId = Attributes.Value,
                     StartNodeId = VariableIds.Server_ServerStatus_CurrentTime,
                     MonitoringMode = MonitoringMode.Reporting,
@@ -253,7 +256,8 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(160)]
         public void SetSubscriptionDurableFailsWhenMIExists()
         {
-            var subscription = new TestableSubscription(Session.DefaultSubscription) {
+            var subscription = new TestableSubscription(Session.DefaultSubscription)
+            {
                 KeepAliveCount = 100u,
                 LifetimeCount = 100u,
                 PublishingInterval = 900
@@ -264,7 +268,8 @@ namespace Opc.Ua.Client.Tests
 
             uint id = subscription.Id;
 
-            var mi = new MonitoredItem {
+            var mi = new MonitoredItem
+            {
                 AttributeId = Attributes.Value,
                 StartNodeId = VariableIds.Server_ServerStatus_CurrentTime,
                 MonitoringMode = MonitoringMode.Reporting,
@@ -290,7 +295,8 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(180)]
         public void SetSubscriptionDurableFailsWhenSubscriptionDoesNotExist()
         {
-            var subscription = new TestableSubscription(Session.DefaultSubscription) {
+            var subscription = new TestableSubscription(Session.DefaultSubscription)
+            {
                 KeepAliveCount = 100u,
                 LifetimeCount = 100u,
                 PublishingInterval = 900
@@ -326,12 +332,13 @@ namespace Opc.Ua.Client.Tests
             const uint expectedHours = 1;
             const uint expectedLifetime = 36000;
 
-            var subscription = new TestableSubscription(Session.DefaultSubscription);
-
-            subscription.KeepAliveCount = keepAliveCount;
-            subscription.LifetimeCount = lifetimeCount;
-            subscription.PublishingInterval = publishingInterval;
-            subscription.MinLifetimeInterval = 1500;
+            var subscription = new TestableSubscription(Session.DefaultSubscription)
+            {
+                KeepAliveCount = keepAliveCount,
+                LifetimeCount = lifetimeCount,
+                PublishingInterval = publishingInterval,
+                MinLifetimeInterval = 1500
+            };
 
             subscription.StateChanged += (s, e) => TestContext.Out.WriteLine($"StateChanged: {s.Session.SessionId}-{s.Id}-{e.Status}");
 
@@ -368,12 +375,14 @@ namespace Opc.Ua.Client.Tests
                 if (nodeId.IdType == IdType.String)
                 {
                     valueTimeStamps.Add(nodeId, []);
-                    var monitoredItem = new MonitoredItem(subscription.DefaultItem) {
+                    var monitoredItem = new MonitoredItem(subscription.DefaultItem)
+                    {
                         StartNodeId = nodeId,
                         SamplingInterval = 1000,
                         QueueSize = 100,
                     };
-                    monitoredItem.Notification += (item, e) => {
+                    monitoredItem.Notification += (item, _) =>
+                    {
                         List<DateTime> list = valueTimeStamps[nodeId];
 
                         foreach (DataValue value in item.DequeueValues())
@@ -489,7 +498,8 @@ namespace Opc.Ua.Client.Tests
 
         private async Task<TestableSubscription> CreateDurableSubscriptionAsync()
         {
-            var subscription = new TestableSubscription(Session.DefaultSubscription) {
+            var subscription = new TestableSubscription(Session.DefaultSubscription)
+            {
                 KeepAliveCount = 100u,
                 LifetimeCount = 100u,
                 PublishingInterval = 900
@@ -661,14 +671,16 @@ namespace Opc.Ua.Client.Tests
                 }
             ]);
 
-            return new MonitoredItem() {
+            return new MonitoredItem()
+            {
                 AttributeId = Attributes.EventNotifier,
                 StartNodeId = ObjectIds.Server,
                 MonitoringMode = MonitoringMode.Reporting,
                 Handle = 1,
                 SamplingInterval = -1,
                 Filter =
-                        new EventFilter {
+                        new EventFilter
+                        {
                             SelectClauses = [.. new SimpleAttributeOperand[] {
                                 new() {
                                     AttributeId = Attributes.Value,

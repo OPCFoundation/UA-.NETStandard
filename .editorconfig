@@ -33,7 +33,7 @@ indent_size = 4
 dotnet_diagnostic.IDE0046.severity = silent
 
 # IDE0130: Namespace does not match folder structure
-dotnet_style_namespace_match_folder = false
+dotnet_style_namespace_match_folder = true:suggestion
 dotnet_style_operator_placement_when_wrapping = beginning_of_line
 dotnet_style_null_propagation = true:suggestion
 dotnet_style_coalesce_expression = true:suggestion
@@ -45,6 +45,29 @@ dotnet_style_prefer_simplified_boolean_expressions = true:suggestion
 
 # IDE0130: Namespace does not match folder structure
 dotnet_diagnostic.IDE0130.severity = none
+dotnet_style_prefer_conditional_expression_over_assignment = true:suggestion
+dotnet_style_prefer_conditional_expression_over_return = false:silent
+dotnet_style_explicit_tuple_names = true:suggestion
+dotnet_style_prefer_inferred_tuple_names = true:suggestion
+dotnet_style_prefer_inferred_anonymous_type_member_names = true:suggestion
+dotnet_style_prefer_compound_assignment = true:suggestion
+dotnet_style_prefer_simplified_interpolation = true:suggestion
+dotnet_style_prefer_collection_expression = when_types_loosely_match:suggestion
+dotnet_style_readonly_field = true:suggestion
+dotnet_style_predefined_type_for_locals_parameters_members = true:suggestion
+dotnet_style_predefined_type_for_member_access = true:suggestion
+dotnet_style_require_accessibility_modifiers = for_non_interface_members:silent
+dotnet_style_allow_multiple_blank_lines_experimental = false:silent
+dotnet_style_allow_statement_immediately_after_block_experimental = true:silent
+dotnet_code_quality_unused_parameters = all:suggestion
+dotnet_style_parentheses_in_arithmetic_binary_operators = always_for_clarity:silent
+dotnet_style_parentheses_in_other_binary_operators = always_for_clarity:silent
+dotnet_style_parentheses_in_relational_binary_operators = always_for_clarity:silent
+dotnet_style_parentheses_in_other_operators = never_if_unnecessary:silent
+dotnet_style_qualification_for_field = false:suggestion
+dotnet_style_qualification_for_property = false:suggestion
+dotnet_style_qualification_for_method = false:suggestion
+dotnet_style_qualification_for_event = false:suggestion
 
 [*.{xml,props,targets,ruleset,config,nuspec,resx,vsixmanifest,vsct}]
 indent_size = 2
@@ -65,12 +88,12 @@ indent_size = 2
 [*.cs]
 
 # Null-checking preferences
-csharp_style_throw_expression                                                 = true : suggestion
-csharp_style_conditional_delegate_call                                        = true : suggestion
+csharp_style_throw_expression                                                 = true:suggestion
+csharp_style_conditional_delegate_call                                        = true:suggestion
 
 # Modifier preferences
 # require braces to be on a new line for control_blocks, types, and methods (also known as "Allman" style)
-csharp_new_line_before_open_brace                                             = control_blocks, types, methods, properties, accessors, object_collection
+csharp_new_line_before_open_brace                                             = all
 csharp_preferred_modifier_order                                               = public,private,protected,internal,static,extern,new,virtual,abstract,sealed,override,readonly,unsafe,volatile,async : suggestion
 csharp_new_line_before_catch                                                  = true
 csharp_new_line_before_else                                                   = true : suggestion
@@ -126,8 +149,8 @@ csharp_preserve_single_line_statements                                        = 
 
 #Pattern - matching preferences
 csharp_style_pattern_local_over_anonymous_function                            = true : suggestion
-csharp_style_pattern_matching_over_is_with_cast_check                         = true : suggestion
-csharp_style_pattern_matching_over_as_with_null_check                         = true : suggestion
+csharp_style_pattern_matching_over_is_with_cast_check                         = true:suggestion
+csharp_style_pattern_matching_over_as_with_null_check                         = true:suggestion
 
 #Style - expression bodied member options
 csharp_style_expression_bodied_operators                                      = false:silent
@@ -141,15 +164,15 @@ csharp_style_expression_bodied_local_functions                                = 
 
 #Style - expression level options
 csharp_prefer_braces                                                          = true:silent
-csharp_style_deconstructed_variable_declaration                               = true : suggestion
-csharp_prefer_simple_default_expression                                       = true : suggestion
-csharp_style_inlined_variable_declaration                                     = false : suggestion
+csharp_style_deconstructed_variable_declaration                               = true:suggestion
+csharp_prefer_simple_default_expression                                       = true:suggestion
+csharp_style_inlined_variable_declaration                                     = false:suggestion
 csharp_prefer_simple_using_statement                                          = true:suggestion
 
 #Style - implicit and explicit types
-csharp_style_var_for_built_in_types                                           = false : suggestion
-csharp_style_var_when_type_is_apparent                                        = true : suggestion
-csharp_style_var_elsewhere                                                    = false : suggestion
+csharp_style_var_for_built_in_types                                           = false:suggestion
+csharp_style_var_when_type_is_apparent                                        = true:suggestion
+csharp_style_var_elsewhere                                                    = false:suggestion
 
 #Style - language keyword and framework type options
 
@@ -187,7 +210,7 @@ dotnet_style_prefer_auto_properties                                           = 
 dotnet_style_prefer_conditional_expression_over_assignment                    = true : suggestion
 dotnet_style_prefer_conditional_expression_over_return                        = false
 
-csharp_style_unused_value_expression_statement_preference                     = unused_local_variable
+csharp_style_unused_value_expression_statement_preference                     = unused_local_variable:silent
 
 # 'using' directive preferences
 csharp_using_directive_placement                                              = outside_namespace:suggestion
@@ -403,6 +426,29 @@ dotnet_diagnostic.RCS1174.severity                                            = 
 dotnet_diagnostic.RCS1181.severity                                            = suggestion
 dotnet_diagnostic.RCS1091.severity                                            = suggestion
 dotnet_diagnostic.RCS1261.severity                                            = none
+csharp_style_prefer_null_check_over_type_check = true:suggestion
+csharp_style_prefer_local_over_anonymous_function = true:suggestion
+csharp_style_prefer_index_operator = true:suggestion
+csharp_style_prefer_range_operator = true:suggestion
+csharp_style_implicit_object_creation_when_type_is_apparent = true:suggestion
+csharp_style_prefer_implicitly_typed_lambda_expression = true:suggestion
+csharp_style_prefer_tuple_swap = true:suggestion
+csharp_style_prefer_unbound_generic_type_in_nameof = true:suggestion
+csharp_style_prefer_utf8_string_literals = true:suggestion
+csharp_style_unused_value_assignment_preference = discard_variable:suggestion
+csharp_prefer_static_local_function = true:warning
+csharp_prefer_static_anonymous_function = true:suggestion
+csharp_style_prefer_readonly_struct = true:suggestion
+csharp_style_prefer_readonly_struct_member = true:suggestion
+csharp_style_allow_embedded_statements_on_same_line_experimental = true:silent
+csharp_style_allow_blank_lines_between_consecutive_braces_experimental = true:silent
+csharp_style_allow_blank_line_after_colon_in_constructor_initializer_experimental = true:silent
+csharp_style_allow_blank_line_after_token_in_conditional_expression_experimental = true:silent
+csharp_style_allow_blank_line_after_token_in_arrow_expression_clause_experimental = true:silent
+csharp_style_prefer_switch_expression = true:suggestion
+csharp_style_prefer_pattern_matching = true:silent
+csharp_style_prefer_not_pattern = true:suggestion
+csharp_style_prefer_extended_property_pattern = true:suggestion
 
 # exclude generated code
 

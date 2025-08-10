@@ -134,7 +134,7 @@ namespace Opc.Ua.Client.Tests
                 .Setup(c => c.ReadNodeAsync(
                     It.Is<NodeId>(i => i == id),
                     It.IsAny<CancellationToken>()))
-                .Returns<NodeId, CancellationToken>((nodeId, ct)
+                .Returns<NodeId, CancellationToken>((nodeId, _)
                     => Task.FromResult(expected))
                 .Verifiable(Times.Once);
             var nodeCache = new LruNodeCache(context.Object);
@@ -208,7 +208,8 @@ namespace Opc.Ua.Client.Tests
         {
             // Arrange
             var id = new NodeId("test", 0);
-            var expected = new VariableNode {
+            var expected = new VariableNode
+            {
                 BrowseName = new QualifiedName("child"),
                 NodeId = id,
                 NodeClass = NodeClass.Variable
@@ -287,7 +288,8 @@ namespace Opc.Ua.Client.Tests
                     IsForward = true
                 }
             };
-            var childNode = new VariableNode {
+            var childNode = new VariableNode
+            {
                 BrowseName = new QualifiedName("child"),
                 NodeId = childId,
                 NodeClass = NodeClass.Variable
@@ -302,7 +304,8 @@ namespace Opc.Ua.Client.Tests
                     IsForward = true
                 }
             };
-            var expected = new VariableNode {
+            var expected = new VariableNode
+            {
                 BrowseName = new QualifiedName("grandChild"),
                 NodeId = grandChildId,
                 NodeClass = NodeClass.Variable

@@ -50,24 +50,24 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
         private void Initialize()
         {
-            m_dataTypeDictionary = [];
-            m_dataTypeNodes = [];
+            DataTypeSystem = [];
+            DataTypeNodes = [];
             m_factory = new EncodeableFactory(EncodeableFactory.GlobalFactory);
-            m_namespaceUris = new NamespaceTable();
+            NamespaceUris = new NamespaceTable();
 
-            m_namespaceUris.Append("urn:This:is:my:test:encoder");
-            m_namespaceUris.Append("urn:This:is:another:namespace");
-            m_namespaceUris.Append(Namespaces.OpcUaEncoderTests);
-            m_namespaceUris.Append(Namespaces.MockResolverUrl);
+            NamespaceUris.Append("urn:This:is:my:test:encoder");
+            NamespaceUris.Append("urn:This:is:another:namespace");
+            NamespaceUris.Append(Namespaces.OpcUaEncoderTests);
+            NamespaceUris.Append(Namespaces.MockResolverUrl);
         }
 
-        public NodeIdDictionary<INode> DataTypeNodes => m_dataTypeNodes;
+        public NodeIdDictionary<INode> DataTypeNodes { get; private set; }
 
         /// <inheritdoc/>
-        public NodeIdDictionary<DataDictionary> DataTypeSystem => m_dataTypeDictionary;
+        public NodeIdDictionary<DataDictionary> DataTypeSystem { get; private set; }
 
         /// <inheritdoc/>
-        public NamespaceTable NamespaceUris => m_namespaceUris;
+        public NamespaceTable NamespaceUris { get; private set; }
 
         /// <inheritdoc/>
         public IEncodeableFactory Factory => m_factory;
@@ -75,7 +75,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// <inheritdoc/>
         public Task<IReadOnlyDictionary<NodeId, DataDictionary>> LoadDataTypeSystem(NodeId dataTypeSystem = null, CancellationToken ct = default)
         {
-            return Task.FromResult<IReadOnlyDictionary<NodeId, DataDictionary>>(m_dataTypeDictionary);
+            return Task.FromResult<IReadOnlyDictionary<NodeId, DataDictionary>>(DataTypeSystem);
         }
 
         /// <inheritdoc/>
@@ -94,13 +94,13 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             ExpandedNodeId xmlEncodingId = ExpandedNodeId.Null;
             IList<NodeId> encodings = null;
 
-            INode node = m_dataTypeNodes[ExpandedNodeId.ToNodeId(nodeId, NamespaceUris)];
+            INode node = DataTypeNodes[ExpandedNodeId.ToNodeId(nodeId, NamespaceUris)];
             if (node is DataTypeNode dataTypeNode)
             {
                 var result = new List<NodeId>();
                 foreach (ReferenceNode reference in dataTypeNode.References.Where(r => r.ReferenceTypeId.Equals(ReferenceTypeIds.HasEncoding)))
                 {
-                    INode encodingNode = m_dataTypeNodes[ExpandedNodeId.ToNodeId(reference.TargetId, NamespaceUris)];
+                    INode encodingNode = DataTypeNodes[ExpandedNodeId.ToNodeId(reference.TargetId, NamespaceUris)];
                     if (encodingNode == null)
                     {
                         continue;
@@ -160,7 +160,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 var nextNodesToBrowse = new ExpandedNodeIdCollection();
                 foreach (ExpandedNodeId node in nodesToBrowse)
                 {
-                    IEnumerable<DataTypeNode> response = m_dataTypeNodes.Values.Where(n => n.NodeClass == NodeClass.DataType && ((DataTypeNode)n).DataTypeDefinition.Body is StructureDefinition structureDefinition && Utils.IsEqual(structureDefinition.BaseDataType, node)).Cast<DataTypeNode>();
+                    IEnumerable<DataTypeNode> response = DataTypeNodes.Values.Where(n => n.NodeClass == NodeClass.DataType && ((DataTypeNode)n).DataTypeDefinition.Body is StructureDefinition structureDefinition && Utils.IsEqual(structureDefinition.BaseDataType, node)).Cast<DataTypeNode>();
                     if (nestedSubTypes)
                     {
                         nextNodesToBrowse.AddRange(response.Select(r => NodeId.ToExpandedNodeId(r.NodeId, NamespaceUris)));
@@ -183,7 +183,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// <inheritdoc/>
         public Task<INode> FindAsync(ExpandedNodeId nodeId, CancellationToken ct = default)
         {
-            return Task.FromResult(m_dataTypeNodes[ExpandedNodeId.ToNodeId(nodeId, NamespaceUris)]);
+            return Task.FromResult(DataTypeNodes[ExpandedNodeId.ToNodeId(nodeId, NamespaceUris)]);
         }
 
         /// <inheritdoc/>
@@ -195,7 +195,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// <inheritdoc/>
         public Task<NodeId> FindSuperTypeAsync(NodeId typeId, CancellationToken ct = default)
         {
-            INode node = m_dataTypeNodes[typeId];
+            INode node = DataTypeNodes[typeId];
             if (node is DataTypeNode dataTypeNode)
             {
                 if (dataTypeNode.DataTypeDefinition.Body is EnumDefinition enumDefinition)
@@ -221,9 +221,6 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             return NodeId.ToExpandedNodeId(nodeId, NamespaceUris);
         }
 
-        private NodeIdDictionary<DataDictionary> m_dataTypeDictionary;
-        private NodeIdDictionary<INode> m_dataTypeNodes;
         private EncodeableFactory m_factory;
-        private NamespaceTable m_namespaceUris;
     }//namespace
 }

@@ -47,17 +47,17 @@ namespace Opc.Ua.Client
         private void Initialize()
         {
             Id = 0;
-            m_nodeId = null;
-            m_attributeId = Attributes.Value;
-            m_indexRange = null;
-            m_encoding = null;
-            m_monitoringMode = MonitoringMode.Disabled;
-            m_clientHandle = 0;
-            m_samplingInterval = 0;
-            m_filter = null;
-            m_filterResult = null;
-            m_queueSize = 0;
-            m_discardOldest = true;
+            NodeId = null;
+            AttributeId = Attributes.Value;
+            IndexRange = null;
+            DataEncoding = null;
+            MonitoringMode = MonitoringMode.Disabled;
+            ClientHandle = 0;
+            SamplingInterval = 0;
+            Filter = null;
+            FilterResult = null;
+            QueueSize = 0;
+            DiscardOldest = true;
         }
 
         /// <summary>
@@ -73,69 +73,69 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Any error condition associated with the monitored item.
         /// </summary>
-        public ServiceResult Error => m_error;
+        public ServiceResult Error { get; private set; }
 
         /// <summary>
         /// The node id being monitored.
         /// </summary>
-        public NodeId NodeId => m_nodeId;
+        public NodeId NodeId { get; private set; }
 
         /// <summary>
         /// The attribute being monitored.
         /// </summary>
-        public uint AttributeId => m_attributeId;
+        public uint AttributeId { get; private set; }
 
         /// <summary>
         /// The range of array indexes to being monitored.
         /// </summary>
-        public string IndexRange => m_indexRange;
+        public string IndexRange { get; private set; }
 
         /// <summary>
         /// The encoding to use when returning notifications.
         /// </summary>
-        public QualifiedName DataEncoding => m_encoding;
+        public QualifiedName DataEncoding { get; private set; }
 
         /// <summary>
         /// The monitoring mode.
         /// </summary>
-        public MonitoringMode MonitoringMode => m_monitoringMode;
+        public MonitoringMode MonitoringMode { get; private set; }
 
         /// <summary>
         /// The identifier assigned by the client.
         /// </summary>
-        public uint ClientHandle => m_clientHandle;
+        public uint ClientHandle { get; private set; }
 
         /// <summary>
         /// The sampling interval.
         /// </summary>
-        public double SamplingInterval => m_samplingInterval;
+        public double SamplingInterval { get; private set; }
 
         /// <summary>
         /// The filter to use to select values to return.
         /// </summary>
-        public MonitoringFilter Filter => m_filter;
+        public MonitoringFilter Filter { get; private set; }
 
         /// <summary>
         /// The result of applying the filter
         /// </summary>
-        public MonitoringFilterResult FilterResult => m_filterResult;
+        public MonitoringFilterResult FilterResult { get; private set; }
 
         /// <summary>
         /// The length of the queue used to buffer values.
         /// </summary>
-        public uint QueueSize => m_queueSize;
+        public uint QueueSize { get; private set; }
 
         /// <summary>
         /// Whether to discard the oldest entries in the queue when it is full.
         /// </summary>
-        public bool DiscardOldest => m_discardOldest;
+        public bool DiscardOldest { get; private set; }
 
         /// <summary>
         /// Updates the monitoring mode.
         /// </summary>
         public void SetMonitoringMode(MonitoringMode monitoringMode)
         {
-            m_monitoringMode = monitoringMode;
+            MonitoringMode = monitoringMode;
         }
 
         /// <summary>
@@ -145,7 +145,7 @@ namespace Opc.Ua.Client
             BrowsePathResult result,
             ServiceResult error)
         {
-            m_error = error;
+            Error = error;
         }
 
         /// <summary>
@@ -166,33 +166,33 @@ namespace Opc.Ua.Client
                 throw new ArgumentNullException(nameof(result));
             }
 
-            m_nodeId = request.ItemToMonitor.NodeId;
-            m_attributeId = request.ItemToMonitor.AttributeId;
-            m_indexRange = request.ItemToMonitor.IndexRange;
-            m_encoding = request.ItemToMonitor.DataEncoding;
-            m_monitoringMode = request.MonitoringMode;
-            m_clientHandle = request.RequestedParameters.ClientHandle;
-            m_samplingInterval = request.RequestedParameters.SamplingInterval;
-            m_queueSize = request.RequestedParameters.QueueSize;
-            m_discardOldest = request.RequestedParameters.DiscardOldest;
-            m_filter = null;
-            m_filterResult = null;
-            m_error = error;
+            NodeId = request.ItemToMonitor.NodeId;
+            AttributeId = request.ItemToMonitor.AttributeId;
+            IndexRange = request.ItemToMonitor.IndexRange;
+            DataEncoding = request.ItemToMonitor.DataEncoding;
+            MonitoringMode = request.MonitoringMode;
+            ClientHandle = request.RequestedParameters.ClientHandle;
+            SamplingInterval = request.RequestedParameters.SamplingInterval;
+            QueueSize = request.RequestedParameters.QueueSize;
+            DiscardOldest = request.RequestedParameters.DiscardOldest;
+            Filter = null;
+            FilterResult = null;
+            Error = error;
 
             if (request.RequestedParameters.Filter != null)
             {
-                m_filter = Utils.Clone(request.RequestedParameters.Filter.Body) as MonitoringFilter;
+                Filter = Utils.Clone(request.RequestedParameters.Filter.Body) as MonitoringFilter;
             }
 
             if (ServiceResult.IsGood(error))
             {
                 Id = result.MonitoredItemId;
-                m_samplingInterval = result.RevisedSamplingInterval;
-                m_queueSize = result.RevisedQueueSize;
+                SamplingInterval = result.RevisedSamplingInterval;
+                QueueSize = result.RevisedQueueSize;
 
                 if (result.FilterResult != null)
                 {
-                    m_filterResult = Utils.Clone(result.FilterResult.Body) as MonitoringFilterResult;
+                    FilterResult = Utils.Clone(result.FilterResult.Body) as MonitoringFilterResult;
                 }
             }
         }
@@ -207,21 +207,21 @@ namespace Opc.Ua.Client
                 throw new ArgumentNullException(nameof(monitoredItem));
             }
 
-            m_nodeId = monitoredItem.ResolvedNodeId;
-            m_attributeId = monitoredItem.AttributeId;
-            m_indexRange = monitoredItem.IndexRange;
-            m_encoding = monitoredItem.Encoding;
-            m_monitoringMode = monitoredItem.MonitoringMode;
-            m_clientHandle = monitoredItem.ClientHandle;
-            m_samplingInterval = monitoredItem.SamplingInterval;
-            m_queueSize = monitoredItem.QueueSize;
-            m_discardOldest = monitoredItem.DiscardOldest;
-            m_filter = null;
-            m_filterResult = null;
+            NodeId = monitoredItem.ResolvedNodeId;
+            AttributeId = monitoredItem.AttributeId;
+            IndexRange = monitoredItem.IndexRange;
+            DataEncoding = monitoredItem.Encoding;
+            MonitoringMode = monitoredItem.MonitoringMode;
+            ClientHandle = monitoredItem.ClientHandle;
+            SamplingInterval = monitoredItem.SamplingInterval;
+            QueueSize = monitoredItem.QueueSize;
+            DiscardOldest = monitoredItem.DiscardOldest;
+            Filter = null;
+            FilterResult = null;
 
             if (monitoredItem.Filter != null)
             {
-                m_filter = Utils.Clone(monitoredItem.Filter);
+                Filter = Utils.Clone(monitoredItem.Filter);
             }
         }
 
@@ -243,28 +243,28 @@ namespace Opc.Ua.Client
                 throw new ArgumentNullException(nameof(result));
             }
 
-            m_error = error;
+            Error = error;
 
             if (ServiceResult.IsGood(error))
             {
-                m_clientHandle = request.RequestedParameters.ClientHandle;
-                m_samplingInterval = request.RequestedParameters.SamplingInterval;
-                m_queueSize = request.RequestedParameters.QueueSize;
-                m_discardOldest = request.RequestedParameters.DiscardOldest;
-                m_filter = null;
-                m_filterResult = null;
+                ClientHandle = request.RequestedParameters.ClientHandle;
+                SamplingInterval = request.RequestedParameters.SamplingInterval;
+                QueueSize = request.RequestedParameters.QueueSize;
+                DiscardOldest = request.RequestedParameters.DiscardOldest;
+                Filter = null;
+                FilterResult = null;
 
                 if (request.RequestedParameters.Filter != null)
                 {
-                    m_filter = Utils.Clone(request.RequestedParameters.Filter.Body) as MonitoringFilter;
+                    Filter = Utils.Clone(request.RequestedParameters.Filter.Body) as MonitoringFilter;
                 }
 
-                m_samplingInterval = result.RevisedSamplingInterval;
-                m_queueSize = result.RevisedQueueSize;
+                SamplingInterval = result.RevisedSamplingInterval;
+                QueueSize = result.RevisedQueueSize;
 
                 if (result.FilterResult != null)
                 {
-                    m_filterResult = Utils.Clone(result.FilterResult.Body) as MonitoringFilterResult;
+                    FilterResult = Utils.Clone(result.FilterResult.Body) as MonitoringFilterResult;
                 }
             }
         }
@@ -275,7 +275,7 @@ namespace Opc.Ua.Client
         internal void SetDeleteResult(ServiceResult error)
         {
             Id = 0;
-            m_error = error;
+            Error = error;
         }
 
         /// <summary>
@@ -283,20 +283,7 @@ namespace Opc.Ua.Client
         /// </summary>
         internal void SetError(ServiceResult error)
         {
-            m_error = error;
+            Error = error;
         }
-
-        private ServiceResult m_error;
-        private NodeId m_nodeId;
-        private uint m_attributeId;
-        private string m_indexRange;
-        private QualifiedName m_encoding;
-        private MonitoringMode m_monitoringMode;
-        private uint m_clientHandle;
-        private double m_samplingInterval;
-        private MonitoringFilter m_filter;
-        private MonitoringFilterResult m_filterResult;
-        private uint m_queueSize;
-        private bool m_discardOldest;
     }
 }

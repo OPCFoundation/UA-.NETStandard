@@ -90,7 +90,8 @@ namespace Opc.Ua
                 var endpointUrl = new Uri(description.EndpointUrl);
                 channel = new RegistrationChannel();
 
-                var settings = new TransportChannelSettings {
+                var settings = new TransportChannelSettings
+                {
                     Configuration = endpointConfiguration,
                     Description = description,
                     ClientCertificate = clientCertificate

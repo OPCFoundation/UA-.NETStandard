@@ -128,11 +128,6 @@ namespace Opc.Ua
         /// <summary>
         /// True if the reference filter has not been applied.
         /// </summary>
-        public bool Unfiltered
-        {
-            get => m_unfiltered; set => m_unfiltered = value;
-        }
-
-        private bool m_unfiltered;
+        public bool Unfiltered { get; set; }
     }
 }

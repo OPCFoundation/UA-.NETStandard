@@ -233,8 +233,7 @@ namespace Opc.Ua.Test
             BuiltInType expectedType = TypeInfo.GetBuiltInType(dataType, typeTree);
 
             // calculate total number of dimensions.
-            int dimensions = 0;
-
+            int dimensions;
             switch (valueRank)
             {
                 case ValueRanks.Any:
@@ -327,9 +326,9 @@ namespace Opc.Ua.Test
                 if (value != null)
                 {
                     if (expectedType == BuiltInType.Guid &&
-                        value is Guid)
+                        value is Guid guidValue)
                     {
-                        value = new Uuid((Guid)value);
+                        value = new Uuid(guidValue);
                     }
 
                     output.SetValue(value, indexes);
@@ -629,8 +628,7 @@ namespace Opc.Ua.Test
 
             for (int ii = 0; ii < value.Length; ii++)
             {
-                object element = null;
-
+                object element;
                 if (useBoundaryValues && UseBoundaryValue())
                 {
                     element = GetBoundaryValue(typeof(T));
@@ -1084,8 +1082,7 @@ namespace Opc.Ua.Test
             {
                 return ExtensionObject.Null;
             }
-            object body = null;
-
+            object body;
             if (m_random.NextInt32(1) != 0)
             {
                 body = GetRandomByteString();
@@ -1294,9 +1291,7 @@ namespace Opc.Ua.Test
                 return null;
             }
 
-            object[] boundaryValues = null;
-
-            if (!m_boundaryValues.TryGetValue(type.Name, out boundaryValues))
+            if (!m_boundaryValues.TryGetValue(type.Name, out object[] boundaryValues))
             {
                 return null;
             }
@@ -1370,15 +1365,13 @@ namespace Opc.Ua.Test
         /// </summary>
         private string CreateString(string locale, bool isSymbol)
         {
-            string[] tokens = null;
-
+            string[] tokens;
             if (!m_tokenValues.TryGetValue(locale, out tokens))
             {
                 tokens = m_tokenValues["en-US"];
             }
 
-            int length = 0;
-
+            int length;
             if (isSymbol)
             {
                 length = m_random.NextInt32(2) + 1;

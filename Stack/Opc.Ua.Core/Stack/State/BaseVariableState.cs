@@ -351,7 +351,8 @@ namespace Opc.Ua
 
                     if (context != null)
                     {
-                        messageContext = new ServiceMessageContext {
+                        messageContext = new ServiceMessageContext
+                        {
                             NamespaceUris = context.NamespaceUris,
                             ServerUris = context.ServerUris,
                             Factory = context.EncodeableFactory
@@ -1532,7 +1533,7 @@ namespace Opc.Ua
             QualifiedName dataEncoding,
             ref object value)
         {
-            ServiceResult result = null;
+            ServiceResult result;
 
             // apply index range.
             if (indexRange != NumericRange.Empty)
@@ -1548,7 +1549,8 @@ namespace Opc.Ua
             // apply data encoding.
             if (!QualifiedName.IsNull(dataEncoding))
             {
-                var messageContext = new ServiceMessageContext {
+                var messageContext = new ServiceMessageContext
+                {
                     NamespaceUris = context.NamespaceUris,
                     ServerUris = context.ServerUris,
                     Factory = context.EncodeableFactory

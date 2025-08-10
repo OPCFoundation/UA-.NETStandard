@@ -60,9 +60,11 @@ namespace TestData
             m_minimumSamplingInterval = int.MaxValue;
             m_monitoredNodes = [];
             m_samplingNodes = null;
-            m_generator = new Opc.Ua.Test.DataGenerator(null);
-            m_generator.NamespaceUris = namespaceUris;
-            m_generator.ServerUris = serverUris;
+            m_generator = new Opc.Ua.Test.DataGenerator(null)
+            {
+                NamespaceUris = namespaceUris,
+                ServerUris = serverUris
+            };
             m_historyArchive = new HistoryArchive();
         }
 
@@ -688,7 +690,8 @@ namespace TestData
         /// </summary>
         public Vector GetRandomVector()
         {
-            return new Vector() {
+            return new Vector()
+            {
                 X = (double)m_generator.GetRandom(BuiltInType.Double),
                 Y = (double)m_generator.GetRandom(BuiltInType.Double),
                 Z = (double)m_generator.GetRandom(BuiltInType.Double),
@@ -697,7 +700,8 @@ namespace TestData
 
         public VectorUnion GetRandomVectorUnion()
         {
-            return new VectorUnion() {
+            return new VectorUnion()
+            {
                 SwitchField = (VectorUnionFields)(m_generator.GetRandomUInt16() % 4),
                 X = (double)m_generator.GetRandom(BuiltInType.Double),
                 Y = (double)m_generator.GetRandom(BuiltInType.Double),
@@ -723,7 +727,8 @@ namespace TestData
                 encodingMask |= VectorWithOptionalFieldsFields.Z;
             }
 
-            return new VectorWithOptionalFields() {
+            return new VectorWithOptionalFields()
+            {
                 EncodingMask = encodingMask,
                 X = (double)m_generator.GetRandom(BuiltInType.Double),
                 Y = (double)m_generator.GetRandom(BuiltInType.Double),
@@ -733,7 +738,8 @@ namespace TestData
 
         public MultipleVectors GetRandomMultipleVectors()
         {
-            return new MultipleVectors() {
+            return new MultipleVectors()
+            {
                 Vector = GetRandomVector(),
                 VectorUnion = GetRandomVectorUnion(),
                 VectorWithOptionalFields = GetRandomVectorWithOptionalFields(),
@@ -762,7 +768,8 @@ namespace TestData
 
         public ScalarStructureDataType GetRandomScalarStructureDataType()
         {
-            return new ScalarStructureDataType {
+            return new ScalarStructureDataType
+            {
                 BooleanValue = m_generator.GetRandom<bool>(false),
                 SByteValue = m_generator.GetRandom<sbyte>(false),
                 ByteValue = m_generator.GetRandom<byte>(false),
@@ -793,7 +800,8 @@ namespace TestData
 
         public ArrayValueDataType GetRandomArrayValueDataType()
         {
-            var value = new ArrayValueDataType {
+            var value = new ArrayValueDataType
+            {
                 BooleanValue = m_generator.GetRandomArray<bool>(false, 10, false),
                 SByteValue = m_generator.GetRandomArray<sbyte>(false, 10, false),
                 ByteValue = m_generator.GetRandomArray<byte>(false, 10, false),
@@ -915,7 +923,8 @@ namespace TestData
                         object value = ReadValue(variable);
                         if (value != null)
                         {
-                            var sample = new Sample {
+                            var sample = new Sample
+                            {
                                 Variable = variable,
                                 Value = value,
                                 StatusCode = StatusCodes.Good,

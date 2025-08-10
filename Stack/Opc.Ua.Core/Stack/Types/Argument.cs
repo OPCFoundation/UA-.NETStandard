@@ -31,11 +31,6 @@ namespace Opc.Ua
         /// <summary>
 		/// The value for the argument.
 		/// </summary>
-		public object Value
-        {
-            get => m_value; set => m_value = value;
-        }
-
-        private object m_value;
+		public object Value { get; set; }
     }
 }

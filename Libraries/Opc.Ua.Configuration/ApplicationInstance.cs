@@ -94,7 +94,7 @@ namespace Opc.Ua.Configuration
         /// Gets the server.
         /// </summary>
         /// <value>The server.</value>
-        public ServerBase Server => m_server;
+        public ServerBase Server { get; private set; }
 
         /// <summary>
         /// Gets the application configuration used when the Start() method was called.
@@ -161,7 +161,7 @@ namespace Opc.Ua.Configuration
         /// <param name="server">The server.</param>
         public async Task StartAsync(ServerBase server)
         {
-            m_server = server;
+            Server = server;
 
             if (ApplicationConfiguration == null)
             {
@@ -176,7 +176,7 @@ namespace Opc.Ua.Configuration
         /// </summary>
         public void Stop()
         {
-            m_server.Stop();
+            Server.Stop();
         }
 
         /// <summary>
@@ -386,12 +386,14 @@ namespace Opc.Ua.Configuration
             )
         {
             // App Uri and cert subject
-            ApplicationConfiguration = new ApplicationConfiguration {
+            ApplicationConfiguration = new ApplicationConfiguration
+            {
                 ApplicationName = ApplicationName,
                 ApplicationType = ApplicationType,
                 ApplicationUri = applicationUri,
                 ProductUri = productUri,
-                TraceConfiguration = new TraceConfiguration {
+                TraceConfiguration = new TraceConfiguration
+                {
                     TraceMasks = TraceMasks.None
                 },
                 TransportQuotas = new TransportQuotas()
@@ -532,7 +534,8 @@ namespace Opc.Ua.Configuration
                 {
                     if (!string.IsNullOrEmpty(id.SubjectName))
                     {
-                        var id2 = new CertificateIdentifier {
+                        var id2 = new CertificateIdentifier
+                        {
                             StoreType = id.StoreType,
                             StorePath = id.StorePath,
                             SubjectName = id.SubjectName
@@ -873,12 +876,7 @@ namespace Opc.Ua.Configuration
 #if !ECC_SUPPORT
                 throw new ServiceResultException(StatusCodes.BadConfigurationError, "The Ecc certificate type is not supported.");
 #else
-                ECCurve? curve = EccUtils.GetCurveFromCertificateTypeId(id.CertificateType);
-
-                if (curve == null)
-                {
-                    throw new ServiceResultException(StatusCodes.BadConfigurationError, "The Ecc certificate type is not supported.");
-                }
+                ECCurve? curve = EccUtils.GetCurveFromCertificateTypeId(id.CertificateType) ?? throw new ServiceResultException(StatusCodes.BadConfigurationError, "The Ecc certificate type is not supported.");
 
                 id.Certificate = builder
                     .SetECCurve(curve.Value)
@@ -1101,7 +1099,5 @@ namespace Opc.Ua.Configuration
                 return false;
             }
         }
-
-        private ServerBase m_server;
     }
 }

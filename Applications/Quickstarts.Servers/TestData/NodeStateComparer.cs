@@ -45,7 +45,7 @@ namespace TestData
                 return true;
             }
 
-            if (ReferenceEquals(x, null) || ReferenceEquals(y, null))
+            if (x is null || y is null)
             {
                 return false;
             }
@@ -56,7 +56,7 @@ namespace TestData
         /// <inheritdoc/>
         public int GetHashCode(NodeState obj)
         {
-            if (ReferenceEquals(obj, null))
+            if (obj is null)
             {
                 return 0;
             }

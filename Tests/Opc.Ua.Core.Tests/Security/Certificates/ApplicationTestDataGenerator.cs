@@ -92,7 +92,8 @@ namespace Opc.Ua.Core.Tests
                     discoveryUrls = RandomDiscoveryUrl(domainNames, port, pureAppUri);
                     break;
             }
-            return new ApplicationTestData {
+            return new ApplicationTestData
+            {
                 ApplicationName = appName,
                 ApplicationUri = appUri,
                 DomainNames = domainNames,

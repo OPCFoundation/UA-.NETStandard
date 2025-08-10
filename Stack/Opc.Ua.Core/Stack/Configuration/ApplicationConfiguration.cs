@@ -76,15 +76,12 @@ namespace Opc.Ua
         /// Gets the file that was used to load the configuration.
         /// </summary>
         /// <value>The source file path.</value>
-        public string SourceFilePath => m_sourceFilePath;
+        public string SourceFilePath { get; private set; }
 
         /// <summary>
         /// Gets or sets the certificate validator which is configured to use.
         /// </summary>
-        public CertificateValidator CertificateValidator
-        {
-            get => m_certificateValidator; set => m_certificateValidator = value;
-        }
+        public CertificateValidator CertificateValidator { get; set; }
 
         /// <summary>
         /// Returns the domain names which the server is configured to use.
@@ -158,14 +155,14 @@ namespace Opc.Ua
         {
             var messageContext = new ServiceMessageContext();
 
-            if (m_transportQuotas != null)
+            if (TransportQuotas != null)
             {
-                messageContext.MaxArrayLength = m_transportQuotas.MaxArrayLength;
-                messageContext.MaxByteStringLength = m_transportQuotas.MaxByteStringLength;
-                messageContext.MaxStringLength = m_transportQuotas.MaxStringLength;
-                messageContext.MaxMessageSize = m_transportQuotas.MaxMessageSize;
-                messageContext.MaxEncodingNestingLevels = m_transportQuotas.MaxEncodingNestingLevels;
-                messageContext.MaxDecoderRecoveries = m_transportQuotas.MaxDecoderRecoveries;
+                messageContext.MaxArrayLength = TransportQuotas.MaxArrayLength;
+                messageContext.MaxByteStringLength = TransportQuotas.MaxByteStringLength;
+                messageContext.MaxStringLength = TransportQuotas.MaxStringLength;
+                messageContext.MaxMessageSize = TransportQuotas.MaxMessageSize;
+                messageContext.MaxEncodingNestingLevels = TransportQuotas.MaxEncodingNestingLevels;
+                messageContext.MaxDecoderRecoveries = TransportQuotas.MaxDecoderRecoveries;
             }
 
             messageContext.NamespaceUris = new NamespaceTable();
@@ -257,7 +254,7 @@ namespace Opc.Ua
 
                 if (configuration != null)
                 {
-                    configuration.m_sourceFilePath = file.FullName;
+                    configuration.SourceFilePath = file.FullName;
                 }
 
                 return configuration;
@@ -353,7 +350,7 @@ namespace Opc.Ua
 
             if (configuration != null)
             {
-                configuration.m_sourceFilePath = file.FullName;
+                configuration.SourceFilePath = file.FullName;
             }
 
             return configuration;
@@ -395,9 +392,9 @@ namespace Opc.Ua
             bool applyTraceSettings,
             ICertificatePasswordProvider certificatePasswordProvider = null)
         {
-            ApplicationConfiguration configuration = null;
             systemType ??= typeof(ApplicationConfiguration);
 
+            ApplicationConfiguration configuration;
             try
             {
                 var serializer = new DataContractSerializer(systemType);
@@ -492,18 +489,19 @@ namespace Opc.Ua
                 await applicationCertificate.LoadPrivateKeyExAsync(SecurityConfiguration.CertificatePasswordProvider, ApplicationUri).ConfigureAwait(false);
             }
 
-            Func<string> generateDefaultUri = () => {
+            string GenerateDefaultUri()
+            {
                 var sb = new StringBuilder();
                 sb.Append("urn:");
                 sb.Append(Utils.GetHostName());
                 sb.Append(':');
                 sb.Append(ApplicationName);
                 return sb.ToString();
-            };
+            }
 
             if (string.IsNullOrEmpty(ApplicationUri))
             {
-                m_applicationUri = generateDefaultUri();
+                ApplicationUri = GenerateDefaultUri();
             }
 
             if (applicationType is ApplicationType.Client or ApplicationType.ClientAndServer)
@@ -537,14 +535,14 @@ namespace Opc.Ua
             }
 
             // toggle the state of the hi-res clock.
-            HiResClock.Disabled = m_disableHiResClock;
+            HiResClock.Disabled = DisableHiResClock;
 
-            if (HiResClock.Disabled && m_serverConfiguration != null && m_serverConfiguration.PublishingResolution < 50)
+            if (HiResClock.Disabled && ServerConfiguration != null && ServerConfiguration.PublishingResolution < 50)
             {
-                m_serverConfiguration.PublishingResolution = 50;
+                ServerConfiguration.PublishingResolution = 50;
             }
 
-            await m_certificateValidator.UpdateAsync(SecurityConfiguration).ConfigureAwait(false);
+            await CertificateValidator.UpdateAsync(SecurityConfiguration).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -569,16 +567,16 @@ namespace Opc.Ua
         /// </returns>
         public ConfiguredEndpointCollection LoadCachedEndpoints(bool createAlways, bool overrideConfiguration)
         {
-            if (m_clientConfiguration == null)
+            if (ClientConfiguration == null)
             {
                 throw new InvalidOperationException("Only valid for client configurations.");
             }
 
-            string filePath = Utils.GetAbsoluteFilePath(m_clientConfiguration.EndpointCacheFilePath, true, false, false, false);
+            string filePath = Utils.GetAbsoluteFilePath(ClientConfiguration.EndpointCacheFilePath, true, false, false, false);
 
             if (filePath == null)
             {
-                filePath = m_clientConfiguration.EndpointCacheFilePath;
+                filePath = ClientConfiguration.EndpointCacheFilePath;
 
                 if (!Utils.IsPathRooted(filePath))
                 {
@@ -603,7 +601,7 @@ namespace Opc.Ua
             }
             finally
             {
-                string localFilePath = Utils.GetAbsoluteFilePath(m_clientConfiguration.EndpointCacheFilePath, true, false, true, true);
+                string localFilePath = Utils.GetAbsoluteFilePath(ClientConfiguration.EndpointCacheFilePath, true, false, true, true);
                 if (localFilePath != filePath)
                 {
                     endpoints.Save(localFilePath);
@@ -661,10 +659,10 @@ namespace Opc.Ua
         /// </summary>
         public void ApplySettings()
         {
-            Utils.SetTraceLog(m_outputFilePath, m_deleteOnLoad);
-            Utils.SetTraceMask(m_traceMasks);
+            Utils.SetTraceLog(OutputFilePath, DeleteOnLoad);
+            Utils.SetTraceMask(TraceMasks);
 
-            if (m_traceMasks == 0)
+            if (TraceMasks == 0)
             {
                 Utils.SetTraceOutput(Utils.TraceOutput.Off);
             }

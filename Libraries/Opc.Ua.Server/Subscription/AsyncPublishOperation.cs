@@ -93,7 +93,7 @@ namespace Opc.Ua.Server
         /// Gets the calldata.
         /// </summary>
         /// <value>The calldata.</value>
-        public object Calldata => m_calldata;
+        public object Calldata { get; private set; }
 
         /// <summary>
         /// Schedules a thread to complete the request.
@@ -101,12 +101,11 @@ namespace Opc.Ua.Server
         /// <param name="calldata">The data that is used to complete the operation</param>
         public void CompletePublish(object calldata)
         {
-            m_calldata = calldata;
+            Calldata = calldata;
             m_server.ScheduleIncomingRequest(m_request);
         }
 
         private readonly IEndpointIncomingRequest m_request;
         private readonly StandardServer m_server;
-        private object m_calldata;
     }
 }

@@ -173,12 +173,7 @@ namespace Opc.Ua
             var absoluteId = NodeId.ToExpandedNodeId(typeId, Context.NamespaceUris);
 
             // lookup message type.
-            Type actualType = Context.Factory.GetSystemType(absoluteId);
-
-            if (actualType == null)
-            {
-                throw new ServiceResultException(StatusCodes.BadDecodingError, Utils.Format("Cannot decode message with type id: {0}.", absoluteId));
-            }
+            Type actualType = Context.Factory.GetSystemType(absoluteId) ?? throw new ServiceResultException(StatusCodes.BadDecodingError, Utils.Format("Cannot decode message with type id: {0}.", absoluteId));
 
             // read the message.
 
@@ -341,8 +336,7 @@ namespace Opc.Ua
         /// </summary>
         public bool ReadBoolean(string fieldName)
         {
-            object token = null;
-
+            object token;
             if (!ReadField(fieldName, out token))
             {
                 return false;
@@ -363,8 +357,7 @@ namespace Opc.Ua
         /// </summary>
         public sbyte ReadSByte(string fieldName)
         {
-            object token = null;
-
+            object token;
             if (!ReadField(fieldName, out token))
             {
                 return 0;
@@ -390,8 +383,7 @@ namespace Opc.Ua
         /// </summary>
         public byte ReadByte(string fieldName)
         {
-            object token = null;
-
+            object token;
             if (!ReadField(fieldName, out token))
             {
                 return 0;
@@ -417,8 +409,7 @@ namespace Opc.Ua
         /// </summary>
         public short ReadInt16(string fieldName)
         {
-            object token = null;
-
+            object token;
             if (!ReadField(fieldName, out token))
             {
                 return 0;
@@ -444,8 +435,7 @@ namespace Opc.Ua
         /// </summary>
         public ushort ReadUInt16(string fieldName)
         {
-            object token = null;
-
+            object token;
             if (!ReadField(fieldName, out token))
             {
                 return 0;
@@ -525,8 +515,7 @@ namespace Opc.Ua
         /// </summary>
         public long ReadInt64(string fieldName)
         {
-            object token = null;
-
+            object token;
             if (!ReadField(fieldName, out token))
             {
                 return 0;
@@ -536,8 +525,7 @@ namespace Opc.Ua
 
             if (value == null)
             {
-                long number = 0;
-
+                long number;
                 if (token is not string text || !long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out number))
                 {
                     return 0;
@@ -554,8 +542,7 @@ namespace Opc.Ua
         /// </summary>
         public ulong ReadUInt64(string fieldName)
         {
-            object token = null;
-
+            object token;
             if (!ReadField(fieldName, out token))
             {
                 return 0;
@@ -565,8 +552,7 @@ namespace Opc.Ua
 
             if (value == null)
             {
-                ulong number = 0;
-
+                ulong number;
                 if (token is not string text || !ulong.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out number))
                 {
                     return 0;
@@ -588,8 +574,7 @@ namespace Opc.Ua
         /// </summary>
         public float ReadFloat(string fieldName)
         {
-            object token = null;
-
+            object token;
             if (!ReadField(fieldName, out token))
             {
                 return 0;
@@ -600,7 +585,7 @@ namespace Opc.Ua
             if (value == null)
             {
                 string text = token as string;
-                float number = 0;
+                float number;
                 if (text == null || !float.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out number))
                 {
                     if (text != null)
@@ -645,8 +630,7 @@ namespace Opc.Ua
         /// </summary>
         public double ReadDouble(string fieldName)
         {
-            object token = null;
-
+            object token;
             if (!ReadField(fieldName, out token))
             {
                 return 0;
@@ -657,8 +641,7 @@ namespace Opc.Ua
             if (value == null)
             {
                 string text = token as string;
-                double number = 0;
-
+                double number;
                 if (text == null || !double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out number))
                 {
                     if (text != null)
@@ -698,8 +681,7 @@ namespace Opc.Ua
         /// </summary>
         public string ReadString(string fieldName)
         {
-            object token = null;
-
+            object token;
             if (!ReadField(fieldName, out token))
             {
                 return null;
@@ -723,8 +705,7 @@ namespace Opc.Ua
         /// </summary>
         public DateTime ReadDateTime(string fieldName)
         {
-            object token = null;
-
+            object token;
             if (!ReadField(fieldName, out token))
             {
                 return DateTime.MinValue;
@@ -757,8 +738,7 @@ namespace Opc.Ua
         /// </summary>
         public Uuid ReadGuid(string fieldName)
         {
-            object token = null;
-
+            object token;
             if (!ReadField(fieldName, out token))
             {
                 return Uuid.Empty;
@@ -784,8 +764,7 @@ namespace Opc.Ua
         /// </summary>
         public byte[] ReadByteString(string fieldName)
         {
-            object token = null;
-
+            object token;
             if (!ReadField(fieldName, out token))
             {
                 return null;
@@ -816,8 +795,7 @@ namespace Opc.Ua
         /// </summary>
         public XmlElement ReadXmlElement(string fieldName)
         {
-            object token = null;
-
+            object token;
             if (!ReadField(fieldName, out token))
             {
                 return null;
@@ -850,8 +828,7 @@ namespace Opc.Ua
         /// </summary>
         public NodeId ReadNodeId(string fieldName)
         {
-            object token = null;
-
+            object token;
             if (!ReadField(fieldName, out token))
             {
                 return NodeId.Null;
@@ -866,7 +843,8 @@ namespace Opc.Ua
                     nodeId = NodeId.Parse(
                         Context,
                         text,
-                        new NodeIdParsingOptions() {
+                        new NodeIdParsingOptions()
+                        {
                             UpdateTables = UpdateNamespaceTable,
                             NamespaceMappings = m_namespaceMappings,
                             ServerMappings = m_serverMappings
@@ -948,8 +926,7 @@ namespace Opc.Ua
         /// </summary>
         public ExpandedNodeId ReadExpandedNodeId(string fieldName)
         {
-            object token = null;
-
+            object token;
             if (!ReadField(fieldName, out token))
             {
                 return ExpandedNodeId.Null;
@@ -964,7 +941,8 @@ namespace Opc.Ua
                     return ExpandedNodeId.Parse(
                         Context,
                         text,
-                        new NodeIdParsingOptions() {
+                        new NodeIdParsingOptions()
+                        {
                             UpdateTables = UpdateNamespaceTable,
                             NamespaceMappings = m_namespaceMappings,
                             ServerMappings = m_serverMappings
@@ -1122,8 +1100,7 @@ namespace Opc.Ua
         /// </summary>
         public QualifiedName ReadQualifiedName(string fieldName)
         {
-            object token = null;
-
+            object token;
             if (!ReadField(fieldName, out token))
             {
                 return QualifiedName.Null;
@@ -1204,8 +1181,7 @@ namespace Opc.Ua
         /// </summary>
         public LocalizedText ReadLocalizedText(string fieldName)
         {
-            object token = null;
-
+            object token;
             if (!ReadField(fieldName, out token))
             {
                 return LocalizedText.Null;
@@ -1289,8 +1265,7 @@ namespace Opc.Ua
         /// </summary>
         public Variant ReadVariant(string fieldName)
         {
-            object token = null;
-
+            object token;
             if (!ReadField(fieldName, out token))
             {
                 return Variant.Null;
@@ -1327,8 +1302,7 @@ namespace Opc.Ua
         /// </summary>
         public DataValue ReadDataValue(string fieldName)
         {
-            object token = null;
-
+            object token;
             if (!ReadField(fieldName, out token))
             {
                 return null;
@@ -1375,8 +1349,7 @@ namespace Opc.Ua
         public ExtensionObject ReadExtensionObject(string fieldName)
         {
             ExtensionObject extension = ExtensionObject.Null;
-            object token = null;
-
+            object token;
             if (!ReadField(fieldName, out token))
             {
                 return extension;
@@ -1514,8 +1487,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(systemType));
             }
 
-            object token = null;
-
+            object token;
             if (!ReadField(fieldName, out token))
             {
                 return null;
@@ -1595,8 +1567,7 @@ namespace Opc.Ua
         {
             var values = new BooleanCollection();
 
-            List<object> token = null;
-
+            List<object> token;
             if (!ReadArrayField(fieldName, out token))
             {
                 return values;
@@ -1625,8 +1596,7 @@ namespace Opc.Ua
         {
             var values = new SByteCollection();
 
-            List<object> token = null;
-
+            List<object> token;
             if (!ReadArrayField(fieldName, out token))
             {
                 return values;
@@ -1655,14 +1625,13 @@ namespace Opc.Ua
         {
             var values = new ByteCollection();
 
-            List<object> token = null;
-
             string value = ReadString(fieldName);
             if (value != null)
             {
                 return SafeConvertFromBase64String(value);
             }
 
+            List<object> token;
             if (!ReadArrayField(fieldName, out token))
             {
                 return values;
@@ -1691,8 +1660,7 @@ namespace Opc.Ua
         {
             var values = new Int16Collection();
 
-            List<object> token = null;
-
+            List<object> token;
             if (!ReadArrayField(fieldName, out token))
             {
                 return values;
@@ -1721,8 +1689,7 @@ namespace Opc.Ua
         {
             var values = new UInt16Collection();
 
-            List<object> token = null;
-
+            List<object> token;
             if (!ReadArrayField(fieldName, out token))
             {
                 return values;
@@ -1751,8 +1718,7 @@ namespace Opc.Ua
         {
             var values = new Int32Collection();
 
-            List<object> token = null;
-
+            List<object> token;
             if (!ReadArrayField(fieldName, out token))
             {
                 return values;
@@ -1781,8 +1747,7 @@ namespace Opc.Ua
         {
             var values = new UInt32Collection();
 
-            List<object> token = null;
-
+            List<object> token;
             if (!ReadArrayField(fieldName, out token))
             {
                 return values;
@@ -1811,8 +1776,7 @@ namespace Opc.Ua
         {
             var values = new Int64Collection();
 
-            List<object> token = null;
-
+            List<object> token;
             if (!ReadArrayField(fieldName, out token))
             {
                 return values;
@@ -1841,8 +1805,7 @@ namespace Opc.Ua
         {
             var values = new UInt64Collection();
 
-            List<object> token = null;
-
+            List<object> token;
             if (!ReadArrayField(fieldName, out token))
             {
                 return values;
@@ -1871,8 +1834,7 @@ namespace Opc.Ua
         {
             var values = new FloatCollection();
 
-            List<object> token = null;
-
+            List<object> token;
             if (!ReadArrayField(fieldName, out token))
             {
                 return values;
@@ -1901,8 +1863,7 @@ namespace Opc.Ua
         {
             var values = new DoubleCollection();
 
-            List<object> token = null;
-
+            List<object> token;
             if (!ReadArrayField(fieldName, out token))
             {
                 return values;
@@ -1931,8 +1892,7 @@ namespace Opc.Ua
         {
             var values = new StringCollection();
 
-            List<object> token = null;
-
+            List<object> token;
             if (!ReadArrayField(fieldName, out token))
             {
                 return values;
@@ -1961,8 +1921,7 @@ namespace Opc.Ua
         {
             var values = new DateTimeCollection();
 
-            List<object> token = null;
-
+            List<object> token;
             if (!ReadArrayField(fieldName, out token))
             {
                 return values;
@@ -1991,8 +1950,7 @@ namespace Opc.Ua
         {
             var values = new UuidCollection();
 
-            List<object> token = null;
-
+            List<object> token;
             if (!ReadArrayField(fieldName, out token))
             {
                 return values;
@@ -2022,8 +1980,7 @@ namespace Opc.Ua
         {
             var values = new ByteStringCollection();
 
-            List<object> token = null;
-
+            List<object> token;
             if (!ReadArrayField(fieldName, out token))
             {
                 return values;
@@ -2053,8 +2010,7 @@ namespace Opc.Ua
         {
             var values = new XmlElementCollection();
 
-            List<object> token = null;
-
+            List<object> token;
             if (!ReadArrayField(fieldName, out token))
             {
                 return values;
@@ -2084,8 +2040,7 @@ namespace Opc.Ua
         {
             var values = new NodeIdCollection();
 
-            List<object> token = null;
-
+            List<object> token;
             if (!ReadArrayField(fieldName, out token))
             {
                 return values;
@@ -2115,8 +2070,7 @@ namespace Opc.Ua
         {
             var values = new ExpandedNodeIdCollection();
 
-            List<object> token = null;
-
+            List<object> token;
             if (!ReadArrayField(fieldName, out token))
             {
                 return values;
@@ -2146,8 +2100,7 @@ namespace Opc.Ua
         {
             var values = new StatusCodeCollection();
 
-            List<object> token = null;
-
+            List<object> token;
             if (!ReadArrayField(fieldName, out token))
             {
                 return values;
@@ -2177,8 +2130,7 @@ namespace Opc.Ua
         {
             var values = new DiagnosticInfoCollection();
 
-            List<object> token = null;
-
+            List<object> token;
             if (!ReadArrayField(fieldName, out token))
             {
                 return values;
@@ -2208,8 +2160,7 @@ namespace Opc.Ua
         {
             var values = new QualifiedNameCollection();
 
-            List<object> token = null;
-
+            List<object> token;
             if (!ReadArrayField(fieldName, out token))
             {
                 return values;
@@ -2239,8 +2190,7 @@ namespace Opc.Ua
         {
             var values = new LocalizedTextCollection();
 
-            List<object> token = null;
-
+            List<object> token;
             if (!ReadArrayField(fieldName, out token))
             {
                 return values;
@@ -2270,8 +2220,7 @@ namespace Opc.Ua
         {
             var values = new VariantCollection();
 
-            List<object> token = null;
-
+            List<object> token;
             if (!ReadArrayField(fieldName, out token))
             {
                 return values;
@@ -2301,8 +2250,7 @@ namespace Opc.Ua
         {
             var values = new DataValueCollection();
 
-            List<object> token = null;
-
+            List<object> token;
             if (!ReadArrayField(fieldName, out token))
             {
                 return values;
@@ -2332,8 +2280,7 @@ namespace Opc.Ua
         {
             var values = new ExtensionObjectCollection();
 
-            List<object> token = null;
-
+            List<object> token;
             if (!ReadArrayField(fieldName, out token))
             {
                 return values;
@@ -2370,8 +2317,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(systemType));
             }
 
-            List<object> token = null;
-
+            List<object> token;
             if (!ReadArrayField(fieldName, out token))
             {
                 return Array.CreateInstance(systemType, 0);
@@ -2406,8 +2352,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(enumType));
             }
 
-            List<object> token = null;
-
+            List<object> token;
             if (!ReadArrayField(fieldName, out token))
             {
                 return Array.CreateInstance(enumType, 0);
@@ -2520,8 +2465,7 @@ namespace Opc.Ua
             }
             else if (valueRank >= ValueRanks.TwoDimensions)
             {
-                object token = null;
-
+                object token;
                 if (!ReadField(fieldName, out token))
                 {
                     return null;
@@ -2530,8 +2474,7 @@ namespace Opc.Ua
                 if (token is Dictionary<string, object> value)
                 {
                     m_stack.Push(value);
-                    Int32Collection dimensions2 = null;
-
+                    Int32Collection dimensions2;
                     if (value.ContainsKey("Dimensions"))
                     {
                         dimensions2 = ReadInt32Array("Dimensions");
@@ -2585,8 +2528,7 @@ namespace Opc.Ua
                         dimensions.Count, valueRank);
                 }
 
-                Matrix matrix = null;
-
+                Matrix matrix;
                 try
                 {
                     switch (builtInType)
@@ -2831,8 +2773,7 @@ namespace Opc.Ua
         /// <returns>true if successful</returns>
         public bool PushStructure(string fieldName)
         {
-            object token = null;
-
+            object token;
             if (!ReadField(fieldName, out token))
             {
                 return false;
@@ -2854,8 +2795,7 @@ namespace Opc.Ua
         /// <returns>true if successful</returns>
         public bool PushArray(string fieldName, int index)
         {
-            List<object> token = null;
-
+            List<object> token;
             if (!ReadArrayField(fieldName, out token))
             {
                 return false;
@@ -2986,8 +2926,7 @@ namespace Opc.Ua
         /// </summary>
         private DiagnosticInfo ReadDiagnosticInfo(string fieldName, int depth)
         {
-            object token = null;
-
+            object token;
             if (!ReadField(fieldName, out token))
             {
                 return null;

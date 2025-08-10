@@ -101,44 +101,53 @@ namespace Opc.Ua.Configuration
             string appStoreType = CertificateStoreIdentifier.DetermineStoreType(appRoot);
             string pkiRootType = CertificateStoreIdentifier.DetermineStoreType(pkiRoot);
             string rejectedRootType = CertificateStoreIdentifier.DetermineStoreType(rejectedRoot);
-            ApplicationConfiguration.SecurityConfiguration = new SecurityConfiguration {
+            ApplicationConfiguration.SecurityConfiguration = new SecurityConfiguration
+            {
                 // app cert store
 #pragma warning disable CS0618 // Type or member is obsolete
-                ApplicationCertificate = new CertificateIdentifier() {
+                ApplicationCertificate = new CertificateIdentifier()
+                {
 #pragma warning restore CS0618 // Type or member is obsolete
                     StoreType = appStoreType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.Application, appRoot),
                     SubjectName = Utils.ReplaceDCLocalhost(subjectName)
                 },
                 // App trusted & issuer
-                TrustedPeerCertificates = new CertificateTrustList() {
+                TrustedPeerCertificates = new CertificateTrustList()
+                {
                     StoreType = pkiRootType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.Trusted, pkiRoot)
                 },
-                TrustedIssuerCertificates = new CertificateTrustList() {
+                TrustedIssuerCertificates = new CertificateTrustList()
+                {
                     StoreType = pkiRootType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.Issuer, pkiRoot)
                 },
                 // Https trusted & issuer
-                TrustedHttpsCertificates = new CertificateTrustList() {
+                TrustedHttpsCertificates = new CertificateTrustList()
+                {
                     StoreType = pkiRootType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.TrustedHttps, pkiRoot)
                 },
-                HttpsIssuerCertificates = new CertificateTrustList() {
+                HttpsIssuerCertificates = new CertificateTrustList()
+                {
                     StoreType = pkiRootType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.IssuerHttps, pkiRoot)
                 },
                 // User trusted & issuer
-                TrustedUserCertificates = new CertificateTrustList() {
+                TrustedUserCertificates = new CertificateTrustList()
+                {
                     StoreType = pkiRootType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.TrustedUser, pkiRoot)
                 },
-                UserIssuerCertificates = new CertificateTrustList() {
+                UserIssuerCertificates = new CertificateTrustList()
+                {
                     StoreType = pkiRootType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.IssuerUser, pkiRoot)
                 },
                 // rejected store
-                RejectedCertificateStore = new CertificateStoreIdentifier() {
+                RejectedCertificateStore = new CertificateStoreIdentifier()
+                {
                     StoreType = rejectedRootType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.Rejected, rejectedRoot)
                 },
@@ -159,38 +168,46 @@ namespace Opc.Ua.Configuration
             rejectedRoot = rejectedRoot == null ? pkiRoot : DefaultPKIRoot(rejectedRoot);
             string pkiRootType = CertificateStoreIdentifier.DetermineStoreType(pkiRoot);
             string rejectedRootType = CertificateStoreIdentifier.DetermineStoreType(rejectedRoot);
-            ApplicationConfiguration.SecurityConfiguration = new SecurityConfiguration {
+            ApplicationConfiguration.SecurityConfiguration = new SecurityConfiguration
+            {
                 // app cert store
                 ApplicationCertificates = applicationCertificates,
                 // App trusted & issuer
-                TrustedPeerCertificates = new CertificateTrustList() {
+                TrustedPeerCertificates = new CertificateTrustList()
+                {
                     StoreType = pkiRootType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.Trusted, pkiRoot)
                 },
-                TrustedIssuerCertificates = new CertificateTrustList() {
+                TrustedIssuerCertificates = new CertificateTrustList()
+                {
                     StoreType = pkiRootType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.Issuer, pkiRoot)
                 },
                 // Https trusted & issuer
-                TrustedHttpsCertificates = new CertificateTrustList() {
+                TrustedHttpsCertificates = new CertificateTrustList()
+                {
                     StoreType = pkiRootType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.TrustedHttps, pkiRoot)
                 },
-                HttpsIssuerCertificates = new CertificateTrustList() {
+                HttpsIssuerCertificates = new CertificateTrustList()
+                {
                     StoreType = pkiRootType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.IssuerHttps, pkiRoot)
                 },
                 // User trusted & issuer
-                TrustedUserCertificates = new CertificateTrustList() {
+                TrustedUserCertificates = new CertificateTrustList()
+                {
                     StoreType = pkiRootType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.TrustedUser, pkiRoot)
                 },
-                UserIssuerCertificates = new CertificateTrustList() {
+                UserIssuerCertificates = new CertificateTrustList()
+                {
                     StoreType = pkiRootType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.IssuerUser, pkiRoot)
                 },
                 // rejected store
-                RejectedCertificateStore = new CertificateStoreIdentifier() {
+                RejectedCertificateStore = new CertificateStoreIdentifier()
+                {
                     StoreType = rejectedRootType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.Rejected, rejectedRoot)
                 },
@@ -214,26 +231,31 @@ namespace Opc.Ua.Configuration
             string trustedRootType = CertificateStoreIdentifier.DetermineStoreType(trustedRoot);
             rejectedRoot ??= DefaultPKIRoot(null);
             string rejectedRootType = CertificateStoreIdentifier.DetermineStoreType(rejectedRoot);
-            ApplicationConfiguration.SecurityConfiguration = new SecurityConfiguration {
+            ApplicationConfiguration.SecurityConfiguration = new SecurityConfiguration
+            {
                 // app cert store
 #pragma warning disable CS0618 // Type or member is obsolete
-                ApplicationCertificate = new CertificateIdentifier() {
+                ApplicationCertificate = new CertificateIdentifier()
+                {
 #pragma warning restore CS0618 // Type or member is obsolete
                     StoreType = appStoreType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.Application, appRoot),
                     SubjectName = Utils.ReplaceDCLocalhost(subjectName)
                 },
                 // App trusted & issuer
-                TrustedPeerCertificates = new CertificateTrustList() {
+                TrustedPeerCertificates = new CertificateTrustList()
+                {
                     StoreType = trustedRootType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.Trusted, trustedRoot)
                 },
-                TrustedIssuerCertificates = new CertificateTrustList() {
+                TrustedIssuerCertificates = new CertificateTrustList()
+                {
                     StoreType = issuerRootType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.Issuer, issuerRoot)
                 },
                 // rejected store
-                RejectedCertificateStore = new CertificateStoreIdentifier() {
+                RejectedCertificateStore = new CertificateStoreIdentifier()
+                {
                     StoreType = rejectedRootType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.Rejected, rejectedRoot)
                 },
@@ -253,11 +275,13 @@ namespace Opc.Ua.Configuration
             string issuerRootType = CertificateStoreIdentifier.DetermineStoreType(issuerRoot);
 
             // User trusted & issuer
-            ApplicationConfiguration.SecurityConfiguration.TrustedUserCertificates = new CertificateTrustList() {
+            ApplicationConfiguration.SecurityConfiguration.TrustedUserCertificates = new CertificateTrustList()
+            {
                 StoreType = trustedRootType,
                 StorePath = DefaultCertificateStorePath(TrustlistType.TrustedUser, trustedRoot)
             };
-            ApplicationConfiguration.SecurityConfiguration.UserIssuerCertificates = new CertificateTrustList() {
+            ApplicationConfiguration.SecurityConfiguration.UserIssuerCertificates = new CertificateTrustList()
+            {
                 StoreType = issuerRootType,
                 StorePath = DefaultCertificateStorePath(TrustlistType.IssuerUser, issuerRoot)
             };
@@ -273,11 +297,13 @@ namespace Opc.Ua.Configuration
             string issuerRootType = CertificateStoreIdentifier.DetermineStoreType(issuerRoot);
 
             // Https trusted & issuer
-            ApplicationConfiguration.SecurityConfiguration.TrustedHttpsCertificates = new CertificateTrustList() {
+            ApplicationConfiguration.SecurityConfiguration.TrustedHttpsCertificates = new CertificateTrustList()
+            {
                 StoreType = trustedRootType,
                 StorePath = DefaultCertificateStorePath(TrustlistType.TrustedHttps, trustedRootType)
             };
-            ApplicationConfiguration.SecurityConfiguration.HttpsIssuerCertificates = new CertificateTrustList() {
+            ApplicationConfiguration.SecurityConfiguration.HttpsIssuerCertificates = new CertificateTrustList()
+            {
                 StoreType = issuerRootType,
                 StorePath = DefaultCertificateStorePath(TrustlistType.IssuerHttps, issuerRoot)
             };
@@ -348,10 +374,11 @@ namespace Opc.Ua.Configuration
             m_typeSelected = true;
 
             // configure a server
-            var serverConfiguration = new ServerConfiguration();
-
-            // by default disable LDS registration
-            serverConfiguration.MaxRegistrationInterval = 0;
+            var serverConfiguration = new ServerConfiguration
+            {
+                // by default disable LDS registration
+                MaxRegistrationInterval = 0
+            };
 
             // base addresses
             foreach (string baseAddress in baseAddresses)
@@ -1248,7 +1275,8 @@ namespace Opc.Ua.Configuration
                 throw new ArgumentException("Invalid security mode selected", nameof(securityMode));
             }
 
-            var newPolicy = new ServerSecurityPolicy() {
+            var newPolicy = new ServerSecurityPolicy()
+            {
                 SecurityMode = securityMode,
                 SecurityPolicyUri = policyUri
             };

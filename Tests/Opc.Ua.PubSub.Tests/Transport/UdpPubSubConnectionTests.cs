@@ -277,7 +277,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
             if (firstActiveIPAddr != null)
             {
                 // replace last IP byte from address with 255 (broadcast)
-                IPAddress validIp = null;
+                IPAddress validIp;
                 bool isValidIP = IPAddress.TryParse(firstActiveIPAddr.ToString(), out validIp);
                 if (isValidIP)
                 {
@@ -322,7 +322,11 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 {
                     continue;
                 }
-                foreach (UnicastIPAddressInformation uniIpAddrInfo in netI.GetIPProperties().UnicastAddresses.Where(x => netI.GetIPProperties().GatewayAddresses.Count > 0))
+                if (netI.GetIPProperties().GatewayAddresses.Count == 0)
+                {
+                    continue;
+                }
+                foreach (UnicastIPAddressInformation uniIpAddrInfo in netI.GetIPProperties().UnicastAddresses)
                 {
                     if (uniIpAddrInfo.Address.AddressFamily == AddressFamily.InterNetwork ||
                         uniIpAddrInfo.Address.AddressFamily == AddressFamily.InterNetworkV6)

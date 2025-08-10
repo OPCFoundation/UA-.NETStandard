@@ -219,7 +219,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             {
                 result = Encoding.UTF8.GetString(buffer);
                 formattedResult = PrettifyAndValidateJson(result);
-                var jsonLoadSettings = new JsonLoadSettings() {
+                var jsonLoadSettings = new JsonLoadSettings()
+                {
                     CommentHandling = CommentHandling.Ignore,
                     LineInfoHandling = LineInfoHandling.Ignore
                 };

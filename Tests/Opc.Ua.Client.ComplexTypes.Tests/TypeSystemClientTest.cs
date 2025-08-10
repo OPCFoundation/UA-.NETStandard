@@ -51,11 +51,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
     [NonParallelizable]
     public class TypeSystemClientTest : IUAClient
     {
-        public ISession Session => m_session;
+        public ISession Session { get; private set; }
         private ServerFixture<ReferenceServer> m_serverFixture;
         private ClientFixture m_clientFixture;
         private ReferenceServer m_server;
-        private ISession m_session;
         private readonly string m_uriScheme;
         private string m_pkiRoot;
         private Uri m_url;
@@ -98,7 +97,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             m_pkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
 
             // start Ref server
-            m_serverFixture = new ServerFixture<ReferenceServer> {
+            m_serverFixture = new ServerFixture<ReferenceServer>
+            {
                 UriScheme = m_uriScheme,
                 SecurityNone = true,
                 AutoAccept = true,
@@ -118,7 +118,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             m_url = new Uri(m_uriScheme + "://localhost:" + m_serverFixture.Port.ToString(CultureInfo.InvariantCulture));
             try
             {
-                m_session = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
+                Session = await m_clientFixture.ConnectAsync(m_url, SecurityPolicies.Basic256Sha256).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -132,11 +132,11 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         [OneTimeTearDown]
         public async Task OneTimeTearDownAsync()
         {
-            if (m_session != null)
+            if (Session != null)
             {
-                m_session.Close();
-                m_session.Dispose();
-                m_session = null;
+                Session.Close();
+                Session.Dispose();
+                Session = null;
             }
             await m_serverFixture.StopAsync().ConfigureAwait(false);
             Utils.SilentDispose(m_clientFixture);
@@ -159,7 +159,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         [TestCase(false, false, true)]
         public async Task LoadTypeSystem(bool onlyEnumTypes, bool disableDataTypeDefinition, bool disableDataTypeDictionary)
         {
-            var typeSystem = new ComplexTypeSystem(m_session);
+            var typeSystem = new ComplexTypeSystem(Session);
             Assert.NotNull(typeSystem);
             typeSystem.DisableDataTypeDefinition = disableDataTypeDefinition;
             typeSystem.DisableDataTypeDictionary = disableDataTypeDictionary;
@@ -178,10 +178,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             {
                 NodeIdDictionary<DataTypeDefinition> definitions = typeSystem.GetDataTypeDefinitionsForDataType(dataTypeId);
                 Assert.IsNotEmpty(definitions);
-                Type type = m_session.Factory.GetSystemType(dataTypeId);
+                Type type = Session.Factory.GetSystemType(dataTypeId);
                 Assert.IsNotNull(type);
 
-                var localTypeId = ExpandedNodeId.ToNodeId(dataTypeId, m_session.NamespaceUris);
+                var localTypeId = ExpandedNodeId.ToNodeId(dataTypeId, Session.NamespaceUris);
                 if (type.IsEnum)
                 {
                     Assert.AreEqual(1, definitions.Count);
@@ -210,7 +210,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
 
             var variableIds = new NodeIdCollection(referenceDescriptions
                 .Where(r => r.NodeClass == NodeClass.Variable)
-                .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, m_session.NamespaceUris)));
+                .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, Session.NamespaceUris)));
 
             TestContext.Out.WriteLine("VariableIds: {0}", variableIds.Count);
 
@@ -229,7 +229,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         {
             var samples = new ClientSamples(TestContext.Out, null, null, true);
 
-            await samples.LoadTypeSystemAsync(m_session).ConfigureAwait(false);
+            await samples.LoadTypeSystemAsync(Session).ConfigureAwait(false);
 
             IList<INode> allNodes = await samples.FetchAllNodesNodeCacheAsync(
                 this, Objects.RootFolder, true, false, false).ConfigureAwait(false);
@@ -240,7 +240,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
 
             var variableIds = new NodeIdCollection(allNodes
                 .Where(r => r.NodeClass == NodeClass.Variable && r is VariableNode v && v.DataType.NamespaceIndex != 0)
-                .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, m_session.NamespaceUris)));
+                .Select(r => ExpandedNodeId.ToNodeId(r.NodeId, Session.NamespaceUris)));
 
             TestContext.Out.WriteLine("VariableIds: {0}", variableIds.Count);
 
@@ -257,18 +257,17 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             {
                 DataValue value = values[ii];
                 NodeId variableId = variableIds[ii];
-                var variableExpandedNodeId = NodeId.ToExpandedNodeId(variableId, m_session.NamespaceUris);
-                var variableNode = allNodes.FirstOrDefault(n => n.NodeId == variableId) as VariableNode;
-                if (variableNode != null &&
+                var variableExpandedNodeId = NodeId.ToExpandedNodeId(variableId, Session.NamespaceUris);
+                if (allNodes.FirstOrDefault(n => n.NodeId == variableId) is VariableNode variableNode &&
                     variableNode.DataType.NamespaceIndex != 0)
                 {
                     TestContext.Out.WriteLine("Check for custom type: {0}", variableNode);
-                    var fullTypeId = NodeId.ToExpandedNodeId(variableNode.DataType, m_session.NamespaceUris);
-                    Type type = m_session.Factory.GetSystemType(fullTypeId);
+                    var fullTypeId = NodeId.ToExpandedNodeId(variableNode.DataType, Session.NamespaceUris);
+                    Type type = Session.Factory.GetSystemType(fullTypeId);
                     if (type == null)
                     {
                         // check for opaque type
-                        NodeId superType = m_session.NodeCache.FindSuperType(fullTypeId);
+                        NodeId superType = Session.NodeCache.FindSuperType(fullTypeId);
                         NodeId lastGoodType = variableNode.DataType;
                         while (!superType.IsNullNodeId && superType != DataTypes.BaseDataType)
                         {
@@ -278,7 +277,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                                 break;
                             }
                             lastGoodType = superType;
-                            superType = m_session.NodeCache.FindSuperType(superType);
+                            superType = Session.NodeCache.FindSuperType(superType);
                         }
 
                         if (testFailed)
@@ -342,18 +341,17 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         public async Task ReadWriteScalarVariableTypeAsync()
         {
             var samples = new ClientSamples(TestContext.Out, null, null, true);
-            await samples.LoadTypeSystemAsync(m_session).ConfigureAwait(false);
+            await samples.LoadTypeSystemAsync(Session).ConfigureAwait(false);
 
             // test the static version of the structure
             ExpandedNodeId structureVariable = TestData.VariableIds.Data_Static_Structure_ScalarStructure;
             Assert.NotNull(structureVariable);
-            var nodeId = ExpandedNodeId.ToNodeId(structureVariable, m_session.NamespaceUris);
+            var nodeId = ExpandedNodeId.ToNodeId(structureVariable, Session.NamespaceUris);
             Assert.NotNull(nodeId);
-            Node node = await m_session.ReadNodeAsync(nodeId).ConfigureAwait(false);
+            Node node = await Session.ReadNodeAsync(nodeId).ConfigureAwait(false);
             Assert.NotNull(node);
             Assert.True(node is VariableNode);
-            var variableNode = (VariableNode)node;
-            DataValue dataValue = await m_session.ReadValueAsync(nodeId).ConfigureAwait(false);
+            DataValue dataValue = await Session.ReadValueAsync(nodeId).ConfigureAwait(false);
             Assert.NotNull(dataValue);
 
             // test the accessor to the complex types
@@ -380,8 +378,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             complexType["IntegerValue"] = new Variant((long)54321);
             complexType["UIntegerValue"] = new Variant((ulong)12345);
 
-            var dataWriteValue = new DataValue(dataValue.WrappedValue);
-            dataWriteValue.SourceTimestamp = DateTime.UtcNow;
+            var dataWriteValue = new DataValue(dataValue.WrappedValue)
+            {
+                SourceTimestamp = DateTime.UtcNow
+            };
 
             // write value back
             var writeValues = new WriteValueCollection() {
@@ -392,7 +392,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                     }
                 };
 
-            WriteResponse response = await m_session.WriteAsync(null, writeValues, CancellationToken.None).ConfigureAwait(false);
+            WriteResponse response = await Session.WriteAsync(null, writeValues, CancellationToken.None).ConfigureAwait(false);
             Assert.NotNull(response);
             Assert.NotNull(response.Results);
             TestContext.Out.WriteLine(new ServiceResult(response.Results[0]).StatusCode);
@@ -400,7 +400,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             Assert.True(StatusCode.IsGood(response.Results[0]));
 
             // read back written values
-            dataValue = await m_session.ReadValueAsync(nodeId).ConfigureAwait(false);
+            dataValue = await Session.ReadValueAsync(nodeId).ConfigureAwait(false);
             Assert.NotNull(dataValue);
 
             Assert.True(dataValue.Value is ExtensionObject);

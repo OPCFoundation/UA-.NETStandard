@@ -259,7 +259,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 return true;
             }
 
-            if (ReferenceEquals(value1, null) || ReferenceEquals(value2, null))
+            if (value1 is null || value2 is null)
             {
                 return false;
             }

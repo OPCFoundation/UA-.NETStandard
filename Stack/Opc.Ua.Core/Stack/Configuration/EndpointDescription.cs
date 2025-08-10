@@ -70,10 +70,7 @@ namespace Opc.Ua
         /// <summary>
         /// The proxy url to use when connecting to the endpoint.
         /// </summary>
-        public Uri ProxyUrl
-        {
-            get => m_proxyUrl; set => m_proxyUrl = value;
-        }
+        public Uri ProxyUrl { get; set; }
 
         /// <summary>
         /// Finds the user token policy with the specified id and securtyPolicyUri
@@ -181,7 +178,5 @@ namespace Opc.Ua
             // The first token with unspecified security policy follows / no policy
             return unspecifiedSecPolicy;
         }
-
-        private Uri m_proxyUrl;
     }
 }

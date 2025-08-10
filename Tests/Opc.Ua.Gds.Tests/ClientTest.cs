@@ -88,7 +88,7 @@ namespace Opc.Ua.Gds.Tests
         /// Set up a Global Discovery Server and Client instance and connect the session
         /// </summary>
         [OneTimeSetUp]
-        protected async Task OneTimeSetUp()
+        protected async Task OneTimeSetUpAsync()
         {
             // start GDS
             m_server = await TestUtils.StartGDS(true, m_storeType).ConfigureAwait(false);
@@ -683,7 +683,8 @@ namespace Opc.Ua.Gds.Tests
             foreach (ApplicationTestData application in m_invalidApplicationTestSet)
             {
                 Assert.Null(application.CertificateRequestId);
-                NUnit.Framework.Assert.That(() => {
+                NUnit.Framework.Assert.That(() =>
+                {
                     _ = m_gdsClient.GDSClient.StartNewKeyPairRequest(
                         application.ApplicationRecord.ApplicationId,
                         application.CertificateGroupId,
@@ -769,7 +770,8 @@ namespace Opc.Ua.Gds.Tests
             ConnectGDS(true);
             foreach (ApplicationTestData application in m_invalidApplicationTestSet)
             {
-                NUnit.Framework.Assert.That(() => {
+                NUnit.Framework.Assert.That(() =>
+                {
                     _ = m_gdsClient.GDSClient.FinishRequest(
                         application.ApplicationRecord.ApplicationId,
                         new NodeId(Guid.NewGuid()),
@@ -908,7 +910,8 @@ namespace Opc.Ua.Gds.Tests
             // load csr with invalid app URI
             string testCSR = Utils.GetAbsoluteFilePath("test.csr", true, true, false);
             byte[] certificateRequest = File.ReadAllBytes(testCSR);
-            NUnit.Framework.Assert.That(() => {
+            NUnit.Framework.Assert.That(() =>
+            {
                 _ = m_gdsClient.GDSClient.StartSigningRequest(
                 application.ApplicationRecord.ApplicationId,
                 application.CertificateGroupId,

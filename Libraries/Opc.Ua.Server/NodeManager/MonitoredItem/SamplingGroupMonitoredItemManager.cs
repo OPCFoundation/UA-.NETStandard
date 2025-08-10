@@ -131,8 +131,7 @@ namespace Opc.Ua.Server
         public StatusCode DeleteMonitoredItem(ServerSystemContext context, ISampledDataChangeMonitoredItem monitoredItem, NodeHandle handle)
         {
             // validate monitored item.
-            IMonitoredItem existingMonitoredItem = null;
-
+            IMonitoredItem existingMonitoredItem;
             if (!MonitoredItems.TryGetValue(monitoredItem.Id, out existingMonitoredItem))
             {
                 return StatusCodes.BadMonitoredItemIdInvalid;
@@ -164,8 +163,7 @@ namespace Opc.Ua.Server
                                                  MonitoredItemModifyRequest itemToModify)
         {
             // validate monitored item.
-            IMonitoredItem existingMonitoredItem = null;
-
+            IMonitoredItem existingMonitoredItem;
             if (!MonitoredItems.TryGetValue(monitoredItem.Id, out existingMonitoredItem))
             {
                 return StatusCodes.BadMonitoredItemIdInvalid;
@@ -205,15 +203,15 @@ namespace Opc.Ua.Server
             // need to provide an immediate update after enabling.
             if (previousMode == MonitoringMode.Disabled && monitoringMode != MonitoringMode.Disabled)
             {
-                var initialValue = new DataValue();
-
-                initialValue.ServerTimestamp = DateTime.UtcNow;
-                initialValue.StatusCode = StatusCodes.BadWaitingForInitialData;
+                var initialValue = new DataValue
+                {
+                    ServerTimestamp = DateTime.UtcNow,
+                    StatusCode = StatusCodes.BadWaitingForInitialData
+                };
 
                 // read the initial value.
-                var node = monitoredItem.ManagerHandle as Node;
 
-                if (node != null)
+                if (monitoredItem.ManagerHandle is Node node)
                 {
                     ServiceResult error = node.Read(context, monitoredItem.AttributeId, initialValue);
 
@@ -293,12 +291,9 @@ namespace Opc.Ua.Server
                 MonitoredNodes[source.NodeId] = monitoredNode = new MonitoredNode2(m_nodeManager, source);
             }
 
-            if (monitoredNode.EventMonitoredItems != null)
-            {
-                // remove existing monitored items with the same Id prior to insertion in order to avoid duplicates
-                // this is necessary since the SubscribeToEvents method is called also from ModifyMonitoredItemsForEvents
-                monitoredNode.EventMonitoredItems.RemoveAll(e => e.Id == monitoredItem.Id);
-            }
+            // remove existing monitored items with the same Id prior to insertion in order to avoid duplicates
+            // this is necessary since the SubscribeToEvents method is called also from ModifyMonitoredItemsForEvents
+            monitoredNode.EventMonitoredItems?.RemoveAll(e => e.Id == monitoredItem.Id);
 
             // this links the node to specified monitored item and ensures all events
             // reported by the node are added to the monitored item's queue.

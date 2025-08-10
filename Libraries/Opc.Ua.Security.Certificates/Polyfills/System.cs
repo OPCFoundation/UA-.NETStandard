@@ -40,6 +40,7 @@ namespace System
     public static class Polyfills
     {
 #if NETSTANDARD2_0 || NETFRAMEWORK
+#pragma warning disable RCS1163 // Unused parameter
         /// <summary>
         /// Contains a character in a string using a specified comparison type.
         /// </summary>
@@ -87,6 +88,7 @@ namespace System
         {
             return target.Replace(oldValue, newValue);
         }
+#pragma warning restore RCS1163 // Unused parameter
 #endif
     }
 }

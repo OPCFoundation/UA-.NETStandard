@@ -130,7 +130,8 @@ namespace Opc.Ua.Server.Tests
 
             // Browse template
             const uint startingNode = Objects.RootFolder;
-            BrowseDescription browseTemplate = browseDescription ?? new BrowseDescription {
+            BrowseDescription browseTemplate = browseDescription ?? new BrowseDescription
+            {
                 NodeId = startingNode,
                 BrowseDirection = BrowseDirection.Forward,
                 ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
@@ -355,13 +356,16 @@ namespace Opc.Ua.Server.Tests
 
             // add item
             uint handleCounter = 1;
-            itemsToCreate.Add(new MonitoredItemCreateRequest() {
-                ItemToMonitor = new ReadValueId() {
+            itemsToCreate.Add(new MonitoredItemCreateRequest()
+            {
+                ItemToMonitor = new ReadValueId()
+                {
                     AttributeId = Attributes.Value,
                     NodeId = VariableIds.Server_ServerStatus_CurrentTime
                 },
                 MonitoringMode = MonitoringMode.Reporting,
-                RequestedParameters = new MonitoringParameters() {
+                RequestedParameters = new MonitoringParameters()
+                {
                     ClientHandle = ++handleCounter,
                     SamplingInterval = -1,
                     Filter = null,
@@ -393,7 +397,8 @@ namespace Opc.Ua.Server.Tests
             foreach (MonitoredItemCreateResult itemCreated in itemCreateResults)
             {
                 itemsToModify.Add(
-                    new MonitoredItemModifyRequest() {
+                    new MonitoredItemModifyRequest()
+                    {
                         MonitoredItemId = itemCreated.MonitoredItemId
                     });
             }
@@ -452,7 +457,8 @@ namespace Opc.Ua.Server.Tests
                 }
 
                 acknowledgements.Clear();
-                acknowledgements.Add(new SubscriptionAcknowledgement() {
+                acknowledgements.Add(new SubscriptionAcknowledgement()
+                {
                     SubscriptionId = id,
                     SequenceNumber = notificationMessage.SequenceNumber
                 });
@@ -708,17 +714,21 @@ namespace Opc.Ua.Server.Tests
                 }
             ]);
 
-            return new MonitoredItemCreateRequest() {
-                ItemToMonitor = new ReadValueId() {
+            return new MonitoredItemCreateRequest()
+            {
+                ItemToMonitor = new ReadValueId()
+                {
                     AttributeId = Attributes.EventNotifier,
                     NodeId = ObjectIds.Server
                 },
                 MonitoringMode = MonitoringMode.Reporting,
-                RequestedParameters = new MonitoringParameters() {
+                RequestedParameters = new MonitoringParameters()
+                {
                     ClientHandle = ++handleCounter,
                     SamplingInterval = -1,
                     Filter = new ExtensionObject(
-                        new EventFilter {
+                        new EventFilter
+                        {
                             SelectClauses = [.. new SimpleAttributeOperand[] {
                                 new() {
                                     AttributeId = Attributes.Value,

@@ -23,17 +23,17 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Returns the current security token.
         /// </summary>
-        protected internal ChannelToken CurrentToken => m_currentToken;
+        protected internal ChannelToken CurrentToken { get; private set; }
 
         /// <summary>
         /// Returns the current security token.
         /// </summary>
-        protected ChannelToken PreviousToken => m_previousToken;
+        protected ChannelToken PreviousToken { get; private set; }
 
         /// <summary>
         /// Returns the renewed but not yet activated token.
         /// </summary>
-        protected ChannelToken RenewedToken => m_renewedToken;
+        protected ChannelToken RenewedToken { get; private set; }
 
         /// <summary>
         /// Called when the token changes
@@ -45,8 +45,9 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected ChannelToken CreateToken()
         {
-            var token = new ChannelToken {
-                ChannelId = m_channelId,
+            var token = new ChannelToken
+            {
+                ChannelId = Id,
                 TokenId = 0,
                 CreatedAt = DateTime.UtcNow,
                 CreatedAtTickCount = HiResClock.TickCount,
@@ -67,12 +68,12 @@ namespace Opc.Ua.Bindings
             // compute the keys for the token.
             ComputeKeys(token);
 
-            Utils.SilentDispose(m_previousToken);
-            m_previousToken = m_currentToken;
-            m_currentToken = token;
-            m_renewedToken = null;
+            Utils.SilentDispose(PreviousToken);
+            PreviousToken = CurrentToken;
+            CurrentToken = token;
+            RenewedToken = null;
 
-            OnTokenActivated?.Invoke(token, m_previousToken);
+            OnTokenActivated?.Invoke(token, PreviousToken);
 
             Utils.LogInfo("ChannelId {0}: Token #{1} activated. CreatedAt={2:HH:mm:ss.fff}-{3}. Lifetime={4}.",
                 Id, token.TokenId, token.CreatedAt, token.CreatedAtTickCount, token.Lifetime);
@@ -83,8 +84,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void SetRenewedToken(ChannelToken token)
         {
-            Utils.SilentDispose(m_renewedToken);
-            m_renewedToken = token;
+            Utils.SilentDispose(RenewedToken);
+            RenewedToken = token;
             Utils.LogInfo("ChannelId {0}: Renewed Token #{1} set. CreatedAt={2:HH:mm:ss.fff}-{3}. Lifetime={4}.",
                 Id, token.TokenId, token.CreatedAt, token.CreatedAtTickCount, token.Lifetime);
         }
@@ -94,12 +95,12 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void DiscardTokens()
         {
-            Utils.SilentDispose(m_previousToken);
-            m_previousToken = null;
-            Utils.SilentDispose(m_currentToken);
-            m_currentToken = null;
-            Utils.SilentDispose(m_renewedToken);
-            m_renewedToken = null;
+            Utils.SilentDispose(PreviousToken);
+            PreviousToken = null;
+            Utils.SilentDispose(CurrentToken);
+            CurrentToken = null;
+            Utils.SilentDispose(RenewedToken);
+            RenewedToken = null;
 
             OnTokenActivated?.Invoke(null, null);
         }
@@ -107,107 +108,107 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Indicates that an explicit signature is not present.
         /// </summary>
-        private bool AuthenticatedEncryption => m_authenticatedEncryption;
+        private bool AuthenticatedEncryption { get; set; }
 
         /// <summary>
         /// The byte length of the MAC (a.k.a signature) attached to each message.
         /// </summary>
-        private int SymmetricSignatureSize => m_hmacHashSize;
+        private int SymmetricSignatureSize { get; set; }
 
         /// <summary>
         /// The byte length the encryption blocks.
         /// </summary>
-        private int EncryptionBlockSize => m_encryptionBlockSize;
+        private int EncryptionBlockSize { get; set; }
 
         /// <summary>
         /// Calculates the symmetric key sizes based on the current security policy.
         /// </summary>
         protected void CalculateSymmetricKeySizes()
         {
-            m_authenticatedEncryption = false;
+            AuthenticatedEncryption = false;
 
             switch (SecurityPolicyUri)
             {
                 case SecurityPolicies.Basic128Rsa15:
-                    m_hmacHashSize = 20;
+                    SymmetricSignatureSize = 20;
                     m_signatureKeySize = 16;
                     m_encryptionKeySize = 16;
-                    m_encryptionBlockSize = 16;
+                    EncryptionBlockSize = 16;
                     break;
 
                 case SecurityPolicies.Basic256:
-                    m_hmacHashSize = 20;
+                    SymmetricSignatureSize = 20;
                     m_signatureKeySize = 24;
                     m_encryptionKeySize = 32;
-                    m_encryptionBlockSize = 16;
+                    EncryptionBlockSize = 16;
                     break;
 
                 case SecurityPolicies.Basic256Sha256:
-                    m_hmacHashSize = 32;
+                    SymmetricSignatureSize = 32;
                     m_signatureKeySize = 32;
                     m_encryptionKeySize = 32;
-                    m_encryptionBlockSize = 16;
+                    EncryptionBlockSize = 16;
                     break;
 
                 case SecurityPolicies.Aes128_Sha256_RsaOaep:
-                    m_hmacHashSize = 32;
+                    SymmetricSignatureSize = 32;
                     m_signatureKeySize = 32;
                     m_encryptionKeySize = 16;
-                    m_encryptionBlockSize = 16;
+                    EncryptionBlockSize = 16;
                     break;
 
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
-                    m_hmacHashSize = 32;
+                    SymmetricSignatureSize = 32;
                     m_signatureKeySize = 32;
                     m_encryptionKeySize = 32;
-                    m_encryptionBlockSize = 16;
+                    EncryptionBlockSize = 16;
                     break;
 
                 case SecurityPolicies.ECC_nistP256:
                 case SecurityPolicies.ECC_brainpoolP256r1:
-                    m_hmacHashSize = 32;
+                    SymmetricSignatureSize = 32;
                     m_signatureKeySize = 32;
                     m_encryptionKeySize = 16;
-                    m_encryptionBlockSize = 16;
+                    EncryptionBlockSize = 16;
                     break;
 
                 case SecurityPolicies.ECC_curve25519:
                 case SecurityPolicies.ECC_curve448:
-                    m_authenticatedEncryption = true;
-                    m_hmacHashSize = 16;
+                    AuthenticatedEncryption = true;
+                    SymmetricSignatureSize = 16;
                     m_signatureKeySize = 32;
                     m_encryptionKeySize = 32;
-                    m_encryptionBlockSize = 12;
+                    EncryptionBlockSize = 12;
                     break;
 
                 case SecurityPolicies.ECC_nistP384:
                 case SecurityPolicies.ECC_brainpoolP384r1:
-                    m_hmacHashSize = 48;
+                    SymmetricSignatureSize = 48;
                     m_signatureKeySize = 48;
                     m_encryptionKeySize = 32;
-                    m_encryptionBlockSize = 16;
+                    EncryptionBlockSize = 16;
                     break;
 
                 case SecurityPolicies.None:
                 default:
-                    m_hmacHashSize = 0;
+                    SymmetricSignatureSize = 0;
                     m_signatureKeySize = 0;
                     m_encryptionKeySize = 0;
-                    m_encryptionBlockSize = 1;
+                    EncryptionBlockSize = 1;
                     break;
             }
         }
 
         private void DeriveKeysWithPSHA(HashAlgorithmName algorithmName, byte[] secret, byte[] seed, ChannelToken token, bool isServer)
         {
-            int length = m_signatureKeySize + m_encryptionKeySize + m_encryptionBlockSize;
+            int length = m_signatureKeySize + m_encryptionKeySize + EncryptionBlockSize;
 
             using HMAC hmac = Utils.CreateHMAC(algorithmName, secret);
             byte[] output = Utils.PSHA(hmac, null, seed, 0, length);
 
             byte[] signingKey = new byte[m_signatureKeySize];
             byte[] encryptingKey = new byte[m_encryptionKeySize];
-            byte[] iv = new byte[m_encryptionBlockSize];
+            byte[] iv = new byte[EncryptionBlockSize];
 
             Buffer.BlockCopy(output, 0, signingKey, 0, signingKey.Length);
             Buffer.BlockCopy(output, m_signatureKeySize, encryptingKey, 0, encryptingKey.Length);
@@ -230,13 +231,13 @@ namespace Opc.Ua.Bindings
 #if ECC_SUPPORT
         private void DeriveKeysWithHKDF(HashAlgorithmName algorithmName, byte[] salt, ChannelToken token, bool isServer)
         {
-            int length = m_signatureKeySize + m_encryptionKeySize + m_encryptionBlockSize;
+            int length = m_signatureKeySize + m_encryptionKeySize + EncryptionBlockSize;
 
             byte[] output = m_localNonce.DeriveKey(m_remoteNonce, salt, algorithmName, length);
 
             byte[] signingKey = new byte[m_signatureKeySize];
             byte[] encryptingKey = new byte[m_encryptionKeySize];
-            byte[] iv = new byte[m_encryptionBlockSize];
+            byte[] iv = new byte[EncryptionBlockSize];
 
             Buffer.BlockCopy(output, 0, signingKey, 0, signingKey.Length);
             Buffer.BlockCopy(output, m_signatureKeySize, encryptingKey, 0, encryptingKey.Length);
@@ -684,12 +685,7 @@ namespace Opc.Ua.Bindings
             }
 
             // check for valid token.
-            ChannelToken currentToken = CurrentToken;
-
-            if (currentToken == null)
-            {
-                throw new ServiceResultException(StatusCodes.BadSecureChannelClosed);
-            }
+            ChannelToken currentToken = CurrentToken ?? throw new ServiceResultException(StatusCodes.BadSecureChannelClosed);
 
             // find the token.
             if (currentToken.TokenId != tokenId && (PreviousToken == null || PreviousToken.TokenId != tokenId))
@@ -1024,12 +1020,7 @@ namespace Opc.Ua.Bindings
             ArraySegment<byte> dataToEncrypt,
             bool useClientKeys)
         {
-            SymmetricAlgorithm encryptingKey = useClientKeys ? token.ClientEncryptor : token.ServerEncryptor;
-
-            if (encryptingKey == null)
-            {
-                throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "Token missing symmetric key object.");
-            }
+            SymmetricAlgorithm encryptingKey = (useClientKeys ? token.ClientEncryptor : token.ServerEncryptor) ?? throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "Token missing symmetric key object.");
 
             using ICryptoTransform encryptor = encryptingKey.CreateEncryptor();
             byte[] blockToEncrypt = dataToEncrypt.Array;
@@ -1053,12 +1044,7 @@ namespace Opc.Ua.Bindings
             bool useClientKeys)
         {
             // get the decrypting key.
-            SymmetricAlgorithm decryptingKey = useClientKeys ? token.ClientEncryptor : token.ServerEncryptor;
-
-            if (decryptingKey == null)
-            {
-                throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "Token missing symmetric key object.");
-            }
+            SymmetricAlgorithm decryptingKey = (useClientKeys ? token.ClientEncryptor : token.ServerEncryptor) ?? throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "Token missing symmetric key object.");
 
             using ICryptoTransform decryptor = decryptingKey.CreateDecryptor();
             byte[] blockToDecrypt = dataToDecrypt.Array;
@@ -1339,14 +1325,7 @@ namespace Opc.Ua.Bindings
         private static readonly byte[] s_HkdfAes128SignAndEncryptKeyLength = BitConverter.GetBytes((ushort)64);
         private static readonly byte[] s_HkdfAes256SignAndEncryptKeyLength = BitConverter.GetBytes((ushort)96);
         private static readonly byte[] s_HkdfChaCha20Poly1305KeyLength = BitConverter.GetBytes((ushort)76);
-
-        private ChannelToken m_currentToken;
-        private ChannelToken m_previousToken;
-        private ChannelToken m_renewedToken;
-        private int m_hmacHashSize;
         private int m_signatureKeySize;
         private int m_encryptionKeySize;
-        private int m_encryptionBlockSize;
-        private bool m_authenticatedEncryption;
     }
 }

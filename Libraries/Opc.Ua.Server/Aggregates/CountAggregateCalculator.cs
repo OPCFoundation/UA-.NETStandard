@@ -116,10 +116,12 @@ namespace Opc.Ua.Server
             }
 
             // set the timestamp and status.
-            var value = new DataValue();
-            value.WrappedValue = new Variant(count, TypeInfo.Scalars.Int32);
-            value.SourceTimestamp = GetTimestamp(slice);
-            value.ServerTimestamp = GetTimestamp(slice);
+            var value = new DataValue
+            {
+                WrappedValue = new Variant(count, TypeInfo.Scalars.Int32),
+                SourceTimestamp = GetTimestamp(slice),
+                ServerTimestamp = GetTimestamp(slice)
+            };
             value.StatusCode = GetValueBasedStatusCode(slice, values, value.StatusCode);
 
             if (!StatusCode.IsBad(value.StatusCode))
@@ -154,10 +156,12 @@ namespace Opc.Ua.Server
             }
 
             // set the timestamp and status.
-            var value = new DataValue();
-            value.WrappedValue = new Variant(count, TypeInfo.Scalars.Int32);
-            value.SourceTimestamp = GetTimestamp(slice);
-            value.ServerTimestamp = GetTimestamp(slice);
+            var value = new DataValue
+            {
+                WrappedValue = new Variant(count, TypeInfo.Scalars.Int32),
+                SourceTimestamp = GetTimestamp(slice),
+                ServerTimestamp = GetTimestamp(slice)
+            };
             value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
 
             // return result.
@@ -204,10 +208,12 @@ namespace Opc.Ua.Server
             }
 
             // set the timestamp and status.
-            var value = new DataValue();
-            value.WrappedValue = new Variant(duration, TypeInfo.Scalars.Double);
-            value.SourceTimestamp = GetTimestamp(slice);
-            value.ServerTimestamp = GetTimestamp(slice);
+            var value = new DataValue
+            {
+                WrappedValue = new Variant(duration, TypeInfo.Scalars.Double),
+                SourceTimestamp = GetTimestamp(slice),
+                ServerTimestamp = GetTimestamp(slice)
+            };
             value.StatusCode = GetTimeBasedStatusCode(regions, value.StatusCode);
             value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
 
@@ -254,8 +260,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                double nextValue = 0;
-
+                double nextValue;
                 try
                 {
                     nextValue = CastToDouble(values[ii]);
@@ -274,10 +279,12 @@ namespace Opc.Ua.Server
             }
 
             // set the timestamp and status.
-            var value = new DataValue();
-            value.WrappedValue = new Variant(count, TypeInfo.Scalars.Int32);
-            value.SourceTimestamp = GetTimestamp(slice);
-            value.ServerTimestamp = GetTimestamp(slice);
+            var value = new DataValue
+            {
+                WrappedValue = new Variant(count, TypeInfo.Scalars.Int32),
+                SourceTimestamp = GetTimestamp(slice),
+                ServerTimestamp = GetTimestamp(slice)
+            };
             value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
             value.StatusCode = GetValueBasedStatusCode(slice, values, value.StatusCode);
 

@@ -1746,7 +1746,8 @@ namespace Opc.Ua
             }
             else
             {
-                results = new C() {
+                results = new C()
+                {
                     Capacity = count
                 };
                 diagnosticInfos = new DiagnosticInfoCollection(count);
@@ -1868,7 +1869,8 @@ namespace Opc.Ua
             }
             else
             {
-                var nextbatch = new C {
+                var nextbatch = new C
+                {
                     Capacity = (int)batchSize
                 };
                 foreach (T item in collection)
@@ -1877,7 +1879,8 @@ namespace Opc.Ua
                     if (nextbatch.Count == batchSize)
                     {
                         yield return nextbatch;
-                        nextbatch = new C {
+                        nextbatch = new C
+                        {
                             Capacity = (int)batchSize
                         };
                     }

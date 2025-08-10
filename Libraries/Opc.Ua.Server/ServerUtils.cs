@@ -95,19 +95,23 @@ namespace Opc.Ua.Server
 
             lock (s_events)
             {
-                var e = new Event();
-                e.EventType = EventType.WriteValue;
-                e.NodeId = nodeId;
-                e.ServerHandle = 0;
-                e.Timestamp = HiResClock.UtcNow;
-                e.Value = value;
-                e.Parameters = null;
-                e.MonitoringMode = MonitoringMode.Disabled;
+                var e = new Event
+                {
+                    EventType = EventType.WriteValue,
+                    NodeId = nodeId,
+                    ServerHandle = 0,
+                    Timestamp = HiResClock.UtcNow,
+                    Value = value,
+                    Parameters = null,
+                    MonitoringMode = MonitoringMode.Disabled
+                };
 
                 if (StatusCode.IsBad(error))
                 {
-                    e.Value = new DataValue(error);
-                    e.Value.WrappedValue = value.WrappedValue;
+                    e.Value = new DataValue(error)
+                    {
+                        WrappedValue = value.WrappedValue
+                    };
                 }
 
                 s_events.Enqueue(e);
@@ -126,14 +130,16 @@ namespace Opc.Ua.Server
 
             lock (s_events)
             {
-                var e = new Event();
-                e.EventType = EventType.QueueValue;
-                e.NodeId = nodeId;
-                e.ServerHandle = serverHandle;
-                e.Timestamp = HiResClock.UtcNow;
-                e.Value = value;
-                e.Parameters = null;
-                e.MonitoringMode = MonitoringMode.Disabled;
+                var e = new Event
+                {
+                    EventType = EventType.QueueValue,
+                    NodeId = nodeId,
+                    ServerHandle = serverHandle,
+                    Timestamp = HiResClock.UtcNow,
+                    Value = value,
+                    Parameters = null,
+                    MonitoringMode = MonitoringMode.Disabled
+                };
                 s_events.Enqueue(e);
             }
         }
@@ -150,14 +156,16 @@ namespace Opc.Ua.Server
 
             lock (s_events)
             {
-                var e = new Event();
-                e.EventType = EventType.FilterValue;
-                e.NodeId = nodeId;
-                e.ServerHandle = serverHandle;
-                e.Timestamp = HiResClock.UtcNow;
-                e.Value = value;
-                e.Parameters = null;
-                e.MonitoringMode = MonitoringMode.Disabled;
+                var e = new Event
+                {
+                    EventType = EventType.FilterValue,
+                    NodeId = nodeId,
+                    ServerHandle = serverHandle,
+                    Timestamp = HiResClock.UtcNow,
+                    Value = value,
+                    Parameters = null,
+                    MonitoringMode = MonitoringMode.Disabled
+                };
                 s_events.Enqueue(e);
             }
         }
@@ -174,14 +182,16 @@ namespace Opc.Ua.Server
 
             lock (s_events)
             {
-                var e = new Event();
-                e.EventType = EventType.DiscardValue;
-                e.NodeId = nodeId;
-                e.ServerHandle = serverHandle;
-                e.Timestamp = HiResClock.UtcNow;
-                e.Value = value;
-                e.Parameters = null;
-                e.MonitoringMode = MonitoringMode.Disabled;
+                var e = new Event
+                {
+                    EventType = EventType.DiscardValue,
+                    NodeId = nodeId,
+                    ServerHandle = serverHandle,
+                    Timestamp = HiResClock.UtcNow,
+                    Value = value,
+                    Parameters = null,
+                    MonitoringMode = MonitoringMode.Disabled
+                };
                 s_events.Enqueue(e);
             }
         }
@@ -198,14 +208,16 @@ namespace Opc.Ua.Server
 
             lock (s_events)
             {
-                var e = new Event();
-                e.EventType = EventType.PublishValue;
-                e.NodeId = nodeId;
-                e.ServerHandle = serverHandle;
-                e.Timestamp = HiResClock.UtcNow;
-                e.Value = value;
-                e.Parameters = null;
-                e.MonitoringMode = MonitoringMode.Disabled;
+                var e = new Event
+                {
+                    EventType = EventType.PublishValue,
+                    NodeId = nodeId,
+                    ServerHandle = serverHandle,
+                    Timestamp = HiResClock.UtcNow,
+                    Value = value,
+                    Parameters = null,
+                    MonitoringMode = MonitoringMode.Disabled
+                };
                 s_events.Enqueue(e);
             }
         }
@@ -229,18 +241,22 @@ namespace Opc.Ua.Server
 
             lock (s_events)
             {
-                var e = new Event();
-                e.EventType = EventType.CreateItem;
-                e.NodeId = nodeId;
-                e.ServerHandle = serverHandle;
-                e.Timestamp = HiResClock.UtcNow;
-                e.Value = null;
-                e.Parameters = new MonitoringParameters();
-                e.Parameters.SamplingInterval = samplingInterval;
-                e.Parameters.QueueSize = queueSize;
-                e.Parameters.DiscardOldest = discardOldest;
-                e.Parameters.Filter = new ExtensionObject(filter);
-                e.MonitoringMode = monitoringMode;
+                var e = new Event
+                {
+                    EventType = EventType.CreateItem,
+                    NodeId = nodeId,
+                    ServerHandle = serverHandle,
+                    Timestamp = HiResClock.UtcNow,
+                    Value = null,
+                    Parameters = new MonitoringParameters
+                    {
+                        SamplingInterval = samplingInterval,
+                        QueueSize = queueSize,
+                        DiscardOldest = discardOldest,
+                        Filter = new ExtensionObject(filter)
+                    },
+                    MonitoringMode = monitoringMode
+                };
                 s_events.Enqueue(e);
             }
         }
@@ -264,18 +280,22 @@ namespace Opc.Ua.Server
 
             lock (s_events)
             {
-                var e = new Event();
-                e.EventType = EventType.ModifyItem;
-                e.NodeId = nodeId;
-                e.ServerHandle = serverHandle;
-                e.Timestamp = HiResClock.UtcNow;
-                e.Value = null;
-                e.Parameters = new MonitoringParameters();
-                e.Parameters.SamplingInterval = samplingInterval;
-                e.Parameters.QueueSize = queueSize;
-                e.Parameters.DiscardOldest = discardOldest;
-                e.Parameters.Filter = new ExtensionObject(filter);
-                e.MonitoringMode = monitoringMode;
+                var e = new Event
+                {
+                    EventType = EventType.ModifyItem,
+                    NodeId = nodeId,
+                    ServerHandle = serverHandle,
+                    Timestamp = HiResClock.UtcNow,
+                    Value = null,
+                    Parameters = new MonitoringParameters
+                    {
+                        SamplingInterval = samplingInterval,
+                        QueueSize = queueSize,
+                        DiscardOldest = discardOldest,
+                        Filter = new ExtensionObject(filter)
+                    },
+                    MonitoringMode = monitoringMode
+                };
                 s_events.Enqueue(e);
             }
         }

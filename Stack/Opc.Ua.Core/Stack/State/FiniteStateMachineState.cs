@@ -67,10 +67,7 @@ namespace Opc.Ua
         /// <summary>
         /// The namespace index used to qualify the element browse names and node ids.
         /// </summary>
-        protected ushort ElementNamespaceIndex
-        {
-            get => m_elementNamespaceIndex; set => m_elementNamespaceIndex = value;
-        }
+        protected ushort ElementNamespaceIndex { get; set; }
 
         /// <summary>
         /// The table of states belonging to the state machine.
@@ -100,10 +97,7 @@ namespace Opc.Ua
         /// <summary>
         /// The last state that the machine was in.
         /// </summary>
-        protected FiniteStateVariableState LastState
-        {
-            get => m_lastState; set => m_lastState = value;
-        }
+        protected FiniteStateVariableState LastState { get; set; }
 
         /// <summary>
         /// Returns the current state of for the state machine.
@@ -372,10 +366,7 @@ namespace Opc.Ua
         /// <summary>
         /// If true transition events will not be produced by the state machine.
         /// </summary>
-        public bool SuppressTransitionEvents
-        {
-            get => m_suppressTransitionEvents; set => m_suppressTransitionEvents = value;
-        }
+        public bool SuppressTransitionEvents { get; set; }
 
         /// <summary>
         /// Invokes the callback function if it has been specified.
@@ -619,7 +610,7 @@ namespace Opc.Ua
             }
 
             // save the last state.
-            (m_lastState ??= new FiniteStateVariableState(this)).SetChildValue(context, null, CurrentState, false);
+            (LastState ??= new FiniteStateVariableState(this)).SetChildValue(context, null, CurrentState, false);
 
             // update state and transition variables.
             UpdateStateVariable(context, newState, CurrentState);
@@ -666,7 +657,7 @@ namespace Opc.Ua
             }
 
             // save the last state.
-            (m_lastState ??= new FiniteStateVariableState(this)).SetChildValue(context, null, CurrentState, false);
+            (LastState ??= new FiniteStateVariableState(this)).SetChildValue(context, null, CurrentState, false);
 
             // update state and transition variables.
             UpdateStateVariable(context, newState, CurrentState);
@@ -683,7 +674,7 @@ namespace Opc.Ua
                 outputArguments);
 
             // report the event.
-            if (AreEventsMonitored && !m_suppressTransitionEvents)
+            if (AreEventsMonitored && !SuppressTransitionEvents)
             {
                 TransitionEventState e = CreateTransitionEvent(context, transitionId, causeId);
 
@@ -740,10 +731,7 @@ namespace Opc.Ua
             e.SetChildValue(context, BrowseNames.Transition, LastTransition, false);
         }
 
-        private ushort m_elementNamespaceIndex;
-        private FiniteStateVariableState m_lastState;
         private uint m_causeId;
-        private bool m_suppressTransitionEvents;
     }
 
     /// <summary>

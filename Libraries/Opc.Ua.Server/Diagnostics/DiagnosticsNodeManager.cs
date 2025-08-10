@@ -59,7 +59,7 @@ namespace Opc.Ua.Server
             m_lastUsedId = DateTime.UtcNow.Ticks & 0x7FFFFFFF;
             m_sessions = [];
             m_subscriptions = [];
-            m_diagnosticsEnabled = true;
+            DiagnosticsEnabled = true;
             m_doScanBusy = false;
             m_sampledItems = [];
             m_minimumSamplingInterval = 100;
@@ -245,9 +245,6 @@ namespace Opc.Ua.Server
                 return StatusCodes.BadInvalidArgument;
             }
 
-            uint[] serverHandles = null;
-            uint[] clientHandles = null;
-
             foreach (ISubscription subscription in Server.SubscriptionManager.GetSubscriptions())
             {
                 if (subscription.Id == subscriptionId)
@@ -258,6 +255,10 @@ namespace Opc.Ua.Server
                         return StatusCodes.BadUserAccessDenied;
                     }
 
+
+                    uint[] serverHandles;
+
+                    uint[] clientHandles;
                     subscription.GetMonitoredItems(out serverHandles, out clientHandles);
 
                     outputArguments[0] = serverHandles;
@@ -368,12 +369,9 @@ namespace Opc.Ua.Server
         /// </summary>
         protected override NodeState AddBehaviourToPredefinedNode(ISystemContext context, NodeState predefinedNode)
         {
-            var passiveNode = predefinedNode as BaseObjectState;
-
-            if (passiveNode == null)
+            if (predefinedNode is not BaseObjectState passiveNode)
             {
-                var passiveVariable = predefinedNode as BaseVariableState;
-                if (passiveVariable != null)
+                if (predefinedNode is BaseVariableState passiveVariable)
                 {
                     if (passiveVariable.NodeId == VariableIds.ServerStatusType_BuildInfo)
                     {
@@ -386,10 +384,7 @@ namespace Opc.Ua.Server
                         activeNode.Create(context, passiveVariable);
 
                         // replace the node in the parent.
-                        if (passiveVariable.Parent != null)
-                        {
-                            passiveVariable.Parent.ReplaceChild(context, activeNode);
-                        }
+                        passiveVariable.Parent?.ReplaceChild(context, activeNode);
 
                         return activeNode;
                     }
@@ -407,10 +402,7 @@ namespace Opc.Ua.Server
                     activeNode.Create(context, passiveMethod);
 
                     // replace the node in the parent.
-                    if (passiveMethod.Parent != null)
-                    {
-                        passiveMethod.Parent.ReplaceChild(context, activeNode);
-                    }
+                    passiveMethod.Parent?.ReplaceChild(context, activeNode);
 
                     activeNode.OnCall = OnConditionRefresh;
 
@@ -422,10 +414,7 @@ namespace Opc.Ua.Server
                     activeNode.Create(context, passiveMethod);
 
                     // replace the node in the parent.
-                    if (passiveMethod.Parent != null)
-                    {
-                        passiveMethod.Parent.ReplaceChild(context, activeNode);
-                    }
+                    passiveMethod.Parent?.ReplaceChild(context, activeNode);
 
                     activeNode.OnCall = OnConditionRefresh2;
 
@@ -458,10 +447,7 @@ namespace Opc.Ua.Server
                     AddRootNotifier(activeNode);
 
                     // replace the node in the parent.
-                    if (passiveNode.Parent != null)
-                    {
-                        passiveNode.Parent.ReplaceChild(context, activeNode);
-                    }
+                    passiveNode.Parent?.ReplaceChild(context, activeNode);
 
                     return activeNode;
                 }
@@ -477,10 +463,7 @@ namespace Opc.Ua.Server
                     activeNode.Create(context, passiveNode);
 
                     // replace the node in the parent.
-                    if (passiveNode.Parent != null)
-                    {
-                        passiveNode.Parent.ReplaceChild(context, activeNode);
-                    }
+                    passiveNode.Parent?.ReplaceChild(context, activeNode);
 
                     return activeNode;
                 }
@@ -590,7 +573,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// True if diagnostics are currently enabled.
         /// </summary>
-        public bool DiagnosticsEnabled => m_diagnosticsEnabled;
+        public bool DiagnosticsEnabled { get; private set; }
 
         /// <summary>
         /// Sets the flag controlling whether diagnostics is enabled for the server.
@@ -601,12 +584,12 @@ namespace Opc.Ua.Server
 
             lock (Lock)
             {
-                if (enabled == m_diagnosticsEnabled)
+                if (enabled == DiagnosticsEnabled)
                 {
                     return;
                 }
 
-                m_diagnosticsEnabled = enabled;
+                DiagnosticsEnabled = enabled;
 
                 if (!enabled)
                 {
@@ -713,13 +696,14 @@ namespace Opc.Ua.Server
                 var diagnosticsValue = new ServerDiagnosticsSummaryValue(
                     diagnosticsNode,
                     diagnostics,
-                    Lock);
-
-                // must ensure the first update gets sent.
-                diagnosticsValue.Value = null;
-                diagnosticsValue.Error = StatusCodes.BadWaitingForInitialData;
-                diagnosticsValue.CopyPolicy = VariableCopyPolicy.Never;
-                diagnosticsValue.OnBeforeRead = OnBeforeReadDiagnostics;
+                    Lock)
+                {
+                    // must ensure the first update gets sent.
+                    Value = null,
+                    Error = StatusCodes.BadWaitingForInitialData,
+                    CopyPolicy = VariableCopyPolicy.Never,
+                    OnBeforeRead = OnBeforeReadDiagnostics
+                };
                 // Hook the OnReadUserRolePermissions callback to control which user roles can access the services on this node
                 diagnosticsNode.OnReadUserRolePermissions = OnReadUserRolePermissions;
 
@@ -795,7 +779,7 @@ namespace Opc.Ua.Server
                 securityDiagnostics.SessionId = nodeId;
 
                 // check if diagnostics have been enabled.
-                if (!m_diagnosticsEnabled)
+                if (!DiagnosticsEnabled)
                 {
                     return nodeId;
                 }
@@ -811,10 +795,7 @@ namespace Opc.Ua.Server
                     ObjectIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary,
                     typeof(SessionsDiagnosticsSummaryState));
 
-                if (summary != null)
-                {
-                    summary.AddReference(ReferenceTypeIds.HasComponent, false, sessionNode.NodeId);
-                }
+                summary?.AddReference(ReferenceTypeIds.HasComponent, false, sessionNode.NodeId);
 
                 // Hook the OnReadUserRolePermissions callback to control which user roles can access the services on this node
                 sessionNode.OnReadUserRolePermissions = OnReadUserRolePermissions;
@@ -828,13 +809,14 @@ namespace Opc.Ua.Server
                 var diagnosticsValue = new SessionDiagnosticsVariableValue(
                     diagnosticsNode,
                     diagnostics,
-                    Lock);
-
-                // must ensure the first update gets sent.
-                diagnosticsValue.Value = null;
-                diagnosticsValue.Error = StatusCodes.BadWaitingForInitialData;
-                diagnosticsValue.CopyPolicy = VariableCopyPolicy.Never;
-                diagnosticsValue.OnBeforeRead = OnBeforeReadDiagnostics;
+                    Lock)
+                {
+                    // must ensure the first update gets sent.
+                    Value = null,
+                    Error = StatusCodes.BadWaitingForInitialData,
+                    CopyPolicy = VariableCopyPolicy.Never,
+                    OnBeforeRead = OnBeforeReadDiagnostics
+                };
 
                 // initialize security diagnostics node.
                 var securityDiagnosticsNode = sessionNode.CreateChild(
@@ -845,13 +827,14 @@ namespace Opc.Ua.Server
                 var securityDiagnosticsValue = new SessionSecurityDiagnosticsValue(
                     securityDiagnosticsNode,
                     securityDiagnostics,
-                    Lock);
-
-                // must ensure the first update gets sent.
-                securityDiagnosticsValue.Value = null;
-                securityDiagnosticsValue.Error = StatusCodes.BadWaitingForInitialData;
-                securityDiagnosticsValue.CopyPolicy = VariableCopyPolicy.Never;
-                securityDiagnosticsValue.OnBeforeRead = OnBeforeReadDiagnostics;
+                    Lock)
+                {
+                    // must ensure the first update gets sent.
+                    Value = null,
+                    Error = StatusCodes.BadWaitingForInitialData,
+                    CopyPolicy = VariableCopyPolicy.Never,
+                    OnBeforeRead = OnBeforeReadDiagnostics
+                };
 
                 // save the session.
                 var sessionData = new SessionDiagnosticsData(
@@ -913,7 +896,7 @@ namespace Opc.Ua.Server
             lock (Lock)
             {
                 // check if diagnostics have been enabled.
-                if (!m_diagnosticsEnabled)
+                if (!DiagnosticsEnabled)
                 {
                     return null;
                 }
@@ -935,13 +918,15 @@ namespace Opc.Ua.Server
                     VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
 
                 // wrap diagnostics in a thread safe object.
-                var diagnosticsValue = new SubscriptionDiagnosticsValue(diagnosticsNode, diagnostics, Lock);
-                diagnosticsValue.CopyPolicy = VariableCopyPolicy.Never;
-                diagnosticsValue.OnBeforeRead = OnBeforeReadDiagnostics;
+                var diagnosticsValue = new SubscriptionDiagnosticsValue(diagnosticsNode, diagnostics, Lock)
+                {
+                    CopyPolicy = VariableCopyPolicy.Never,
+                    OnBeforeRead = OnBeforeReadDiagnostics,
 
-                // must ensure the first update gets sent.
-                diagnosticsValue.Value = null;
-                diagnosticsValue.Error = StatusCodes.BadWaitingForInitialData;
+                    // must ensure the first update gets sent.
+                    Value = null,
+                    Error = StatusCodes.BadWaitingForInitialData
+                };
 
                 m_subscriptions.Add(new SubscriptionDiagnosticsData(diagnosticsValue, updateCallback));
 
@@ -950,10 +935,7 @@ namespace Opc.Ua.Server
                     VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray,
                     typeof(SubscriptionDiagnosticsArrayState));
 
-                if (array != null)
-                {
-                    array.AddReference(ReferenceTypeIds.HasComponent, false, diagnosticsNode.NodeId);
-                }
+                array?.AddReference(ReferenceTypeIds.HasComponent, false, diagnosticsNode.NodeId);
 
                 if (diagnostics.SessionId != null)
                 {
@@ -976,10 +958,7 @@ namespace Opc.Ua.Server
                         systemContext,
                         BrowseNames.SubscriptionDiagnosticsArray);
 
-                    if (array != null)
-                    {
-                        array.AddReference(ReferenceTypeIds.HasComponent, false, diagnosticsNode.NodeId);
-                    }
+                    array?.AddReference(ReferenceTypeIds.HasComponent, false, diagnosticsNode.NodeId);
                 }
 
                 // send initial update.
@@ -1080,13 +1059,14 @@ namespace Opc.Ua.Server
         {
             lock (Lock)
             {
-                var state = new FolderState(null);
-
-                state.SymbolicName = aggregateName;
-                state.ReferenceTypeId = ReferenceTypes.HasComponent;
-                state.TypeDefinitionId = ObjectTypeIds.AggregateFunctionType;
-                state.NodeId = aggregateId;
-                state.BrowseName = new QualifiedName(aggregateName, aggregateId.NamespaceIndex);
+                var state = new FolderState(null)
+                {
+                    SymbolicName = aggregateName,
+                    ReferenceTypeId = ReferenceTypes.HasComponent,
+                    TypeDefinitionId = ObjectTypeIds.AggregateFunctionType,
+                    NodeId = aggregateId,
+                    BrowseName = new QualifiedName(aggregateName, aggregateId.NamespaceIndex)
+                };
                 state.DisplayName = state.BrowseName.Name;
                 state.WriteMask = AttributeWriteMask.None;
                 state.UserWriteMask = AttributeWriteMask.None;
@@ -1378,7 +1358,8 @@ namespace Opc.Ua.Server
             if (adminUser)
             {
                 IEnumerable<RolePermissionType> rolePermissionTypes = from roleId in s_kWellKnownRoles
-                                                                      select new RolePermissionType() {
+                                                                      select new RolePermissionType()
+                                                                      {
                                                                           RoleId = roleId,
                                                                           Permissions = (uint)(PermissionType.Browse | PermissionType.Read | PermissionType.ReadRolePermissions | PermissionType.Write)
                                                                       };
@@ -1388,7 +1369,8 @@ namespace Opc.Ua.Server
             else
             {
                 IEnumerable<RolePermissionType> rolePermissionTypes = from roleId in s_kWellKnownRoles
-                                                                      select new RolePermissionType() {
+                                                                      select new RolePermissionType()
+                                                                      {
                                                                           RoleId = roleId,
                                                                           Permissions = (uint)PermissionType.None
                                                                       };
@@ -1408,7 +1390,7 @@ namespace Opc.Ua.Server
         {
             lock (Lock)
             {
-                if (!m_diagnosticsEnabled)
+                if (!DiagnosticsEnabled)
                 {
                     return;
                 }
@@ -1432,7 +1414,7 @@ namespace Opc.Ua.Server
         {
             lock (Lock)
             {
-                if (!m_diagnosticsEnabled)
+                if (!DiagnosticsEnabled)
                 {
                     return StatusCodes.BadOutOfService;
                 }
@@ -1496,8 +1478,7 @@ namespace Opc.Ua.Server
         /// <seealso cref="StatusCodes.BadUserAccessDenied"/>
         private static bool HasApplicationSecureAdminAccess(ISystemContext context)
         {
-            var operationContext = (context as SystemContext)?.OperationContext as OperationContext;
-            if (operationContext != null)
+            if (context is SystemContext { OperationContext: OperationContext operationContext })
             {
                 if (operationContext.ChannelContext?.EndpointDescription?.SecurityMode != MessageSecurityMode.SignAndEncrypt)
                 {
@@ -1522,7 +1503,7 @@ user.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin);
             {
                 lock (Lock)
                 {
-                    if (!m_diagnosticsEnabled || m_doScanBusy)
+                    if (!DiagnosticsEnabled || m_doScanBusy)
                     {
                         return;
                     }
@@ -1677,14 +1658,9 @@ user.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin);
             ISampledDataChangeMonitoredItem monitoredItem)
         {
             // check if the variable needs to be sampled.
-            if (monitoredItem.AttributeId == Attributes.Value)
+            if (monitoredItem.AttributeId == Attributes.Value && handle.Node is BaseVariableState variable && variable.MinimumSamplingInterval > 0)
             {
-                var variable = handle.Node as BaseVariableState;
-
-                if (variable != null && variable.MinimumSamplingInterval > 0)
-                {
-                    CreateSampledItem(monitoredItem.SamplingInterval, monitoredItem);
-                }
+                CreateSampledItem(monitoredItem.SamplingInterval, monitoredItem);
             }
 
             // check if diagnostics collection needs to be turned one.
@@ -1735,14 +1711,9 @@ user.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin);
             }
 
             // check if sampling needs to be turned off.
-            if (monitoredItem.AttributeId == Attributes.Value)
+            if (monitoredItem.AttributeId == Attributes.Value && handle.Node is BaseVariableState variable && variable.MinimumSamplingInterval > 0)
             {
-                var variable = handle.Node as BaseVariableState;
-
-                if (variable != null && variable.MinimumSamplingInterval > 0)
-                {
-                    DeleteSampledItem(monitoredItem);
-                }
+                DeleteSampledItem(monitoredItem);
             }
         }
 
@@ -2059,7 +2030,6 @@ user.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin);
         private long m_lastUsedId;
         private Timer m_diagnosticsScanTimer;
         private int m_diagnosticsMonitoringCount;
-        private bool m_diagnosticsEnabled;
         private bool m_doScanBusy;
         private readonly bool m_durableSubscriptionsEnabled;
         private DateTime m_lastDiagnosticsScanTime;

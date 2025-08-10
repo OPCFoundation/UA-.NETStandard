@@ -1746,9 +1746,9 @@ namespace Opc.Ua
 
             DoImplicitConversion(ref lhs, ref rhs);
 
-            if (lhs is IComparable && rhs is IComparable)
+            if (lhs is IComparable l && rhs is IComparable r)
             {
-                return ((IComparable)lhs).CompareTo(rhs) < 0;
+                return l.CompareTo(r) < 0;
             }
 
             // return null if the types are not comparable.

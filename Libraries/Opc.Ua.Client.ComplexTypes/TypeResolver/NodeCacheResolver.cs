@@ -522,7 +522,8 @@ namespace Opc.Ua.Client.ComplexTypes
             foreach (NodeId nodeId in dictionaryIds)
             {
                 // create item to read.
-                var itemToRead = new ReadValueId {
+                var itemToRead = new ReadValueId
+                {
                     NodeId = nodeId,
                     AttributeId = Attributes.Value,
                     IndexRange = null,

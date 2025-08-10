@@ -164,7 +164,8 @@ namespace Opc.Ua
         /// </summary>
         public void SaveAsNodeSet2(ISystemContext context, Stream ostrm, string version)
         {
-            var nodeSet = new Export.UANodeSet {
+            var nodeSet = new Export.UANodeSet
+            {
                 LastModified = DateTime.UtcNow,
                 LastModifiedSpecified = true
             };
@@ -198,7 +199,8 @@ namespace Opc.Ua
             XmlWriterSettings settings = Utils.DefaultXmlWriterSettings();
             settings.CloseOutput = !keepStreamOpen;
 
-            var messageContext = new ServiceMessageContext {
+            var messageContext = new ServiceMessageContext
+            {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
                 Factory = context.EncodeableFactory
@@ -214,10 +216,7 @@ namespace Opc.Ua
             {
                 NodeState state = this[ii];
 
-                if (state != null)
-                {
-                    state.SaveAsXml(context, encoder);
-                }
+                state?.SaveAsXml(context, encoder);
             }
 
             encoder.Close();
@@ -228,7 +227,8 @@ namespace Opc.Ua
         /// </summary>
         public void SaveAsBinary(ISystemContext context, Stream ostrm)
         {
-            var messageContext = new ServiceMessageContext {
+            var messageContext = new ServiceMessageContext
+            {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
                 Factory = context.EncodeableFactory
@@ -254,7 +254,8 @@ namespace Opc.Ua
         /// </summary>
         public void LoadFromBinary(ISystemContext context, Stream istrm, bool updateTables)
         {
-            var messageContext = new ServiceMessageContext {
+            var messageContext = new ServiceMessageContext
+            {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
                 Factory = context.EncodeableFactory
@@ -323,7 +324,8 @@ namespace Opc.Ua
         /// </summary>
         public void LoadFromXml(ISystemContext context, Stream istrm, bool updateTables)
         {
-            var messageContext = new ServiceMessageContext {
+            var messageContext = new ServiceMessageContext
+            {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
                 Factory = context.EncodeableFactory
@@ -478,18 +480,16 @@ namespace Opc.Ua
             NodeId referenceTypeId,
             NodeId typeDefinitionId)
         {
-            NodeState child = null;
-
             if (m_types != null && !NodeId.IsNull(typeDefinitionId))
             {
-                Type type = null;
-
+                Type type;
                 if (m_types.TryGetValue(typeDefinitionId, out type))
                 {
                     return Activator.CreateInstance(type, parent) as NodeState;
                 }
             }
 
+            NodeState child;
             switch (nodeClass)
             {
                 case NodeClass.Variable:
@@ -569,10 +569,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(typeDefinitionId));
             }
 
-            if (m_types != null)
-            {
-                m_types.Remove(typeDefinitionId);
-            }
+            m_types?.Remove(typeDefinitionId);
         }
 
         private NodeIdDictionary<Type> m_types;

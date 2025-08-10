@@ -124,7 +124,8 @@ namespace Opc.Ua.PubSub.Transport
                 .Select(group => group.DataSetWriterId)?
                 .ToArray();
 
-            var discoveryRequestDataSetWriterConfiguration = new UadpNetworkMessage(UADPNetworkMessageDiscoveryType.DataSetWriterConfiguration) {
+            var discoveryRequestDataSetWriterConfiguration = new UadpNetworkMessage(UADPNetworkMessageDiscoveryType.DataSetWriterConfiguration)
+            {
                 DataSetWriterIds = dataSetWriterIds,
                 PublisherId = m_udpConnection.PubSubConnectionConfiguration.PublisherId.Value,
             };
@@ -169,8 +170,10 @@ namespace Opc.Ua.PubSub.Transport
         /// </summary>
         public void SendDiscoveryRequestPublisherEndpoints()
         {
-            var discoveryRequestPublisherEndpoints = new UadpNetworkMessage(UADPNetworkMessageDiscoveryType.PublisherEndpoint);
-            discoveryRequestPublisherEndpoints.PublisherId = m_udpConnection.PubSubConnectionConfiguration.PublisherId.Value;
+            var discoveryRequestPublisherEndpoints = new UadpNetworkMessage(UADPNetworkMessageDiscoveryType.PublisherEndpoint)
+            {
+                PublisherId = m_udpConnection.PubSubConnectionConfiguration.PublisherId.Value
+            };
 
             byte[] bytes = discoveryRequestPublisherEndpoints.Encode(MessageContext);
 
@@ -212,7 +215,8 @@ namespace Opc.Ua.PubSub.Transport
             }
 
             // create the DataSetMetaData DiscoveryRequest message
-            var discoveryRequestMetaDataMessage = new UadpNetworkMessage(UADPNetworkMessageDiscoveryType.DataSetMetaData) {
+            var discoveryRequestMetaDataMessage = new UadpNetworkMessage(UADPNetworkMessageDiscoveryType.DataSetMetaData)
+            {
                 DataSetWriterIds = dataSetWriterIds,
                 PublisherId = m_udpConnection.PubSubConnectionConfiguration.PublisherId.Value,
             };

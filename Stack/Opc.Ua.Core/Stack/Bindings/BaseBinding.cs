@@ -25,7 +25,8 @@ namespace Opc.Ua.Bindings
             IEncodeableFactory factory,
             EndpointConfiguration configuration)
         {
-            MessageContext = new ServiceMessageContext {
+            MessageContext = new ServiceMessageContext
+            {
                 MaxStringLength = configuration.MaxStringLength,
                 MaxByteStringLength = configuration.MaxByteStringLength,
                 MaxArrayLength = configuration.MaxArrayLength,

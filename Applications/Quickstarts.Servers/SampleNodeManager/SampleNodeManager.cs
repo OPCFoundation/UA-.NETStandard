@@ -397,9 +397,8 @@ namespace Opc.Ua.Sample
             NodeState activeNode = AddBehaviourToPredefinedNode(context, node);
             PredefinedNodes[activeNode.NodeId] = activeNode;
 
-            var type = activeNode as BaseTypeState;
 
-            if (type != null)
+            if (activeNode is BaseTypeState type)
             {
                 AddTypesToTypeTree(type);
             }
@@ -427,9 +426,8 @@ namespace Opc.Ua.Sample
             OnNodeRemoved(node);
 
             // remove from the parent.
-            var instance = node as BaseInstanceState;
 
-            if (instance != null && instance.Parent != null)
+            if (node is BaseInstanceState instance && instance.Parent != null)
             {
                 instance.Parent.RemoveChild(instance);
             }
@@ -449,9 +447,8 @@ namespace Opc.Ua.Sample
             }
 
             // remove from type table.
-            var type = node as BaseTypeState;
 
-            if (type != null)
+            if (node is BaseTypeState type)
             {
                 Server.TypeTree.Remove(type.NodeId);
             }
@@ -545,9 +542,8 @@ namespace Opc.Ua.Sample
             foreach (NodeState source in PredefinedNodes.Values)
             {
                 // assign a default value to any variable value.
-                var variable = source as BaseVariableState;
 
-                if (variable != null && variable.Value == null)
+                if (source is BaseVariableState variable && variable.Value == null)
                 {
                     variable.Value = TypeInfo.GetDefaultValue(variable.DataType, variable.ValueRank, Server.TypeTree);
                 }
@@ -586,8 +582,7 @@ namespace Opc.Ua.Sample
                     var targetId = (NodeId)reference.TargetId;
 
                     // add inverse reference to internal targets.
-                    NodeState target = null;
-
+                    NodeState target;
                     if (PredefinedNodes.TryGetValue(targetId, out target))
                     {
                         if (!target.ReferenceExists(reference.ReferenceTypeId, !reference.IsInverse, source.NodeId))
@@ -632,19 +627,19 @@ namespace Opc.Ua.Sample
             IDictionary<NodeId, IList<IReference>> externalReferences)
         {
             // get list of references to external nodes.
-            IList<IReference> referencesToAdd = null;
-
+            IList<IReference> referencesToAdd;
             if (!externalReferences.TryGetValue(sourceId, out referencesToAdd))
             {
                 externalReferences[sourceId] = referencesToAdd = [];
             }
 
             // add reserve reference from external node.
-            var referenceToAdd = new ReferenceNode();
-
-            referenceToAdd.ReferenceTypeId = referenceTypeId;
-            referenceToAdd.IsInverse = isInverse;
-            referenceToAdd.TargetId = targetId;
+            var referenceToAdd = new ReferenceNode
+            {
+                ReferenceTypeId = referenceTypeId,
+                IsInverse = isInverse,
+                TargetId = targetId
+            };
 
             referencesToAdd.Add(referenceToAdd);
         }
@@ -693,8 +688,7 @@ namespace Opc.Ua.Sample
                 return null;
             }
 
-            NodeState node = null;
-
+            NodeState node;
             if (!PredefinedNodes.TryGetValue(nodeId, out node))
             {
                 return null;
@@ -821,10 +815,7 @@ namespace Opc.Ua.Sample
                     {
                         var target = GetManagerHandle(SystemContext, (NodeId)targetId, null) as NodeState;
 
-                        if (target != null)
-                        {
-                            target.RemoveReference(referenceTypeId, !isInverse, source.NodeId);
-                        }
+                        target?.RemoveReference(referenceTypeId, !isInverse, source.NodeId);
                     }
                 }
 
@@ -877,11 +868,12 @@ namespace Opc.Ua.Sample
 
                 // construct the metadata object.
 
-                var metadata = new NodeMetadata(target, target.NodeId);
-
-                metadata.NodeClass = target.NodeClass;
-                metadata.BrowseName = target.BrowseName;
-                metadata.DisplayName = target.DisplayName;
+                var metadata = new NodeMetadata(target, target.NodeId)
+                {
+                    NodeClass = target.NodeClass,
+                    BrowseName = target.BrowseName,
+                    DisplayName = target.DisplayName
+                };
 
                 if (values[0] != null && values[1] != null)
                 {
@@ -913,9 +905,8 @@ namespace Opc.Ua.Sample
                 }
 
                 // get instance references.
-                var instance = target as BaseInstanceState;
 
-                if (instance != null)
+                if (target is BaseInstanceState instance)
                 {
                     metadata.TypeDefinition = instance.TypeDefinitionId;
                     metadata.ModellingRule = instance.ModellingRuleId;
@@ -959,12 +950,7 @@ namespace Opc.Ua.Sample
             lock (Lock)
             {
                 // verify that the node exists.
-                NodeState source = IsHandleInNamespace(continuationPoint.NodeToBrowse);
-
-                if (source == null)
-                {
-                    throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
-                }
+                NodeState source = IsHandleInNamespace(continuationPoint.NodeToBrowse) ?? throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
 
                 // validate node.
                 if (!ValidateNode(systemContext, source))
@@ -973,13 +959,7 @@ namespace Opc.Ua.Sample
                 }
 
                 // check for previous continuation point.
-                var browser = continuationPoint.Data as INodeBrowser;
-
-                // fetch list of references.
-                if (browser == null)
-                {
-                    // create a new browser.
-                    browser = source.CreateBrowser(
+                INodeBrowser browser = continuationPoint.Data as INodeBrowser ?? source.CreateBrowser(
                         systemContext,
                         continuationPoint.View,
                         continuationPoint.ReferenceTypeId,
@@ -988,7 +968,6 @@ namespace Opc.Ua.Sample
                         null,
                         null,
                         false);
-                }
 
                 // apply filters to references.
                 for (IReference reference = browser.Next(); reference != null; reference = browser.Next())
@@ -1027,9 +1006,10 @@ namespace Opc.Ua.Sample
             ContinuationPoint continuationPoint)
         {
             // create the type definition reference.
-            var description = new ReferenceDescription();
-
-            description.NodeId = reference.TargetId;
+            var description = new ReferenceDescription
+            {
+                NodeId = reference.TargetId
+            };
             description.SetReferenceType(continuationPoint.ResultMask, reference.ReferenceTypeId, !reference.IsInverse);
 
             // do not cache target parameters for remote nodes.
@@ -1047,9 +1027,8 @@ namespace Opc.Ua.Sample
             NodeState target = null;
 
             // check for local reference.
-            var referenceInfo = reference as NodeStateReference;
 
-            if (referenceInfo != null)
+            if (reference is NodeStateReference referenceInfo)
             {
                 target = referenceInfo.Target;
             }
@@ -1082,9 +1061,8 @@ namespace Opc.Ua.Sample
 
             NodeId typeDefinition = null;
 
-            var instance = target as BaseInstanceState;
 
-            if (instance != null)
+            if (target is BaseInstanceState instance)
             {
                 typeDefinition = instance.TypeDefinitionId;
             }
@@ -1159,9 +1137,8 @@ namespace Opc.Ua.Sample
                         NodeState target = null;
 
                         // check for local reference.
-                        var referenceInfo = reference as NodeStateReference;
 
-                        if (referenceInfo != null)
+                        if (reference is NodeStateReference referenceInfo)
                         {
                             target = referenceInfo.Target;
                         }
@@ -1253,10 +1230,11 @@ namespace Opc.Ua.Sample
                         errors[ii] = StatusCodes.BadNodeIdUnknown;
 
                         // must validate node in a separate operation.
-                        var operation = new ReadWriteOperationState();
-
-                        operation.Source = source;
-                        operation.Index = ii;
+                        var operation = new ReadWriteOperationState
+                        {
+                            Source = source,
+                            Index = ii
+                        };
 
                         nodesToValidate.Add(operation);
 
@@ -1364,9 +1342,8 @@ namespace Opc.Ua.Sample
                     nodeToRead.Processed = true;
 
                     // only variables supported.
-                    var variable = source as BaseVariableState;
 
-                    if (variable == null)
+                    if (source is not BaseVariableState variable)
                     {
                         errors[ii] = StatusCodes.BadHistoryOperationUnsupported;
                         continue;
@@ -1374,10 +1351,11 @@ namespace Opc.Ua.Sample
 
                     results[ii] = new HistoryReadResult();
 
-                    var operation = new ReadWriteOperationState();
-
-                    operation.Source = source;
-                    operation.Index = ii;
+                    var operation = new ReadWriteOperationState
+                    {
+                        Source = source,
+                        Index = ii
+                    };
 
                     // check if the node is ready for reading.
                     if (source.ValidationRequired)
@@ -1450,9 +1428,8 @@ namespace Opc.Ua.Sample
             }
 
             // handle read raw.
-            var readRawDetails = details as ReadRawModifiedDetails;
 
-            if (readRawDetails != null)
+            if (details is ReadRawModifiedDetails readRawDetails)
             {
                 return HistoryReadRaw(
                     context,
@@ -1465,9 +1442,7 @@ namespace Opc.Ua.Sample
             }
 
             // handle read processed.
-            var readProcessedDetails = details as ReadProcessedDetails;
-
-            if (readProcessedDetails != null)
+            if (details is ReadProcessedDetails readProcessedDetails)
             {
                 return HistoryReadProcessed(
                     context,
@@ -1480,9 +1455,7 @@ namespace Opc.Ua.Sample
             }
 
             // handle read processed.
-            var readAtTimeDetails = details as ReadAtTimeDetails;
-
-            if (readAtTimeDetails != null)
+            if (details is ReadAtTimeDetails readAtTimeDetails)
             {
                 return HistoryReadAtTime(
                     context,
@@ -1588,10 +1561,11 @@ namespace Opc.Ua.Sample
                         errors[ii] = StatusCodes.BadNodeIdUnknown;
 
                         // must validate node in a separate operation.
-                        var operation = new ReadWriteOperationState();
-
-                        operation.Source = source;
-                        operation.Index = ii;
+                        var operation = new ReadWriteOperationState
+                        {
+                            Source = source,
+                            Index = ii
+                        };
 
                         nodesToValidate.Add(operation);
 
@@ -1681,10 +1655,11 @@ namespace Opc.Ua.Sample
                         errors[ii] = StatusCodes.BadNodeIdUnknown;
 
                         // must validate node in a separate operation.
-                        var operation = new ReadWriteOperationState();
-
-                        operation.Source = source;
-                        operation.Index = ii;
+                        var operation = new ReadWriteOperationState
+                        {
+                            Source = source,
+                            Index = ii
+                        };
 
                         nodesToValidate.Add(operation);
 
@@ -1777,11 +1752,12 @@ namespace Opc.Ua.Sample
                         errors[ii] = StatusCodes.BadNodeIdUnknown;
 
                         // must validate node in a separate operation.
-                        var operation = new CallOperationState();
-
-                        operation.Source = source;
-                        operation.Method = method;
-                        operation.Index = ii;
+                        var operation = new CallOperationState
+                        {
+                            Source = source,
+                            Method = method,
+                            Index = ii
+                        };
 
                         nodesToValidate.Add(operation);
 
@@ -1943,9 +1919,8 @@ namespace Opc.Ua.Sample
                 }
 
                 // check if the object supports subscritions.
-                var instance = sourceId as BaseObjectState;
 
-                if (instance == null || instance.EventNotifier != EventNotifiers.SubscribeToEvents)
+                if (sourceId is not BaseObjectState instance || instance.EventNotifier != EventNotifiers.SubscribeToEvents)
                 {
                     return StatusCodes.BadNotSupported;
                 }
@@ -2183,10 +2158,11 @@ namespace Opc.Ua.Sample
                         errors[ii] = StatusCodes.BadNodeIdUnknown;
 
                         // must validate node in a separate operation.
-                        var operation = new ReadWriteOperationState();
-
-                        operation.Source = source;
-                        operation.Index = ii;
+                        var operation = new ReadWriteOperationState
+                        {
+                            Source = source,
+                            Index = ii
+                        };
 
                         nodesToValidate.Add(operation);
 
@@ -2322,10 +2298,11 @@ namespace Opc.Ua.Sample
                     if (source.ValidationRequired)
                     {
                         // must validate node in a separate operation.
-                        var operation = new ReadWriteOperationState();
-
-                        operation.Source = source;
-                        operation.Index = ii;
+                        var operation = new ReadWriteOperationState
+                        {
+                            Source = source,
+                            Index = ii
+                        };
 
                         nodesToValidate.Add(operation);
 
@@ -2392,7 +2369,8 @@ namespace Opc.Ua.Sample
             IDataChangeMonitoredItem2 monitoredItem,
             bool ignoreFilters)
         {
-            var initialValue = new DataValue {
+            var initialValue = new DataValue
+            {
                 Value = null,
                 ServerTimestamp = DateTime.UtcNow,
                 SourceTimestamp = DateTime.MinValue,
@@ -2429,7 +2407,6 @@ namespace Opc.Ua.Sample
             out DataChangeFilter filter,
             out Range range)
         {
-            filter = null;
             range = null;
 
             // check for valid filter type.
@@ -2501,9 +2478,8 @@ namespace Opc.Ua.Sample
             out IMonitoredItem monitoredItem)
         {
             // create monitored node.
-            var monitoredNode = source.Handle as MonitoredNode;
 
-            if (monitoredNode == null)
+            if (source.Handle is not MonitoredNode monitoredNode)
             {
                 source.Handle = monitoredNode = new MonitoredNode(Server, this, source);
             }
@@ -2557,22 +2533,22 @@ namespace Opc.Ua.Sample
         {
             filterError = null;
             monitoredItem = null;
-            ServiceResult error = null;
 
             // read initial value.
-            var initialValue = new DataValue {
+            var initialValue = new DataValue
+            {
                 Value = null,
                 ServerTimestamp = DateTime.UtcNow,
                 SourceTimestamp = DateTime.MinValue,
                 StatusCode = StatusCodes.BadWaitingForInitialData
             };
 
-            error = source.ReadAttribute(
-                context,
-                itemToCreate.ItemToMonitor.AttributeId,
-                itemToCreate.ItemToMonitor.ParsedIndexRange,
-                itemToCreate.ItemToMonitor.DataEncoding,
-                initialValue);
+            ServiceResult error = source.ReadAttribute(
+    context,
+    itemToCreate.ItemToMonitor.AttributeId,
+    itemToCreate.ItemToMonitor.ParsedIndexRange,
+    itemToCreate.ItemToMonitor.DataEncoding,
+    initialValue);
 
             if (ServiceResult.IsBad(error))
             {
@@ -2612,9 +2588,8 @@ namespace Opc.Ua.Sample
             }
 
             // create monitored node.
-            var monitoredNode = source.Handle as MonitoredNode;
 
-            if (monitoredNode == null)
+            if (source.Handle is not MonitoredNode monitoredNode)
             {
                 source.Handle = monitoredNode = new MonitoredNode(Server, this, source);
             }
@@ -2825,7 +2800,6 @@ namespace Opc.Ua.Sample
             out MonitoringFilterResult filterError)
         {
             filterError = null;
-            ServiceResult error = null;
 
             // check for valid handle.
             if (monitoredItem.ManagerHandle is not MonitoredNode monitoredNode)
@@ -2851,6 +2825,7 @@ namespace Opc.Ua.Sample
             DataChangeFilter filter = null;
             Range range = null;
 
+            ServiceResult error;
             if (!ExtensionObject.IsNull(parameters.Filter))
             {
                 error = ValidateDataChangeFilter(

@@ -59,15 +59,18 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             mockConnection.Setup(x => x.CanPublish(It.IsAny<WriterGroupDataType>())).Returns(true);
 
             mockConnection.Setup(x => x.CreateNetworkMessages(It.IsAny<WriterGroupDataType>(), It.IsAny<WriterGroupPublishState>()))
-                .Callback(() => {
+                .Callback(() =>
+                {
                     lock (s_lock)
                     {
                         s_publishTicks.Add(HiResClock.Ticks);
                     }
                 });
 
-            var writerGroupDataType = new WriterGroupDataType();
-            writerGroupDataType.PublishingInterval = publishingInterval;
+            var writerGroupDataType = new WriterGroupDataType
+            {
+                PublishingInterval = publishingInterval
+            };
 
             //Act
             var publisher = new UaPublisher(mockConnection.Object, writerGroupDataType);
@@ -80,9 +83,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             int faultIndex = -1;
             double faultDeviation = 0;
 
-            s_publishTicks = [.. (from t in s_publishTicks
+            s_publishTicks = [.. from t in s_publishTicks
                               orderby t
-                              select t)];
+                              select t];
 
             //Assert
             for (int i = 1; i < s_publishTicks.Count; i++)

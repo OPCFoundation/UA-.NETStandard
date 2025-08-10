@@ -132,8 +132,10 @@ namespace Opc.Ua.Gds.Tests
                     serverCapabilities = RandomServerCapabilities();
                     break;
             }
-            return new ApplicationTestData {
-                ApplicationRecord = new ApplicationRecordDataType {
+            return new ApplicationTestData
+            {
+                ApplicationRecord = new ApplicationRecordDataType
+                {
                     ApplicationNames = [new LocalizedText(locale, appName)],
                     ApplicationUri = appUri,
                     ApplicationType = appType,
@@ -326,8 +328,10 @@ namespace Opc.Ua.Gds.Tests
                 var newBaseAddresses = new StringCollection();
                 foreach (string baseAddress in config.ServerConfiguration.BaseAddresses)
                 {
-                    var baseAddressUri = new UriBuilder(baseAddress);
-                    baseAddressUri.Port = basePort++;
+                    var baseAddressUri = new UriBuilder(baseAddress)
+                    {
+                        Port = basePort++
+                    };
                     newBaseAddresses.Add(baseAddressUri.Uri.AbsoluteUri);
                 }
                 config.ServerConfiguration.BaseAddresses = newBaseAddresses;

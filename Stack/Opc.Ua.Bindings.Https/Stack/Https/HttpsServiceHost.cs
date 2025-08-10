@@ -98,7 +98,8 @@ namespace Opc.Ua.Bindings
                     // Only use security None without mutual TLS authentication!
                     // When the mutual TLS authentication is not used, anonymous access is disabled
                     // Then the only protection against unauthorized access is user authorization
-                    bestPolicy = new ServerSecurityPolicy() {
+                    bestPolicy = new ServerSecurityPolicy()
+                    {
                         SecurityMode = MessageSecurityMode.None,
                         SecurityPolicyUri = SecurityPolicies.None
                     };
@@ -125,7 +126,8 @@ namespace Opc.Ua.Bindings
                     }
                 }
 
-                var description = new EndpointDescription {
+                var description = new EndpointDescription
+                {
                     EndpointUrl = uri.ToString(),
                     Server = serverDescription
                 };

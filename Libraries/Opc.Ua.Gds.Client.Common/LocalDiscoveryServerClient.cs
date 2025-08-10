@@ -100,7 +100,8 @@ namespace Opc.Ua.Gds.Client
         {
             DiscoveryClient client = CreateClient(endpointUrl, endpointTransportProfileUri);
 
-            var data = new FindServersData(callback, callbackData, client.OperationTimeout) {
+            var data = new FindServersData(callback, callbackData, client.OperationTimeout)
+            {
                 DiscoveryClient = client
             };
 
@@ -191,7 +192,8 @@ namespace Opc.Ua.Gds.Client
         {
             DiscoveryClient client = CreateClient(endpointUrl, endpointTransportProfileUri);
 
-            var data = new GetEndpointsData(callback, callbackData, client.OperationTimeout) {
+            var data = new GetEndpointsData(callback, callbackData, client.OperationTimeout)
+            {
                 DiscoveryClient = client
             };
 
@@ -303,7 +305,8 @@ namespace Opc.Ua.Gds.Client
         {
             DiscoveryClient client = CreateClient(endpointUrl, endpointTransportProfileUri);
 
-            var data = new FindServersOnNetworkData(callback, callbackData, client.OperationTimeout) {
+            var data = new FindServersOnNetworkData(callback, callbackData, client.OperationTimeout)
+            {
                 DiscoveryClient = client
             };
 

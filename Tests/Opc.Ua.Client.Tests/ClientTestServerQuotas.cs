@@ -81,7 +81,8 @@ namespace Opc.Ua.Client.Tests
         public override async Task CreateReferenceServerFixture(bool enableTracing, bool disableActivityLogging, bool securityNone, TextWriter writer)
         {
             // start Ref server
-            ServerFixture = new ServerFixture<ReferenceServer>(enableTracing, disableActivityLogging) {
+            ServerFixture = new ServerFixture<ReferenceServer>(enableTracing, disableActivityLogging)
+            {
                 UriScheme = UriScheme,
                 SecurityNone = securityNone,
                 AutoAccept = true,
@@ -147,7 +148,8 @@ namespace Opc.Ua.Client.Tests
             byte[] chunk = new byte[MaxByteStringLengthForTest];
             random.NextBytes(chunk);
 
-            var WriteValue = new WriteValue {
+            var WriteValue = new WriteValue
+            {
                 NodeId = NodeId,
                 AttributeId = Attributes.Value,
                 Value = new DataValue() { WrappedValue = new Variant(chunk) },
@@ -181,7 +183,8 @@ namespace Opc.Ua.Client.Tests
             byte[] chunk = new byte[MaxByteStringLengthForTest];
             random.NextBytes(chunk);
 
-            var WriteValue = new WriteValue {
+            var WriteValue = new WriteValue
+            {
                 NodeId = NodeId,
                 AttributeId = Attributes.Value,
                 Value = new DataValue() { WrappedValue = new Variant(chunk) },

@@ -246,7 +246,8 @@ namespace Opc.Ua.Security.Certificates
             y = X509Utils.PadWithLeadingZeros(y, keySizeBytes);
             d = X509Utils.PadWithLeadingZeros(d, keySizeBytes);
 
-            var ecParams = new ECParameters {
+            var ecParams = new ECParameters
+            {
                 Curve = curve,
                 Q =
                 {

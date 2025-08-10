@@ -134,10 +134,7 @@ namespace Opc.Ua
         /// An opaque handle that can be associated with the node.
         /// </summary>
         /// <value>The handle.</value>
-        public object Handle
-        {
-            get => m_handle; set => m_handle = value;
-        }
+        public object Handle { get; set; }
 
         /// <summary>
         /// Returns the string representation of the object.
@@ -487,7 +484,6 @@ namespace Opc.Ua
             return ServiceResult.Good;
         }
 
-        private object m_handle;
         private ReferenceCollection m_referenceTable;
     }
 
@@ -593,9 +589,9 @@ namespace Opc.Ua
         /// <returns>The result of the operator.Returns true if the objects are equal.</returns>
 		public static bool operator ==(ReferenceNode a, object b)
         {
-            if (ReferenceEquals(a, null))
+            if (a is null)
             {
-                return ReferenceEquals(b, null);
+                return b is null;
             }
 
             return a.CompareTo(b) == 0;
@@ -609,9 +605,9 @@ namespace Opc.Ua
         /// <returns>The result of the operator.Returns true if the objects are not equal.</returns>
 		public static bool operator !=(ReferenceNode a, object b)
         {
-            if (ReferenceEquals(a, null))
+            if (a is null)
             {
-                return !ReferenceEquals(b, null);
+                return b is not null;
             }
 
             return a.CompareTo(b) != 0;
@@ -637,7 +633,7 @@ namespace Opc.Ua
         /// </exception>
         public int CompareTo(object obj)
         {
-            if (ReferenceEquals(obj, null))
+            if (obj is null)
             {
                 return +1;
             }
@@ -652,9 +648,9 @@ namespace Opc.Ua
                 return -1;
             }
 
-            if (ReferenceEquals(m_referenceTypeId, null))
+            if (m_referenceTypeId is null)
             {
-                return ReferenceEquals(reference.m_referenceTypeId, null) ? 0 : -1;
+                return reference.m_referenceTypeId is null ? 0 : -1;
             }
 
             int result = m_referenceTypeId.CompareTo(reference.m_referenceTypeId);
@@ -669,9 +665,9 @@ namespace Opc.Ua
                 return m_isInverse ? +1 : -1;
             }
 
-            if (ReferenceEquals(m_targetId, null))
+            if (m_targetId is null)
             {
-                return ReferenceEquals(reference.m_targetId, null) ? 0 : -1;
+                return reference.m_targetId is null ? 0 : -1;
             }
 
             return m_targetId.CompareTo(reference.m_targetId);

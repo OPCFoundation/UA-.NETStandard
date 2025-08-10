@@ -406,15 +406,9 @@ namespace Opc.Ua.Bindings
                     m_timer = null;
                 }
 
-                if (m_event != null)
-                {
-                    m_event.Set();
-                }
+                m_event?.Set();
 
-                if (m_tcs != null)
-                {
-                    m_tcs.TrySetResult(true);
-                }
+                m_tcs?.TrySetResult(true);
             }
 
             AsyncCallback callback = m_callback;

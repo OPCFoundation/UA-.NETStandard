@@ -78,7 +78,8 @@ namespace Opc.Ua.Server
             m_certificateGroups = [];
             m_configuration = configuration;
             // TODO: configure cert groups in configuration
-            var defaultApplicationGroup = new ServerCertificateGroup {
+            var defaultApplicationGroup = new ServerCertificateGroup
+            {
                 NodeId = ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
                 BrowseName = BrowseNames.DefaultApplicationGroup,
                 CertificateTypes = [],
@@ -90,7 +91,8 @@ namespace Opc.Ua.Server
 
             if (configuration.SecurityConfiguration.UserIssuerCertificates != null && configuration.SecurityConfiguration.TrustedUserCertificates != null)
             {
-                var defaultUserGroup = new ServerCertificateGroup {
+                var defaultUserGroup = new ServerCertificateGroup
+                {
                     NodeId = ObjectIds.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup,
                     BrowseName = BrowseNames.DefaultUserTokenGroup,
                     CertificateTypes = [],
@@ -104,7 +106,8 @@ namespace Opc.Ua.Server
             ServerCertificateGroup defaultHttpsGroup = null;
             if (configuration.SecurityConfiguration.HttpsIssuerCertificates != null && configuration.SecurityConfiguration.TrustedHttpsCertificates != null)
             {
-                defaultHttpsGroup = new ServerCertificateGroup {
+                defaultHttpsGroup = new ServerCertificateGroup
+                {
                     NodeId = ObjectIds.ServerConfiguration_CertificateGroups_DefaultHttpsGroup,
                     BrowseName = BrowseNames.DefaultHttpsGroup,
                     CertificateTypes = [],
@@ -138,9 +141,7 @@ namespace Opc.Ua.Server
             ISystemContext context,
             NodeState predefinedNode)
         {
-            var passiveNode = predefinedNode as BaseObjectState;
-
-            if (passiveNode != null)
+            if (predefinedNode is BaseObjectState passiveNode)
             {
                 NodeId typeId = passiveNode.TypeDefinitionId;
                 if (IsNodeIdInNamespace(typeId) && typeId.IdType == IdType.Numeric)
@@ -194,10 +195,7 @@ namespace Opc.Ua.Server
                             }
 
                             // replace the node in the parent.
-                            if (passiveNode.Parent != null)
-                            {
-                                passiveNode.Parent.ReplaceChild(context, activeNode);
-                            }
+                            passiveNode.Parent?.ReplaceChild(context, activeNode);
                             return activeNode;
                         }
 
@@ -214,10 +212,7 @@ namespace Opc.Ua.Server
                                 result.Node = activeNode;
 
                                 // replace the node in the parent.
-                                if (passiveNode.Parent != null)
-                                {
-                                    passiveNode.Parent.ReplaceChild(context, activeNode);
-                                }
+                                passiveNode.Parent?.ReplaceChild(context, activeNode);
                                 return activeNode;
                             }
                         }
@@ -267,9 +262,8 @@ namespace Opc.Ua.Server
             }
 
             // find ServerNamespaces node and subscribe to StateChanged
-            var serverNamespacesNode = FindPredefinedNode(ObjectIds.Server_Namespaces, typeof(NamespacesState)) as NamespacesState;
 
-            if (serverNamespacesNode != null)
+            if (FindPredefinedNode(ObjectIds.Server_Namespaces, typeof(NamespacesState)) is NamespacesState serverNamespacesNode)
             {
                 serverNamespacesNode.StateChanged += ServerNamespacesChanged;
             }
@@ -315,16 +309,17 @@ namespace Opc.Ua.Server
             if (namespaceMetadataState == null)
             {
                 // find ServerNamespaces node
-                var serverNamespacesNode = FindPredefinedNode(ObjectIds.Server_Namespaces, typeof(NamespacesState)) as NamespacesState;
-                if (serverNamespacesNode == null)
+                if (FindPredefinedNode(ObjectIds.Server_Namespaces, typeof(NamespacesState)) is not NamespacesState serverNamespacesNode)
                 {
                     Utils.LogError("Cannot create NamespaceMetadataState for namespace '{0}'.", namespaceUri);
                     return null;
                 }
 
                 // create the NamespaceMetadata node
-                namespaceMetadataState = new NamespaceMetadataState(serverNamespacesNode);
-                namespaceMetadataState.BrowseName = new QualifiedName(namespaceUri, NamespaceIndex);
+                namespaceMetadataState = new NamespaceMetadataState(serverNamespacesNode)
+                {
+                    BrowseName = new QualifiedName(namespaceUri, NamespaceIndex)
+                };
                 namespaceMetadataState.Create(SystemContext, null, namespaceMetadataState.BrowseName, null, true);
                 namespaceMetadataState.DisplayName = namespaceUri;
                 namespaceMetadataState.SymbolicName = namespaceUri;
@@ -359,8 +354,7 @@ namespace Opc.Ua.Server
         /// <seealso cref="StatusCodes.BadUserAccessDenied"/>
         public void HasApplicationSecureAdminAccess(ISystemContext context, CertificateStoreIdentifier _)
         {
-            var operationContext = (context as SystemContext)?.OperationContext as OperationContext;
-            if (operationContext != null)
+            if (context is SystemContext { OperationContext: OperationContext operationContext })
             {
                 if (operationContext.ChannelContext?.EndpointDescription?.SecurityMode != MessageSecurityMode.SignAndEncrypt)
                 {
@@ -429,15 +423,9 @@ namespace Opc.Ua.Server
                 // it should be of the same type and same subject name as the new certificate
                 CertificateIdentifier existingCertIdentifier = certificateGroup.ApplicationCertificates.FirstOrDefault(cert =>
                     X509Utils.CompareDistinguishedName(cert.SubjectName, newCert.Subject) &&
-                    cert.CertificateType == certificateTypeId);
-
-                // if no cert was found search by ApplicationUri
-                if (existingCertIdentifier == null)
-                {
-                    existingCertIdentifier = certificateGroup.ApplicationCertificates.FirstOrDefault(cert =>
+                    cert.CertificateType == certificateTypeId) ?? certificateGroup.ApplicationCertificates.FirstOrDefault(cert =>
                     m_configuration.ApplicationUri == X509Utils.GetApplicationUriFromCertificate(cert.Certificate) &&
                     cert.CertificateType == certificateTypeId);
-                }
 
                 // if there is no such existing certificate then this is an error
                 if (existingCertIdentifier == null)
@@ -684,12 +672,7 @@ namespace Opc.Ua.Server
 #if !ECC_SUPPORT
                 throw new ServiceResultException(StatusCodes.BadNotSupported, "The Ecc certificate type is not supported.");
 #else
-                ECCurve? curve = EccUtils.GetCurveFromCertificateTypeId(certificateTypeId);
-
-                if (curve == null)
-                {
-                    throw new ServiceResultException(StatusCodes.BadNotSupported, "The Ecc certificate type is not supported.");
-                }
+                ECCurve? curve = EccUtils.GetCurveFromCertificateTypeId(certificateTypeId) ?? throw new ServiceResultException(StatusCodes.BadNotSupported, "The Ecc certificate type is not supported.");
                 certificate = certificateBuilder
                    .SetECCurve(curve.Value)
                    .CreateForECDsa();
@@ -730,7 +713,8 @@ namespace Opc.Ua.Server
 
             if (disconnectSessions)
             {
-                Task.Run(async () => {
+                Task.Run(async () =>
+                {
                     Utils.LogInfo(Utils.TraceMasks.Security, "Apply Changes for application certificate update.");
                     // give the client some time to receive the response
                     // before the certificate update may disconnect all sessions
@@ -798,11 +782,7 @@ namespace Opc.Ua.Server
         {
             HasApplicationSecureAdminAccess(context);
 
-            ServerCertificateGroup certificateGroup = m_certificateGroups.FirstOrDefault(group => Utils.IsEqual(group.NodeId, certificateGroupId));
-            if (certificateGroup == null)
-            {
-                throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Certificate group invalid.");
-            }
+            ServerCertificateGroup certificateGroup = m_certificateGroups.FirstOrDefault(group => Utils.IsEqual(group.NodeId, certificateGroupId)) ?? throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Certificate group invalid.");
 
             certificateTypeIds = certificateGroup.CertificateTypes;
             certificates = [.. certificateGroup.ApplicationCertificates.Select(s => s.Certificate?.RawData)];
@@ -827,11 +807,7 @@ namespace Opc.Ua.Server
                 certificateGroupId = ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup;
             }
 
-            ServerCertificateGroup certificateGroup = m_certificateGroups.FirstOrDefault(group => Utils.IsEqual(group.NodeId, certificateGroupId));
-            if (certificateGroup == null)
-            {
-                throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Certificate group invalid.");
-            }
+            ServerCertificateGroup certificateGroup = m_certificateGroups.FirstOrDefault(group => Utils.IsEqual(group.NodeId, certificateGroupId)) ?? throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Certificate group invalid.");
 
             // verify certificate type
             bool foundCertType = certificateGroup.CertificateTypes.Any(t => Utils.IsEqual(t, certificateTypeId));
@@ -852,8 +828,7 @@ namespace Opc.Ua.Server
             try
             {
                 // find ServerNamespaces node
-                var serverNamespacesNode = FindPredefinedNode(ObjectIds.Server_Namespaces, typeof(NamespacesState)) as NamespacesState;
-                if (serverNamespacesNode == null)
+                if (FindPredefinedNode(ObjectIds.Server_Namespaces, typeof(NamespacesState)) is not NamespacesState serverNamespacesNode)
                 {
                     Utils.LogError("Cannot find ObjectIds.Server_Namespaces node.");
                     return null;

@@ -443,7 +443,8 @@ namespace Opc.Ua.Gds.Server
         /// </summary>
         public virtual Task<X509Certificate2> LoadSigningKeyAsync(X509Certificate2 signingCertificate, string signingKeyPassword)
         {
-            var certIdentifier = new CertificateIdentifier(signingCertificate) {
+            var certIdentifier = new CertificateIdentifier(signingCertificate)
+            {
                 StorePath = AuthoritiesStore.StorePath,
                 StoreType = AuthoritiesStore.StoreType
             };
@@ -463,8 +464,6 @@ namespace Opc.Ua.Gds.Server
         {
             X509CRL updatedCRL = null;
             X500DistinguishedName subjectName = certificate.IssuerName;
-            string keyId = null;
-            string serialNumber = null;
 
             // caller may want to create empty CRL using the CA cert itself
             bool isCACert = X509Utils.IsCertificateAuthority(certificate);
@@ -472,9 +471,10 @@ namespace Opc.Ua.Gds.Server
             // find the authority key identifier.
 
             X509AuthorityKeyIdentifierExtension authority = certificate.FindExtension<X509AuthorityKeyIdentifierExtension>();
+            string serialNumber;
             if (authority != null)
             {
-                keyId = authority.KeyIdentifier;
+                string keyId = authority.KeyIdentifier;
                 serialNumber = authority.SerialNumber;
             }
             else
@@ -491,7 +491,6 @@ namespace Opc.Ua.Gds.Server
                 }
             }
 
-            X509Certificate2 certCA = null;
             ICertificateStore store = storeIdentifier.OpenStore();
             try
             {
@@ -499,23 +498,14 @@ namespace Opc.Ua.Gds.Server
                 {
                     throw new ArgumentException("Invalid store path/type");
                 }
-                certCA = await X509Utils.FindIssuerCABySerialNumberAsync(store, certificate.IssuerName, serialNumber).ConfigureAwait(false);
+                X509Certificate2 certCA = await X509Utils.FindIssuerCABySerialNumberAsync(store, certificate.IssuerName, serialNumber).ConfigureAwait(false) ?? throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Cannot find issuer certificate in store.");
 
-                if (certCA == null)
+                var certCAIdentifier = new CertificateIdentifier(certCA)
                 {
-                    throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Cannot find issuer certificate in store.");
-                }
-
-                var certCAIdentifier = new CertificateIdentifier(certCA) {
                     StorePath = store.StorePath,
                     StoreType = store.StoreType
                 };
-                X509Certificate2 certCAWithPrivateKey = await certCAIdentifier.LoadPrivateKeyAsync(issuerKeyFilePassword).ConfigureAwait(false);
-
-                if (certCAWithPrivateKey == null)
-                {
-                    throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Failed to load issuer private key. Is the password correct?");
-                }
+                X509Certificate2 certCAWithPrivateKey = await certCAIdentifier.LoadPrivateKeyAsync(issuerKeyFilePassword).ConfigureAwait(false) ?? throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Failed to load issuer private key. Is the password correct?");
 
                 if (!certCAWithPrivateKey.HasPrivateKey)
                 {

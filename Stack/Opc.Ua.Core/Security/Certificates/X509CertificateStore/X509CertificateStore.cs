@@ -64,8 +64,8 @@ namespace Opc.Ua
         /// </remarks>
         public void Open(string location, bool noPrivateKeys = true)
         {
-            m_storePath = location ?? throw new ArgumentNullException(nameof(location));
-            m_noPrivateKeys = noPrivateKeys;
+            StorePath = location ?? throw new ArgumentNullException(nameof(location));
+            NoPrivateKeys = noPrivateKeys;
             location = location.Trim();
 
             if (string.IsNullOrEmpty(location))
@@ -118,10 +118,10 @@ namespace Opc.Ua
         public string StoreType => CertificateStoreType.X509Store;
 
         /// <inheritdoc/>
-        public string StorePath => m_storePath;
+        public string StorePath { get; private set; }
 
         /// <inheritdoc/>
-        public bool NoPrivateKeys => m_noPrivateKeys;
+        public bool NoPrivateKeys { get; private set; }
 
         /// <inheritdoc/>
         [Obsolete("Use EnumerateAsync instead.")]
@@ -158,13 +158,13 @@ namespace Opc.Ua
                 store.Open(OpenFlags.ReadWrite);
                 if (!store.Certificates.Contains(certificate))
                 {
-                    if (certificate.HasPrivateKey && !m_noPrivateKeys)
+                    if (certificate.HasPrivateKey && !NoPrivateKeys)
                     {
                         // X509Store needs a persisted private key
                         X509Certificate2 persistedCertificate = X509Utils.CreateCopyWithPrivateKey(certificate, true);
                         store.Add(persistedCertificate);
                     }
-                    else if (certificate.HasPrivateKey && m_noPrivateKeys)
+                    else if (certificate.HasPrivateKey && NoPrivateKeys)
                     {
                         // ensure no private key is added to store
                         using X509Certificate2 publicKey = X509CertificateLoader.LoadCertificate(certificate.RawData);
@@ -482,9 +482,7 @@ namespace Opc.Ua
             return Task.CompletedTask;
         }
 
-        private bool m_noPrivateKeys;
         private string m_storeName;
-        private string m_storePath;
         private StoreLocation m_storeLocation;
     }
 }

@@ -98,7 +98,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string expectedReversible,
             string expectedNonReversible)
         {
-            Add(new JsonValidationData() {
+            Add(new JsonValidationData()
+            {
                 BuiltInType = builtInType,
                 Instance = instance,
                 ExpectedReversible = expectedReversible,
@@ -117,7 +118,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string expectedVerbose
             )
         {
-            Add(new JsonValidationData() {
+            Add(new JsonValidationData()
+            {
                 BuiltInType = builtInType,
                 Instance = instance,
                 ExpectedReversible = expectedReversible,
@@ -134,7 +136,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string expectedNonReversible,
             bool includeDefaultValue)
         {
-            Add(new JsonValidationData() {
+            Add(new JsonValidationData()
+            {
                 BuiltInType = builtInType,
                 Instance = instance,
                 ExpectedReversible = expectedReversible,
@@ -154,7 +157,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string expectedVerbose,
             bool includeDefaultValue)
         {
-            Add(new JsonValidationData() {
+            Add(new JsonValidationData()
+            {
                 BuiltInType = builtInType,
                 Instance = instance,
                 ExpectedReversible = expectedReversible,

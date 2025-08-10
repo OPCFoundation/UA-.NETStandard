@@ -33,10 +33,12 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public void TestCreateCACertificateAsyncThrowsException()
         {
-            var configuration = new CertificateGroupConfiguration();
-            configuration.SubjectName = "CN=GDS Test CA, O=OPC Foundation";
-            configuration.BaseStorePath = m_path;
-            configuration.CertificateTypes = [nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)];
+            var configuration = new CertificateGroupConfiguration
+            {
+                SubjectName = "CN=GDS Test CA, O=OPC Foundation",
+                BaseStorePath = m_path,
+                CertificateTypes = [nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)]
+            };
             ICertificateGroup certificateGroup = new CertificateGroup().Create(m_path + "/authorities", configuration);
             NUnit.Framework.Assert.That(() => certificateGroup.CreateCACertificateAsync("This is not the ValidSubjectName for my CertificateGroup", certificateGroup.CertificateTypes[0]), Throws.TypeOf<ArgumentException>());
             NUnit.Framework.Assert.That(() => certificateGroup.CreateCACertificateAsync(configuration.SubjectName, null), Throws.TypeOf<ArgumentNullException>());
@@ -45,10 +47,12 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public async Task TestCreateCACertificateAsyncCertIsInTrustedStoreAsync()
         {
-            var configuration = new CertificateGroupConfiguration();
-            configuration.SubjectName = "CN=GDS Test CA, O=OPC Foundation";
-            configuration.BaseStorePath = m_path;
-            configuration.CertificateTypes = [nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)];
+            var configuration = new CertificateGroupConfiguration
+            {
+                SubjectName = "CN=GDS Test CA, O=OPC Foundation",
+                BaseStorePath = m_path,
+                CertificateTypes = [nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)]
+            };
             ICertificateGroup certificateGroup = new CertificateGroup().Create(m_path + "/authorities", configuration);
             X509Certificate2 certificate = await certificateGroup.CreateCACertificateAsync(configuration.SubjectName, certificateGroup.CertificateTypes[0]).ConfigureAwait(false);
             Assert.NotNull(certificate);
@@ -61,14 +65,18 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public async Task TestCreateCACertificateAsyncCertIsInTrustedIssuerStoreAsync()
         {
-            var applicatioConfiguration = new ApplicationConfiguration();
-            applicatioConfiguration.SecurityConfiguration = new SecurityConfiguration();
+            var applicatioConfiguration = new ApplicationConfiguration
+            {
+                SecurityConfiguration = new SecurityConfiguration()
+            };
             applicatioConfiguration.SecurityConfiguration.TrustedIssuerCertificates.StorePath = m_path + Path.DirectorySeparatorChar + "issuers";
             applicatioConfiguration.SecurityConfiguration.TrustedIssuerCertificates.StoreType = CertificateStoreType.Directory;
-            var cgConfiguration = new CertificateGroupConfiguration();
-            cgConfiguration.CertificateTypes = [nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)];
-            cgConfiguration.SubjectName = "CN=GDS Test CA, O=OPC Foundation";
-            cgConfiguration.BaseStorePath = m_path;
+            var cgConfiguration = new CertificateGroupConfiguration
+            {
+                CertificateTypes = [nameof(Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType)],
+                SubjectName = "CN=GDS Test CA, O=OPC Foundation",
+                BaseStorePath = m_path
+            };
             ICertificateGroup certificateGroup = new CertificateGroup().Create(m_path + Path.DirectorySeparatorChar + "authorities", cgConfiguration, applicatioConfiguration.SecurityConfiguration.TrustedIssuerCertificates.StorePath);
             X509Certificate2 certificate = await certificateGroup.CreateCACertificateAsync(cgConfiguration.SubjectName, certificateGroup.CertificateTypes[0]).ConfigureAwait(false);
             Assert.NotNull(certificate);

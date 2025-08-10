@@ -27,7 +27,9 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
+#if !NETFRAMEWORK
 using Opc.Ua.Security.Certificates;
+#endif
 
 namespace Opc.Ua
 {
@@ -174,7 +176,6 @@ namespace Opc.Ua
 
 #if DEBUG
         private static int s_traceOutput = (int)TraceOutput.DebugAndFile;
-        private static int s_traceMasks = TraceMasks.All;
 #else
         private static int s_traceOutput = (int)TraceOutput.FileOnly;
         private static int s_traceMasks = (int)TraceMasks.None;
@@ -284,14 +285,14 @@ namespace Opc.Ua
         /// <summary>
         /// Gets the current trace mask settings.
         /// </summary>
-        public static int TraceMask => s_traceMasks;
+        public static int TraceMask { get; private set; } = TraceMasks.All;
 
         /// <summary>
         /// Sets the mask for tracing (thread safe).
         /// </summary>
         public static void SetTraceMask(int masks)
         {
-            s_traceMasks = masks;
+            TraceMask = masks;
         }
 
         /// <summary>
@@ -502,7 +503,7 @@ namespace Opc.Ua
                 message.AppendLine();
 
                 // append stack trace.
-                if ((s_traceMasks & TraceMasks.StackTrace) != 0)
+                if ((TraceMask & TraceMasks.StackTrace) != 0)
                 {
                     message.AppendLine();
                     message.AppendLine();
@@ -563,7 +564,7 @@ namespace Opc.Ua
         {
             // do nothing if mask not enabled.
             bool tracingEnabled = Tracing.IsEnabled();
-            bool traceMaskEnabled = (s_traceMasks & traceMask) != 0;
+            bool traceMaskEnabled = (TraceMask & traceMask) != 0;
             if (!traceMaskEnabled && !tracingEnabled)
             {
                 return;
@@ -607,7 +608,7 @@ namespace Opc.Ua
             }
 
             // do nothing if mask not enabled.
-            if ((s_traceMasks & traceMask) == 0)
+            if ((TraceMask & traceMask) == 0)
             {
                 return;
             }
@@ -1056,9 +1057,7 @@ namespace Opc.Ua
         /// <summary>
         /// The earliest time that can be represented on with UA date/time values.
         /// </summary>
-        public static DateTime TimeBase => s_TimeBase;
-
-        private static readonly DateTime s_TimeBase = new(1601, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        public static DateTime TimeBase { get; } = new(1601, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
         /// <summary>
         /// Normalize a DateTime to Opc Ua UniversalTime.
@@ -1388,7 +1387,8 @@ namespace Opc.Ua
             // check for null.
             if (string.IsNullOrEmpty(instanceUri))
             {
-                var builder = new UriBuilder {
+                var builder = new UriBuilder
+                {
                     Scheme = UriSchemeHttps,
                     Host = GetHostName(),
                     Port = -1,
@@ -1401,7 +1401,8 @@ namespace Opc.Ua
             // prefix non-urls with the hostname.
             if (!instanceUri.StartsWith(UriSchemeHttps, StringComparison.Ordinal))
             {
-                var builder = new UriBuilder {
+                var builder = new UriBuilder
+                {
                     Scheme = UriSchemeHttps,
                     Host = GetHostName(),
                     Port = -1,
@@ -1416,7 +1417,8 @@ namespace Opc.Ua
 
             if (parsedUri != null && parsedUri.DnsSafeHost == "localhost")
             {
-                var builder = new UriBuilder(parsedUri) {
+                var builder = new UriBuilder(parsedUri)
+                {
                     Host = GetHostName()
                 };
                 return builder.Uri.ToString();
@@ -1982,9 +1984,9 @@ namespace Opc.Ua
                 return true;
             }
 
-            if (ReferenceEquals(value1, null))
+            if (value1 is null)
             {
-                if (!ReferenceEquals(value2, null))
+                if (value2 is not null)
                 {
                     return value2.Equals(value1);
                 }
@@ -2007,7 +2009,7 @@ namespace Opc.Ua
                 return true;
             }
 
-            if (ReferenceEquals(value1, null) || ReferenceEquals(value2, null))
+            if (value1 is null || value2 is null)
             {
                 return false;
             }
@@ -2026,7 +2028,7 @@ namespace Opc.Ua
                 return true;
             }
 
-            if (ReferenceEquals(value1, null) || ReferenceEquals(value2, null))
+            if (value1 is null || value2 is null)
             {
                 return false;
             }
@@ -2049,7 +2051,7 @@ namespace Opc.Ua
                 return true;
             }
 
-            if (ReferenceEquals(value1, null) || ReferenceEquals(value2, null))
+            if (value1 is null || value2 is null)
             {
                 return false;
             }
@@ -2072,9 +2074,9 @@ namespace Opc.Ua
             }
 
             // check for null values.
-            if (ReferenceEquals(value1, null))
+            if (value1 is null)
             {
-                if (!ReferenceEquals(value2, null))
+                if (value2 is not null)
                 {
                     return value2.Equals(value1);
                 }
@@ -2083,7 +2085,7 @@ namespace Opc.Ua
             }
 
             // check for null values.
-            if (ReferenceEquals(value2, null))
+            if (value2 is null)
             {
                 return value1.Equals(value2);
             }
@@ -2466,7 +2468,8 @@ namespace Opc.Ua
         /// <returns>The TimeZone information for the current local time.</returns>
         public static TimeZoneDataType GetTimeZoneInfo()
         {
-            return new TimeZoneDataType {
+            return new TimeZoneDataType
+            {
                 Offset = (short)TimeZoneInfo.Local.GetUtcOffset(DateTime.Now).TotalMinutes,
                 DaylightSavingInOffset = true
             };
@@ -2714,7 +2717,8 @@ namespace Opc.Ua
         /// </summary>
         public static XmlReaderSettings DefaultXmlReaderSettings()
         {
-            return new XmlReaderSettings() {
+            return new XmlReaderSettings()
+            {
                 DtdProcessing = DtdProcessing.Prohibit,
                 XmlResolver = null,
                 ConformanceLevel = ConformanceLevel.Document
@@ -2726,7 +2730,8 @@ namespace Opc.Ua
         /// </summary>
         public static XmlWriterSettings DefaultXmlWriterSettings()
         {
-            return new XmlWriterSettings() {
+            return new XmlWriterSettings()
+            {
                 Encoding = Encoding.UTF8,
                 Indent = true,
                 ConformanceLevel = ConformanceLevel.Document,

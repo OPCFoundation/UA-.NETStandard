@@ -120,7 +120,7 @@ namespace Opc.Ua
         /// </returns>
         public int CompareTo(object obj)
         {
-            if (ReferenceEquals(obj, null))
+            if (obj is null)
             {
                 return -1;
             }
@@ -156,7 +156,7 @@ namespace Opc.Ua
         /// <returns>The result of the operator.</returns>
         public static bool operator >(QualifiedName value1, QualifiedName value2)
         {
-            if (!ReferenceEquals(value1, null))
+            if (value1 is not null)
             {
                 return value1.CompareTo(value2) > 0;
             }
@@ -172,7 +172,7 @@ namespace Opc.Ua
         /// <returns>The result of the operator.</returns>
         public static bool operator <(QualifiedName value1, QualifiedName value2)
         {
-            if (!ReferenceEquals(value1, null))
+            if (value1 is not null)
             {
                 return value1.CompareTo(value2) < 0;
             }
@@ -202,7 +202,7 @@ namespace Opc.Ua
         /// <param name="obj">The object to compare to this/me</param>
         public override bool Equals(object obj)
         {
-            if (ReferenceEquals(obj, null))
+            if (obj is null)
             {
                 return false;
             }
@@ -232,12 +232,12 @@ namespace Opc.Ua
         /// <param name="value2">The second value to compare</param>
         public static bool operator ==(QualifiedName value1, QualifiedName value2)
         {
-            if (!ReferenceEquals(value1, null))
+            if (value1 is not null)
             {
                 return value1.Equals(value2);
             }
 
-            return ReferenceEquals(value2, null);
+            return value2 is null;
         }
 
         /// <summary>
@@ -250,12 +250,12 @@ namespace Opc.Ua
         /// <param name="value2">The second value to compare</param>
         public static bool operator !=(QualifiedName value1, QualifiedName value2)
         {
-            if (!ReferenceEquals(value1, null))
+            if (value1 is not null)
             {
                 return !value1.Equals(value2);
             }
 
-            return !ReferenceEquals(value2, null);
+            return value2 is not null;
         }
 
         /// <summary>

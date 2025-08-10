@@ -144,11 +144,12 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                var queuedSubscription = new QueuedSubscription();
-
-                queuedSubscription.ReadyToPublish = false;
-                queuedSubscription.Timestamp = DateTime.UtcNow;
-                queuedSubscription.Subscription = subscription;
+                var queuedSubscription = new QueuedSubscription
+                {
+                    ReadyToPublish = false,
+                    Timestamp = DateTime.UtcNow,
+                    Subscription = subscription
+                };
 
                 m_queuedSubscriptions.Add(queuedSubscription);
 
@@ -430,12 +431,13 @@ namespace Opc.Ua.Server
                         m_queuedRequests.RemoveFirst();
                     }
 
-                    request = new QueuedRequest();
-
-                    request.SecureChannelId = SecureChannelContext.Current.SecureChannelId;
-                    request.Deadline = deadline;
-                    request.Subscription = null;
-                    request.Error = StatusCodes.Good;
+                    request = new QueuedRequest
+                    {
+                        SecureChannelId = SecureChannelContext.Current.SecureChannelId,
+                        Deadline = deadline,
+                        Subscription = null,
+                        Error = StatusCodes.Good
+                    };
 
                     if (operation == null)
                     {

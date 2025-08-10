@@ -40,21 +40,21 @@ namespace Opc.Ua
         {
             Initialize();
 
-            m_applicationName = template.m_applicationName;
-            m_applicationType = template.m_applicationType;
-            m_applicationUri = template.m_applicationUri;
-            m_discoveryServerConfiguration = template.m_discoveryServerConfiguration;
+            ApplicationName = template.ApplicationName;
+            ApplicationType = template.ApplicationType;
+            ApplicationUri = template.ApplicationUri;
+            DiscoveryServerConfiguration = template.DiscoveryServerConfiguration;
             m_securityConfiguration = template.m_securityConfiguration;
             m_transportConfigurations = template.m_transportConfigurations;
-            m_serverConfiguration = template.m_serverConfiguration;
-            m_clientConfiguration = template.m_clientConfiguration;
-            m_disableHiResClock = template.m_disableHiResClock;
-            m_certificateValidator = template.m_certificateValidator;
-            m_transportQuotas = template.m_transportQuotas;
-            m_traceConfiguration = template.m_traceConfiguration;
+            ServerConfiguration = template.ServerConfiguration;
+            ClientConfiguration = template.ClientConfiguration;
+            DisableHiResClock = template.DisableHiResClock;
+            CertificateValidator = template.CertificateValidator;
+            TransportQuotas = template.TransportQuotas;
+            TraceConfiguration = template.TraceConfiguration;
             m_extensions = template.m_extensions;
             m_extensionObjects = template.m_extensionObjects;
-            m_sourceFilePath = template.m_sourceFilePath;
+            SourceFilePath = template.SourceFilePath;
             m_messageContext = template.m_messageContext;
             m_properties = template.m_properties;
         }
@@ -64,12 +64,12 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize()
         {
-            m_sourceFilePath = null;
+            SourceFilePath = null;
             m_securityConfiguration = new SecurityConfiguration();
             m_transportConfigurations = [];
-            m_disableHiResClock = false;
+            DisableHiResClock = false;
             m_properties = [];
-            m_certificateValidator = new CertificateValidator();
+            CertificateValidator = new CertificateValidator();
             m_extensionObjects = [];
         }
 
@@ -110,40 +110,28 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The name of the application.</value>
         [DataMember(IsRequired = true, EmitDefaultValue = false, Order = 0)]
-        public string ApplicationName
-        {
-            get => m_applicationName; set => m_applicationName = value;
-        }
+        public string ApplicationName { get; set; }
 
         /// <summary>
         /// A unique identifier for the application instance.
         /// </summary>
         /// <value>The application URI.</value>
         [DataMember(IsRequired = true, EmitDefaultValue = false, Order = 1)]
-        public string ApplicationUri
-        {
-            get => m_applicationUri; set => m_applicationUri = value;
-        }
+        public string ApplicationUri { get; set; }
 
         /// <summary>
         /// A unique identifier for the product.
         /// </summary>
         /// <value>The product URI.</value>
         [DataMember(IsRequired = false, Order = 2)]
-        public string ProductUri
-        {
-            get => m_productUri; set => m_productUri = value;
-        }
+        public string ProductUri { get; set; }
 
         /// <summary>
         /// The type of application.
         /// </summary>
         /// <value>The type of the application.</value>
         [DataMember(IsRequired = true, Order = 3)]
-        public ApplicationType ApplicationType
-        {
-            get => m_applicationType; set => m_applicationType = value;
-        }
+        public ApplicationType ApplicationType { get; set; }
 
         /// <summary>
         /// The security configuration for the application.
@@ -174,40 +162,28 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The transport quotas.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = true, Order = 6)]
-        public TransportQuotas TransportQuotas
-        {
-            get => m_transportQuotas; set => m_transportQuotas = value;
-        }
+        public TransportQuotas TransportQuotas { get; set; }
 
         /// <summary>
         /// Additional configuration for server applications.
         /// </summary>
         /// <value>The server configuration.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 7)]
-        public ServerConfiguration ServerConfiguration
-        {
-            get => m_serverConfiguration; set => m_serverConfiguration = value;
-        }
+        public ServerConfiguration ServerConfiguration { get; set; }
 
         /// <summary>
         /// Additional configuration for client applications.
         /// </summary>
         /// <value>The client configuration.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 8)]
-        public ClientConfiguration ClientConfiguration
-        {
-            get => m_clientConfiguration; set => m_clientConfiguration = value;
-        }
+        public ClientConfiguration ClientConfiguration { get; set; }
 
         /// <summary>
         /// Additional configuration of the discovery server.
         /// </summary>
         /// <value>The discovery server configuration.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 9)]
-        public DiscoveryServerConfiguration DiscoveryServerConfiguration
-        {
-            get => m_discoveryServerConfiguration; set => m_discoveryServerConfiguration = value;
-        }
+        public DiscoveryServerConfiguration DiscoveryServerConfiguration { get; set; }
 
         /// <summary>
         /// A bucket to store additional application specific configuration data.
@@ -224,41 +200,20 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The trace configuration.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 11)]
-        public TraceConfiguration TraceConfiguration
-        {
-            get => m_traceConfiguration; set => m_traceConfiguration = value;
-        }
+        public TraceConfiguration TraceConfiguration { get; set; }
 
         /// <summary>
         /// Disabling / enabling high resolution clock
         /// </summary>
         /// <value><c>true</c> if high resolution clock is disabled; otherwise, <c>false</c>.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 12)]
-        public bool DisableHiResClock
-        {
-            get => m_disableHiResClock; set => m_disableHiResClock = value;
-        }
-
-        private string m_applicationName;
-        private string m_applicationUri;
-        private string m_productUri;
-        private ApplicationType m_applicationType;
+        public bool DisableHiResClock { get; set; }
 
         private SecurityConfiguration m_securityConfiguration;
         private TransportConfigurationCollection m_transportConfigurations;
-
-        private TransportQuotas m_transportQuotas;
-        private ServerConfiguration m_serverConfiguration;
-        private ClientConfiguration m_clientConfiguration;
-        private DiscoveryServerConfiguration m_discoveryServerConfiguration;
-        private TraceConfiguration m_traceConfiguration;
-        private bool m_disableHiResClock;
         private XmlElementCollection m_extensions;
         private List<object> m_extensionObjects;
-        private string m_sourceFilePath;
-
         private readonly IServiceMessageContext m_messageContext;
-        private CertificateValidator m_certificateValidator;
         private Dictionary<string, object> m_properties;
     }
 
@@ -395,8 +350,8 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize()
         {
-            m_outputFilePath = null;
-            m_deleteOnLoad = false;
+            OutputFilePath = null;
+            DeleteOnLoad = false;
         }
 
         /// <summary>
@@ -414,20 +369,14 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The output file path.</value>
         [DataMember(IsRequired = false, Order = 0)]
-        public string OutputFilePath
-        {
-            get => m_outputFilePath; set => m_outputFilePath = value;
-        }
+        public string OutputFilePath { get; set; }
 
         /// <summary>
         /// Whether the existing log file should be deleted when the application configuration is loaded.
         /// </summary>
         /// <value><c>true</c> if existing log file should be deleted when the application configuration is loaded; otherwise, <c>false</c>.</value>
         [DataMember(IsRequired = false, Order = 1)]
-        public bool DeleteOnLoad
-        {
-            get => m_deleteOnLoad; set => m_deleteOnLoad = value;
-        }
+        public bool DeleteOnLoad { get; set; }
 
         /// <summary>
         /// The masks used to select what is written to the output
@@ -446,14 +395,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The trace masks.</value>
         [DataMember(IsRequired = false, Order = 2)]
-        public int TraceMasks
-        {
-            get => m_traceMasks; set => m_traceMasks = value;
-        }
-
-        private string m_outputFilePath;
-        private bool m_deleteOnLoad;
-        private int m_traceMasks;
+        public int TraceMasks { get; set; }
     }
 
     /// <summary>
@@ -643,16 +585,16 @@ namespace Opc.Ua
             m_applicationCertificates = [];
             m_trustedIssuerCertificates = new CertificateTrustList();
             m_trustedPeerCertificates = new CertificateTrustList();
-            m_nonceLength = 32;
-            m_maxRejectedCertificates = 5;
-            m_autoAcceptUntrustedCertificates = false;
-            m_rejectSHA1SignedCertificates = true;
-            m_rejectUnknownRevocationStatus = false;
-            m_minCertificateKeySize = CertificateFactory.DefaultKeySize;
-            m_addAppCertToTrustedStore = true;
-            m_sendCertificateChain = true;
-            m_suppressNonceValidationErrors = false;
-            m_isDeprecatedConfiguration = false;
+            NonceLength = 32;
+            MaxRejectedCertificates = 5;
+            AutoAcceptUntrustedCertificates = false;
+            RejectSHA1SignedCertificates = true;
+            RejectUnknownRevocationStatus = false;
+            MinimumCertificateKeySize = CertificateFactory.DefaultKeySize;
+            AddAppCertToTrustedStore = true;
+            SendCertificateChain = true;
+            SuppressNonceValidationErrors = false;
+            IsDeprecatedConfiguration = false;
         }
 
         /// <summary>
@@ -704,7 +646,7 @@ namespace Opc.Ua
                 SupportedSecurityPolicies = BuildSupportedSecurityPolicies();
 
                 m_applicationCertificates[0].CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType;
-                m_isDeprecatedConfiguration = true;
+                IsDeprecatedConfiguration = true;
             }
         }
 
@@ -719,7 +661,7 @@ namespace Opc.Ua
             {
                 m_applicationCertificates = value ?? [];
 
-                m_isDeprecatedConfiguration = false;
+                IsDeprecatedConfiguration = false;
 
                 // Remove any unsupported certificate types.
                 for (int i = m_applicationCertificates.Count - 1; i >= 0; i--)
@@ -775,10 +717,7 @@ namespace Opc.Ua
         /// The length of nonce in the CreateSession service.
         /// </value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 6)]
-        public int NonceLength
-        {
-            get => m_nonceLength; set => m_nonceLength = value;
-        }
+        public int NonceLength { get; set; }
 
         /// <summary>
         /// A store where invalid certificates can be placed for later review by the administrator.
@@ -787,10 +726,7 @@ namespace Opc.Ua
         /// A store where invalid certificates can be placed for later review by the administrator.
         /// </value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 7)]
-        public CertificateStoreIdentifier RejectedCertificateStore
-        {
-            get => m_rejectedCertificateStore; set => m_rejectedCertificateStore = value;
-        }
+        public CertificateStoreIdentifier RejectedCertificateStore { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating how many certificates are kept
@@ -803,10 +739,7 @@ namespace Opc.Ua
         /// A negative number to keep no history.
         /// </remarks>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 8)]
-        public int MaxRejectedCertificates
-        {
-            get => m_maxRejectedCertificates; set => m_maxRejectedCertificates = value;
-        }
+        public int MaxRejectedCertificates { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether untrusted certificates should be automatically accepted.
@@ -816,19 +749,13 @@ namespace Opc.Ua
         /// It can be set by clients that connect to URLs specified in configuration rather than with user entry.
         /// </remarks>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 9)]
-        public bool AutoAcceptUntrustedCertificates
-        {
-            get => m_autoAcceptUntrustedCertificates; set => m_autoAcceptUntrustedCertificates = value;
-        }
+        public bool AutoAcceptUntrustedCertificates { get; set; }
 
         /// <summary>
         /// Gets or sets a directory which contains files representing users roles.
         /// </summary>
         [DataMember(Order = 10)]
-        public string UserRoleDirectory
-        {
-            get => m_userRoleDirectory; set => m_userRoleDirectory = value;
-        }
+        public string UserRoleDirectory { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether SHA-1 signed certificates are accepted.
@@ -837,10 +764,7 @@ namespace Opc.Ua
         /// This flag can be set to false by servers that accept SHA-1 signed certificates.
         /// </remarks>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 11)]
-        public bool RejectSHA1SignedCertificates
-        {
-            get => m_rejectSHA1SignedCertificates; set => m_rejectSHA1SignedCertificates = value;
-        }
+        public bool RejectSHA1SignedCertificates { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether certificates with unavailable revocation lists are not accepted.
@@ -849,10 +773,7 @@ namespace Opc.Ua
         /// This flag can be set to true by servers that must have a revocation list for each CA (even if empty).
         /// </remarks>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 12)]
-        public bool RejectUnknownRevocationStatus
-        {
-            get => m_rejectUnknownRevocationStatus; set => m_rejectUnknownRevocationStatus = value;
-        }
+        public bool RejectUnknownRevocationStatus { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating which minimum certificate key strength is accepted.
@@ -862,10 +783,7 @@ namespace Opc.Ua
         /// This value can be set to 1024, 2048 or 4096 by servers
         /// </remarks>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 13)]
-        public ushort MinimumCertificateKeySize
-        {
-            get => m_minCertificateKeySize; set => m_minCertificateKeySize = value;
-        }
+        public ushort MinimumCertificateKeySize { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether the Validator skips the full chain validation
@@ -875,10 +793,7 @@ namespace Opc.Ua
         /// This flag can be set to true by applications.
         /// </remarks>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 14)]
-        public bool UseValidatedCertificates
-        {
-            get => m_useValidatedCertificates; set => m_useValidatedCertificates = value;
-        }
+        public bool UseValidatedCertificates { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether the application cert should be copied to the trusted store.
@@ -887,10 +802,7 @@ namespace Opc.Ua
         /// It is useful for client/server applications running on the same host  and sharing the cert store to autotrust.
         /// </remarks>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 15)]
-        public bool AddAppCertToTrustedStore
-        {
-            get => m_addAppCertToTrustedStore; set => m_addAppCertToTrustedStore = value;
-        }
+        public bool AddAppCertToTrustedStore { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether the application should send the complete certificate chain.
@@ -899,10 +811,7 @@ namespace Opc.Ua
         /// If set to true the complete certificate chain will be sent for CA signed certificates.
         /// </remarks>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 16)]
-        public bool SendCertificateChain
-        {
-            get => m_sendCertificateChain; set => m_sendCertificateChain = value;
-        }
+        public bool SendCertificateChain { get; set; }
 
         /// <summary>
         /// The store containing additional user issuer certificates.
@@ -957,18 +866,12 @@ namespace Opc.Ua
         /// Please set this flag to true only in close and secured networks since it can cause security vulnerabilities.
         /// </remarks>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 21)]
-        public bool SuppressNonceValidationErrors
-        {
-            get => m_suppressNonceValidationErrors; set => m_suppressNonceValidationErrors = value;
-        }
+        public bool SuppressNonceValidationErrors { get; set; }
 
         /// <summary>
         /// The type of Configuration (deprecated or not)
         /// </summary>
-        public bool IsDeprecatedConfiguration
-        {
-            get => m_isDeprecatedConfiguration; set => m_isDeprecatedConfiguration = value;
-        }
+        public bool IsDeprecatedConfiguration { get; set; }
 
         private CertificateIdentifierCollection m_applicationCertificates;
         private CertificateTrustList m_trustedIssuerCertificates;
@@ -977,20 +880,6 @@ namespace Opc.Ua
         private CertificateTrustList m_trustedHttpsCertificates;
         private CertificateTrustList m_userIssuerCertificates;
         private CertificateTrustList m_trustedUserCertificates;
-        // TODO: is this really necessary?
-        private int m_nonceLength;
-        private CertificateStoreIdentifier m_rejectedCertificateStore;
-        private int m_maxRejectedCertificates;
-        private bool m_autoAcceptUntrustedCertificates;
-        private string m_userRoleDirectory;
-        private bool m_rejectSHA1SignedCertificates;
-        private bool m_rejectUnknownRevocationStatus;
-        private ushort m_minCertificateKeySize;
-        private bool m_useValidatedCertificates;
-        private bool m_addAppCertToTrustedStore;
-        private bool m_sendCertificateChain;
-        private bool m_suppressNonceValidationErrors;
-        private bool m_isDeprecatedConfiguration;
     }
 
     /// <summary>
@@ -1117,9 +1006,9 @@ namespace Opc.Ua
             m_baseAddresses = [];
             m_alternateBaseAddresses = [];
             m_securityPolicies = [];
-            m_minRequestThreadCount = 10;
-            m_maxRequestThreadCount = 100;
-            m_maxQueuedRequestCount = 200;
+            MinRequestThreadCount = 10;
+            MaxRequestThreadCount = 100;
+            MaxQueuedRequestCount = 200;
         }
 
         /// <summary>
@@ -1147,7 +1036,8 @@ namespace Opc.Ua
                     // add wild card policies
                     foreach (string policyUri in Ua.SecurityPolicies.GetDefaultUris())
                     {
-                        var newPolicy = new ServerSecurityPolicy() {
+                        var newPolicy = new ServerSecurityPolicy()
+                        {
                             SecurityMode = securityPolicy.SecurityMode,
                             SecurityPolicyUri = policyUri
                         };
@@ -1234,37 +1124,25 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The minimum request thread count.</value>
         [DataMember(IsRequired = false, Order = 3)]
-        public int MinRequestThreadCount
-        {
-            get => m_minRequestThreadCount; set => m_minRequestThreadCount = value;
-        }
+        public int MinRequestThreadCount { get; set; }
 
         /// <summary>
         /// The maximum number of threads assigned to processing requests.
         /// </summary>
         /// <value>The maximum request thread count.</value>
         [DataMember(IsRequired = false, Order = 4)]
-        public int MaxRequestThreadCount
-        {
-            get => m_maxRequestThreadCount; set => m_maxRequestThreadCount = value;
-        }
+        public int MaxRequestThreadCount { get; set; }
 
         /// <summary>
         /// The maximum number of requests that will be queued waiting for a thread.
         /// </summary>
         /// <value>The maximum queued request count.</value>
         [DataMember(IsRequired = false, Order = 5)]
-        public int MaxQueuedRequestCount
-        {
-            get => m_maxQueuedRequestCount; set => m_maxQueuedRequestCount = value;
-        }
+        public int MaxQueuedRequestCount { get; set; }
 
         private StringCollection m_baseAddresses;
         private StringCollection m_alternateBaseAddresses;
         private ServerSecurityPolicyCollection m_securityPolicies;
-        private int m_minRequestThreadCount;
-        private int m_maxRequestThreadCount;
-        private int m_maxQueuedRequestCount;
     }
 
     /// <summary>
@@ -1287,43 +1165,43 @@ namespace Opc.Ua
         private void Initialize()
         {
             m_userTokenPolicies = [];
-            m_diagnosticsEnabled = false;
-            m_maxSessionCount = 100;
-            m_maxChannelCount = 1000;
-            m_maxSessionTimeout = 3600000;
-            m_minSessionTimeout = 10000;
-            m_maxBrowseContinuationPoints = 10;
-            m_maxQueryContinuationPoints = 10;
-            m_maxHistoryContinuationPoints = 100;
-            m_maxRequestAge = 600000;
-            m_minPublishingInterval = 100;
-            m_maxPublishingInterval = 3600000;
-            m_publishingResolution = 100;
-            m_minSubscriptionLifetime = 10000;
-            m_maxSubscriptionLifetime = 3600000;
-            m_maxMessageQueueSize = 10;
-            m_maxNotificationQueueSize = 100;
-            m_maxNotificationsPerPublish = 100;
-            m_minMetadataSamplingInterval = 1000;
-            m_availableSamplingRates = [];
-            m_registrationEndpoint = null;
-            m_maxRegistrationInterval = 30000;
-            m_maxPublishRequestCount = 20;
-            m_maxSubscriptionCount = 100;
-            m_maxEventQueueSize = 10000;
+            DiagnosticsEnabled = false;
+            MaxSessionCount = 100;
+            MaxChannelCount = 1000;
+            MaxSessionTimeout = 3600000;
+            MinSessionTimeout = 10000;
+            MaxBrowseContinuationPoints = 10;
+            MaxQueryContinuationPoints = 10;
+            MaxHistoryContinuationPoints = 100;
+            MaxRequestAge = 600000;
+            MinPublishingInterval = 100;
+            MaxPublishingInterval = 3600000;
+            PublishingResolution = 100;
+            MinSubscriptionLifetime = 10000;
+            MaxSubscriptionLifetime = 3600000;
+            MaxMessageQueueSize = 10;
+            MaxNotificationQueueSize = 100;
+            MaxNotificationsPerPublish = 100;
+            MinMetadataSamplingInterval = 1000;
+            AvailableSamplingRates = [];
+            RegistrationEndpoint = null;
+            MaxRegistrationInterval = 30000;
+            MaxPublishRequestCount = 20;
+            MaxSubscriptionCount = 100;
+            MaxEventQueueSize = 10000;
             // https://opcfoundation-onlineapplications.org/profilereporting/ for list of available profiles
             m_serverProfileArray = new string[] { "http://opcfoundation.org/UA-Profile/Server/StandardUA2017" };
-            m_shutdownDelay = 5;
+            ShutdownDelay = 5;
             m_serverCapabilities = new string[] { "DA" };
             m_supportedPrivateKeyFormats = new string[] { "PFX", "PEM" };
-            m_maxTrustListSize = 0;
-            m_multicastDnsEnabled = false;
-            m_auditingEnabled = false;
-            m_httpsMutualTls = true;
-            m_DurableSubscriptionsEnabled = false;
-            m_maxDurableNotificationQueueSize = 200000;
-            m_maxDurableEventQueueSize = 200000;
-            m_maxDurableSubscriptionLifetimeInHours = 10;
+            MaxTrustListSize = 0;
+            MultiCastDnsEnabled = false;
+            AuditingEnabled = false;
+            HttpsMutualTls = true;
+            DurableSubscriptionsEnabled = false;
+            MaxDurableNotificationQueueSize = 200000;
+            MaxDurableEventQueueSize = 200000;
+            MaxDurableSubscriptionLifetimeInHours = 10;
         }
 
         /// <summary>
@@ -1353,30 +1231,21 @@ namespace Opc.Ua
         /// </summary>
         /// <value><c>true</c> if diagnostic is enabled; otherwise, <c>false</c>.</value>
         [DataMember(IsRequired = false, Order = 4)]
-        public bool DiagnosticsEnabled
-        {
-            get => m_diagnosticsEnabled; set => m_diagnosticsEnabled = value;
-        }
+        public bool DiagnosticsEnabled { get; set; }
 
         /// <summary>
         /// The maximum number of open sessions.
         /// </summary>
         /// <value>The maximum session count.</value>
         [DataMember(IsRequired = false, Order = 5)]
-        public int MaxSessionCount
-        {
-            get => m_maxSessionCount; set => m_maxSessionCount = value;
-        }
+        public int MaxSessionCount { get; set; }
 
         /// <summary>
         /// The maximum number of supported secure channels.
         /// </summary>
         /// <value>The channel lifetime.</value>
         [DataMember(IsRequired = false, Order = 6)]
-        public int MaxChannelCount
-        {
-            get => m_maxChannelCount; set => m_maxChannelCount = value;
-        }
+        public int MaxChannelCount { get; set; }
 
         /// <summary>
         /// That minimum period of that a session is allowed to remain
@@ -1384,10 +1253,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The minimum session timeout.</value>
         [DataMember(IsRequired = false, Order = 7)]
-        public int MinSessionTimeout
-        {
-            get => m_minSessionTimeout; set => m_minSessionTimeout = value;
-        }
+        public int MinSessionTimeout { get; set; }
 
         /// <summary>
         /// That maximum period of that a session is allowed to remain
@@ -1395,10 +1261,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The maximum session timeout.</value>
         [DataMember(IsRequired = false, Order = 8)]
-        public int MaxSessionTimeout
-        {
-            get => m_maxSessionTimeout; set => m_maxSessionTimeout = value;
-        }
+        public int MaxSessionTimeout { get; set; }
 
         /// <summary>
         /// The maximum number of continuation points used for
@@ -1406,10 +1269,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The maximum number of continuation points used for Browse/BrowseNext operations</value>
         [DataMember(IsRequired = false, Order = 9)]
-        public int MaxBrowseContinuationPoints
-        {
-            get => m_maxBrowseContinuationPoints; set => m_maxBrowseContinuationPoints = value;
-        }
+        public int MaxBrowseContinuationPoints { get; set; }
 
         /// <summary>
         /// The maximum number of continuation points used for
@@ -1417,190 +1277,133 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The maximum number of query continuation points.</value>
         [DataMember(IsRequired = false, Order = 10)]
-        public int MaxQueryContinuationPoints
-        {
-            get => m_maxQueryContinuationPoints; set => m_maxQueryContinuationPoints = value;
-        }
+        public int MaxQueryContinuationPoints { get; set; }
 
         /// <summary>
         /// The maximum number of continuation points used for HistoryRead operations.
         /// </summary>
         /// <value>The maximum number of  history continuation points.</value>
         [DataMember(IsRequired = false, Order = 11)]
-        public int MaxHistoryContinuationPoints
-        {
-            get => m_maxHistoryContinuationPoints; set => m_maxHistoryContinuationPoints = value;
-        }
+        public int MaxHistoryContinuationPoints { get; set; }
 
         /// <summary>
         /// The maximum age of an incoming request (old requests are rejected) (in milliseconds).
         /// </summary>
         /// <value>The maximum age of an incoming request.</value>
         [DataMember(IsRequired = false, Order = 12)]
-        public int MaxRequestAge
-        {
-            get => m_maxRequestAge; set => m_maxRequestAge = value;
-        }
+        public int MaxRequestAge { get; set; }
 
         /// <summary>
         /// The minimum publishing interval supported by the server (in milliseconds).
         /// </summary>
         /// <value>The minimum publishing interval.</value>
         [DataMember(IsRequired = false, Order = 13)]
-        public int MinPublishingInterval
-        {
-            get => m_minPublishingInterval; set => m_minPublishingInterval = value;
-        }
+        public int MinPublishingInterval { get; set; }
 
         /// <summary>
         /// The maximum publishing interval supported by the server (in milliseconds).
         /// </summary>
         /// <value>The maximum publishing interval.</value>
         [DataMember(IsRequired = false, Order = 14)]
-        public int MaxPublishingInterval
-        {
-            get => m_maxPublishingInterval; set => m_maxPublishingInterval = value;
-        }
+        public int MaxPublishingInterval { get; set; }
 
         /// <summary>
         /// The minimum difference between supported publishing interval (in milliseconds).
         /// </summary>
         /// <value>The publishing resolution.</value>
         [DataMember(IsRequired = false, Order = 15)]
-        public int PublishingResolution
-        {
-            get => m_publishingResolution; set => m_publishingResolution = value;
-        }
+        public int PublishingResolution { get; set; }
 
         /// <summary>
         /// How long the subscriptions will remain open without a publish from the client.
         /// </summary>
         /// <value>The maximum subscription lifetime.</value>
         [DataMember(IsRequired = false, Order = 16)]
-        public int MaxSubscriptionLifetime
-        {
-            get => m_maxSubscriptionLifetime; set => m_maxSubscriptionLifetime = value;
-        }
+        public int MaxSubscriptionLifetime { get; set; }
 
         /// <summary>
         /// The maximum number of messages saved in the queue for each subscription.
         /// </summary>
         /// <value>The maximum size of the  message queue.</value>
         [DataMember(IsRequired = false, Order = 17)]
-        public int MaxMessageQueueSize
-        {
-            get => m_maxMessageQueueSize; set => m_maxMessageQueueSize = value;
-        }
+        public int MaxMessageQueueSize { get; set; }
 
         /// <summary>
         /// The maximum number of notificates saved in the queue for each monitored item.
         /// </summary>
         /// <value>The maximum size of the notification queue.</value>
         [DataMember(IsRequired = false, Order = 18)]
-        public int MaxNotificationQueueSize
-        {
-            get => m_maxNotificationQueueSize; set => m_maxNotificationQueueSize = value;
-        }
+        public int MaxNotificationQueueSize { get; set; }
 
         /// <summary>
         /// The maximum number of notifications per publish.
         /// </summary>
         /// <value>The maximum number of notifications per publish.</value>
         [DataMember(IsRequired = false, Order = 19)]
-        public int MaxNotificationsPerPublish
-        {
-            get => m_maxNotificationsPerPublish; set => m_maxNotificationsPerPublish = value;
-        }
+        public int MaxNotificationsPerPublish { get; set; }
 
         /// <summary>
         /// The minimum sampling interval for metadata.
         /// </summary>
         /// <value>The minimum sampling interval for metadata.</value>
         [DataMember(IsRequired = false, Order = 20)]
-        public int MinMetadataSamplingInterval
-        {
-            get => m_minMetadataSamplingInterval; set => m_minMetadataSamplingInterval = value;
-        }
+        public int MinMetadataSamplingInterval { get; set; }
 
         /// <summary>
         /// The available sampling rates.
         /// </summary>
         /// <value>The available sampling rates.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 21)]
-        public SamplingRateGroupCollection AvailableSamplingRates
-        {
-            get => m_availableSamplingRates; set => m_availableSamplingRates = value;
-        }
+        public SamplingRateGroupCollection AvailableSamplingRates { get; set; }
 
         /// <summary>
         /// The endpoint description for the registration endpoint.
         /// </summary>
         /// <value>The registration endpoint.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 22)]
-        public EndpointDescription RegistrationEndpoint
-        {
-            get => m_registrationEndpoint; set => m_registrationEndpoint = value;
-        }
+        public EndpointDescription RegistrationEndpoint { get; set; }
 
         /// <summary>
         /// The maximum time between registration attempts (in milliseconds).
         /// </summary>
         /// <value>The maximum time between registration attempts (in milliseconds).</value>
         [DataMember(IsRequired = false, Order = 23)]
-        public int MaxRegistrationInterval
-        {
-            get => m_maxRegistrationInterval; set => m_maxRegistrationInterval = value;
-        }
+        public int MaxRegistrationInterval { get; set; }
 
         /// <summary>
         /// The path to the file containing nodes persisted by the core node manager.
         /// </summary>
         /// <value>The path to the file containing nodes persisted by the core node manager.</value>
         [DataMember(IsRequired = false, Order = 24)]
-        public string NodeManagerSaveFile
-        {
-            get => m_nodeManagerSaveFile; set => m_nodeManagerSaveFile = value;
-        }
+        public string NodeManagerSaveFile { get; set; }
 
         /// <summary>
         /// The minimum lifetime for a subscription (in milliseconds).
         /// </summary>
         /// <value>The minimum lifetime for a subscription.</value>
         [DataMember(IsRequired = false, Order = 25)]
-        public int MinSubscriptionLifetime
-        {
-            get => m_minSubscriptionLifetime; set => m_minSubscriptionLifetime = value;
-        }
+        public int MinSubscriptionLifetime { get; set; }
 
         /// <summary>
         /// The max publish request count.
         /// </summary>
         /// <value>The max publish request count.</value>
         [DataMember(IsRequired = false, Order = 26)]
-        public int MaxPublishRequestCount
-        {
-            get => m_maxPublishRequestCount; set => m_maxPublishRequestCount = value;
-        }
+        public int MaxPublishRequestCount { get; set; }
 
         /// <summary>
         /// The max subscription count.
         /// </summary>
         /// <value>The max subscription count.</value>
         [DataMember(IsRequired = false, Order = 27)]
-        public int MaxSubscriptionCount
-        {
-            get => m_maxSubscriptionCount; set => m_maxSubscriptionCount = value;
-        }
+        public int MaxSubscriptionCount { get; set; }
 
         /// <summary>
         /// The max size of the event queue.
         /// </summary>
         /// <value>The max size of the event queue.</value>
         [DataMember(IsRequired = false, Order = 28)]
-        public int MaxEventQueueSize
-        {
-            get => m_maxEventQueueSize; set => m_maxEventQueueSize = value;
-        }
+        public int MaxEventQueueSize { get; set; }
 
         /// <summary>
         /// The server profile array.
@@ -1617,10 +1420,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The number of seconds to delay the shutdown if a client is connected.</value>
         [DataMember(IsRequired = false, Order = 30)]
-        public int ShutdownDelay
-        {
-            get => m_shutdownDelay; set => m_shutdownDelay = value;
-        }
+        public int ShutdownDelay { get; set; }
 
         /// <summary>
         /// The server capabilities.
@@ -1648,138 +1448,72 @@ namespace Opc.Ua
         /// Gets or sets the max size of the trust list.
         /// </summary>
         [DataMember(IsRequired = false, Order = 33)]
-        public int MaxTrustListSize
-        {
-            get => m_maxTrustListSize; set => m_maxTrustListSize = value;
-        }
+        public int MaxTrustListSize { get; set; }
 
         /// <summary>
         /// Gets or sets if multicast DNS is enabled.
         /// </summary>
         [DataMember(IsRequired = false, Order = 34)]
-        public bool MultiCastDnsEnabled
-        {
-            get => m_multicastDnsEnabled; set => m_multicastDnsEnabled = value;
-        }
+        public bool MultiCastDnsEnabled { get; set; }
 
         /// <summary>
         /// Gets or sets reverse connect server configuration.
         /// </summary>
         [DataMember(IsRequired = false, Order = 35)]
-        public ReverseConnectServerConfiguration ReverseConnect
-        {
-            get => m_reverseConnect; set => m_reverseConnect = value;
-        }
+        public ReverseConnectServerConfiguration ReverseConnect { get; set; }
 
         /// <summary>
         /// Gets or sets the operation limits of the OPC UA Server.
         /// </summary>
         [DataMember(IsRequired = false, Order = 36)]
-        public OperationLimits OperationLimits
-        {
-            get => m_operationLimits; set => m_operationLimits = value;
-        }
+        public OperationLimits OperationLimits { get; set; }
 
         /// <summary>
         /// Whether auditing is enabled.
         /// </summary>
         /// <value><c>true</c> if auditing is enabled; otherwise, <c>false</c>.</value>
         [DataMember(IsRequired = false, Order = 37)]
-        public bool AuditingEnabled
-        {
-            get => m_auditingEnabled; set => m_auditingEnabled = value;
-        }
+        public bool AuditingEnabled { get; set; }
 
         /// <summary>
         /// Whether mTLS is required/enforced by the HttpsTransportListener
         /// </summary>
         /// <value><c>true</c> if mutual TLS is enabled; otherwise, <c>false</c>.</value>
         [DataMember(IsRequired = false, Order = 38)]
-        public bool HttpsMutualTls
-        {
-            get => m_httpsMutualTls; set => m_httpsMutualTls = value;
-        }
+        public bool HttpsMutualTls { get; set; }
 
         /// <summary>
         /// Enable / disable support for durable subscriptions
         /// </summary>
         /// <value><c>true</c> if durable subscriptions are enabled; otherwise, <c>false</c>.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 39)]
-        public bool DurableSubscriptionsEnabled
-        {
-            get => m_DurableSubscriptionsEnabled; set => m_DurableSubscriptionsEnabled = value;
-        }
+        public bool DurableSubscriptionsEnabled { get; set; }
 
         /// <summary>
         /// The maximum number of notifications saved in the durable queue for each monitored item.
         /// </summary>
         /// <value>The maximum size of the durable notification queue.</value>
         [DataMember(IsRequired = false, Order = 40)]
-        public int MaxDurableNotificationQueueSize
-        {
-            get => m_maxDurableNotificationQueueSize; set => m_maxDurableNotificationQueueSize = value;
-        }
+        public int MaxDurableNotificationQueueSize { get; set; }
 
         /// <summary>
         /// The max size of the durable event queue.
         /// </summary>
         /// <value>The max size of the durable event queue.</value>
         [DataMember(IsRequired = false, Order = 41)]
-        public int MaxDurableEventQueueSize
-        {
-            get => m_maxDurableEventQueueSize; set => m_maxDurableEventQueueSize = value;
-        }
+        public int MaxDurableEventQueueSize { get; set; }
 
         /// <summary>
         /// How long the durable subscriptions will remain open without a publish from the client.
         /// </summary>
         /// <value>The maximum durable subscription lifetime.</value>
         [DataMember(IsRequired = false, Order = 42)]
-        public int MaxDurableSubscriptionLifetimeInHours
-        {
-            get => m_maxDurableSubscriptionLifetimeInHours; set => m_maxDurableSubscriptionLifetimeInHours = value;
-        }
+        public int MaxDurableSubscriptionLifetimeInHours { get; set; }
 
         private UserTokenPolicyCollection m_userTokenPolicies;
-        private bool m_diagnosticsEnabled;
-        private int m_maxSessionCount;
-        private int m_maxChannelCount;
-        private int m_minSessionTimeout;
-        private int m_maxSessionTimeout;
-        private int m_maxBrowseContinuationPoints;
-        private int m_maxQueryContinuationPoints;
-        private int m_maxHistoryContinuationPoints;
-        private int m_maxRequestAge;
-        private int m_minPublishingInterval;
-        private int m_maxPublishingInterval;
-        private int m_publishingResolution;
-        private int m_minSubscriptionLifetime;
-        private int m_maxSubscriptionLifetime;
-        private int m_maxMessageQueueSize;
-        private int m_maxNotificationQueueSize;
-        private int m_maxNotificationsPerPublish;
-        private int m_minMetadataSamplingInterval;
-        private SamplingRateGroupCollection m_availableSamplingRates;
-        private EndpointDescription m_registrationEndpoint;
-        private int m_maxRegistrationInterval;
-        private string m_nodeManagerSaveFile;
-        private int m_maxPublishRequestCount;
-        private int m_maxSubscriptionCount;
-        private int m_maxEventQueueSize;
         private StringCollection m_serverProfileArray;
-        private int m_shutdownDelay;
         private StringCollection m_serverCapabilities;
         private StringCollection m_supportedPrivateKeyFormats;
-        private int m_maxTrustListSize;
-        private bool m_multicastDnsEnabled;
-        private ReverseConnectServerConfiguration m_reverseConnect;
-        private OperationLimits m_operationLimits;
-        private bool m_auditingEnabled;
-        private bool m_httpsMutualTls;
-        private bool m_DurableSubscriptionsEnabled;
-        private int m_maxDurableNotificationQueueSize;
-        private int m_maxDurableEventQueueSize;
-        private int m_maxDurableSubscriptionLifetimeInHours;
     }
 
     /// <summary>
@@ -2064,11 +1798,11 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize()
         {
-            m_defaultSessionTimeout = 60000;
-            m_minSubscriptionLifetime = 10000;
+            DefaultSessionTimeout = 60000;
+            MinSubscriptionLifetime = 10000;
             m_wellKnownDiscoveryUrls = [];
             m_discoveryServers = [];
-            m_operationLimits = new OperationLimits();
+            OperationLimits = new OperationLimits();
         }
 
         /// <summary>
@@ -2086,10 +1820,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The default session timeout.</value>
         [DataMember(IsRequired = false, Order = 0)]
-        public int DefaultSessionTimeout
-        {
-            get => m_defaultSessionTimeout; set => m_defaultSessionTimeout = value;
-        }
+        public int DefaultSessionTimeout { get; set; }
 
         /// <summary>
         /// The well known URLs for the local discovery servers.
@@ -2120,29 +1851,20 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The path to the file containing the cached endpoints.</value>
         [DataMember(IsRequired = false, Order = 3)]
-        public string EndpointCacheFilePath
-        {
-            get => m_endpointCacheFilePath; set => m_endpointCacheFilePath = value;
-        }
+        public string EndpointCacheFilePath { get; set; }
 
         /// <summary>
         /// The minimum lifetime for a subscription (in milliseconds).
         /// </summary>
         /// <value>The minimum lifetime for a subscription.</value>
         [DataMember(IsRequired = false, Order = 4)]
-        public int MinSubscriptionLifetime
-        {
-            get => m_minSubscriptionLifetime; set => m_minSubscriptionLifetime = value;
-        }
+        public int MinSubscriptionLifetime { get; set; }
 
         /// <summary>
         /// The reverse connect Client configuration.
         /// </summary>
         [DataMember(IsRequired = false, Order = 5)]
-        public ReverseConnectClientConfiguration ReverseConnect
-        {
-            get => m_reverseConnect; set => m_reverseConnect = value;
-        }
+        public ReverseConnectClientConfiguration ReverseConnect { get; set; }
 
         /// <summary>
         /// Gets or sets the default operation limits of the OPC UA client.
@@ -2152,18 +1874,10 @@ namespace Opc.Ua
         /// The values are used to limit client service calls.
         /// </remarks>
         [DataMember(IsRequired = false, Order = 6)]
-        public OperationLimits OperationLimits
-        {
-            get => m_operationLimits; set => m_operationLimits = value;
-        }
+        public OperationLimits OperationLimits { get; set; }
 
         private StringCollection m_wellKnownDiscoveryUrls;
         private EndpointDescriptionCollection m_discoveryServers;
-        private int m_defaultSessionTimeout;
-        private string m_endpointCacheFilePath;
-        private int m_minSubscriptionLifetime;
-        private ReverseConnectClientConfiguration m_reverseConnect;
-        private OperationLimits m_operationLimits;
     }
 
     /// <summary>
@@ -2450,12 +2164,7 @@ namespace Opc.Ua
         /// If the StoreName is not empty, the CertificateStoreType.X509Store is returned, otherwise the StoreType is returned.
         /// </value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 0)]
-        public string StoreType
-        {
-            get => m_storeType;
-
-            set => m_storeType = value;
-        }
+        public string StoreType { get; set; }
 
         /// <summary>
         /// The path that identifies the certificate store.
@@ -2474,9 +2183,9 @@ namespace Opc.Ua
             {
                 m_storePath = value;
 
-                if (!string.IsNullOrEmpty(m_storePath) && string.IsNullOrEmpty(m_storeType))
+                if (!string.IsNullOrEmpty(m_storePath) && string.IsNullOrEmpty(StoreType))
                 {
-                    m_storeType = DetermineStoreType(m_storePath);
+                    StoreType = DetermineStoreType(m_storePath);
                 }
             }
         }
@@ -2487,12 +2196,10 @@ namespace Opc.Ua
         [DataMember(Name = "ValidationOptions", IsRequired = false, EmitDefaultValue = false, Order = 4)]
         private int XmlEncodedValidationOptions
         {
-            get => (int)m_validationOptions; set => m_validationOptions = (CertificateValidationOptions)value;
+            get => (int)ValidationOptions; set => ValidationOptions = (CertificateValidationOptions)value;
         }
 
-        private string m_storeType;
         private string m_storePath;
-        private CertificateValidationOptions m_validationOptions;
     }
 
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
@@ -2589,7 +2296,7 @@ namespace Opc.Ua
         {
             Initialize();
             Certificate = certificate;
-            m_validationOptions = validationOptions;
+            ValidationOptions = validationOptions;
         }
 
         /// <summary>
@@ -2622,12 +2329,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The type of the store - defined in the <see cref="CertificateStoreType"/>.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 10)]
-        public string StoreType
-        {
-            get => m_storeType;
-
-            set => m_storeType = value;
-        }
+        public string StoreType { get; set; }
 
         /// <summary>
         /// The path that identifies the certificate store.
@@ -2642,9 +2344,9 @@ namespace Opc.Ua
             {
                 m_storePath = value;
 
-                if (!string.IsNullOrEmpty(m_storePath) && string.IsNullOrEmpty(m_storeType))
+                if (!string.IsNullOrEmpty(m_storePath) && string.IsNullOrEmpty(StoreType))
                 {
-                    m_storeType = CertificateStoreIdentifier.DetermineStoreType(m_storePath);
+                    StoreType = CertificateStoreIdentifier.DetermineStoreType(m_storePath);
                 }
             }
         }
@@ -2780,7 +2482,7 @@ namespace Opc.Ua
                 m_certificate = CertificateFactory.Create(value, true);
                 m_subjectName = m_certificate.Subject;
                 m_thumbprint = m_certificate.Thumbprint;
-                m_certificateType = GetCertificateType(m_certificate);
+                CertificateType = GetCertificateType(m_certificate);
             }
         }
 
@@ -2791,7 +2493,7 @@ namespace Opc.Ua
         [DataMember(Name = "ValidationOptions", IsRequired = false, EmitDefaultValue = false, Order = 70)]
         private int XmlEncodedValidationOptions
         {
-            get => (int)m_validationOptions; set => m_validationOptions = (CertificateValidationOptions)value;
+            get => (int)ValidationOptions; set => ValidationOptions = (CertificateValidationOptions)value;
         }
 
         /// <summary>
@@ -2799,11 +2501,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The NodeId of the certificate type, e.g. EccNistP256ApplicationCertificateType.</value>
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 80)]
-        public NodeId CertificateType
-        {
-            get => m_certificateType;
-            set => m_certificateType = value;
-        }
+        public NodeId CertificateType { get; set; }
 
         /// <summary>
         /// The string representation of the certificate
@@ -2812,17 +2510,14 @@ namespace Opc.Ua
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 90)]
         public string CertificateTypeString
         {
-            get => EncodeCertificateType(m_certificateType);
-            set => m_certificateType = DecodeCertificateType(value);
+            get => EncodeCertificateType(CertificateType);
+            set => CertificateType = DecodeCertificateType(value);
         }
 
-        private string m_storeType;
         private string m_storePath;
         private string m_subjectName;
         private string m_thumbprint;
         private X509Certificate2 m_certificate;
-        private NodeId m_certificateType;
-        private CertificateValidationOptions m_validationOptions;
     }
 
     /// <summary>
@@ -2856,7 +2551,7 @@ namespace Opc.Ua
             m_knownHosts = [];
             m_discoveryUrls = [.. Utils.DiscoveryUrls];
             m_endpoints = [];
-            m_defaultConfiguration = EndpointConfiguration.Create();
+            DefaultConfiguration = EndpointConfiguration.Create();
         }
 
         /// <summary>
@@ -2892,19 +2587,12 @@ namespace Opc.Ua
         /// The URL of the UA TCP proxy server.
         /// </summary>
         [DataMember(Name = "TcpProxyUrl", EmitDefaultValue = false, Order = 3)]
-        public Uri TcpProxyUrl
-        {
-            get => m_tcpProxyUrl;
-
-            set => m_tcpProxyUrl = value;
-        }
+        public Uri TcpProxyUrl { get; set; }
 
         private string m_filepath;
         private StringCollection m_knownHosts;
         private StringCollection m_discoveryUrls;
-        private EndpointConfiguration m_defaultConfiguration;
         private List<ConfiguredEndpoint> m_endpoints;
-        private Uri m_tcpProxyUrl;
     }
 
     /// <summary>
@@ -2941,11 +2629,11 @@ namespace Opc.Ua
             m_collection = null;
             m_description = new EndpointDescription();
             m_configuration = null;
-            m_updateBeforeConnect = true;
-            m_binaryEncodingSupport = BinaryEncodingSupport.Optional;
-            m_selectedUserTokenPolicyIndex = 0;
-            m_userIdentity = null;
-            m_reverseConnect = null;
+            UpdateBeforeConnect = true;
+            BinaryEncodingSupport = BinaryEncodingSupport.Optional;
+            SelectedUserTokenPolicyIndex = 0;
+            UserIdentity = null;
+            ReverseConnect = null;
         }
 
         /// <summary>
@@ -2990,46 +2678,31 @@ namespace Opc.Ua
         /// Whether the endpoint information should be updated before connecting to the server.
         /// </summary>
         [DataMember(Name = "UpdateBeforeConnect", Order = 3, IsRequired = false)]
-        public bool UpdateBeforeConnect
-        {
-            get => m_updateBeforeConnect; set => m_updateBeforeConnect = value;
-        }
+        public bool UpdateBeforeConnect { get; set; }
 
         /// <summary>
         /// The user identity to use when connecting to the endpoint.
         /// </summary>
         [DataMember(Name = "BinaryEncodingSupport", Order = 4, IsRequired = false)]
-        public BinaryEncodingSupport BinaryEncodingSupport
-        {
-            get => m_binaryEncodingSupport; set => m_binaryEncodingSupport = value;
-        }
+        public BinaryEncodingSupport BinaryEncodingSupport { get; set; }
 
         /// <summary>
         /// The user identity to use when connecting to the endpoint.
         /// </summary>
         [DataMember(Name = "SelectedUserTokenPolicy", Order = 5, IsRequired = false)]
-        public int SelectedUserTokenPolicyIndex
-        {
-            get => m_selectedUserTokenPolicyIndex; set => m_selectedUserTokenPolicyIndex = value;
-        }
+        public int SelectedUserTokenPolicyIndex { get; set; }
 
         /// <summary>
         /// The user identity to use when connecting to the endpoint.
         /// </summary>
         [DataMember(Name = "UserIdentity", Order = 6, IsRequired = false)]
-        public UserIdentityToken UserIdentity
-        {
-            get => m_userIdentity; set => m_userIdentity = value;
-        }
+        public UserIdentityToken UserIdentity { get; set; }
 
         /// <summary>
         /// The reverse connect information.
         /// </summary>
         [DataMember(Name = "ReverseConnect", Order = 8, IsRequired = false)]
-        public ReverseConnectEndpoint ReverseConnect
-        {
-            get => m_reverseConnect; set => m_reverseConnect = value;
-        }
+        public ReverseConnectEndpoint ReverseConnect { get; set; }
 
         /// <summary>
         /// A bucket to store additional application specific configuration data.
@@ -3043,11 +2716,6 @@ namespace Opc.Ua
         private ConfiguredEndpointCollection m_collection;
         private EndpointDescription m_description;
         private EndpointConfiguration m_configuration;
-        private bool m_updateBeforeConnect;
-        private BinaryEncodingSupport m_binaryEncodingSupport;
-        private int m_selectedUserTokenPolicyIndex;
-        private UserIdentityToken m_userIdentity;
-        private ReverseConnectEndpoint m_reverseConnect;
         private XmlElementCollection m_extensions;
     }
 

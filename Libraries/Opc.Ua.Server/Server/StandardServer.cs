@@ -446,7 +446,8 @@ namespace Opc.Ua.Server
                     try
                     {
                         // check the endpointurl
-                        var configuredEndpoint = new ConfiguredEndpoint() {
+                        var configuredEndpoint = new ConfiguredEndpoint()
+                        {
                             EndpointUrl = new Uri(endpointUrl)
                         };
 
@@ -821,12 +822,13 @@ namespace Opc.Ua.Server
         /// <returns>Returns a description for the ResponseHeader DataType. </returns>
         protected ResponseHeader CreateResponse(RequestHeader requestHeader, ServiceResultException exception)
         {
-            var responseHeader = new ResponseHeader();
+            var responseHeader = new ResponseHeader
+            {
+                ServiceResult = exception.StatusCode,
 
-            responseHeader.ServiceResult = exception.StatusCode;
-
-            responseHeader.Timestamp = DateTime.UtcNow;
-            responseHeader.RequestHandle = requestHeader.RequestHandle;
+                Timestamp = DateTime.UtcNow,
+                RequestHandle = requestHeader.RequestHandle
+            };
 
             var stringTable = new StringTable();
             responseHeader.ServiceDiagnostics = new DiagnosticInfo(exception, (DiagnosticsMasks)requestHeader.ReturnDiagnostics, true, stringTable);
@@ -2375,8 +2377,10 @@ namespace Opc.Ua.Server
                                     endpoint.UpdateBeforeConnect = false;
                                 }
 
-                                var requestHeader = new RequestHeader();
-                                requestHeader.Timestamp = DateTime.UtcNow;
+                                var requestHeader = new RequestHeader
+                                {
+                                    Timestamp = DateTime.UtcNow
+                                };
 
                                 // create the client.
                                 X509Certificate2 instanceCertificate = InstanceCertificateTypesProvider.GetInstanceCertificate(endpoint.Description?.SecurityPolicyUri ?? SecurityPolicies.None);
@@ -2394,7 +2398,8 @@ namespace Opc.Ua.Server
                                     var discoveryConfiguration = new ExtensionObjectCollection();
                                     StatusCodeCollection configurationResults = null;
                                     DiagnosticInfoCollection diagnosticInfos = null;
-                                    var mdnsDiscoveryConfig = new MdnsDiscoveryConfiguration {
+                                    var mdnsDiscoveryConfig = new MdnsDiscoveryConfiguration
+                                    {
                                         ServerCapabilities = configuration.ServerConfiguration.ServerCapabilities,
                                         MdnsServerName = GetHostName()
                                     };
@@ -2553,12 +2558,7 @@ namespace Opc.Ua.Server
         {
             get
             {
-                IServerInternal serverInternal = m_serverInternal;
-
-                if (serverInternal == null)
-                {
-                    throw new ServiceResultException(StatusCodes.BadServerHalted);
-                }
+                IServerInternal serverInternal = m_serverInternal ?? throw new ServiceResultException(StatusCodes.BadServerHalted);
 
                 return serverInternal;
             }
@@ -2894,16 +2894,18 @@ namespace Opc.Ua.Server
             // ensure at least one user token policy exists.
             if (configuration.ServerConfiguration.UserTokenPolicies.Count == 0)
             {
-                var userTokenPolicy = new UserTokenPolicy();
-
-                userTokenPolicy.TokenType = UserTokenType.Anonymous;
+                var userTokenPolicy = new UserTokenPolicy
+                {
+                    TokenType = UserTokenType.Anonymous
+                };
                 userTokenPolicy.PolicyId = userTokenPolicy.TokenType.ToString();
 
                 configuration.ServerConfiguration.UserTokenPolicies.Add(userTokenPolicy);
             }
 
             // set server description.
-            serverDescription = new ApplicationDescription {
+            serverDescription = new ApplicationDescription
+            {
                 ApplicationUri = configuration.ApplicationUri,
                 ApplicationName = new LocalizedText("en-US", configuration.ApplicationName),
                 ApplicationType = configuration.ApplicationType,
@@ -3057,8 +3059,10 @@ namespace Opc.Ua.Server
 
                         ApplicationDescription serverDescription = ServerDescription;
 
-                        m_registrationInfo = new RegisteredServer();
-                        m_registrationInfo.ServerUri = serverDescription.ApplicationUri;
+                        m_registrationInfo = new RegisteredServer
+                        {
+                            ServerUri = serverDescription.ApplicationUri
+                        };
                         m_registrationInfo.ServerNames.Add(serverDescription.ApplicationName);
                         m_registrationInfo.ProductUri = serverDescription.ProductUri;
                         m_registrationInfo.ServerType = serverDescription.ApplicationType;
@@ -3088,11 +3092,13 @@ namespace Opc.Ua.Server
 
                         if (endpoint == null)
                         {
-                            endpoint = new EndpointDescription();
-                            endpoint.EndpointUrl = Format(DiscoveryUrls[0], "localhost");
-                            endpoint.SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256Sha256);
-                            endpoint.SecurityMode = MessageSecurityMode.SignAndEncrypt;
-                            endpoint.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
+                            endpoint = new EndpointDescription
+                            {
+                                EndpointUrl = Format(DiscoveryUrls[0], "localhost"),
+                                SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256Sha256),
+                                SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                                SecurityPolicyUri = SecurityPolicies.Basic256Sha256
+                            };
                             endpoint.Server.ApplicationType = ApplicationType.DiscoveryServer;
                         }
 
@@ -3234,7 +3240,8 @@ namespace Opc.Ua.Server
                 if (currentessions.Count > 0)
                 {
                     // provide some time for the connected clients to detect the shutdown state.
-                    ServerInternal.UpdateServerStatus((status) => {
+                    ServerInternal.UpdateServerStatus((status) =>
+                    {
                         // set the shutdown reason and state.
                         status.Value.ShutdownReason = new LocalizedText("en-US", "Application is shutting down.");
                         status.Variable.ShutdownReason.Value = new LocalizedText("en-US", "Application is shutting down.");
@@ -3251,7 +3258,8 @@ namespace Opc.Ua.Server
 
                     for (int timeTillShutdown = Configuration.ServerConfiguration.ShutdownDelay; timeTillShutdown > 0; timeTillShutdown--)
                     {
-                        ServerInternal.UpdateServerStatus((status) => {
+                        ServerInternal.UpdateServerStatus((status) =>
+                        {
                             status.Value.SecondsTillShutdown = (uint)timeTillShutdown;
                             status.Variable.SecondsTillShutdown.Value = (uint)timeTillShutdown;
                             status.Variable.ClearChangeMasks(ServerInternal.DefaultSystemContext, true);

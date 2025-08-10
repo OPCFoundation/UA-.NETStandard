@@ -130,7 +130,8 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
             var importedNodeSet = Export.UANodeSet.Read(importStream);
 
             var importedNodeStates = new NodeStateCollection();
-            var localContext = new SystemContext {
+            var localContext = new SystemContext
+            {
                 NamespaceUris = new NamespaceTable()
             };
             foreach (string namespaceUri in importedNodeSet.NamespaceUris)
@@ -213,7 +214,8 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
             Assert.NotNull(importedNodeSet);
 
             var importedNodeStates = new NodeStateCollection();
-            var localContext = new SystemContext {
+            var localContext = new SystemContext
+            {
                 NamespaceUris = new NamespaceTable()
             };
             if (importedNodeSet.NamespaceUris != null)
@@ -237,7 +239,8 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
             Assert.NotNull(importedNodeSet);
 
             var importedNodeStates = new NodeStateCollection();
-            var localContext = new SystemContext {
+            var localContext = new SystemContext
+            {
                 NamespaceUris = new NamespaceTable()
             };
             if (importedNodeSet.NamespaceUris != null)

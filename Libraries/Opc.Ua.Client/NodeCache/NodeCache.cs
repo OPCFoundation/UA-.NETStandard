@@ -387,10 +387,9 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public IList<NodeId> FindSubTypes(ExpandedNodeId typeId)
         {
-            var type = Find(typeId) as ILocalNode;
             var subtypes = new List<NodeId>();
 
-            if (type == null)
+            if (Find(typeId) is not ILocalNode type)
             {
                 return subtypes;
             }
@@ -637,17 +636,15 @@ namespace Opc.Ua.Client
             }
 
             // for structure types must try to determine the subtype.
-            var extension = value as ExtensionObject;
 
-            if (extension != null)
+            if (value is ExtensionObject extension)
             {
                 return IsEncodingFor(expectedTypeId, extension);
             }
 
             // every element in an array must match.
-            var extensions = value as ExtensionObject[];
 
-            if (extensions != null)
+            if (value is ExtensionObject[] extensions)
             {
                 for (int ii = 0; ii < extensions.Length; ii++)
                 {

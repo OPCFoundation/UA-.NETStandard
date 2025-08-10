@@ -47,7 +47,7 @@ namespace Opc.Ua
         public Variant(Variant value)
         {
             m_value = Utils.Clone(value.m_value);
-            m_typeInfo = value.m_typeInfo;
+            TypeInfo = value.TypeInfo;
         }
 
         /// <summary>
@@ -58,7 +58,7 @@ namespace Opc.Ua
         public Variant(object value, TypeInfo typeInfo)
         {
             m_value = null;
-            m_typeInfo = typeInfo;
+            TypeInfo = typeInfo;
             Set(value, typeInfo);
 
 #if DEBUG
@@ -87,13 +87,13 @@ namespace Opc.Ua
             }
 
             Debug.Assert(
-                sanityCheck.BuiltInType == m_typeInfo.BuiltInType,
+                sanityCheck.BuiltInType == TypeInfo.BuiltInType,
                 Utils.Format("{0} != {1}",
                 sanityCheck.BuiltInType,
                 typeInfo.BuiltInType));
 
             Debug.Assert(
-                sanityCheck.ValueRank == m_typeInfo.ValueRank,
+                sanityCheck.ValueRank == TypeInfo.ValueRank,
                 Utils.Format("{0} != {1}",
                 sanityCheck.ValueRank,
                 typeInfo.ValueRank));
@@ -111,8 +111,8 @@ namespace Opc.Ua
         public Variant(object value)
         {
             m_value = null;
-            m_typeInfo = TypeInfo.Construct(value);
-            Set(value, m_typeInfo);
+            TypeInfo = TypeInfo.Construct(value);
+            Set(value, TypeInfo);
         }
 
         /// <summary>
@@ -122,7 +122,7 @@ namespace Opc.Ua
         public Variant(Matrix value)
         {
             m_value = value;
-            m_typeInfo = value.TypeInfo;
+            TypeInfo = value.TypeInfo;
         }
 
         /// <summary>
@@ -135,7 +135,7 @@ namespace Opc.Ua
         public Variant(bool value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.Boolean;
+            TypeInfo = TypeInfo.Scalars.Boolean;
         }
 
         /// <summary>
@@ -148,7 +148,7 @@ namespace Opc.Ua
         public Variant(sbyte value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.SByte;
+            TypeInfo = TypeInfo.Scalars.SByte;
         }
 
         /// <summary>
@@ -161,7 +161,7 @@ namespace Opc.Ua
         public Variant(byte value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.Byte;
+            TypeInfo = TypeInfo.Scalars.Byte;
         }
 
         /// <summary>
@@ -174,7 +174,7 @@ namespace Opc.Ua
         public Variant(short value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.Int16;
+            TypeInfo = TypeInfo.Scalars.Int16;
         }
 
         /// <summary>
@@ -187,7 +187,7 @@ namespace Opc.Ua
         public Variant(ushort value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.UInt16;
+            TypeInfo = TypeInfo.Scalars.UInt16;
         }
 
         /// <summary>
@@ -200,7 +200,7 @@ namespace Opc.Ua
         public Variant(int value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.Int32;
+            TypeInfo = TypeInfo.Scalars.Int32;
         }
 
         /// <summary>
@@ -213,7 +213,7 @@ namespace Opc.Ua
         public Variant(uint value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.UInt32;
+            TypeInfo = TypeInfo.Scalars.UInt32;
         }
 
         /// <summary>
@@ -226,7 +226,7 @@ namespace Opc.Ua
         public Variant(long value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.Int64;
+            TypeInfo = TypeInfo.Scalars.Int64;
         }
 
         /// <summary>
@@ -239,7 +239,7 @@ namespace Opc.Ua
         public Variant(ulong value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.UInt64;
+            TypeInfo = TypeInfo.Scalars.UInt64;
         }
 
         /// <summary>
@@ -252,7 +252,7 @@ namespace Opc.Ua
         public Variant(float value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.Float;
+            TypeInfo = TypeInfo.Scalars.Float;
         }
 
         /// <summary>
@@ -265,7 +265,7 @@ namespace Opc.Ua
         public Variant(double value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.Double;
+            TypeInfo = TypeInfo.Scalars.Double;
         }
 
         /// <summary>
@@ -278,7 +278,7 @@ namespace Opc.Ua
         public Variant(string value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.String;
+            TypeInfo = TypeInfo.Scalars.String;
         }
 
         /// <summary>
@@ -291,7 +291,7 @@ namespace Opc.Ua
         public Variant(DateTime value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.DateTime;
+            TypeInfo = TypeInfo.Scalars.DateTime;
         }
 
         /// <summary>
@@ -304,7 +304,7 @@ namespace Opc.Ua
         public Variant(Guid value)
         {
             m_value = new Uuid(value);
-            m_typeInfo = TypeInfo.Scalars.Guid;
+            TypeInfo = TypeInfo.Scalars.Guid;
         }
 
         /// <summary>
@@ -317,7 +317,7 @@ namespace Opc.Ua
         public Variant(Uuid value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.Guid;
+            TypeInfo = TypeInfo.Scalars.Guid;
         }
 
         /// <summary>
@@ -330,7 +330,7 @@ namespace Opc.Ua
         public Variant(byte[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.ByteString;
+            TypeInfo = TypeInfo.Scalars.ByteString;
         }
 
         /// <summary>
@@ -343,7 +343,7 @@ namespace Opc.Ua
         public Variant(XmlElement value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.XmlElement;
+            TypeInfo = TypeInfo.Scalars.XmlElement;
         }
 
         /// <summary>
@@ -356,7 +356,7 @@ namespace Opc.Ua
         public Variant(NodeId value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.NodeId;
+            TypeInfo = TypeInfo.Scalars.NodeId;
         }
 
         /// <summary>
@@ -369,7 +369,7 @@ namespace Opc.Ua
         public Variant(ExpandedNodeId value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.ExpandedNodeId;
+            TypeInfo = TypeInfo.Scalars.ExpandedNodeId;
         }
 
         /// <summary>
@@ -382,7 +382,7 @@ namespace Opc.Ua
         public Variant(StatusCode value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.StatusCode;
+            TypeInfo = TypeInfo.Scalars.StatusCode;
         }
 
         /// <summary>
@@ -395,7 +395,7 @@ namespace Opc.Ua
         public Variant(QualifiedName value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.QualifiedName;
+            TypeInfo = TypeInfo.Scalars.QualifiedName;
         }
 
         /// <summary>
@@ -408,7 +408,7 @@ namespace Opc.Ua
         public Variant(LocalizedText value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.LocalizedText;
+            TypeInfo = TypeInfo.Scalars.LocalizedText;
         }
 
         /// <summary>
@@ -421,7 +421,7 @@ namespace Opc.Ua
         public Variant(ExtensionObject value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.ExtensionObject;
+            TypeInfo = TypeInfo.Scalars.ExtensionObject;
         }
 
         /// <summary>
@@ -434,7 +434,7 @@ namespace Opc.Ua
         public Variant(DataValue value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.DataValue;
+            TypeInfo = TypeInfo.Scalars.DataValue;
         }
 
         /// <summary>
@@ -447,7 +447,7 @@ namespace Opc.Ua
         public Variant(bool[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.Boolean;
+            TypeInfo = TypeInfo.Arrays.Boolean;
         }
 
         /// <summary>
@@ -460,7 +460,7 @@ namespace Opc.Ua
         public Variant(sbyte[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.SByte;
+            TypeInfo = TypeInfo.Arrays.SByte;
         }
 
         /// <summary>
@@ -473,7 +473,7 @@ namespace Opc.Ua
         public Variant(short[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.Int16;
+            TypeInfo = TypeInfo.Arrays.Int16;
         }
 
         /// <summary>
@@ -486,7 +486,7 @@ namespace Opc.Ua
         public Variant(ushort[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.UInt16;
+            TypeInfo = TypeInfo.Arrays.UInt16;
         }
 
         /// <summary>
@@ -499,7 +499,7 @@ namespace Opc.Ua
         public Variant(int[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.Int32;
+            TypeInfo = TypeInfo.Arrays.Int32;
         }
 
         /// <summary>
@@ -512,7 +512,7 @@ namespace Opc.Ua
         public Variant(uint[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.UInt32;
+            TypeInfo = TypeInfo.Arrays.UInt32;
         }
 
         /// <summary>
@@ -525,7 +525,7 @@ namespace Opc.Ua
         public Variant(long[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.Int64;
+            TypeInfo = TypeInfo.Arrays.Int64;
         }
 
         /// <summary>
@@ -538,7 +538,7 @@ namespace Opc.Ua
         public Variant(ulong[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.UInt64;
+            TypeInfo = TypeInfo.Arrays.UInt64;
         }
 
         /// <summary>
@@ -551,7 +551,7 @@ namespace Opc.Ua
         public Variant(float[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.Float;
+            TypeInfo = TypeInfo.Arrays.Float;
         }
 
         /// <summary>
@@ -564,7 +564,7 @@ namespace Opc.Ua
         public Variant(double[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.Double;
+            TypeInfo = TypeInfo.Arrays.Double;
         }
 
         /// <summary>
@@ -577,7 +577,7 @@ namespace Opc.Ua
         public Variant(string[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.String;
+            TypeInfo = TypeInfo.Arrays.String;
         }
 
         /// <summary>
@@ -590,7 +590,7 @@ namespace Opc.Ua
         public Variant(DateTime[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.DateTime;
+            TypeInfo = TypeInfo.Arrays.DateTime;
         }
 
         /// <summary>
@@ -603,7 +603,7 @@ namespace Opc.Ua
         public Variant(Guid[] value)
         {
             m_value = null;
-            m_typeInfo = TypeInfo.Arrays.Guid;
+            TypeInfo = TypeInfo.Arrays.Guid;
             Set(value);
         }
 
@@ -617,7 +617,7 @@ namespace Opc.Ua
         public Variant(Uuid[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.Guid;
+            TypeInfo = TypeInfo.Arrays.Guid;
         }
 
         /// <summary>
@@ -630,7 +630,7 @@ namespace Opc.Ua
         public Variant(byte[][] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.ByteString;
+            TypeInfo = TypeInfo.Arrays.ByteString;
         }
 
         /// <summary>
@@ -643,7 +643,7 @@ namespace Opc.Ua
         public Variant(XmlElement[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.XmlElement;
+            TypeInfo = TypeInfo.Arrays.XmlElement;
         }
 
         /// <summary>
@@ -656,7 +656,7 @@ namespace Opc.Ua
         public Variant(NodeId[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.NodeId;
+            TypeInfo = TypeInfo.Arrays.NodeId;
         }
 
         /// <summary>
@@ -669,7 +669,7 @@ namespace Opc.Ua
         public Variant(ExpandedNodeId[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.ExpandedNodeId;
+            TypeInfo = TypeInfo.Arrays.ExpandedNodeId;
         }
 
         /// <summary>
@@ -682,7 +682,7 @@ namespace Opc.Ua
         public Variant(StatusCode[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.StatusCode;
+            TypeInfo = TypeInfo.Arrays.StatusCode;
         }
 
         /// <summary>
@@ -695,7 +695,7 @@ namespace Opc.Ua
         public Variant(QualifiedName[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.QualifiedName;
+            TypeInfo = TypeInfo.Arrays.QualifiedName;
         }
 
         /// <summary>
@@ -708,7 +708,7 @@ namespace Opc.Ua
         public Variant(LocalizedText[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.LocalizedText;
+            TypeInfo = TypeInfo.Arrays.LocalizedText;
         }
 
         /// <summary>
@@ -721,7 +721,7 @@ namespace Opc.Ua
         public Variant(ExtensionObject[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.ExtensionObject;
+            TypeInfo = TypeInfo.Arrays.ExtensionObject;
         }
 
         /// <summary>
@@ -734,7 +734,7 @@ namespace Opc.Ua
         public Variant(DataValue[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.DataValue;
+            TypeInfo = TypeInfo.Arrays.DataValue;
         }
 
         /// <summary>
@@ -747,7 +747,7 @@ namespace Opc.Ua
         public Variant(Variant[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.Variant;
+            TypeInfo = TypeInfo.Arrays.Variant;
         }
 
         /// <summary>
@@ -760,7 +760,7 @@ namespace Opc.Ua
         public Variant(object[] value)
         {
             m_value = null;
-            m_typeInfo = TypeInfo.Arrays.Variant;
+            TypeInfo = TypeInfo.Arrays.Variant;
             Set(value);
         }
 
@@ -784,7 +784,7 @@ namespace Opc.Ua
                 // create encoder.
                 using var encoder = new XmlEncoder(MessageContextExtension.CurrentContext);
                 // write value.
-                encoder.WriteVariantContents(m_value, m_typeInfo);
+                encoder.WriteVariantContents(m_value, TypeInfo);
 
                 // create document from encoder.
                 var document = new XmlDocument();
@@ -803,12 +803,13 @@ namespace Opc.Ua
                     return;
                 }
 
-                TypeInfo typeInfo = null;
 
                 // create decoder.
                 using var decoder = new XmlDecoder(value, MessageContextExtension.CurrentContext);
                 try
                 {
+
+                    TypeInfo typeInfo;
                     // read value.
                     object body = decoder.ReadVariantContents(out typeInfo);
                     Set(body, typeInfo);
@@ -842,7 +843,7 @@ namespace Opc.Ua
         /// <summary>
         /// The type information for the matrix.
         /// </summary>
-        public readonly TypeInfo TypeInfo => m_typeInfo;
+        public TypeInfo TypeInfo { get; private set; }
 
         /// <summary>
         /// Returns the string representation of the object.
@@ -889,14 +890,14 @@ namespace Opc.Ua
         private readonly void AppendFormat(StringBuilder buffer, object value, IFormatProvider formatProvider)
         {
             // check for null.
-            if (value == null || m_typeInfo == null)
+            if (value == null || TypeInfo == null)
             {
                 buffer.Append("(null)");
                 return;
             }
 
             // convert byte string to hexstring.
-            if (m_typeInfo.BuiltInType == BuiltInType.ByteString && m_typeInfo.ValueRank < 0)
+            if (TypeInfo.BuiltInType == BuiltInType.ByteString && TypeInfo.ValueRank < 0)
             {
                 byte[] bytes = (byte[])value;
                 AppendByteString(buffer, bytes, formatProvider);
@@ -904,7 +905,7 @@ namespace Opc.Ua
             }
 
             // convert XML element to string.
-            if (m_typeInfo.BuiltInType == BuiltInType.XmlElement && m_typeInfo.ValueRank < 0)
+            if (TypeInfo.BuiltInType == BuiltInType.XmlElement && TypeInfo.ValueRank < 0)
             {
                 var xml = (XmlElement)value;
                 buffer.AppendFormat(formatProvider, "{0}", xml.OuterXml);
@@ -913,11 +914,11 @@ namespace Opc.Ua
 
             // recusrively write individual elements of an array.
 
-            if (value is Array array && m_typeInfo.ValueRank <= 1)
+            if (value is Array array && TypeInfo.ValueRank <= 1)
             {
                 buffer.Append('{');
 
-                if (m_typeInfo.BuiltInType == BuiltInType.ByteString)
+                if (TypeInfo.BuiltInType == BuiltInType.ByteString)
                 {
                     if (array.Length > 0)
                     {
@@ -1602,7 +1603,7 @@ namespace Opc.Ua
         public void Set(bool value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.Boolean;
+            TypeInfo = TypeInfo.Scalars.Boolean;
         }
 
         /// <summary>
@@ -1615,7 +1616,7 @@ namespace Opc.Ua
         public void Set(sbyte value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.SByte;
+            TypeInfo = TypeInfo.Scalars.SByte;
         }
 
         /// <summary>
@@ -1628,7 +1629,7 @@ namespace Opc.Ua
         public void Set(byte value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.Byte;
+            TypeInfo = TypeInfo.Scalars.Byte;
         }
 
         /// <summary>
@@ -1641,7 +1642,7 @@ namespace Opc.Ua
         public void Set(short value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.Int16;
+            TypeInfo = TypeInfo.Scalars.Int16;
         }
 
         /// <summary>
@@ -1654,7 +1655,7 @@ namespace Opc.Ua
         public void Set(ushort value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.UInt16;
+            TypeInfo = TypeInfo.Scalars.UInt16;
         }
 
         /// <summary>
@@ -1667,7 +1668,7 @@ namespace Opc.Ua
         public void Set(int value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.Int32;
+            TypeInfo = TypeInfo.Scalars.Int32;
         }
 
         /// <summary>
@@ -1680,7 +1681,7 @@ namespace Opc.Ua
         public void Set(uint value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.UInt32;
+            TypeInfo = TypeInfo.Scalars.UInt32;
         }
 
         /// <summary>
@@ -1693,7 +1694,7 @@ namespace Opc.Ua
         public void Set(long value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.Int64;
+            TypeInfo = TypeInfo.Scalars.Int64;
         }
 
         /// <summary>
@@ -1706,7 +1707,7 @@ namespace Opc.Ua
         public void Set(ulong value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.UInt64;
+            TypeInfo = TypeInfo.Scalars.UInt64;
         }
 
         /// <summary>
@@ -1719,7 +1720,7 @@ namespace Opc.Ua
         public void Set(float value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.Float;
+            TypeInfo = TypeInfo.Scalars.Float;
         }
 
         /// <summary>
@@ -1732,7 +1733,7 @@ namespace Opc.Ua
         public void Set(double value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.Double;
+            TypeInfo = TypeInfo.Scalars.Double;
         }
 
         /// <summary>
@@ -1745,7 +1746,7 @@ namespace Opc.Ua
         public void Set(string value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.String;
+            TypeInfo = TypeInfo.Scalars.String;
         }
 
         /// <summary>
@@ -1758,7 +1759,7 @@ namespace Opc.Ua
         public void Set(DateTime value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.DateTime;
+            TypeInfo = TypeInfo.Scalars.DateTime;
         }
 
         /// <summary>
@@ -1771,7 +1772,7 @@ namespace Opc.Ua
         public void Set(Guid value)
         {
             m_value = new Uuid(value);
-            m_typeInfo = TypeInfo.Scalars.Guid;
+            TypeInfo = TypeInfo.Scalars.Guid;
         }
 
         /// <summary>
@@ -1784,7 +1785,7 @@ namespace Opc.Ua
         public void Set(Uuid value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.Guid;
+            TypeInfo = TypeInfo.Scalars.Guid;
         }
 
         /// <summary>
@@ -1797,7 +1798,7 @@ namespace Opc.Ua
         public void Set(byte[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.ByteString;
+            TypeInfo = TypeInfo.Scalars.ByteString;
         }
 
         /// <summary>
@@ -1810,7 +1811,7 @@ namespace Opc.Ua
         public void Set(XmlElement value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.XmlElement;
+            TypeInfo = TypeInfo.Scalars.XmlElement;
         }
 
         /// <summary>
@@ -1823,7 +1824,7 @@ namespace Opc.Ua
         public void Set(NodeId value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.NodeId;
+            TypeInfo = TypeInfo.Scalars.NodeId;
         }
 
         /// <summary>
@@ -1836,7 +1837,7 @@ namespace Opc.Ua
         public void Set(ExpandedNodeId value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.ExpandedNodeId;
+            TypeInfo = TypeInfo.Scalars.ExpandedNodeId;
         }
 
         /// <summary>
@@ -1849,7 +1850,7 @@ namespace Opc.Ua
         public void Set(StatusCode value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.StatusCode;
+            TypeInfo = TypeInfo.Scalars.StatusCode;
         }
 
         /// <summary>
@@ -1862,7 +1863,7 @@ namespace Opc.Ua
         public void Set(QualifiedName value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.QualifiedName;
+            TypeInfo = TypeInfo.Scalars.QualifiedName;
         }
 
         /// <summary>
@@ -1875,7 +1876,7 @@ namespace Opc.Ua
         public void Set(LocalizedText value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.LocalizedText;
+            TypeInfo = TypeInfo.Scalars.LocalizedText;
         }
 
         /// <summary>
@@ -1888,7 +1889,7 @@ namespace Opc.Ua
         public void Set(ExtensionObject value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.ExtensionObject;
+            TypeInfo = TypeInfo.Scalars.ExtensionObject;
         }
 
         /// <summary>
@@ -1901,7 +1902,7 @@ namespace Opc.Ua
         public void Set(DataValue value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Scalars.DataValue;
+            TypeInfo = TypeInfo.Scalars.DataValue;
         }
 
         /// <summary>
@@ -1914,7 +1915,7 @@ namespace Opc.Ua
         public void Set(bool[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.Boolean;
+            TypeInfo = TypeInfo.Arrays.Boolean;
         }
 
         /// <summary>
@@ -1927,7 +1928,7 @@ namespace Opc.Ua
         public void Set(sbyte[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.SByte;
+            TypeInfo = TypeInfo.Arrays.SByte;
         }
 
         /// <summary>
@@ -1940,7 +1941,7 @@ namespace Opc.Ua
         public void Set(short[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.Int16;
+            TypeInfo = TypeInfo.Arrays.Int16;
         }
 
         /// <summary>
@@ -1953,7 +1954,7 @@ namespace Opc.Ua
         public void Set(ushort[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.UInt16;
+            TypeInfo = TypeInfo.Arrays.UInt16;
         }
 
         /// <summary>
@@ -1966,7 +1967,7 @@ namespace Opc.Ua
         public void Set(int[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.Int32;
+            TypeInfo = TypeInfo.Arrays.Int32;
         }
 
         /// <summary>
@@ -1979,7 +1980,7 @@ namespace Opc.Ua
         public void Set(uint[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.UInt32;
+            TypeInfo = TypeInfo.Arrays.UInt32;
         }
 
         /// <summary>
@@ -1992,7 +1993,7 @@ namespace Opc.Ua
         public void Set(long[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.Int64;
+            TypeInfo = TypeInfo.Arrays.Int64;
         }
 
         /// <summary>
@@ -2005,7 +2006,7 @@ namespace Opc.Ua
         public void Set(ulong[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.UInt64;
+            TypeInfo = TypeInfo.Arrays.UInt64;
         }
 
         /// <summary>
@@ -2018,7 +2019,7 @@ namespace Opc.Ua
         public void Set(float[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.Float;
+            TypeInfo = TypeInfo.Arrays.Float;
         }
 
         /// <summary>
@@ -2031,7 +2032,7 @@ namespace Opc.Ua
         public void Set(double[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.Double;
+            TypeInfo = TypeInfo.Arrays.Double;
         }
 
         /// <summary>
@@ -2044,7 +2045,7 @@ namespace Opc.Ua
         public void Set(string[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.String;
+            TypeInfo = TypeInfo.Arrays.String;
         }
 
         /// <summary>
@@ -2057,7 +2058,7 @@ namespace Opc.Ua
         public void Set(DateTime[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.DateTime;
+            TypeInfo = TypeInfo.Arrays.DateTime;
         }
 
         /// <summary>
@@ -2083,7 +2084,7 @@ namespace Opc.Ua
                 m_value = uuids;
             }
 
-            m_typeInfo = TypeInfo.Arrays.Guid;
+            TypeInfo = TypeInfo.Arrays.Guid;
         }
 
         /// <summary>
@@ -2096,7 +2097,7 @@ namespace Opc.Ua
         public void Set(Uuid[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.Guid;
+            TypeInfo = TypeInfo.Arrays.Guid;
         }
 
         /// <summary>
@@ -2109,7 +2110,7 @@ namespace Opc.Ua
         public void Set(byte[][] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.ByteString;
+            TypeInfo = TypeInfo.Arrays.ByteString;
         }
 
         /// <summary>
@@ -2122,7 +2123,7 @@ namespace Opc.Ua
         public void Set(XmlElement[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.XmlElement;
+            TypeInfo = TypeInfo.Arrays.XmlElement;
         }
 
         /// <summary>
@@ -2135,7 +2136,7 @@ namespace Opc.Ua
         public void Set(NodeId[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.NodeId;
+            TypeInfo = TypeInfo.Arrays.NodeId;
         }
 
         /// <summary>
@@ -2148,7 +2149,7 @@ namespace Opc.Ua
         public void Set(ExpandedNodeId[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.ExpandedNodeId;
+            TypeInfo = TypeInfo.Arrays.ExpandedNodeId;
         }
 
         /// <summary>
@@ -2161,7 +2162,7 @@ namespace Opc.Ua
         public void Set(StatusCode[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.StatusCode;
+            TypeInfo = TypeInfo.Arrays.StatusCode;
         }
 
         /// <summary>
@@ -2174,7 +2175,7 @@ namespace Opc.Ua
         public void Set(QualifiedName[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.QualifiedName;
+            TypeInfo = TypeInfo.Arrays.QualifiedName;
         }
 
         /// <summary>
@@ -2187,7 +2188,7 @@ namespace Opc.Ua
         public void Set(LocalizedText[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.LocalizedText;
+            TypeInfo = TypeInfo.Arrays.LocalizedText;
         }
 
         /// <summary>
@@ -2200,7 +2201,7 @@ namespace Opc.Ua
         public void Set(ExtensionObject[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.ExtensionObject;
+            TypeInfo = TypeInfo.Arrays.ExtensionObject;
         }
 
         /// <summary>
@@ -2213,7 +2214,7 @@ namespace Opc.Ua
         public void Set(DataValue[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.DataValue;
+            TypeInfo = TypeInfo.Arrays.DataValue;
         }
 
         /// <summary>
@@ -2226,7 +2227,7 @@ namespace Opc.Ua
         public void Set(Variant[] value)
         {
             m_value = value;
-            m_typeInfo = TypeInfo.Arrays.Variant;
+            TypeInfo = TypeInfo.Arrays.Variant;
         }
 
         /// <summary>
@@ -2252,7 +2253,7 @@ namespace Opc.Ua
                 m_value = anyValues;
             }
 
-            m_typeInfo = TypeInfo.Arrays.Variant;
+            TypeInfo = TypeInfo.Arrays.Variant;
         }
 
         /// <summary>
@@ -2260,7 +2261,7 @@ namespace Opc.Ua
         /// </summary>
         private void SetScalar(object value, TypeInfo typeInfo)
         {
-            m_typeInfo = typeInfo;
+            TypeInfo = typeInfo;
 
             switch (typeInfo.BuiltInType)
             {
@@ -2313,7 +2314,7 @@ namespace Opc.Ua
                 // convert encodeables to extension objects.
                 case BuiltInType.Variant:
                     m_value = ((Variant)value).Value;
-                    m_typeInfo = TypeInfo.Construct(m_value);
+                    TypeInfo = TypeInfo.Construct(m_value);
                     return;
 
                 // just save the value.
@@ -2328,7 +2329,7 @@ namespace Opc.Ua
         /// </summary>
         private void SetArray(Array array, TypeInfo typeInfo)
         {
-            m_typeInfo = typeInfo;
+            TypeInfo = typeInfo;
 
             switch (typeInfo.BuiltInType)
             {
@@ -2418,7 +2419,7 @@ namespace Opc.Ua
         /// </summary>
         private void SetList(IList value, TypeInfo typeInfo)
         {
-            m_typeInfo = typeInfo;
+            TypeInfo = typeInfo;
 
             Array array = TypeInfo.CreateArray(typeInfo.BuiltInType, value.Count);
 
@@ -2445,7 +2446,7 @@ namespace Opc.Ua
             if (value == null)
             {
                 m_value = null;
-                m_typeInfo = typeInfo;
+                TypeInfo = typeInfo;
                 return;
             }
 
@@ -2481,7 +2482,7 @@ namespace Opc.Ua
             if (array != null)
             {
                 m_value = new Matrix(array, typeInfo.BuiltInType);
-                m_typeInfo = typeInfo;
+                TypeInfo = typeInfo;
                 return;
             }
 
@@ -2490,7 +2491,7 @@ namespace Opc.Ua
             if (value is Matrix matrix)
             {
                 m_value = matrix;
-                m_typeInfo = matrix.TypeInfo;
+                TypeInfo = matrix.TypeInfo;
                 return;
             }
 
@@ -2501,7 +2502,6 @@ namespace Opc.Ua
         }
 
         private object m_value;
-        private TypeInfo m_typeInfo;
     }
 
     /// <summary>

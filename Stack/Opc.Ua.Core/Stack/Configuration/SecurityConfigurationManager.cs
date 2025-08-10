@@ -136,7 +136,8 @@ namespace Opc.Ua.Security
                 return application;
             }
 
-            application = new SecuredApplication {
+            application = new SecuredApplication
+            {
                 // copy application info.
                 ApplicationName = applicationConfiguration.ApplicationName,
                 ApplicationUri = applicationConfiguration.ApplicationUri,
@@ -220,9 +221,9 @@ namespace Opc.Ua.Security
         {
             for (XmlNode ii = parent.FirstChild; ii != null; ii = ii.NextSibling)
             {
-                if (ii is XmlElement && ii.LocalName == "SecuredApplication" && ii.NamespaceURI == Namespaces.OpcUaSecurity)
+                if (ii is XmlElement xml && ii.LocalName == "SecuredApplication" && ii.NamespaceURI == Namespaces.OpcUaSecurity)
                 {
-                    return (XmlElement)ii;
+                    return xml;
                 }
 
                 XmlElement child = Find(ii, localName, namespaceUri);

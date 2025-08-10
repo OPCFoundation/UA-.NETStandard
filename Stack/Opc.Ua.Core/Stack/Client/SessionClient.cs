@@ -25,7 +25,7 @@ namespace Opc.Ua
         {
             if (disposing)
             {
-                m_sessionId = null;
+                SessionId = null;
             }
 
             base.Dispose(disposing);
@@ -35,13 +35,13 @@ namespace Opc.Ua
         /// The server assigned identifier for the current session.
         /// </summary>
         /// <value>The session id.</value>
-        public NodeId SessionId => m_sessionId;
+        public NodeId SessionId { get; private set; }
 
         /// <summary>
         /// Whether a session has beed created with the server.
         /// </summary>
         /// <value><c>true</c> if connected; otherwise, <c>false</c>.</value>
-        public bool Connected => m_sessionId != null;
+        public bool Connected => SessionId != null;
 
         /// <summary>
         /// Called when a new session is created.
@@ -52,12 +52,11 @@ namespace Opc.Ua
         {
             lock (m_lock)
             {
-                m_sessionId = sessionId;
+                SessionId = sessionId;
                 AuthenticationToken = sessionCookie;
             }
         }
 
         private readonly object m_lock = new();
-        private NodeId m_sessionId;
     }
 }

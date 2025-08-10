@@ -38,7 +38,7 @@ namespace Opc.Ua.Gds.Tests
 {
     public class ServerConfigurationPushTestClient
     {
-        public ServerPushConfigurationClient PushClient => m_client;
+        public ServerPushConfigurationClient PushClient { get; private set; }
         public static bool AutoAccept { get; set; }
 
         public ServerConfigurationPushTestClient(bool autoAccept)
@@ -53,7 +53,8 @@ namespace Opc.Ua.Gds.Tests
         public async Task LoadClientConfiguration(int port = -1)
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
-            var application = new ApplicationInstance {
+            var application = new ApplicationInstance
+            {
                 ApplicationName = "Server Configuration Push Test Client",
                 ApplicationType = ApplicationType.Client,
                 ConfigSectionName = "Opc.Ua.ServerConfigurationPushTestClient"
@@ -64,7 +65,8 @@ namespace Opc.Ua.Gds.Tests
 #else
             string root = Path.Combine("%LocalApplicationData%", "OPC");
             string pkiRoot = Path.Combine(root, "pki");
-            var clientConfig = new ServerConfigurationPushTestClientConfiguration() {
+            var clientConfig = new ServerConfigurationPushTestClientConfiguration()
+            {
                 ServerUrl = "opc.tcp://localhost:58810/GlobalDiscoveryTestServer",
                 AppUserName = "",
                 AppPassword = "",
@@ -73,7 +75,8 @@ namespace Opc.Ua.Gds.Tests
                 TempStorePath = Path.Combine(pkiRoot, "temp")
             };
 
-            var transportQuotas = new TransportQuotas() {
+            var transportQuotas = new TransportQuotas()
+            {
                 OperationTimeout = 120000,
                 MaxStringLength = 1048576,
                 MaxByteStringLength = 1048576,
@@ -118,7 +121,8 @@ namespace Opc.Ua.Gds.Tests
             Config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
 
             ServerConfigurationPushTestClientConfiguration clientConfiguration = application.ApplicationConfiguration.ParseExtension<ServerConfigurationPushTestClientConfiguration>();
-            m_client = new ServerPushConfigurationClient(application.ApplicationConfiguration) {
+            PushClient = new ServerPushConfigurationClient(application.ApplicationConfiguration)
+            {
                 EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(clientConfiguration.ServerUrl, port)
             };
             if (string.IsNullOrEmpty(clientConfiguration.AppUserName))
@@ -137,10 +141,10 @@ namespace Opc.Ua.Gds.Tests
         {
             Console.WriteLine("Disconnect Session. Waiting for exit...");
 
-            if (m_client != null)
+            if (PushClient != null)
             {
-                ServerPushConfigurationClient pushClient = m_client;
-                m_client = null;
+                ServerPushConfigurationClient pushClient = PushClient;
+                PushClient = null;
                 pushClient.Disconnect();
             }
         }
@@ -165,8 +169,6 @@ namespace Opc.Ua.Gds.Tests
                 }
             }
         }
-
-        private ServerPushConfigurationClient m_client;
     }
 
     /// <summary>

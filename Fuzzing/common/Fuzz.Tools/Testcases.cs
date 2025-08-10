@@ -45,8 +45,10 @@ namespace Opc.Ua.Fuzzing
         public static void ReadRequest(IEncoder encoder)
         {
             var nodeId = new NodeId(1000);
-            var readRequest = new ReadRequest {
-                RequestHeader = new RequestHeader {
+            var readRequest = new ReadRequest
+            {
+                RequestHeader = new RequestHeader
+                {
                     Timestamp = DateTime.UtcNow,
                     RequestHandle = 42,
                     AdditionalHeader = new ExtensionObject(),
@@ -81,7 +83,8 @@ namespace Opc.Ua.Fuzzing
         {
             DateTime now = DateTime.UtcNow;
             var nodeId = new NodeId(1000);
-            var readRequest = new ReadResponse {
+            var readRequest = new ReadResponse
+            {
                 Results = [
                         new DataValue {
                             Value = new Variant("Hello World"),
@@ -118,20 +121,25 @@ namespace Opc.Ua.Fuzzing
                                 },
                             },
                         ],
-                ResponseHeader = new ResponseHeader {
+                ResponseHeader = new ResponseHeader
+                {
                     Timestamp = DateTime.UtcNow,
                     RequestHandle = 42,
                     ServiceResult = StatusCodes.Good,
-                    ServiceDiagnostics = new DiagnosticInfo {
+                    ServiceDiagnostics = new DiagnosticInfo
+                    {
                         AdditionalInfo = "NodeId not found",
                         InnerStatusCode = StatusCodes.BadNodeIdExists,
-                        InnerDiagnosticInfo = new DiagnosticInfo {
+                        InnerDiagnosticInfo = new DiagnosticInfo
+                        {
                             AdditionalInfo = "Hello World",
                             InnerStatusCode = StatusCodes.BadNodeIdUnknown,
-                            InnerDiagnosticInfo = new DiagnosticInfo {
+                            InnerDiagnosticInfo = new DiagnosticInfo
+                            {
                                 AdditionalInfo = "Hello World",
                                 InnerStatusCode = StatusCodes.BadNodeIdUnknown,
-                                InnerDiagnosticInfo = new DiagnosticInfo {
+                                InnerDiagnosticInfo = new DiagnosticInfo
+                                {
                                     AdditionalInfo = "Hello World",
                                     InnerStatusCode = StatusCodes.BadNodeIdUnknown,
                                 },

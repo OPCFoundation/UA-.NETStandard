@@ -154,27 +154,39 @@ namespace Quickstarts
                 var nodesToWrite = new WriteValueCollection();
 
                 // Int32 Node - Objects\CTT\Scalar\Scalar_Static\Int32
-                var intWriteVal = new WriteValue();
-                intWriteVal.NodeId = new NodeId("ns=2;s=Scalar_Static_Int32");
-                intWriteVal.AttributeId = Attributes.Value;
-                intWriteVal.Value = new DataValue();
-                intWriteVal.Value.Value = 100;
+                var intWriteVal = new WriteValue
+                {
+                    NodeId = new NodeId("ns=2;s=Scalar_Static_Int32"),
+                    AttributeId = Attributes.Value,
+                    Value = new DataValue
+                    {
+                        Value = 100
+                    }
+                };
                 nodesToWrite.Add(intWriteVal);
 
                 // Float Node - Objects\CTT\Scalar\Scalar_Static\Float
-                var floatWriteVal = new WriteValue();
-                floatWriteVal.NodeId = new NodeId("ns=2;s=Scalar_Static_Float");
-                floatWriteVal.AttributeId = Attributes.Value;
-                floatWriteVal.Value = new DataValue();
-                floatWriteVal.Value.Value = (float)100.5;
+                var floatWriteVal = new WriteValue
+                {
+                    NodeId = new NodeId("ns=2;s=Scalar_Static_Float"),
+                    AttributeId = Attributes.Value,
+                    Value = new DataValue
+                    {
+                        Value = (float)100.5
+                    }
+                };
                 nodesToWrite.Add(floatWriteVal);
 
                 // String Node - Objects\CTT\Scalar\Scalar_Static\String
-                var stringWriteVal = new WriteValue();
-                stringWriteVal.NodeId = new NodeId("ns=2;s=Scalar_Static_String");
-                stringWriteVal.AttributeId = Attributes.Value;
-                stringWriteVal.Value = new DataValue();
-                stringWriteVal.Value.Value = "String Test";
+                var stringWriteVal = new WriteValue
+                {
+                    NodeId = new NodeId("ns=2;s=Scalar_Static_String"),
+                    AttributeId = Attributes.Value,
+                    Value = new DataValue
+                    {
+                        Value = "String Test"
+                    }
+                };
                 nodesToWrite.Add(stringWriteVal);
 
                 // Write the node attributes
@@ -220,13 +232,14 @@ namespace Quickstarts
             try
             {
                 // Create a Browser object
-                var browser = new Browser(session);
-
-                // Set browse parameters
-                browser.BrowseDirection = BrowseDirection.Forward;
-                browser.NodeClassMask = (int)NodeClass.Object | (int)NodeClass.Variable;
-                browser.ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences;
-                browser.IncludeSubtypes = true;
+                var browser = new Browser(session)
+                {
+                    // Set browse parameters
+                    BrowseDirection = BrowseDirection.Forward,
+                    NodeClassMask = (int)NodeClass.Object | (int)NodeClass.Variable,
+                    ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
+                    IncludeSubtypes = true
+                };
 
                 NodeId nodeToBrowse = ObjectIds.Server;
 
@@ -361,7 +374,8 @@ namespace Quickstarts
                 }
 
                 // Define Subscription parameters
-                var subscription = new Subscription(session.DefaultSubscription) {
+                var subscription = new Subscription(session.DefaultSubscription)
+                {
                     DisplayName = "Console ReferenceClient Subscription",
                     PublishingEnabled = true,
                     PublishingInterval = subscriptionPublishingInterval,
@@ -396,46 +410,54 @@ namespace Quickstarts
 
                 // Create MonitoredItems for data changes (Reference Server)
 
-                var intMonitoredItem = new MonitoredItem(subscription.DefaultItem);
-                // Int32 Node - Objects\CTT\Scalar\Simulation\Int32
-                intMonitoredItem.StartNodeId = new NodeId("ns=2;s=Scalar_Simulation_Int32");
-                intMonitoredItem.AttributeId = Attributes.Value;
-                intMonitoredItem.DisplayName = "Int32 Variable";
-                intMonitoredItem.SamplingInterval = itemSamplingInterval;
-                intMonitoredItem.QueueSize = queueSize;
-                intMonitoredItem.DiscardOldest = true;
+                var intMonitoredItem = new MonitoredItem(subscription.DefaultItem)
+                {
+                    // Int32 Node - Objects\CTT\Scalar\Simulation\Int32
+                    StartNodeId = new NodeId("ns=2;s=Scalar_Simulation_Int32"),
+                    AttributeId = Attributes.Value,
+                    DisplayName = "Int32 Variable",
+                    SamplingInterval = itemSamplingInterval,
+                    QueueSize = queueSize,
+                    DiscardOldest = true
+                };
                 intMonitoredItem.Notification += OnMonitoredItemNotification;
 
                 subscription.AddItem(intMonitoredItem);
 
-                var floatMonitoredItem = new MonitoredItem(subscription.DefaultItem);
-                // Float Node - Objects\CTT\Scalar\Simulation\Float
-                floatMonitoredItem.StartNodeId = new NodeId("ns=2;s=Scalar_Simulation_Float");
-                floatMonitoredItem.AttributeId = Attributes.Value;
-                floatMonitoredItem.DisplayName = "Float Variable";
-                floatMonitoredItem.SamplingInterval = itemSamplingInterval;
-                floatMonitoredItem.QueueSize = queueSize;
+                var floatMonitoredItem = new MonitoredItem(subscription.DefaultItem)
+                {
+                    // Float Node - Objects\CTT\Scalar\Simulation\Float
+                    StartNodeId = new NodeId("ns=2;s=Scalar_Simulation_Float"),
+                    AttributeId = Attributes.Value,
+                    DisplayName = "Float Variable",
+                    SamplingInterval = itemSamplingInterval,
+                    QueueSize = queueSize
+                };
                 floatMonitoredItem.Notification += OnMonitoredItemNotification;
 
                 subscription.AddItem(floatMonitoredItem);
 
-                var stringMonitoredItem = new MonitoredItem(subscription.DefaultItem);
-                // String Node - Objects\CTT\Scalar\Simulation\String
-                stringMonitoredItem.StartNodeId = new NodeId("ns=2;s=Scalar_Simulation_String");
-                stringMonitoredItem.AttributeId = Attributes.Value;
-                stringMonitoredItem.DisplayName = "String Variable";
-                stringMonitoredItem.SamplingInterval = itemSamplingInterval;
-                stringMonitoredItem.QueueSize = queueSize;
+                var stringMonitoredItem = new MonitoredItem(subscription.DefaultItem)
+                {
+                    // String Node - Objects\CTT\Scalar\Simulation\String
+                    StartNodeId = new NodeId("ns=2;s=Scalar_Simulation_String"),
+                    AttributeId = Attributes.Value,
+                    DisplayName = "String Variable",
+                    SamplingInterval = itemSamplingInterval,
+                    QueueSize = queueSize
+                };
                 stringMonitoredItem.Notification += OnMonitoredItemNotification;
 
                 subscription.AddItem(stringMonitoredItem);
 
-                var eventMonitoredItem = new MonitoredItem(subscription.DefaultItem);
-                eventMonitoredItem.StartNodeId = new NodeId(ObjectIds.Server);
-                eventMonitoredItem.AttributeId = Attributes.EventNotifier;
-                eventMonitoredItem.DisplayName = "Event Variable";
-                eventMonitoredItem.SamplingInterval = itemSamplingInterval;
-                eventMonitoredItem.QueueSize = queueSize;
+                var eventMonitoredItem = new MonitoredItem(subscription.DefaultItem)
+                {
+                    StartNodeId = new NodeId(ObjectIds.Server),
+                    AttributeId = Attributes.EventNotifier,
+                    DisplayName = "Event Variable",
+                    SamplingInterval = itemSamplingInterval,
+                    QueueSize = queueSize
+                };
                 eventMonitoredItem.Notification += OnMonitoredItemEventNotification;
 
                 var filter = new EventFilter();
@@ -444,7 +466,8 @@ namespace Quickstarts
 
                 foreach (QualifiedNameCollection desiredEventField in m_desiredEventFields.Values)
                 {
-                    simpleAttributeOperands.Add(new SimpleAttributeOperand() {
+                    simpleAttributeOperands.Add(new SimpleAttributeOperand()
+                    {
                         AttributeId = Attributes.Value,
                         TypeDefinitionId = ObjectTypeIds.BaseEventType,
                         BrowsePath = desiredEventField
@@ -453,12 +476,14 @@ namespace Quickstarts
                 filter.SelectClauses = simpleAttributeOperands;
 
                 var whereClause = new ContentFilter();
-                var existingEventType = new SimpleAttributeOperand() {
+                var existingEventType = new SimpleAttributeOperand()
+                {
                     AttributeId = Attributes.Value,
                     TypeDefinitionId = ObjectTypeIds.ExclusiveLevelAlarmType,
                     BrowsePath = new QualifiedNameCollection(["EventType"])
                 };
-                var desiredEventType = new LiteralOperand {
+                var desiredEventType = new LiteralOperand
+                {
                     Value = new Variant(new NodeId(ObjectTypeIds.ExclusiveLevelAlarmType))
                 };
 
@@ -801,7 +826,8 @@ namespace Quickstarts
 
             // Browse template
             const int kMaxReferencesPerNode = 1000;
-            BrowseDescription browseTemplate = browseDescription ?? new BrowseDescription {
+            BrowseDescription browseTemplate = browseDescription ?? new BrowseDescription
+            {
                 NodeId = startingNode ?? ObjectIds.RootFolder,
                 BrowseDirection = BrowseDirection.Forward,
                 ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
@@ -1144,7 +1170,8 @@ namespace Quickstarts
                 session.MinPublishRequestCount = 3;
 
                 // Define Subscription parameters
-                var subscription = new Subscription(session.DefaultSubscription) {
+                var subscription = new Subscription(session.DefaultSubscription)
+                {
                     DisplayName = "Console ReferenceClient Subscription",
                     PublishingEnabled = true,
                     PublishingInterval = publishingInterval,
@@ -1167,7 +1194,8 @@ namespace Quickstarts
                 // Create MonitoredItems for data changes
                 foreach (Node item in variableIds)
                 {
-                    var monitoredItem = new MonitoredItem(subscription.DefaultItem) {
+                    var monitoredItem = new MonitoredItem(subscription.DefaultItem)
+                    {
                         StartNodeId = item.NodeId,
                         AttributeId = Attributes.Value,
                         SamplingInterval = samplingInterval,
@@ -1218,7 +1246,8 @@ namespace Quickstarts
             {
                 using var stringReader = new StringReader(textbuffer);
                 var jsonReader = new JsonTextReader(stringReader);
-                var jsonWriter = new JsonTextWriter(stringWriter) {
+                var jsonWriter = new JsonTextWriter(stringWriter)
+                {
                     Formatting = Formatting.Indented,
                     Culture = CultureInfo.InvariantCulture
                 };

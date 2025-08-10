@@ -709,16 +709,13 @@ namespace Opc.Ua
         {
             // initialize the channel which will be created with the server.
             string uriScheme = new Uri(description.EndpointUrl).Scheme;
-            ITransportChannel channel = TransportBindings.Channels.GetChannel(uriScheme);
-            if (channel == null)
-            {
-                throw ServiceResultException.Create(
+            ITransportChannel channel = TransportBindings.Channels.GetChannel(uriScheme) ?? throw ServiceResultException.Create(
                     StatusCodes.BadProtocolVersionUnsupported,
                     "Unsupported transport profile for scheme {0}.", uriScheme);
-            }
 
             // create a UA channel.
-            var settings = new TransportChannelSettings {
+            var settings = new TransportChannelSettings
+            {
                 Description = description,
                 Configuration = endpointConfiguration,
                 ClientCertificate = clientCertificate,
@@ -799,16 +796,13 @@ namespace Opc.Ua
             }
 
             // initialize the channel which will be created with the server.
-            ITransportChannel channel = TransportBindings.Channels.GetChannel(uriScheme);
-            if (channel == null)
-            {
-                throw ServiceResultException.Create(
+            ITransportChannel channel = TransportBindings.Channels.GetChannel(uriScheme) ?? throw ServiceResultException.Create(
                     StatusCodes.BadProtocolVersionUnsupported,
                     "Unsupported transport profile for scheme {0}.", uriScheme);
-            }
 
             // create a UA-TCP channel.
-            var settings = new TransportChannelSettings {
+            var settings = new TransportChannelSettings
+            {
                 Description = description,
                 Configuration = endpointConfiguration,
                 ClientCertificate = clientCertificate,
@@ -854,8 +848,8 @@ namespace Opc.Ua
         {
             if (disposing)
             {
-                Utils.SilentDispose(m_channel);
-                m_channel = null;
+                Utils.SilentDispose(Channel);
+                Channel = null;
             }
 
             base.Dispose(disposing);
@@ -881,7 +875,7 @@ namespace Opc.Ua
         /// </summary>
         public override IAsyncResult BeginInvokeService(InvokeServiceMessage request, AsyncCallback callback, object asyncState)
         {
-            var asyncResult = new UaChannelAsyncResult(m_channel, callback, asyncState);
+            var asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
 
             lock (asyncResult.Lock)
             {
@@ -997,8 +991,6 @@ namespace Opc.Ua
         /// Gets the inner channel.
         /// </summary>
         /// <value>The channel.</value>
-        protected TChannel Channel => m_channel;
-
-        private new TChannel m_channel;
+        protected TChannel Channel { get; private set; }
     }
 }

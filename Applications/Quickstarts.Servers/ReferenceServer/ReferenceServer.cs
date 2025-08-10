@@ -119,7 +119,8 @@ namespace Quickstarts.ReferenceServer
         /// </remarks>
         protected override ServerProperties LoadServerProperties()
         {
-            return new ServerProperties {
+            return new ServerProperties
+            {
                 ManufacturerName = "OPC Foundation",
                 ProductName = "Quickstart Reference Server",
                 ProductUri = "http://opcfoundation.org/Quickstart/ReferenceServer/v1.04",
@@ -179,7 +180,8 @@ namespace Quickstarts.ReferenceServer
 
             try
             {
-                ServerInternal.UpdateServerStatus((status) => {
+                ServerInternal.UpdateServerStatus((status) =>
+                {
                     // allow a faster sampling interval for CurrentTime node.
                     status.Variable.CurrentTime.MinimumSamplingInterval = 250;
                 });
@@ -252,9 +254,8 @@ namespace Quickstarts.ReferenceServer
         private void SessionManager_ImpersonateUser(ISession session, ImpersonateEventArgs args)
         {
             // check for a user name token.
-            var userNameToken = args.NewIdentity as UserNameIdentityToken;
 
-            if (userNameToken != null)
+            if (args.NewIdentity is UserNameIdentityToken userNameToken)
             {
                 args.Identity = VerifyPassword(userNameToken);
 
@@ -264,9 +265,8 @@ namespace Quickstarts.ReferenceServer
             }
 
             // check for x509 user token.
-            var x509Token = args.NewIdentity as X509IdentityToken;
 
-            if (x509Token != null)
+            if (args.NewIdentity is X509IdentityToken x509Token)
             {
                 VerifyUserTokenCertificate(x509Token.Certificate);
                 // set AuthenticatedUser role for accepted certificate authentication
@@ -371,8 +371,7 @@ namespace Quickstarts.ReferenceServer
             {
                 TranslationInfo info;
                 StatusCode result = StatusCodes.BadIdentityTokenRejected;
-                var se = e as ServiceResultException;
-                if (se != null && se.StatusCode == StatusCodes.BadCertificateUseNotAllowed)
+                if (e is ServiceResultException se && se.StatusCode == StatusCodes.BadCertificateUseNotAllowed)
                 {
                     info = new TranslationInfo(
                         "InvalidCertificate",

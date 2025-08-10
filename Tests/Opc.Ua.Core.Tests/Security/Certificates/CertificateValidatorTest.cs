@@ -1323,8 +1323,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public void CertificateValidatorAssignableFromAppConfig()
         {
-            NUnit.Framework.Assert.DoesNotThrow(() => {
-                var appConfig = new ApplicationConfiguration() {
+            NUnit.Framework.Assert.DoesNotThrow(() =>
+            {
+                var appConfig = new ApplicationConfiguration()
+                {
                     CertificateValidator = new CertificateValidator()
                 };
                 Assert.NotNull(appConfig);

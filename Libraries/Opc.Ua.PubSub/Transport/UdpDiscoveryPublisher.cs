@@ -284,10 +284,7 @@ namespace Opc.Ua.PubSub.Transport
             socket.Close();
             socket.Dispose();
 
-            if (newsocket != null)
-            {
-                newsocket.BeginReceive(OnUadpDiscoveryReceive, newsocket);
-            }
+            newsocket?.BeginReceive(OnUadpDiscoveryReceive, newsocket);
         }
 
         /// <summary>

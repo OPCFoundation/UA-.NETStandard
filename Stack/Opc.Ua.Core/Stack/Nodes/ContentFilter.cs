@@ -136,7 +136,8 @@ namespace Opc.Ua
             }
 
             // create the element and set the operator.
-            var element = new ContentFilterElement {
+            var element = new ContentFilterElement
+            {
                 FilterOperator = op
             };
 
@@ -161,7 +162,8 @@ namespace Opc.Ua
                         throw ServiceResultException.Create(StatusCodes.BadInvalidArgument, "ContentFilterElement is not part of the ContentFilter.");
                     }
 
-                    var operand = new ElementOperand {
+                    var operand = new ElementOperand
+                    {
                         Index = (uint)index
                     };
 
@@ -170,7 +172,8 @@ namespace Opc.Ua
                 }
 
                 // assume a literal operand.
-                var literalOperand = new LiteralOperand {
+                var literalOperand = new LiteralOperand
+                {
                     Value = new Variant(operands[ii])
                 };
                 element.FilterOperands.Add(new ExtensionObject(literalOperand));
@@ -272,7 +275,8 @@ namespace Opc.Ua
 
                     if (elementResult == null || ServiceResult.IsGood(elementResult.Status))
                     {
-                        elementResult2 = new ContentFilterElementResult {
+                        elementResult2 = new ContentFilterElementResult
+                        {
                             StatusCode = StatusCodes.Good
                         };
 
@@ -437,10 +441,7 @@ namespace Opc.Ua
         /// The ContentFilter that this Element is part of.
         /// </summary>
         /// <value>The parent.</value>
-        public ContentFilter Parent
-        {
-            get => m_parent; internal set => m_parent = value;
-        }
+        public ContentFilter Parent { get; internal set; }
 
         /// <summary>
         /// Validates the content filter element.
@@ -523,10 +524,9 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < m_filterOperands.Count; ii++)
             {
-                ServiceResult operandResult = null;
-
                 ExtensionObject operand = m_filterOperands[ii];
 
+                ServiceResult operandResult;
                 // check for null.
                 if (ExtensionObject.IsNull(operand))
                 {
@@ -718,8 +718,6 @@ namespace Opc.Ua
 
             return buffer.ToString();
         }
-
-        private ContentFilter m_parent;
     }
 
     public partial class FilterOperand
@@ -730,10 +728,7 @@ namespace Opc.Ua
         /// so it defines the expression to be evaluated.
         /// </summary>
         /// <value>The parent element.</value>
-        public ContentFilterElement Parent
-        {
-            get => m_parent; internal set => m_parent = value;
-        }
+        public ContentFilterElement Parent { get; internal set; }
 
         /// <summary>
         /// Validates the operand.
@@ -755,8 +750,6 @@ namespace Opc.Ua
         {
             return Utils.Format("{0}", this);
         }
-
-        private ContentFilterElement m_parent;
     }
 
     public partial class AttributeOperand : IFormattable
@@ -775,7 +768,8 @@ namespace Opc.Ua
 
             m_browsePath = new RelativePath();
 
-            var element = new RelativePathElement {
+            var element = new RelativePathElement
+            {
                 ReferenceTypeId = ReferenceTypeIds.Aggregates,
                 IsInverse = false,
                 IncludeSubtypes = true,
@@ -800,7 +794,8 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < browsePaths.Count; ii++)
             {
-                var element = new RelativePathElement {
+                var element = new RelativePathElement
+                {
                     ReferenceTypeId = ReferenceTypeIds.Aggregates,
                     IsInverse = false,
                     IncludeSubtypes = true,
@@ -898,7 +893,7 @@ namespace Opc.Ua
         /// <remarks>
         /// Set when Validate() is called.
         /// </remarks>
-        public bool Validated => m_validated;
+        public bool Validated { get; private set; }
 
         /// <summary>
         /// Stores the parsed form of the IndexRange parameter.
@@ -917,7 +912,7 @@ namespace Opc.Ua
         /// <returns>The result of the validation.</returns>
         public override ServiceResult Validate(FilterContext context, int index)
         {
-            m_validated = false;
+            Validated = false;
 
             // verify that the operand refers to a node in the type model.
             if (!context.TypeTree.IsKnown(m_nodeId))
@@ -965,7 +960,7 @@ namespace Opc.Ua
                 }
             }
 
-            m_validated = true;
+            Validated = true;
 
             return ServiceResult.Good;
         }
@@ -1008,7 +1003,6 @@ namespace Opc.Ua
             return buffer.ToString();
         }
 
-        private bool m_validated;
         private NumericRange m_parsedIndexRange;
     }
 

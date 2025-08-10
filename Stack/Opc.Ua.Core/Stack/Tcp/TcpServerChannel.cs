@@ -707,10 +707,7 @@ namespace Opc.Ua.Bindings
             finally
             {
                 SilentDispose(token);
-                if (chunksToProcess != null)
-                {
-                    chunksToProcess.Release(BufferManager, "ProcessOpenSecureChannelRequest");
-                }
+                chunksToProcess?.Release(BufferManager, "ProcessOpenSecureChannelRequest");
             }
         }
 
@@ -774,10 +771,7 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
-                if (chunksToSend != null)
-                {
-                    chunksToSend.Release(BufferManager, "SendOpenSecureChannelResponse");
-                }
+                chunksToSend?.Release(BufferManager, "SendOpenSecureChannelResponse");
             }
         }
 
@@ -851,10 +845,7 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
-                if (chunksToProcess != null)
-                {
-                    chunksToProcess.Release(BufferManager, "ProcessCloseSecureChannelRequest");
-                }
+                chunksToProcess?.Release(BufferManager, "ProcessCloseSecureChannelRequest");
 
                 LogInfo(
                     "{0} ProcessCloseSecureChannelRequest success, ChannelId={1}, TokenId={2}, Socket={3:X8}",
@@ -883,15 +874,16 @@ namespace Opc.Ua.Bindings
                 return false;
             }
 
-            // validate security on the message.
-            ChannelToken token = null;
-            uint requestId = 0;
-            uint sequenceNumber = 0;
-
             ArraySegment<byte> messageBody;
 
+
+            // validate security on the message.
+            ChannelToken token;
+
+            uint requestId;
             try
             {
+                uint sequenceNumber;
                 messageBody = ReadSymmetricMessage(messageChunk, true, out token, out requestId, out sequenceNumber);
 
                 // check for replay attacks.
@@ -1003,10 +995,7 @@ namespace Opc.Ua.Bindings
             }
             finally
             {
-                if (chunksToProcess != null)
-                {
-                    chunksToProcess.Release(BufferManager, "ProcessRequestMessage");
-                }
+                chunksToProcess?.Release(BufferManager, "ProcessRequestMessage");
             }
         }
 
@@ -1069,10 +1058,7 @@ namespace Opc.Ua.Bindings
                 }
                 catch (Exception)
                 {
-                    if (buffers != null)
-                    {
-                        buffers.Release(BufferManager, "SendResponse");
-                    }
+                    buffers?.Release(BufferManager, "SendResponse");
 
                     m_queuedResponses[requestId] = response;
                     return;

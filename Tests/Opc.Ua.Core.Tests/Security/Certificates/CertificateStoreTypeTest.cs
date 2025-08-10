@@ -246,7 +246,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public static int InstancesCreated => s_instancesCreated;
 
         internal const string StoreTypePrefix = "testStoreType:";
-        private static int s_instancesCreated;
         private readonly X509CertificateStore m_innerStore;
+        private static int s_instancesCreated;
     }
 }

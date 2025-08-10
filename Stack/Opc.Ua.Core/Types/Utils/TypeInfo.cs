@@ -790,11 +790,11 @@ namespace Opc.Ua
             NamespaceTable namespaceUris,
             ITypeTable typeTree)
         {
-            BuiltInType expectedType = BuiltInType.Null;
 
             // get the type info.
             TypeInfo typeInfo = Construct(value);
 
+            BuiltInType expectedType;
             if (typeInfo.BuiltInType == BuiltInType.Null)
             {
                 expectedType = GetBuiltInType(expectedDataTypeId, typeTree);
@@ -1622,8 +1622,6 @@ namespace Opc.Ua
                 return null;
             }
 
-            BuiltInType builtInType = BuiltInType.Null;
-
             if (dataType != null && dataType.IdType == IdType.Numeric && dataType.NamespaceIndex == 0)
             {
                 uint id = (uint)dataType.Identifier;
@@ -1668,8 +1666,7 @@ namespace Opc.Ua
                 }
             }
 
-            builtInType = GetBuiltInType(dataType, typeTree);
-
+            BuiltInType builtInType = GetBuiltInType(dataType, typeTree);
             if (builtInType != BuiltInType.Null)
             {
                 return GetDefaultValue(builtInType);

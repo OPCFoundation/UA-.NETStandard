@@ -56,12 +56,14 @@ namespace Quickstarts.Servers
                 {
                     methodsToCall.Add(
                         // Start the Alarms with infinite runtime
-                        new CallMethodRequest {
+                        new CallMethodRequest
+                        {
                             MethodId = new NodeId("Alarms.Start", (ushort)index),
                             ObjectId = new NodeId("Alarms", (ushort)index),
                             InputArguments = [new Variant(uint.MaxValue)]
                         });
-                    var requestHeader = new RequestHeader() {
+                    var requestHeader = new RequestHeader()
+                    {
                         Timestamp = DateTime.UtcNow,
                         TimeoutHint = 10000
                     };

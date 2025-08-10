@@ -439,7 +439,8 @@ namespace Opc.Ua.Client
             NodeId nodeId, CancellationToken ct)
         {
             Debug.Assert(!NodeId.IsNull(nodeId));
-            return m_refs.GetOrAddAsync(nodeId, async (nodeId, context) => {
+            return m_refs.GetOrAddAsync(nodeId, async (nodeId, context) =>
+            {
                 ReferenceDescriptionCollection references = await context.session.FetchReferencesAsync(
                     nodeId, context.ct).ConfigureAwait(false);
                 foreach (ReferenceDescription? reference in references)

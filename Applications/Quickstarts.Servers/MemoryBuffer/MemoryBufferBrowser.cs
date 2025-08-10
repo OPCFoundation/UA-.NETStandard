@@ -122,7 +122,7 @@ namespace MemoryBuffer
         /// </summary>
         private NodeStateReference NextChild()
         {
-            MemoryTagState tag = null;
+            MemoryTagState tag;
 
             // check if a specific browse name is requested.
             if (!QualifiedName.IsNull(BrowseName))

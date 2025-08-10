@@ -77,7 +77,8 @@ namespace Opc.Ua.Server.Tests
 
         public async Task LoadConfigurationAsync(string pkiRoot = null)
         {
-            Application = new ApplicationInstance {
+            Application = new ApplicationInstance
+            {
                 ApplicationName = typeof(T).Name,
                 ApplicationType = ApplicationType.Server
             };
@@ -119,7 +120,8 @@ namespace Opc.Ua.Server.Tests
 
             if (OperationLimits)
             {
-                serverConfig.SetOperationLimits(new OperationLimits() {
+                serverConfig.SetOperationLimits(new OperationLimits()
+                {
                     MaxNodesPerBrowse = 2500,
                     MaxNodesPerRead = 1000,
                     MaxNodesPerWrite = 1000,
@@ -142,7 +144,8 @@ namespace Opc.Ua.Server.Tests
 
             if (ReverseConnectTimeout != 0)
             {
-                serverConfig.SetReverseConnect(new ReverseConnectServerConfiguration() {
+                serverConfig.SetReverseConnect(new ReverseConnectServerConfiguration()
+                {
                     ConnectInterval = ReverseConnectTimeout / 4,
                     ConnectTimeout = ReverseConnectTimeout,
                     RejectTimeout = ReverseConnectTimeout / 4
@@ -281,7 +284,8 @@ namespace Opc.Ua.Server.Tests
             if (disableActivityLogging)
             {
                 // Create an instance of ActivityListener without logging
-                ActivityListener = new ActivityListener() {
+                ActivityListener = new ActivityListener()
+                {
                     ShouldListenTo = (source) => source.Name == EndpointBase.ActivitySourceName,
                     Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
                     ActivityStarted = _ => { },
@@ -291,7 +295,8 @@ namespace Opc.Ua.Server.Tests
             else
             {
                 // Create an instance of ActivityListener and configure its properties with logging
-                ActivityListener = new ActivityListener() {
+                ActivityListener = new ActivityListener()
+                {
                     ShouldListenTo = (source) => source.Name == EndpointBase.ActivitySourceName,
                     Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
                     ActivityStarted = activity => Utils.LogInfo("Server Started: {0,-15} - TraceId: {1,-32} SpanId: {2,-16} ParentId: {3,-32}",

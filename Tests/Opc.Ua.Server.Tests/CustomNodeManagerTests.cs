@@ -160,7 +160,8 @@ namespace Opc.Ua.Server.Tests
             Exception error = null;
             int tasksCompletedCount = 0;
             ParallelLoopResult result = Parallel.For(0, iterations, new ParallelOptions(),
-                          async _ => {
+                          async _ =>
+                          {
                               try
                               {
                                   await task().ConfigureAwait(false);

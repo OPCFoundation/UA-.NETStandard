@@ -23,126 +23,144 @@ namespace Opc.Ua.Core.Tests.Stack.State
             get
             {
                 // Test OnWriteValue
-                Action<BaseVariableState> action = state => {
+                Action<BaseVariableState> action = state =>
+                {
                     state.OnWriteValue = ValueChangedHandler;
                     state.OnWriteValue = null;
                 };
                 yield return new TestCaseData(Attributes.Value, new Variant(15.5), action);
 
                 // Test OnSimpleWriteValue
-                action = state => {
+                action = state =>
+                {
                     state.OnSimpleWriteValue = NodeAttributeEventHandler;
                     state.OnSimpleWriteValue = null;
                 };
                 yield return new TestCaseData(Attributes.Value, new Variant(15.5), action);
 
                 // Test OnWriteNodeId
-                action = state => {
+                action = state =>
+                {
                     state.OnWriteNodeId = NodeAttributeEventHandler;
                     state.OnWriteNodeId = null;
                 };
                 yield return new TestCaseData(Attributes.NodeId, new Variant(new NodeId(22, 7)), action);
 
                 // Test OnWriteNodeClass
-                action = state => {
+                action = state =>
+                {
                     state.OnWriteNodeClass = NodeAttributeEventHandler;
                     state.OnWriteNodeClass = null;
                 };
                 yield return new TestCaseData(Attributes.NodeClass, new Variant((int)NodeClass.Variable), action);
 
                 // Test OnWriteBrowseName
-                action = state => {
+                action = state =>
+                {
                     state.OnWriteBrowseName = NodeAttributeEventHandler;
                     state.OnWriteBrowseName = null;
                 };
                 yield return new TestCaseData(Attributes.BrowseName, new Variant(new QualifiedName("test")), action);
 
                 // Test OnWriteDisplayName
-                action = state => {
+                action = state =>
+                {
                     state.OnWriteDisplayName = NodeAttributeEventHandler;
                     state.OnWriteDisplayName = null;
                 };
                 yield return new TestCaseData(Attributes.DisplayName, new Variant(new LocalizedText("test")), action);
 
                 // Test OnWriteDescription
-                action = state => {
+                action = state =>
+                {
                     state.OnWriteDescription = NodeAttributeEventHandler;
                     state.OnWriteDescription = null;
                 };
                 yield return new TestCaseData(Attributes.Description, new Variant(new LocalizedText("test")), action);
 
                 // Test OnWriteWriteMask
-                action = state => {
+                action = state =>
+                {
                     state.OnWriteWriteMask = NodeAttributeEventHandler;
                     state.OnWriteWriteMask = null;
                 };
                 yield return new TestCaseData(Attributes.WriteMask, new Variant((uint)AttributeWriteMask.WriteMask | (uint)AttributeWriteMask.UserWriteMask), action);
 
                 // Test OnWriteUserWriteMask
-                action = state => {
+                action = state =>
+                {
                     state.OnWriteUserWriteMask = NodeAttributeEventHandler;
                     state.OnWriteUserWriteMask = null;
                 };
                 yield return new TestCaseData(Attributes.UserWriteMask, new Variant((uint)AttributeWriteMask.WriteMask | (uint)AttributeWriteMask.UserWriteMask), action);
 
                 // Test OnWriteRolePermissions
-                action = state => {
+                action = state =>
+                {
                     state.OnWriteRolePermissions = NodeAttributeEventHandler;
                     state.OnWriteRolePermissions = null;
                 };
                 yield return new TestCaseData(Attributes.RolePermissions, new Variant(s_value), action);
 
                 // Test OnWriteAccessRestrictions
-                action = state => {
+                action = state =>
+                {
                     state.OnWriteAccessRestrictions = NodeAttributeEventHandler;
                     state.OnWriteAccessRestrictions = null;
                 };
                 yield return new TestCaseData(Attributes.AccessRestrictions, new Variant((ushort)AccessRestrictionType.EncryptionRequired), action);
 
                 // Test OnWriteDataType
-                action = state => {
+                action = state =>
+                {
                     state.OnWriteDataType = NodeAttributeEventHandler;
                     state.OnWriteDataType = null;
                 };
                 yield return new TestCaseData(Attributes.DataType, new Variant(DataTypeIds.Double), action);
 
                 // Test OnWriteValueRank
-                action = state => {
+                action = state =>
+                {
                     state.OnWriteValueRank = NodeAttributeEventHandler;
                     state.OnWriteValueRank = null;
                 };
                 yield return new TestCaseData(Attributes.ValueRank, new Variant(ValueRanks.Scalar), action);
 
                 // Test OnWriteArrayDimensions
-                action = state => {
+                action = state =>
+                {
                     state.OnWriteArrayDimensions = NodeAttributeEventHandler;
                     state.OnWriteArrayDimensions = null;
                 };
                 yield return new TestCaseData(Attributes.ArrayDimensions, new Variant(new List<uint>() { 2, 2 }), action);
 
                 // Test OnWriteAccessLevel
-                action = state => {
+                action = state =>
+                {
                     state.OnWriteAccessLevel = NodeAttributeEventHandler;
                     state.OnWriteAccessLevel = null;
                 };
                 yield return new TestCaseData(Attributes.AccessLevel, new Variant(AccessLevels.CurrentRead), action);
 
                 // Test OnWriteUserAccessLevel
-                action = state => {
+                action = state =>
+                {
                     state.OnWriteUserAccessLevel = NodeAttributeEventHandler;
                     state.OnWriteUserAccessLevel = null;
                 };
                 yield return new TestCaseData(Attributes.UserAccessLevel, new Variant(AccessLevels.CurrentRead), action);
 
                 // Test OnWriteMinimumSamplingInterval
-                action = state => {
+                action = state =>
+                {
                     state.OnWriteMinimumSamplingInterval = NodeAttributeEventHandler;
                     state.OnWriteMinimumSamplingInterval = null;
                 };
                 yield return new TestCaseData(Attributes.MinimumSamplingInterval, new Variant(1000.0), action);
 
                 // Test OnWriteHistorizing
-                action = state => {
+                action = state =>
+                {
                     state.OnWriteHistorizing = NodeAttributeEventHandler;
                     state.OnWriteHistorizing = null;
                 };
@@ -158,28 +176,32 @@ namespace Opc.Ua.Core.Tests.Stack.State
             get
             {
                 // Test OnWriteDataType
-                Action<BaseDataVariableTypeState> action = state => {
+                Action<BaseDataVariableTypeState> action = state =>
+                {
                     state.OnWriteDataType = NodeAttributeEventHandler;
                     state.OnWriteDataType = null;
                 };
                 yield return new TestCaseData(Attributes.DataType, new Variant(DataTypeIds.Double), action);
 
                 // Test OnWriteValueRank
-                action = state => {
+                action = state =>
+                {
                     state.OnWriteValueRank = NodeAttributeEventHandler;
                     state.OnWriteValueRank = null;
                 };
                 yield return new TestCaseData(Attributes.ValueRank, new Variant(ValueRanks.Scalar), action);
 
                 // Test OnWriteArrayDimensions
-                action = state => {
+                action = state =>
+                {
                     state.OnWriteArrayDimensions = NodeAttributeEventHandler;
                     state.OnWriteArrayDimensions = null;
                 };
                 yield return new TestCaseData(Attributes.ArrayDimensions, new Variant(new List<uint>() { 2, 2 }), action);
 
                 // Test OnWriteIsAbstract
-                action = state => {
+                action = state =>
+                {
                     state.OnWriteIsAbstract = NodeAttributeEventHandler;
                     state.OnWriteIsAbstract = null;
                 };
@@ -195,7 +217,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
             get
             {
                 // Test EventNotifier
-                Action<BaseObjectState> action = state => {
+                Action<BaseObjectState> action = state =>
+                {
                     state.OnWriteEventNotifier = NodeAttributeEventHandler;
                     state.OnWriteEventNotifier = null;
                 };
@@ -211,14 +234,16 @@ namespace Opc.Ua.Core.Tests.Stack.State
             get
             {
                 // Test Executable
-                Action<MethodState> action = state => {
+                Action<MethodState> action = state =>
+                {
                     state.OnWriteExecutable = NodeAttributeEventHandler;
                     state.OnWriteExecutable = null;
                 };
                 yield return new TestCaseData(Attributes.Executable, new Variant(true), action);
 
                 // Test UserExecutable
-                action = state => {
+                action = state =>
+                {
                     state.OnWriteUserExecutable = NodeAttributeEventHandler;
                     state.OnWriteUserExecutable = null;
                 };
@@ -234,14 +259,16 @@ namespace Opc.Ua.Core.Tests.Stack.State
             get
             {
                 // Test InverseName
-                Action<ReferenceTypeState> action = state => {
+                Action<ReferenceTypeState> action = state =>
+                {
                     state.OnWriteInverseName = NodeAttributeEventHandler;
                     state.OnWriteInverseName = null;
                 };
                 yield return new TestCaseData(Attributes.InverseName, new Variant(new LocalizedText("inverse test")), action);
 
                 // Test Symmetric
-                action = state => {
+                action = state =>
+                {
                     state.OnWriteSymmetric = NodeAttributeEventHandler;
                     state.OnWriteSymmetric = null;
                 };
@@ -257,14 +284,16 @@ namespace Opc.Ua.Core.Tests.Stack.State
             get
             {
                 // Test EventNotifier
-                Action<ViewState> action = state => {
+                Action<ViewState> action = state =>
+                {
                     state.OnWriteEventNotifier = NodeAttributeEventHandler;
                     state.OnWriteEventNotifier = null;
                 };
                 yield return new TestCaseData(Attributes.EventNotifier, new Variant(EventNotifiers.SubscribeToEvents), action);
 
                 // Test ContainsNoLoops
-                action = state => {
+                action = state =>
+                {
                     state.OnWriteContainsNoLoops = NodeAttributeEventHandler;
                     state.OnWriteContainsNoLoops = null;
                 };
@@ -280,7 +309,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
             get
             {
                 // Test DataTypeDefinition
-                Action<DataTypeState> action = state => {
+                Action<DataTypeState> action = state =>
+                {
                     state.OnWriteDataTypeDefinition = NodeAttributeEventHandler;
                     state.OnWriteDataTypeDefinition = null;
                 };
@@ -475,7 +505,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             bool running = true;
 
-            var thread = new Thread(() => {
+            var thread = new Thread(() =>
+            {
                 while (running)
                 {
                     concurrentTaskAction(node);

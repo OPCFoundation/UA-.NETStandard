@@ -40,7 +40,8 @@ namespace Opc.Ua
         /// <param name="password">The password.</param>
         public UserIdentity(string username, string password)
         {
-            var token = new UserNameIdentityToken {
+            var token = new UserNameIdentityToken
+            {
                 UserName = username,
                 DecryptedPassword = password
             };
@@ -155,7 +156,7 @@ namespace Opc.Ua
         /// <summary>
         ///  Get or sets the list of granted role ids associated to the UserIdentity.
         /// </summary>
-        public NodeIdCollection GrantedRoleIds => m_grantedRoleIds;
+        public NodeIdCollection GrantedRoleIds { get; private set; }
 
         /// <inheritdoc/>
         public UserIdentityToken GetIdentityToken()
@@ -169,7 +170,7 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize(UserIdentityToken token)
         {
-            m_grantedRoleIds = [];
+            GrantedRoleIds = [];
             m_token = token ?? throw new ArgumentNullException(nameof(token));
 
             if (token is UserNameIdentityToken usernameToken)
@@ -232,7 +233,8 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize(X509Certificate2 certificate)
         {
-            var token = new X509IdentityToken {
+            var token = new X509IdentityToken
+            {
                 CertificateData = certificate.RawData,
                 Certificate = certificate
             };
@@ -240,7 +242,6 @@ namespace Opc.Ua
         }
 
         private UserIdentityToken m_token;
-        private NodeIdCollection m_grantedRoleIds;
     }
 
     /// <summary>

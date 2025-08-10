@@ -208,15 +208,18 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             Assert.False(Utils.IsEqualUserIdentity(anonymousIdentity1, null));
             Assert.False(Utils.IsEqualUserIdentity(null, anonymousIdentity2));
 
-            var user1 = new UserNameIdentityToken() {
+            var user1 = new UserNameIdentityToken()
+            {
                 UserName = "user1",
                 Password = Encoding.ASCII.GetBytes("pass1".ToCharArray())
             };
-            var user1_dupe = new UserNameIdentityToken() {
+            var user1_dupe = new UserNameIdentityToken()
+            {
                 UserName = "user1",
                 Password = Encoding.ASCII.GetBytes("pass1".ToCharArray())
             };
-            var user2 = new UserNameIdentityToken() {
+            var user2 = new UserNameIdentityToken()
+            {
                 UserName = "user2",
                 Password = Encoding.ASCII.GetBytes("pass2".ToCharArray())
             };
@@ -367,7 +370,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 
             // Validate the default reader (expansion limited at 10000000 bytes)
             TestContext.Out.WriteLine("Testing XmlDocument.LoadXml.");
-            XmlException ex = NUnit.Framework.Assert.Throws<XmlException>(() => {
+            XmlException ex = NUnit.Framework.Assert.Throws<XmlException>(() =>
+            {
                 var document = new XmlDocument();
                 document.LoadXml(xmlEEXX.ToString());
             });
@@ -375,8 +379,10 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 
             // Validate the InnerXml default (expansion limited at 10000000 bytes)
             TestContext.Out.WriteLine("Testing XmlDocument.InnerXml.");
-            ex = NUnit.Framework.Assert.Throws<XmlException>(() => {
-                var document = new XmlDocument {
+            ex = NUnit.Framework.Assert.Throws<XmlException>(() =>
+            {
+                var document = new XmlDocument
+                {
                     InnerXml = xmlEEXX.ToString()
                 };
             });
@@ -387,7 +393,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             using (var stream = new StringReader(xmlEEXX.ToString()))
             using (var reader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings()))
             {
-                ex = NUnit.Framework.Assert.Throws<XmlException>(() => {
+                ex = NUnit.Framework.Assert.Throws<XmlException>(() =>
+                {
                     var document = new XmlDocument();
                     document.Load(reader);
                 });
@@ -396,7 +403,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 
             // Validate the LoadInnerXml helper settings prohibit Dtd (recommended)
             TestContext.Out.WriteLine("Testing LoadInnerXml helper.");
-            ex = NUnit.Framework.Assert.Throws<XmlException>(() => {
+            ex = NUnit.Framework.Assert.Throws<XmlException>(() =>
+            {
                 var document = new XmlDocument();
                 document.LoadInnerXml(xmlEEXX.ToString());
             });

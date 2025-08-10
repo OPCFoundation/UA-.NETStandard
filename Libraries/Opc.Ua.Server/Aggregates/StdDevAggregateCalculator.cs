@@ -209,10 +209,12 @@ namespace Opc.Ua.Server
             }
 
             // set the timestamp and status.
-            var value = new DataValue();
-            value.WrappedValue = new Variant(result, TypeInfo.Scalars.Double);
-            value.SourceTimestamp = GetTimestamp(slice);
-            value.ServerTimestamp = GetTimestamp(slice);
+            var value = new DataValue
+            {
+                WrappedValue = new Variant(result, TypeInfo.Scalars.Double),
+                SourceTimestamp = GetTimestamp(slice),
+                ServerTimestamp = GetTimestamp(slice)
+            };
 
             if (nonGoodDataExists)
             {
@@ -231,8 +233,7 @@ namespace Opc.Ua.Server
         protected DataValue ComputeStdDev(TimeSlice slice, bool includeBounds, int valueType)
         {
             // get the values in the slice.
-            List<DataValue> values = null;
-
+            List<DataValue> values;
             if (includeBounds)
             {
                 values = GetValuesWithSimpleBounds(slice);
@@ -320,10 +321,12 @@ namespace Opc.Ua.Server
             }
 
             // set the timestamp and status.
-            var value = new DataValue();
-            value.WrappedValue = new Variant(result, TypeInfo.Scalars.Double);
-            value.SourceTimestamp = GetTimestamp(slice);
-            value.ServerTimestamp = GetTimestamp(slice);
+            var value = new DataValue
+            {
+                WrappedValue = new Variant(result, TypeInfo.Scalars.Double),
+                SourceTimestamp = GetTimestamp(slice),
+                ServerTimestamp = GetTimestamp(slice)
+            };
 
             if (nonGoodDataExists)
             {

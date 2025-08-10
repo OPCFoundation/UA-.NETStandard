@@ -214,7 +214,8 @@ namespace Opc.Ua.Server.Tests
             alarm.OutOfServiceState.Value = InService;
 
             FilterContext filterContext = GetFilterContext();
-            var filter = new EventFilter {
+            var filter = new EventFilter
+            {
                 SelectClauses = GetSelectFields(),
                 WhereClause = GetStateFilter()
             };
@@ -362,7 +363,8 @@ namespace Opc.Ua.Server.Tests
 
             if (addFilterRetain)
             {
-                alarm.SupportsFilteredRetain = new PropertyState<bool>(alarm) {
+                alarm.SupportsFilteredRetain = new PropertyState<bool>(alarm)
+                {
                     Value = filterRetainValue
                 };
             }
@@ -388,7 +390,8 @@ namespace Opc.Ua.Server.Tests
 
             foreach (QualifiedNameCollection desiredEventField in desiredEventFields.Values)
             {
-                simpleAttributeOperands.Add(new SimpleAttributeOperand() {
+                simpleAttributeOperands.Add(new SimpleAttributeOperand()
+                {
                     AttributeId = Attributes.Value,
                     TypeDefinitionId = ObjectTypeIds.BaseEventType,
                     BrowsePath = desiredEventField
@@ -396,7 +399,8 @@ namespace Opc.Ua.Server.Tests
             }
 
             // ConditionId
-            simpleAttributeOperands.Add(new SimpleAttributeOperand() {
+            simpleAttributeOperands.Add(new SimpleAttributeOperand()
+            {
                 AttributeId = Attributes.NodeId,
                 TypeDefinitionId = ObjectTypeIds.ConditionType
             });
@@ -420,7 +424,8 @@ namespace Opc.Ua.Server.Tests
         {
             var whereClause = new ContentFilter();
 
-            var eventLevel = new SimpleAttributeOperand() {
+            var eventLevel = new SimpleAttributeOperand()
+            {
                 AttributeId = Attributes.Value,
                 TypeDefinitionId = ObjectTypeIds.ExclusiveLevelAlarmType,
                 BrowsePath = [.. new QualifiedName[] {
@@ -429,7 +434,8 @@ namespace Opc.Ua.Server.Tests
                     BrowseNames.Id }]
             };
 
-            var desiredEventLevel = new LiteralOperand {
+            var desiredEventLevel = new LiteralOperand
+            {
                 Value = new Variant(new NodeId(Objects.ExclusiveLimitStateMachineType_High))
             };
 
@@ -442,27 +448,31 @@ namespace Opc.Ua.Server.Tests
         {
             var whereClause = new ContentFilter();
 
-            var notOutOfServiceState = new SimpleAttributeOperand() {
+            var notOutOfServiceState = new SimpleAttributeOperand()
+            {
                 AttributeId = Attributes.Value,
                 TypeDefinitionId = null,
                 BrowsePath = [.. new QualifiedName[] {
                     BrowseNames.OutOfServiceState }]
             };
 
-            var desiredOutOfServiceValue = new LiteralOperand {
+            var desiredOutOfServiceValue = new LiteralOperand
+            {
                 Value = new Variant(InService)
             };
 
             whereClause.Push(FilterOperator.Equals, [notOutOfServiceState, desiredOutOfServiceValue]);
 
-            var notSuppressed = new SimpleAttributeOperand() {
+            var notSuppressed = new SimpleAttributeOperand()
+            {
                 AttributeId = Attributes.Value,
                 TypeDefinitionId = null,
                 BrowsePath = [.. new QualifiedName[] {
                     BrowseNames.SuppressedState }]
             };
 
-            var desiredSuppressedValue = new LiteralOperand {
+            var desiredSuppressedValue = new LiteralOperand
+            {
                 Value = new Variant(Unsuppressed)
             };
 
@@ -470,14 +480,16 @@ namespace Opc.Ua.Server.Tests
 
 #if AddActiveState
 
-            var activeState = new SimpleAttributeOperand() {
+            var activeState = new SimpleAttributeOperand()
+            {
                 AttributeId = Attributes.Value,
                 TypeDefinitionId = null,
                 BrowsePath = [.. new QualifiedName[] {
                     BrowseNames.ActiveState }]
             };
 
-            var activeValue = new LiteralOperand {
+            var activeValue = new LiteralOperand
+            {
                 Value = new Variant(Active)
             };
 
@@ -502,7 +514,8 @@ namespace Opc.Ua.Server.Tests
         {
             if (m_systemContext == null)
             {
-                m_systemContext = new SystemContext {
+                m_systemContext = new SystemContext
+                {
                     NamespaceUris = new NamespaceTable()
                 };
                 m_systemContext.NamespaceUris.Append(Namespaces.OpcUa);

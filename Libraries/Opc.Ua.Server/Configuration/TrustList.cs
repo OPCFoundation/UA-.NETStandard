@@ -132,7 +132,8 @@ namespace Opc.Ua.Server
                 m_sessionId = context.SessionId;
                 fileHandle = ++m_fileHandle;
 
-                var trustList = new TrustListDataType() {
+                var trustList = new TrustListDataType()
+                {
                     SpecifiedLists = (uint)masks
                 };
 
@@ -570,7 +571,8 @@ namespace Opc.Ua.Server
             TrustListDataType trustList
             )
         {
-            IServiceMessageContext messageContext = new ServiceMessageContext() {
+            IServiceMessageContext messageContext = new ServiceMessageContext()
+            {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
                 Factory = context.EncodeableFactory
@@ -589,7 +591,8 @@ namespace Opc.Ua.Server
             MemoryStream strm)
         {
             var trustList = new TrustListDataType();
-            IServiceMessageContext messageContext = new ServiceMessageContext() {
+            IServiceMessageContext messageContext = new ServiceMessageContext()
+            {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
                 Factory = context.EncodeableFactory

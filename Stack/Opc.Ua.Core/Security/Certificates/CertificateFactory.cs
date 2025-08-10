@@ -443,11 +443,7 @@ namespace Opc.Ua
             else
 #endif
             {
-                using RSA privateKey = PEMReader.ImportRsaPrivateKeyFromPEM(pemDataBlob, password);
-                if (privateKey == null)
-                {
-                    throw new ServiceResultException("PEM data blob does not contain a private key.");
-                }
+                using RSA privateKey = PEMReader.ImportRsaPrivateKeyFromPEM(pemDataBlob, password) ?? throw new ServiceResultException("PEM data blob does not contain a private key.");
 
                 string passcode = X509Utils.GeneratePasscode();
                 byte[] pfxData = CertificateBuilder.CreatePfxWithRSAPrivateKey(
@@ -534,12 +530,7 @@ namespace Opc.Ua
                 applicationUri = builder.ToString();
             }
 
-            Uri uri = Utils.ParseUri(applicationUri);
-
-            if (uri == null)
-            {
-                throw new ArgumentNullException(nameof(applicationUri), "Must specify a valid URL.");
-            }
+            Uri uri = Utils.ParseUri(applicationUri) ?? throw new ArgumentNullException(nameof(applicationUri), "Must specify a valid URL.");
 
             // create the subject name,
             if (string.IsNullOrEmpty(subjectName))

@@ -375,14 +375,14 @@ namespace Opc.Ua
                                 continue;
                             }
 
-                            IList<IReference> referenceList = null;
-
+                            IList<IReference> referenceList;
                             if (!externalReferences.TryGetValue(targetId, out referenceList))
                             {
                                 externalReferences[targetId] = referenceList = [];
                             }
 
-                            var reverseReference = new ReferenceNode {
+                            var reverseReference = new ReferenceNode
+                            {
                                 ReferenceTypeId = reference.ReferenceTypeId,
                                 IsInverse = !reference.IsInverse,
                                 TargetId = node.NodeId
@@ -402,10 +402,7 @@ namespace Opc.Ua
                 }
 
                 // see if it is a type.
-                if (m_typeTree != null)
-                {
-                    m_typeTree.Add(node);
-                }
+                m_typeTree?.Add(node);
             }
 
             return importedNodes;
@@ -432,7 +429,8 @@ namespace Opc.Ua
                 }
                 else
                 {
-                    var node = new Node {
+                    var node = new Node
+                    {
                         NodeId = ExpandedNodeId.ToNodeId(reference.NodeId, NamespaceUris)
                     };
 
@@ -539,10 +537,7 @@ namespace Opc.Ua
             }
 
             // see if it is a type.
-            if (m_typeTree != null)
-            {
-                m_typeTree.Add(node);
-            }
+            m_typeTree?.Add(node);
         }
 
         /// <summary>
@@ -681,8 +676,7 @@ namespace Opc.Ua
             // check for remote node.
             if (nodeId.ServerIndex != 0)
             {
-                RemoteNode remoteNode = null;
-
+                RemoteNode remoteNode;
                 if (m_remoteNodes.TryGetValue(nodeId, out remoteNode))
                 {
                     return remoteNode;
@@ -699,8 +693,7 @@ namespace Opc.Ua
                 return null;
             }
 
-            ILocalNode node = null;
-
+            ILocalNode node;
             if (m_localNodes.TryGetValue(localId, out node))
             {
                 return node;

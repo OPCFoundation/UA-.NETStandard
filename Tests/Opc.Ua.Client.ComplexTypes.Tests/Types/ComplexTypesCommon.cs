@@ -147,7 +147,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             out ExpandedNodeId nodeId)
         {
             uint typeId = (uint)Interlocked.Add(ref m_nodeIdCount, 100);
-            var complexTypeStructure = new StructureDefinition() {
+            var complexTypeStructure = new StructureDefinition()
+            {
                 BaseDataType = structureType == StructureType.Union ?
                     DataTypeIds.Union : DataTypeIds.Structure,
                 DefaultEncodingId = null,
@@ -199,7 +200,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     continue;
                 }
 
-                collection.Add(new StructureField() {
+                collection.Add(new StructureField()
+                {
                     Name = builtInType.ToString(),
                     DataType = new NodeId((uint)builtInType),
                     ArrayDimensions = null,

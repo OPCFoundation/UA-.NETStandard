@@ -904,7 +904,8 @@ namespace Opc.Ua.Test
                 return body;
             }
 
-            IServiceMessageContext context = new ServiceMessageContext() {
+            IServiceMessageContext context = new ServiceMessageContext()
+            {
                 Factory = EncodeableFactory
             };
 

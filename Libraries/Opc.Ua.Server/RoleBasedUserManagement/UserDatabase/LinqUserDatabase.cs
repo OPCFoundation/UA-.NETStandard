@@ -132,12 +132,7 @@ namespace Opc.Ua.Server.UserDatabase
             {
                 throw new ArgumentException("UserName cannot be empty.", nameof(userName));
             }
-            User user = Users.SingleOrDefault(x => x.UserName == userName);
-
-            if (user == null)
-            {
-                throw new ArgumentException("No user found with the UserName " + userName);
-            }
+            User user = Users.SingleOrDefault(x => x.UserName == userName) ?? throw new ArgumentException("No user found with the UserName " + userName);
 
             return user.Roles;
         }

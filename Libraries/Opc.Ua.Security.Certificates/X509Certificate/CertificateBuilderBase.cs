@@ -60,7 +60,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         protected CertificateBuilderBase(X500DistinguishedName subjectName)
         {
-            m_issuerName = SubjectName = subjectName;
+            IssuerName = SubjectName = subjectName;
             Initialize();
         }
 
@@ -69,7 +69,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         protected CertificateBuilderBase(string subjectName)
         {
-            m_issuerName = SubjectName = new X500DistinguishedName(subjectName);
+            IssuerName = SubjectName = new X500DistinguishedName(subjectName);
             Initialize();
         }
 
@@ -78,9 +78,9 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         protected virtual void Initialize()
         {
-            m_notBefore = DateTime.UtcNow.AddDays(-1).Date;
-            m_notAfter = NotBefore.AddMonths(X509Defaults.LifeTime);
-            m_hashAlgorithmName = X509Defaults.HashAlgorithmName;
+            NotBefore = DateTime.UtcNow.AddDays(-1).Date;
+            NotAfter = NotBefore.AddMonths(X509Defaults.LifeTime);
+            HashAlgorithmName = X509Defaults.HashAlgorithmName;
             m_serialNumberLength = X509Defaults.SerialNumberLengthMin;
             m_extensions = [];
         }
@@ -89,13 +89,13 @@ namespace Opc.Ua.Security.Certificates
         public X500DistinguishedName SubjectName { get; }
 
         /// <inheritdoc/>
-        public X500DistinguishedName IssuerName => m_issuerName;
+        public X500DistinguishedName IssuerName { get; private set; }
 
         /// <inheritdoc/>
-        public DateTime NotBefore => m_notBefore;
+        public DateTime NotBefore { get; private set; }
 
         /// <inheritdoc/>
-        public DateTime NotAfter => m_notAfter;
+        public DateTime NotAfter { get; private set; }
 
         /// <inheritdoc/>
         public string SerialNumber => m_serialNumber.ToHexString(true);
@@ -104,7 +104,7 @@ namespace Opc.Ua.Security.Certificates
         public byte[] GetSerialNumber() { return m_serialNumber; }
 
         /// <inheritdoc/>
-        public HashAlgorithmName HashAlgorithmName => m_hashAlgorithmName;
+        public HashAlgorithmName HashAlgorithmName { get; private set; }
 
         /// <inheritdoc/>
         public X509ExtensionCollection Extensions => m_extensions;
@@ -161,35 +161,35 @@ namespace Opc.Ua.Security.Certificates
         /// <inheritdoc/>
         public ICertificateBuilder SetNotBefore(DateTime notBefore)
         {
-            m_notBefore = notBefore;
+            NotBefore = notBefore;
             return this;
         }
 
         /// <inheritdoc/>
         public ICertificateBuilder SetNotAfter(DateTime notAfter)
         {
-            m_notAfter = notAfter;
+            NotAfter = notAfter;
             return this;
         }
 
         /// <inheritdoc/>
         public ICertificateBuilder SetLifeTime(TimeSpan lifeTime)
         {
-            m_notAfter = m_notBefore.Add(lifeTime);
+            NotAfter = NotBefore.Add(lifeTime);
             return this;
         }
 
         /// <inheritdoc/>
         public ICertificateBuilder SetLifeTime(ushort months)
         {
-            m_notAfter = m_notBefore.AddMonths(months == 0 ? X509Defaults.LifeTime : months);
+            NotAfter = NotBefore.AddMonths(months == 0 ? X509Defaults.LifeTime : months);
             return this;
         }
 
         /// <inheritdoc/>
         public ICertificateBuilder SetHashAlgorithm(HashAlgorithmName hashAlgorithmName)
         {
-            m_hashAlgorithmName = hashAlgorithmName;
+            HashAlgorithmName = hashAlgorithmName;
             return this;
         }
 
@@ -238,7 +238,7 @@ namespace Opc.Ua.Security.Certificates
             m_curve = curve;
 
             // HashAlgorithmName.SHA256 is the default value
-            if (m_hashAlgorithmName == X509Defaults.HashAlgorithmName)
+            if (HashAlgorithmName == X509Defaults.HashAlgorithmName)
             {
                 SetHashAlgorithmSize(curve);
             }
@@ -269,8 +269,8 @@ namespace Opc.Ua.Security.Certificates
         /// <inheritdoc/>
         public virtual ICertificateBuilderIssuer SetIssuer(X509Certificate2 issuerCertificate)
         {
-            m_issuerCAKeyCert = issuerCertificate ?? throw new ArgumentNullException(nameof(issuerCertificate));
-            m_issuerName = issuerCertificate.SubjectName;
+            IssuerCAKeyCert = issuerCertificate ?? throw new ArgumentNullException(nameof(issuerCertificate));
+            IssuerName = issuerCertificate.SubjectName;
             return this;
         }
 
@@ -301,7 +301,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// The issuer CA certificate.
         /// </summary>
-        protected X509Certificate2 IssuerCAKeyCert => m_issuerCAKeyCert;
+        protected X509Certificate2 IssuerCAKeyCert { get; private set; }
 
         /// <summary>
         /// Validate and adjust settings to avoid creation of invalid certificates.
@@ -309,15 +309,15 @@ namespace Opc.Ua.Security.Certificates
         protected void ValidateSettings()
         {
             // lifetime must be in range of issuer
-            if (m_issuerCAKeyCert != null)
+            if (IssuerCAKeyCert != null)
             {
-                if (NotAfter.ToUniversalTime() > m_issuerCAKeyCert.NotAfter.ToUniversalTime())
+                if (NotAfter.ToUniversalTime() > IssuerCAKeyCert.NotAfter.ToUniversalTime())
                 {
-                    m_notAfter = m_issuerCAKeyCert.NotAfter.ToUniversalTime();
+                    NotAfter = IssuerCAKeyCert.NotAfter.ToUniversalTime();
                 }
-                if (NotBefore.ToUniversalTime() < m_issuerCAKeyCert.NotBefore.ToUniversalTime())
+                if (NotBefore.ToUniversalTime() < IssuerCAKeyCert.NotBefore.ToUniversalTime())
                 {
-                    m_notBefore = m_issuerCAKeyCert.NotBefore.ToUniversalTime();
+                    NotBefore = IssuerCAKeyCert.NotBefore.ToUniversalTime();
                 }
             }
         }
@@ -380,10 +380,5 @@ namespace Opc.Ua.Security.Certificates
         private protected ECCurve? m_curve;
 #endif
 
-        private X509Certificate2 m_issuerCAKeyCert;
-        private DateTime m_notBefore;
-        private DateTime m_notAfter;
-        private HashAlgorithmName m_hashAlgorithmName;
-        private X500DistinguishedName m_issuerName;
     }
 }

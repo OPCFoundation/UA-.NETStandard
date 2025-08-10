@@ -108,12 +108,10 @@ namespace TestData
             m_isForward = m_startTime < m_endTime;
             m_position = -1;
 
-            DataValue value = null;
-
             // get first bound.
             if (m_request.ReturnBounds)
             {
-                value = m_source.FirstRaw(m_startTime, !m_isForward, m_request.IsReadModified, out m_position);
+                DataValue value = m_source.FirstRaw(m_startTime, !m_isForward, m_request.IsReadModified, out m_position);
 
                 if (value != null)
                 {
@@ -138,8 +136,7 @@ namespace TestData
             QualifiedName dataEncoding,
             DataValueCollection values)
         {
-            DataValue value = null;
-
+            DataValue value;
             do
             {
                 // check for limit.

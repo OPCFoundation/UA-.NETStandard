@@ -42,11 +42,13 @@ namespace Opc.Ua.Server
         /// </summary>
         protected AggregateCalculator(NodeId aggregateId)
         {
-            var configuration = new AggregateConfiguration();
-            configuration.TreatUncertainAsBad = false;
-            configuration.PercentDataBad = 100;
-            configuration.PercentDataGood = 100;
-            configuration.UseSlopedExtrapolation = false;
+            var configuration = new AggregateConfiguration
+            {
+                TreatUncertainAsBad = false,
+                PercentDataBad = 100,
+                PercentDataGood = 100,
+                UseSlopedExtrapolation = false
+            };
             Initialize(aggregateId, DateTime.UtcNow, DateTime.MaxValue, 1000, false, configuration);
         }
 
@@ -712,8 +714,7 @@ namespace Opc.Ua.Server
             }
 
             // check if no more data needs to be collected.
-            LinkedListNode<DataValue> requiredBound = null;
-
+            LinkedListNode<DataValue> requiredBound;
             if (TimeFlowsBackward)
             {
                 // only need second early bound if using sloped extrapolation and there is no late bound.
@@ -811,9 +812,11 @@ namespace Opc.Ua.Server
         /// <returns>The interpolated value.</returns>
         protected DataValue Interpolate(DateTime timestamp, TimeSlice reference)
         {
-            var slice = new TimeSlice();
-            slice.StartTime = timestamp;
-            slice.EndTime = timestamp;
+            var slice = new TimeSlice
+            {
+                StartTime = timestamp,
+                EndTime = timestamp
+            };
             UpdateSlice(slice);
 
             // check for value at the timestamp.
@@ -822,9 +825,10 @@ namespace Opc.Ua.Server
                 return slice.Begin.Value;
             }
 
-            DataValue dataValue = null;
             bool stepped = Stepped;
 
+
+            DataValue dataValue;
             // check if the required bounds are available.
             if (!Stepped)
             {
@@ -886,11 +890,13 @@ namespace Opc.Ua.Server
                 return new DataValue(Variant.Null, StatusCodes.BadNoData, timestamp, timestamp);
             }
 
-            var dataValue = new DataValue();
-            dataValue.WrappedValue = earlyBound.WrappedValue;
-            dataValue.SourceTimestamp = timestamp;
-            dataValue.ServerTimestamp = timestamp;
-            dataValue.StatusCode = StatusCodes.Good;
+            var dataValue = new DataValue
+            {
+                WrappedValue = earlyBound.WrappedValue,
+                SourceTimestamp = timestamp,
+                ServerTimestamp = timestamp,
+                StatusCode = StatusCodes.Good
+            };
 
             // update status code.
             if (StatusCode.IsBad(earlyBound.StatusCode))
@@ -944,11 +950,13 @@ namespace Opc.Ua.Server
                 double calculatedValue = (slope * (timestamp - earlyBound.SourceTimestamp).TotalMilliseconds) + earlyValue;
 
                 // convert back to original type.
-                var dataValue = new DataValue();
-                dataValue.WrappedValue = CastToOriginalType(calculatedValue, earlyBound);
-                dataValue.SourceTimestamp = timestamp;
-                dataValue.ServerTimestamp = timestamp;
-                dataValue.StatusCode = StatusCodes.Good;
+                var dataValue = new DataValue
+                {
+                    WrappedValue = CastToOriginalType(calculatedValue, earlyBound),
+                    SourceTimestamp = timestamp,
+                    ServerTimestamp = timestamp,
+                    StatusCode = StatusCodes.Good
+                };
 
                 // update status code.
                 if (StatusCode.IsNotGood(earlyBound.StatusCode) || StatusCode.IsNotGood(lateBound.StatusCode))
@@ -1361,12 +1369,14 @@ namespace Opc.Ua.Server
                 }
 
                 // start a new region.
-                currentRegion = new SubRegion();
-                currentRegion.StartValue = currentValue;
-                currentRegion.EndValue = currentValue;
-                currentRegion.StartTime = currentTime;
-                currentRegion.StatusCode = currentStatus;
-                currentRegion.DataPoint = values[ii];
+                currentRegion = new SubRegion
+                {
+                    StartValue = currentValue,
+                    EndValue = currentValue,
+                    StartTime = currentTime,
+                    StatusCode = currentStatus,
+                    DataPoint = values[ii]
+                };
             }
 
             return regions;

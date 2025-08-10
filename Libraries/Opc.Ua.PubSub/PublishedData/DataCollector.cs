@@ -124,8 +124,10 @@ namespace Opc.Ua.PubSub.PublishedData
 
                 if (publishedDataSet.DataSetSource != null)
                 {
-                    var dataSet = new DataSet(dataSetName);
-                    dataSet.DataSetMetaData = publishedDataSet.DataSetMetaData;
+                    var dataSet = new DataSet(dataSetName)
+                    {
+                        DataSetMetaData = publishedDataSet.DataSetMetaData
+                    };
 
                     if (ExtensionObject.ToEncodeable(publishedDataSet.DataSetSource) is PublishedDataItemsDataType publishedDataItems && publishedDataItems.PublishedData != null && publishedDataItems.PublishedData.Count > 0)
                     {
@@ -135,10 +137,11 @@ namespace Opc.Ua.PubSub.PublishedData
                             try
                             {
                                 PublishedVariableDataType publishedVariable = publishedDataItems.PublishedData[i];
-                                dataSet.Fields[i] = new Field();
-
-                                // set FieldMetaData property
-                                dataSet.Fields[i].FieldMetaData = publishedDataSet.DataSetMetaData.Fields[i];
+                                dataSet.Fields[i] = new Field
+                                {
+                                    // set FieldMetaData property
+                                    FieldMetaData = publishedDataSet.DataSetMetaData.Fields[i]
+                                };
 
                                 // retrieve value from DataStore 
                                 DataValue dataValue = null;

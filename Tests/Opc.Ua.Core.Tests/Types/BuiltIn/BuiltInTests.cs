@@ -117,7 +117,6 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             var variant3 = new Variant(variant2);
             Assert.AreEqual(builtInType, variant3.TypeInfo.BuiltInType);
             // implicit
-            Variant variant4 = variant1;
         }
 
         /// <summary>
@@ -708,7 +707,8 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
 
             var nodeIdBasedDataValue = new DataValue(new Variant(nodeId));
 
-            var dataValue = new DataValue(Attributes.NodeClass) {
+            var dataValue = new DataValue(Attributes.NodeClass)
+            {
                 WrappedValue = new Variant((int)Attributes.NodeClass), // without this cast the second and third asserts evaluate correctly.
                 StatusCode = nodeIdBasedDataValue.StatusCode
             };

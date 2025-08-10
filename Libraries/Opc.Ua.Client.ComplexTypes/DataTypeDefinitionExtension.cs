@@ -63,7 +63,8 @@ namespace Opc.Ua.Client.ComplexTypes
             NamespaceTable namespaceTable,
             NodeId dataTypeNodeId)
         {
-            var structureDefinition = new StructureDefinition() {
+            var structureDefinition = new StructureDefinition()
+            {
                 BaseDataType = null,
                 DefaultEncodingId = ExpandedNodeId.ToNodeId(defaultEncodingId, namespaceTable),
                 Fields = [],
@@ -165,7 +166,8 @@ namespace Opc.Ua.Client.ComplexTypes
                 {
                     fieldDataTypeNodeId = field.TypeName.ToNodeId(typeDictionary);
                 }
-                var dataTypeField = new StructureField() {
+                var dataTypeField = new StructureField()
+                {
                     Name = field.Name,
                     Description = null,
                     DataType = fieldDataTypeNodeId,
@@ -249,7 +251,8 @@ namespace Opc.Ua.Client.ComplexTypes
                         fieldName = $"{enumTypeName}_{enumValue.Value}";
                     }
 
-                    var enumTypeField = new EnumField {
+                    var enumTypeField = new EnumField
+                    {
                         Name = fieldName,
                         Value = enumValue.Value,
                         Description = enumValue.Documentation?.Text?.FirstOrDefault(),
@@ -291,7 +294,8 @@ namespace Opc.Ua.Client.ComplexTypes
                     name = $"{enumTypeName}_{enumValue.Value}";
                 }
 
-                var enumTypeField = new EnumField {
+                var enumTypeField = new EnumField
+                {
                     Name = name,
                     Value = enumValue.Value,
                     DisplayName = name
@@ -325,7 +329,8 @@ namespace Opc.Ua.Client.ComplexTypes
                     name = $"{enumTypeName}_{ii}";
                 }
 
-                var enumTypeField = new EnumField {
+                var enumTypeField = new EnumField
+                {
                     Name = name,
                     Value = ii,
                     DisplayName = name

@@ -119,7 +119,8 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         [OneTimeSetUp]
         protected void OneTimeSetUp()
         {
-            var configuration = new ApplicationConfiguration {
+            var configuration = new ApplicationConfiguration
+            {
                 ApplicationName = "Test",
                 ApplicationType = ApplicationType.Server,
                 ApplicationUri = "urn:localhost:UA:Test",
@@ -181,35 +182,42 @@ namespace Opc.Ua.Core.Tests.Stack.Server
 
             // add security policies.
             configuration.ServerConfiguration.SecurityPolicies.Add(new ServerSecurityPolicy());
-            configuration.ServerConfiguration.SecurityPolicies.Add(new ServerSecurityPolicy() {
+            configuration.ServerConfiguration.SecurityPolicies.Add(new ServerSecurityPolicy()
+            {
                 SecurityMode = MessageSecurityMode.None,
                 SecurityPolicyUri = SecurityPolicies.None
             });
-            configuration.ServerConfiguration.SecurityPolicies.Add(new ServerSecurityPolicy() {
+            configuration.ServerConfiguration.SecurityPolicies.Add(new ServerSecurityPolicy()
+            {
                 SecurityMode = MessageSecurityMode.Sign,
                 SecurityPolicyUri = SecurityPolicies.Aes128_Sha256_RsaOaep
             });
-            configuration.ServerConfiguration.SecurityPolicies.Add(new ServerSecurityPolicy() {
+            configuration.ServerConfiguration.SecurityPolicies.Add(new ServerSecurityPolicy()
+            {
                 SecurityMode = MessageSecurityMode.SignAndEncrypt,
                 SecurityPolicyUri = SecurityPolicies.Aes256_Sha256_RsaPss
             });
 
             // ensure at least one user token policy exists.
-            var userTokenPolicyAnonymous = new UserTokenPolicy {
+            var userTokenPolicyAnonymous = new UserTokenPolicy
+            {
                 TokenType = UserTokenType.Anonymous,
             };
             configuration.ServerConfiguration.UserTokenPolicies.Add(userTokenPolicyAnonymous);
-            var userTokenPolicyUserName = new UserTokenPolicy {
+            var userTokenPolicyUserName = new UserTokenPolicy
+            {
                 TokenType = UserTokenType.UserName,
             };
             configuration.ServerConfiguration.UserTokenPolicies.Add(userTokenPolicyUserName);
-            var userTokenPolicyCertificate = new UserTokenPolicy {
+            var userTokenPolicyCertificate = new UserTokenPolicy
+            {
                 TokenType = UserTokenType.Certificate,
             };
             configuration.ServerConfiguration.UserTokenPolicies.Add(userTokenPolicyCertificate);
 
             // set server description.
-            m_serverDescription = new ApplicationDescription {
+            m_serverDescription = new ApplicationDescription
+            {
                 ApplicationUri = configuration.ApplicationUri,
                 ApplicationName = new LocalizedText("en-US", configuration.ApplicationName),
                 ApplicationType = configuration.ApplicationType,
@@ -249,7 +257,8 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                         continue;
                     }
 
-                    var endpoint = new EndpointDescription {
+                    var endpoint = new EndpointDescription
+                    {
                         EndpointUrl = baseAddress,
                         Server = m_serverDescription,
                         TransportProfileUri = transportProfileUri,

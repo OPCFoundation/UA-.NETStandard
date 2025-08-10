@@ -525,10 +525,7 @@ namespace Opc.Ua
                 typeInfo.Deleted = false;
 
                 // add to supertype.
-                if (superTypeInfo != null)
-                {
-                    superTypeInfo.AddSubType(typeInfo);
-                }
+                superTypeInfo?.AddSubType(typeInfo);
 
                 // remove the encodings.
                 if (typeInfo.Encodings != null)
@@ -669,10 +666,7 @@ namespace Opc.Ua
                 typeInfo.Deleted = false;
 
                 // add to supertype.
-                if (superTypeInfo != null)
-                {
-                    superTypeInfo.AddSubType(typeInfo);
-                }
+                superTypeInfo?.AddSubType(typeInfo);
 
                 // remove the encodings.
                 if (typeInfo.Encodings != null)
@@ -725,10 +719,7 @@ namespace Opc.Ua
                 typeInfo.Deleted = true;
 
                 // remove from subtype list.
-                if (typeInfo.SuperType != null)
-                {
-                    typeInfo.SuperType.RemoveSubType(localId);
-                }
+                typeInfo.SuperType?.RemoveSubType(localId);
 
                 // remove encodings.
                 if (typeInfo.Encodings != null)

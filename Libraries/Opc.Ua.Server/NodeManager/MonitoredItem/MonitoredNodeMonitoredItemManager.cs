@@ -133,8 +133,7 @@ namespace Opc.Ua.Server
         public StatusCode DeleteMonitoredItem(ServerSystemContext context, ISampledDataChangeMonitoredItem monitoredItem, NodeHandle handle)
         {
             // check if the node is already being monitored.
-            MonitoredNode2 monitoredNode = null;
-
+            MonitoredNode2 monitoredNode;
             if (MonitoredNodes.TryGetValue(handle.NodeId, out monitoredNode))
             {
                 monitoredNode.Remove(monitoredItem);
@@ -179,8 +178,7 @@ namespace Opc.Ua.Server
                                          out ISampledDataChangeMonitoredItem monitoredItem)
         {
             // check if the node is already being monitored.
-            MonitoredNode2 monitoredNode = null;
-
+            MonitoredNode2 monitoredNode;
             if (!MonitoredNodes.TryGetValue(handle.Node.NodeId, out monitoredNode))
             {
                 NodeState cachedNode = AddNodeToComponentCache(context, handle, handle.Node);
@@ -268,12 +266,9 @@ namespace Opc.Ua.Server
                 MonitoredNodes[source.NodeId] = monitoredNode = new MonitoredNode2(m_nodeManager, source);
             }
 
-            if (monitoredNode.EventMonitoredItems != null)
-            {
-                // remove existing monitored items with the same Id prior to insertion in order to avoid duplicates
-                // this is necessary since the SubscribeToEvents method is called also from ModifyMonitoredItemsForEvents
-                monitoredNode.EventMonitoredItems.RemoveAll(e => e.Id == monitoredItem.Id);
-            }
+            // remove existing monitored items with the same Id prior to insertion in order to avoid duplicates
+            // this is necessary since the SubscribeToEvents method is called also from ModifyMonitoredItemsForEvents
+            monitoredNode.EventMonitoredItems?.RemoveAll(e => e.Id == monitoredItem.Id);
 
             // this links the node to specified monitored item and ensures all events
             // reported by the node are added to the monitored item's queue.

@@ -208,19 +208,20 @@ namespace Opc.Ua.PubSub.Transport
                         if (hasMetaDataChanged)
                         {
                             // add metadata network message
-                            networkMessages.Add(new UadpNetworkMessage(writerGroupConfiguration, dataSet.DataSetMetaData) {
+                            networkMessages.Add(new UadpNetworkMessage(writerGroupConfiguration, dataSet.DataSetMetaData)
+                            {
                                 PublisherId = PubSubConnectionConfiguration.PublisherId.Value,
                                 DataSetWriterId = dataSetWriter.DataSetWriterId
                             });
                         }
 
-                        var dataSetMessageSettings = ExtensionObject.ToEncodeable(dataSetWriter.MessageSettings) as
-                                UadpDataSetWriterMessageDataType;
                         // check MessageSettings to see how to encode DataSet
-                        if (dataSetMessageSettings != null)
+                        if (ExtensionObject.ToEncodeable(dataSetWriter.MessageSettings) is UadpDataSetWriterMessageDataType dataSetMessageSettings)
                         {
-                            var uadpDataSetMessage = new UadpDataSetMessage(dataSet);
-                            uadpDataSetMessage.DataSetWriterId = dataSetWriter.DataSetWriterId;
+                            var uadpDataSetMessage = new UadpDataSetMessage(dataSet)
+                            {
+                                DataSetWriterId = dataSetWriter.DataSetWriterId
+                            };
                             uadpDataSetMessage.SetMessageContentMask((UadpDataSetMessageContentMask)dataSetMessageSettings.DataSetMessageContentMask);
                             uadpDataSetMessage.SetFieldContentMask((DataSetFieldContentMask)dataSetWriter.DataSetFieldContentMask);
                             uadpDataSetMessage.SequenceNumber = (ushort)(Utils.IncrementIdentifier(ref s_dataSetSequenceNumber) % ushort.MaxValue);
@@ -279,9 +280,11 @@ namespace Opc.Ua.PubSub.Transport
                         DataSetMetaDataType metaData = Application.DataCollector.GetPublishedDataSet(writer.DataSetName)?.DataSetMetaData;
                         if (metaData != null)
                         {
-                            var networkMessage = new UadpNetworkMessage(writerGroup, metaData);
-                            networkMessage.PublisherId = PubSubConnectionConfiguration.PublisherId.Value;
-                            networkMessage.DataSetWriterId = dataSetWriterId;
+                            var networkMessage = new UadpNetworkMessage(writerGroup, metaData)
+                            {
+                                PublisherId = PubSubConnectionConfiguration.PublisherId.Value,
+                                DataSetWriterId = dataSetWriterId
+                            };
 
                             networkMessages.Add(networkMessage);
                         }
@@ -305,9 +308,10 @@ namespace Opc.Ua.PubSub.Transport
             {
                 var networkMessage = new UadpNetworkMessage(response.DataSetWriterIds,
                     response.DataSetWriterConfig,
-                    response.StatusCodes);
-
-                networkMessage.PublisherId = PubSubConnectionConfiguration.PublisherId.Value;
+                    response.StatusCodes)
+                {
+                    PublisherId = PubSubConnectionConfiguration.PublisherId.Value
+                };
                 networkMessage.MessageStatusCodes.ToList().AddRange(response.StatusCodes);
                 networkMessages.Add(networkMessage);
             }
@@ -407,8 +411,10 @@ namespace Opc.Ua.PubSub.Transport
             if (PubSubConnectionConfiguration != null &&
                 PubSubConnectionConfiguration.TransportProfileUri == Profiles.PubSubUdpUadpTransport)
             {
-                var networkMessage = new UadpNetworkMessage(endpoints, publisherProvideEndpointsStatusCode);
-                networkMessage.PublisherId = publisherId;
+                var networkMessage = new UadpNetworkMessage(endpoints, publisherProvideEndpointsStatusCode)
+                {
+                    PublisherId = publisherId
+                };
 
                 return networkMessage;
             }
@@ -448,10 +454,7 @@ namespace Opc.Ua.PubSub.Transport
         /// </summary>
         public void RequestDataSetMetaData()
         {
-            if (m_udpDiscoverySubscriber != null)
-            {
-                m_udpDiscoverySubscriber.SendDiscoveryRequestDataSetMetaData();
-            }
+            m_udpDiscoverySubscriber?.SendDiscoveryRequestDataSetMetaData();
         }
 
         /// <summary>
@@ -459,9 +462,7 @@ namespace Opc.Ua.PubSub.Transport
         /// </summary>
         private void Initialize()
         {
-            var networkAddressUrlState = ExtensionObject.ToEncodeable(PubSubConnectionConfiguration.Address)
-                       as NetworkAddressUrlDataType;
-            if (networkAddressUrlState == null)
+            if (ExtensionObject.ToEncodeable(PubSubConnectionConfiguration.Address) is not NetworkAddressUrlDataType networkAddressUrlState)
             {
                 Utils.Trace(Utils.TraceMasks.Error, "The configuration for connection {0} has invalid Address configuration.",
                           PubSubConnectionConfiguration.Name);
@@ -550,7 +551,8 @@ namespace Opc.Ua.PubSub.Transport
                     if (message.Length > 1)
                     {
                         // raise RawData received event
-                        var rawDataReceivedEventArgs = new RawDataReceivedEventArgs() {
+                        var rawDataReceivedEventArgs = new RawDataReceivedEventArgs()
+                        {
                             Message = message,
                             Source = source.Address.ToString(),
                             TransportProtocol = TransportProtocol,
@@ -619,10 +621,7 @@ namespace Opc.Ua.PubSub.Transport
             socket.Close();
             socket.Dispose();
 
-            if (newsocket != null)
-            {
-                newsocket.BeginReceive(new AsyncCallback(OnUadpReceive), newsocket);
-            }
+            newsocket?.BeginReceive(new AsyncCallback(OnUadpReceive), newsocket);
         }
 
         /// <summary>

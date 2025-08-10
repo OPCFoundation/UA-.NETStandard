@@ -162,7 +162,8 @@ namespace Opc.Ua.Bindings
 
                 // auto validate server cert, if supported
                 // if unsupported, the TLS server cert must be trusted by a root CA
-                var handler = new HttpClientHandler {
+                var handler = new HttpClientHandler
+                {
                     ClientCertificateOptions = ClientCertificateOption.Manual,
                     AllowAutoRedirect = false,
                     MaxRequestContentBufferSize = m_quotas.MaxMessageSize,
@@ -208,7 +209,8 @@ namespace Opc.Ua.Bindings
                     try
                     {
                         serverCertificateCustomValidationCallback =
-                            (httpRequestMessage, cert, chain, policyErrors) => {
+                            (httpRequestMessage, cert, chain, policyErrors) =>
+                            {
                                 try
                                 {
                                     var validationChain = new X509Certificate2Collection();
@@ -312,7 +314,8 @@ namespace Opc.Ua.Bindings
 
                 var result = new HttpsAsyncResult(callback, callbackData, OperationTimeout, request, null);
 
-                _ = Task.Run(async () => {
+                _ = Task.Run(async () =>
+                {
                     try
                     {
                         using var cts = new CancellationTokenSource(OperationTimeout);
@@ -334,7 +337,8 @@ namespace Opc.Ua.Bindings
             catch (Exception ex)
             {
                 Utils.LogError(ex, "Exception sending HTTPS request.");
-                var result = new HttpsAsyncResult(callback, callbackData, OperationTimeout, request, response) {
+                var result = new HttpsAsyncResult(callback, callbackData, OperationTimeout, request, response)
+                {
                     Exception = ex
                 };
                 result.OperationCompleted();
@@ -518,13 +522,15 @@ namespace Opc.Ua.Bindings
             OperationTimeout = settings.Configuration.OperationTimeout;
 
             // initialize the quotas.
-            m_quotas = new ChannelQuotas {
+            m_quotas = new ChannelQuotas
+            {
                 MaxBufferSize = m_settings.Configuration.MaxBufferSize,
                 MaxMessageSize = m_settings.Configuration.MaxMessageSize,
                 ChannelLifetime = m_settings.Configuration.ChannelLifetime,
                 SecurityTokenLifetime = m_settings.Configuration.SecurityTokenLifetime,
 
-                MessageContext = new ServiceMessageContext {
+                MessageContext = new ServiceMessageContext
+                {
                     MaxArrayLength = m_settings.Configuration.MaxArrayLength,
                     MaxByteStringLength = m_settings.Configuration.MaxByteStringLength,
                     MaxMessageSize = m_settings.Configuration.MaxMessageSize,

@@ -447,15 +447,12 @@ namespace Opc.Ua.Gds.Server.Database
 
                     buffer.Append(ch);
                     ii++;
-
-                    int start = 0;
-                    int end = 0;
                     while (ii < pattern.Length && pattern[ii] != ']')
                     {
                         if (pattern[ii] == '-' && ii > 0 && ii < pattern.Length - 1)
                         {
-                            start = Convert.ToInt32(pattern[ii - 1]) + 1;
-                            end = Convert.ToInt32(pattern[ii + 1]);
+                            int start = Convert.ToInt32(pattern[ii - 1]) + 1;
+                            int end = Convert.ToInt32(pattern[ii + 1]);
 
                             while (start < end)
                             {

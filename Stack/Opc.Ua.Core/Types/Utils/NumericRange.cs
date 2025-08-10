@@ -459,7 +459,6 @@ namespace Opc.Ua
         private readonly StatusCode ApplyMultiRange(ref object value)
         {
             var array = value as Array;
-            TypeInfo typeInfo = null;
 
             // check for matrix.
             if (array == null)
@@ -473,7 +472,7 @@ namespace Opc.Ua
                 array = matrix.ToArray();
             }
 
-            typeInfo = TypeInfo.Construct(array);
+            var typeInfo = TypeInfo.Construct(array);
 
             // check for matching dimensions.
             NumericRange? finalRange = null;
@@ -963,8 +962,7 @@ namespace Opc.Ua
             }
 
             // get length.
-            int length = 0;
-
+            int length;
             if (list != null)
             {
                 length = list.Count;
@@ -1004,9 +1002,10 @@ namespace Opc.Ua
                 end = length - 1;
             }
 
-            Array clone = null;
             int subLength = end - begin + 1;
 
+
+            Array clone;
             // check for list.
             if (list != null && typeInfo != null)
             {

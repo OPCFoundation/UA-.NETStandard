@@ -59,7 +59,7 @@ namespace Opc.Ua.Client
         public MonitoredItem(uint clientHandle)
         {
             Initialize();
-            m_clientHandle = clientHandle;
+            ClientHandle = clientHandle;
         }
 
         /// <summary>
@@ -112,7 +112,7 @@ namespace Opc.Ua.Client
                 }
 
                 Handle = template.Handle;
-                DisplayName = Utils.Format("{0} {1}", displayName, m_clientHandle);
+                DisplayName = Utils.Format("{0} {1}", displayName, ClientHandle);
                 StartNodeId = template.StartNodeId;
                 m_relativePath = template.m_relativePath;
                 AttributeId = template.AttributeId;
@@ -123,7 +123,7 @@ namespace Opc.Ua.Client
                 m_filter = Utils.Clone(template.m_filter);
                 m_queueSize = template.m_queueSize;
                 m_discardOldest = template.m_discardOldest;
-                m_attributesModified = true;
+                AttributesModified = true;
 
                 if (copyEventHandlers)
                 {
@@ -132,7 +132,7 @@ namespace Opc.Ua.Client
 
                 if (copyClientHandle)
                 {
-                    m_clientHandle = template.m_clientHandle;
+                    ClientHandle = template.ClientHandle;
                 }
 
                 // this ensures the state is consistent with the node class.
@@ -159,7 +159,7 @@ namespace Opc.Ua.Client
         {
             StartNodeId = null;
             m_relativePath = null;
-            m_clientHandle = 0;
+            ClientHandle = 0;
             AttributeId = Attributes.Value;
             IndexRange = null;
             Encoding = null;
@@ -168,14 +168,14 @@ namespace Opc.Ua.Client
             m_filter = null;
             m_queueSize = 0;
             m_discardOldest = true;
-            m_attributesModified = true;
-            m_status = new MonitoredItemStatus();
+            AttributesModified = true;
+            Status = new MonitoredItemStatus();
 
             // this ensures the state is consistent with the node class.
             NodeClass = NodeClass.Variable;
 
             // assign a unique handle.
-            m_clientHandle = Utils.IncrementIdentifier(ref s_globalClientHandle);
+            ClientHandle = Utils.IncrementIdentifier(ref s_globalClientHandle);
         }
 
         /// <summary>
@@ -302,7 +302,7 @@ namespace Opc.Ua.Client
             {
                 if (m_samplingInterval != value)
                 {
-                    m_attributesModified = true;
+                    AttributesModified = true;
                 }
 
                 m_samplingInterval = value;
@@ -322,7 +322,7 @@ namespace Opc.Ua.Client
                 // validate filter against node class.
                 ValidateFilter(m_nodeClass, value);
 
-                m_attributesModified = true;
+                AttributesModified = true;
                 m_filter = value;
             }
         }
@@ -339,7 +339,7 @@ namespace Opc.Ua.Client
             {
                 if (m_queueSize != value)
                 {
-                    m_attributesModified = true;
+                    AttributesModified = true;
                 }
 
                 m_queueSize = value;
@@ -358,7 +358,7 @@ namespace Opc.Ua.Client
             {
                 if (m_discardOldest != value)
                 {
-                    m_attributesModified = true;
+                    AttributesModified = true;
                 }
 
                 m_discardOldest = value;
@@ -371,7 +371,7 @@ namespace Opc.Ua.Client
         [DataMember(Order = 13)]
         public uint ServerId
         {
-            get => m_status.Id; set => m_status.Id = value;
+            get => Status.Id; set => Status.Id = value;
         }
 
         /// <summary>
@@ -387,12 +387,12 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Whether the item has been created on the server.
         /// </summary>
-        public bool Created => m_status.Created;
+        public bool Created => Status.Created;
 
         /// <summary>
         /// The identifier assigned by the client.
         /// </summary>
-        public uint ClientHandle => m_clientHandle;
+        public uint ClientHandle { get; private set; }
 
         /// <summary>
         /// The node id to monitor after applying any relative path.
@@ -416,12 +416,12 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Whether the monitoring attributes have been modified since the item was created.
         /// </summary>
-        public bool AttributesModified => m_attributesModified;
+        public bool AttributesModified { get; private set; }
 
         /// <summary>
         /// The status associated with the monitored item.
         /// </summary>
-        public MonitoredItemStatus Status => m_status;
+        public MonitoredItemStatus Status { get; private set; }
 
         /// <summary>
         /// Returns the queue size used by the cache.
@@ -452,15 +452,9 @@ namespace Opc.Ua.Client
                 {
                     EnsureCacheIsInitialized();
 
-                    if (m_dataCache != null)
-                    {
-                        m_dataCache.SetQueueSize(value);
-                    }
+                    m_dataCache?.SetQueueSize(value);
 
-                    if (m_eventCache != null)
-                    {
-                        m_eventCache.SetQueueSize(value);
-                    }
+                    m_eventCache?.SetQueueSize(value);
                 }
             }
         }
@@ -653,7 +647,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public void SetError(ServiceResult error)
         {
-            m_status.SetError(error);
+            Status.SetError(error);
         }
 
         /// <summary>
@@ -682,7 +676,7 @@ namespace Opc.Ua.Client
                 }
             }
 
-            m_status.SetResolvePathResult(result, error);
+            Status.SetResolvePathResult(result, error);
         }
 
         /// <summary>
@@ -702,8 +696,8 @@ namespace Opc.Ua.Client
                 error = ClientBase.GetResult(result.StatusCode, index, diagnosticInfos, responseHeader);
             }
 
-            m_status.SetCreateResult(request, result, error);
-            m_attributesModified = false;
+            Status.SetCreateResult(request, result, error);
+            AttributesModified = false;
         }
 
         /// <summary>
@@ -723,8 +717,8 @@ namespace Opc.Ua.Client
                 error = ClientBase.GetResult(result.StatusCode, index, diagnosticInfos, responseHeader);
             }
 
-            m_status.SetModifyResult(request, result, error);
-            m_attributesModified = false;
+            Status.SetModifyResult(request, result, error);
+            AttributesModified = false;
         }
 
         /// <summary>
@@ -734,9 +728,9 @@ namespace Opc.Ua.Client
         {
             // ensure the global counter is not duplicating future handle ids
             Utils.LowerLimitIdentifier(ref s_globalClientHandle, clientHandle);
-            m_clientHandle = clientHandle;
-            m_status.SetTransferResult(this);
-            m_attributesModified = false;
+            ClientHandle = clientHandle;
+            Status.SetTransferResult(this);
+            AttributesModified = false;
         }
 
         /// <summary>
@@ -755,7 +749,7 @@ namespace Opc.Ua.Client
                 error = ClientBase.GetResult(result, index, diagnosticInfos, responseHeader);
             }
 
-            m_status.SetDeleteResult(error);
+            Status.SetDeleteResult(error);
         }
 
         /// <summary>
@@ -1056,9 +1050,6 @@ namespace Opc.Ua.Client
         private MonitoringFilter m_filter;
         private uint m_queueSize;
         private bool m_discardOldest;
-        private uint m_clientHandle;
-        private MonitoredItemStatus m_status;
-        private bool m_attributesModified;
         private static long s_globalClientHandle;
 
         private object m_cache = new();
@@ -1105,26 +1096,26 @@ namespace Opc.Ua.Client
         /// </summary>
         public MonitoredItemDataCache(int queueSize = 1)
         {
-            m_queueSize = queueSize;
+            QueueSize = queueSize;
             if (queueSize > 1)
             {
                 m_values = new Queue<DataValue>(Math.Min(queueSize + 1, kDefaultMaxCapacity));
             }
             else
             {
-                m_queueSize = 1;
+                QueueSize = 1;
             }
         }
 
         /// <summary>
         /// The size of the queue to maintain.
         /// </summary>
-        public int QueueSize => m_queueSize;
+        public int QueueSize { get; private set; }
 
         /// <summary>
         /// The last value received from the server.
         /// </summary>
-        public DataValue LastValue => m_lastValue;
+        public DataValue LastValue { get; private set; }
 
         /// <summary>
         /// Returns all values in the queue.
@@ -1143,7 +1134,7 @@ namespace Opc.Ua.Client
             else
             {
                 values = new DataValue[1];
-                values[0] = m_lastValue;
+                values[0] = LastValue;
             }
             return values;
         }
@@ -1153,13 +1144,13 @@ namespace Opc.Ua.Client
         /// </summary>
         public void OnNotification(MonitoredItemNotification notification)
         {
-            m_lastValue = notification.Value;
-            CoreClientUtils.EventLog.NotificationValue(notification.ClientHandle, m_lastValue.WrappedValue);
+            LastValue = notification.Value;
+            CoreClientUtils.EventLog.NotificationValue(notification.ClientHandle, LastValue.WrappedValue);
 
             if (m_values != null)
             {
                 m_values.Enqueue(notification.Value);
-                while (m_values.Count > m_queueSize)
+                while (m_values.Count > QueueSize)
                 {
                     m_values.Dequeue();
                 }
@@ -1171,7 +1162,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public void SetQueueSize(int queueSize)
         {
-            if (queueSize == m_queueSize)
+            if (queueSize == QueueSize)
             {
                 return;
             }
@@ -1186,16 +1177,14 @@ namespace Opc.Ua.Client
                 m_values = new Queue<DataValue>(Math.Min(queueSize + 1, kDefaultMaxCapacity));
             }
 
-            m_queueSize = queueSize;
+            QueueSize = queueSize;
 
-            while (m_values.Count > m_queueSize)
+            while (m_values.Count > QueueSize)
             {
                 m_values.Dequeue();
             }
         }
 
-        private int m_queueSize;
-        private DataValue m_lastValue;
         private Queue<DataValue> m_values;
     }
 
@@ -1209,19 +1198,19 @@ namespace Opc.Ua.Client
         /// </summary>
         public MonitoredItemEventCache(int queueSize)
         {
-            m_queueSize = queueSize;
+            QueueSize = queueSize;
             m_events = new Queue<EventFieldList>();
         }
 
         /// <summary>
         /// The size of the queue to maintain.
         /// </summary>
-        public int QueueSize => m_queueSize;
+        public int QueueSize { get; private set; }
 
         /// <summary>
         /// The last event received.
         /// </summary>
-        public EventFieldList LastEvent => m_lastEvent;
+        public EventFieldList LastEvent { get; private set; }
 
         /// <summary>
         /// Returns all events in the queue.
@@ -1244,9 +1233,9 @@ namespace Opc.Ua.Client
         public void OnNotification(EventFieldList notification)
         {
             m_events.Enqueue(notification);
-            m_lastEvent = notification;
+            LastEvent = notification;
 
-            while (m_events.Count > m_queueSize)
+            while (m_events.Count > QueueSize)
             {
                 m_events.Dequeue();
             }
@@ -1257,7 +1246,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public void SetQueueSize(int queueSize)
         {
-            if (queueSize == m_queueSize)
+            if (queueSize == QueueSize)
             {
                 return;
             }
@@ -1267,16 +1256,14 @@ namespace Opc.Ua.Client
                 queueSize = 1;
             }
 
-            m_queueSize = queueSize;
+            QueueSize = queueSize;
 
-            while (m_events.Count > m_queueSize)
+            while (m_events.Count > QueueSize)
             {
                 m_events.Dequeue();
             }
         }
 
-        private int m_queueSize;
-        private EventFieldList m_lastEvent;
         private readonly Queue<EventFieldList> m_events;
     }
 }

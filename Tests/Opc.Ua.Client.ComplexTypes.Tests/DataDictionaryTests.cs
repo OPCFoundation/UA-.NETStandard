@@ -87,7 +87,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         public override async Task CreateReferenceServerFixture(bool enableTracing, bool disableActivityLogging, bool securityNone, TextWriter writer)
         {
             // start Ref server
-            ServerFixture = new ServerFixture<ReferenceServer>(enableTracing, disableActivityLogging) {
+            ServerFixture = new ServerFixture<ReferenceServer>(enableTracing, disableActivityLogging)
+            {
                 UriScheme = UriScheme,
                 SecurityNone = securityNone,
                 AutoAccept = true,
@@ -153,12 +154,14 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
 
             foreach (NodeId dataDictionaryId in dictionaryIds)
             {
-                var referenceDescription = new ReferenceDescription {
+                var referenceDescription = new ReferenceDescription
+                {
                     NodeId = NodeId.ToExpandedNodeId(dataDictionaryId, theSession.NodeCache.NamespaceUris)
                 };
 
                 // make sure the dictionary is too large to fit in a single message
-                var readValueId = new ReadValueId {
+                var readValueId = new ReadValueId
+                {
                     NodeId = dataDictionaryId,
                     AttributeId = Attributes.Value,
                     IndexRange = null,
@@ -219,7 +222,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         /// <returns></returns>
         public NodeId GetTestDataDictionaryNodeId()
         {
-            var browseDescription = new BrowseDescription() {
+            var browseDescription = new BrowseDescription()
+            {
                 NodeId = ObjectIds.OPCBinarySchema_TypeSystem,
                 BrowseDirection = BrowseDirection.Forward,
                 ReferenceTypeId = ReferenceTypeIds.HasComponent,

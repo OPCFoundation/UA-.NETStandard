@@ -113,7 +113,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.NotNull(publicKey);
             Assert.False(publicKey.HasPrivateKey);
 
-            var id = new CertificateIdentifier() {
+            var id = new CertificateIdentifier()
+            {
                 Thumbprint = publicKey.Thumbprint,
                 StorePath = storePath,
                 StoreType = CertificateStoreType.X509Store
@@ -154,7 +155,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.NotNull(publicKey);
             Assert.False(publicKey.HasPrivateKey);
 
-            var id = new CertificateIdentifier() {
+            var id = new CertificateIdentifier()
+            {
                 Thumbprint = publicKey.Thumbprint,
                 StorePath = storePath,
                 StoreType = storeType

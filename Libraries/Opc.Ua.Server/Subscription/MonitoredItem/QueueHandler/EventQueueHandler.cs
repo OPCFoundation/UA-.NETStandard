@@ -95,7 +95,7 @@ namespace Opc.Ua.Server
         {
             m_eventQueue = queueFactory.CreateEventQueue(createDurable, monitoredItemId);
             m_discardOldest = false;
-            m_overflow = false;
+            Overflow = false;
         }
 
         /// <summary>
@@ -108,7 +108,7 @@ namespace Opc.Ua.Server
         {
             m_eventQueue = eventQueue;
             m_discardOldest = discardOldest;
-            m_overflow = false;
+            Overflow = false;
         }
 
         /// <summary>
@@ -129,7 +129,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// True if the queue is overflowing
         /// </summary>
-        public bool Overflow => m_overflow;
+        public bool Overflow { get; private set; }
 
         /// <summary>
         /// Checks the last 1k queue entries if the event is already in there
@@ -149,7 +149,7 @@ namespace Opc.Ua.Server
         {
             if (m_eventQueue.ItemsInQueue >= m_eventQueue.QueueSize && !m_discardOldest)
             {
-                m_overflow = true;
+                Overflow = true;
                 return true;
             }
             return false;
@@ -181,7 +181,7 @@ namespace Opc.Ua.Server
             // make space in the queue.
             if (m_eventQueue.ItemsInQueue >= m_eventQueue.QueueSize)
             {
-                m_overflow = true;
+                Overflow = true;
                 if (!m_discardOldest)
                 {
                     throw new InvalidOperationException("Queue is full and no discarding of old values is allowed");
@@ -215,12 +215,11 @@ namespace Opc.Ua.Server
                 notificationCount++;
             }
             //if overflow event is placed at the end of the queue only set overflow to false if the overflow event still fits into the publish
-            m_overflow = m_overflow && notificationCount == maxNotificationsPerPublish && !m_discardOldest;
+            Overflow = Overflow && notificationCount == maxNotificationsPerPublish && !m_discardOldest;
 
             return notificationCount;
         }
 
-        private bool m_overflow;
         private bool m_discardOldest;
         private readonly IEventMonitoredItemQueue m_eventQueue;
     }

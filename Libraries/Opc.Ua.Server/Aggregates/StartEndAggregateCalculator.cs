@@ -134,15 +134,14 @@ namespace Opc.Ua.Server
                 return GetNoDataValue(slice);
             }
 
-            // find start value.
-            DataValue start = null;
             double startValue = double.NaN;
             TypeInfo originalType = null;
             bool badDataSkipped = false;
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                start = values[ii];
+                // find start value.
+                DataValue start = values[ii];
 
                 if (IsGood(start))
                 {
@@ -158,17 +157,15 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                start = null;
                 badDataSkipped = true;
             }
 
-            // find end value.
-            DataValue end = null;
             double endValue = double.NaN;
 
             for (int ii = values.Count - 1; ii >= 0; ii--)
             {
-                end = values[ii];
+                // find end value.
+                DataValue end = values[ii];
 
                 if (IsGood(end))
                 {
@@ -185,7 +182,6 @@ namespace Opc.Ua.Server
                     break;
                 }
 
-                end = null;
                 badDataSkipped = true;
             }
 
@@ -195,9 +191,11 @@ namespace Opc.Ua.Server
                 return GetNoDataValue(slice);
             }
 
-            var value = new DataValue();
-            value.SourceTimestamp = GetTimestamp(slice);
-            value.ServerTimestamp = GetTimestamp(slice);
+            var value = new DataValue
+            {
+                SourceTimestamp = GetTimestamp(slice),
+                ServerTimestamp = GetTimestamp(slice)
+            };
 
             // set status code.
             if (badDataSkipped)
@@ -238,7 +236,7 @@ namespace Opc.Ua.Server
                 return GetNoDataValue(slice);
             }
 
-            DataValue value = null;
+            DataValue value;
 
             // return start bound.
             if ((!returnEnd && !TimeFlowsBackward) || (returnEnd && TimeFlowsBackward))
@@ -294,10 +292,11 @@ namespace Opc.Ua.Server
                 return GetNoDataValue(slice);
             }
 
-            // convert to doubles.
-            double startValue = 0;
             TypeInfo originalType = null;
 
+
+            // convert to doubles.
+            double startValue;
             try
             {
                 startValue = CastToDouble(start);
@@ -308,8 +307,7 @@ namespace Opc.Ua.Server
                 startValue = double.NaN;
             }
 
-            double endValue = 0;
-
+            double endValue;
             try
             {
                 endValue = CastToDouble(end);
@@ -325,9 +323,11 @@ namespace Opc.Ua.Server
                 return GetNoDataValue(slice);
             }
 
-            var value = new DataValue();
-            value.SourceTimestamp = GetTimestamp(slice);
-            value.ServerTimestamp = GetTimestamp(slice);
+            var value = new DataValue
+            {
+                SourceTimestamp = GetTimestamp(slice),
+                ServerTimestamp = GetTimestamp(slice)
+            };
 
             if (!IsGood(start) || !IsGood(end))
             {

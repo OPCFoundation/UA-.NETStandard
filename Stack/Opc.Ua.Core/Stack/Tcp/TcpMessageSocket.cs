@@ -60,7 +60,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public TcpMessageSocketAsyncEventArgs()
         {
-            Args = new SocketAsyncEventArgs {
+            Args = new SocketAsyncEventArgs
+            {
                 UserToken = this
             };
         }
@@ -670,12 +671,14 @@ namespace Opc.Ua.Bindings
         /// <param name="callback">Callback that must be executed if the connection would be established</param>
         private SocketError BeginConnect(DnsEndPoint endpoint, CallbackAction callback)
         {
-            var socket = new Socket(SocketType.Stream, ProtocolType.Tcp) {
+            var socket = new Socket(SocketType.Stream, ProtocolType.Tcp)
+            {
                 NoDelay = true,
                 LingerState = new LingerOption(true, 5),
             };
 
-            var args = new SocketAsyncEventArgs() {
+            var args = new SocketAsyncEventArgs()
+            {
                 UserToken = callback,
                 RemoteEndPoint = endpoint,
             };

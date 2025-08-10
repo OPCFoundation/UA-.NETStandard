@@ -2587,7 +2587,8 @@ namespace Opc.Ua
         /// <returns>The corresponding TypeInfo.Arrays value.</returns>
         private static TypeInfo MapElementTypeToTypeInfo(string elementTypeName)
         {
-            return elementTypeName switch {
+            return elementTypeName switch
+            {
                 "Boolean" => TypeInfo.Arrays.Boolean,
                 "SByte" => TypeInfo.Arrays.SByte,
                 "Byte" => TypeInfo.Arrays.Byte,

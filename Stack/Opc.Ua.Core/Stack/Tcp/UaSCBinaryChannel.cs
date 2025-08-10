@@ -109,47 +109,47 @@ namespace Opc.Ua.Bindings
                         nameof(securityPolicyUri));
             }
 
-            m_bufferManager = bufferManager ?? throw new ArgumentNullException(nameof(bufferManager));
-            m_quotas = quotas ?? throw new ArgumentNullException(nameof(quotas));
+            BufferManager = bufferManager ?? throw new ArgumentNullException(nameof(bufferManager));
+            Quotas = quotas ?? throw new ArgumentNullException(nameof(quotas));
             m_serverCertificateTypesProvider = serverCertificateTypesProvider;
-            m_serverCertificate = serverCertificate;
-            m_serverCertificateChain = serverCertificateChain;
+            ServerCertificate = serverCertificate;
+            ServerCertificateChain = serverCertificateChain;
             m_endpoints = endpoints;
-            m_securityMode = securityMode;
-            m_securityPolicyUri = securityPolicyUri;
-            m_discoveryOnly = false;
+            SecurityMode = securityMode;
+            SecurityPolicyUri = securityPolicyUri;
+            DiscoveryOnly = false;
             m_uninitialized = true;
 
             m_state = (int)TcpChannelState.Closed;
-            m_receiveBufferSize = quotas.MaxBufferSize;
-            m_sendBufferSize = quotas.MaxBufferSize;
+            ReceiveBufferSize = quotas.MaxBufferSize;
+            SendBufferSize = quotas.MaxBufferSize;
             m_activeWriteRequests = 0;
 
-            if (m_receiveBufferSize < TcpMessageLimits.MinBufferSize)
+            if (ReceiveBufferSize < TcpMessageLimits.MinBufferSize)
             {
-                m_receiveBufferSize = TcpMessageLimits.MinBufferSize;
+                ReceiveBufferSize = TcpMessageLimits.MinBufferSize;
             }
 
-            if (m_receiveBufferSize > TcpMessageLimits.MaxBufferSize)
+            if (ReceiveBufferSize > TcpMessageLimits.MaxBufferSize)
             {
-                m_receiveBufferSize = TcpMessageLimits.MaxBufferSize;
+                ReceiveBufferSize = TcpMessageLimits.MaxBufferSize;
             }
 
-            if (m_sendBufferSize < TcpMessageLimits.MinBufferSize)
+            if (SendBufferSize < TcpMessageLimits.MinBufferSize)
             {
-                m_sendBufferSize = TcpMessageLimits.MinBufferSize;
+                SendBufferSize = TcpMessageLimits.MinBufferSize;
             }
 
-            if (m_sendBufferSize > TcpMessageLimits.MaxBufferSize)
+            if (SendBufferSize > TcpMessageLimits.MaxBufferSize)
             {
-                m_sendBufferSize = TcpMessageLimits.MaxBufferSize;
+                SendBufferSize = TcpMessageLimits.MaxBufferSize;
             }
 
-            m_maxRequestMessageSize = quotas.MaxMessageSize;
-            m_maxResponseMessageSize = quotas.MaxMessageSize;
+            MaxRequestMessageSize = quotas.MaxMessageSize;
+            MaxResponseMessageSize = quotas.MaxMessageSize;
 
-            m_maxRequestChunkCount = CalculateChunkCount(m_maxRequestMessageSize, TcpMessageLimits.MinBufferSize);
-            m_maxResponseChunkCount = CalculateChunkCount(m_maxResponseMessageSize, TcpMessageLimits.MinBufferSize);
+            MaxRequestChunkCount = CalculateChunkCount(MaxRequestMessageSize, TcpMessageLimits.MinBufferSize);
+            MaxResponseChunkCount = CalculateChunkCount(MaxResponseMessageSize, TcpMessageLimits.MinBufferSize);
 
             CalculateSymmetricKeySizes();
         }
@@ -190,19 +190,19 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The identifier assigned to the channel by the server.
         /// </summary>
-        public uint Id => m_channelId;
+        public uint Id { get; private set; }
 
         /// <summary>
         /// The globally unique identifier assigned to the channel by the server.
         /// </summary>
-        public string GlobalChannelId => m_globalChannelId;
+        public string GlobalChannelId { get; private set; }
 
         /// <summary>
         /// Raised when the state of the channel changes.
         /// </summary>
         public void SetStateChangedCallback(TcpChannelStateEventHandler callback)
         {
-            lock (m_lock)
+            lock (DataLock)
             {
                 m_StateChanged = callback;
             }
@@ -211,7 +211,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The tickcount in milliseconds when the channel received/sent the last message.
         /// </summary>
-        protected int LastActiveTickCount => m_lastActiveTickCount;
+        protected int LastActiveTickCount { get; private set; } = HiResClock.TickCount;
 
         /// <summary>
         /// Reports that the channel state has changed (in another thread).
@@ -486,12 +486,7 @@ namespace Opc.Ua.Bindings
         protected void BeginWriteMessage(ArraySegment<byte> buffer, object state)
         {
             ServiceResult error = ServiceResult.Good;
-            IMessageSocketAsyncEventArgs args = m_socket?.MessageSocketEventArgs();
-
-            if (args == null)
-            {
-                throw ServiceResultException.Create(StatusCodes.BadConnectionClosed, "The socket was closed by the remote application.");
-            }
+            IMessageSocketAsyncEventArgs args = (Socket?.MessageSocketEventArgs()) ?? throw ServiceResultException.Create(StatusCodes.BadConnectionClosed, "The socket was closed by the remote application.");
 
             try
             {
@@ -499,7 +494,7 @@ namespace Opc.Ua.Bindings
                 args.SetBuffer(buffer.Array, buffer.Offset, buffer.Count);
                 args.Completed += OnWriteComplete;
                 args.UserToken = state;
-                if (!m_socket.Send(args))
+                if (!Socket.Send(args))
                 {
                     // I/O completed synchronously
                     if (args.IsSocketError || (args.BytesTransferred < buffer.Count))
@@ -532,7 +527,7 @@ namespace Opc.Ua.Bindings
         protected void BeginWriteMessage(BufferCollection buffers, object state)
         {
             ServiceResult error = ServiceResult.Good;
-            IMessageSocketAsyncEventArgs args = m_socket.MessageSocketEventArgs();
+            IMessageSocketAsyncEventArgs args = Socket.MessageSocketEventArgs();
 
             try
             {
@@ -540,7 +535,7 @@ namespace Opc.Ua.Bindings
                 args.BufferList = buffers;
                 args.Completed += OnWriteComplete;
                 args.UserToken = state;
-                IMessageSocket socket = m_socket;
+                IMessageSocket socket = Socket;
                 if (socket == null || !socket.Send(args))
                 {
                     // I/O completed synchronously
@@ -691,15 +686,12 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The synchronization object for the channel.
         /// </summary>
-        protected object DataLock => m_lock;
+        protected object DataLock { get; } = new();
 
         /// <summary>
         /// The socket for the channel.
         /// </summary>
-        protected internal IMessageSocket Socket
-        {
-            get => m_socket; set => m_socket = value;
-        }
+        protected internal IMessageSocket Socket { get; set; }
 
         /// <summary>
         /// Whether the client channel uses a reverse hello socket.
@@ -709,60 +701,42 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The buffer manager for the channel.
         /// </summary>
-        protected BufferManager BufferManager => m_bufferManager;
+        protected BufferManager BufferManager { get; }
 
         /// <summary>
         /// The resource quotas for the channel.
         /// </summary>
-        protected ChannelQuotas Quotas => m_quotas;
+        protected ChannelQuotas Quotas { get; }
 
         /// <summary>
         /// The size of the receive buffer.
         /// </summary>
-        protected int ReceiveBufferSize
-        {
-            get => m_receiveBufferSize; set => m_receiveBufferSize = value;
-        }
+        protected int ReceiveBufferSize { get; set; }
 
         /// <summary>
         /// The size of the send buffer.
         /// </summary>
-        protected int SendBufferSize
-        {
-            get => m_sendBufferSize; set => m_sendBufferSize = value;
-        }
+        protected int SendBufferSize { get; set; }
 
         /// <summary>
         /// The maximum size for a request message.
         /// </summary>
-        protected int MaxRequestMessageSize
-        {
-            get => m_maxRequestMessageSize; set => m_maxRequestMessageSize = value;
-        }
+        protected int MaxRequestMessageSize { get; set; }
 
         /// <summary>
         /// The maximum number of chunks per request message.
         /// </summary>
-        protected int MaxRequestChunkCount
-        {
-            get => m_maxRequestChunkCount; set => m_maxRequestChunkCount = value;
-        }
+        protected int MaxRequestChunkCount { get; set; }
 
         /// <summary>
         /// The maximum size for a response message.
         /// </summary>
-        protected int MaxResponseMessageSize
-        {
-            get => m_maxResponseMessageSize; set => m_maxResponseMessageSize = value;
-        }
+        protected int MaxResponseMessageSize { get; set; }
 
         /// <summary>
         /// The maximum number of chunks per response message.
         /// </summary>
-        protected int MaxResponseChunkCount
-        {
-            get => m_maxResponseChunkCount; set => m_maxResponseChunkCount = value;
-        }
+        protected int MaxResponseChunkCount { get; set; }
 
         /// <summary>
         /// The state of the channel.
@@ -785,12 +759,12 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected uint ChannelId
         {
-            get => m_channelId;
+            get => Id;
 
             set
             {
-                m_channelId = value;
-                m_globalChannelId = Utils.Format("{0}-{1}", m_contextId, m_channelId);
+                Id = value;
+                GlobalChannelId = Utils.Format("{0}-{1}", m_contextId, Id);
             }
         }
 
@@ -866,28 +840,16 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public void UpdateLastActiveTime()
         {
-            m_lastActiveTickCount = HiResClock.TickCount;
+            LastActiveTickCount = HiResClock.TickCount;
         }
 
-        private readonly object m_lock = new();
-        private IMessageSocket m_socket;
-        private readonly BufferManager m_bufferManager;
-        private readonly ChannelQuotas m_quotas;
-        private int m_receiveBufferSize;
-        private int m_sendBufferSize;
         private int m_activeWriteRequests;
-        private int m_maxRequestMessageSize;
-        private int m_maxResponseMessageSize;
-        private int m_maxRequestChunkCount;
-        private int m_maxResponseChunkCount;
         private readonly string m_contextId;
 
         /// <summary>
         /// treat TcpChannelState as int to use Interlocked
         /// </summary>
         private int m_state;
-        private uint m_channelId;
-        private string m_globalChannelId;
         private long m_sequenceNumber;
         private long m_localSequenceNumber;
         private uint m_remoteSequenceNumber;
@@ -897,9 +859,6 @@ namespace Opc.Ua.Bindings
         private BufferCollection m_partialMessageChunks;
 
         private TcpChannelStateEventHandler m_StateChanged;
-
-        private int m_lastActiveTickCount = HiResClock.TickCount;
-
         private const uint kMaxValueLegacyTrue = TcpMessageLimits.MinSequenceNumber;
         private const uint kMaxValueLegacyFalse = uint.MaxValue;
     }

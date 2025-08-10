@@ -431,10 +431,8 @@ namespace Opc.Ua.Server
         {
             try
             {
-                var items = state as List<ISampledDataChangeMonitoredItem>;
-
                 // read values for all enabled items.
-                if (items != null && items.Count > 0)
+                if (state is List<ISampledDataChangeMonitoredItem> items && items.Count > 0)
                 {
                     var itemsToRead = new ReadValueIdCollection(items.Count);
                     var values = new DataValueCollection(items.Count);

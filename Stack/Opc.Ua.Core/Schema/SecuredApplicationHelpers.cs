@@ -45,7 +45,8 @@ namespace Opc.Ua.Security
         {
             if (input != null && !string.IsNullOrEmpty(input.StoreType) && !string.IsNullOrEmpty(input.StorePath))
             {
-                return new CertificateIdentifier {
+                return new CertificateIdentifier
+                {
                     StoreType = input.StoreType,
                     StorePath = input.StorePath,
                     SubjectName = input.SubjectName,
@@ -85,7 +86,8 @@ namespace Opc.Ua.Security
         {
             if (input != null && !string.IsNullOrEmpty(input.StoreType) && !string.IsNullOrEmpty(input.StorePath))
             {
-                return new CertificateStoreIdentifier {
+                return new CertificateStoreIdentifier
+                {
                     StoreType = input.StoreType,
                     StorePath = input.StorePath,
                     ValidationOptions = (int)input.ValidationOptions
@@ -316,7 +318,7 @@ namespace Opc.Ua.Security
                 return 0;
             }
 
-            byte result = 0;
+            byte result;
             switch (policyUri)
             {
                 case SecurityPolicies.Basic128Rsa15:
@@ -371,7 +373,8 @@ namespace Opc.Ua.Security
         /// </summary>
         private static ServerSecurityPolicy CreatePolicy(string profileUri)
         {
-            var policy = new ServerSecurityPolicy {
+            var policy = new ServerSecurityPolicy
+            {
                 SecurityPolicyUri = profileUri
             };
 
@@ -410,7 +413,8 @@ namespace Opc.Ua.Security
         /// </summary>
         private static SecurityProfile CreateProfile(string profileUri)
         {
-            return new SecurityProfile {
+            return new SecurityProfile
+            {
                 ProfileUri = profileUri,
                 Enabled = false
             };

@@ -50,7 +50,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         [OneTimeSetUp]
         protected new void OneTimeSetUp()
         {
-            EncoderContext = new ServiceMessageContext() {
+            EncoderContext = new ServiceMessageContext()
+            {
                 // create private copy of factory
                 Factory = new EncodeableFactory(ServiceMessageContext.GlobalContext.Factory)
             };
@@ -185,9 +186,11 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             var extensionObject = new ExtensionObject(emittedType);
 
-            var keyValuePair = new KeyValuePair();
-            keyValuePair.Key = "AKEY";
-            keyValuePair.Value = extensionObject;
+            var keyValuePair = new KeyValuePair
+            {
+                Key = "AKEY",
+                Value = extensionObject
+            };
 
             var localCtxt = (ServiceMessageContext)EncoderContext;
 

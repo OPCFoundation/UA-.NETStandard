@@ -174,8 +174,7 @@ namespace Opc.Ua.Schema
             }
 
             // check if path specified in the file table.
-            string location = null;
-
+            string location;
             if (KnownFiles.TryGetValue(namespaceUri, out location))
             {
                 fileInfo = new FileInfo(location);

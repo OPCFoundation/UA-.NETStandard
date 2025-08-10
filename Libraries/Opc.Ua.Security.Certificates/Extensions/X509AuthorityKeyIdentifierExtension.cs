@@ -105,7 +105,7 @@ namespace Opc.Ua.Security.Certificates
             byte[] serialNumber
             )
         {
-            m_issuer = authorityName;
+            Issuer = authorityName;
             m_keyIdentifier = subjectKeyIdentifier;
             m_serialNumber = serialNumber;
             Oid = new Oid(AuthorityKeyIdentifier2Oid, kFriendlyName);
@@ -149,7 +149,7 @@ namespace Opc.Ua.Security.Certificates
                 buffer.Append(m_keyIdentifier.ToHexString());
             }
 
-            if (m_issuer != null)
+            if (Issuer != null)
             {
                 if (multiLine)
                 {
@@ -162,7 +162,7 @@ namespace Opc.Ua.Security.Certificates
 
                 buffer.Append(kIssuer);
                 buffer.Append('=');
-                buffer.Append(m_issuer.Format(true));
+                buffer.Append(Issuer.Format(true));
             }
 
             if (m_serialNumber != null && m_serialNumber.Length > 0)
@@ -220,7 +220,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// A list of distinguished names for the issuer.
         /// </summary>
-        public X500DistinguishedName Issuer => m_issuer;
+        public X500DistinguishedName Issuer { get; private set; }
 
         /// <summary>
         /// The serial number of the authority key as a big endian hexadecimal string.
@@ -246,7 +246,7 @@ namespace Opc.Ua.Security.Certificates
                 writer.WriteOctetString(m_keyIdentifier, keyIdTag);
             }
 
-            if (m_issuer != null)
+            if (Issuer != null)
             {
                 var issuerNameTag = new Asn1Tag(TagClass.ContextSpecific, 1);
                 writer.PushSequence(issuerNameTag);
@@ -258,7 +258,7 @@ namespace Opc.Ua.Security.Certificates
                 // Since this is a Context-Specific tag the output is the same
                 var directoryNameTag = new Asn1Tag(TagClass.ContextSpecific, 4, true);
                 writer.PushSetOf(directoryNameTag);
-                writer.WriteEncodedValue(m_issuer.RawData);
+                writer.WriteEncodedValue(Issuer.RawData);
                 writer.PopSetOf(directoryNameTag);
                 writer.PopSequence(issuerNameTag);
             }
@@ -304,7 +304,7 @@ namespace Opc.Ua.Security.Certificates
                                 if (issuerReader != null)
                                 {
                                     var directoryNameTag = new Asn1Tag(TagClass.ContextSpecific, 4, true);
-                                    m_issuer = new X500DistinguishedName(issuerReader.ReadSequence(directoryNameTag).ReadEncodedValue().ToArray());
+                                    Issuer = new X500DistinguishedName(issuerReader.ReadSequence(directoryNameTag).ReadEncodedValue().ToArray());
                                     issuerReader.ThrowIfNotEmpty();
                                 }
                                 continue;
@@ -339,7 +339,6 @@ namespace Opc.Ua.Security.Certificates
         private const string kSerialNumber = "SerialNumber";
         private const string kFriendlyName = "Authority Key Identifier";
         private byte[] m_keyIdentifier;
-        private X500DistinguishedName m_issuer;
         private byte[] m_serialNumber;
     }
 }

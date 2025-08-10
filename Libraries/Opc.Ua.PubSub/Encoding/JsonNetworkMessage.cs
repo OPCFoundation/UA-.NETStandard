@@ -346,7 +346,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="jsonDecoder"></param>
         private void DecodeNetworkMessageHeader(JsonDecoder jsonDecoder)
         {
-            object token = null;
+            object token;
             if (jsonDecoder.ReadField(nameof(MessageId), out token))
             {
                 MessageId = jsonDecoder.ReadString(nameof(MessageId));
@@ -523,8 +523,10 @@ namespace Opc.Ua.PubSub.Encoding
                         }
 
                         // initialize the dataset message
-                        var jsonDataSetMessage = new JsonDataSetMessage();
-                        jsonDataSetMessage.DataSetMessageContentMask = (JsonDataSetMessageContentMask)jsonMessageSettings.DataSetMessageContentMask;
+                        var jsonDataSetMessage = new JsonDataSetMessage
+                        {
+                            DataSetMessageContentMask = (JsonDataSetMessageContentMask)jsonMessageSettings.DataSetMessageContentMask
+                        };
                         jsonDataSetMessage.SetFieldContentMask((DataSetFieldContentMask)dataSetReader.DataSetFieldContentMask);
                         // set the flag that indicates if dataset message shall have a header
                         jsonDataSetMessage.HasDataSetMessageHeader = (networkMessageContentMask & JsonNetworkMessageContentMask.DataSetMessageHeader) != 0;

@@ -51,46 +51,37 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The certificate for the server.
         /// </summary>
-        protected X509Certificate2 ServerCertificate => m_serverCertificate;
+        protected X509Certificate2 ServerCertificate { get; private set; }
 
         /// <summary>
         /// The server certificate chain.
         /// </summary>
-        protected X509Certificate2Collection ServerCertificateChain
-        {
-            get => m_serverCertificateChain; set => m_serverCertificateChain = value;
-        }
+        protected X509Certificate2Collection ServerCertificateChain { get; set; }
 
         /// <summary>
         /// The security mode used with the channel.
         /// </summary>
-        protected MessageSecurityMode SecurityMode => m_securityMode;
+        protected MessageSecurityMode SecurityMode { get; private set; }
 
         /// <summary>
         /// The security policy used with the channel.
         /// </summary>
-        protected string SecurityPolicyUri => m_securityPolicyUri;
+        protected string SecurityPolicyUri { get; private set; }
 
         /// <summary>
         /// Whether the channel is restricted to discovery operations.
         /// </summary>
-        protected bool DiscoveryOnly => m_discoveryOnly;
+        protected bool DiscoveryOnly { get; private set; }
 
         /// <summary>
         /// The certificate for the client.
         /// </summary>
-        protected X509Certificate2 ClientCertificate
-        {
-            get => m_clientCertificate; set => m_clientCertificate = value;
-        }
+        protected X509Certificate2 ClientCertificate { get; set; }
 
         /// <summary>
         /// The client certificate chain.
         /// </summary>
-        internal X509Certificate2Collection ClientCertificateChain
-        {
-            get => m_clientCertificateChain; set => m_clientCertificateChain = value;
-        }
+        internal X509Certificate2Collection ClientCertificateChain { get; set; }
 
         /// <summary>
         /// Returns the thumbprint as a uppercase string.
@@ -442,8 +433,7 @@ namespace Opc.Ua.Bindings
             X509Certificate2 senderCertificate,
             X509Certificate2 receiverCertificate)
         {
-            int senderCertificateSize = 0;
-
+            int senderCertificateSize;
             WriteAsymmetricMessageHeader(
                 encoder,
                 messageType,
@@ -787,10 +777,12 @@ namespace Opc.Ua.Bindings
             uint messageType = decoder.ReadUInt32(null);
             uint messageSize = decoder.ReadUInt32(null);
 
-            // decode security header.
-            byte[] certificateData = null;
-            byte[] thumbprintData = null;
 
+
+            // decode security header.
+            byte[] certificateData;
+
+            byte[] thumbprintData;
             try
             {
                 secureChannelId = decoder.ReadUInt32(null);
@@ -813,12 +805,7 @@ namespace Opc.Ua.Bindings
 
                 try
                 {
-                    string thumbprint = senderCertificateChain[0].Thumbprint;
-
-                    if (thumbprint == null)
-                    {
-                        throw ServiceResultException.Create(StatusCodes.BadCertificateInvalid, "Invalid certificate thumbprint.");
-                    }
+                    string thumbprint = senderCertificateChain[0].Thumbprint ?? throw ServiceResultException.Create(StatusCodes.BadCertificateInvalid, "Invalid certificate thumbprint.");
                 }
                 catch (Exception e)
                 {
@@ -838,7 +825,7 @@ namespace Opc.Ua.Bindings
                 if (m_serverCertificateTypesProvider != null)
                 {
                     receiverCertificate = m_serverCertificateTypesProvider.GetInstanceCertificate(securityPolicyUri);
-                    m_serverCertificate = receiverCertificate;
+                    ServerCertificate = receiverCertificate;
                     loadChain = true;
                 }
 
@@ -854,7 +841,7 @@ namespace Opc.Ua.Bindings
 
                 if (loadChain)
                 {
-                    m_serverCertificateChain = m_serverCertificateTypesProvider?.LoadCertificateChain(receiverCertificate);
+                    ServerCertificateChain = m_serverCertificateTypesProvider?.LoadCertificateChain(receiverCertificate);
                 }
             }
             else if (securityPolicyUri != SecurityPolicies.None)
@@ -871,19 +858,19 @@ namespace Opc.Ua.Bindings
             bool supported = false;
 
             // server may support multiple security modes - check if the one the client used is supported.
-            if (firstCall && !m_discoveryOnly)
+            if (firstCall && !DiscoveryOnly)
             {
                 foreach (EndpointDescription endpoint in m_endpoints)
                 {
                     if (endpoint.SecurityMode == requestedMode)
                     {
                         if (requestedMode == MessageSecurityMode.None ||
-                            endpoint.SecurityPolicyUri == m_securityPolicyUri)
+                            endpoint.SecurityPolicyUri == SecurityPolicyUri)
                         {
-                            m_securityMode = endpoint.SecurityMode;
+                            SecurityMode = endpoint.SecurityMode;
                             m_selectedEndpoint = endpoint;
-                            m_serverCertificate = m_serverCertificateTypesProvider.GetInstanceCertificate(m_securityPolicyUri);
-                            m_serverCertificateChain = m_serverCertificateTypesProvider.LoadCertificateChain(m_serverCertificate);
+                            ServerCertificate = m_serverCertificateTypesProvider.GetInstanceCertificate(SecurityPolicyUri);
+                            ServerCertificateChain = m_serverCertificateTypesProvider.LoadCertificateChain(ServerCertificate);
                             supported = true;
                             break;
                         }
@@ -923,10 +910,10 @@ namespace Opc.Ua.Bindings
                     continue;
                 }
 
-                m_securityMode = endpoint.SecurityMode;
-                m_securityPolicyUri = endpoint.SecurityPolicyUri;
-                m_serverCertificate = m_serverCertificateTypesProvider.GetInstanceCertificate(m_securityPolicyUri);
-                m_serverCertificateChain = m_serverCertificateTypesProvider.LoadCertificateChainAsync(m_serverCertificate).GetAwaiter().GetResult();
+                SecurityMode = endpoint.SecurityMode;
+                SecurityPolicyUri = endpoint.SecurityPolicyUri;
+                ServerCertificate = m_serverCertificateTypesProvider.GetInstanceCertificate(SecurityPolicyUri);
+                ServerCertificateChain = m_serverCertificateTypesProvider.LoadCertificateChainAsync(ServerCertificate).GetAwaiter().GetResult();
                 m_selectedEndpoint = endpoint;
                 return true;
             }
@@ -985,7 +972,7 @@ namespace Opc.Ua.Bindings
                 // check if this is the first open secure channel request.
                 if (!m_uninitialized)
                 {
-                    if (securityPolicyUri != m_securityPolicyUri)
+                    if (securityPolicyUri != SecurityPolicyUri)
                     {
                         throw ServiceResultException.Create(StatusCodes.BadSecurityPolicyRejected, "Cannot change the security policy after creating the channnel.");
                     }
@@ -1002,9 +989,9 @@ namespace Opc.Ua.Bindings
                             // When the OpenSecureChannel request body is processed.
                             if (endpoint.SecurityPolicyUri == securityPolicyUri || (securityPolicyUri == SecurityPolicies.None && endpoint.SecurityMode == MessageSecurityMode.None))
                             {
-                                m_securityMode = endpoint.SecurityMode;
-                                m_securityPolicyUri = securityPolicyUri;
-                                m_discoveryOnly = false;
+                                SecurityMode = endpoint.SecurityMode;
+                                SecurityPolicyUri = securityPolicyUri;
+                                DiscoveryOnly = false;
                                 m_uninitialized = false;
                                 m_selectedEndpoint = endpoint;
 
@@ -1023,9 +1010,9 @@ namespace Opc.Ua.Bindings
                             throw ServiceResultException.Create(StatusCodes.BadSecurityPolicyRejected, "The security policy is not supported.");
                         }
 
-                        m_securityMode = MessageSecurityMode.None;
-                        m_securityPolicyUri = SecurityPolicies.None;
-                        m_discoveryOnly = true;
+                        SecurityMode = MessageSecurityMode.None;
+                        SecurityPolicyUri = SecurityPolicies.None;
+                        DiscoveryOnly = true;
                         m_uninitialized = false;
                         m_selectedEndpoint = null;
                     }
@@ -1064,7 +1051,7 @@ namespace Opc.Ua.Bindings
 
             if (SecurityMode != MessageSecurityMode.None && receiverCertificate.GetRSAPublicKey() != null)
             {
-                int paddingEnd = -1;
+                int paddingEnd;
                 if (X509Utils.GetRSAPublicKeySize(receiverCertificate) > TcpMessageLimits.KeySizeExtraPadding)
                 {
                     paddingEnd = plainText.Offset + plainText.Count - signatureSize - 1;
@@ -1294,15 +1281,8 @@ namespace Opc.Ua.Bindings
         }
 
         private readonly EndpointDescriptionCollection m_endpoints;
-        private MessageSecurityMode m_securityMode;
-        private string m_securityPolicyUri;
-        private bool m_discoveryOnly;
         private EndpointDescription m_selectedEndpoint;
         private readonly CertificateTypesProvider m_serverCertificateTypesProvider;
-        private X509Certificate2 m_serverCertificate;
-        private X509Certificate2Collection m_serverCertificateChain;
-        private X509Certificate2 m_clientCertificate;
-        private X509Certificate2Collection m_clientCertificateChain;
         private bool m_uninitialized;
 #if ECC_SUPPORT
         private Nonce m_localNonce;

@@ -153,7 +153,8 @@ namespace Opc.Ua
             m_trustedCertificateList = null;
             if (trustedStore != null)
             {
-                m_trustedCertificateStore = new CertificateStoreIdentifier(trustedStore.StorePath) {
+                m_trustedCertificateStore = new CertificateStoreIdentifier(trustedStore.StorePath)
+                {
                     ValidationOptions = trustedStore.ValidationOptions
                 };
 
@@ -167,7 +168,8 @@ namespace Opc.Ua
             m_issuerCertificateList = null;
             if (issuerStore != null)
             {
-                m_issuerCertificateStore = new CertificateStoreIdentifier(issuerStore.StorePath) {
+                m_issuerCertificateStore = new CertificateStoreIdentifier(issuerStore.StorePath)
+                {
                     ValidationOptions = issuerStore.ValidationOptions
                 };
 
@@ -1213,7 +1215,8 @@ namespace Opc.Ua
             ServiceResult sresult = PopulateSresultWithValidationErrors(validationErrors);
 
             // setup policy chain
-            var policy = new X509ChainPolicy() {
+            var policy = new X509ChainPolicy()
+            {
                 RevocationFlag = X509RevocationFlag.EntireChain,
                 RevocationMode = X509RevocationMode.NoCheck,
                 VerificationFlags = X509VerificationFlags.NoFlag,
@@ -1865,11 +1868,7 @@ namespace Opc.Ua
         /// <param name="requiredKeySizeInBits">The required key size in bits.</param>
         public static bool IsECSecureForProfile(X509Certificate2 certificate, int requiredKeySizeInBits)
         {
-            using ECDsa ecdsa = certificate.GetECDsaPublicKey();
-            if (ecdsa == null)
-            {
-                throw new ArgumentException("Certificate does not contain an ECC public key");
-            }
+            using ECDsa ecdsa = certificate.GetECDsaPublicKey() ?? throw new ArgumentException("Certificate does not contain an ECC public key");
 
             if (ecdsa.KeySize != 0)
             {

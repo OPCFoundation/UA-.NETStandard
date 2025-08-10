@@ -345,12 +345,12 @@ namespace Opc.Ua
         /// <param name="value2">The second value to compare</param>
         public static bool operator ==(LocalizedText value1, LocalizedText value2)
         {
-            if (!ReferenceEquals(value1, null))
+            if (value1 is not null)
             {
                 return value1.Equals(value2);
             }
 
-            return ReferenceEquals(value2, null);
+            return value2 is null;
         }
 
         /// <summary>
@@ -360,12 +360,12 @@ namespace Opc.Ua
         /// <param name="value2">The second value to compare</param>
         public static bool operator !=(LocalizedText value1, LocalizedText value2)
         {
-            if (!ReferenceEquals(value1, null))
+            if (value1 is not null)
             {
                 return !value1.Equals(value2);
             }
 
-            return !ReferenceEquals(value2, null);
+            return value2 is not null;
         }
 
         /// <summary>

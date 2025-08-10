@@ -40,7 +40,7 @@ namespace Opc.Ua.Gds.Tests
 {
     public class GlobalDiscoveryTestClient
     {
-        public GlobalDiscoveryServerClient GDSClient => m_client;
+        public GlobalDiscoveryServerClient GDSClient { get; private set; }
         public static bool AutoAccept { get; set; }
 
         public GlobalDiscoveryTestClient(bool autoAccept, string storeType = CertificateStoreType.Directory)
@@ -69,7 +69,8 @@ namespace Opc.Ua.Gds.Tests
                 configSectionName = "Opc.Ua.GlobalDiscoveryTestClientX509Stores";
             }
 
-            m_application = new ApplicationInstance {
+            m_application = new ApplicationInstance
+            {
                 ApplicationName = "Global Discovery Client",
                 ApplicationType = ApplicationType.Client,
                 ConfigSectionName = configSectionName
@@ -81,7 +82,8 @@ namespace Opc.Ua.Gds.Tests
 #else
             string root = Path.Combine("%LocalApplicationData%", "OPC");
             string pkiRoot = Path.Combine(root, "pki");
-            var clientConfig = new GlobalDiscoveryTestClientConfiguration() {
+            var clientConfig = new GlobalDiscoveryTestClientConfiguration()
+            {
                 GlobalDiscoveryServerUrl = "opc.tcp://localhost:58810/GlobalDiscoveryTestServer",
                 AppUserName = "appuser",
                 AppPassword = "demo",
@@ -124,7 +126,8 @@ namespace Opc.Ua.Gds.Tests
             Configuration.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
 
             GlobalDiscoveryTestClientConfiguration gdsClientConfiguration = Configuration.ParseExtension<GlobalDiscoveryTestClientConfiguration>();
-            m_client = new GlobalDiscoveryServerClient(Configuration, gdsClientConfiguration.GlobalDiscoveryServerUrl) {
+            GDSClient = new GlobalDiscoveryServerClient(Configuration, gdsClientConfiguration.GlobalDiscoveryServerUrl)
+            {
                 EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(gdsClientConfiguration.GlobalDiscoveryServerUrl, port)
             };
             if (string.IsNullOrEmpty(gdsClientConfiguration.AppUserName))
@@ -148,7 +151,7 @@ namespace Opc.Ua.Gds.Tests
             {
                 OwnApplicationTestData = GetOwnApplicationData();
 
-                m_client.AdminCredentials = AdminUser;
+                GDSClient.AdminCredentials = AdminUser;
                 //register
                 NodeId id = Register(OwnApplicationTestData);
                 if (id == null)
@@ -190,10 +193,10 @@ namespace Opc.Ua.Gds.Tests
         {
             Console.WriteLine("Disconnect Session. Waiting for exit...");
 
-            if (m_client != null)
+            if (GDSClient != null)
             {
-                GlobalDiscoveryServerClient gdsClient = m_client;
-                m_client = null;
+                GlobalDiscoveryServerClient gdsClient = GDSClient;
+                GDSClient = null;
                 gdsClient.Disconnect();
             }
         }
@@ -207,29 +210,29 @@ namespace Opc.Ua.Gds.Tests
         {
             using X509Certificate2 x509 = X509CertificateLoader.LoadCertificate(certificate);
             X509Certificate2 certWithPrivateKey = CertificateFactory.CreateCertificateWithPEMPrivateKey(x509, privateKey);
-            m_client.Configuration.SecurityConfiguration.ApplicationCertificate = new CertificateIdentifier(certWithPrivateKey);
-            ICertificateStore store = m_client.Configuration.SecurityConfiguration.ApplicationCertificate.OpenStore();
+            GDSClient.Configuration.SecurityConfiguration.ApplicationCertificate = new CertificateIdentifier(certWithPrivateKey);
+            ICertificateStore store = GDSClient.Configuration.SecurityConfiguration.ApplicationCertificate.OpenStore();
             await store.AddAsync(certWithPrivateKey).ConfigureAwait(false);
         }
 
         private void FinishKeyPair(ApplicationTestData ownApplicationTestData, out byte[] certificate, out byte[] privateKey)
         {
-            m_client.ConnectAsync(m_client.EndpointUrl).Wait();
+            GDSClient.ConnectAsync(GDSClient.EndpointUrl).Wait();
             //get cert
-            certificate = m_client.FinishRequest(
+            certificate = GDSClient.FinishRequest(
              ownApplicationTestData.ApplicationRecord.ApplicationId,
              ownApplicationTestData.CertificateRequestId,
              out privateKey,
              out _
              );
-            m_client.Disconnect();
+            GDSClient.Disconnect();
         }
 
         private NodeId StartNewKeyPair(ApplicationTestData ownApplicationTestData)
         {
-            m_client.ConnectAsync(m_client.EndpointUrl).Wait();
+            GDSClient.ConnectAsync(GDSClient.EndpointUrl).Wait();
             //request new Cert
-            NodeId req_id = m_client.StartNewKeyPairRequest(
+            NodeId req_id = GDSClient.StartNewKeyPairRequest(
              ownApplicationTestData.ApplicationRecord.ApplicationId,
              ownApplicationTestData.CertificateGroupId,
              ownApplicationTestData.CertificateTypeId,
@@ -239,15 +242,15 @@ namespace Opc.Ua.Gds.Tests
              ownApplicationTestData.PrivateKeyPassword
              );
 
-            m_client.Disconnect();
+            GDSClient.Disconnect();
             return req_id;
         }
 
         private NodeId Register(ApplicationTestData ownApplicationTestData)
         {
-            m_client.ConnectAsync(m_client.EndpointUrl).Wait();
-            NodeId id = m_client.RegisterApplication(ownApplicationTestData.ApplicationRecord);
-            m_client.Disconnect();
+            GDSClient.ConnectAsync(GDSClient.EndpointUrl).Wait();
+            NodeId id = GDSClient.RegisterApplication(ownApplicationTestData.ApplicationRecord);
+            GDSClient.Disconnect();
             return id;
         }
         private static void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
@@ -268,20 +271,21 @@ namespace Opc.Ua.Gds.Tests
 
         private ApplicationTestData GetOwnApplicationData()
         {
-            return new ApplicationTestData {
-                ApplicationRecord = new ApplicationRecordDataType {
-                    ApplicationUri = m_client.Configuration.ApplicationUri,
-                    ApplicationType = m_client.Configuration.ApplicationType,
-                    ProductUri = m_client.Configuration.ProductUri,
-                    ApplicationNames = [new LocalizedText(m_client.Configuration.ApplicationName)],
+            return new ApplicationTestData
+            {
+                ApplicationRecord = new ApplicationRecordDataType
+                {
+                    ApplicationUri = GDSClient.Configuration.ApplicationUri,
+                    ApplicationType = GDSClient.Configuration.ApplicationType,
+                    ProductUri = GDSClient.Configuration.ProductUri,
+                    ApplicationNames = [new LocalizedText(GDSClient.Configuration.ApplicationName)],
                     ApplicationId = new NodeId(Guid.NewGuid())
                 },
                 PrivateKeyFormat = "PEM",
-                Subject = $"CN={m_client.Configuration.ApplicationName},DC={Utils.GetHostName()},O=OPC Foundation",
+                Subject = $"CN={GDSClient.Configuration.ApplicationName},DC={Utils.GetHostName()},O=OPC Foundation",
             };
         }
 
-        private GlobalDiscoveryServerClient m_client;
         private ApplicationInstance m_application;
         private readonly string m_storeType;
     }

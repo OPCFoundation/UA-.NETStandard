@@ -595,14 +595,17 @@ namespace Opc.Ua.Bindings
                 return false;
             }
 
-            // parse the security header.
-            uint channelId = 0;
-            X509Certificate2 serverCertificate = null;
-            uint requestId = 0;
-            uint sequenceNumber = 0;
-
             ArraySegment<byte> messageBody;
 
+
+            // parse the security header.
+            uint channelId;
+
+            X509Certificate2 serverCertificate;
+
+            uint requestId;
+
+            uint sequenceNumber;
             try
             {
                 messageBody = ReadAsymmetricMessage(
@@ -1046,12 +1049,7 @@ namespace Opc.Ua.Bindings
             try
             {
                 // check for valid token.
-                ChannelToken token = CurrentToken;
-
-                if (token == null)
-                {
-                    throw new ServiceResultException(StatusCodes.BadSecureChannelClosed);
-                }
+                ChannelToken token = CurrentToken ?? throw new ServiceResultException(StatusCodes.BadSecureChannelClosed);
 
                 // must return an error to the client if limits are exceeded.
                 bool limitsExceeded = false;
@@ -1284,7 +1282,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private WriteOperation BeginOperation(int timeout, AsyncCallback callback, object state)
         {
-            var operation = new WriteOperation(timeout, callback, state) {
+            var operation = new WriteOperation(timeout, callback, state)
+            {
                 RequestId = Utils.IncrementIdentifier(ref m_lastRequestId)
             };
             if (!m_requests.TryAdd(operation.RequestId, operation))
@@ -1462,18 +1461,13 @@ namespace Opc.Ua.Bindings
             m_waitBetweenReconnects = Timeout.Infinite;
 
             // check for valid token.
-            ChannelToken currentToken = CurrentToken;
-
-            if (currentToken == null)
-            {
-                throw new ServiceResultException(StatusCodes.BadSecureChannelClosed);
-            }
+            ChannelToken currentToken = CurrentToken ?? throw new ServiceResultException(StatusCodes.BadSecureChannelClosed);
 
             var request = new CloseSecureChannelRequest();
             request.RequestHeader.Timestamp = DateTime.UtcNow;
 
             // limits should never be exceeded sending a close message.
-            bool limitsExceeded = false;
+            bool limitsExceeded;
 
             // construct the message.
             BufferCollection buffers = WriteSymmetricMessage(
@@ -1503,15 +1497,18 @@ namespace Opc.Ua.Bindings
         {
             Utils.LogTrace("ChannelId {0}: ProcessResponseMessage()", ChannelId);
 
-            // validate security on the message.
-            ChannelToken token = null;
-            uint requestId = 0;
-            uint sequenceNumber = 0;
 
             ArraySegment<byte> messageBody;
 
+
+            uint requestId;
+
+            uint sequenceNumber;
             try
             {
+
+                // validate security on the message.
+                ChannelToken token;
                 messageBody = ReadSymmetricMessage(messageChunk, false, out token, out requestId, out sequenceNumber);
             }
             catch (Exception e)
@@ -1521,7 +1518,7 @@ namespace Opc.Ua.Bindings
             }
 
             // check if operation is still available.
-            WriteOperation operation = null;
+            WriteOperation operation;
             if (!m_requests.TryGetValue(requestId, out operation))
             {
                 return false;

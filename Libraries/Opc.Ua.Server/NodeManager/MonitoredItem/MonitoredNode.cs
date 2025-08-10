@@ -305,12 +305,13 @@ namespace Opc.Ua.Server
             NodeState node,
             IDataChangeMonitoredItem2 monitoredItem)
         {
-            var value = new DataValue();
-
-            value.Value = null;
-            value.ServerTimestamp = DateTime.UtcNow;
-            value.SourceTimestamp = DateTime.MinValue;
-            value.StatusCode = StatusCodes.Good;
+            var value = new DataValue
+            {
+                Value = null,
+                ServerTimestamp = DateTime.UtcNow,
+                SourceTimestamp = DateTime.MinValue,
+                StatusCode = StatusCodes.Good
+            };
 
             ISystemContext contextToUse = context;
 

@@ -24,7 +24,8 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             string result;
             using (var jsonEncoder = new JsonEncoder(context, true))
             {
-                var envelope = new SessionLessServiceMessage {
+                var envelope = new SessionLessServiceMessage
+                {
                     UriVersion = uriVersion,
                     NamespaceUris = context.NamespaceUris,
                     ServerUris = context.ServerUris,

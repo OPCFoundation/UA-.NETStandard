@@ -102,9 +102,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections[0].WriterGroups[0], new WriterGroupPublishState());
             // filter out the metadata message
-            networkMessages = [.. (from m in networkMessages
+            networkMessages = [.. from m in networkMessages
                                where !m.IsMetaDataMessage
-                               select m)];
+                               select m];
 
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
             Assert.AreEqual(1, networkMessages.Count, "connection.CreateNetworkMessages shall return only one network message");
@@ -188,9 +188,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections[0].WriterGroups[0], new WriterGroupPublishState());
             // filter out the metadata message
-            networkMessages = [.. (from m in networkMessages
+            networkMessages = [.. from m in networkMessages
                                where !m.IsMetaDataMessage
-                               select m)];
+                               select m];
 
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
             Assert.AreEqual(1, networkMessages.Count, "connection.CreateNetworkMessages shall return only one network message");
@@ -264,9 +264,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections[0].WriterGroups[0], new WriterGroupPublishState());
 
             // filter out the metadata message
-            networkMessages = [.. (from m in networkMessages
+            networkMessages = [.. from m in networkMessages
                                where !m.IsMetaDataMessage
-                               select m)];
+                               select m];
 
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
             Assert.AreEqual(1, networkMessages.Count, "connection.CreateNetworkMessages shall return only one network message");
@@ -339,9 +339,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections[0].WriterGroups[0], new WriterGroupPublishState());
             // filter out the metadata message
-            networkMessages = [.. (from m in networkMessages
+            networkMessages = [.. from m in networkMessages
                                where !m.IsMetaDataMessage
-                               select m)];
+                               select m];
 
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
             Assert.AreEqual(1, networkMessages.Count, "connection.CreateNetworkMessages shall return only one network message");
@@ -417,9 +417,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections[0].WriterGroups[0], new WriterGroupPublishState());
 
             // filter out the metadata message
-            networkMessages = [.. (from m in networkMessages
+            networkMessages = [.. from m in networkMessages
                                where !m.IsMetaDataMessage
-                               select m)];
+                               select m];
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
             Assert.AreEqual(1, networkMessages.Count, "connection.CreateNetworkMessages shall return only one network message");
 
@@ -496,9 +496,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections[0].WriterGroups[0], new WriterGroupPublishState());
             // filter out the metadata message
-            networkMessages = [.. (from m in networkMessages
+            networkMessages = [.. from m in networkMessages
                                where !m.IsMetaDataMessage
-                               select m)];
+                               select m];
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
             Assert.AreEqual(1, networkMessages.Count, "connection.CreateNetworkMessages shall return only one network message");
 
@@ -645,9 +645,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections[0].WriterGroups[0], new WriterGroupPublishState());
             // filter out the metadata message
-            networkMessages = [.. (from m in networkMessages
+            networkMessages = [.. from m in networkMessages
                                where !m.IsMetaDataMessage
-                               select m)];
+                               select m];
 
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
             Assert.AreEqual(1, networkMessages.Count, "connection.CreateNetworkMessages shall return only one network message");
@@ -722,9 +722,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections[0].WriterGroups[0], new WriterGroupPublishState());
             // filter out the metadata message
-            networkMessages = [.. (from m in networkMessages
+            networkMessages = [.. from m in networkMessages
                                where !m.IsMetaDataMessage
-                               select m)];
+                               select m];
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
             Assert.AreEqual(1, networkMessages.Count, "connection.CreateNetworkMessages shall return only one network message");
 
@@ -801,9 +801,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections[0].WriterGroups[0], new WriterGroupPublishState());
             // filter out the metadata message
-            networkMessages = [.. (from m in networkMessages
+            networkMessages = [.. from m in networkMessages
                                where !m.IsMetaDataMessage
-                               select m)];
+                               select m];
 
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
             Assert.AreEqual(1, networkMessages.Count, "connection.CreateNetworkMessages shall return only one network message");
@@ -878,9 +878,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             IList<UaNetworkMessage> networkMessages = connection.CreateNetworkMessages(publisherConfiguration.Connections[0].WriterGroups[0], new WriterGroupPublishState());
 
             // filter out the metadata message
-            networkMessages = [.. (from m in networkMessages
+            networkMessages = [.. from m in networkMessages
                                where !m.IsMetaDataMessage
-                               select m)];
+                               select m];
 
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
             Assert.AreEqual(1, networkMessages.Count, "connection.CreateNetworkMessages shall return only one network message");
@@ -1201,9 +1201,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             int faultIndex = -1;
             double faultDeviation = 0;
 
-            s_publishTimes = [.. (from t in s_publishTimes
+            s_publishTimes = [.. from t in s_publishTimes
                               orderby t
-                              select t)];
+                              select t];
 
             //Assert
             for (int i = 1; i < s_publishTimes.Count; i++)

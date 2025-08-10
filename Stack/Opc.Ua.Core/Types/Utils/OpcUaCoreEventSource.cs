@@ -136,12 +136,10 @@ namespace Opc.Ua
                 return;
             }
 
-            string message = null;
-
             // Log the formatted message
             if (IsEnabled(EventLevel.Informational, Keywords.FormattedMessage))
             {
-                message = formatter(state, exception);
+                string message = formatter(state, exception);
                 switch (logLevel)
                 {
                     case LogLevel.Trace:

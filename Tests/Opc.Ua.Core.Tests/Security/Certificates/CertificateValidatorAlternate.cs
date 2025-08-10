@@ -383,7 +383,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             WebServer server = new WebServer(o => o
                     .WithUrlPrefix(embedioUrl)
                     .WithMode(HttpListenerMode.EmbedIO))
-                .WithModule(new ActionModule("/", HttpVerbs.Get, async ctx => {
+                .WithModule(new ActionModule("/", HttpVerbs.Get, async ctx =>
+                {
                     TestContext.Out.WriteLine("GET: {0}", ctx.RequestedPath);
                     // return the certificate as binary blob
                     string path = Path.Combine(tempPath, ctx.RequestedPath[1..]);

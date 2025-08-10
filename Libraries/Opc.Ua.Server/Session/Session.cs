@@ -97,7 +97,7 @@ namespace Opc.Ua.Server
 
             m_clientIssuerCertificates = clientCertificateChain;
 
-            m_secureChannelId = context.ChannelContext.SecureChannelId;
+            SecureChannelId = context.ChannelContext.SecureChannelId;
             m_maxResponseMessageSize = maxResponseMessageSize;
             m_maxRequestAge = maxRequestAge;
             MaxBrowseContinuationPoints = maxBrowseContinuationPoints;
@@ -105,11 +105,12 @@ namespace Opc.Ua.Server
             EndpointDescription = context.ChannelContext.EndpointDescription;
 
             // use anonymous the default identity.
-            m_identity = new UserIdentity();
+            Identity = new UserIdentity();
 
             // initialize diagnostics.
             DateTime now = DateTime.UtcNow;
-            SessionDiagnostics = new SessionDiagnosticsDataType {
+            SessionDiagnostics = new SessionDiagnosticsDataType
+            {
                 SessionId = null,
                 SessionName = sessionName,
                 ClientDescription = clientDescription,
@@ -121,13 +122,14 @@ namespace Opc.Ua.Server
             };
 
             // initialize security diagnostics.
-            m_securityDiagnostics = new SessionSecurityDiagnosticsDataType {
+            m_securityDiagnostics = new SessionSecurityDiagnosticsDataType
+            {
                 SessionId = Id,
-                ClientUserIdOfSession = m_identity.DisplayName,
-                AuthenticationMechanism = m_identity.TokenType.ToString(),
+                ClientUserIdOfSession = Identity.DisplayName,
+                AuthenticationMechanism = Identity.TokenType.ToString(),
                 Encoding = context.ChannelContext.MessageEncoding.ToString(),
             };
-            m_securityDiagnostics.ClientUserIdHistory.Add(m_identity.DisplayName);
+            m_securityDiagnostics.ClientUserIdHistory.Add(Identity.DisplayName);
 
             EndpointDescription description = context.ChannelContext.EndpointDescription;
 
@@ -214,17 +216,17 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The user identity provided by the client.
         /// </summary>
-        public IUserIdentity Identity => m_identity;
+        public IUserIdentity Identity { get; private set; }
 
         /// <summary>
         /// The application defined mapping for user identity provided by the client.
         /// </summary>
-        public IUserIdentity EffectiveIdentity => m_effectiveIdentity;
+        public IUserIdentity EffectiveIdentity { get; private set; }
 
         /// <summary>
         /// The user identity token provided by the client.
         /// </summary>
-        public UserIdentityToken IdentityToken => m_identityToken;
+        public UserIdentityToken IdentityToken { get; private set; }
 
         /// <summary>
         /// A lock which must be acquired before accessing the diagnostics.
@@ -250,7 +252,7 @@ namespace Opc.Ua.Server
         /// The locales requested when the session was created.
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
-        public string[] PreferredLocales => m_localeIds;
+        public string[] PreferredLocales { get; private set; }
 
         /// <summary>
         /// Whether the session timeout has elapsed since the last communication from the client.
@@ -283,7 +285,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Whether the session has been activated.
         /// </summary>
-        public bool Activated => m_activated;
+        public bool Activated { get; private set; }
 
         /// <summary>
         /// Set the ECC security policy URI
@@ -314,7 +316,8 @@ namespace Opc.Ua.Server
 
                 m_eccUserTokenNonce = Nonce.CreateNonce(m_eccUserTokenSecurityPolicyUri);
 
-                var key = new EphemeralKeyType() {
+                var key = new EphemeralKeyType()
+                {
                     PublicKey = m_eccUserTokenNonce.Data
                 };
 
@@ -332,7 +335,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns the session's SecureChannelId
         /// </summary>
-        public string SecureChannelId => m_secureChannelId;
+        public string SecureChannelId { get; private set; }
 
         /// <summary>
         /// allow derived classes access
@@ -361,7 +364,7 @@ namespace Opc.Ua.Server
                 }
 
                 // verify that session has been activated.
-                if (!m_activated && requestType != RequestType.CloseSession)
+                if (!Activated && requestType != RequestType.CloseSession)
                 {
                     UpdateDiagnosticCounters(requestType, true, true);
                     throw new ServiceResultException(StatusCodes.BadSessionNotActivated);
@@ -380,7 +383,7 @@ namespace Opc.Ua.Server
             const uint additionalInfoDiagnosticsMask = (uint)(DiagnosticsMasks.ServiceAdditionalInfo | DiagnosticsMasks.OperationAdditionalInfo);
             if ((requestHeader.ReturnDiagnostics & additionalInfoDiagnosticsMask) != 0)
             {
-                NodeIdCollection currentRoleIds = m_effectiveIdentity?.GrantedRoleIds;
+                NodeIdCollection currentRoleIds = EffectiveIdentity?.GrantedRoleIds;
                 if ((currentRoleIds?.Contains(ObjectIds.WellKnownRole_SecurityAdmin)) == true ||
                     (currentRoleIds?.Contains(ObjectIds.WellKnownRole_ConfigureAdmin)) == true)
                 {
@@ -396,7 +399,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                return m_secureChannelId == secureChannelId;
+                return SecureChannelId == secureChannelId;
             }
         }
 
@@ -415,9 +418,9 @@ namespace Opc.Ua.Server
             {
                 string[] ids = [.. localeIds];
 
-                if (!Utils.IsEqual(ids, m_localeIds))
+                if (!Utils.IsEqual(ids, PreferredLocales))
                 {
-                    m_localeIds = ids;
+                    PreferredLocales = ids;
 
                     // update diagnostics.
                     lock (DiagnosticsLock)
@@ -501,10 +504,10 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                if (!m_activated)
+                if (!Activated)
                 {
                     // must active the session on the channel that was used to create it.
-                    if (m_secureChannelId != context.ChannelContext.SecureChannelId)
+                    if (SecureChannelId != context.ChannelContext.SecureChannelId)
                     {
                         throw new ServiceResultException(StatusCodes.BadSecureChannelIdInvalid);
                     }
@@ -553,10 +556,10 @@ namespace Opc.Ua.Server
                     changed = true;
                 }
 
-                if (!m_activated)
+                if (!Activated)
                 {
                     // toggle the activated flag.
-                    m_activated = true;
+                    Activated = true;
 
                     // save the software certificates.
                     m_softwareCertificates = clientSoftwareCertificates;
@@ -566,7 +569,7 @@ namespace Opc.Ua.Server
                 else
                 {
                     // bind to the new secure channel.
-                    m_secureChannelId = context.ChannelContext.SecureChannelId;
+                    SecureChannelId = context.ChannelContext.SecureChannelId;
 
                     TraceState("RE-ACTIVATION");
                 }
@@ -581,8 +584,10 @@ namespace Opc.Ua.Server
                 {
                     foreach (SoftwareCertificate softwareCertificate in clientSoftwareCertificates)
                     {
-                        var item = new SignedSoftwareCertificate();
-                        item.CertificateData = softwareCertificate.SignedCertificate.RawData;
+                        var item = new SignedSoftwareCertificate
+                        {
+                            CertificateData = softwareCertificate.SignedCertificate.RawData
+                        };
                         signedSoftwareCertificates.Add(item);
                     }
                 }
@@ -711,11 +716,12 @@ namespace Opc.Ua.Server
                 }
 
                 // create the cp.
-                var cp = new HistoryContinuationPoint();
-
-                cp.Id = id;
-                cp.Value = continuationPoint;
-                cp.Timestamp = DateTime.UtcNow;
+                var cp = new HistoryContinuationPoint
+                {
+                    Id = id,
+                    Value = continuationPoint,
+                    Timestamp = DateTime.UtcNow
+                };
 
                 m_historyContinuationPoints.Add(cp);
             }
@@ -773,7 +779,7 @@ namespace Opc.Ua.Server
         internal void TraceState(string context)
         {
             ServerUtils.EventLog.SessionState(context, Id.ToString(), m_sessionName,
-                m_secureChannelId, m_identity?.DisplayName ?? "(none)");
+                SecureChannelId, Identity?.DisplayName ?? "(none)");
         }
 
         /// <summary>
@@ -844,12 +850,14 @@ namespace Opc.Ua.Server
                 }
 
                 // create an anonymous token to use for subsequent validation.
-                var anonymousToken = new AnonymousIdentityToken();
-                anonymousToken.PolicyId = policy.PolicyId;
+                var anonymousToken = new AnonymousIdentityToken
+                {
+                    PolicyId = policy.PolicyId
+                };
                 return anonymousToken;
             }
 
-            UserIdentityToken token = null;
+            UserIdentityToken token;
             // check for unrecognized token.
             if (!typeof(UserIdentityToken).IsInstanceOfType(identityToken.Body))
             {
@@ -1001,17 +1009,17 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                bool changed = m_effectiveIdentity == null && effectiveIdentity != null;
+                bool changed = EffectiveIdentity == null && effectiveIdentity != null;
 
-                if (m_effectiveIdentity != null)
+                if (EffectiveIdentity != null)
                 {
-                    changed = !m_effectiveIdentity.Equals(effectiveIdentity);
+                    changed = !EffectiveIdentity.Equals(effectiveIdentity);
                 }
 
                 // always save the new identity since it may have additional information that does not affect equality.
-                m_identityToken = identityToken;
-                m_identity = identity;
-                m_effectiveIdentity = effectiveIdentity;
+                IdentityToken = identityToken;
+                Identity = identity;
+                EffectiveIdentity = effectiveIdentity;
 
                 // update diagnostics.
                 lock (DiagnosticsLock)
@@ -1184,24 +1192,15 @@ namespace Opc.Ua.Server
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
         private readonly NodeId m_authenticationToken;
         private readonly IServerInternal m_server;
-
-        private UserIdentityToken m_identityToken;
-        private IUserIdentity m_identity;
-        private IUserIdentity m_effectiveIdentity;
-        private bool m_activated;
-
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
         private List<SoftwareCertificate> m_softwareCertificates;
         private readonly string m_sessionName;
-        private string m_secureChannelId;
         private X509Certificate2 m_serverCertificate;
 
         private Nonce m_serverNonce;
         private string m_eccUserTokenSecurityPolicyUri;
         private Nonce m_eccUserTokenNonce;
         private readonly X509Certificate2Collection m_clientIssuerCertificates;
-
-        private string[] m_localeIds;
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
         private readonly uint m_maxResponseMessageSize;
         private readonly double m_maxRequestAge;

@@ -649,13 +649,15 @@ namespace Opc.Ua.PubSub.Tests.Transport
 
                 var startInfo =
                new ProcessStartInfo(
-                  Path.Combine(programFilesPath, Path.Combine(DefaultBrokerProcessName, $"{DefaultBrokerProcessName}.exe")));
-                startInfo.WindowStyle = ProcessWindowStyle.Hidden;
-                //startInfo.CreateNoWindow = true;
-                //startInfo.RedirectStandardOutput = true;
-                //startInfo.UseShellExecute = true;
-                //startInfo.Verb = "runas";
-                startInfo.Arguments = arguments;
+                  Path.Combine(programFilesPath, Path.Combine(DefaultBrokerProcessName, $"{DefaultBrokerProcessName}.exe")))
+               {
+                   WindowStyle = ProcessWindowStyle.Hidden,
+                   //startInfo.CreateNoWindow = true;
+                   //startInfo.RedirectStandardOutput = true;
+                   //startInfo.UseShellExecute = true;
+                   //startInfo.Verb = "runas";
+                   Arguments = arguments
+               };
                 process.StartInfo = startInfo;
                 process.Start();
             }

@@ -137,7 +137,6 @@ namespace Opc.Ua.Server
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                double currentValue = 0;
                 DateTime currentTime = values[ii].SourceTimestamp;
                 StatusCode currentStatus = values[ii].StatusCode;
 
@@ -148,6 +147,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
+                double currentValue;
                 // convert to double.
                 try
                 {
@@ -227,9 +227,9 @@ namespace Opc.Ua.Server
             object processedValue = null;
             TypeInfo processedType = null;
             DateTime processedTimestamp = DateTime.MinValue;
-            bool uncertainValueExists = false;
             bool duplicatesExist = false;
 
+            bool uncertainValueExists;
             if (valueType == 1)
             {
                 processedValue = minimumGoodValue;
@@ -276,9 +276,11 @@ namespace Opc.Ua.Server
             }
 
             // create processed value.
-            var value = new DataValue();
-            value.WrappedValue = new Variant(processedValue, processedType);
-            value.StatusCode = statusCode;
+            var value = new DataValue
+            {
+                WrappedValue = new Variant(processedValue, processedType),
+                StatusCode = statusCode
+            };
 
             if (returnActualTime)
             {
@@ -326,7 +328,6 @@ namespace Opc.Ua.Server
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                double currentValue = 0;
                 DateTime currentTime = values[ii].SourceTimestamp;
                 StatusCode currentStatus = values[ii].StatusCode;
 
@@ -336,6 +337,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
+                double currentValue;
                 // convert to double.
                 try
                 {
@@ -454,9 +456,11 @@ namespace Opc.Ua.Server
             }
 
             // create processed value.
-            var value = new DataValue();
-            value.WrappedValue = new Variant(processedValue, processedType);
-            value.StatusCode = GetTimeBasedStatusCode(slice, values, statusCode);
+            var value = new DataValue
+            {
+                WrappedValue = new Variant(processedValue, processedType),
+                StatusCode = GetTimeBasedStatusCode(slice, values, statusCode)
+            };
 
             // zero value if status is bad.
             if (StatusCode.IsBad(value.StatusCode))

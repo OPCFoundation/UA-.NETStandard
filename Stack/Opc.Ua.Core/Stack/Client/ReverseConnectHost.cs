@@ -57,7 +57,8 @@ namespace Opc.Ua
             // create the UA listener.
             try
             {
-                var settings = new TransportListenerSettings {
+                var settings = new TransportListenerSettings
+                {
                     Descriptions = null,
                     Configuration = null,
                     CertificateValidator = null,

@@ -374,12 +374,7 @@ namespace Opc.Ua.Bindings
         /// <seealso cref="SendRequest"/>
         public IServiceResponse EndSendRequest(IAsyncResult result)
         {
-            UaSCUaBinaryClientChannel channel = m_channel;
-
-            if (channel == null)
-            {
-                throw ServiceResultException.Create(StatusCodes.BadSecureChannelClosed, "Channel has been closed.");
-            }
+            UaSCUaBinaryClientChannel channel = m_channel ?? throw ServiceResultException.Create(StatusCodes.BadSecureChannelClosed, "Channel has been closed.");
 
             return channel.EndSendRequest(result);
         }
@@ -394,12 +389,7 @@ namespace Opc.Ua.Bindings
         /// <seealso cref="SendRequest"/>
         public Task<IServiceResponse> EndSendRequestAsync(IAsyncResult result, CancellationToken ct)
         {
-            UaSCUaBinaryClientChannel channel = m_channel;
-
-            if (channel == null)
-            {
-                throw ServiceResultException.Create(StatusCodes.BadSecureChannelClosed, "Channel has been closed.");
-            }
+            UaSCUaBinaryClientChannel channel = m_channel ?? throw ServiceResultException.Create(StatusCodes.BadSecureChannelClosed, "Channel has been closed.");
 
             return channel.EndSendRequestAsync(result, ct);
         }
@@ -418,12 +408,14 @@ namespace Opc.Ua.Bindings
 
             // initialize the quotas.
             EndpointConfiguration configuration = m_settings.Configuration;
-            m_quotas = new ChannelQuotas {
+            m_quotas = new ChannelQuotas
+            {
                 MaxBufferSize = configuration.MaxBufferSize,
                 MaxMessageSize = TcpMessageLimits.AlignRoundMaxMessageSize(configuration.MaxMessageSize),
                 ChannelLifetime = configuration.ChannelLifetime,
                 SecurityTokenLifetime = configuration.SecurityTokenLifetime,
-                MessageContext = new ServiceMessageContext() {
+                MessageContext = new ServiceMessageContext()
+                {
                     MaxArrayLength = configuration.MaxArrayLength,
                     MaxByteStringLength = configuration.MaxByteStringLength,
                     MaxMessageSize = TcpMessageLimits.AlignRoundMaxMessageSize(configuration.MaxMessageSize),

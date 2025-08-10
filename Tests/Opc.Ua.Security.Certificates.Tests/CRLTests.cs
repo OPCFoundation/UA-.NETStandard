@@ -163,7 +163,8 @@ namespace Opc.Ua.Security.Certificates.Tests
             if (!empty)
             {
                 // little endian byte array as serial number?
-                var revokedarray = new RevokedCertificate(serial) {
+                var revokedarray = new RevokedCertificate(serial)
+                {
                     RevocationDate = DateTime.UtcNow.AddDays(30)
                 };
                 crlBuilder.RevokedCertificates.Add(revokedarray);
@@ -285,12 +286,14 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .SetThisUpdate(baseYear)
                 .SetNextUpdate(baseYear.AddDays(100));
             byte[] serial = [4, 5, 6, 7];
-            var revokedarray = new RevokedCertificate(serial) {
+            var revokedarray = new RevokedCertificate(serial)
+            {
                 RevocationDate = baseYear.AddDays(1)
             };
             crlBuilder.RevokedCertificates.Add(revokedarray);
             const string serstring = "45678910";
-            var revokedstring = new RevokedCertificate(serstring) {
+            var revokedstring = new RevokedCertificate(serstring)
+            {
                 RevocationDate = baseYear.AddDays(1)
             };
             crlBuilder.RevokedCertificates.Add(revokedstring);
@@ -306,7 +309,8 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .SetNextUpdate(baseYear.AddDays(100));
             revokedarray = new RevokedCertificate(serial);
             crlBuilder.RevokedCertificates.Add(revokedarray);
-            revokedstring = new RevokedCertificate(serstring) {
+            revokedstring = new RevokedCertificate(serstring)
+            {
                 RevocationDate = baseYear.AddDays(20)
             };
             crlBuilder.RevokedCertificates.Add(revokedstring);

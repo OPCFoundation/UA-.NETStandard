@@ -40,7 +40,7 @@ namespace Opc.Ua.Gds.Tests
 {
     public class GlobalDiscoveryTestServer
     {
-        public GlobalDiscoverySampleServer Server => m_server;
+        public GlobalDiscoverySampleServer Server { get; private set; }
         public ApplicationInstance Application { get; private set; }
         public ApplicationConfiguration Config { get; private set; }
         public int BasePort { get; private set; }
@@ -63,7 +63,8 @@ namespace Opc.Ua.Gds.Tests
                 }
                 configSectionName = "Opc.Ua.GlobalDiscoveryTestServerX509Stores";
             }
-            Application = new ApplicationInstance {
+            Application = new ApplicationInstance
+            {
                 ApplicationName = "Global Discovery Server",
                 ApplicationType = ApplicationType.Server,
                 ConfigSectionName = configSectionName
@@ -132,12 +133,12 @@ namespace Opc.Ua.Gds.Tests
             var usersDatabase = JsonUserDatabase.Load(usersDatabaseStorePath);
 
             // start the server.
-            m_server = new GlobalDiscoverySampleServer(
+            Server = new GlobalDiscoverySampleServer(
                 applicationsDatabase,
                 applicationsDatabase,
                 new CertificateGroup(),
                 usersDatabase);
-            await Application.StartAsync(m_server).ConfigureAwait(false);
+            await Application.StartAsync(Server).ConfigureAwait(false);
 
             ServerState serverState = Server.CurrentState;
             if (serverState != ServerState.Running)
@@ -148,12 +149,12 @@ namespace Opc.Ua.Gds.Tests
 
         public void StopServer()
         {
-            if (m_server != null)
+            if (Server != null)
             {
                 Console.WriteLine("Server stopped. Waiting for exit...");
 
-                using GlobalDiscoverySampleServer server = m_server;
-                m_server = null;
+                using GlobalDiscoverySampleServer server = Server;
+                Server = null;
                 // Stop server and dispose
                 server.Stop();
             }
@@ -205,7 +206,8 @@ namespace Opc.Ua.Gds.Tests
             string[] baseAddresses = ["opc.tcp://localhost:58810/GlobalDiscoveryTestServer"];
             string root = Path.Combine("%LocalApplicationData%", "OPC");
             string gdsRoot = Path.Combine(root, "GDS");
-            var gdsConfig = new GlobalDiscoveryServerConfiguration() {
+            var gdsConfig = new GlobalDiscoveryServerConfiguration()
+            {
                 AuthoritiesStorePath = Path.Combine(gdsRoot, "authorities"),
                 ApplicationCertificatesStorePath = Path.Combine(gdsRoot, "applications"),
                 DefaultSubjectNameContext = "O=OPC Foundation",
@@ -269,7 +271,6 @@ namespace Opc.Ua.Gds.Tests
             return config;
         }
 
-        private GlobalDiscoverySampleServer m_server;
         private static bool s_autoAccept;
     }
 }

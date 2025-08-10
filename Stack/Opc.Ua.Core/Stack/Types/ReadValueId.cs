@@ -22,18 +22,12 @@ namespace Opc.Ua
         /// <summary>
         /// A handle assigned to the item during processing.
         /// </summary>
-        public object Handle
-        {
-            get => m_handle; set => m_handle = value;
-        }
+        public object Handle { get; set; }
 
         /// <summary>
         /// Whether the value has been processed.
         /// </summary>
-        public bool Processed
-        {
-            get => m_processed; set => m_processed = value;
-        }
+        public bool Processed { get; set; }
 
         /// <summary>
         /// Stores the parsed form of the index range parameter.
@@ -104,8 +98,6 @@ namespace Opc.Ua
             return null;
         }
 
-        private object m_handle;
-        private bool m_processed;
         private NumericRange m_parsedIndexRange = NumericRange.Empty;
     }
 }

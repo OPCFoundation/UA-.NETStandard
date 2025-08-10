@@ -480,9 +480,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
-                var sre = e as ServiceResultException;
-
-                if (sre != null && sre.StatusCode == StatusCodes.BadSessionNotActivated && session != null)
+                if (e is ServiceResultException sre && sre.StatusCode == StatusCodes.BadSessionNotActivated && session != null)
                 {
                     CloseSession(session.Id);
                 }

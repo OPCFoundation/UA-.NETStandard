@@ -820,7 +820,6 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             List<PubSubEncoding.JsonNetworkMessage> uaMetaDataNetworkMessages = MessagesHelper.GetJsonUaMetaDataNetworkMessages([.. networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>()]);
             Assert.IsNotNull(uaMetaDataNetworkMessages, "Json ua-metadata entries are missing from configuration!");
-            index = 0;
             foreach (PubSubEncoding.JsonNetworkMessage uaMetaDataNetworkMessage in uaMetaDataNetworkMessages)
             {
                 CompareEncodeDecodeMetaData(uaMetaDataNetworkMessage); //(uaMetaDataNetworkMessage as PubSubEncoding.JsonNetworkMessage, new List<DataSetReaderDataType>() { dataSetReaders[index++] });
@@ -1102,9 +1101,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             int faultIndex = -1;
             double faultDeviation = 0;
 
-            s_publishTimes = [.. (from t in s_publishTimes
+            s_publishTimes = [.. from t in s_publishTimes
                               orderby t
-                              select t)];
+                              select t];
 
             //Assert
             for (int i = 1; i < s_publishTimes.Count; i++)
@@ -1143,10 +1142,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             DataSetMetaDataType dataSetMetaData = hasMetaData ? metadata : null;
 
-            var jsonNetworkMessage = new PubSubEncoding.JsonNetworkMessage(writerGroup, metadata);
-            jsonNetworkMessage.MessageId = messageId;
-            jsonNetworkMessage.PublisherId = publisherId;
-            jsonNetworkMessage.DataSetWriterId = MessagesHelper.ConvertToNullable<ushort>(dataSetWriterId);
+            var jsonNetworkMessage = new PubSubEncoding.JsonNetworkMessage(writerGroup, metadata)
+            {
+                MessageId = messageId,
+                PublisherId = publisherId,
+                DataSetWriterId = MessagesHelper.ConvertToNullable<ushort>(dataSetWriterId)
+            };
 
             jsonNetworkMessage.DataSetMetaData.Name = metaDataName;
             jsonNetworkMessage.DataSetMetaData.Description = metaDataDescription != null ? new LocalizedText(metaDataDescription) : metaDataDescription;
@@ -1738,13 +1739,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <returns></returns>
         private static NetworkMessageFailOptions VerifyNetworkMessageEncoding(PubSubEncoding.JsonNetworkMessage jsonNetworkMessage, JsonDecoder jsonDecoder)
         {
-            string messageIdValue = null;
-            string messageTypeValue = null;
             string publisherIdValue = null;
-            string dataSetClassIdValue = null;
 
-            object token = null;
 
+            string messageIdValue;
+
+            object token;
             if (jsonDecoder.ReadField(NetworkMessageMessageId, out token))
             {
                 messageIdValue = jsonDecoder.ReadString(NetworkMessageMessageId);
@@ -1755,6 +1755,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             }
             Assert.AreEqual(jsonNetworkMessage.MessageId, messageIdValue, "MessageId was not decoded correctly. Encoded: {0} Decoded: {1}", jsonNetworkMessage.MessageId, messageIdValue);
 
+            string messageTypeValue;
             if (jsonDecoder.ReadField(NetworkMessageMessageType, out token))
             {
                 messageTypeValue = jsonDecoder.ReadString(NetworkMessageMessageType);
@@ -1773,7 +1774,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             if (jsonDecoder.ReadField(NetworkMessageDataSetClassId, out token))
             {
-                dataSetClassIdValue = jsonDecoder.ReadString(NetworkMessageDataSetClassId);
+                string dataSetClassIdValue = jsonDecoder.ReadString(NetworkMessageDataSetClassId);
                 Assert.AreEqual(jsonNetworkMessage.DataSetClassId, dataSetClassIdValue, "DataSetClassId was not decoded correctly, Encoded: {0} Decoded: {1}", jsonNetworkMessage.PublisherId, publisherIdValue);
             }
 
@@ -2156,7 +2157,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 using var stringWriter = new StringWriter();
                 using var stringReader = new StringReader(json);
                 var jsonReader = new JsonTextReader(stringReader);
-                var jsonWriter = new JsonTextWriter(stringWriter) {
+                var jsonWriter = new JsonTextWriter(stringWriter)
+                {
                     FloatFormatHandling = FloatFormatHandling.String,
                     Formatting = Formatting.Indented,
                     Culture = CultureInfo.InvariantCulture

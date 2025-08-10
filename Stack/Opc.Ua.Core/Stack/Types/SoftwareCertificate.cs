@@ -38,8 +38,7 @@ namespace Opc.Ua
             softwareCertificate = null;
 
             // validate the certificate.
-            X509Certificate2 certificate = null;
-
+            X509Certificate2 certificate;
             try
             {
                 certificate = CertificateFactory.Create(signedCertificate, true);

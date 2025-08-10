@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -184,7 +184,7 @@ namespace Opc.Ua.PubSub.Encoding
 
             object token = null;
             string payloadStructureName = kFieldPayload;
-            // try to read "Payload" structure 
+            // try to read "Payload" structure
             if (!jsonDecoder.ReadField(kFieldPayload, out token))
             {
                 // Decode the Messages element in case there is no "Payload" structure
@@ -203,7 +203,7 @@ namespace Opc.Ua.PubSub.Encoding
                     // doesn't pass metadata version
                     return;
                 }
-                // check also the field names from reader, if any extra field names then the payload is not matching 
+                // check also the field names from reader, if any extra field names then the payload is not matching
                 foreach (string key in payload.Keys)
                 {
                     FieldMetaData field = dataSetReader.DataSetMetaData.Fields.FirstOrDefault(f => f.Name == key);
@@ -262,7 +262,7 @@ namespace Opc.Ua.PubSub.Encoding
                             {
                                 if (wasPush2 && jsonDecoder.ReadField("Value", out token))
                                 {
-                                    // the Value was encoded using the non reversible json encoding 
+                                    // the Value was encoded using the non reversible json encoding
                                     token = DecodeRawData(jsonDecoder, dataSetMetaData?.Fields[index], "Value");
                                     dataValue = new DataValue(new Variant(token));
                                 }
@@ -342,13 +342,15 @@ namespace Opc.Ua.PubSub.Encoding
                 return null;
             }
 
-            //build the DataSet Fields collection based on the decoded values and the target 
+            //build the DataSet Fields collection based on the decoded values and the target
             var dataFields = new List<Field>();
             for (int i = 0; i < dataValues.Count; i++)
             {
-                var dataField = new Field();
-                dataField.FieldMetaData = dataSetMetaData?.Fields[i];
-                dataField.Value = dataValues[i];
+                var dataField = new Field
+                {
+                    FieldMetaData = dataSetMetaData?.Fields[i],
+                    Value = dataValues[i]
+                };
 
                 if (ExtensionObject.ToEncodeable(dataSetReader.SubscribedDataSet) is TargetVariablesDataType targetVariablesData && targetVariablesData.TargetVariables != null
                     && i < targetVariablesData.TargetVariables.Count)
@@ -361,11 +363,13 @@ namespace Opc.Ua.PubSub.Encoding
             }
 
             // build the dataset object
-            var dataSet = new DataSet(dataSetMetaData?.Name);
-            dataSet.DataSetMetaData = dataSetMetaData;
-            dataSet.Fields = [.. dataFields];
-            dataSet.DataSetWriterId = DataSetWriterId;
-            dataSet.SequenceNumber = SequenceNumber;
+            var dataSet = new DataSet(dataSetMetaData?.Name)
+            {
+                DataSetMetaData = dataSetMetaData,
+                Fields = [.. dataFields],
+                DataSetWriterId = DataSetWriterId,
+                SequenceNumber = SequenceNumber
+            };
             return dataSet;
         }
 
@@ -468,9 +472,10 @@ namespace Opc.Ua.PubSub.Encoding
                     break;
 
                 case FieldTypeEncodingMask.DataValue:
-                    var dataValue = new DataValue();
-
-                    dataValue.WrappedValue = valueToEncode;
+                    var dataValue = new DataValue
+                    {
+                        WrappedValue = valueToEncode
+                    };
 
                     if ((FieldContentMask & DataSetFieldContentMask.StatusCode) != 0)
                     {
@@ -543,7 +548,7 @@ namespace Opc.Ua.PubSub.Encoding
         /// </summary>
         private void DecodeDataSetMessageHeader(IJsonDecoder jsonDecoder)
         {
-            object token = null;
+            object token;
             if ((DataSetMessageContentMask & JsonDataSetMessageContentMask.DataSetWriterId) != 0 && jsonDecoder.ReadField(nameof(DataSetWriterId), out token))
             {
                 DataSetWriterId = jsonDecoder.ReadUInt16(nameof(DataSetWriterId));

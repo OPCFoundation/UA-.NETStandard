@@ -73,8 +73,9 @@ namespace Opc.Ua.Server
             }
 
             // need to build a table of NamespaceIndexes and their NodeManagers.
-            List<INodeManager> registeredManagers = null;
-            var namespaceManagers = new Dictionary<int, List<INodeManager>> {
+            List<INodeManager> registeredManagers;
+            var namespaceManagers = new Dictionary<int, List<INodeManager>>
+            {
                 [0] = registeredManagers = [],
                 [1] = registeredManagers = []
             };
@@ -102,13 +103,13 @@ namespace Opc.Ua.Server
                 }
 
                 // build table from dictionary.
-                m_namespaceManagers = new INodeManager[Server.NamespaceUris.Count][];
+                NamespaceManagers = new INodeManager[Server.NamespaceUris.Count][];
 
-                for (int ii = 0; ii < m_namespaceManagers.Length; ii++)
+                for (int ii = 0; ii < NamespaceManagers.Length; ii++)
                 {
                     if (namespaceManagers.TryGetValue(ii, out registeredManagers))
                     {
-                        m_namespaceManagers[ii] = [.. registeredManagers];
+                        NamespaceManagers[ii] = [.. registeredManagers];
                     }
                 }
             }
@@ -192,14 +193,14 @@ namespace Opc.Ua.Server
             bool isInverse,
             NodeId targetId)
         {
-            var reference = new ReferenceNode();
+            var reference = new ReferenceNode
+            {
+                ReferenceTypeId = referenceTypeId,
+                IsInverse = isInverse,
+                TargetId = targetId
+            };
 
-            reference.ReferenceTypeId = referenceTypeId;
-            reference.IsInverse = isInverse;
-            reference.TargetId = targetId;
-
-            IList<IReference> references = null;
-
+            IList<IReference> references;
             if (!externalReferences.TryGetValue(sourceId, out references))
             {
                 externalReferences[sourceId] = references = [];
@@ -332,9 +333,7 @@ namespace Opc.Ua.Server
             {
                 for (int ii = 0; ii < m_nodeManagers.Count; ii++)
                 {
-                    var nodeManager = m_nodeManagers[ii] as INodeManager2;
-
-                    if (nodeManager != null)
+                    if (m_nodeManagers[ii] is INodeManager2 nodeManager)
                     {
                         try
                         {
@@ -413,11 +412,11 @@ namespace Opc.Ua.Server
             try
             {
                 // copy existing values.
-                for (int ii = 0; ii < m_namespaceManagers.Length; ii++)
+                for (int ii = 0; ii < NamespaceManagers.Length; ii++)
                 {
-                    if (m_namespaceManagers.Length >= ii)
+                    if (NamespaceManagers.Length >= ii)
                     {
-                        namespaceManagers[ii] = m_namespaceManagers[ii];
+                        namespaceManagers[ii] = NamespaceManagers[ii];
                     }
                 }
 
@@ -439,7 +438,7 @@ namespace Opc.Ua.Server
                 namespaceManagers[index] = registeredManagers;
 
                 // replace the table.
-                m_namespaceManagers = namespaceManagers;
+                NamespaceManagers = namespaceManagers;
             }
             finally
             {
@@ -474,7 +473,7 @@ namespace Opc.Ua.Server
             }
 
             // look up the node manager in the registered node managers for the namespace.
-            int nodeManagerIndex = Array.IndexOf(m_namespaceManagers[namespaceIndex], nodeManager);
+            int nodeManagerIndex = Array.IndexOf(NamespaceManagers[namespaceIndex], nodeManager);
             if (nodeManagerIndex < 0)
             {
                 return false;
@@ -487,11 +486,11 @@ namespace Opc.Ua.Server
             try
             {
                 // copy existing values.
-                for (int ii = 0; ii < m_namespaceManagers.Length; ii++)
+                for (int ii = 0; ii < NamespaceManagers.Length; ii++)
                 {
-                    if (m_namespaceManagers.Length >= ii)
+                    if (NamespaceManagers.Length >= ii)
                     {
-                        namespaceManagers[ii] = m_namespaceManagers[ii];
+                        namespaceManagers[ii] = NamespaceManagers[ii];
                     }
                 }
 
@@ -524,7 +523,7 @@ namespace Opc.Ua.Server
                 namespaceManagers[namespaceIndex] = registeredManagers;
 
                 // replace the table.
-                m_namespaceManagers = namespaceManagers;
+                NamespaceManagers = namespaceManagers;
 
                 return true;
             }
@@ -555,7 +554,7 @@ namespace Opc.Ua.Server
             try
             {
                 // check if node managers are registered - use the core node manager if unknown.
-                if (index >= m_namespaceManagers.Length || m_namespaceManagers[index] == null)
+                if (index >= NamespaceManagers.Length || NamespaceManagers[index] == null)
                 {
                     handle = m_nodeManagers[1].GetManagerHandle(nodeId);
 
@@ -569,7 +568,7 @@ namespace Opc.Ua.Server
                 }
 
                 // check each of the registered node managers.
-                INodeManager[] nodeManagers = m_namespaceManagers[index];
+                INodeManager[] nodeManagers = NamespaceManagers[index];
 
                 for (int ii = 0; ii < nodeManagers.Length; ii++)
                 {
@@ -599,7 +598,7 @@ namespace Opc.Ua.Server
             foreach (IReference reference in references)
             {
                 // find source node.
-                INodeManager nodeManager = null;
+                INodeManager nodeManager;
                 object sourceHandle = GetManagerHandle(sourceId, out nodeManager);
 
                 if (sourceHandle == null)
@@ -626,7 +625,7 @@ namespace Opc.Ua.Server
                 var sourceId = ExpandedNodeId.ToNodeId(reference.TargetId, Server.NamespaceUris);
 
                 // find source node.
-                INodeManager nodeManager = null;
+                INodeManager nodeManager;
                 object sourceHandle = GetManagerHandle(sourceId, out nodeManager);
 
                 if (sourceHandle == null)
@@ -761,11 +760,13 @@ namespace Opc.Ua.Server
 
                 BrowsePath browsePath = browsePaths[ii];
 
-                var result = new BrowsePathResult();
-                result.StatusCode = StatusCodes.Good;
+                var result = new BrowsePathResult
+                {
+                    StatusCode = StatusCodes.Good
+                };
                 results.Add(result);
 
-                ServiceResult error = null;
+                ServiceResult error;
 
                 // need to trap unexpected exceptions to handle bugs in the node managers.
                 try
@@ -863,8 +864,7 @@ namespace Opc.Ua.Server
             Debug.Assert(result != null);
 
             // check for valid start node.
-            INodeManager nodeManager = null;
-
+            INodeManager nodeManager;
             object sourceHandle = GetManagerHandle(browsePath.StartingNode, out nodeManager);
 
             if (sourceHandle == null)
@@ -1007,7 +1007,7 @@ namespace Opc.Ua.Server
                 for (int ii = 0; ii < targetIds.Count; ii++)
                 {
                     // Check the role permissions for target nodes
-                    INodeManager targetNodeManager = null;
+                    INodeManager targetNodeManager;
                     object targetHandle = GetManagerHandle(ExpandedNodeId.ToNodeId(targetIds[ii], Server.NamespaceUris), out targetNodeManager);
 
                     if (targetHandle != null && targetNodeManager != null)
@@ -1022,9 +1022,11 @@ namespace Opc.Ua.Server
                         }
                     }
 
-                    var target = new BrowsePathTarget();
-                    target.TargetId = targetIds[ii];
-                    target.RemainingPathIndex = uint.MaxValue;
+                    var target = new BrowsePathTarget
+                    {
+                        TargetId = targetIds[ii],
+                        RemainingPathIndex = uint.MaxValue
+                    };
 
                     targets.Add(target);
                 }
@@ -1040,10 +1042,11 @@ namespace Opc.Ua.Server
                 // check for external reference.
                 if (targetId.IsAbsolute)
                 {
-                    var target = new BrowsePathTarget();
-
-                    target.TargetId = targetId;
-                    target.RemainingPathIndex = (uint)(index + 1);
+                    var target = new BrowsePathTarget
+                    {
+                        TargetId = targetId,
+                        RemainingPathIndex = (uint)(index + 1)
+                    };
 
                     targets.Add(target);
                     continue;
@@ -1091,13 +1094,8 @@ namespace Opc.Ua.Server
 
             if (view != null && !NodeId.IsNull(view.ViewId))
             {
-                INodeManager viewManager = null;
-                object viewHandle = GetManagerHandle(view.ViewId, out viewManager);
-
-                if (viewHandle == null)
-                {
-                    throw new ServiceResultException(StatusCodes.BadViewIdUnknown);
-                }
+                INodeManager viewManager;
+                object viewHandle = GetManagerHandle(view.ViewId, out viewManager) ?? throw new ServiceResultException(StatusCodes.BadViewIdUnknown);
 
                 NodeMetadata metadata = viewManager.GetNodeMetadata(context, viewHandle, BrowseResultMask.NodeClass);
 
@@ -1142,11 +1140,13 @@ namespace Opc.Ua.Server
                 BrowseDescription nodeToBrowse = nodesToBrowse[ii];
 
                 // initialize result.
-                var result = new BrowseResult();
-                result.StatusCode = StatusCodes.Good;
+                var result = new BrowseResult
+                {
+                    StatusCode = StatusCodes.Good
+                };
                 results.Add(result);
 
-                ServiceResult error = null;
+                ServiceResult error;
 
                 // need to trap unexpected exceptions to handle bugs in the node managers.
                 try
@@ -1284,8 +1284,10 @@ namespace Opc.Ua.Server
                     ServiceResult validationResult = ValidatePermissions(context, cp.Manager, cp.NodeToBrowse, PermissionType.Browse, null, true);
                     if (ServiceResult.IsBad(validationResult))
                     {
-                        var badResult = new BrowseResult();
-                        badResult.StatusCode = validationResult.Code;
+                        var badResult = new BrowseResult
+                        {
+                            StatusCode = validationResult.Code
+                        };
                         results.Add(badResult);
 
                         // put placeholder for diagnostics
@@ -1295,18 +1297,16 @@ namespace Opc.Ua.Server
                 }
 
                 // initialize result.
-                var result = new BrowseResult();
-                result.StatusCode = StatusCodes.Good;
+                var result = new BrowseResult
+                {
+                    StatusCode = StatusCodes.Good
+                };
                 results.Add(result);
 
                 // check if simply releasing the continuation point.
                 if (releaseContinuationPoints)
                 {
-                    if (cp != null)
-                    {
-                        cp.Dispose();
-                        cp = null;
-                    }
+                    cp?.Dispose();
 
                     continue;
                 }
@@ -1391,7 +1391,7 @@ namespace Opc.Ua.Server
             Debug.Assert(result != null);
 
             // find node manager that owns the node.
-            INodeManager nodeManager = null;
+            INodeManager nodeManager;
             object handle = GetManagerHandle(nodeToBrowse.NodeId, out nodeManager);
 
             if (handle == null)
@@ -1417,19 +1417,20 @@ namespace Opc.Ua.Server
             }
 
             // create a continuation point.
-            var cp = new ContinuationPoint();
-
-            cp.Manager = nodeManager;
-            cp.View = view;
-            cp.NodeToBrowse = handle;
-            cp.MaxResultsToReturn = maxReferencesPerNode;
-            cp.BrowseDirection = nodeToBrowse.BrowseDirection;
-            cp.ReferenceTypeId = nodeToBrowse.ReferenceTypeId;
-            cp.IncludeSubtypes = nodeToBrowse.IncludeSubtypes;
-            cp.NodeClassMask = nodeToBrowse.NodeClassMask;
-            cp.ResultMask = (BrowseResultMask)nodeToBrowse.ResultMask;
-            cp.Index = 0;
-            cp.Data = null;
+            var cp = new ContinuationPoint
+            {
+                Manager = nodeManager,
+                View = view,
+                NodeToBrowse = handle,
+                MaxResultsToReturn = maxReferencesPerNode,
+                BrowseDirection = nodeToBrowse.BrowseDirection,
+                ReferenceTypeId = nodeToBrowse.ReferenceTypeId,
+                IncludeSubtypes = nodeToBrowse.IncludeSubtypes,
+                NodeClassMask = nodeToBrowse.NodeClassMask,
+                ResultMask = (BrowseResultMask)nodeToBrowse.ResultMask,
+                Index = 0,
+                Data = null
+            };
 
             // check if reference type left unspecified.
             if (NodeId.IsNull(cp.ReferenceTypeId))
@@ -1553,7 +1554,7 @@ namespace Opc.Ua.Server
             }
 
             // find node manager that owns the node.
-            INodeManager nodeManager = null;
+            INodeManager nodeManager;
             object handle = GetManagerHandle(targetId, out nodeManager);
 
             // dangling reference - nothing more to do.
@@ -1778,8 +1779,10 @@ namespace Opc.Ua.Server
                 if (ServiceResult.IsBad(errors[ii]))
                 {
                     nodesToRead[ii].Processed = true;
-                    result = new HistoryReadResult();
-                    result.StatusCode = errors[ii].Code;
+                    result = new HistoryReadResult
+                    {
+                        StatusCode = errors[ii].Code
+                    };
 
                     // add diagnostics if requested.
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
@@ -2000,8 +2003,7 @@ namespace Opc.Ua.Server
                 DiagnosticInfo diagnosticInfo = null;
 
                 // check the type of details parameter.
-                ServiceResult error = null;
-
+                ServiceResult error;
                 if (nodesToUpdate[ii].GetType() != detailsType)
                 {
                     error = StatusCodes.BadHistoryOperationInvalid;
@@ -2016,8 +2018,10 @@ namespace Opc.Ua.Server
                 if (ServiceResult.IsBad(error))
                 {
                     nodesToUpdate[ii].Processed = true;
-                    result = new HistoryUpdateResult();
-                    result.StatusCode = error.Code;
+                    result = new HistoryUpdateResult
+                    {
+                        StatusCode = error.Code
+                    };
 
                     // add diagnostics if requested.
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
@@ -2387,8 +2391,7 @@ namespace Opc.Ua.Server
                     }
 
                     // check if a valid node.
-                    INodeManager nodeManager = null;
-
+                    INodeManager nodeManager;
                     object handle = GetManagerHandle(itemToCreate.ItemToMonitor.NodeId, out nodeManager);
 
                     if (handle == null)
@@ -2517,8 +2520,7 @@ namespace Opc.Ua.Server
                     item.IsRestored = true;
 
                     // check if a valid node.
-                    INodeManager nodeManager = null;
-
+                    INodeManager nodeManager;
                     object handle = GetManagerHandle(item.NodeId, out nodeManager);
 
                     if (handle == null)
@@ -2678,10 +2680,8 @@ namespace Opc.Ua.Server
         {
             for (int ii = 0; ii < itemsToModify.Count; ii++)
             {
-                var monitoredItem = monitoredItems[ii] as IEventMonitoredItem;
-
                 // all event subscriptions are handled by the event manager.
-                if (monitoredItem == null || (monitoredItem.MonitoredItemType & MonitoredItemTypeMask.Events) == 0)
+                if (monitoredItems[ii] is not IEventMonitoredItem monitoredItem || (monitoredItem.MonitoredItemType & MonitoredItemTypeMask.Events) == 0)
                 {
                     continue;
                 }
@@ -2697,9 +2697,8 @@ namespace Opc.Ua.Server
                 }
 
                 // all event subscriptions required an event filter.
-                var filter = itemToModify.RequestedParameters.Filter.Body as EventFilter;
 
-                if (filter == null)
+                if (itemToModify.RequestedParameters.Filter.Body is not EventFilter filter)
                 {
                     errors[ii] = StatusCodes.BadEventFilterInvalid;
                     continue;
@@ -2867,10 +2866,8 @@ namespace Opc.Ua.Server
         {
             for (int ii = 0; ii < monitoredItems.Count; ii++)
             {
-                var monitoredItem = monitoredItems[ii] as IEventMonitoredItem;
-
                 // all event subscriptions are handled by the event manager.
-                if (monitoredItem == null || (monitoredItem.MonitoredItemType & MonitoredItemTypeMask.Events) == 0)
+                if (monitoredItems[ii] is not IEventMonitoredItem monitoredItem || (monitoredItem.MonitoredItemType & MonitoredItemTypeMask.Events) == 0)
                 {
                     continue;
                 }
@@ -2972,10 +2969,8 @@ namespace Opc.Ua.Server
         {
             for (int ii = 0; ii < monitoredItems.Count; ii++)
             {
-                var monitoredItem = monitoredItems[ii] as IEventMonitoredItem;
-
                 // all event subscriptions are handled by the event manager.
-                if (monitoredItem == null || (monitoredItem.MonitoredItemType & MonitoredItemTypeMask.Events) == 0)
+                if (monitoredItems[ii] is not IEventMonitoredItem monitoredItem || (monitoredItem.MonitoredItemType & MonitoredItemTypeMask.Events) == 0)
                 {
                     continue;
                 }
@@ -3003,7 +2998,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The namespace managers being managed
         /// </summary>
-        internal INodeManager[][] NamespaceManagers => m_namespaceManagers;
+        internal INodeManager[][] NamespaceManagers { get; private set; }
 
         /// <summary>
         /// Validates a monitoring attributes parameter.
@@ -3031,17 +3026,14 @@ namespace Opc.Ua.Server
         /// </summary>
         protected static ServiceResult ValidateMonitoringFilter(ExtensionObject filter)
         {
-            ServiceResult error = null;
 
             // check that no filter is specified for non-value attributes.
             if (!ExtensionObject.IsNull(filter))
             {
-                var datachangeFilter = filter.Body as DataChangeFilter;
-
                 // validate data change filter.
-                if (datachangeFilter != null)
+                if (filter.Body is DataChangeFilter datachangeFilter)
                 {
-                    error = datachangeFilter.Validate();
+                    ServiceResult error = datachangeFilter.Validate();
 
                     if (ServiceResult.IsBad(error))
                     {
@@ -3310,7 +3302,7 @@ namespace Opc.Ua.Server
         {
             if (context.Session != null)
             {
-                INodeManager nodeManager = null;
+                INodeManager nodeManager;
                 object nodeHandle = GetManagerHandle(nodeId, out nodeManager);
 
                 return ValidatePermissions(context, nodeManager, nodeHandle, requestedPermision, uniqueNodesServiceAttributes, permissionsOnly);
@@ -3344,13 +3336,11 @@ namespace Opc.Ua.Server
             // check if validation is necessary
             if (context.Session != null && nodeManager != null && nodeHandle != null)
             {
-                var nodeManager2 = nodeManager as INodeManager2;
-
                 NodeMetadata nodeMetadata = null;
                 // First attempt to retrieve just the Permission metadata with or without cache optimization
                 // If it happens that nodemanager does not fully implement INodeManager2.GetPermissionMetadata or not INodeManager2,
                 // fallback to INodeManager.GetNodeMetadata
-                if (nodeManager2 != null)
+                if (nodeManager is INodeManager2 nodeManager2)
                 {
                     nodeMetadata = nodeManager2.GetPermissionMetadata(context, nodeHandle, BrowseResultMask.NodeClass, uniqueNodesServiceAttributes, permissionsOnly);
                 }
@@ -3441,7 +3431,7 @@ namespace Opc.Ua.Server
             }
 
             // get the intersection of user role permissions and role permissions
-            RolePermissionTypeCollection userRolePermissions = null, rolePermissions = null;
+            RolePermissionTypeCollection userRolePermissions = null;
             if (nodeMetadata.UserRolePermissions != null && nodeMetadata.UserRolePermissions.Count > 0)
             {
                 userRolePermissions = nodeMetadata.UserRolePermissions;
@@ -3451,6 +3441,7 @@ namespace Opc.Ua.Server
                 userRolePermissions = nodeMetadata.DefaultUserRolePermissions;
             }
 
+            RolePermissionTypeCollection rolePermissions;
             if (nodeMetadata.RolePermissions != null && nodeMetadata.RolePermissions.Count > 0)
             {
                 rolePermissions = nodeMetadata.RolePermissions;
@@ -3500,7 +3491,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            Dictionary<NodeId, PermissionType> commonRoleIdPermissions = null;
+            Dictionary<NodeId, PermissionType> commonRoleIdPermissions;
             if (rolePermissions == null || rolePermissions.Count == 0)
             {
                 // there were no role permissions defined for this node only user role permissions
@@ -3545,7 +3536,6 @@ namespace Opc.Ua.Server
         private readonly object m_lock = new();
         private readonly List<INodeManager> m_nodeManagers;
         private long m_lastMonitoredItemId;
-        private INodeManager[][] m_namespaceManagers;
         private readonly uint m_maxContinuationPointsPerBrowse;
         private readonly ReaderWriterLockSlim m_readWriterLockSlim = new();
     }

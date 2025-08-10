@@ -164,8 +164,7 @@ namespace TestData
 
                 foreach (NodeState node in PredefinedNodes.Values)
                 {
-                    var condition = node as ConditionState;
-                    if (condition != null && !ReferenceEquals(condition.Parent, conditionsFolder))
+                    if (node is ConditionState condition && !ReferenceEquals(condition.Parent, conditionsFolder))
                     {
                         condition.AddNotifier(SystemContext, null, true, conditionsFolder);
                         conditionsFolder.AddNotifier(SystemContext, null, false, condition);
@@ -246,10 +245,7 @@ namespace TestData
                         var activeNode = new TestSystemConditionState(passiveNode.Parent);
                         activeNode.Create(context, passiveNode);
 
-                        if (passiveNode.Parent != null)
-                        {
-                            passiveNode.Parent.ReplaceChild(context, activeNode);
-                        }
+                        passiveNode.Parent?.ReplaceChild(context, activeNode);
 
                         return activeNode;
                     }
@@ -264,10 +260,7 @@ namespace TestData
                         var activeNode = new ScalarValueObjectState(passiveNode.Parent);
                         activeNode.Create(context, passiveNode);
 
-                        if (passiveNode.Parent != null)
-                        {
-                            passiveNode.Parent.ReplaceChild(context, activeNode);
-                        }
+                        passiveNode.Parent?.ReplaceChild(context, activeNode);
 
                         return activeNode;
                     }
@@ -282,10 +275,7 @@ namespace TestData
                         var activeNode = new StructureValueObjectState(passiveNode.Parent);
                         activeNode.Create(context, passiveNode);
 
-                        if (passiveNode.Parent != null)
-                        {
-                            passiveNode.Parent.ReplaceChild(context, activeNode);
-                        }
+                        passiveNode.Parent?.ReplaceChild(context, activeNode);
 
                         return activeNode;
                     }
@@ -300,10 +290,7 @@ namespace TestData
                         var activeNode = new AnalogScalarValueObjectState(passiveNode.Parent);
                         activeNode.Create(context, passiveNode);
 
-                        if (passiveNode.Parent != null)
-                        {
-                            passiveNode.Parent.ReplaceChild(context, activeNode);
-                        }
+                        passiveNode.Parent?.ReplaceChild(context, activeNode);
 
                         return activeNode;
                     }
@@ -318,10 +305,7 @@ namespace TestData
                         var activeNode = new ArrayValueObjectState(passiveNode.Parent);
                         activeNode.Create(context, passiveNode);
 
-                        if (passiveNode.Parent != null)
-                        {
-                            passiveNode.Parent.ReplaceChild(context, activeNode);
-                        }
+                        passiveNode.Parent?.ReplaceChild(context, activeNode);
 
                         return activeNode;
                     }
@@ -336,10 +320,7 @@ namespace TestData
                         var activeNode = new AnalogArrayValueObjectState(passiveNode.Parent);
                         activeNode.Create(context, passiveNode);
 
-                        if (passiveNode.Parent != null)
-                        {
-                            passiveNode.Parent.ReplaceChild(context, activeNode);
-                        }
+                        passiveNode.Parent?.ReplaceChild(context, activeNode);
 
                         return activeNode;
                     }
@@ -354,10 +335,7 @@ namespace TestData
                         var activeNode = new UserScalarValueObjectState(passiveNode.Parent);
                         activeNode.Create(context, passiveNode);
 
-                        if (passiveNode.Parent != null)
-                        {
-                            passiveNode.Parent.ReplaceChild(context, activeNode);
-                        }
+                        passiveNode.Parent?.ReplaceChild(context, activeNode);
 
                         return activeNode;
                     }
@@ -372,10 +350,7 @@ namespace TestData
                         var activeNode = new UserArrayValueObjectState(passiveNode.Parent);
                         activeNode.Create(context, passiveNode);
 
-                        if (passiveNode.Parent != null)
-                        {
-                            passiveNode.Parent.ReplaceChild(context, activeNode);
-                        }
+                        passiveNode.Parent?.ReplaceChild(context, activeNode);
 
                         return activeNode;
                     }
@@ -390,10 +365,7 @@ namespace TestData
                         var activeNode = new MethodTestState(passiveNode.Parent);
                         activeNode.Create(context, passiveNode);
 
-                        if (passiveNode.Parent != null)
-                        {
-                            passiveNode.Parent.ReplaceChild(context, activeNode);
-                        }
+                        passiveNode.Parent?.ReplaceChild(context, activeNode);
 
                         return activeNode;
                     }
@@ -421,10 +393,7 @@ namespace TestData
                         var activeNode = new ScalarStructureVariableState(variableNode.Parent);
                         activeNode.Create(context, variableNode);
 
-                        if (variableNode.Parent != null)
-                        {
-                            variableNode.Parent.ReplaceChild(context, activeNode);
-                        }
+                        variableNode.Parent?.ReplaceChild(context, activeNode);
 
                         return activeNode;
                     }
@@ -439,10 +408,7 @@ namespace TestData
                         var activeNode = new VectorVariableState(variableNode.Parent);
                         activeNode.Create(context, variableNode);
 
-                        if (variableNode.Parent != null)
-                        {
-                            variableNode.Parent.ReplaceChild(context, activeNode);
-                        }
+                        variableNode.Parent?.ReplaceChild(context, activeNode);
 
                         return activeNode;
                     }
@@ -516,9 +482,10 @@ namespace TestData
         {
             var serverContext = context as ServerSystemContext;
 
-            HistoryDataReader reader = null;
             var data = new HistoryData();
 
+
+            HistoryDataReader reader;
             if (nodeToRead.ContinuationPoint != null && nodeToRead.ContinuationPoint.Length > 0)
             {
                 // restore the continuation point.
@@ -546,7 +513,7 @@ namespace TestData
             else
             {
                 // get the source for the variable.
-                IHistoryDataSource datasource = null;
+                IHistoryDataSource datasource;
                 ServiceResult error = GetHistoryDataSource(serverContext, source, out datasource);
 
                 if (ServiceResult.IsBad(error))
@@ -608,15 +575,13 @@ namespace TestData
             // check for variables that need to be scanned.
             if (monitoredItem.AttributeId == Attributes.Value)
             {
-                var test = source.Parent as TestDataObjectState;
-                if (test != null && test.SimulationActive.Value)
+                if (source.Parent is TestDataObjectState test && test.SimulationActive.Value)
                 {
                     return true;
                 }
 
                 var sourcesource = source.Parent as BaseVariableState;
-                var testtest = sourcesource?.Parent as TestDataObjectState;
-                if (testtest != null && testtest.SimulationActive.Value)
+                if (sourcesource?.Parent is TestDataObjectState testtest && testtest.SimulationActive.Value)
                 {
                     return true;
                 }

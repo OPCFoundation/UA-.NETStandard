@@ -61,9 +61,8 @@ namespace TestData
             }
 
             // set a valid initial value.
-            var system = context.SystemHandle as TestDataSystem;
 
-            if (system != null)
+            if (context.SystemHandle is TestDataSystem system)
             {
                 GenerateValue(system, variable);
             }
@@ -85,9 +84,8 @@ namespace TestData
             }
 
             // set the EU range.
-            var euRange = variable.FindChild(context, Opc.Ua.BrowseNames.EURange) as BaseVariableState;
 
-            if (euRange != null)
+            if (variable.FindChild(context, Opc.Ua.BrowseNames.EURange) is BaseVariableState euRange)
             {
                 if (context.TypeTable.IsTypeOf(variable.DataType, Opc.Ua.DataTypeIds.UInteger))
                 {
@@ -121,9 +119,8 @@ namespace TestData
                     return ServiceResult.Good;
                 }
 
-                var array = value as Array;
 
-                if (array != null)
+                if (value is Array array)
                 {
                     for (int ii = 0; ii < array.Length; ii++)
                     {
@@ -197,11 +194,15 @@ namespace TestData
                     EventSeverity.MediumLow,
                     new LocalizedText(message));
 
-                e.Iterations = new PropertyState<uint>(e);
-                e.Iterations.Value = count;
+                e.Iterations = new PropertyState<uint>(e)
+                {
+                    Value = count
+                };
 
-                e.NewValueCount = new PropertyState<uint>(e);
-                e.NewValueCount.Value = 10;
+                e.NewValueCount = new PropertyState<uint>(e)
+                {
+                    Value = 10
+                };
 
                 ReportEvent(context, e);
             }

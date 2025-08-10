@@ -118,12 +118,14 @@ namespace Opc.Ua.Server
             {
                 if (m_defaultConfiguration == null)
                 {
-                    m_defaultConfiguration = new AggregateConfiguration();
-                    m_defaultConfiguration.PercentDataBad = 100;
-                    m_defaultConfiguration.PercentDataGood = 100;
-                    m_defaultConfiguration.TreatUncertainAsBad = false;
-                    m_defaultConfiguration.UseSlopedExtrapolation = false;
-                    m_defaultConfiguration.UseServerCapabilitiesDefaults = false;
+                    m_defaultConfiguration = new AggregateConfiguration
+                    {
+                        PercentDataBad = 100,
+                        PercentDataGood = 100,
+                        TreatUncertainAsBad = false,
+                        UseSlopedExtrapolation = false,
+                        UseServerCapabilitiesDefaults = false
+                    };
                 }
 
                 return m_defaultConfiguration;
@@ -197,10 +199,7 @@ namespace Opc.Ua.Server
                 m_factories[aggregateId] = factory;
             }
 
-            if (m_server != null)
-            {
-                m_server.DiagnosticsNodeManager.AddAggregateFunction(aggregateId, aggregateName, true);
-            }
+            m_server?.DiagnosticsNodeManager.AddAggregateFunction(aggregateId, aggregateName, true);
         }
 
         /// <summary>

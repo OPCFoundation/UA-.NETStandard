@@ -135,10 +135,12 @@ namespace Opc.Ua.Server
             double result = total / count;
 
             // set the timestamp and status.
-            var value = new DataValue();
-            value.WrappedValue = new Variant(result, TypeInfo.Scalars.Double);
-            value.SourceTimestamp = GetTimestamp(slice);
-            value.ServerTimestamp = GetTimestamp(slice);
+            var value = new DataValue
+            {
+                WrappedValue = new Variant(result, TypeInfo.Scalars.Double),
+                SourceTimestamp = GetTimestamp(slice),
+                ServerTimestamp = GetTimestamp(slice)
+            };
             value.StatusCode = value.StatusCode.SetAggregateBits(AggregateBits.Calculated);
             value.StatusCode = GetValueBasedStatusCode(slice, values, value.StatusCode);
 
@@ -152,8 +154,7 @@ namespace Opc.Ua.Server
         protected DataValue ComputeTimeAverage(TimeSlice slice, bool useSimpleBounds, int valueType)
         {
             // get the values in the slice.
-            List<DataValue> values = null;
-
+            List<DataValue> values;
             if (useSimpleBounds)
             {
                 values = GetValuesWithSimpleBounds(slice);
@@ -213,10 +214,12 @@ namespace Opc.Ua.Server
             }
 
             // set the timestamp and status.
-            var value = new DataValue();
-            value.WrappedValue = new Variant(result, TypeInfo.Scalars.Double);
-            value.SourceTimestamp = GetTimestamp(slice);
-            value.ServerTimestamp = GetTimestamp(slice);
+            var value = new DataValue
+            {
+                WrappedValue = new Variant(result, TypeInfo.Scalars.Double),
+                SourceTimestamp = GetTimestamp(slice),
+                ServerTimestamp = GetTimestamp(slice)
+            };
 
             if (useSimpleBounds)
             {

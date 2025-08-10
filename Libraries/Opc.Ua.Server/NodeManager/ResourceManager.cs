@@ -438,8 +438,10 @@ namespace Opc.Ua.Server
                 }
 
                 // construct translated localized text.
-                var finalText = new LocalizedText(culture.Name, formattedText);
-                finalText.TranslationInfo = info;
+                var finalText = new LocalizedText(culture.Name, formattedText)
+                {
+                    TranslationInfo = info
+                };
                 return finalText;
             }
         }
@@ -472,8 +474,10 @@ namespace Opc.Ua.Server
                 }
 
                 // add table.
-                var table = new TranslationTable();
-                table.Locale = new CultureInfo(locale);
+                var table = new TranslationTable
+                {
+                    Locale = new CultureInfo(locale)
+                };
                 m_translationTables.Add(table);
 
                 return table;
@@ -555,8 +559,7 @@ namespace Opc.Ua.Server
             {
                 if (m_statusCodeMapping != null)
                 {
-                    TranslationInfo info = null;
-
+                    TranslationInfo info;
                     if (m_statusCodeMapping.TryGetValue(statusCode.Code, out info))
                     {
                         // merge the argument list with the translation info cached for the status code.
@@ -586,8 +589,7 @@ namespace Opc.Ua.Server
             {
                 if (m_symbolicIdMapping != null)
                 {
-                    TranslationInfo info = null;
-
+                    TranslationInfo info;
                     if (m_symbolicIdMapping.TryGetValue(new XmlQualifiedName(symbolicId, namespaceUri), out info))
                     {
                         // merge the argument list with the translation info cached for the symbolic id.

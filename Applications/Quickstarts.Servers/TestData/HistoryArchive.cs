@@ -89,20 +89,24 @@ namespace TestData
         {
             lock (m_lock)
             {
-                var record = new HistoryRecord();
-
-                record.RawData = [];
-                record.Historizing = true;
-                record.DataType = dataType;
+                var record = new HistoryRecord
+                {
+                    RawData = [],
+                    Historizing = true,
+                    DataType = dataType
+                };
 
                 DateTime now = DateTime.UtcNow;
 
                 for (int ii = 1000; ii >= 0; ii--)
                 {
-                    var entry = new HistoryEntry();
-
-                    entry.Value = new DataValue();
-                    entry.Value.ServerTimestamp = now.AddSeconds(-(ii * 10));
+                    var entry = new HistoryEntry
+                    {
+                        Value = new DataValue
+                        {
+                            ServerTimestamp = now.AddSeconds(-(ii * 10))
+                        }
+                    };
                     entry.Value.SourceTimestamp = entry.Value.ServerTimestamp.AddMilliseconds(1234);
                     entry.IsModified = false;
 
@@ -148,10 +152,13 @@ namespace TestData
                             continue;
                         }
 
-                        var entry = new HistoryEntry();
-
-                        entry.Value = new DataValue();
-                        entry.Value.ServerTimestamp = now;
+                        var entry = new HistoryEntry
+                        {
+                            Value = new DataValue
+                            {
+                                ServerTimestamp = now
+                            }
+                        };
                         entry.Value.SourceTimestamp = entry.Value.ServerTimestamp.AddMilliseconds(-4567);
                         entry.IsModified = false;
 

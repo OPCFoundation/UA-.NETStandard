@@ -123,7 +123,8 @@ namespace Opc.Ua.Client.Tests
         /// <inheritdoc/>
         public override Session CloneSession(ITransportChannel channel, bool copyEventHandlers)
         {
-            return new TestableSession(channel, this, copyEventHandlers) {
+            return new TestableSession(channel, this, copyEventHandlers)
+            {
                 TimestampOffset = TimestampOffset,
             };
         }

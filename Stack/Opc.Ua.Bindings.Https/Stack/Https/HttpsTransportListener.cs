@@ -90,7 +90,8 @@ namespace Opc.Ua.Bindings
         /// <param name="appBuilder">The application builder.</param>
         public void Configure(IApplicationBuilder appBuilder)
         {
-            appBuilder.Run(context => {
+            appBuilder.Run(context =>
+            {
                 if (context.Request.Method != "POST")
                 {
                     context.Response.ContentLength = 0;
@@ -152,7 +153,7 @@ namespace Opc.Ua.Bindings
         public string UriScheme { get; }
 
         /// <inheritdoc/>
-        public string ListenerId => m_listenerId;
+        public string ListenerId { get; private set; }
 
         /// <summary>
         /// Opens the listener and starts accepting connection.
@@ -168,21 +169,23 @@ namespace Opc.Ua.Bindings
             ITransportListenerCallback callback)
         {
             // assign a unique guid to the listener.
-            m_listenerId = Guid.NewGuid().ToString();
+            ListenerId = Guid.NewGuid().ToString();
 
-            m_uri = baseAddress;
-            m_discovery = m_uri.AbsolutePath?.TrimEnd('/') + ConfiguredEndpoint.DiscoverySuffix;
+            EndpointUrl = baseAddress;
+            m_discovery = EndpointUrl.AbsolutePath?.TrimEnd('/') + ConfiguredEndpoint.DiscoverySuffix;
             m_descriptions = settings.Descriptions;
             EndpointConfiguration configuration = settings.Configuration;
 
             // initialize the quotas.
-            m_quotas = new ChannelQuotas {
+            m_quotas = new ChannelQuotas
+            {
                 MaxBufferSize = configuration.MaxBufferSize,
                 MaxMessageSize = configuration.MaxMessageSize,
                 ChannelLifetime = configuration.ChannelLifetime,
                 SecurityTokenLifetime = configuration.SecurityTokenLifetime,
 
-                MessageContext = new ServiceMessageContext {
+                MessageContext = new ServiceMessageContext
+                {
                     MaxArrayLength = configuration.MaxArrayLength,
                     MaxByteStringLength = configuration.MaxByteStringLength,
                     MaxMessageSize = configuration.MaxMessageSize,
@@ -250,7 +253,7 @@ namespace Opc.Ua.Bindings
         /// Gets the URL for the listener's endpoint.
         /// </summary>
         /// <value>The URL for the listener's endpoint.</value>
-        public Uri EndpointUrl => m_uri;
+        public Uri EndpointUrl { get; private set; }
 
         /// <summary>
         /// Starts listening at the specified port.
@@ -277,7 +280,8 @@ namespace Opc.Ua.Bindings
             }
 #endif
 
-            var httpsOptions = new HttpsConnectionAdapterOptions() {
+            var httpsOptions = new HttpsConnectionAdapterOptions()
+            {
                 CheckCertificateRevocation = false,
                 ClientCertificateMode = m_mutualTlsEnabled ? ClientCertificateMode.AllowCertificate : ClientCertificateMode.NoCertificate,
                 // note: this is the TLS certificate!
@@ -295,24 +299,24 @@ namespace Opc.Ua.Bindings
             httpsOptions.SslProtocols = SslProtocols.None;
 #endif
 
-            UriHostNameType hostType = Uri.CheckHostName(m_uri.Host);
+            UriHostNameType hostType = Uri.CheckHostName(EndpointUrl.Host);
             if (hostType == UriHostNameType.Dns ||
                 hostType == UriHostNameType.Unknown ||
                 hostType == UriHostNameType.Basic)
             {
                 // bind to any address
-                m_hostBuilder.UseKestrel(options => options.ListenAnyIP(m_uri.Port, listenOptions => listenOptions.UseHttps(httpsOptions)));
+                m_hostBuilder.UseKestrel(options => options.ListenAnyIP(EndpointUrl.Port, listenOptions => listenOptions.UseHttps(httpsOptions)));
             }
             else
             {
                 // bind to specific address
-                var ipAddress = IPAddress.Parse(m_uri.Host);
-                m_hostBuilder.UseKestrel(options => options.Listen(ipAddress, m_uri.Port, listenOptions => listenOptions.UseHttps(httpsOptions)));
+                var ipAddress = IPAddress.Parse(EndpointUrl.Host);
+                m_hostBuilder.UseKestrel(options => options.Listen(ipAddress, EndpointUrl.Port, listenOptions => listenOptions.UseHttps(httpsOptions)));
             }
 
             m_hostBuilder.UseContentRoot(Directory.GetCurrentDirectory());
             m_hostBuilder.UseStartup<Startup>();
-            m_host = m_hostBuilder.Start(Utils.ReplaceLocalhost(m_uri.ToString()));
+            m_host = m_hostBuilder.Start(Utils.ReplaceLocalhost(EndpointUrl.ToString()));
         }
 
         /// <summary>
@@ -435,7 +439,7 @@ namespace Opc.Ua.Bindings
 
                 // note: do not use Task.Factory.FromAsync here
                 IAsyncResult result = m_callback.BeginProcessRequest(
-                    m_listenerId,
+                    ListenerId,
                     endpoint,
                     input,
                     null,
@@ -542,8 +546,6 @@ namespace Opc.Ua.Bindings
             return true;
         }
 
-        private string m_listenerId;
-        private Uri m_uri;
         private string m_discovery;
         private EndpointDescriptionCollection m_descriptions;
         private ChannelQuotas m_quotas;

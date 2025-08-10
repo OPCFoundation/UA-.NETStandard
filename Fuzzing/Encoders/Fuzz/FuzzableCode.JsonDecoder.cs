@@ -50,7 +50,7 @@ namespace Opc.Ua.Fuzzing
         /// </summary>
         public static void AflfuzzJsonEncoder(string input)
         {
-            IEncodeable encodeable = null;
+            IEncodeable encodeable;
             try
             {
                 encodeable = FuzzJsonDecoderCore(input);

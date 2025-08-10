@@ -239,7 +239,8 @@ namespace Opc.Ua
                 long start = stream.Position;
 
                 // write the message.
-                var envelope = new SessionLessServiceMessage {
+                var envelope = new SessionLessServiceMessage
+                {
                     NamespaceUris = context.NamespaceUris,
                     ServerUris = context.ServerUris,
                     Message = message

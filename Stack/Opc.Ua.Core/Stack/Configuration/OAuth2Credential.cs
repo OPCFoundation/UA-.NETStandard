@@ -132,7 +132,8 @@ namespace Opc.Ua
 
                             if (uri == serverApplicationUri)
                             {
-                                return new OAuth2Credential() {
+                                return new OAuth2Credential()
+                                {
                                     AuthorityUrl = ii.AuthorityUrl,
                                     GrantType = ii.GrantType,
                                     ClientId = ii.ClientId,
@@ -180,7 +181,8 @@ namespace Opc.Ua
 
                     if (string.Equals(uri, authorityUrl, StringComparison.OrdinalIgnoreCase))
                     {
-                        return new OAuth2Credential() {
+                        return new OAuth2Credential()
+                        {
                             AuthorityUrl = authorityUrl,
                             GrantType = ii.GrantType,
                             ClientId = ii.ClientId,

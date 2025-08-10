@@ -466,7 +466,7 @@ namespace Opc.Ua.Client.Tests
             }
 
             var random = new Random(62541);
-            var testSet = ReferenceDescriptions.OrderBy(o => random.Next()).Take(kTestSetSize).Select(r => r.NodeId).ToList();
+            var testSet = ReferenceDescriptions.OrderBy(_ => random.Next()).Take(kTestSetSize).Select(r => r.NodeId).ToList();
             var taskList = new List<Task>();
 
             // test concurrent access of FetchNodes
@@ -476,7 +476,8 @@ namespace Opc.Ua.Client.Tests
                 if (!UseAsync)
                 {
                     t = Task.Run(
-                        () => {
+                        () =>
+                        {
                             IList<Node> nodeCollection = Session.NodeCache.FetchNodes(testSet);
                         }
                         );
@@ -510,7 +511,7 @@ namespace Opc.Ua.Client.Tests
             }
 
             var random = new Random(62541);
-            var testSet = ReferenceDescriptions.OrderBy(o => random.Next()).Take(kTestSetSize).Select(r => r.NodeId).ToList();
+            var testSet = ReferenceDescriptions.OrderBy(_ => random.Next()).Take(kTestSetSize).Select(r => r.NodeId).ToList();
             var taskList = new List<Task>();
 
             // test concurrent access of FetchNodes
@@ -519,7 +520,8 @@ namespace Opc.Ua.Client.Tests
                 Task t;
                 if (!UseAsync)
                 {
-                    t = Task.Run(() => {
+                    t = Task.Run(() =>
+                    {
                         IList<INode> nodeCollection = Session.NodeCache.Find(testSet);
                     });
                 }
@@ -551,7 +553,7 @@ namespace Opc.Ua.Client.Tests
             }
 
             var random = new Random(62541);
-            var testSet = ReferenceDescriptions.OrderBy(o => random.Next()).Take(kTestSetSize).Select(r => r.NodeId).ToList();
+            var testSet = ReferenceDescriptions.OrderBy(_ => random.Next()).Take(kTestSetSize).Select(r => r.NodeId).ToList();
             var taskList = new List<Task>();
             var refTypeIds = new List<NodeId>() { ReferenceTypeIds.HierarchicalReferences };
 
@@ -563,7 +565,8 @@ namespace Opc.Ua.Client.Tests
                 Task t;
                 if (UseAsync)
                 {
-                    t = Task.Run(() => {
+                    t = Task.Run(() =>
+                    {
                         IList<INode> nodeCollection = Session.NodeCache.FindReferences(testSet, refTypeIds, false, true);
                     });
                 }
@@ -598,7 +601,7 @@ namespace Opc.Ua.Client.Tests
             }
 
             var random = new Random(62541);
-            var testSetAll = ReferenceDescriptions.Where(r => r.NodeClass == NodeClass.Variable).OrderBy(o => random.Next()).Select(r => r.NodeId).ToList();
+            var testSetAll = ReferenceDescriptions.Where(r => r.NodeClass == NodeClass.Variable).OrderBy(_ => random.Next()).Select(r => r.NodeId).ToList();
             var testSet1 = testSetAll.Take(kTestSetSize).ToList();
             var testSet2 = testSetAll.Skip(kTestSetSize).Take(kTestSetSize).ToList();
             var testSet3 = testSetAll.Skip(kTestSetSize * 2).Take(kTestSetSize).ToList();
@@ -610,7 +613,8 @@ namespace Opc.Ua.Client.Tests
             for (int i = 0; i < testCases; i++)
             {
                 int iteration = i;
-                var t = Task.Run(async () => {
+                var t = Task.Run(async () =>
+                {
                     DateTime start = DateTime.UtcNow;
                     do
                     {
@@ -750,7 +754,8 @@ namespace Opc.Ua.Client.Tests
 
         private void BrowseFullAddressSpace()
         {
-            var requestHeader = new RequestHeader {
+            var requestHeader = new RequestHeader
+            {
                 Timestamp = DateTime.UtcNow,
                 TimeoutHint = MaxTimeout
             };

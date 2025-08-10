@@ -85,7 +85,8 @@ namespace Opc.Ua.Bindings
                     foreach (ServerSecurityPolicy policy in securityPolicies)
                     {
                         // create the endpoint description.
-                        var description = new EndpointDescription {
+                        var description = new EndpointDescription
+                        {
                             EndpointUrl = uri.ToString(),
                             Server = serverDescription,
                             TransportProfileUri = Profiles.UaTcpTransport,

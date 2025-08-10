@@ -85,7 +85,8 @@ namespace Opc.Ua.Configuration.Tests
         [Test]
         public async Task TestFileConfig()
         {
-            var applicationInstance = new ApplicationInstance() {
+            var applicationInstance = new ApplicationInstance()
+            {
                 ApplicationName = ApplicationName
             };
             Assert.NotNull(applicationInstance);
@@ -100,7 +101,8 @@ namespace Opc.Ua.Configuration.Tests
         [Test]
         public async Task TestNoFileConfigAsClient()
         {
-            var applicationInstance = new ApplicationInstance() {
+            var applicationInstance = new ApplicationInstance()
+            {
                 ApplicationName = ApplicationName
             };
             Assert.NotNull(applicationInstance);
@@ -139,7 +141,8 @@ namespace Opc.Ua.Configuration.Tests
                    .ConfigureAwait(false)
             );
             // discoveryserver can not be combined with client/server
-            applicationInstance = new ApplicationInstance() {
+            applicationInstance = new ApplicationInstance()
+            {
                 ApplicationName = ApplicationName,
                 ApplicationType = ApplicationType.DiscoveryServer
             };
@@ -158,7 +161,8 @@ namespace Opc.Ua.Configuration.Tests
                    .ConfigureAwait(false)
             );
             // server overrides client settings
-            applicationInstance = new ApplicationInstance() {
+            applicationInstance = new ApplicationInstance()
+            {
                 ApplicationName = ApplicationName,
                 ApplicationType = ApplicationType.Client
             };
@@ -171,7 +175,8 @@ namespace Opc.Ua.Configuration.Tests
             Assert.AreEqual(ApplicationType.Server, applicationInstance.ApplicationType);
 
             // client overrides server setting
-            applicationInstance = new ApplicationInstance() {
+            applicationInstance = new ApplicationInstance()
+            {
                 ApplicationName = ApplicationName,
                 ApplicationType = ApplicationType.Server
             };
@@ -184,7 +189,8 @@ namespace Opc.Ua.Configuration.Tests
             Assert.AreEqual(ApplicationType.Client, applicationInstance.ApplicationType);
 
             // invalid sec policy testing
-            applicationInstance = new ApplicationInstance() {
+            applicationInstance = new ApplicationInstance()
+            {
                 ApplicationName = ApplicationName
             };
             // invalid use, use AddUnsecurePolicyNone instead
@@ -228,7 +234,8 @@ namespace Opc.Ua.Configuration.Tests
         [Test]
         public async Task TestNoFileConfigAsServerMinimal()
         {
-            var applicationInstance = new ApplicationInstance() {
+            var applicationInstance = new ApplicationInstance()
+            {
                 ApplicationName = ApplicationName
             };
             Assert.NotNull(applicationInstance);
@@ -251,7 +258,8 @@ namespace Opc.Ua.Configuration.Tests
         [Test]
         public async Task TestNoFileConfigAsServerMaximal()
         {
-            var applicationInstance = new ApplicationInstance() {
+            var applicationInstance = new ApplicationInstance()
+            {
                 ApplicationName = ApplicationName
             };
             Assert.NotNull(applicationInstance);
@@ -293,7 +301,8 @@ namespace Opc.Ua.Configuration.Tests
         [Test]
         public async Task TestNoFileConfigAsClientAndServer()
         {
-            var applicationInstance = new ApplicationInstance() {
+            var applicationInstance = new ApplicationInstance()
+            {
                 ApplicationName = ApplicationName
             };
             Assert.NotNull(applicationInstance);
@@ -333,7 +342,8 @@ namespace Opc.Ua.Configuration.Tests
                 NUnit.Framework.Assert.Ignore("X509Store trust lists not supported on mac OS.");
             }
 #endif
-            var applicationInstance = new ApplicationInstance() {
+            var applicationInstance = new ApplicationInstance()
+            {
                 ApplicationName = ApplicationName
             };
             Assert.NotNull(applicationInstance);
@@ -384,7 +394,8 @@ namespace Opc.Ua.Configuration.Tests
         [Test]
         public async Task TestNoFileConfigAsServerCustom()
         {
-            var applicationInstance = new ApplicationInstance() {
+            var applicationInstance = new ApplicationInstance()
+            {
                 ApplicationName = ApplicationName
             };
             Assert.NotNull(applicationInstance);
@@ -511,7 +522,8 @@ namespace Opc.Ua.Configuration.Tests
             // pki directory root for test runs.
             string pkiRoot = Path.GetTempPath() + Path.GetRandomFileName() + Path.DirectorySeparatorChar;
 
-            var applicationInstance = new ApplicationInstance() {
+            var applicationInstance = new ApplicationInstance()
+            {
                 ApplicationName = ApplicationName
             };
             Assert.NotNull(applicationInstance);
@@ -592,7 +604,8 @@ namespace Opc.Ua.Configuration.Tests
         public async Task TestAddOwnCertificateToTrustedStore()
         {
             //Arrange Application Instance
-            var applicationInstance = new ApplicationInstance() {
+            var applicationInstance = new ApplicationInstance()
+            {
                 ApplicationName = ApplicationName
             };
             ApplicationConfiguration configuration = await applicationInstance.Build(ApplicationUri, ProductUri)
@@ -628,7 +641,8 @@ namespace Opc.Ua.Configuration.Tests
             // pki directory root for test runs.
             string pkiRoot = Path.GetTempPath() + Path.GetRandomFileName() + Path.DirectorySeparatorChar;
 
-            var applicationInstance = new ApplicationInstance() {
+            var applicationInstance = new ApplicationInstance()
+            {
                 ApplicationName = ApplicationName,
                 DisableCertificateAutoCreation = disableCertificateAutoCreation
             };

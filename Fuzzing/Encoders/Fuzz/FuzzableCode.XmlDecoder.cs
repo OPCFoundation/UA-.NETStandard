@@ -52,7 +52,7 @@ namespace Opc.Ua.Fuzzing
         /// </summary>
         public static void AflfuzzXmlEncoder(Stream stream)
         {
-            IEncodeable encodeable = null;
+            IEncodeable encodeable;
             try
             {
                 encodeable = FuzzXmlDecoderCore(stream);

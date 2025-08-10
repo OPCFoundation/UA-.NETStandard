@@ -106,8 +106,7 @@ namespace Opc.Ua.Gds.Server
         /// <exception cref="ServiceResultException"></exception>
         public static void HasAuthenticatedSecureChannel(ISystemContext context)
         {
-            var operationContext = (context as SystemContext)?.OperationContext as OperationContext;
-            if (operationContext != null && operationContext.ChannelContext?.EndpointDescription?.SecurityMode != MessageSecurityMode.SignAndEncrypt)
+            if ((context as SystemContext)?.OperationContext is OperationContext operationContext && operationContext.ChannelContext?.EndpointDescription?.SecurityMode != MessageSecurityMode.SignAndEncrypt)
             {
                 throw new ServiceResultException(StatusCodes.BadUserAccessDenied, "Method has to be called from an authenticated secure channel.");
             }
@@ -134,8 +133,7 @@ namespace Opc.Ua.Gds.Server
                 return false;
             }
 
-            var identity = userIdentity as GdsRoleBasedIdentity;
-            if (identity != null)
+            if (userIdentity is GdsRoleBasedIdentity identity)
             {
                 //self Admin only has access to own application
                 if (identity.ApplicationId == applicationId)
@@ -148,8 +146,7 @@ namespace Opc.Ua.Gds.Server
 
         private static bool CheckSelfAdminPrivilege(IUserIdentity userIdentity, CertificateStoreIdentifier trustedStore, Dictionary<NodeId, string> certTypeMap, IApplicationsDatabase applicationsDatabase)
         {
-            var identity = userIdentity as GdsRoleBasedIdentity;
-            if (identity != null)
+            if (userIdentity is GdsRoleBasedIdentity identity)
             {
                 foreach (string certType in certTypeMap.Values)
                 {

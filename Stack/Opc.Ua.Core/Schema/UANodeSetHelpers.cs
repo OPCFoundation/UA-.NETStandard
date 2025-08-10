@@ -133,7 +133,8 @@ namespace Opc.Ua.Export
                 case NodeClass.Object:
                 {
                     var o = (BaseObjectState)node;
-                    var value = new UAObject {
+                    var value = new UAObject
+                    {
                         EventNotifier = o.EventNotifier,
                         DesignToolOnly = node.DesignToolOnly
                     };
@@ -150,7 +151,8 @@ namespace Opc.Ua.Export
                 case NodeClass.Variable:
                 {
                     var o = (BaseVariableState)node;
-                    var value = new UAVariable {
+                    var value = new UAVariable
+                    {
                         DataType = ExportAlias(o.DataType, context.NamespaceUris),
                         ValueRank = o.ValueRank,
                         ArrayDimensions = Export(o.ArrayDimensions),
@@ -183,7 +185,8 @@ namespace Opc.Ua.Export
                 case NodeClass.Method:
                 {
                     var o = (MethodState)node;
-                    var value = new UAMethod {
+                    var value = new UAMethod
+                    {
                         Executable = o.Executable,
                         DesignToolOnly = node.DesignToolOnly
                     };
@@ -205,7 +208,8 @@ namespace Opc.Ua.Export
                 case NodeClass.View:
                 {
                     var o = (ViewState)node;
-                    exportedNode = new UAView {
+                    exportedNode = new UAView
+                    {
                         ContainsNoLoops = o.ContainsNoLoops,
                         DesignToolOnly = node.DesignToolOnly
                     };
@@ -215,7 +219,8 @@ namespace Opc.Ua.Export
                 case NodeClass.ObjectType:
                 {
                     var o = (BaseObjectTypeState)node;
-                    exportedNode = new UAObjectType {
+                    exportedNode = new UAObjectType
+                    {
                         IsAbstract = o.IsAbstract
                     };
                     break;
@@ -224,7 +229,8 @@ namespace Opc.Ua.Export
                 case NodeClass.VariableType:
                 {
                     var o = (BaseVariableTypeState)node;
-                    var value = new UAVariableType {
+                    var value = new UAVariableType
+                    {
                         IsAbstract = o.IsAbstract,
                         DataType = ExportAlias(o.DataType, context.NamespaceUris),
                         ValueRank = o.ValueRank,
@@ -249,7 +255,8 @@ namespace Opc.Ua.Export
                 case NodeClass.DataType:
                 {
                     var o = (DataTypeState)node;
-                    exportedNode = new UADataType {
+                    exportedNode = new UADataType
+                    {
                         IsAbstract = o.IsAbstract,
                         Definition = Export(o, o.DataTypeDefinition, context.NamespaceUris, outputRedundantNames),
                         Purpose = o.Purpose
@@ -260,7 +267,8 @@ namespace Opc.Ua.Export
                 case NodeClass.ReferenceType:
                 {
                     var o = (ReferenceTypeState)node;
-                    var value = new UAReferenceType {
+                    var value = new UAReferenceType
+                    {
                         IsAbstract = o.IsAbstract
                     };
 
@@ -312,7 +320,8 @@ namespace Opc.Ua.Export
 
                 foreach (RolePermissionType ii in node.RolePermissions)
                 {
-                    var permission = new RolePermission() {
+                    var permission = new RolePermission()
+                    {
                         Permissions = ii.Permissions,
                         Value = ExportAlias(ii.RoleId, context.NamespaceUris)
                     };
@@ -347,7 +356,8 @@ namespace Opc.Ua.Export
                     continue;
                 }
 
-                var exportedReference = new Reference {
+                var exportedReference = new Reference
+                {
                     ReferenceType = ExportAlias(reference.ReferenceTypeId, context.NamespaceUris),
                     IsForward = !reference.IsInverse,
                     Value = Export(reference.TargetId, context.NamespaceUris, context.ServerUris)
@@ -359,11 +369,12 @@ namespace Opc.Ua.Export
 
             exportedNode.References = [.. exportedReferences];
 
-            // add node to list.
-            UANode[] nodes = null;
 
             int count = 1;
 
+
+            // add node to list.
+            UANode[] nodes;
             if (Items == null)
             {
                 nodes = new UANode[count];
@@ -394,7 +405,8 @@ namespace Opc.Ua.Export
         /// </summary>
         private XmlEncoder CreateEncoder(ISystemContext context)
         {
-            IServiceMessageContext messageContext = new ServiceMessageContext() {
+            IServiceMessageContext messageContext = new ServiceMessageContext()
+            {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
                 Factory = context.EncodeableFactory
@@ -432,7 +444,8 @@ namespace Opc.Ua.Export
         /// </summary>
         private XmlDecoder CreateDecoder(ISystemContext context, XmlElement source)
         {
-            IServiceMessageContext messageContext = new ServiceMessageContext() {
+            IServiceMessageContext messageContext = new ServiceMessageContext()
+            {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
                 Factory = context.EncodeableFactory
@@ -512,7 +525,8 @@ namespace Opc.Ua.Export
                 case NodeClass.Object:
                 {
                     var o = (UAObject)node;
-                    importedNode = new BaseObjectState(null) {
+                    importedNode = new BaseObjectState(null)
+                    {
                         EventNotifier = o.EventNotifier,
                         DesignToolOnly = o.DesignToolOnly
                     };
@@ -541,8 +555,7 @@ namespace Opc.Ua.Export
                         }
                     }
 
-                    BaseVariableState value = null;
-
+                    BaseVariableState value;
                     if (typeDefinitionId == VariableTypeIds.PropertyType)
                     {
                         value = new PropertyState(null);
@@ -576,7 +589,8 @@ namespace Opc.Ua.Export
                 case NodeClass.Method:
                 {
                     var o = (UAMethod)node;
-                    importedNode = new MethodState(null) {
+                    importedNode = new MethodState(null)
+                    {
                         Executable = o.Executable,
                         UserExecutable = o.Executable,
                         MethodDeclarationId = ImportNodeId(o.MethodDeclarationId, context.NamespaceUris, true),
@@ -588,7 +602,8 @@ namespace Opc.Ua.Export
                 case NodeClass.View:
                 {
                     var o = (UAView)node;
-                    importedNode = new ViewState {
+                    importedNode = new ViewState
+                    {
                         ContainsNoLoops = o.ContainsNoLoops,
                         DesignToolOnly = o.DesignToolOnly
                     };
@@ -598,7 +613,8 @@ namespace Opc.Ua.Export
                 case NodeClass.ObjectType:
                 {
                     var o = (UAObjectType)node;
-                    importedNode = new BaseObjectTypeState {
+                    importedNode = new BaseObjectTypeState
+                    {
                         IsAbstract = o.IsAbstract
                     };
                     break;
@@ -607,7 +623,8 @@ namespace Opc.Ua.Export
                 case NodeClass.VariableType:
                 {
                     var o = (UAVariableType)node;
-                    BaseVariableTypeState value = new BaseDataVariableTypeState {
+                    BaseVariableTypeState value = new BaseDataVariableTypeState
+                    {
                         IsAbstract = o.IsAbstract,
                         DataType = ImportNodeId(o.DataType, context.NamespaceUris, true),
                         ValueRank = o.ValueRank,
@@ -629,7 +646,8 @@ namespace Opc.Ua.Export
                 case NodeClass.DataType:
                 {
                     var o = (UADataType)node;
-                    var value = new DataTypeState {
+                    var value = new DataTypeState
+                    {
                         IsAbstract = o.IsAbstract
                     };
                     Ua.DataTypeDefinition dataTypeDefinition = Import(o, o.Definition, context.NamespaceUris);
@@ -642,7 +660,8 @@ namespace Opc.Ua.Export
                 case NodeClass.ReferenceType:
                 {
                     var o = (UAReferenceType)node;
-                    importedNode = new ReferenceTypeState {
+                    importedNode = new ReferenceTypeState
+                    {
                         IsAbstract = o.IsAbstract,
                         InverseName = Import(o.InverseName),
                         Symmetric = o.Symmetric
@@ -669,7 +688,8 @@ namespace Opc.Ua.Export
 
                 foreach (RolePermission ii in node.RolePermissions)
                 {
-                    var permission = new RolePermissionType() {
+                    var permission = new RolePermissionType()
+                    {
                         Permissions = ii.Permissions,
                         RoleId = ImportNodeId(ii.Value, context.NamespaceUris, true)
                     };
@@ -824,8 +844,7 @@ namespace Opc.Ua.Export
                 return source.ToString();
             }
 
-            ushort namespaceIndex = 0;
-
+            ushort namespaceIndex;
             if (string.IsNullOrEmpty(source.NamespaceUri))
             {
                 namespaceIndex = ExportNamespaceIndex(source.NamespaceIndex, namespaceUris);
@@ -948,7 +967,8 @@ namespace Opc.Ua.Export
                     {
                         StructureField field = sd.Fields[ii];
 
-                        var output = new DataTypeField {
+                        var output = new DataTypeField
+                        {
                             Name = field.Name,
                             Description = Export([field.Description])
                         };
@@ -1008,7 +1028,8 @@ namespace Opc.Ua.Export
 
                     foreach (EnumField field in ed.Fields)
                     {
-                        var output = new DataTypeField {
+                        var output = new DataTypeField
+                        {
                             Name = field.Name
                         };
 
@@ -1054,7 +1075,8 @@ namespace Opc.Ua.Export
 
                 if (!isEnumeration)
                 {
-                    var sd = new StructureDefinition {
+                    var sd = new StructureDefinition
+                    {
                         BaseDataType = ImportNodeId(source.BaseType, namespaceUris, true)
                     };
 
@@ -1089,7 +1111,8 @@ namespace Opc.Ua.Export
                                 }
                             }
 
-                            var output = new StructureField {
+                            var output = new StructureField
+                            {
                                 Name = field.Name,
                                 Description = Import(field.Description),
                                 DataType = ImportNodeId(field.DataType, namespaceUris, true),
@@ -1130,7 +1153,8 @@ namespace Opc.Ua.Export
                 }
                 else
                 {
-                    var ed = new EnumDefinition {
+                    var ed = new EnumDefinition
+                    {
                         IsOptionSet = source.IsOptionSet
                     };
 
@@ -1140,7 +1164,8 @@ namespace Opc.Ua.Export
 
                         foreach (DataTypeField field in source.Field)
                         {
-                            var output = new EnumField {
+                            var output = new EnumField
+                            {
                                 Name = field.Name,
                                 DisplayName = Import(field.DisplayName),
                                 Description = Import(field.Description),
@@ -1250,7 +1275,8 @@ namespace Opc.Ua.Export
             {
                 if (input[ii] != null)
                 {
-                    var text = new LocalizedText {
+                    var text = new LocalizedText
+                    {
                         Locale = input[ii].Locale,
                         Value = input[ii].Text
                     };
@@ -1271,7 +1297,8 @@ namespace Opc.Ua.Export
                 return null;
             }
 
-            return new LocalizedText {
+            return new LocalizedText
+            {
                 Locale = input.Locale,
                 Value = input.Text
             };

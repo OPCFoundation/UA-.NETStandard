@@ -535,7 +535,7 @@ namespace Opc.Ua
                     Tracing.Instance.RaiseTraceEvent(new TraceEventArgs(traceMask, message, string.Empty, null, args));
                     // done if mask not enabled, otherwise legacy write handler is
                     // called via logger interface to handle semantic logging.
-                    if ((s_traceMasks & traceMask) == 0)
+                    if ((TraceMask & traceMask) == 0)
                     {
                         return;
                     }
@@ -583,7 +583,7 @@ namespace Opc.Ua
                     Tracing.Instance.RaiseTraceEvent(new TraceEventArgs(traceMask, message, string.Empty, exception, args));
                     // done if mask not enabled, otherwise legacy write handler is
                     // called via logger interface to handle semantic logging.
-                    if ((s_traceMasks & traceMask) == 0)
+                    if ((TraceMask & traceMask) == 0)
                     {
                         return;
                     }

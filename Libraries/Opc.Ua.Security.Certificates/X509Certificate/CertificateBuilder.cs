@@ -315,7 +315,8 @@ namespace Opc.Ua.Security.Certificates
                 byte[] x = X509Utils.PadWithLeadingZeros(q.AffineXCoord.ToBigInteger().ToByteArrayUnsigned(), keySizeBytes);
                 byte[] y = X509Utils.PadWithLeadingZeros(q.AffineYCoord.ToBigInteger().ToByteArrayUnsigned(), keySizeBytes);
                 // Use the Q point
-                ecParameters.Q = new ECPoint {
+                ecParameters.Q = new ECPoint
+                {
                     X = x,
                     Y = y
                 };

@@ -69,7 +69,8 @@ namespace Opc.Ua.Server.Tests
         public async Task OneTimeSetUpAsync()
         {
             // start Ref server
-            m_fixture = new ServerFixture<ReferenceServer>() {
+            m_fixture = new ServerFixture<ReferenceServer>()
+            {
                 AllNodeManagers = true,
                 OperationLimits = true,
                 DurableSubscriptionsEnabled = false,
@@ -191,7 +192,8 @@ namespace Opc.Ua.Server.Tests
             Assert.NotNull(results);
             Assert.AreEqual(readIdCollection.Count, results.Count);
 
-            m_operationLimits = new OperationLimits() {
+            m_operationLimits = new OperationLimits()
+            {
                 MaxNodesPerRead = (uint)results[0].Value,
                 MaxNodesPerHistoryReadData = (uint)results[1].Value,
                 MaxNodesPerHistoryReadEvents = (uint)results[2].Value,
@@ -372,7 +374,8 @@ namespace Opc.Ua.Server.Tests
                 if (useSecurity)
                 {
                     // subscription was deleted, expect 'BadNoSubscription'
-                    ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() => {
+                    ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
+                    {
                         m_requestHeader.Timestamp = DateTime.UtcNow;
                         CommonTestWorkers.VerifySubscriptionTransferred(serverTestServices, m_requestHeader, subscriptionIds, true);
                     });
@@ -614,7 +617,8 @@ namespace Opc.Ua.Server.Tests
             var nodesToCall = new CallMethodRequestCollection();
             foreach (uint subscriptionId in subscriptionIds)
             {
-                nodesToCall.Add(new CallMethodRequest() {
+                nodesToCall.Add(new CallMethodRequest()
+                {
                     ObjectId = ObjectIds.Server,
                     MethodId = MethodIds.Server_ResendData,
                     InputArguments = [new Variant(subscriptionId)]

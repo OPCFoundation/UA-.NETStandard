@@ -17,12 +17,7 @@ namespace Opc.Ua
         /// <summary>
         /// A handle assigned to the item during processing.
         /// </summary>
-        public object Handle
-        {
-            get => m_handle; set => m_handle = value;
-        }
-
-        private object m_handle;
+        public object Handle { get; set; }
     }
 
     public partial class ViewDescription
@@ -30,11 +25,6 @@ namespace Opc.Ua
         /// <summary>
         /// A handle assigned to the item during processing.
         /// </summary>
-        public object Handle
-        {
-            get => m_handle; set => m_handle = value;
-        }
-
-        private object m_handle;
+        public object Handle { get; set; }
     }
 }

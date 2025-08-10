@@ -106,7 +106,7 @@ namespace Opc.Ua.Gds.Client
         /// <value>
         ///   <c>true</c> if the session is connected; otherwise, <c>false</c>.
         /// </value>
-        public bool IsConnected => m_session != null && m_session.Connected;
+        public bool IsConnected => Session != null && Session.Connected;
 
         /// <summary>
         /// Gets the session.
@@ -114,7 +114,7 @@ namespace Opc.Ua.Gds.Client
         /// <value>
         /// The session.
         /// </value>
-        public ISession Session => m_session;
+        public ISession Session { get; private set; }
 
         /// <summary>
         /// Gets the endpoint.
@@ -126,9 +126,9 @@ namespace Opc.Ua.Gds.Client
         {
             get
             {
-                if (m_session != null && m_session.ConfiguredEndpoint != null)
+                if (Session != null && Session.ConfiguredEndpoint != null)
                 {
-                    return m_session.ConfiguredEndpoint;
+                    return Session.ConfiguredEndpoint;
                 }
 
                 return m_endpoint;
@@ -136,7 +136,7 @@ namespace Opc.Ua.Gds.Client
 
             set
             {
-                if (m_session != null)
+                if (Session != null)
                 {
                     throw new InvalidOperationException("Session must be closed before changing endpoint.");
                 }
@@ -247,13 +247,13 @@ namespace Opc.Ua.Gds.Client
                 }
             }
 
-            if (m_session != null)
+            if (Session != null)
             {
-                m_session.Dispose();
-                m_session = null;
+                Session.Dispose();
+                Session = null;
             }
 
-            m_session = await m_sessionFactory.CreateAsync(
+            Session = await m_sessionFactory.CreateAsync(
                 Configuration,
                 endpoint,
                 false,
@@ -263,24 +263,24 @@ namespace Opc.Ua.Gds.Client
                 AdminCredentials,
                 PreferredLocales).ConfigureAwait(false);
 
-            m_endpoint = m_session.ConfiguredEndpoint;
+            m_endpoint = Session.ConfiguredEndpoint;
 
-            if (m_session.Factory.GetSystemType(Ua.DataTypeIds.TrustListDataType) == null)
+            if (Session.Factory.GetSystemType(Ua.DataTypeIds.TrustListDataType) == null)
             {
-                m_session.Factory.AddEncodeableTypes(typeof(Ua.DataTypeIds).GetTypeInfo().Assembly);
+                Session.Factory.AddEncodeableTypes(typeof(Ua.DataTypeIds).GetTypeInfo().Assembly);
             }
 
-            m_session.KeepAlive += Session_KeepAlive;
-            m_session.KeepAlive += KeepAlive;
+            Session.KeepAlive += Session_KeepAlive;
+            Session.KeepAlive += KeepAlive;
 
             RaiseConnectionStatusChangedEvent();
 
-            m_session.ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText;
+            Session.ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText;
 
             // init some helpers
-            DefaultApplicationGroup = ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup, m_session.NamespaceUris);
-            DefaultHttpsGroup = ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultHttpsGroup, m_session.NamespaceUris);
-            DefaultUserTokenGroup = ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup, m_session.NamespaceUris);
+            DefaultApplicationGroup = ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup, Session.NamespaceUris);
+            DefaultHttpsGroup = ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultHttpsGroup, Session.NamespaceUris);
+            DefaultUserTokenGroup = ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultUserTokenGroup, Session.NamespaceUris);
         }
 
         /// <summary>
@@ -288,11 +288,11 @@ namespace Opc.Ua.Gds.Client
         /// </summary>
         public void Disconnect()
         {
-            if (m_session != null)
+            if (Session != null)
             {
-                KeepAlive?.Invoke(m_session, null);
-                m_session.Close();
-                m_session = null;
+                KeepAlive?.Invoke(Session, null);
+                Session.Close();
+                Session = null;
                 RaiseConnectionStatusChangedEvent();
             }
         }
@@ -338,15 +338,17 @@ namespace Opc.Ua.Gds.Client
                 {
                     new ReadValueId()
                     {
-                        NodeId = ExpandedNodeId.ToNodeId(Ua.VariableIds.ServerConfiguration_SupportedPrivateKeyFormats, m_session.NamespaceUris),
+                        NodeId = ExpandedNodeId.ToNodeId(Ua.VariableIds.ServerConfiguration_SupportedPrivateKeyFormats, Session.NamespaceUris),
                         AttributeId = Attributes.Value
                     }
                 };
 
-                DataValueCollection results = null;
-                DiagnosticInfoCollection diagnosticInfos = null;
 
-                m_session.Read(
+
+                DataValueCollection results;
+
+                DiagnosticInfoCollection diagnosticInfos;
+                Session.Read(
                     null,
                     0,
                     TimestampsToReturn.Neither,
@@ -378,9 +380,9 @@ namespace Opc.Ua.Gds.Client
 
             try
             {
-                System.Collections.Generic.IList<object> outputArguments = m_session.Call(
-                    ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, m_session.NamespaceUris),
-                    ExpandedNodeId.ToNodeId(Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_OpenWithMasks, m_session.NamespaceUris),
+                System.Collections.Generic.IList<object> outputArguments = Session.Call(
+                    ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, Session.NamespaceUris),
+                    ExpandedNodeId.ToNodeId(Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_OpenWithMasks, Session.NamespaceUris),
                     (uint)masks);
 
                 uint fileHandle = (uint)outputArguments[0];
@@ -391,9 +393,9 @@ namespace Opc.Ua.Gds.Client
                     {
                         const int length = 256;
 
-                        outputArguments = m_session.Call(
-                            ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, m_session.NamespaceUris),
-                            ExpandedNodeId.ToNodeId(Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Read, m_session.NamespaceUris),
+                        outputArguments = Session.Call(
+                            ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, Session.NamespaceUris),
+                            ExpandedNodeId.ToNodeId(Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Read, Session.NamespaceUris),
                             fileHandle,
                             length);
 
@@ -406,18 +408,18 @@ namespace Opc.Ua.Gds.Client
                         }
                     }
 
-                    m_session.Call(
-                        ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, m_session.NamespaceUris),
-                        ExpandedNodeId.ToNodeId(Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Close, m_session.NamespaceUris),
+                    Session.Call(
+                        ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, Session.NamespaceUris),
+                        ExpandedNodeId.ToNodeId(Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Close, Session.NamespaceUris),
                         fileHandle);
                 }
                 catch (Exception)
                 {
                     if (IsConnected)
                     {
-                        m_session.Call(
-                            ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, m_session.NamespaceUris),
-                            ExpandedNodeId.ToNodeId(Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Close, m_session.NamespaceUris),
+                        Session.Call(
+                            ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, Session.NamespaceUris),
+                            ExpandedNodeId.ToNodeId(Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Close, Session.NamespaceUris),
                             fileHandle);
                     }
 
@@ -427,7 +429,7 @@ namespace Opc.Ua.Gds.Client
                 ostrm.Position = 0;
 
                 var trustList = new TrustListDataType();
-                using (var decoder = new BinaryDecoder(ostrm, m_session.MessageContext))
+                using (var decoder = new BinaryDecoder(ostrm, Session.MessageContext))
                 {
                     trustList.Decode(decoder);
                 }
@@ -455,15 +457,15 @@ namespace Opc.Ua.Gds.Client
             try
             {
                 using var strm = new MemoryStream();
-                using (var encoder = new BinaryEncoder(strm, m_session.MessageContext, true))
+                using (var encoder = new BinaryEncoder(strm, Session.MessageContext, true))
                 {
                     encoder.WriteEncodeable(null, trustList, null);
                 }
                 strm.Position = 0;
 
-                System.Collections.Generic.IList<object> outputArguments = m_session.Call(
-                    ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, m_session.NamespaceUris),
-                    ExpandedNodeId.ToNodeId(Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Open, m_session.NamespaceUris),
+                System.Collections.Generic.IList<object> outputArguments = Session.Call(
+                    ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, Session.NamespaceUris),
+                    ExpandedNodeId.ToNodeId(Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Open, Session.NamespaceUris),
                     (byte)((int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting));
 
                 uint fileHandle = (uint)outputArguments[0];
@@ -485,16 +487,16 @@ namespace Opc.Ua.Gds.Client
                             writing = false;
                         }
 
-                        m_session.Call(
-                            ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, m_session.NamespaceUris),
-                            ExpandedNodeId.ToNodeId(Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Write, m_session.NamespaceUris),
+                        Session.Call(
+                            ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, Session.NamespaceUris),
+                            ExpandedNodeId.ToNodeId(Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Write, Session.NamespaceUris),
                             fileHandle,
                             buffer);
                     }
 
-                    outputArguments = m_session.Call(
-                        ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, m_session.NamespaceUris),
-                        ExpandedNodeId.ToNodeId(Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_CloseAndUpdate, m_session.NamespaceUris),
+                    outputArguments = Session.Call(
+                        ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, Session.NamespaceUris),
+                        ExpandedNodeId.ToNodeId(Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_CloseAndUpdate, Session.NamespaceUris),
                         fileHandle);
 
                     return (bool)outputArguments[0];
@@ -503,9 +505,9 @@ namespace Opc.Ua.Gds.Client
                 {
                     if (IsConnected)
                     {
-                        m_session.Call(
-                            ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, m_session.NamespaceUris),
-                            ExpandedNodeId.ToNodeId(Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Close, m_session.NamespaceUris),
+                        Session.Call(
+                            ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, Session.NamespaceUris),
+                            ExpandedNodeId.ToNodeId(Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Close, Session.NamespaceUris),
                             fileHandle);
                     }
 
@@ -531,9 +533,9 @@ namespace Opc.Ua.Gds.Client
             IUserIdentity oldUser = ElevatePermissions();
             try
             {
-                m_session.Call(
-                    ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, m_session.NamespaceUris),
-                    ExpandedNodeId.ToNodeId(Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_AddCertificate, m_session.NamespaceUris),
+                Session.Call(
+                    ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, Session.NamespaceUris),
+                    ExpandedNodeId.ToNodeId(Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_AddCertificate, Session.NamespaceUris),
                     certificate.RawData,
                     isTrustedCertificate
                     );
@@ -557,9 +559,9 @@ namespace Opc.Ua.Gds.Client
             IUserIdentity oldUser = ElevatePermissions();
             try
             {
-                m_session.Call(
-                    ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, m_session.NamespaceUris),
-                    ExpandedNodeId.ToNodeId(Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_RemoveCertificate, m_session.NamespaceUris),
+                Session.Call(
+                    ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, Session.NamespaceUris),
+                    ExpandedNodeId.ToNodeId(Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_RemoveCertificate, Session.NamespaceUris),
                     thumbprint,
                     isTrustedCertificate
                     );
@@ -594,9 +596,9 @@ namespace Opc.Ua.Gds.Client
             IUserIdentity oldUser = ElevatePermissions();
             try
             {
-                System.Collections.Generic.IList<object> outputArguments = m_session.Call(
-                    ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration, m_session.NamespaceUris),
-                    ExpandedNodeId.ToNodeId(Ua.MethodIds.ServerConfigurationType_GetCertificates, m_session.NamespaceUris),
+                System.Collections.Generic.IList<object> outputArguments = Session.Call(
+                    ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration, Session.NamespaceUris),
+                    ExpandedNodeId.ToNodeId(Ua.MethodIds.ServerConfigurationType_GetCertificates, Session.NamespaceUris),
                 certificateGroupId
                     );
                 if (outputArguments.Count >= 2)
@@ -636,9 +638,9 @@ namespace Opc.Ua.Gds.Client
 
             try
             {
-                System.Collections.Generic.IList<object> outputArguments = m_session.Call(
-                    ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration, m_session.NamespaceUris),
-                    ExpandedNodeId.ToNodeId(Ua.MethodIds.ServerConfiguration_CreateSigningRequest, m_session.NamespaceUris),
+                System.Collections.Generic.IList<object> outputArguments = Session.Call(
+                    ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration, Session.NamespaceUris),
+                    ExpandedNodeId.ToNodeId(Ua.MethodIds.ServerConfiguration_CreateSigningRequest, Session.NamespaceUris),
                     certificateGroupId,
                     certificateTypeId,
                     subjectName,
@@ -684,9 +686,9 @@ namespace Opc.Ua.Gds.Client
 
             try
             {
-                System.Collections.Generic.IList<object> outputArguments = m_session.Call(
-                    ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration, m_session.NamespaceUris),
-                    ExpandedNodeId.ToNodeId(Ua.MethodIds.ServerConfiguration_UpdateCertificate, m_session.NamespaceUris),
+                System.Collections.Generic.IList<object> outputArguments = Session.Call(
+                    ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration, Session.NamespaceUris),
+                    ExpandedNodeId.ToNodeId(Ua.MethodIds.ServerConfiguration_UpdateCertificate, Session.NamespaceUris),
                     certificateGroupId,
                     certificateTypeId,
                     certificate,
@@ -721,9 +723,9 @@ namespace Opc.Ua.Gds.Client
 
             try
             {
-                System.Collections.Generic.IList<object> outputArguments = m_session.Call(
-                    ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration, m_session.NamespaceUris),
-                    ExpandedNodeId.ToNodeId(Ua.MethodIds.ServerConfiguration_GetRejectedList, m_session.NamespaceUris)
+                System.Collections.Generic.IList<object> outputArguments = Session.Call(
+                    ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration, Session.NamespaceUris),
+                    ExpandedNodeId.ToNodeId(Ua.MethodIds.ServerConfiguration_GetRejectedList, Session.NamespaceUris)
                     );
 
                 byte[][] rawCertificates = (byte[][])outputArguments[0];
@@ -752,16 +754,16 @@ namespace Opc.Ua.Gds.Client
 
             ElevatePermissions();
 
-            m_session.Call(
-                ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration, m_session.NamespaceUris),
-                ExpandedNodeId.ToNodeId(Ua.MethodIds.ServerConfiguration_ApplyChanges, m_session.NamespaceUris));
+            Session.Call(
+                ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration, Session.NamespaceUris),
+                ExpandedNodeId.ToNodeId(Ua.MethodIds.ServerConfiguration_ApplyChanges, Session.NamespaceUris));
         }
 
         private IUserIdentity ElevatePermissions()
         {
-            IUserIdentity oldUser = m_session.Identity;
+            IUserIdentity oldUser = Session.Identity;
 
-            if (AdminCredentials == null || !ReferenceEquals(m_session.Identity, AdminCredentials))
+            if (AdminCredentials == null || !ReferenceEquals(Session.Identity, AdminCredentials))
             {
                 IUserIdentity newCredentials = null;
 
@@ -785,7 +787,7 @@ namespace Opc.Ua.Gds.Client
 
                 try
                 {
-                    m_session.UpdateSession(newCredentials, PreferredLocales);
+                    Session.UpdateSession(newCredentials, PreferredLocales);
                 }
                 catch (Exception)
                 {
@@ -801,9 +803,9 @@ namespace Opc.Ua.Gds.Client
         {
             try
             {
-                if (!ReferenceEquals(m_session.Identity, oldUser))
+                if (!ReferenceEquals(Session.Identity, oldUser))
                 {
-                    m_session.UpdateSession(oldUser, PreferredLocales);
+                    Session.UpdateSession(oldUser, PreferredLocales);
                 }
             }
             catch (Exception e)
@@ -814,7 +816,7 @@ namespace Opc.Ua.Gds.Client
 
         private void Session_KeepAlive(ISession session, KeepAliveEventArgs e)
         {
-            if (!ReferenceEquals(session, m_session))
+            if (!ReferenceEquals(session, Session))
             {
                 return;
             }
@@ -836,6 +838,5 @@ namespace Opc.Ua.Gds.Client
 
         private readonly ISessionFactory m_sessionFactory;
         private ConfiguredEndpoint m_endpoint;
-        private ISession m_session;
     }
 }

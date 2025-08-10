@@ -272,7 +272,8 @@ namespace Opc.Ua.Client.ComplexTypes
             // Other DataTypes which map directly to .NET types in
             // <see cref="TypeInfo.GetSystemType(BuiltInType, int)"/>
             // are handled in <see cref="TypeInfo.GetBuiltInType()"/>
-            return (uint)builtInType switch {
+            return (uint)builtInType switch
+            {
                 // supertypes of numbers
                 DataTypes.Integer or DataTypes.UInteger or DataTypes.Number or DataTypes.Decimal => BuiltInType.Variant,
                 _ => TypeInfo.GetBuiltInType(datatypeId),

@@ -624,8 +624,7 @@ namespace Opc.Ua
             }
 
             // invoke method.
-            ServiceResult result = null;
-
+            ServiceResult result;
             try
             {
                 result = Call(context, objectId, inputs, outputs);

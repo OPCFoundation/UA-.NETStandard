@@ -63,8 +63,10 @@ namespace Opc.Ua.PubSub.Tests.Transport
             IPAddress unicastIPAddress = localhost.Address;
             Assert.IsNotNull(unicastIPAddress, "unicastIPAddress is null");
 
-            var publisherAddress = new NetworkAddressUrlDataType();
-            publisherAddress.Url = Utils.Format(kUdpUrlFormat, Utils.UriSchemeOpcUdp, unicastIPAddress.ToString());
+            var publisherAddress = new NetworkAddressUrlDataType
+            {
+                Url = Utils.Format(kUdpUrlFormat, Utils.UriSchemeOpcUdp, unicastIPAddress.ToString())
+            };
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
 
             //create publisher UaPubSubApplication with changed configuration settings
@@ -140,8 +142,10 @@ namespace Opc.Ua.PubSub.Tests.Transport
             IPAddress broadcastIPAddress = GetFirstNicLastIPByteChanged(255);
             Assert.IsNotNull(broadcastIPAddress, "broadcastIPAddress is null");
 
-            var publisherAddress = new NetworkAddressUrlDataType();
-            publisherAddress.Url = Utils.Format(kUdpUrlFormat, Utils.UriSchemeOpcUdp, broadcastIPAddress.ToString());
+            var publisherAddress = new NetworkAddressUrlDataType
+            {
+                Url = Utils.Format(kUdpUrlFormat, Utils.UriSchemeOpcUdp, broadcastIPAddress.ToString())
+            };
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
 
             //create publisher UaPubSubApplication with changed configuration settings
@@ -215,8 +219,10 @@ namespace Opc.Ua.PubSub.Tests.Transport
             IPAddress multicastIPAddress = multicastIPAddresses[0];
             Assert.IsNotNull(multicastIPAddress, "multicastIPAddress is null");
 
-            var publisherAddress = new NetworkAddressUrlDataType();
-            publisherAddress.Url = Utils.Format(kUdpUrlFormat, Utils.UriSchemeOpcUdp, multicastIPAddress.ToString());
+            var publisherAddress = new NetworkAddressUrlDataType
+            {
+                Url = Utils.Format(kUdpUrlFormat, Utils.UriSchemeOpcUdp, multicastIPAddress.ToString())
+            };
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
 
             //create publisher UaPubSubApplication with changed configuration settings
@@ -291,8 +297,10 @@ namespace Opc.Ua.PubSub.Tests.Transport
             IPAddress multicastIPAddress = multicastIPAddresses[0];
             Assert.IsNotNull(multicastIPAddress, "multicastIPAddress is null");
 
-            var publisherAddress = new NetworkAddressUrlDataType();
-            publisherAddress.Url = Utils.Format(kUdpUrlFormat, Utils.UriSchemeOpcUdp, multicastIPAddress.ToString());
+            var publisherAddress = new NetworkAddressUrlDataType
+            {
+                Url = Utils.Format(kUdpUrlFormat, Utils.UriSchemeOpcUdp, multicastIPAddress.ToString())
+            };
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
 
             //create publisher UaPubSubApplication with changed configuration settings
@@ -372,8 +380,10 @@ namespace Opc.Ua.PubSub.Tests.Transport
             IPAddress multicastIPAddress = multicastIPAddresses[0];
             Assert.IsNotNull(multicastIPAddress, "multicastIPAddress is null");
 
-            var publisherAddress = new NetworkAddressUrlDataType();
-            publisherAddress.Url = Utils.Format(kUdpUrlFormat, Utils.UriSchemeOpcUdp, multicastIPAddress.ToString());
+            var publisherAddress = new NetworkAddressUrlDataType
+            {
+                Url = Utils.Format(kUdpUrlFormat, Utils.UriSchemeOpcUdp, multicastIPAddress.ToString())
+            };
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
 
             //create publisher UaPubSubApplication with changed configuration settings
@@ -447,8 +457,10 @@ namespace Opc.Ua.PubSub.Tests.Transport
             IPAddress multicastIPAddress = multicastIPAddresses[0];
             Assert.IsNotNull(multicastIPAddress, "multicastIPAddress is null");
 
-            var publisherAddress = new NetworkAddressUrlDataType();
-            publisherAddress.Url = Utils.Format(kUdpUrlFormat, Utils.UriSchemeOpcUdp, multicastIPAddress.ToString());
+            var publisherAddress = new NetworkAddressUrlDataType
+            {
+                Url = Utils.Format(kUdpUrlFormat, Utils.UriSchemeOpcUdp, multicastIPAddress.ToString())
+            };
             publisherConfiguration.Connections[0].Address = new ExtensionObject(publisherAddress);
 
             //create publisher UaPubSubApplication with changed configuration settings

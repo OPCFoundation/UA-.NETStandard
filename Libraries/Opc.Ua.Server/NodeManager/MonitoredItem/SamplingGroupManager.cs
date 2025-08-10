@@ -461,10 +461,7 @@ namespace Opc.Ua.Server
 
                 if (m_sampledItems.TryGetValue(monitoredItem, out samplingGroup))
                 {
-                    if (samplingGroup != null)
-                    {
-                        samplingGroup.StopMonitoring(monitoredItem);
-                    }
+                    samplingGroup?.StopMonitoring(monitoredItem);
 
                     m_sampledItems.Remove(monitoredItem);
                     return;

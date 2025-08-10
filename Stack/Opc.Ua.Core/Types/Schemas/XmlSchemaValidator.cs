@@ -53,11 +53,11 @@ namespace Opc.Ua.Schema.Xml
         /// <summary>
         /// The schema set that was validated.
         /// </summary>
-        public XmlSchemaSet SchemaSet => m_schemaSet;
+        public XmlSchemaSet SchemaSet { get; private set; }
         /// <summary>
         /// The schema that was validated.
         /// </summary>
-        public XmlSchema TargetSchema => m_schema;
+        public XmlSchema TargetSchema { get; private set; }
 
         /// <summary>
         /// Generates the code from the contents of the address space.
@@ -74,10 +74,10 @@ namespace Opc.Ua.Schema.Xml
         public void Validate(Stream stream)
         {
             using var xmlReader = XmlReader.Create(stream, Utils.DefaultXmlReaderSettings());
-            m_schema = XmlSchema.Read(xmlReader, new ValidationEventHandler(OnValidate));
+            TargetSchema = XmlSchema.Read(xmlReader, new ValidationEventHandler(OnValidate));
 
             Assembly assembly = typeof(XmlSchemaValidator).GetTypeInfo().Assembly;
-            foreach (XmlSchemaImport import in m_schema.Includes.OfType<XmlSchemaImport>())
+            foreach (XmlSchemaImport import in TargetSchema.Includes.OfType<XmlSchemaImport>())
             {
                 string location = null;
 
@@ -102,9 +102,9 @@ namespace Opc.Ua.Schema.Xml
                 }
             }
 
-            m_schemaSet = new XmlSchemaSet();
-            m_schemaSet.Add(m_schema);
-            m_schemaSet.Compile();
+            SchemaSet = new XmlSchemaSet();
+            SchemaSet.Add(TargetSchema);
+            SchemaSet.Compile();
         }
 
         /// <summary>
@@ -119,13 +119,13 @@ namespace Opc.Ua.Schema.Xml
 
             try
             {
-                if (typeName == null || m_schema.Elements.Values.Count == 0)
+                if (typeName == null || TargetSchema.Elements.Values.Count == 0)
                 {
-                    m_schema.Write(writer);
+                    TargetSchema.Write(writer);
                 }
                 else
                 {
-                    foreach (XmlSchemaObject current in m_schema.Elements.Values)
+                    foreach (XmlSchemaObject current in TargetSchema.Elements.Values)
                     {
                         if (current is XmlSchemaElement element && element.Name == typeName)
                         {
@@ -163,7 +163,5 @@ namespace Opc.Ua.Schema.Xml
         [
             [Namespaces.OpcUaXsd, "Opc.Ua.Schema.Opc.Ua.Types.xsd"]
         ];
-        private XmlSchema m_schema;
-        private XmlSchemaSet m_schemaSet;
     }
 }

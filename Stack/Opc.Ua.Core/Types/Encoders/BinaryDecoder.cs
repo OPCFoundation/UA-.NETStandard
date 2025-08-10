@@ -69,7 +69,7 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize(IServiceMessageContext context)
         {
-            m_context = context;
+            Context = context;
             m_nestingLevel = 0;
             m_encodeablesRecovered = 0;
         }
@@ -104,16 +104,16 @@ namespace Opc.Ua
         {
             m_namespaceMappings = null;
 
-            if (namespaceUris != null && m_context.NamespaceUris != null)
+            if (namespaceUris != null && Context.NamespaceUris != null)
             {
-                m_namespaceMappings = m_context.NamespaceUris.CreateMapping(namespaceUris, false);
+                m_namespaceMappings = Context.NamespaceUris.CreateMapping(namespaceUris, false);
             }
 
             m_serverMappings = null;
 
-            if (serverUris != null && m_context.ServerUris != null)
+            if (serverUris != null && Context.ServerUris != null)
             {
-                m_serverMappings = m_context.ServerUris.CreateMapping(serverUris, false);
+                m_serverMappings = Context.ServerUris.CreateMapping(serverUris, false);
             }
         }
 
@@ -241,26 +241,21 @@ namespace Opc.Ua
             NodeId typeId = ReadNodeId(null);
 
             // convert to absolute node id.
-            var absoluteId = NodeId.ToExpandedNodeId(typeId, m_context.NamespaceUris);
+            var absoluteId = NodeId.ToExpandedNodeId(typeId, Context.NamespaceUris);
 
             // lookup message type.
-            Type actualType = m_context.Factory.GetSystemType(absoluteId);
-
-            if (actualType == null)
-            {
-                throw ServiceResultException.Create(StatusCodes.BadDecodingError,
+            Type actualType = Context.Factory.GetSystemType(absoluteId) ?? throw ServiceResultException.Create(StatusCodes.BadDecodingError,
                     "Cannot decode message with type id: {0}.", absoluteId);
-            }
 
             // read the message.
             IEncodeable message = ReadEncodeable(null, actualType, absoluteId);
 
             // check that the max message size was not exceeded.
             int messageLength = Position - start;
-            if (m_context.MaxMessageSize > 0 && m_context.MaxMessageSize < messageLength)
+            if (Context.MaxMessageSize > 0 && Context.MaxMessageSize < messageLength)
             {
                 throw ServiceResultException.Create(StatusCodes.BadEncodingLimitsExceeded,
-                    "MaxMessageSize {0} < {1}", m_context.MaxMessageSize, messageLength);
+                    "MaxMessageSize {0} < {1}", Context.MaxMessageSize, messageLength);
             }
 
             // return the message.
@@ -295,7 +290,7 @@ namespace Opc.Ua
         /// <summary>
         /// The message context associated with the decoder.
         /// </summary>
-        public IServiceMessageContext Context => m_context;
+        public IServiceMessageContext Context { get; private set; }
 
         /// <summary>
         /// Pushes a namespace onto the namespace stack.
@@ -406,7 +401,7 @@ namespace Opc.Ua
         /// </summary>
         public string ReadString(string fieldName)
         {
-            return ReadString(fieldName, m_context.MaxStringLength);
+            return ReadString(fieldName, Context.MaxStringLength);
         }
 
         /// <summary>
@@ -515,7 +510,7 @@ namespace Opc.Ua
         /// </summary>
         public byte[] ReadByteString(string fieldName)
         {
-            return ReadByteString(fieldName, m_context.MaxByteStringLength);
+            return ReadByteString(fieldName, Context.MaxByteStringLength);
         }
 
         /// <summary>
@@ -606,20 +601,17 @@ namespace Opc.Ua
             ReadNodeIdBody(encodingByte, body);
             value.InnerNodeId = body;
 
-            string namespaceUri = null;
-            uint serverIndex = 0;
-
             // read the namespace uri if present.
             if ((encodingByte & 0x80) != 0)
             {
-                namespaceUri = ReadString(null);
+                string namespaceUri = ReadString(null);
                 value.SetNamespaceUri(namespaceUri);
             }
 
             // read the server index if present.
             if ((encodingByte & 0x40) != 0)
             {
-                serverIndex = SafeReadUInt32();
+                uint serverIndex = SafeReadUInt32();
                 value.SetServerIndex(serverIndex);
             }
 
@@ -1666,7 +1658,7 @@ namespace Opc.Ua
         /// </summary>
         private Array ReadArrayElements(int length, BuiltInType builtInType)
         {
-            Array array = null;
+            Array array;
             switch (builtInType)
             {
                 case BuiltInType.Boolean:
@@ -2027,10 +2019,10 @@ namespace Opc.Ua
                 return -1;
             }
 
-            if (m_context.MaxArrayLength > 0 && m_context.MaxArrayLength < length)
+            if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < length)
             {
                 throw ServiceResultException.Create(StatusCodes.BadEncodingLimitsExceeded,
-                    "MaxArrayLength exceeded in {0}: {1} < {2}", callerMemberName, m_context.MaxArrayLength, length);
+                    "MaxArrayLength exceeded in {0}: {1} < {2}", callerMemberName, Context.MaxArrayLength, length);
             }
 
             return length;
@@ -2090,7 +2082,7 @@ namespace Opc.Ua
             NodeId typeId = ReadNodeId(null);
 
             // convert to absolute node id.
-            extension.TypeId = NodeId.ToExpandedNodeId(typeId, m_context.NamespaceUris);
+            extension.TypeId = NodeId.ToExpandedNodeId(typeId, Context.NamespaceUris);
 
             if (!NodeId.IsNull(typeId) && NodeId.IsNull(extension.TypeId))
             {
@@ -2115,7 +2107,7 @@ namespace Opc.Ua
             }
 
             // check for known type.
-            Type systemType = m_context.Factory.GetSystemType(extension.TypeId);
+            Type systemType = Context.Factory.GetSystemType(extension.TypeId);
 
             // check for XML bodies.
             if (encoding == (byte)ExtensionObjectEncoding.Xml)
@@ -2217,7 +2209,7 @@ namespace Opc.Ua
                     // reset stream to return ExtensionObject if configured to do so!
                     // decoding failure of a known type in ns=0 is always a decoding error.
                     if (typeId.NamespaceIndex == 0 ||
-                        m_encodeablesRecovered >= m_context.MaxDecoderRecoveries)
+                        m_encodeablesRecovered >= Context.MaxDecoderRecoveries)
                     {
                         throw exception ??
                             ServiceResultException.Create(StatusCodes.BadDecodingError, "{0}, failed to decode encodeable type '{1}', NodeId='{2}'.",
@@ -2250,10 +2242,10 @@ namespace Opc.Ua
                 }
 
                 // check the length.
-                if (m_context.MaxByteStringLength > 0 && m_context.MaxByteStringLength < length)
+                if (Context.MaxByteStringLength > 0 && Context.MaxByteStringLength < length)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadEncodingLimitsExceeded,
-                        "MaxByteStringLength exceeded in ExtensionObject: {0} < {1}", m_context.MaxByteStringLength, length);
+                        "MaxByteStringLength exceeded in ExtensionObject: {0} < {1}", Context.MaxByteStringLength, length);
                 }
 
                 // read the bytes of the body.
@@ -2724,10 +2716,10 @@ namespace Opc.Ua
         /// </summary>
         private void CheckAndIncrementNestingLevel()
         {
-            if (m_nestingLevel > m_context.MaxEncodingNestingLevels)
+            if (m_nestingLevel > Context.MaxEncodingNestingLevels)
             {
                 throw ServiceResultException.Create(StatusCodes.BadEncodingLimitsExceeded,
-                    "Maximum nesting level of {0} was exceeded", m_context.MaxEncodingNestingLevels);
+                    "Maximum nesting level of {0} was exceeded", Context.MaxEncodingNestingLevels);
             }
             m_nestingLevel++;
         }
@@ -2750,7 +2742,6 @@ namespace Opc.Ua
         }
 
         private BinaryReader m_reader;
-        private IServiceMessageContext m_context;
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;
         private uint m_nestingLevel;

@@ -420,40 +420,20 @@ namespace Opc.Ua.Schema.Binary
     [System.Xml.Serialization.XmlType(Namespace = "http://opcfoundation.org/BinarySchema/")]
     public partial class TypeDescription
     {
-        private Documentation m_documentationField;
-
-        private string m_nameField;
-
-        private ByteOrder m_defaultByteOrderField;
-
-        private bool defaultByteOrderFieldSpecified;
-
         /// <inheritdoc/>
-        public Documentation Documentation
-        {
-            get => m_documentationField; set => m_documentationField = value;
-        }
+        public Documentation Documentation { get; set; }
 
         /// <inheritdoc/>
         [System.Xml.Serialization.XmlAttribute(DataType = "NCName")]
-        public string Name
-        {
-            get => m_nameField; set => m_nameField = value;
-        }
+        public string Name { get; set; }
 
         /// <inheritdoc/>
         [System.Xml.Serialization.XmlAttribute()]
-        public ByteOrder DefaultByteOrder
-        {
-            get => m_defaultByteOrderField; set => m_defaultByteOrderField = value;
-        }
+        public ByteOrder DefaultByteOrder { get; set; }
 
         /// <inheritdoc/>
         [System.Xml.Serialization.XmlIgnore()]
-        public bool DefaultByteOrderSpecified
-        {
-            get => defaultByteOrderFieldSpecified; set => defaultByteOrderFieldSpecified = value;
-        }
+        public bool DefaultByteOrderSpecified { get; set; }
     }
 
     /// <inheritdoc/>

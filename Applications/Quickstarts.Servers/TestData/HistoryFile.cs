@@ -91,12 +91,13 @@ namespace TestData
 
                 HistoryEntry entry = m_entries[position];
 
-                var value = new DataValue();
-
-                value.Value = entry.Value.Value;
-                value.ServerTimestamp = entry.Value.ServerTimestamp;
-                value.SourceTimestamp = entry.Value.SourceTimestamp;
-                value.StatusCode = entry.Value.StatusCode;
+                var value = new DataValue
+                {
+                    Value = entry.Value.Value,
+                    ServerTimestamp = entry.Value.ServerTimestamp,
+                    SourceTimestamp = entry.Value.SourceTimestamp,
+                    StatusCode = entry.Value.StatusCode
+                };
 
                 return value;
             }
@@ -123,12 +124,13 @@ namespace TestData
 
                 HistoryEntry entry = m_entries[position];
 
-                var value = new DataValue();
-
-                value.Value = entry.Value.Value;
-                value.ServerTimestamp = entry.Value.ServerTimestamp;
-                value.SourceTimestamp = entry.Value.SourceTimestamp;
-                value.StatusCode = entry.Value.StatusCode;
+                var value = new DataValue
+                {
+                    Value = entry.Value.Value,
+                    ServerTimestamp = entry.Value.ServerTimestamp,
+                    SourceTimestamp = entry.Value.SourceTimestamp,
+                    StatusCode = entry.Value.StatusCode
+                };
 
                 return value;
             }

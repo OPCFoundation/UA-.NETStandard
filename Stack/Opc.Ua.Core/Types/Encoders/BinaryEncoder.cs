@@ -237,7 +237,8 @@ namespace Opc.Ua
             encoder.WriteNodeId(null, DataTypeIds.SessionlessInvokeRequestType);
 
             // write the message.
-            var envelope = new SessionLessServiceMessage {
+            var envelope = new SessionLessServiceMessage
+            {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
                 Message = message ?? throw new ArgumentNullException(nameof(message))
@@ -1062,10 +1063,7 @@ namespace Opc.Ua
                 }
 
                 // encode the object.
-                if (value != null)
-                {
-                    value.Encode(this);
-                }
+                value?.Encode(this);
             }
             finally
             {
@@ -2241,8 +2239,7 @@ namespace Opc.Ua
         /// </summary>
         private static byte GetNodeIdEncoding(IdType idType, object identifier, uint namespaceIndex)
         {
-            NodeIdEncodingBits encoding = NodeIdEncodingBits.Numeric;
-
+            NodeIdEncodingBits encoding;
             switch (idType)
             {
                 case IdType.Numeric:

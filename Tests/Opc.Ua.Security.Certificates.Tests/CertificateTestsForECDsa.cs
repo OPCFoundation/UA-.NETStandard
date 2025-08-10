@@ -208,7 +208,8 @@ namespace Opc.Ua.Security.Certificates.Tests
             ECCurve eccurve = ECCurve.NamedCurves.nistP256;
             // default cert
             NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(
-                () => {
+                () =>
+                {
                     CertificateBuilder.Create(Subject)
                     .SetSerialNumberLength(0)
                     .SetECCurve(eccurve)
@@ -216,7 +217,8 @@ namespace Opc.Ua.Security.Certificates.Tests
                 }
             );
             NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(
-                () => {
+                () =>
+                {
                     CertificateBuilder.Create(Subject)
                     .SetSerialNumberLength(X509Defaults.SerialNumberLengthMax + 1)
                     .SetECCurve(eccurve)
@@ -243,7 +245,8 @@ namespace Opc.Ua.Security.Certificates.Tests
             ECCurve eccurve = ECCurve.NamedCurves.nistP256;
             // default cert
             NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(
-                () => {
+                () =>
+                {
                     CertificateBuilder.Create(Subject)
                     .SetSerialNumber([])
                     .SetECCurve(eccurve)
@@ -251,7 +254,8 @@ namespace Opc.Ua.Security.Certificates.Tests
                 }
             );
             NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(
-                () => {
+                () =>
+                {
                     CertificateBuilder.Create(Subject)
                     .SetSerialNumber(new byte[X509Defaults.SerialNumberLengthMax + 1])
                     .SetECCurve(eccurve)
@@ -337,7 +341,8 @@ namespace Opc.Ua.Security.Certificates.Tests
             }
 
             // ensure invalid path throws argument exception
-            NUnit.Framework.Assert.Throws<NotSupportedException>(() => {
+            NUnit.Framework.Assert.Throws<NotSupportedException>(() =>
+            {
                 using ECDsa ecdsaPrivateKey = signingCert.GetECDsaPrivateKey();
                 var generator = X509SignatureGenerator.CreateForECDsa(ecdsaPrivateKey);
                 X509Certificate2 cert = CertificateBuilder.Create("CN=App Cert")

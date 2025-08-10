@@ -53,8 +53,8 @@ namespace Quickstarts.Servers
             m_batchPersistor = batchPersistor;
             m_enqueueBatch = new DataChangeBatch([], kBatchSize, monitoredItemId);
             m_dequeueBatch = m_enqueueBatch;
-            m_queueSize = 0;
-            m_itemsInQueue = 0;
+            QueueSize = 0;
+            ItemsInQueue = 0;
         }
         /// <summary>
         /// Creates a queue from a template
@@ -67,8 +67,8 @@ namespace Quickstarts.Servers
             m_enqueueBatch = queue.EnqueueBatch;
             m_dequeueBatch = queue.DequeueBatch;
             m_dataChangeBatches = queue.DataChangeBatches;
-            m_queueSize = queue.QueueSize;
-            m_itemsInQueue = queue.ItemsInQueue;
+            QueueSize = queue.QueueSize;
+            ItemsInQueue = queue.ItemsInQueue;
         }
 
         /// <inheritdoc/>
@@ -77,23 +77,24 @@ namespace Quickstarts.Servers
         /// <summary>
         /// Gets the current queue size.
         /// </summary>
-        public uint QueueSize => m_queueSize;
+        public uint QueueSize { get; private set; }
 
         /// <summary>
         /// Gets number of elements actually contained in value queue.
         /// </summary>
-        public int ItemsInQueue => m_itemsInQueue;
+        public int ItemsInQueue { get; private set; }
         /// <summary>
         /// Brings the queue with content into a storable format
         /// </summary>
         /// <returns></returns>
         public StorableDataChangeQueue ToStorableQueue()
         {
-            return new StorableDataChangeQueue {
+            return new StorableDataChangeQueue
+            {
                 IsDurable = IsDurable,
                 MonitoredItemId = MonitoredItemId,
-                QueueSize = m_queueSize,
-                ItemsInQueue = m_itemsInQueue,
+                QueueSize = QueueSize,
+                ItemsInQueue = ItemsInQueue,
                 DataChangeBatches = m_dataChangeBatches,
                 DequeueBatch = m_dequeueBatch,
                 EnqueueBatch = m_enqueueBatch,
@@ -116,13 +117,13 @@ namespace Quickstarts.Servers
             }
 
             //check for full queue
-            if (m_itemsInQueue == QueueSize)
+            if (ItemsInQueue == QueueSize)
             {
                 _ = Dequeue(out _, out _);
             }
 
             m_enqueueBatch.Values.Add((value, m_queueErrors ? error : null));
-            m_itemsInQueue++;
+            ItemsInQueue++;
             HandleEnqueueBatching();
         }
 
@@ -159,7 +160,7 @@ namespace Quickstarts.Servers
         /// <inheritdoc/>
         public void OverwriteLastValue(DataValue value, ServiceResult error)
         {
-            if (m_itemsInQueue == 0)
+            if (ItemsInQueue == 0)
             {
                 throw new InvalidOperationException("Cannot overwrite Value. Queue is empty.");
             }
@@ -183,9 +184,9 @@ namespace Quickstarts.Servers
         {
             m_enqueueBatch = new DataChangeBatch([], kBatchSize, MonitoredItemId);
             m_dequeueBatch = m_enqueueBatch;
-            m_itemsInQueue = 0;
+            ItemsInQueue = 0;
             m_queueErrors = queueErrors;
-            m_queueSize = queueSize;
+            QueueSize = queueSize;
 
             foreach (DataChangeBatch batch in m_dataChangeBatches)
             {
@@ -198,7 +199,7 @@ namespace Quickstarts.Servers
         /// <inheritdoc/>
         public DataValue PeekLastValue()
         {
-            if (m_itemsInQueue == 0)
+            if (ItemsInQueue == 0)
             {
                 return null;
             }
@@ -225,7 +226,7 @@ namespace Quickstarts.Servers
             error = null;
 
             // check for empty queue.
-            if (m_itemsInQueue == 0)
+            if (ItemsInQueue == 0)
             {
                 return false;
             }
@@ -245,7 +246,7 @@ namespace Quickstarts.Servers
 
             (value, error) = m_dequeueBatch.Values[0];
             m_dequeueBatch.Values.RemoveAt(0);
-            m_itemsInQueue--;
+            ItemsInQueue--;
             HandleDequeBatching();
             return true;
         }
@@ -287,7 +288,7 @@ namespace Quickstarts.Servers
         public DataValue PeekOldestValue()
         {
             // check for empty queue.
-            if (m_itemsInQueue == 0)
+            if (ItemsInQueue == 0)
             {
                 return null;
             }
@@ -316,8 +317,6 @@ namespace Quickstarts.Servers
         private DataChangeBatch m_enqueueBatch;
         private readonly List<DataChangeBatch> m_dataChangeBatches = [];
         private DataChangeBatch m_dequeueBatch;
-        private int m_itemsInQueue;
-        private uint m_queueSize;
         private bool m_queueErrors;
         private readonly IBatchPersistor m_batchPersistor;
     }

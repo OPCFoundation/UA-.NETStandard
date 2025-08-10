@@ -78,7 +78,8 @@ namespace Opc.Ua.PubSub.Transport
         /// <returns></returns>
         public virtual async Task StartAsync(IServiceMessageContext messageContext)
         {
-            await Task.Run(() => {
+            await Task.Run(() =>
+            {
                 lock (m_lock)
                 {
                     MessageContext = messageContext;
