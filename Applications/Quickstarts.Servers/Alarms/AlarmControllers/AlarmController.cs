@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-
 using Opc.Ua;
 
 #pragma warning disable CS1591
@@ -79,8 +78,7 @@ namespace Alarms
 
             m_validLastMaxValue = false;
 
-            m_nextTime =
-            m_stopTime = DateTime.Now;
+            m_nextTime = m_stopTime = DateTime.Now;
             m_stopTime = m_stopTime.AddSeconds(seconds == 0 ? kDefaultCycleTime : seconds);
 
             m_allowChanges = true;
@@ -209,8 +207,7 @@ namespace Alarms
                 {
                     if (m_validLastMaxValue)
                     {
-                        Utils.LogInfo(
-                            "Cycle Time {0} Interval {1}", DateTime.Now - m_lastMaxValue, m_interval);
+                        Utils.LogInfo("Cycle Time {0} Interval {1}", DateTime.Now - m_lastMaxValue, m_interval);
                     }
                     m_lastMaxValue = DateTime.Now;
                     m_validLastMaxValue = true;
@@ -291,10 +288,16 @@ namespace Alarms
             double calculated = (amplitude * Math.Sin(period * (reducedPeriod + phase))) + verticalShift;
 
             Utils.LogTrace(
-                " Phase {0:0.00} Value {1} Sine {2:0.00}" +
-                " Offset Value {3:0.00} Span {4:0.00}" +
-                " Percentage of Range {5:0.00}",
-                phase, value, calculated, offsetValue, normalSpan, percentageOfRange);
+                " Phase {0:0.00} Value {1} Sine {2:0.00}"
+                    + " Offset Value {3:0.00} Span {4:0.00}"
+                    + " Percentage of Range {5:0.00}",
+                phase,
+                value,
+                calculated,
+                offsetValue,
+                normalSpan,
+                percentageOfRange
+            );
 
             return (int)calculated;
         }
@@ -309,16 +312,10 @@ namespace Alarms
             return false;
         }
 
-        public virtual void OnAddComment()
-        {
-        }
+        public virtual void OnAddComment() { }
 
-        public virtual void OnAcknowledge()
-        {
-        }
+        public virtual void OnAcknowledge() { }
 
-        public virtual void OnConfirm()
-        {
-        }
+        public virtual void OnConfirm() { }
     }
 }

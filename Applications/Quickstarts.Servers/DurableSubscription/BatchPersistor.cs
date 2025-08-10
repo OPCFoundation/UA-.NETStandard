@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -43,7 +43,11 @@ namespace Quickstarts.Servers
     public class BatchPersistor : IBatchPersistor
     {
         private static readonly JsonSerializerSettings s_settings = new() { TypeNameHandling = TypeNameHandling.All };
-        private static readonly string s_storage_path = Path.Combine(Environment.CurrentDirectory, "Durable Subscriptions", "Batches");
+        private static readonly string s_storage_path = Path.Combine(
+            Environment.CurrentDirectory,
+            "Durable Subscriptions",
+            "Batches"
+        );
         private const string kBaseFilename = "_batch.txt";
 
         /// <inheritdoc/>
@@ -210,7 +214,10 @@ namespace Quickstarts.Servers
                 if (Directory.Exists(s_storage_path))
                 {
                     var directory = new DirectoryInfo(s_storage_path);
-                    var regex = new Regex($"{batchToRemove.MonitoredItemId}_.{batchToRemove.Id}._{kBaseFilename}$", RegexOptions.Compiled);
+                    var regex = new Regex(
+                        $"{batchToRemove.MonitoredItemId}_.{batchToRemove.Id}._{kBaseFilename}$",
+                        RegexOptions.Compiled
+                    );
 
                     foreach (FileInfo file in directory.GetFiles())
                     {

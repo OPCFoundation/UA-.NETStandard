@@ -148,7 +148,7 @@ namespace Opc.Ua.Server
                 {
                     ReadyToPublish = false,
                     Timestamp = DateTime.UtcNow,
-                    Subscription = subscription
+                    Subscription = subscription,
                 };
 
                 m_queuedSubscriptions.Add(queuedSubscription);
@@ -237,7 +237,8 @@ namespace Opc.Ua.Server
             OperationContext context,
             SubscriptionAcknowledgementCollection subscriptionAcknowledgements,
             out StatusCodeCollection acknowledgeResults,
-            out DiagnosticInfoCollection acknowledgeDiagnosticInfos)
+            out DiagnosticInfoCollection acknowledgeDiagnosticInfos
+        )
         {
             if (context == null)
             {
@@ -267,7 +268,10 @@ namespace Opc.Ua.Server
 
                         if (subscription.Subscription.Id == acknowledgement.SubscriptionId)
                         {
-                            ServiceResult result = subscription.Subscription.Acknowledge(context, acknowledgement.SequenceNumber);
+                            ServiceResult result = subscription.Subscription.Acknowledge(
+                                context,
+                                acknowledgement.SequenceNumber
+                            );
 
                             if (ServiceResult.IsGood(result))
                             {
@@ -284,7 +288,11 @@ namespace Opc.Ua.Server
 
                                 if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                                 {
-                                    DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(m_server, context, result);
+                                    DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
+                                        m_server,
+                                        context,
+                                        result
+                                    );
                                     acknowledgeDiagnosticInfos.Add(diagnosticInfo);
                                     diagnosticsExist = true;
                                 }
@@ -319,7 +327,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns a subscription that is ready to publish.
         /// </summary>
-        public ISubscription Publish(uint clientHandle, DateTime deadline, bool requeue, AsyncPublishOperation operation)
+        public ISubscription Publish(
+            uint clientHandle,
+            DateTime deadline,
+            bool requeue,
+            AsyncPublishOperation operation
+        )
         {
             QueuedRequest request = null;
 
@@ -400,11 +413,13 @@ namespace Opc.Ua.Server
                         StatusCode requestStatus = StatusCodes.Good;
 
                         // check if expired.
-                        if (queuedRequest.Deadline < DateTime.MaxValue && queuedRequest.Deadline.AddMilliseconds(500) < DateTime.UtcNow)
+                        if (
+                            queuedRequest.Deadline < DateTime.MaxValue
+                            && queuedRequest.Deadline.AddMilliseconds(500) < DateTime.UtcNow
+                        )
                         {
                             requestStatus = StatusCodes.BadTimeout;
                         }
-
                         // check secure channel.
                         else if (!m_session.IsSecureChannelValid(queuedRequest.SecureChannelId))
                         {
@@ -436,7 +451,7 @@ namespace Opc.Ua.Server
                         SecureChannelId = SecureChannelContext.Current.SecureChannelId,
                         Deadline = deadline,
                         Subscription = null,
-                        Error = StatusCodes.Good
+                        Error = StatusCodes.Good,
                     };
 
                     if (operation == null)
@@ -525,10 +540,7 @@ namespace Opc.Ua.Server
         /// <param name="operation">The asynchronous operation.</param>
         /// <param name="calldata">The calldata.</param>
         /// <returns></returns>
-        public ISubscription CompletePublish(
-            bool requeue,
-            AsyncPublishOperation operation,
-            object calldata)
+        public ISubscription CompletePublish(bool requeue, AsyncPublishOperation operation, object calldata)
         {
             Utils.LogTrace("PUBLISH: #{0} Completing", operation.RequestHandle, requeue);
 
@@ -625,7 +637,9 @@ namespace Opc.Ua.Server
                     if (state == PublishingState.Expired)
                     {
                         subscriptionsToDelete.Add(subscription.Subscription);
-                        ((SubscriptionManager)m_server.SubscriptionManager).SubscriptionExpired(subscription.Subscription);
+                        ((SubscriptionManager)m_server.SubscriptionManager).SubscriptionExpired(
+                            subscription.Subscription
+                        );
                         continue;
                     }
 
@@ -685,7 +699,6 @@ namespace Opc.Ua.Server
                 {
                     error = StatusCodes.BadTimeout;
                 }
-
                 // check secure channel.
                 else if (!m_session.IsSecureChannelValid(request.SecureChannelId))
                 {
@@ -801,7 +814,11 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
-                    return ServiceResult.Create(e, StatusCodes.BadTimeout, "Unexpected error waiting for subscription.");
+                    return ServiceResult.Create(
+                        e,
+                        StatusCodes.BadTimeout,
+                        "Unexpected error waiting for subscription."
+                    );
                 }
                 finally
                 {
@@ -872,8 +889,12 @@ namespace Opc.Ua.Server
                     buffer.AppendFormat(CultureInfo.InvariantCulture, ", SessionId={0}", m_session.Id);
                 }
 
-                buffer.AppendFormat(CultureInfo.InvariantCulture, ", SubscriptionCount={0}, RequestCount={1}",
-                    m_queuedSubscriptions.Count, m_queuedRequests.Count);
+                buffer.AppendFormat(
+                    CultureInfo.InvariantCulture,
+                    ", SubscriptionCount={0}, RequestCount={1}",
+                    m_queuedSubscriptions.Count,
+                    m_queuedRequests.Count
+                );
 
                 int readyToPublish = 0;
 

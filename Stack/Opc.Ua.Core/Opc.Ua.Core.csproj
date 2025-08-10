@@ -12,8 +12,9 @@
   </PropertyGroup>
   <!-- select ECC support -->
   <Choose>
-    <When Condition="'$(TargetFramework)' == 'net462' OR '$(TargetFramework)' == 'netstandard2.0'">
-    </When>
+    <When
+      Condition="'$(TargetFramework)' == 'net462' OR '$(TargetFramework)' == 'netstandard2.0'"
+    ></When>
     <Otherwise>
       <PropertyGroup>
         <DefineConstants>$(DefineConstants);ECC_SUPPORT</DefineConstants>
@@ -44,7 +45,6 @@
     <EmbeddedResource Include="Types\Schemas\BuiltInTypes.bsd" />
     <EmbeddedResource Include="Types\Schemas\StandardTypes.bsd" />
   </ItemGroup>
-
   <Choose>
     <!-- Note: Due to incompatibilities of Microsoft.Extensions Nuget packages between versions 3.x and 7.0,
          use latest versions only on .NET 5/6/7/8, otherwise 3.1.x -->
@@ -56,7 +56,10 @@
     </When>
     <When Condition="'$(TargetFramework)' == 'net8.0'">
       <ItemGroup>
-        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" VersionOverride="8.0.2" />
+        <PackageReference
+          Include="Microsoft.Extensions.Logging.Abstractions"
+          VersionOverride="8.0.2"
+        />
       </ItemGroup>
     </When>
     <When Condition="'$(TargetFramework)' == 'net462' OR '$(TargetFramework)' == 'net472' OR '$(TargetFramework)' == 'net48'">
@@ -99,18 +102,25 @@
     <EmbeddedResource Include="$(ZipNodeSet2XML)" Link="$(NodeSet2XML).zip" />
   </ItemGroup>
   <!-- Zip the NodeSet2 file -->
-  <Target Name="ZipNodeSet2" BeforeTargets="PrepareForBuild" Inputs="$(NodeSet2XML)" Outputs="$(ZipNodeSet2XML)">
+  <Target
+    Name="ZipNodeSet2"
+    BeforeTargets="PrepareForBuild"
+    Inputs="$(NodeSet2XML)"
+    Outputs="$(ZipNodeSet2XML)"
+  >
     <Message Text="Zip $(NodeSet2XML) in $(ZipNodeSet2XML)." Importance="high" />
     <Copy SourceFiles="$(NodeSet2XML)" DestinationFolder="$(ZipTmp)" />
-    <ZipDirectory SourceDirectory="$(ZipTmp)" DestinationFile="$(ZipNodeSet2XML)" Overwrite="true" />
+    <ZipDirectory
+      SourceDirectory="$(ZipTmp)"
+      DestinationFile="$(ZipNodeSet2XML)"
+      Overwrite="true"
+    />
     <RemoveDir Directories="$(ZipTmp)" />
     <Message Text="Zip NodeSet2 completed, $(ZipTmp) removed." Importance="high" />
   </Target>
   <!-- Clean up the zip file -->
   <Target Name="RemoveZipNodeset2" AfterTargets="Clean" Condition="Exists('$(ZipNodeSet2XML)')">
-    <Message Text="Delete Zip $(ZipNodeSet2XML)" Importance="high">
-    </Message>
-    <Delete Files="$(ZipNodeSet2XML)">
-    </Delete>
+    <Message Text="Delete Zip $(ZipNodeSet2XML)" Importance="high"></Message>
+    <Delete Files="$(ZipNodeSet2XML)"></Delete>
   </Target>
 </Project>

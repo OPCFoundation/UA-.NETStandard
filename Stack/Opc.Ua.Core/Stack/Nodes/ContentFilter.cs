@@ -86,7 +86,8 @@ namespace Opc.Ua
                     var nullResult = ServiceResult.Create(
                         StatusCodes.BadStructureMissing,
                         "ContentFilterElement is null (Index={0}).",
-                        ii);
+                        ii
+                    );
 
                     result.ElementResults.Add(new ElementResult(nullResult));
                     error = true;
@@ -132,14 +133,14 @@ namespace Opc.Ua
             // check if nothing more to do.
             if (operands == null || operands.Length == 0)
             {
-                throw ServiceResultException.Create(StatusCodes.BadInvalidArgument, "ContentFilterElement does not have an operands.");
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidArgument,
+                    "ContentFilterElement does not have an operands."
+                );
             }
 
             // create the element and set the operator.
-            var element = new ContentFilterElement
-            {
-                FilterOperator = op
-            };
+            var element = new ContentFilterElement { FilterOperator = op };
 
             for (int ii = 0; ii < operands.Length; ii++)
             {
@@ -159,23 +160,20 @@ namespace Opc.Ua
 
                     if (index == -1)
                     {
-                        throw ServiceResultException.Create(StatusCodes.BadInvalidArgument, "ContentFilterElement is not part of the ContentFilter.");
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadInvalidArgument,
+                            "ContentFilterElement is not part of the ContentFilter."
+                        );
                     }
 
-                    var operand = new ElementOperand
-                    {
-                        Index = (uint)index
-                    };
+                    var operand = new ElementOperand { Index = (uint)index };
 
                     element.FilterOperands.Add(new ExtensionObject(operand));
                     continue;
                 }
 
                 // assume a literal operand.
-                var literalOperand = new LiteralOperand
-                {
-                    Value = new Variant(operands[ii])
-                };
+                var literalOperand = new LiteralOperand { Value = new Variant(operands[ii]) };
                 element.FilterOperands.Add(new ExtensionObject(literalOperand));
             }
 
@@ -275,10 +273,7 @@ namespace Opc.Ua
 
                     if (elementResult == null || ServiceResult.IsGood(elementResult.Status))
                     {
-                        elementResult2 = new ContentFilterElementResult
-                        {
-                            StatusCode = StatusCodes.Good
-                        };
+                        elementResult2 = new ContentFilterElementResult { StatusCode = StatusCodes.Good };
 
                         result.ElementResults.Add(elementResult2);
                         result.ElementDiagnosticInfos.Add(null);
@@ -289,7 +284,9 @@ namespace Opc.Ua
 
                     elementResult2 = elementResult.ToContentFilterElementResult(diagnosticsMasks, stringTable);
                     result.ElementResults.Add(elementResult2);
-                    result.ElementDiagnosticInfos.Add(new DiagnosticInfo(elementResult.Status, diagnosticsMasks, false, stringTable));
+                    result.ElementDiagnosticInfos.Add(
+                        new DiagnosticInfo(elementResult.Status, diagnosticsMasks, false, stringTable)
+                    );
                 }
 
                 if (!error)
@@ -346,7 +343,10 @@ namespace Opc.Ua
             /// <param name="diagnosticsMasks">The diagnostics masks.</param>
             /// <param name="stringTable">The string table.</param>
             /// <returns></returns>
-            public ContentFilterElementResult ToContentFilterElementResult(DiagnosticsMasks diagnosticsMasks, StringTable stringTable)
+            public ContentFilterElementResult ToContentFilterElementResult(
+                DiagnosticsMasks diagnosticsMasks,
+                StringTable stringTable
+            )
             {
                 var result = new ContentFilterElementResult();
 
@@ -373,7 +373,9 @@ namespace Opc.Ua
                     else
                     {
                         result.OperandStatusCodes.Add(operandResult.StatusCode);
-                        result.OperandDiagnosticInfos.Add(new DiagnosticInfo(operandResult, diagnosticsMasks, false, stringTable));
+                        result.OperandDiagnosticInfos.Add(
+                            new DiagnosticInfo(operandResult, diagnosticsMasks, false, stringTable)
+                        );
                     }
                 }
 
@@ -503,7 +505,8 @@ namespace Opc.Ua
                         StatusCodes.BadEventFilterInvalid,
                         "ContentFilterElement does not have the correct number of operands (Operator={0} OperandCount={1}).",
                         m_filterOperator,
-                        operandCount);
+                        operandCount
+                    );
 
                     return result;
                 }
@@ -514,7 +517,8 @@ namespace Opc.Ua
                     StatusCodes.BadEventFilterInvalid,
                     "ContentFilterElement does not have the correct number of operands (Operator={0} OperandCount={1}).",
                     m_filterOperator,
-                    m_filterOperands.Count);
+                    m_filterOperands.Count
+                );
 
                 return result;
             }
@@ -532,7 +536,8 @@ namespace Opc.Ua
                 {
                     operandResult = ServiceResult.Create(
                         StatusCodes.BadEventFilterInvalid,
-                        "The FilterOperand cannot be Null.");
+                        "The FilterOperand cannot be Null."
+                    );
 
                     result.OperandResults.Add(operandResult);
                     error = true;
@@ -546,7 +551,8 @@ namespace Opc.Ua
                     operandResult = ServiceResult.Create(
                         StatusCodes.BadEventFilterInvalid,
                         "The FilterOperand is not a supported type ({0}).",
-                        operand.Body.GetType());
+                        operand.Body.GetType()
+                    );
 
                     result.OperandResults.Add(operandResult);
                     error = true;
@@ -664,11 +670,23 @@ namespace Opc.Ua
                 case FilterOperator.Or:
                 case FilterOperator.BitwiseAnd:
                 case FilterOperator.BitwiseOr:
-                    buffer.AppendFormat(CultureInfo.InvariantCulture, "'{1}' {0} '{2}'", FilterOperator, operand1, operand2);
+                    buffer.AppendFormat(
+                        CultureInfo.InvariantCulture,
+                        "'{1}' {0} '{2}'",
+                        FilterOperator,
+                        operand1,
+                        operand2
+                    );
                     break;
 
                 case FilterOperator.Between:
-                    buffer.AppendFormat(CultureInfo.InvariantCulture, "'{1}' <= '{0}' <= '{2}'", operand1, operand2, operand3);
+                    buffer.AppendFormat(
+                        CultureInfo.InvariantCulture,
+                        "'{1}' <= '{0}' <= '{2}'",
+                        operand1,
+                        operand2,
+                        operand3
+                    );
                     break;
 
                 case FilterOperator.Cast:
@@ -738,7 +756,10 @@ namespace Opc.Ua
         /// <returns>the result of the validation</returns>
         public virtual ServiceResult Validate(FilterContext context, int index)
         {
-            return ServiceResult.Create(StatusCodes.BadEventFilterInvalid, "A sub-class of FilterOperand must be specified.");
+            return ServiceResult.Create(
+                StatusCodes.BadEventFilterInvalid,
+                "A sub-class of FilterOperand must be specified."
+            );
         }
 
         /// <summary>
@@ -759,9 +780,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="nodeId">The node identifier.</param>
         /// <param name="browsePath">The browse path.</param>
-        public AttributeOperand(
-            NodeId nodeId,
-            QualifiedName browsePath)
+        public AttributeOperand(NodeId nodeId, QualifiedName browsePath)
         {
             m_nodeId = nodeId;
             m_attributeId = Attributes.Value;
@@ -773,7 +792,7 @@ namespace Opc.Ua
                 ReferenceTypeId = ReferenceTypeIds.Aggregates,
                 IsInverse = false,
                 IncludeSubtypes = true,
-                TargetName = browsePath
+                TargetName = browsePath,
             };
 
             m_browsePath.Elements.Add(element);
@@ -784,9 +803,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="nodeId">The node identifier.</param>
         /// <param name="browsePaths">The browse paths.</param>
-        public AttributeOperand(
-            NodeId nodeId,
-            IList<QualifiedName> browsePaths)
+        public AttributeOperand(NodeId nodeId, IList<QualifiedName> browsePaths)
         {
             m_nodeId = nodeId;
             m_attributeId = Attributes.Value;
@@ -799,7 +816,7 @@ namespace Opc.Ua
                     ReferenceTypeId = ReferenceTypeIds.Aggregates,
                     IsInverse = false,
                     IncludeSubtypes = true,
-                    TargetName = browsePaths[ii]
+                    TargetName = browsePaths[ii],
                 };
 
                 m_browsePath.Elements.Add(element);
@@ -812,10 +829,7 @@ namespace Opc.Ua
         /// <param name="context">The context.</param>
         /// <param name="nodeId">The node identifier.</param>
         /// <param name="relativePath">The relative path.</param>
-        public AttributeOperand(
-            FilterContext context,
-            ExpandedNodeId nodeId,
-            RelativePath relativePath)
+        public AttributeOperand(FilterContext context, ExpandedNodeId nodeId, RelativePath relativePath)
         {
             m_nodeId = ExpandedNodeId.ToNodeId(nodeId, context.NamespaceUris);
             m_browsePath = relativePath;
@@ -837,7 +851,8 @@ namespace Opc.Ua
             ExpandedNodeId typeDefinitionId,
             string browsePath,
             uint attributeId,
-            string indexRange)
+            string indexRange
+        )
         {
             m_nodeId = ExpandedNodeId.ToNodeId(typeDefinitionId, context.NamespaceUris);
             m_browsePath = RelativePath.Parse(browsePath, context.TypeTree);
@@ -920,7 +935,8 @@ namespace Opc.Ua
                 return ServiceResult.Create(
                     StatusCodes.BadTypeDefinitionInvalid,
                     "AttributeOperand does not have a known TypeDefinitionId ({0}).",
-                    m_nodeId);
+                    m_nodeId
+                );
             }
 
             // verify attribute id.
@@ -929,7 +945,8 @@ namespace Opc.Ua
                 return ServiceResult.Create(
                     StatusCodes.BadAttributeIdInvalid,
                     "AttributeOperand does not specify a valid AttributeId ({0}).",
-                    m_attributeId);
+                    m_attributeId
+                );
             }
 
             // initialize as empty.
@@ -948,7 +965,8 @@ namespace Opc.Ua
                         e,
                         StatusCodes.BadIndexRangeInvalid,
                         "AttributeOperand does not specify a valid BrowsePath ({0}).",
-                        m_indexRange);
+                        m_indexRange
+                    );
                 }
 
                 if (m_attributeId != Attributes.Value)
@@ -956,7 +974,8 @@ namespace Opc.Ua
                     return ServiceResult.Create(
                         StatusCodes.BadIndexRangeInvalid,
                         "AttributeOperand specifies an IndexRange for an Attribute other than Value ({0}).",
-                        m_attributeId);
+                        m_attributeId
+                    );
                 }
             }
 
@@ -1063,7 +1082,8 @@ namespace Opc.Ua
                 return ServiceResult.Create(
                     StatusCodes.BadFilterOperandInvalid,
                     "ElementOperand specifies an Index that is less than zero ({0}).",
-                    index);
+                    index
+                );
             }
 
             if (m_index <= index)
@@ -1071,7 +1091,8 @@ namespace Opc.Ua
                 return ServiceResult.Create(
                     StatusCodes.BadFilterOperandInvalid,
                     "ElementOperand references an element that precedes it in the ContentFilter.",
-                    m_index);
+                    m_index
+                );
             }
 
             if (m_index >= Parent.Parent.Elements.Count)
@@ -1079,7 +1100,8 @@ namespace Opc.Ua
                 return ServiceResult.Create(
                     StatusCodes.BadFilterOperandInvalid,
                     "ElementOperand references an element that does not exist.",
-                    m_index);
+                    m_index
+                );
             }
 
             return ServiceResult.Good;
@@ -1152,7 +1174,8 @@ namespace Opc.Ua
             {
                 return ServiceResult.Create(
                     StatusCodes.BadEventFilterInvalid,
-                    "LiteralOperand specifies a null Value.");
+                    "LiteralOperand specifies a null Value."
+                );
             }
 
             return ServiceResult.Good;

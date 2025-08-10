@@ -65,18 +65,18 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void NegativeMinimumLengthThrows()
         {
             Assert.That(
-                Assert.Throws<ArgumentOutOfRangeException>(
-                    () => _ = new SimpleRedactionStrategy(-1, 0))
-                    .ParamName, Is.EqualTo("minLength"));
+                Assert.Throws<ArgumentOutOfRangeException>(() => _ = new SimpleRedactionStrategy(-1, 0)).ParamName,
+                Is.EqualTo("minLength")
+            );
         }
 
         [Test]
         public void MaximumLengthLowerThanNegativeOneThrows()
         {
             Assert.That(
-                Assert.Throws<ArgumentOutOfRangeException>(
-                    () => _ = new SimpleRedactionStrategy(12, -2))
-                    .ParamName, Is.EqualTo("maxLength"));
+                Assert.Throws<ArgumentOutOfRangeException>(() => _ = new SimpleRedactionStrategy(12, -2)).ParamName,
+                Is.EqualTo("maxLength")
+            );
         }
 
         [Test]

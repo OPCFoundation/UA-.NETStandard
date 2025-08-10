@@ -58,7 +58,7 @@ namespace Opc.Ua.Client.ComplexTypes
             PropertyInfo propertyInfo,
             StructureFieldAttribute fieldAttribute,
             DataMemberAttribute dataAttribute
-            )
+        )
         {
             PropertyInfo = propertyInfo;
             FieldAttribute = fieldAttribute;
@@ -107,4 +107,4 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         public uint OptionalFieldMask { get; set; }
     }
-}//namespace
+} //namespace

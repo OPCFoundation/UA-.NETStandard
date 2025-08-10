@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -122,7 +122,7 @@ namespace Opc.Ua.X509StoreExtensions.Internal
             }
             IntPtr crlPointer = Marshal.AllocHGlobal(crl.Length);
 
-            Marshal.Copy(crl, 0, crlPointer, crl.Length);//copy from managed array to unmanaged memory
+            Marshal.Copy(crl, 0, crlPointer, crl.Length); //copy from managed array to unmanaged memory
 
             try
             {
@@ -136,13 +136,16 @@ namespace Opc.Ua.X509StoreExtensions.Internal
                 //#define CERT_STORE_ADD_REPLACE_EXISTING_INHERIT_PROPERTIES  5
                 //#define CERT_STORE_ADD_NEWER                                6
                 //#define CERT_STORE_ADD_NEWER_INHERIT_PROPERTIES             7
-                if (PInvokeHelper.CertAddEncodedCRLToStore(
-                    (HCERTSTORE)storeHandle.ToPointer(),
-                    CERT_QUERY_ENCODING_TYPE.X509_ASN_ENCODING | CERT_QUERY_ENCODING_TYPE.PKCS_7_ASN_ENCODING,
-                    (byte*)crlPointer,
-                    (uint)crl.Length,
-                    3,
-                    null))
+                if (
+                    PInvokeHelper.CertAddEncodedCRLToStore(
+                        (HCERTSTORE)storeHandle.ToPointer(),
+                        CERT_QUERY_ENCODING_TYPE.X509_ASN_ENCODING | CERT_QUERY_ENCODING_TYPE.PKCS_7_ASN_ENCODING,
+                        (byte*)crlPointer,
+                        (uint)crl.Length,
+                        3,
+                        null
+                    )
+                )
                 {
                     //success
                     return;
@@ -152,15 +155,24 @@ namespace Opc.Ua.X509StoreExtensions.Internal
                     int error = Marshal.GetLastWin32Error();
                     if (error == -2147024809)
                     {
-                        Utils.LogError("Error while adding Crl to X509Store, Win32Error-Code: {0}: ERROR_INVALID_PARAMETER, The parameter is incorrect. ", error);
+                        Utils.LogError(
+                            "Error while adding Crl to X509Store, Win32Error-Code: {0}: ERROR_INVALID_PARAMETER, The parameter is incorrect. ",
+                            error
+                        );
                     }
                     if (error == -2146881269)
                     {
-                        Utils.LogError("Error while adding Crl to X509Store, Win32Error-Code: {0}: CRYPT_E_ASN1_BADTAG, ASN1 bad tag value met. ", error);
+                        Utils.LogError(
+                            "Error while adding Crl to X509Store, Win32Error-Code: {0}: CRYPT_E_ASN1_BADTAG, ASN1 bad tag value met. ",
+                            error
+                        );
                     }
                     if (error == -2147024891)
                     {
-                        Utils.LogError("Error while adding Crl to X509Store, Win32Error-Code: {0}: ERROR_ACCESS_DENIED, Access is denied. ", error);
+                        Utils.LogError(
+                            "Error while adding Crl to X509Store, Win32Error-Code: {0}: ERROR_ACCESS_DENIED, Access is denied. ",
+                            error
+                        );
                     }
                     if (error != 0)
                     {
@@ -213,7 +225,10 @@ namespace Opc.Ua.X509StoreExtensions.Internal
                                 int error = Marshal.GetLastWin32Error();
                                 if (error != 0)
                                 {
-                                    Utils.LogError("Error while deleting Crl from X509Store, Win32Error-Code: {0}", error);
+                                    Utils.LogError(
+                                        "Error while deleting Crl from X509Store, Win32Error-Code: {0}",
+                                        error
+                                    );
                                 }
                             }
                             else

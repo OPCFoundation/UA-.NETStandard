@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-
 using Opc.Ua;
 
 namespace Alarms
@@ -53,7 +52,7 @@ namespace Alarms
                 DisplayName = new LocalizedText("en", name),
                 WriteMask = AttributeWriteMask.None,
                 UserWriteMask = AttributeWriteMask.None,
-                EventNotifier = EventNotifiers.None
+                EventNotifier = EventNotifiers.None,
             };
 
             parent?.AddChild(folder);
@@ -64,7 +63,13 @@ namespace Alarms
         /// <summary>
         /// Create a mechanism to create a variable
         /// </summary>
-        public static BaseDataVariableState CreateVariable(NodeState parent, ushort nameSpaceIndex, string path, string name, bool boolValue = false)
+        public static BaseDataVariableState CreateVariable(
+            NodeState parent,
+            ushort nameSpaceIndex,
+            string path,
+            string name,
+            bool boolValue = false
+        )
         {
             uint dataTypeIdentifier = DataTypes.Int32;
             if (boolValue)
@@ -77,7 +82,13 @@ namespace Alarms
         /// <summary>
         /// Create a mechanism to create a Variable
         /// </summary>
-        public static BaseDataVariableState CreateVariable(NodeState parent, ushort nameSpaceIndex, string path, string name, uint dataTypeIdentifier)
+        public static BaseDataVariableState CreateVariable(
+            NodeState parent,
+            ushort nameSpaceIndex,
+            string path,
+            string name,
+            uint dataTypeIdentifier
+        )
         {
             var variable = new BaseDataVariableState(parent)
             {
@@ -88,7 +99,7 @@ namespace Alarms
                 BrowseName = new QualifiedName(name, nameSpaceIndex),
                 DisplayName = new LocalizedText("en", name),
                 WriteMask = AttributeWriteMask.DisplayName | AttributeWriteMask.Description,
-                UserWriteMask = AttributeWriteMask.DisplayName | AttributeWriteMask.Description
+                UserWriteMask = AttributeWriteMask.DisplayName | AttributeWriteMask.Description,
             };
             switch (dataTypeIdentifier)
             {
@@ -104,7 +115,6 @@ namespace Alarms
                     variable.DataType = DataTypeIds.Double;
                     variable.Value = (double)AlarmDefines.NORMAL_START_VALUE;
                     break;
-
             }
             variable.ValueRank = ValueRanks.Scalar;
             variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
@@ -133,7 +143,7 @@ namespace Alarms
                 WriteMask = AttributeWriteMask.None,
                 UserWriteMask = AttributeWriteMask.None,
                 Executable = true,
-                UserExecutable = true
+                UserExecutable = true,
             };
 
             parent?.AddChild(method);
@@ -150,7 +160,7 @@ namespace Alarms
             startMethod.InputArguments = new PropertyState<Argument[]>(startMethod)
             {
                 NodeId = new NodeId(startMethod.BrowseName.Name + "InArgs", namespaceIndex),
-                BrowseName = BrowseNames.InputArguments
+                BrowseName = BrowseNames.InputArguments,
             };
             startMethod.InputArguments.DisplayName = startMethod.InputArguments.BrowseName.Name;
             startMethod.InputArguments.TypeDefinitionId = VariableTypeIds.PropertyType;
@@ -160,7 +170,13 @@ namespace Alarms
 
             startMethod.InputArguments.Value =
             [
-                        new Argument() { Name = "UInt32 value", Description = "Runtime of Alarms in seconds.",  DataType = DataTypeIds.UInt32, ValueRank = ValueRanks.Scalar }
+                new Argument()
+                {
+                    Name = "UInt32 value",
+                    Description = "Runtime of Alarms in seconds.",
+                    DataType = DataTypeIds.UInt32,
+                    ValueRank = ValueRanks.Scalar,
+                },
             ];
         }
     }

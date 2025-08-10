@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -73,7 +73,8 @@ namespace Opc.Ua.Server
             ApplicationConfiguration configuration,
             IServiceMessageContext messageContext,
             CertificateValidator certificateValidator,
-            CertificateTypesProvider instanceCertificateProvider)
+            CertificateTypesProvider instanceCertificateProvider
+        )
         {
             m_serverDescription = serverDescription;
             m_configuration = configuration;
@@ -163,7 +164,8 @@ namespace Opc.Ua.Server
         public void CreateServerObject(
             EventManager eventManager,
             ResourceManager resourceManager,
-            RequestManager requestManager)
+            RequestManager requestManager
+        )
         {
             EventManager = eventManager;
             ResourceManager = resourceManager;
@@ -178,9 +180,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="sessionManager">The session manager.</param>
         /// <param name="subscriptionManager">The subscription manager.</param>
-        public void SetSessionManager(
-            ISessionManager sessionManager,
-            ISubscriptionManager subscriptionManager)
+        public void SetSessionManager(ISessionManager sessionManager, ISubscriptionManager subscriptionManager)
         {
             SessionManager = sessionManager;
             SubscriptionManager = subscriptionManager;
@@ -190,8 +190,7 @@ namespace Opc.Ua.Server
         /// Stores the MonitoredItemQueueFactory in the datastore.
         /// </summary>
         /// <param name="monitoredItemQueueFactory">The MonitoredItemQueueFactory.</param>
-        public void SetMonitoredItemQueueFactory(
-            IMonitoredItemQueueFactory monitoredItemQueueFactory)
+        public void SetMonitoredItemQueueFactory(IMonitoredItemQueueFactory monitoredItemQueueFactory)
         {
             MonitoredItemQueueFactory = monitoredItemQueueFactory;
         }
@@ -200,8 +199,7 @@ namespace Opc.Ua.Server
         /// Stores the Subscriptionstore in the datastore.
         /// </summary>
         /// <param name="subscriptionStore">The subscriptionstore.</param>
-        public void SetSubscriptionStore(
-            ISubscriptionStore subscriptionStore)
+        public void SetSubscriptionStore(ISubscriptionStore subscriptionStore)
         {
             SubscriptionStore = subscriptionStore;
         }
@@ -210,8 +208,7 @@ namespace Opc.Ua.Server
         /// Stores the AggregateManager in the datastore.
         /// </summary>
         /// <param name="aggregateManager">The AggregateManager.</param>
-        public void SetAggregateManager(
-            AggregateManager aggregateManager)
+        public void SetAggregateManager(AggregateManager aggregateManager)
         {
             AggregateManager = aggregateManager;
         }
@@ -346,7 +343,6 @@ namespace Opc.Ua.Server
                     return Status.Value.State;
                 }
             }
-
             set
             {
                 lock (Status.Lock)
@@ -415,8 +411,7 @@ namespace Opc.Ua.Server
                         return true;
                     }
 
-                    if (Status.Value.State == ServerState.Shutdown &&
-                        Status.Value.SecondsTillShutdown > 0)
+                    if (Status.Value.State == ServerState.Shutdown && Status.Value.SecondsTillShutdown > 0)
                     {
                         return true;
                     }
@@ -554,68 +549,117 @@ namespace Opc.Ua.Server
             lock (DiagnosticsNodeManager.Lock)
             {
                 // get the server object.
-                ServerObjectState serverObject = ServerObject = (ServerObjectState)DiagnosticsNodeManager.FindPredefinedNode(
-                    ObjectIds.Server,
-                    typeof(ServerObjectState));
+                ServerObjectState serverObject = ServerObject = (ServerObjectState)
+                    DiagnosticsNodeManager.FindPredefinedNode(ObjectIds.Server, typeof(ServerObjectState));
 
                 // update server capabilities.
                 serverObject.ServiceLevel.Value = 255;
                 serverObject.ServerCapabilities.LocaleIdArray.Value = ResourceManager.GetAvailableLocales();
-                serverObject.ServerCapabilities.ServerProfileArray.Value = [.. m_configuration.ServerConfiguration.ServerProfileArray];
+                serverObject.ServerCapabilities.ServerProfileArray.Value =
+                [
+                    .. m_configuration.ServerConfiguration.ServerProfileArray,
+                ];
                 serverObject.ServerCapabilities.MinSupportedSampleRate.Value = 0;
-                serverObject.ServerCapabilities.MaxBrowseContinuationPoints.Value = (ushort)m_configuration.ServerConfiguration.MaxBrowseContinuationPoints;
-                serverObject.ServerCapabilities.MaxQueryContinuationPoints.Value = (ushort)m_configuration.ServerConfiguration.MaxQueryContinuationPoints;
-                serverObject.ServerCapabilities.MaxHistoryContinuationPoints.Value = (ushort)m_configuration.ServerConfiguration.MaxHistoryContinuationPoints;
-                serverObject.ServerCapabilities.MaxArrayLength.Value = (uint)m_configuration.TransportQuotas.MaxArrayLength;
-                serverObject.ServerCapabilities.MaxStringLength.Value = (uint)m_configuration.TransportQuotas.MaxStringLength;
-                serverObject.ServerCapabilities.MaxByteStringLength.Value = (uint)m_configuration.TransportQuotas.MaxByteStringLength;
+                serverObject.ServerCapabilities.MaxBrowseContinuationPoints.Value = (ushort)
+                    m_configuration.ServerConfiguration.MaxBrowseContinuationPoints;
+                serverObject.ServerCapabilities.MaxQueryContinuationPoints.Value = (ushort)
+                    m_configuration.ServerConfiguration.MaxQueryContinuationPoints;
+                serverObject.ServerCapabilities.MaxHistoryContinuationPoints.Value = (ushort)
+                    m_configuration.ServerConfiguration.MaxHistoryContinuationPoints;
+                serverObject.ServerCapabilities.MaxArrayLength.Value = (uint)
+                    m_configuration.TransportQuotas.MaxArrayLength;
+                serverObject.ServerCapabilities.MaxStringLength.Value = (uint)
+                    m_configuration.TransportQuotas.MaxStringLength;
+                serverObject.ServerCapabilities.MaxByteStringLength.Value = (uint)
+                    m_configuration.TransportQuotas.MaxByteStringLength;
 
                 // Any operational limits Property that is provided shall have a non zero value.
                 OperationLimitsState operationLimits = serverObject.ServerCapabilities.OperationLimits;
                 OperationLimits configOperationLimits = m_configuration.ServerConfiguration.OperationLimits;
                 if (configOperationLimits != null)
                 {
-                    operationLimits.MaxNodesPerRead = SetPropertyValue(operationLimits.MaxNodesPerRead, configOperationLimits.MaxNodesPerRead);
-                    operationLimits.MaxNodesPerHistoryReadData = SetPropertyValue(operationLimits.MaxNodesPerHistoryReadData, configOperationLimits.MaxNodesPerHistoryReadData);
-                    operationLimits.MaxNodesPerHistoryReadEvents = SetPropertyValue(operationLimits.MaxNodesPerHistoryReadEvents, configOperationLimits.MaxNodesPerHistoryReadEvents);
-                    operationLimits.MaxNodesPerWrite = SetPropertyValue(operationLimits.MaxNodesPerWrite, configOperationLimits.MaxNodesPerWrite);
-                    operationLimits.MaxNodesPerHistoryUpdateData = SetPropertyValue(operationLimits.MaxNodesPerHistoryUpdateData, configOperationLimits.MaxNodesPerHistoryUpdateData);
-                    operationLimits.MaxNodesPerHistoryUpdateEvents = SetPropertyValue(operationLimits.MaxNodesPerHistoryUpdateEvents, configOperationLimits.MaxNodesPerHistoryUpdateEvents);
-                    operationLimits.MaxNodesPerMethodCall = SetPropertyValue(operationLimits.MaxNodesPerMethodCall, configOperationLimits.MaxNodesPerMethodCall);
-                    operationLimits.MaxNodesPerBrowse = SetPropertyValue(operationLimits.MaxNodesPerBrowse, configOperationLimits.MaxNodesPerBrowse);
-                    operationLimits.MaxNodesPerRegisterNodes = SetPropertyValue(operationLimits.MaxNodesPerRegisterNodes, configOperationLimits.MaxNodesPerRegisterNodes);
-                    operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds = SetPropertyValue(operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds, configOperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds);
-                    operationLimits.MaxNodesPerNodeManagement = SetPropertyValue(operationLimits.MaxNodesPerNodeManagement, configOperationLimits.MaxNodesPerNodeManagement);
-                    operationLimits.MaxMonitoredItemsPerCall = SetPropertyValue(operationLimits.MaxMonitoredItemsPerCall, configOperationLimits.MaxMonitoredItemsPerCall);
+                    operationLimits.MaxNodesPerRead = SetPropertyValue(
+                        operationLimits.MaxNodesPerRead,
+                        configOperationLimits.MaxNodesPerRead
+                    );
+                    operationLimits.MaxNodesPerHistoryReadData = SetPropertyValue(
+                        operationLimits.MaxNodesPerHistoryReadData,
+                        configOperationLimits.MaxNodesPerHistoryReadData
+                    );
+                    operationLimits.MaxNodesPerHistoryReadEvents = SetPropertyValue(
+                        operationLimits.MaxNodesPerHistoryReadEvents,
+                        configOperationLimits.MaxNodesPerHistoryReadEvents
+                    );
+                    operationLimits.MaxNodesPerWrite = SetPropertyValue(
+                        operationLimits.MaxNodesPerWrite,
+                        configOperationLimits.MaxNodesPerWrite
+                    );
+                    operationLimits.MaxNodesPerHistoryUpdateData = SetPropertyValue(
+                        operationLimits.MaxNodesPerHistoryUpdateData,
+                        configOperationLimits.MaxNodesPerHistoryUpdateData
+                    );
+                    operationLimits.MaxNodesPerHistoryUpdateEvents = SetPropertyValue(
+                        operationLimits.MaxNodesPerHistoryUpdateEvents,
+                        configOperationLimits.MaxNodesPerHistoryUpdateEvents
+                    );
+                    operationLimits.MaxNodesPerMethodCall = SetPropertyValue(
+                        operationLimits.MaxNodesPerMethodCall,
+                        configOperationLimits.MaxNodesPerMethodCall
+                    );
+                    operationLimits.MaxNodesPerBrowse = SetPropertyValue(
+                        operationLimits.MaxNodesPerBrowse,
+                        configOperationLimits.MaxNodesPerBrowse
+                    );
+                    operationLimits.MaxNodesPerRegisterNodes = SetPropertyValue(
+                        operationLimits.MaxNodesPerRegisterNodes,
+                        configOperationLimits.MaxNodesPerRegisterNodes
+                    );
+                    operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds = SetPropertyValue(
+                        operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds,
+                        configOperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds
+                    );
+                    operationLimits.MaxNodesPerNodeManagement = SetPropertyValue(
+                        operationLimits.MaxNodesPerNodeManagement,
+                        configOperationLimits.MaxNodesPerNodeManagement
+                    );
+                    operationLimits.MaxMonitoredItemsPerCall = SetPropertyValue(
+                        operationLimits.MaxMonitoredItemsPerCall,
+                        configOperationLimits.MaxMonitoredItemsPerCall
+                    );
                 }
                 else
                 {
                     operationLimits.MaxNodesPerRead =
-                    operationLimits.MaxNodesPerHistoryReadData =
-                    operationLimits.MaxNodesPerHistoryReadEvents =
-                    operationLimits.MaxNodesPerWrite =
-                    operationLimits.MaxNodesPerHistoryUpdateData =
-                    operationLimits.MaxNodesPerHistoryUpdateEvents =
-                    operationLimits.MaxNodesPerMethodCall =
-                    operationLimits.MaxNodesPerBrowse =
-                    operationLimits.MaxNodesPerRegisterNodes =
-                    operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds =
-                    operationLimits.MaxNodesPerNodeManagement =
-                    operationLimits.MaxMonitoredItemsPerCall = null;
+                        operationLimits.MaxNodesPerHistoryReadData =
+                        operationLimits.MaxNodesPerHistoryReadEvents =
+                        operationLimits.MaxNodesPerWrite =
+                        operationLimits.MaxNodesPerHistoryUpdateData =
+                        operationLimits.MaxNodesPerHistoryUpdateEvents =
+                        operationLimits.MaxNodesPerMethodCall =
+                        operationLimits.MaxNodesPerBrowse =
+                        operationLimits.MaxNodesPerRegisterNodes =
+                        operationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds =
+                        operationLimits.MaxNodesPerNodeManagement =
+                        operationLimits.MaxMonitoredItemsPerCall =
+                            null;
                 }
 
                 // setup PublishSubscribe Status State value
                 const PubSubState pubSubState = PubSubState.Disabled;
 
-                var default_PubSubState = (BaseVariableState)DiagnosticsNodeManager.FindPredefinedNode(
-                    VariableIds.PublishSubscribe_Status_State,
-                    typeof(BaseVariableState));
+                var default_PubSubState = (BaseVariableState)
+                    DiagnosticsNodeManager.FindPredefinedNode(
+                        VariableIds.PublishSubscribe_Status_State,
+                        typeof(BaseVariableState)
+                    );
                 default_PubSubState.Value = pubSubState;
 
                 // setup value for SupportedTransportProfiles
-                var default_SupportedTransportProfiles = (BaseVariableState)DiagnosticsNodeManager.FindPredefinedNode(
-                   VariableIds.PublishSubscribe_SupportedTransportProfiles,
-                   typeof(BaseVariableState));
+                var default_SupportedTransportProfiles = (BaseVariableState)
+                    DiagnosticsNodeManager.FindPredefinedNode(
+                        VariableIds.PublishSubscribe_SupportedTransportProfiles,
+                        typeof(BaseVariableState)
+                    );
                 default_SupportedTransportProfiles.Value = "uadp";
 
                 // setup callbacks for dynamic values.
@@ -637,7 +681,7 @@ namespace Opc.Ua.Server
                 {
                     StartTime = DateTime.UtcNow,
                     CurrentTime = DateTime.UtcNow,
-                    State = ServerState.Shutdown
+                    State = ServerState.Shutdown,
                 };
 
                 var buildInfo = new BuildInfo()
@@ -649,20 +693,21 @@ namespace Opc.Ua.Server
                     BuildNumber = m_serverDescription.BuildNumber,
                     BuildDate = m_serverDescription.BuildDate,
                 };
-                var buildInfoVariableState = (BuildInfoVariableState)DiagnosticsNodeManager.FindPredefinedNode(VariableIds.Server_ServerStatus_BuildInfo, typeof(BuildInfoVariableState));
+                var buildInfoVariableState = (BuildInfoVariableState)
+                    DiagnosticsNodeManager.FindPredefinedNode(
+                        VariableIds.Server_ServerStatus_BuildInfo,
+                        typeof(BuildInfoVariableState)
+                    );
                 var buildInfoVariable = new BuildInfoVariableValue(buildInfoVariableState, buildInfo, null);
                 serverStatus.BuildInfo = buildInfoVariable.Value;
 
                 serverObject.ServerStatus.MinimumSamplingInterval = 1000;
                 serverObject.ServerStatus.CurrentTime.MinimumSamplingInterval = 1000;
 
-                Status = new ServerStatusValue(
-                    serverObject.ServerStatus,
-                    serverStatus,
-                    DiagnosticsLock)
+                Status = new ServerStatusValue(serverObject.ServerStatus, serverStatus, DiagnosticsLock)
                 {
                     Timestamp = DateTime.UtcNow,
-                    OnBeforeRead = OnReadServerStatus
+                    OnBeforeRead = OnReadServerStatus,
                 };
 
                 // initialize diagnostics.
@@ -679,38 +724,47 @@ namespace Opc.Ua.Server
                     CurrentSubscriptionCount = 0,
                     CumulatedSubscriptionCount = 0,
                     SecurityRejectedRequestsCount = 0,
-                    RejectedRequestsCount = 0
+                    RejectedRequestsCount = 0,
                 };
 
                 DiagnosticsNodeManager.CreateServerDiagnostics(
                     DefaultSystemContext,
                     ServerDiagnostics,
-                    OnUpdateDiagnostics);
+                    OnUpdateDiagnostics
+                );
 
                 // set the diagnostics enabled state.
                 DiagnosticsNodeManager.SetDiagnosticsEnabled(
                     DefaultSystemContext,
-                    m_configuration.ServerConfiguration.DiagnosticsEnabled);
+                    m_configuration.ServerConfiguration.DiagnosticsEnabled
+                );
 
                 var configurationNodeManager = DiagnosticsNodeManager as ConfigurationNodeManager;
-                configurationNodeManager?.CreateServerConfiguration(
-                    DefaultSystemContext,
-                    m_configuration);
+                configurationNodeManager?.CreateServerConfiguration(DefaultSystemContext, m_configuration);
 
                 Auditing = m_configuration.ServerConfiguration.AuditingEnabled;
                 PropertyState<bool> auditing = serverObject.Auditing;
                 auditing.OnSimpleWriteValue += OnWriteAuditing;
                 auditing.OnSimpleReadValue += OnReadAuditing;
                 auditing.Value = Auditing;
-                auditing.RolePermissions = [
-                        new RolePermissionType {
-                            RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
-                            Permissions = (uint)(PermissionType.Browse|PermissionType.Read)
-                            },
-                        new RolePermissionType {
-                            RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
-                            Permissions = (uint)(PermissionType.Browse|PermissionType.Write|PermissionType.ReadRolePermissions|PermissionType.Read)
-                            }];
+                auditing.RolePermissions =
+                [
+                    new RolePermissionType
+                    {
+                        RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
+                        Permissions = (uint)(PermissionType.Browse | PermissionType.Read),
+                    },
+                    new RolePermissionType
+                    {
+                        RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
+                        Permissions = (uint)(
+                            PermissionType.Browse
+                            | PermissionType.Write
+                            | PermissionType.ReadRolePermissions
+                            | PermissionType.Read
+                        ),
+                    },
+                ];
                 auditing.AccessLevel = AccessLevels.CurrentRead;
                 auditing.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
                 auditing.MinimumSamplingInterval = 1000;
@@ -720,10 +774,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Updates the server status before a read.
         /// </summary>
-        private void OnReadServerStatus(
-            ISystemContext context,
-            BaseVariableValue variable,
-            NodeState component)
+        private void OnReadServerStatus(ISystemContext context, BaseVariableValue variable, NodeState component)
         {
             lock (DiagnosticsLock)
             {
@@ -731,8 +782,10 @@ namespace Opc.Ua.Server
                 Status.Timestamp = now;
                 Status.Value.CurrentTime = now;
                 // update other timestamps in NodeState objects which are used to derive the source timestamp
-                if (variable is ServerStatusValue serverStatusValue &&
-                    serverStatusValue.Variable is ServerStatusState serverStatusState)
+                if (
+                    variable is ServerStatusValue serverStatusValue
+                    && serverStatusValue.Variable is ServerStatusState serverStatusState
+                )
                 {
                     serverStatusState.Timestamp = now;
                     serverStatusState.CurrentTime.Timestamp = now;
@@ -743,10 +796,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns a copy of the namespace array.
         /// </summary>
-        private ServiceResult OnReadNamespaceArray(
-            ISystemContext context,
-            NodeState node,
-            ref object value)
+        private ServiceResult OnReadNamespaceArray(ISystemContext context, NodeState node, ref object value)
         {
             value = NamespaceUris.ToArray();
             return ServiceResult.Good;
@@ -755,10 +805,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns a copy of the server array.
         /// </summary>
-        private ServiceResult OnReadServerArray(
-            ISystemContext context,
-            NodeState node,
-            ref object value)
+        private ServiceResult OnReadServerArray(ISystemContext context, NodeState node, ref object value)
         {
             value = ServerUris.ToArray();
             return ServiceResult.Good;
@@ -767,10 +814,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns Diagnostics.EnabledFlag
         /// </summary>
-        private ServiceResult OnReadDiagnosticsEnabledFlag(
-            ISystemContext context,
-            NodeState node,
-            ref object value)
+        private ServiceResult OnReadDiagnosticsEnabledFlag(ISystemContext context, NodeState node, ref object value)
         {
             value = DiagnosticsNodeManager.DiagnosticsEnabled;
             return ServiceResult.Good;
@@ -779,15 +823,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Sets the Diagnostics.EnabledFlag
         /// </summary>
-        private ServiceResult OnWriteDiagnosticsEnabledFlag(
-            ISystemContext context,
-            NodeState node,
-            ref object value)
+        private ServiceResult OnWriteDiagnosticsEnabledFlag(ISystemContext context, NodeState node, ref object value)
         {
             bool enabled = (bool)value;
-            DiagnosticsNodeManager.SetDiagnosticsEnabled(
-                DefaultSystemContext,
-                enabled);
+            DiagnosticsNodeManager.SetDiagnosticsEnabled(DefaultSystemContext, enabled);
 
             return ServiceResult.Good;
         }
@@ -795,10 +834,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Updates the Server.Auditing flag.
         /// </summary>
-        private ServiceResult OnWriteAuditing(
-            ISystemContext context,
-            NodeState node,
-            ref object value)
+        private ServiceResult OnWriteAuditing(ISystemContext context, NodeState node, ref object value)
         {
             Auditing = Convert.ToBoolean(value, CultureInfo.InvariantCulture);
             return ServiceResult.Good;
@@ -807,10 +843,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Reads the Server.Auditing flag.
         /// </summary>
-        private ServiceResult OnReadAuditing(
-            ISystemContext context,
-            NodeState node,
-            ref object value)
+        private ServiceResult OnReadAuditing(ISystemContext context, NodeState node, ref object value)
         {
             value = Auditing;
             return ServiceResult.Good;
@@ -819,10 +852,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns a copy of the current diagnostics.
         /// </summary>
-        private ServiceResult OnUpdateDiagnostics(
-            ISystemContext context,
-            NodeState node,
-            ref object value)
+        private ServiceResult OnUpdateDiagnostics(ISystemContext context, NodeState node, ref object value)
         {
             lock (ServerDiagnostics)
             {

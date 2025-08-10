@@ -58,7 +58,11 @@ namespace Opc.Ua.Server
         /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2213:DisposableFieldsShouldBeDisposed", MessageId = "m_requestTimer")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Microsoft.Usage",
+            "CA2213:DisposableFieldsShouldBeDisposed",
+            MessageId = "m_requestTimer"
+        )]
         protected virtual void Dispose(bool disposing)
         {
             if (disposing)
@@ -97,7 +101,6 @@ namespace Opc.Ua.Server
                     return m_minimumProcessingInterval;
                 }
             }
-
             set
             {
                 lock (m_lock)
@@ -116,17 +119,14 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                if (m_defaultConfiguration == null)
+                m_defaultConfiguration ??= new AggregateConfiguration
                 {
-                    m_defaultConfiguration = new AggregateConfiguration
-                    {
-                        PercentDataBad = 100,
-                        PercentDataGood = 100,
-                        TreatUncertainAsBad = false,
-                        UseSlopedExtrapolation = false,
-                        UseServerCapabilitiesDefaults = false
-                    };
-                }
+                    PercentDataBad = 100,
+                    PercentDataGood = 100,
+                    TreatUncertainAsBad = false,
+                    UseSlopedExtrapolation = false,
+                    UseServerCapabilitiesDefaults = false,
+                };
 
                 return m_defaultConfiguration;
             }
@@ -160,7 +160,8 @@ namespace Opc.Ua.Server
             DateTime endTime,
             double processingInterval,
             bool stepped,
-            AggregateConfiguration configuration)
+            AggregateConfiguration configuration
+        )
         {
             if (NodeId.IsNull(aggregateId))
             {

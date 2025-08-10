@@ -29,11 +29,11 @@
 
 using System;
 using System.IO;
+using System.Security.Cryptography.X509Certificates;
+using System.Text;
 #if NETSTANDARD2_1 || NET5_0_OR_GREATER
 using System.Security.Cryptography;
 #endif
-using System.Security.Cryptography.X509Certificates;
-using System.Text;
 
 namespace Opc.Ua.Security.Certificates
 {
@@ -70,9 +70,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Returns a byte array containing the public key in PEM format.
         /// </summary>
-        public static byte[] ExportPublicKeyAsPEM(
-            X509Certificate2 certificate
-            )
+        public static byte[] ExportPublicKeyAsPEM(X509Certificate2 certificate)
         {
             byte[] exportedPublicKey = null;
             using (RSA rsaPublicKey = certificate.GetRSAPublicKey())
@@ -85,8 +83,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Returns a byte array containing the RSA private key in PEM format.
         /// </summary>
-        public static byte[] ExportRSAPrivateKeyAsPEM(
-            X509Certificate2 certificate)
+        public static byte[] ExportRSAPrivateKeyAsPEM(X509Certificate2 certificate)
         {
             byte[] exportedRSAPrivateKey = null;
             using (RSA rsaPrivateKey = certificate.GetRSAPrivateKey())
@@ -100,8 +97,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Returns a byte array containing the ECDsa private key in PEM format.
         /// </summary>
-        public static byte[] ExportECDsaPrivateKeyAsPEM(
-            X509Certificate2 certificate)
+        public static byte[] ExportECDsaPrivateKeyAsPEM(X509Certificate2 certificate)
         {
             byte[] exportedECPrivateKey = null;
             using (ECDsa ecdsaPrivateKey = certificate.GetECDsaPrivateKey())
@@ -115,10 +111,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Returns a byte array containing the private key in PEM format.
         /// </summary>
-        public static byte[] ExportPrivateKeyAsPEM(
-            X509Certificate2 certificate,
-            string password = null
-            )
+        public static byte[] ExportPrivateKeyAsPEM(X509Certificate2 certificate, string password = null)
         {
             byte[] exportedPkcs8PrivateKey = null;
             using (RSA rsaPrivateKey = certificate.GetRSAPrivateKey())
@@ -126,10 +119,12 @@ namespace Opc.Ua.Security.Certificates
                 if (rsaPrivateKey != null)
                 {
                     // write private key as PKCS#8
-                    exportedPkcs8PrivateKey = string.IsNullOrEmpty(password) ?
-                        rsaPrivateKey.ExportPkcs8PrivateKey() :
-                        rsaPrivateKey.ExportEncryptedPkcs8PrivateKey(password.ToCharArray(),
-                            new PbeParameters(PbeEncryptionAlgorithm.TripleDes3KeyPkcs12, HashAlgorithmName.SHA1, 2000));
+                    exportedPkcs8PrivateKey = string.IsNullOrEmpty(password)
+                        ? rsaPrivateKey.ExportPkcs8PrivateKey()
+                        : rsaPrivateKey.ExportEncryptedPkcs8PrivateKey(
+                            password.ToCharArray(),
+                            new PbeParameters(PbeEncryptionAlgorithm.TripleDes3KeyPkcs12, HashAlgorithmName.SHA1, 2000)
+                        );
                 }
                 else
                 {
@@ -137,16 +132,24 @@ namespace Opc.Ua.Security.Certificates
                     if (ecdsaPrivateKey != null)
                     {
                         // write private key as PKCS#8
-                        exportedPkcs8PrivateKey = string.IsNullOrEmpty(password) ?
-                            ecdsaPrivateKey.ExportPkcs8PrivateKey() :
-                            ecdsaPrivateKey.ExportEncryptedPkcs8PrivateKey(password.ToCharArray(),
-                                new PbeParameters(PbeEncryptionAlgorithm.TripleDes3KeyPkcs12, HashAlgorithmName.SHA1, 2000));
+                        exportedPkcs8PrivateKey = string.IsNullOrEmpty(password)
+                            ? ecdsaPrivateKey.ExportPkcs8PrivateKey()
+                            : ecdsaPrivateKey.ExportEncryptedPkcs8PrivateKey(
+                                password.ToCharArray(),
+                                new PbeParameters(
+                                    PbeEncryptionAlgorithm.TripleDes3KeyPkcs12,
+                                    HashAlgorithmName.SHA1,
+                                    2000
+                                )
+                            );
                     }
                 }
             }
 
-            return EncodeAsPEM(exportedPkcs8PrivateKey,
-                string.IsNullOrEmpty(password) ? "PRIVATE KEY" : "ENCRYPTED PRIVATE KEY");
+            return EncodeAsPEM(
+                exportedPkcs8PrivateKey,
+                string.IsNullOrEmpty(password) ? "PRIVATE KEY" : "ENCRYPTED PRIVATE KEY"
+            );
         }
 
         /// <summary>
@@ -156,7 +159,7 @@ namespace Opc.Ua.Security.Certificates
             string thumbprint,
             ReadOnlySpan<byte> pemDataBlob,
             out byte[] modifiedPemDataBlob
-            )
+        )
         {
             modifiedPemDataBlob = null;
             const string label = "CERTIFICATE";
@@ -189,11 +192,19 @@ namespace Opc.Ua.Security.Certificates
 #if NET6_0_OR_GREATER
                         X509Certificate2 certificate = X509CertificateLoader.LoadCertificate(pemCertificateDecoded);
 #else
-                        X509Certificate2 certificate = X509CertificateLoader.LoadCertificate(pemCertificateDecoded.ToArray());
+                        X509Certificate2 certificate = X509CertificateLoader.LoadCertificate(
+                            pemCertificateDecoded.ToArray()
+                        );
 #endif
                         if (thumbprint.Equals(certificate.Thumbprint, StringComparison.OrdinalIgnoreCase))
                         {
-                            modifiedPemDataBlob = Encoding.ASCII.GetBytes(pemText.Replace(pemText.Substring(beginIndex -= beginlabel.Length, endIndex + endlabel.Length), string.Empty, StringComparison.Ordinal));
+                            modifiedPemDataBlob = Encoding.ASCII.GetBytes(
+                                pemText.Replace(
+                                    pemText.Substring(beginIndex -= beginlabel.Length, endIndex + endlabel.Length),
+                                    string.Empty,
+                                    StringComparison.Ordinal
+                                )
+                            );
                             return true;
                         }
                     }
@@ -221,20 +232,20 @@ namespace Opc.Ua.Security.Certificates
                 throw new ArgumentNullException(nameof(contentType));
             }
 
-            const int LineLength = 64;
+            const int lineLength = 64;
             string base64 = Convert.ToBase64String(content);
             using var textWriter = new StringWriter();
             textWriter.WriteLine("-----BEGIN {0}-----", contentType);
 
             int offset = 0;
-            while (base64.Length - offset > LineLength)
+            while (base64.Length - offset > lineLength)
             {
 #if NETSTANDARD2_1 || NET5_0_OR_GREATER
-                textWriter.WriteLine(base64.AsSpan(offset, LineLength));
+                textWriter.WriteLine(base64.AsSpan(offset, lineLength));
 #else
-                textWriter.WriteLine(base64.Substring(offset, LineLength));
+                textWriter.WriteLine(base64.Substring(offset, lineLength));
 #endif
-                offset += LineLength;
+                offset += lineLength;
             }
 
             int length = base64.Length - offset;

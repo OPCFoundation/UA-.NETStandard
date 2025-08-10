@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -48,7 +48,10 @@ namespace Opc.Ua.Buffers.Tests
         public void ArraySegmentStreamWhenConstructedWithDefaultOptionsShouldNotThrow()
         {
             // Arrange
-            var bufferManager = new BufferManager(nameof(ArraySegmentStreamWhenConstructedWithDefaultOptionsShouldNotThrow), 0x10000 - 1);
+            var bufferManager = new BufferManager(
+                nameof(ArraySegmentStreamWhenConstructedWithDefaultOptionsShouldNotThrow),
+                0x10000 - 1
+            );
             var stream = new ArraySegmentStream(bufferManager);
 
             // Act
@@ -136,14 +139,18 @@ namespace Opc.Ua.Buffers.Tests
         [Theory]
         public void ArraySegmentStreamWrite(
             [Values(0, 1, 16, 17, 128, 333, 777, 1024, 4096)] int chunkSize,
-            [Values(16, 128, 333, 1024, 4096, 65536)] int defaultBufferSize)
+            [Values(16, 128, 333, 1024, 4096, 65536)] int defaultBufferSize
+        )
         {
             var random = new Random(42);
             int length;
             byte[] buffer = new byte[chunkSize];
 
             // Arrange
-            var bufferManager = new BufferManager(nameof(ArraySegmentStreamWhenConstructedWithDefaultOptionsShouldNotThrow), defaultBufferSize);
+            var bufferManager = new BufferManager(
+                nameof(ArraySegmentStreamWhenConstructedWithDefaultOptionsShouldNotThrow),
+                defaultBufferSize
+            );
             using var writer = new ArraySegmentStream(bufferManager);
             // Act
             for (int i = 0; i <= byte.MaxValue; i++)

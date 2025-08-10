@@ -21,13 +21,14 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The system context.</param>
         /// <param name="limit">The bit masks specifying the current state.</param>
-        public virtual void SetLimitState(
-            ISystemContext context,
-            LimitAlarmStates limit)
+        public virtual void SetLimitState(ISystemContext context, LimitAlarmStates limit)
         {
             if (HighState != null)
             {
-                UpdateState(HighState, (limit & LimitAlarmStates.High) != 0 || (limit & LimitAlarmStates.HighHigh) != 0);
+                UpdateState(
+                    HighState,
+                    (limit & LimitAlarmStates.High) != 0 || (limit & LimitAlarmStates.HighHigh) != 0
+                );
             }
 
             if (HighHighState != null)
@@ -50,37 +51,30 @@ namespace Opc.Ua
             if ((limit & LimitAlarmStates.HighHigh) != 0)
             {
                 displayName = new TranslationInfo(
-                     "ConditionStateHighHighActive",
-                     "en-US",
-                     ConditionStateNames.HighHighActive);
+                    "ConditionStateHighHighActive",
+                    "en-US",
+                    ConditionStateNames.HighHighActive
+                );
             }
             else if ((limit & LimitAlarmStates.LowLow) != 0)
             {
                 displayName = new TranslationInfo(
-                     "ConditionStateLowLowActive",
-                     "en-US",
-                     ConditionStateNames.LowLowActive);
+                    "ConditionStateLowLowActive",
+                    "en-US",
+                    ConditionStateNames.LowLowActive
+                );
             }
             else if ((limit & LimitAlarmStates.High) != 0)
             {
-                displayName = new TranslationInfo(
-                     "ConditionStateHighActive",
-                     "en-US",
-                     ConditionStateNames.HighActive);
+                displayName = new TranslationInfo("ConditionStateHighActive", "en-US", ConditionStateNames.HighActive);
             }
             else if ((limit & LimitAlarmStates.Low) != 0)
             {
-                displayName = new TranslationInfo(
-                     "ConditionStateLowActive",
-                     "en-US",
-                     ConditionStateNames.LowActive);
+                displayName = new TranslationInfo("ConditionStateLowActive", "en-US", ConditionStateNames.LowActive);
             }
             else
             {
-                displayName = new TranslationInfo(
-                     "ConditionStateInactive",
-                     "en-US",
-                     ConditionStateNames.Inactive);
+                displayName = new TranslationInfo("ConditionStateInactive", "en-US", ConditionStateNames.Inactive);
             }
 
             // update the active superstae.
@@ -98,17 +92,11 @@ namespace Opc.Ua
             TranslationInfo state;
             if (active)
             {
-                state = new TranslationInfo(
-                     "ConditionStateActive",
-                     "en-US",
-                     ConditionStateNames.Active);
+                state = new TranslationInfo("ConditionStateActive", "en-US", ConditionStateNames.Active);
             }
             else
             {
-                state = new TranslationInfo(
-                     "ConditionStateInactive",
-                     "en-US",
-                     ConditionStateNames.Inactive);
+                state = new TranslationInfo("ConditionStateInactive", "en-US", ConditionStateNames.Inactive);
             }
 
             limit.Value = new LocalizedText(state);

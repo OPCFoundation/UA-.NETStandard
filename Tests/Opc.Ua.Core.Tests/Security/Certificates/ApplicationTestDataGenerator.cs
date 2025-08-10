@@ -59,7 +59,11 @@ namespace Opc.Ua.Core.Tests
             return testDataSet;
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "SYSLIB1045:Convert to 'GeneratedRegexAttribute'.", Justification = "Test")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Performance",
+            "SYSLIB1045:Convert to 'GeneratedRegexAttribute'.",
+            Justification = "Test"
+        )]
         private ApplicationTestData RandomApplicationTestData()
         {
             // TODO: set to discoveryserver
@@ -71,7 +75,11 @@ namespace Opc.Ua.Core.Tests
             StringCollection domainNames = RandomDomainNames();
             string localhost = domainNames[0];
             string privateKeyFormat = RandomSource.NextInt32(1) == 0 ? "PEM" : "PFX";
-            string appUri = ("urn:localhost:opcfoundation.org:" + pureAppUri.ToLower()).Replace("localhost", localhost, StringComparison.Ordinal);
+            string appUri = ("urn:localhost:opcfoundation.org:" + pureAppUri.ToLower()).Replace(
+                "localhost",
+                localhost,
+                StringComparison.Ordinal
+            );
             string prodUri = "http://opcfoundation.org/UA/" + pureAppUri;
             var discoveryUrls = new StringCollection();
             int port = (DataGenerator.GetRandomInt16() & 0x1fff) + 50000;
@@ -98,11 +106,15 @@ namespace Opc.Ua.Core.Tests
                 ApplicationUri = appUri,
                 DomainNames = domainNames,
                 Subject = Utils.Format("CN={0},O=OPC Foundation,DC={1}", appName, localhost),
-                PrivateKeyFormat = privateKeyFormat
+                PrivateKeyFormat = privateKeyFormat,
             };
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "SYSLIB1045:Convert to 'GeneratedRegexAttribute'.", Justification = "Test")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Performance",
+            "SYSLIB1045:Convert to 'GeneratedRegexAttribute'.",
+            Justification = "Test"
+        )]
         private string RandomLocalHost()
         {
             string localhost = Regex.Replace(DataGenerator.GetRandomSymbol("en").Trim().ToLower(), @"[^\w\d]", "");
@@ -132,15 +144,31 @@ namespace Opc.Ua.Core.Tests
                 int random = RandomSource.NextInt32(7);
                 if ((result.Count == 0) || (random & 1) == 0)
                 {
-                    result.Add(Utils.Format("opc.tcp://{0}:{1}/{2}", name, port++.ToString(CultureInfo.InvariantCulture), appUri));
+                    result.Add(
+                        Utils.Format(
+                            "opc.tcp://{0}:{1}/{2}",
+                            name,
+                            port++.ToString(CultureInfo.InvariantCulture),
+                            appUri
+                        )
+                    );
                 }
                 if ((random & 2) == 0)
                 {
-                    result.Add(Utils.Format("http://{0}:{1}/{2}", name, port++.ToString(CultureInfo.InvariantCulture), appUri));
+                    result.Add(
+                        Utils.Format("http://{0}:{1}/{2}", name, port++.ToString(CultureInfo.InvariantCulture), appUri)
+                    );
                 }
                 if ((random & 4) == 0)
                 {
-                    result.Add(Utils.Format("opc.https://{0}:{1}/{2}", name, port++.ToString(CultureInfo.InvariantCulture), appUri));
+                    result.Add(
+                        Utils.Format(
+                            "opc.https://{0}:{1}/{2}",
+                            name,
+                            port++.ToString(CultureInfo.InvariantCulture),
+                            appUri
+                        )
+                    );
                 }
             }
             return result;

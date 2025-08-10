@@ -68,7 +68,8 @@ namespace System.Security.Cryptography.X509Certificates
         public static X509Certificate2 LoadPkcs12(
             byte[] data,
             string password,
-            X509KeyStorageFlags keyStorageFlags = X509KeyStorageFlags.DefaultKeySet)
+            X509KeyStorageFlags keyStorageFlags = X509KeyStorageFlags.DefaultKeySet
+        )
         {
             return new X509Certificate2(data, password, keyStorageFlags);
         }
@@ -79,7 +80,8 @@ namespace System.Security.Cryptography.X509Certificates
         public static X509Certificate2 LoadPkcs12FromFile(
             string filename,
             string password,
-            X509KeyStorageFlags keyStorageFlags = X509KeyStorageFlags.DefaultKeySet)
+            X509KeyStorageFlags keyStorageFlags = X509KeyStorageFlags.DefaultKeySet
+        )
         {
             return new X509Certificate2(filename, password, keyStorageFlags);
         }

@@ -42,7 +42,8 @@ namespace Opc.Ua
             string namespaceUri,
             LocalizedText localizedText,
             string additionalInfo,
-            ServiceResult innerResult)
+            ServiceResult innerResult
+        )
         {
             StatusCode = code;
             SymbolicId = symbolicId;
@@ -57,24 +58,22 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="outerResult"></param>
         /// <param name="innerResult"></param>
-        public ServiceResult(
-            ServiceResult outerResult,
-            ServiceResult innerResult = null)
-            :
-            this(outerResult.Code, outerResult.SymbolicId, outerResult.NamespaceUri, outerResult.LocalizedText, outerResult.AdditionalInfo, innerResult)
-        {
-        }
+        public ServiceResult(ServiceResult outerResult, ServiceResult innerResult = null)
+            : this(
+                outerResult.Code,
+                outerResult.SymbolicId,
+                outerResult.NamespaceUri,
+                outerResult.LocalizedText,
+                outerResult.AdditionalInfo,
+                innerResult
+            )
+        { }
 
         /// <summary>
         /// Constructs an object by specifying each property.
         /// </summary>
-        public ServiceResult(
-            StatusCode code,
-            ServiceResult innerResult)
-        :
-            this(code, null, null, null, null, innerResult)
-        {
-        }
+        public ServiceResult(StatusCode code, ServiceResult innerResult)
+            : this(code, null, null, null, null, innerResult) { }
 
         /// <summary>
         /// Constructs an object by specifying each property.
@@ -84,59 +83,33 @@ namespace Opc.Ua
             string symbolicId,
             string namespaceUri,
             LocalizedText localizedText,
-            string additionalInfo)
-        :
-            this(code, symbolicId, namespaceUri, localizedText, additionalInfo, (ServiceResult)null)
-        {
-        }
+            string additionalInfo
+        )
+            : this(code, symbolicId, namespaceUri, localizedText, additionalInfo, (ServiceResult)null) { }
 
         /// <summary>
         /// Constructs an object by specifying each property.
         /// </summary>
-        public ServiceResult(
-            StatusCode code,
-            string symbolicId,
-            string namespaceUri,
-            LocalizedText localizedText)
-        :
-            this(code, symbolicId, namespaceUri, localizedText, null, (ServiceResult)null)
-        {
-        }
+        public ServiceResult(StatusCode code, string symbolicId, string namespaceUri, LocalizedText localizedText)
+            : this(code, symbolicId, namespaceUri, localizedText, null, (ServiceResult)null) { }
 
         /// <summary>
         /// Constructs an object by specifying each property.
         /// </summary>
-        public ServiceResult(
-            StatusCode code,
-            string symbolicId,
-            string namespaceUri)
-        :
-            this(code, symbolicId, namespaceUri, (string)null, null, (ServiceResult)null)
-        {
-        }
+        public ServiceResult(StatusCode code, string symbolicId, string namespaceUri)
+            : this(code, symbolicId, namespaceUri, (string)null, null, (ServiceResult)null) { }
 
         /// <summary>
         /// Constructs an object by specifying each property.
         /// </summary>
-        public ServiceResult(
-            StatusCode code,
-            XmlQualifiedName symbolicId,
-            LocalizedText localizedText)
-        :
-            this(code, symbolicId?.Name, symbolicId?.Namespace, localizedText, null, (ServiceResult)null)
-        {
-        }
+        public ServiceResult(StatusCode code, XmlQualifiedName symbolicId, LocalizedText localizedText)
+            : this(code, symbolicId?.Name, symbolicId?.Namespace, localizedText, null, (ServiceResult)null) { }
 
         /// <summary>
         /// Constructs an object by specifying each property.
         /// </summary>
-        public ServiceResult(
-            StatusCode code,
-            LocalizedText localizedText)
-        :
-            this(code, null, null, localizedText, null, (ServiceResult)null)
-        {
-        }
+        public ServiceResult(StatusCode code, LocalizedText localizedText)
+            : this(code, null, null, localizedText, null, (ServiceResult)null) { }
 
         /// <summary>
         /// Constructs an object from a StatusCode.
@@ -166,7 +139,8 @@ namespace Opc.Ua
             string namespaceUri,
             LocalizedText localizedText,
             string additionalInfo,
-            Exception innerException)
+            Exception innerException
+        )
         {
             var innerResult = new ServiceResult(innerException);
 
@@ -180,7 +154,6 @@ namespace Opc.Ua
                 AdditionalInfo = innerResult.AdditionalInfo;
                 InnerResult = innerResult.InnerResult;
             }
-
             // make the exception the inner result.
             else
             {
@@ -204,11 +177,9 @@ namespace Opc.Ua
             string symbolicId,
             string namespaceUri,
             LocalizedText localizedText,
-            Exception innerException)
-        :
-            this(code, symbolicId, namespaceUri, localizedText, null, innerException)
-        {
-        }
+            Exception innerException
+        )
+            : this(code, symbolicId, namespaceUri, localizedText, null, innerException) { }
 
         /// <summary>
         /// Constructs an object by specifying each property.
@@ -216,15 +187,8 @@ namespace Opc.Ua
         /// <remarks>
         /// The innerException is used to construct the innerResult.
         /// </remarks>
-        public ServiceResult(
-            StatusCode code,
-            string symbolicId,
-            string namespaceUri,
-            Exception innerException)
-        :
-            this(code, symbolicId, namespaceUri, null, null, innerException)
-        {
-        }
+        public ServiceResult(StatusCode code, string symbolicId, string namespaceUri, Exception innerException)
+            : this(code, symbolicId, namespaceUri, null, null, innerException) { }
 
         /// <summary>
         /// Constructs an object by specifying each property.
@@ -232,14 +196,8 @@ namespace Opc.Ua
         /// <remarks>
         /// The innerException is used to construct the innerResult.
         /// </remarks>
-        public ServiceResult(
-            StatusCode code,
-            LocalizedText localizedText,
-            Exception innerException)
-        :
-            this(code, null, null, localizedText, null, innerException)
-        {
-        }
+        public ServiceResult(StatusCode code, LocalizedText localizedText, Exception innerException)
+            : this(code, null, null, localizedText, null, innerException) { }
 
         /// <summary>
         /// Constructs an object by specifying each property.
@@ -248,10 +206,7 @@ namespace Opc.Ua
         /// The innerException is used to construct the innerResult.
         /// </remarks>
         public ServiceResult(StatusCode code, Exception innerException)
-        :
-            this(code, null, null, null, null, innerException)
-        {
-        }
+            : this(code, null, null, null, null, innerException) { }
 
         /// <summary>
         /// Constructs an object from an exception.
@@ -264,7 +219,8 @@ namespace Opc.Ua
             uint defaultCode,
             string defaultSymbolicId,
             string defaultNamespaceUri,
-            LocalizedText defaultLocalizedText)
+            LocalizedText defaultLocalizedText
+        )
         {
             if (e is ServiceResultException sre)
             {
@@ -296,14 +252,8 @@ namespace Opc.Ua
         /// <remarks>
         /// The defaultCode and defaultLocalizedText parameters are ignored for ServiceResultExceptions.
         /// </remarks>
-        public ServiceResult(
-            Exception exception,
-            uint defaultCode,
-            LocalizedText defaultLocalizedText)
-        :
-            this(exception, defaultCode, null, null, defaultLocalizedText)
-        {
-        }
+        public ServiceResult(Exception exception, uint defaultCode, LocalizedText defaultLocalizedText)
+            : this(exception, defaultCode, null, null, defaultLocalizedText) { }
 
         /// <summary>
         /// Constructs an object from an exception.
@@ -315,11 +265,9 @@ namespace Opc.Ua
             Exception exception,
             uint defaultCode,
             string defaultSymbolicId,
-            string defaultNamespaceUri)
-        :
-            this(exception, defaultCode, defaultSymbolicId, defaultNamespaceUri, null)
-        {
-        }
+            string defaultNamespaceUri
+        )
+            : this(exception, defaultCode, defaultSymbolicId, defaultNamespaceUri, null) { }
 
         /// <summary>
         /// Constructs an object from an exception.
@@ -327,22 +275,14 @@ namespace Opc.Ua
         /// <remarks>
         /// The code parameter is ignored for ServiceResultExceptions.
         /// </remarks>
-        public ServiceResult(
-            Exception exception,
-            uint defaultCode)
-        :
-            this(exception, defaultCode, null, null, GetDefaultMessage(exception))
-        {
-        }
+        public ServiceResult(Exception exception, uint defaultCode)
+            : this(exception, defaultCode, null, null, GetDefaultMessage(exception)) { }
 
         /// <summary>
         /// Constructs an object from an exception.
         /// </summary>
         public ServiceResult(Exception exception)
-        :
-            this(exception, StatusCodes.Bad, null, null, GetDefaultMessage(exception))
-        {
-        }
+            : this(exception, StatusCodes.Bad, null, null, GetDefaultMessage(exception)) { }
 
         /// <summary>
         /// Initializes the object with a status code and a diagnostic info structure.
@@ -364,7 +304,11 @@ namespace Opc.Ua
 
                 if (!StatusCode.IsGood(diagnosticInfo.InnerStatusCode))
                 {
-                    InnerResult = new ServiceResult(diagnosticInfo.InnerStatusCode, diagnosticInfo.InnerDiagnosticInfo, stringTable);
+                    InnerResult = new ServiceResult(
+                        diagnosticInfo.InnerStatusCode,
+                        diagnosticInfo.InnerDiagnosticInfo,
+                        stringTable
+                    );
                 }
             }
         }
@@ -372,7 +316,12 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with a status code and a diagnostic info structure.
         /// </summary>
-        public ServiceResult(StatusCode code, int index, DiagnosticInfoCollection diagnosticInfos, IList<string> stringTable)
+        public ServiceResult(
+            StatusCode code,
+            int index,
+            DiagnosticInfoCollection diagnosticInfos,
+            IList<string> stringTable
+        )
         {
             Code = (uint)code;
 
@@ -393,7 +342,11 @@ namespace Opc.Ua
 
                     if (!StatusCode.IsGood(diagnosticInfo.InnerStatusCode))
                     {
-                        InnerResult = new ServiceResult(diagnosticInfo.InnerStatusCode, diagnosticInfo.InnerDiagnosticInfo, stringTable);
+                        InnerResult = new ServiceResult(
+                            diagnosticInfo.InnerStatusCode,
+                            diagnosticInfo.InnerDiagnosticInfo,
+                            stringTable
+                        );
                     }
                 }
             }
@@ -655,7 +608,8 @@ namespace Opc.Ua
         [DataMember(Order = 1)]
         public StatusCode StatusCode
         {
-            get => Code; private set => Code = value.Code;
+            get => Code;
+            private set => Code = value.Code;
         }
 
         /// <summary>

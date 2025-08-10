@@ -35,17 +35,28 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 {
     public partial class PubSubStateMachineTests
     {
-        internal static readonly string PublisherConfigurationFileName = Path.Combine("Configuration", "PublisherConfiguration.xml");
-        internal static readonly string SubscriberConfigurationFileName = Path.Combine("Configuration", "SubscriberConfiguration.xml");
+        internal static readonly string PublisherConfigurationFileName = Path.Combine(
+            "Configuration",
+            "PublisherConfiguration.xml"
+        );
+        internal static readonly string SubscriberConfigurationFileName = Path.Combine(
+            "Configuration",
+            "SubscriberConfiguration.xml"
+        );
 
         private string m_publisherConfigurationFile;
         private string m_subscriberConfigurationFile;
 
-        [OneTimeSetUp()]
+        [OneTimeSetUp]
         public void MyTestInitialize()
         {
             m_publisherConfigurationFile = Utils.GetAbsoluteFilePath(PublisherConfigurationFileName, true, true, false);
-            m_subscriberConfigurationFile = Utils.GetAbsoluteFilePath(SubscriberConfigurationFileName, true, true, false);
+            m_subscriberConfigurationFile = Utils.GetAbsoluteFilePath(
+                SubscriberConfigurationFileName,
+                true,
+                true,
+                false
+            );
         }
 
         [Test(Description = "Validate transition of state Disabled_0 to Paused_1 on Publisher")]
@@ -58,7 +69,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             // The hierarchy PubSub -> PubSubConnection -> PubSubWriterGroup -> DataSetWriter brought to [Disabled, Disabled, Disabled, Disabled]
 
             PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration;
-            PubSubConnectionDataType publisherConnection = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration.Connections[0];
+            PubSubConnectionDataType publisherConnection = uaPubSubApplication
+                .UaPubSubConfigurator
+                .PubSubConfiguration
+                .Connections[0];
             WriterGroupDataType writerGroup = publisherConnection.WriterGroups[0];
             DataSetWriterDataType datasetWriter = writerGroup.DataSetWriters[0];
 
@@ -122,7 +136,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
             // The hierarchy PubSub -> PubSubConnection -> PubSubWriterGroup -> DataSetWriter brought to [Disabled, Disabled, Disabled, Disabled]
             PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration;
-            PubSubConnectionDataType publisherConnection = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration.Connections[0];
+            PubSubConnectionDataType publisherConnection = uaPubSubApplication
+                .UaPubSubConfigurator
+                .PubSubConfiguration
+                .Connections[0];
             WriterGroupDataType writerGroup = publisherConnection.WriterGroups[0];
             DataSetWriterDataType datasetWriter = writerGroup.DataSetWriters[0];
 
@@ -194,7 +211,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
             // The hierarchy PubSub -> PubSubConnection -> PubSubWriterGroup -> DataSetWriter brought to [Disabled, Paused, Paused, Paused]
             PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration;
-            PubSubConnectionDataType publisherConnection = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration.Connections[0];
+            PubSubConnectionDataType publisherConnection = uaPubSubApplication
+                .UaPubSubConfigurator
+                .PubSubConfiguration
+                .Connections[0];
             WriterGroupDataType writerGroup = publisherConnection.WriterGroups[0];
             DataSetWriterDataType datasetWriter = writerGroup.DataSetWriters[0];
 
@@ -263,7 +283,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             // The hierarchy PubSub -> PubSubConnection -> PubSubWriterGroup -> DataSetWriter brought to [Disabled, Paused, Paused, Paused]
 
             PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration;
-            PubSubConnectionDataType publisherConnection = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration.Connections[0];
+            PubSubConnectionDataType publisherConnection = uaPubSubApplication
+                .UaPubSubConfigurator
+                .PubSubConfiguration
+                .Connections[0];
             WriterGroupDataType writerGroup = publisherConnection.WriterGroups[0];
             DataSetWriterDataType datasetWriter = writerGroup.DataSetWriters[0];
 
@@ -306,7 +329,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
             // The hierarchy PubSub -> PubSubConnection -> PubSubWriterGroup -> DataSetWriter brought to [Disabled, Disabled, Disabled, Disabled]
             PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration;
-            PubSubConnectionDataType publisherConnection = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration.Connections[0];
+            PubSubConnectionDataType publisherConnection = uaPubSubApplication
+                .UaPubSubConfigurator
+                .PubSubConfiguration
+                .Connections[0];
             WriterGroupDataType writerGroup = publisherConnection.WriterGroups[0];
             DataSetWriterDataType datasetWriter = writerGroup.DataSetWriters[0];
 
@@ -365,7 +391,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             // The hierarchy PubSub -> PubSubConnection -> PubSubWriterGroup -> DataSetWriter brought to [Disabled, Disabled, Disabled, Disabled]
 
             PubSubConfigurationDataType pubSub = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration;
-            PubSubConnectionDataType publisherConnection = uaPubSubApplication.UaPubSubConfigurator.PubSubConfiguration.Connections[0];
+            PubSubConnectionDataType publisherConnection = uaPubSubApplication
+                .UaPubSubConfigurator
+                .PubSubConfiguration
+                .Connections[0];
             WriterGroupDataType writerGroup = publisherConnection.WriterGroups[0];
             DataSetWriterDataType datasetWriter = writerGroup.DataSetWriters[0];
 

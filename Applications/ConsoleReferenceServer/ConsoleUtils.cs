@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -122,7 +122,7 @@ namespace Quickstarts
         ErrorException = 0x82,
         ErrorStopping = 0x83,
         ErrorCertificate = 0x84,
-        ErrorInvalidCommandLine = 0x100
+        ErrorInvalidCommandLine = 0x100,
     };
 
     /// <summary>
@@ -143,22 +143,26 @@ namespace Quickstarts
             ExitCode = ExitCode.Ok;
         }
 
-        public ErrorExitException(string message) : base(message)
+        public ErrorExitException(string message)
+            : base(message)
         {
             ExitCode = ExitCode.Ok;
         }
 
-        public ErrorExitException(string message, ExitCode exitCode) : base(message)
+        public ErrorExitException(string message, ExitCode exitCode)
+            : base(message)
         {
             ExitCode = exitCode;
         }
 
-        public ErrorExitException(string message, Exception innerException) : base(message, innerException)
+        public ErrorExitException(string message, Exception innerException)
+            : base(message, innerException)
         {
             ExitCode = ExitCode.Ok;
         }
 
-        public ErrorExitException(string message, Exception innerException, ExitCode exitCode) : base(message, innerException)
+        public ErrorExitException(string message, Exception innerException, ExitCode exitCode)
+            : base(message, innerException)
         {
             ExitCode = exitCode;
         }
@@ -196,8 +200,10 @@ namespace Quickstarts
                 {
                     ConsoleKeyInfo result = Console.ReadKey();
                     m_output.WriteLine();
-                    return await Task.FromResult((result.KeyChar == 'y') ||
-                        (result.KeyChar == 'Y') || (result.KeyChar == '\r')).ConfigureAwait(false);
+                    return await Task.FromResult(
+                            (result.KeyChar == 'y') || (result.KeyChar == 'Y') || (result.KeyChar == '\r')
+                        )
+                        .ConfigureAwait(false);
                 }
                 catch
                 {
@@ -227,7 +233,8 @@ namespace Quickstarts
             Mono.Options.OptionSet options,
             ref bool showHelp,
             string environmentPrefix,
-            bool noExtraArgs = true)
+            bool noExtraArgs = true
+        )
         {
 #if NET5_0_OR_GREATER
             // Convert environment settings to command line flags
@@ -247,7 +254,10 @@ namespace Quickstarts
                     string envKey = config[longest.ToUpperInvariant()];
                     if (envKey != null)
                     {
-                        if (string.IsNullOrWhiteSpace(envKey) || option.OptionValueType == Mono.Options.OptionValueType.None)
+                        if (
+                            string.IsNullOrWhiteSpace(envKey)
+                            || option.OptionValueType == Mono.Options.OptionValueType.None
+                        )
                         {
                             argslist.Add("--" + longest);
                         }
@@ -283,7 +293,10 @@ namespace Quickstarts
             if (showHelp)
             {
                 options.WriteOptionDescriptions(output);
-                throw new ErrorExitException("Invalid Commandline or help requested.", ExitCode.ErrorInvalidCommandLine);
+                throw new ErrorExitException(
+                    "Invalid Commandline or help requested.",
+                    ExitCode.ErrorInvalidCommandLine
+                );
             }
 
             return extraArgs.FirstOrDefault();
@@ -309,37 +322,46 @@ namespace Quickstarts
             ApplicationConfiguration configuration,
             string context,
             bool logConsole,
-            LogLevel consoleLogLevel)
+            LogLevel consoleLogLevel
+        )
         {
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
             TaskScheduler.UnobservedTaskException += Unobserved_TaskException;
 
-            LoggerConfiguration loggerConfiguration = new LoggerConfiguration()
-                    .Enrich.FromLogContext();
+            LoggerConfiguration loggerConfiguration = new LoggerConfiguration().Enrich.FromLogContext();
 
             if (logConsole)
             {
                 loggerConfiguration.WriteTo.Console(
                     restrictedToMinimumLevel: (LogEventLevel)consoleLogLevel,
                     formatProvider: CultureInfo.InvariantCulture
-                    );
+                );
             }
 #if DEBUG
             else
             {
-                loggerConfiguration
-                    .WriteTo.Debug(
-                        restrictedToMinimumLevel: (LogEventLevel)consoleLogLevel,
-                        formatProvider: CultureInfo.InvariantCulture
-                        );
+                loggerConfiguration.WriteTo.Debug(
+                    restrictedToMinimumLevel: (LogEventLevel)consoleLogLevel,
+                    formatProvider: CultureInfo.InvariantCulture
+                );
             }
 #endif
             LogLevel fileLevel = LogLevel.Information;
 
             // switch for Trace/Verbose output
             int traceMasks = configuration.TraceConfiguration.TraceMasks;
-            if ((traceMasks & ~(TraceMasks.Information | TraceMasks.Error |
-                TraceMasks.Security | TraceMasks.StartStop | TraceMasks.StackTrace)) != 0)
+            if (
+                (
+                    traceMasks
+                    & ~(
+                        TraceMasks.Information
+                        | TraceMasks.Error
+                        | TraceMasks.Security
+                        | TraceMasks.StartStop
+                        | TraceMasks.StackTrace
+                    )
+                ) != 0
+            )
             {
                 fileLevel = LogLevel.Trace;
             }
@@ -352,7 +374,8 @@ namespace Quickstarts
                     new ExpressionTemplate("{UtcDateTime(@t):yyyy-MM-dd HH:mm:ss.fff} [{@l:u3}] {@m}\n{@x}"),
                     ReplaceSpecialFolderNames(outputFilePath),
                     restrictedToMinimumLevel: (LogEventLevel)fileLevel,
-                    rollOnFileSizeLimit: true);
+                    rollOnFileSizeLimit: true
+                );
             }
 
             // adjust minimum level
@@ -362,11 +385,11 @@ namespace Quickstarts
             }
 
             // create the serilog logger
-            Serilog.Core.Logger serilogger = loggerConfiguration
-                .CreateLogger();
+            Serilog.Core.Logger serilogger = loggerConfiguration.CreateLogger();
 
             // create the ILogger for Opc.Ua.Core
-            Microsoft.Extensions.Logging.ILogger logger = LoggerFactory.Create(builder => builder.SetMinimumLevel(LogLevel.Trace))
+            Microsoft.Extensions.Logging.ILogger logger = LoggerFactory
+                .Create(builder => builder.SetMinimumLevel(LogLevel.Trace))
                 .AddSerilog(serilogger)
                 .CreateLogger(context);
 
@@ -409,7 +432,8 @@ namespace Quickstarts
             var quitEvent = new ManualResetEvent(false);
             try
             {
-                Console.CancelKeyPress += (_, eArgs) => {
+                Console.CancelKeyPress += (_, eArgs) =>
+                {
                     cts.Cancel();
                     quitEvent.Set();
                     eArgs.Cancel = true;
@@ -431,7 +455,5 @@ namespace Quickstarts
         {
             Utils.LogCritical("Unobserved Exception: {0} Observed: {1}", args.Exception, args.Observed);
         }
-
     }
 }
-

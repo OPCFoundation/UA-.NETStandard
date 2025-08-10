@@ -24,7 +24,6 @@
     <NuGetAuditMode>all</NuGetAuditMode>
     <NuGetAudit>true</NuGetAudit>
   </PropertyGroup>
-
   <PropertyGroup>
     <AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
@@ -33,12 +32,10 @@
     <AnalysisMode>all</AnalysisMode>
     <AnalysisModeStyle>default</AnalysisModeStyle>
   </PropertyGroup>
-
   <ItemGroup Condition="$(NO_RCS) == ''">
-    <PackageReference Include="Roslynator.Analyzers" PrivateAssets="All"/>
-    <PackageReference Include="Roslynator.Formatting.Analyzers" PrivateAssets="All"/>
+    <PackageReference Include="Roslynator.Analyzers" PrivateAssets="All" />
+    <PackageReference Include="Roslynator.Formatting.Analyzers" PrivateAssets="All" />
   </ItemGroup>
-
   <PropertyGroup>
     <PackageIcon>images/logo.jpg</PackageIcon>
     <PackageProjectUrl>$(RepositoryUrl)</PackageProjectUrl>
@@ -49,7 +46,6 @@
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
     <PackageTags>OPCFoundation OPC UA netstandard ios linux dotnet net netcore uwp</PackageTags>
   </PropertyGroup>
-
   <Choose>
     <When Condition="'$(TargetFramework)' == 'net8.0' OR '$(TargetFramework)' == 'net9.0'">
       <PropertyGroup>
@@ -58,32 +54,41 @@
       </PropertyGroup>
     </When>
   </Choose>
-
   <ItemGroup Condition="'$(IsPackable)' != 'false' AND '$(PackageLicenseExpression)' == 'MIT'">
-    <None Include="$(MSBuildThisFileDirectory)/licenses/OPC Foundation MIT license.txt" Pack="true" PackagePath="$(PackageLicenseFile)"/>
+    <None
+      Include="$(MSBuildThisFileDirectory)/licenses/OPC Foundation MIT license.txt"
+      Pack="true"
+      PackagePath="$(PackageLicenseFile)"
+    />
   </ItemGroup>
-
   <ItemGroup Condition="'$(IsPackable)' != 'false' AND '$(PackageLicenseExpression)' == ''">
-    <None Include="$(MSBuildThisFileDirectory)/LICENSE.txt" Pack="true" PackagePath="$(PackageLicenseFile)"/>
+    <None
+      Include="$(MSBuildThisFileDirectory)/LICENSE.txt"
+      Pack="true"
+      PackagePath="$(PackageLicenseFile)"
+    />
   </ItemGroup>
-
   <ItemGroup Condition="'$(IsPackable)' != 'false'">
-    <None Include="$(MSBuildThisFileDirectory)/nuget/logo.jpg" Pack="true" PackagePath="$(PackageIcon)"/>
+    <None
+      Include="$(MSBuildThisFileDirectory)/nuget/logo.jpg"
+      Pack="true"
+      PackagePath="$(PackageIcon)"
+    />
   </ItemGroup>
-
   <ItemGroup Condition="'$(IsPackable)' != 'false'">
-    <None Include="$(MSBuildThisFileDirectory)/Docs/NugetREADME.md" Pack="true" PackagePath="$(PackageReadmeFile)"/>
+    <None
+      Include="$(MSBuildThisFileDirectory)/Docs/NugetREADME.md"
+      Pack="true"
+      PackagePath="$(PackageReadmeFile)"
+    />
   </ItemGroup>
-
   <ItemGroup Condition="'$(NBGV_PublicRelease)' != ''">
-    <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All"/>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All" />
   </ItemGroup>
-
   <!-- Deterministic build is currently not supported for code coverage tests. -->
   <PropertyGroup Condition="'$(CollectCoverage)' != 'true' AND ('$(TF_BUILD)' == 'true' OR '$(GITHUB_ACTIONS)' == 'true')">
     <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
   </PropertyGroup>
-
   <PropertyGroup>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>

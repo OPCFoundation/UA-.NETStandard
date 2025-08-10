@@ -37,7 +37,8 @@ namespace Opc.Ua.Schema.Xml
         /// <summary>
         /// Intializes the object with a file table.
         /// </summary>
-        public XmlSchemaValidator(IDictionary<string, string> fileTable) : base(fileTable)
+        public XmlSchemaValidator(IDictionary<string, string> fileTable)
+            : base(fileTable)
         {
             SetResourcePaths(WellKnownDictionaries);
         }
@@ -45,7 +46,8 @@ namespace Opc.Ua.Schema.Xml
         /// <summary>
         /// Intializes the object with a import table.
         /// </summary>
-        public XmlSchemaValidator(IDictionary<string, byte[]> importTable) : base(importTable)
+        public XmlSchemaValidator(IDictionary<string, byte[]> importTable)
+            : base(importTable)
         {
             SetResourcePaths(WellKnownDictionaries);
         }
@@ -54,6 +56,7 @@ namespace Opc.Ua.Schema.Xml
         /// The schema set that was validated.
         /// </summary>
         public XmlSchemaSet SchemaSet { get; private set; }
+
         /// <summary>
         /// The schema that was validated.
         /// </summary>
@@ -161,7 +164,7 @@ namespace Opc.Ua.Schema.Xml
         /// </summary>
         protected static readonly string[][] WellKnownDictionaries =
         [
-            [Namespaces.OpcUaXsd, "Opc.Ua.Schema.Opc.Ua.Types.xsd"]
+            [Namespaces.OpcUaXsd, "Opc.Ua.Schema.Opc.Ua.Types.xsd"],
         ];
     }
 }

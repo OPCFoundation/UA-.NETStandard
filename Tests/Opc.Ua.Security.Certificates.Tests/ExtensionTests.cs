@@ -44,12 +44,13 @@ namespace Opc.Ua.Security.Certificates.Tests
     public class ExtensionTests
     {
         [DatapointSource]
-        public CertificateAsset[] CertificateTestCases = [.. AssetCollection<CertificateAsset>.CreateFromFiles(TestUtils.EnumerateTestAssets("*.?er"))];
+        public CertificateAsset[] CertificateTestCases =
+        [
+            .. AssetCollection<CertificateAsset>.CreateFromFiles(TestUtils.EnumerateTestAssets("*.?er")),
+        ];
 
         [Theory]
-        public void DecodeExtensions(
-            CertificateAsset certAsset
-            )
+        public void DecodeExtensions(CertificateAsset certAsset)
         {
             using X509Certificate2 x509Cert = X509CertificateLoader.LoadCertificate(certAsset.Cert);
             Assert.NotNull(x509Cert);
@@ -63,7 +64,8 @@ namespace Opc.Ua.Security.Certificates.Tests
                 var ext = new X509Extension(altName.Oid, altName.RawData, altName.Critical);
                 TestContext.Out.WriteLine(ext.Format(true));
             }
-            X509AuthorityKeyIdentifierExtension authority = x509Cert.FindExtension<X509AuthorityKeyIdentifierExtension>();
+            X509AuthorityKeyIdentifierExtension authority =
+                x509Cert.FindExtension<X509AuthorityKeyIdentifierExtension>();
             if (authority != null)
             {
                 TestContext.Out.WriteLine("X509AuthorityKeyIdentifierExtension:");

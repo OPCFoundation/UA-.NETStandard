@@ -21,9 +21,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The system context.</param>
         /// <param name="active">if set to <c>true</c> the condition is active.</param>
-        public override void SetActiveState(
-            ISystemContext context,
-            bool active)
+        public override void SetActiveState(ISystemContext context, bool active)
         {
             // set it inactive.
             if (!active)
@@ -55,9 +53,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The system context.</param>
         /// <param name="limit">The bit masks specifying the current state.</param>
-        public virtual void SetLimitState(
-            ISystemContext context,
-            LimitAlarmStates limit)
+        public virtual void SetLimitState(ISystemContext context, LimitAlarmStates limit)
         {
             switch (limit)
             {

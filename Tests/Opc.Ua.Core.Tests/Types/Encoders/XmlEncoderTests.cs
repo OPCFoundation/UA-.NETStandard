@@ -44,10 +44,11 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     [Parallelizable]
     public class XmlEncoderTests
     {
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "SYSLIB1045:Convert to 'GeneratedRegexAttribute'.", Justification = "Tests")]
+#pragma warning disable SYSLIB1045 // Convert to 'GeneratedRegexAttribute'.
         internal static readonly Regex REValue = new("Value>([^<]*)<");
-        private static readonly int[] elements = [1, 2, 3, 4];
-        private static readonly int[] dimensions = [2, 2];
+#pragma warning restore SYSLIB1045 // Convert to 'GeneratedRegexAttribute'.
+        private static readonly int[] s_elements = [1, 2, 3, 4];
+        private static readonly int[] s_dimensions = [2, 2];
 
         /// <summary>
         /// Validate the encoding and decoding of the float special values.
@@ -61,7 +62,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             // Encode
             var context = new ServiceMessageContext();
             string actualXmlValue;
-            using (var xmlEncoder = new XmlEncoder(new XmlQualifiedName("FloatSpecialValues", Namespaces.OpcUaXsd), null, context))
+            using (
+                var xmlEncoder = new XmlEncoder(
+                    new XmlQualifiedName("FloatSpecialValues", Namespaces.OpcUaXsd),
+                    null,
+                    context
+                )
+            )
             {
                 xmlEncoder.PushNamespace(Namespaces.OpcUaXsd);
                 xmlEncoder.WriteFloat("Value", binaryValue);
@@ -106,7 +113,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             // Encode
             var context = new ServiceMessageContext();
             string actualXmlValue;
-            using (var xmlEncoder = new XmlEncoder(new XmlQualifiedName("DoubleSpecialValues", Namespaces.OpcUaXsd), null, context))
+            using (
+                var xmlEncoder = new XmlEncoder(
+                    new XmlQualifiedName("DoubleSpecialValues", Namespaces.OpcUaXsd),
+                    null,
+                    context
+                )
+            )
             {
                 xmlEncoder.PushNamespace(Namespaces.OpcUaXsd);
                 xmlEncoder.WriteDouble("Value", binaryValue);
@@ -145,19 +158,18 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void EncodeDecodeVariantMatrix()
         {
-            var value = new Matrix(
-                elements,
-                BuiltInType.Int32,
-                dimensions
-            );
+            var value = new Matrix(s_elements, BuiltInType.Int32, s_dimensions);
             var variant = new Variant(value);
 
-            const string expected = "<?xml version=\"1.0\" encoding=\"utf-16\"?>\r\n<uax:VariantTest xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\r\n  <uax:Test>\r\n    <uax:Value>\r\n      <uax:Matrix>\r\n        <uax:Dimensions>\r\n          <uax:Int32>2</uax:Int32>\r\n          <uax:Int32>2</uax:Int32>\r\n        </uax:Dimensions>\r\n        <uax:Elements>\r\n          <uax:Int32>1</uax:Int32>\r\n          <uax:Int32>2</uax:Int32>\r\n          <uax:Int32>3</uax:Int32>\r\n          <uax:Int32>4</uax:Int32>\r\n        </uax:Elements>\r\n      </uax:Matrix>\r\n    </uax:Value>\r\n  </uax:Test>\r\n</uax:VariantTest>";
+            const string expected =
+                "<?xml version=\"1.0\" encoding=\"utf-16\"?>\r\n<uax:VariantTest xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\r\n  <uax:Test>\r\n    <uax:Value>\r\n      <uax:Matrix>\r\n        <uax:Dimensions>\r\n          <uax:Int32>2</uax:Int32>\r\n          <uax:Int32>2</uax:Int32>\r\n        </uax:Dimensions>\r\n        <uax:Elements>\r\n          <uax:Int32>1</uax:Int32>\r\n          <uax:Int32>2</uax:Int32>\r\n          <uax:Int32>3</uax:Int32>\r\n          <uax:Int32>4</uax:Int32>\r\n        </uax:Elements>\r\n      </uax:Matrix>\r\n    </uax:Value>\r\n  </uax:Test>\r\n</uax:VariantTest>";
 
             // Encode
             var context = new ServiceMessageContext();
             string actualXmlValue;
-            using (var xmlEncoder = new XmlEncoder(new XmlQualifiedName("VariantTest", Namespaces.OpcUaXsd), null, context))
+            using (
+                var xmlEncoder = new XmlEncoder(new XmlQualifiedName("VariantTest", Namespaces.OpcUaXsd), null, context)
+            )
             {
                 xmlEncoder.PushNamespace(Namespaces.OpcUaXsd);
                 xmlEncoder.WriteVariant("Test", variant);
@@ -166,7 +178,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
 
             // Check encode result against expected XML value
-            Assert.AreEqual(expected.Replace("\r", "", StringComparison.Ordinal).Replace("\n", "", StringComparison.Ordinal), actualXmlValue.Replace("\r", "", StringComparison.Ordinal).Replace("\n", "", StringComparison.Ordinal));
+            Assert.AreEqual(
+                expected.Replace("\r", "", StringComparison.Ordinal).Replace("\n", "", StringComparison.Ordinal),
+                actualXmlValue.Replace("\r", "", StringComparison.Ordinal).Replace("\n", "", StringComparison.Ordinal)
+            );
 
             // Decode
             Variant actualVariant;
@@ -188,12 +203,15 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             Variant variant = Variant.Null;
 
-            const string expected = "<?xml version=\"1.0\" encoding=\"utf-16\"?>\r\n<uax:VariantTest xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\r\n  <uax:Test>\r\n    <uax:Value xsi:nil=\"true\" />\r\n  </uax:Test>\r\n</uax:VariantTest>";
+            const string expected =
+                "<?xml version=\"1.0\" encoding=\"utf-16\"?>\r\n<uax:VariantTest xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\r\n  <uax:Test>\r\n    <uax:Value xsi:nil=\"true\" />\r\n  </uax:Test>\r\n</uax:VariantTest>";
 
             // Encode
             var context = new ServiceMessageContext();
             string actualXmlValue;
-            using (var xmlEncoder = new XmlEncoder(new XmlQualifiedName("VariantTest", Namespaces.OpcUaXsd), null, context))
+            using (
+                var xmlEncoder = new XmlEncoder(new XmlQualifiedName("VariantTest", Namespaces.OpcUaXsd), null, context)
+            )
             {
                 xmlEncoder.PushNamespace(Namespaces.OpcUaXsd);
                 xmlEncoder.WriteVariant("Test", variant);
@@ -202,7 +220,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
 
             // Check encode result against expected XML value
-            Assert.AreEqual(expected.Replace("\r", "", StringComparison.Ordinal).Replace("\n", "", StringComparison.Ordinal), actualXmlValue.Replace("\r", "", StringComparison.Ordinal).Replace("\n", "", StringComparison.Ordinal));
+            Assert.AreEqual(
+                expected.Replace("\r", "", StringComparison.Ordinal).Replace("\n", "", StringComparison.Ordinal),
+                actualXmlValue.Replace("\r", "", StringComparison.Ordinal).Replace("\n", "", StringComparison.Ordinal)
+            );
 
             // Decode
             Variant actualVariant;

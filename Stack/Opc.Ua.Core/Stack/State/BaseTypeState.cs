@@ -22,7 +22,8 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the type with its default attribute values.
         /// </summary>
-        protected BaseTypeState(NodeClass nodeClass) : base(nodeClass)
+        protected BaseTypeState(NodeClass nodeClass)
+            : base(nodeClass)
         {
             m_isAbstract = false;
         }
@@ -65,7 +66,6 @@ namespace Opc.Ua
         public NodeId SuperTypeId
         {
             get => m_superTypeId;
-
             set
             {
                 if (!ReferenceEquals(m_superTypeId, value))
@@ -83,7 +83,6 @@ namespace Opc.Ua
         public bool IsAbstract
         {
             get => m_isAbstract;
-
             set
             {
                 if (m_isAbstract != value)
@@ -257,7 +256,8 @@ namespace Opc.Ua
         protected override ServiceResult ReadNonValueAttribute(
             ISystemContext context,
             uint attributeId,
-            ref object value)
+            ref object value
+        )
         {
             ServiceResult result = null;
 
@@ -287,10 +287,7 @@ namespace Opc.Ua
         /// <summary>
         /// Write the value for any non-value attribute.
         /// </summary>
-        protected override ServiceResult WriteNonValueAttribute(
-            ISystemContext context,
-            uint attributeId,
-            object value)
+        protected override ServiceResult WriteNonValueAttribute(ISystemContext context, uint attributeId, object value)
         {
             ServiceResult result = null;
 

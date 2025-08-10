@@ -41,8 +41,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Create a nunit trace logger which replaces the default logging.
         /// </summary>
-        public static NUnitTestLogger<T> Create(
-            TextWriter writer)
+        public static NUnitTestLogger<T> Create(TextWriter writer)
         {
             var traceLogger = new NUnitTestLogger<T>(writer);
 
@@ -76,7 +75,13 @@ namespace Opc.Ua.Server.Tests
             Interlocked.Exchange(ref m_outputWriter, outputWriter);
         }
 
-        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception exception,
+            Func<TState, Exception, string> formatter
+        )
         {
             if (logLevel < MinimumLogLevel)
             {

@@ -73,9 +73,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
         [OneTimeTearDown]
-        public void OneTimeTearDown()
-        {
-        }
+        public void OneTimeTearDown() { }
 
         /// <summary>
         /// Set up some variables for benchmarks.
@@ -105,9 +103,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Tear down benchmark variables.
         /// </summary>
         [GlobalCleanup]
-        public void GlobalCleanup()
-        {
-        }
+        public void GlobalCleanup() { }
 
         private DateTime m_dateTime;
     }

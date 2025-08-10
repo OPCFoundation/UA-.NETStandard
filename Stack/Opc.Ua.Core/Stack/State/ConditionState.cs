@@ -45,7 +45,6 @@ namespace Opc.Ua
         public PropertyState<bool> SupportsFilteredRetain
         {
             get => m_supportsFilteredRetain;
-
             set
             {
                 if (!ReferenceEquals(m_supportsFilteredRetain, value))
@@ -71,7 +70,11 @@ namespace Opc.Ua
         /// <param name="context">The context.</param>
         /// <param name="displayName">The display name for the effective state.</param>
         /// <param name="transitionTime">The transition time.</param>
-        public virtual void SetEffectiveSubState(ISystemContext context, LocalizedText displayName, DateTime transitionTime)
+        public virtual void SetEffectiveSubState(
+            ISystemContext context,
+            LocalizedText displayName,
+            DateTime transitionTime
+        )
         {
             if (EnabledState.EffectiveDisplayName != null)
             {
@@ -132,10 +135,7 @@ namespace Opc.Ua
         /// <param name="context">The system context.</param>
         /// <param name="comment">The comment.</param>
         /// <param name="clientUserId">The user that added the comment.</param>
-        public virtual void SetComment(
-            ISystemContext context,
-            LocalizedText comment,
-            string clientUserId)
+        public virtual void SetComment(ISystemContext context, LocalizedText comment, string clientUserId)
         {
             if (Comment != null)
             {
@@ -431,7 +431,8 @@ namespace Opc.Ua
             MethodState method,
             NodeId objectId,
             byte[] eventId,
-            LocalizedText comment)
+            LocalizedText comment
+        )
         {
             ServiceResult error = ProcessBeforeAddComment(context, eventId, comment);
 
@@ -455,10 +456,7 @@ namespace Opc.Ua
                 // raise the audit event.
                 var e = new AuditConditionCommentEventState(null);
 
-                var info = new TranslationInfo(
-                    "AuditConditionComment",
-                    "en-US",
-                    "The AddComment method was called.");
+                var info = new TranslationInfo("AuditConditionComment", "en-US", "The AddComment method was called.");
 
                 e.Initialize(
                     context,
@@ -466,7 +464,8 @@ namespace Opc.Ua
                     EventSeverity.Low,
                     new LocalizedText(info),
                     ServiceResult.IsGood(error),
-                    DateTime.UtcNow);
+                    DateTime.UtcNow
+                );
 
                 e.SetChildValue(context, BrowseNames.SourceNode, NodeId, false);
                 e.SetChildValue(context, BrowseNames.SourceName, "Method/AddComment", false);
@@ -507,7 +506,8 @@ namespace Opc.Ua
         protected virtual ServiceResult ProcessBeforeAddComment(
             ISystemContext context,
             byte[] eventId,
-            LocalizedText comment)
+            LocalizedText comment
+        )
         {
             if (eventId == null)
             {
@@ -527,7 +527,11 @@ namespace Opc.Ua
                 }
                 catch (Exception e)
                 {
-                    return ServiceResult.Create(e, StatusCodes.BadUnexpectedError, "Unexpected error adding a comment to a Condition.");
+                    return ServiceResult.Create(
+                        e,
+                        StatusCodes.BadUnexpectedError,
+                        "Unexpected error adding a comment to a Condition."
+                    );
                 }
             }
 
@@ -541,7 +545,8 @@ namespace Opc.Ua
             ISystemContext context,
             MethodState method,
             IList<object> inputArguments,
-            IList<object> outputArguments)
+            IList<object> outputArguments
+        )
         {
             ServiceResult error = ProcessBeforeEnableDisable(context, true);
 
@@ -569,10 +574,7 @@ namespace Opc.Ua
                 // raise the audit event.
                 var e = new AuditConditionEnableEventState(null);
 
-                var info = new TranslationInfo(
-                    "AuditConditionEnable",
-                    "en-US",
-                    "The Enable method was called.");
+                var info = new TranslationInfo("AuditConditionEnable", "en-US", "The Enable method was called.");
 
                 e.Initialize(
                     context,
@@ -580,7 +582,8 @@ namespace Opc.Ua
                     EventSeverity.Low,
                     new LocalizedText(info),
                     ServiceResult.IsGood(error),
-                    DateTime.UtcNow);
+                    DateTime.UtcNow
+                );
 
                 e.SetChildValue(context, BrowseNames.SourceNode, NodeId, false);
                 e.SetChildValue(context, BrowseNames.SourceName, "Method/Enable", false);
@@ -599,7 +602,8 @@ namespace Opc.Ua
             ISystemContext context,
             MethodState method,
             IList<object> inputArguments,
-            IList<object> outputArguments)
+            IList<object> outputArguments
+        )
         {
             // check that method can be called.
             ServiceResult error = ProcessBeforeEnableDisable(context, false);
@@ -628,10 +632,7 @@ namespace Opc.Ua
                 // raise the audit event.
                 var e = new AuditConditionEnableEventState(null);
 
-                var info = new TranslationInfo(
-                    "AuditConditionEnable",
-                    "en-US",
-                    "The Disable method was called.");
+                var info = new TranslationInfo("AuditConditionEnable", "en-US", "The Disable method was called.");
 
                 e.Initialize(
                     context,
@@ -639,7 +640,8 @@ namespace Opc.Ua
                     EventSeverity.Low,
                     new LocalizedText(info),
                     ServiceResult.IsGood(error),
-                    DateTime.UtcNow);
+                    DateTime.UtcNow
+                );
 
                 e.SetChildValue(context, BrowseNames.SourceNode, NodeId, false);
                 e.SetChildValue(context, BrowseNames.SourceName, "Method/Disable", false);
@@ -676,7 +678,11 @@ namespace Opc.Ua
                 }
                 catch (Exception e)
                 {
-                    return ServiceResult.Create(e, StatusCodes.BadUnexpectedError, "Unexpected error enabling or disabling a Condition.");
+                    return ServiceResult.Create(
+                        e,
+                        StatusCodes.BadUnexpectedError,
+                        "Unexpected error enabling or disabling a Condition."
+                    );
                 }
             }
 
@@ -689,10 +695,7 @@ namespace Opc.Ua
         /// <param name="context">The system context.</param>
         protected virtual void UpdateStateAfterEnable(ISystemContext context)
         {
-            var state = new TranslationInfo(
-                "ConditionStateEnabled",
-                "en-US",
-                ConditionStateNames.Enabled);
+            var state = new TranslationInfo("ConditionStateEnabled", "en-US", ConditionStateNames.Enabled);
 
             Retain.Value = true;
             EnabledState.Value = new LocalizedText(state);
@@ -712,10 +715,7 @@ namespace Opc.Ua
         /// <param name="context">The system context.</param>
         protected virtual void UpdateStateAfterDisable(ISystemContext context)
         {
-            var state = new TranslationInfo(
-                "ConditionStateDisabled",
-                "en-US",
-                ConditionStateNames.Disabled);
+            var state = new TranslationInfo("ConditionStateDisabled", "en-US", ConditionStateNames.Disabled);
 
             Retain.Value = false;
             EnabledState.Value = new LocalizedText(state);
@@ -754,7 +754,8 @@ namespace Opc.Ua
     public delegate ServiceResult ConditionEnableEventHandler(
         ISystemContext context,
         ConditionState condition,
-        bool enabling);
+        bool enabling
+    );
 
     /// <summary>
     /// Used to receive notifications when a comment is added.
@@ -767,5 +768,6 @@ namespace Opc.Ua
         ISystemContext context,
         ConditionState condition,
         byte[] eventId,
-        LocalizedText comment);
+        LocalizedText comment
+    );
 }

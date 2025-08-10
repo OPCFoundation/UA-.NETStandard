@@ -57,8 +57,7 @@ namespace Opc.Ua.Client
         /// <param name="nodeIds"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        ValueTask<IReadOnlyList<INode>> GetNodesAsync(IReadOnlyList<NodeId> nodeIds,
-            CancellationToken ct = default);
+        ValueTask<IReadOnlyList<INode>> GetNodesAsync(IReadOnlyList<NodeId> nodeIds, CancellationToken ct = default);
 
         /// <summary>
         /// Get node using browse path
@@ -67,8 +66,11 @@ namespace Opc.Ua.Client
         /// <param name="browsePath"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        ValueTask<INode> GetNodeWithBrowsePathAsync(NodeId nodeId,
-            QualifiedNameCollection browsePath, CancellationToken ct = default);
+        ValueTask<INode> GetNodeWithBrowsePathAsync(
+            NodeId nodeId,
+            QualifiedNameCollection browsePath,
+            CancellationToken ct = default
+        );
 
         /// <summary>
         /// Get list of references for a node
@@ -79,9 +81,13 @@ namespace Opc.Ua.Client
         /// <param name="includeSubtypes"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        ValueTask<IReadOnlyList<INode>> GetReferencesAsync(IReadOnlyList<NodeId> nodeIds,
-            IReadOnlyList<NodeId> referenceTypeIds, bool isInverse, bool includeSubtypes = true,
-            CancellationToken ct = default);
+        ValueTask<IReadOnlyList<INode>> GetReferencesAsync(
+            IReadOnlyList<NodeId> nodeIds,
+            IReadOnlyList<NodeId> referenceTypeIds,
+            bool isInverse,
+            bool includeSubtypes = true,
+            CancellationToken ct = default
+        );
 
         /// <summary>
         /// Get references for a node
@@ -92,8 +98,13 @@ namespace Opc.Ua.Client
         /// <param name="includeSubtypes"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        ValueTask<IReadOnlyList<INode>> GetReferencesAsync(NodeId nodeId, NodeId referenceTypeId,
-            bool isInverse, bool includeSubtypes = true, CancellationToken ct = default);
+        ValueTask<IReadOnlyList<INode>> GetReferencesAsync(
+            NodeId nodeId,
+            NodeId referenceTypeId,
+            bool isInverse,
+            bool includeSubtypes = true,
+            CancellationToken ct = default
+        );
 
         /// <summary>
         /// Get super type of a type node.
@@ -117,8 +128,10 @@ namespace Opc.Ua.Client
         /// <param name="nodeIds"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        ValueTask<IReadOnlyList<DataValue>> GetValuesAsync(IReadOnlyList<NodeId> nodeIds,
-            CancellationToken ct = default);
+        ValueTask<IReadOnlyList<DataValue>> GetValuesAsync(
+            IReadOnlyList<NodeId> nodeIds,
+            CancellationToken ct = default
+        );
 
         /// <summary>
         /// Get built in type for a datatype id.

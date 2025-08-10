@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -50,7 +50,7 @@ namespace Opc.Ua.Gds.Server
         /// <summary>
         /// Initializes the object during deserialization.
         /// </summary>
-        [OnDeserializing()]
+        [OnDeserializing]
         private static void Initialize(StreamingContext context)
         {
             Initialize();
@@ -59,9 +59,7 @@ namespace Opc.Ua.Gds.Server
         /// <summary>
         /// Sets private members to default values.
         /// </summary>
-        private static void Initialize()
-        {
-        }
+        private static void Initialize() { }
 
         [DataMember(Order = 1)]
         public string AuthoritiesStorePath { get; set; }
@@ -105,7 +103,7 @@ namespace Opc.Ua.Gds.Server
         /// <summary>
         /// Initializes the object during deserialization.
         /// </summary>
-        [OnDeserializing()]
+        [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
@@ -190,7 +188,11 @@ namespace Opc.Ua.Gds.Server
         public string IssuerListPath => BaseStorePath + Path.DirectorySeparatorChar + "issuer";
     }
 
-    [CollectionDataContract(Name = "ListOfCertificateGroupConfiguration", Namespace = Namespaces.OpcUaGds + "Configuration.xsd", ItemName = "CertificateGroupConfiguration")]
+    [CollectionDataContract(
+        Name = "ListOfCertificateGroupConfiguration",
+        Namespace = Namespaces.OpcUaGds + "Configuration.xsd",
+        ItemName = "CertificateGroupConfiguration"
+    )]
     public class CertificateGroupConfigurationCollection : List<CertificateGroupConfiguration>
     {
         /// <summary>
@@ -205,12 +207,14 @@ namespace Opc.Ua.Gds.Server
         /// <exception cref="System.ArgumentNullException">
         /// 	<paramref name="collection"/> is null.
         /// </exception>
-        public CertificateGroupConfigurationCollection(IEnumerable<CertificateGroupConfiguration> collection) : base(collection) { }
+        public CertificateGroupConfigurationCollection(IEnumerable<CertificateGroupConfiguration> collection)
+            : base(collection) { }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">The capacity.</param>
-        public CertificateGroupConfigurationCollection(int capacity) : base(capacity) { }
+        public CertificateGroupConfigurationCollection(int capacity)
+            : base(capacity) { }
     }
 }

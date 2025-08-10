@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -79,7 +79,8 @@ namespace TestData
             ref long int64Out,
             ref ulong uInt64Out,
             ref float floatOut,
-            ref double doubleOut)
+            ref double doubleOut
+        )
         {
             booleanOut = booleanIn;
             sByteOut = sByteIn;
@@ -119,7 +120,8 @@ namespace TestData
             ref ExpandedNodeId expandedNodeIdOut,
             ref QualifiedName qualifiedNameOut,
             ref LocalizedText localizedTextOut,
-            ref StatusCode statusCodeOut)
+            ref StatusCode statusCodeOut
+        )
         {
             stringOut = stringIn;
             dateTimeOut = dateTimeIn;
@@ -144,7 +146,8 @@ namespace TestData
             ExtensionObject structureIn,
             ref object variantOut,
             ref int enumerationOut,
-            ref ExtensionObject structureOut)
+            ref ExtensionObject structureOut
+        )
         {
             variantOut = variantIn;
             enumerationOut = enumerationIn;
@@ -178,7 +181,8 @@ namespace TestData
             ref long[] int64Out,
             ref ulong[] uInt64Out,
             ref float[] floatOut,
-            ref double[] doubleOut)
+            ref double[] doubleOut
+        )
         {
             booleanOut = booleanIn;
             sByteOut = sByteIn;
@@ -218,7 +222,8 @@ namespace TestData
             ref ExpandedNodeId[] expandedNodeIdOut,
             ref QualifiedName[] qualifiedNameOut,
             ref LocalizedText[] localizedTextOut,
-            ref StatusCode[] statusCodeOut)
+            ref StatusCode[] statusCodeOut
+        )
         {
             stringOut = stringIn;
             dateTimeOut = dateTimeIn;
@@ -243,7 +248,8 @@ namespace TestData
             ExtensionObject[] structureIn,
             ref Variant[] variantOut,
             ref int[] enumerationOut,
-            ref ExtensionObject[] structureOut)
+            ref ExtensionObject[] structureOut
+        )
         {
             variantOut = variantIn;
             enumerationOut = enumerationIn;
@@ -279,7 +285,8 @@ namespace TestData
             ref ulong uInt64Out,
             ref float floatOut,
             ref double doubleOut,
-            ref string stringOut)
+            ref string stringOut
+        )
         {
             booleanOut = booleanIn;
             sByteOut = sByteIn;
@@ -320,7 +327,8 @@ namespace TestData
             ref QualifiedName qualifiedNameOut,
             ref LocalizedText localizedTextOut,
             ref StatusCode statusCodeOut,
-            ref object variantOut)
+            ref object variantOut
+        )
         {
             dateTimeOut = dateTimeIn;
             guidOut = guidIn;
@@ -363,7 +371,8 @@ namespace TestData
             ref ulong[] uInt64Out,
             ref float[] floatOut,
             ref double[] doubleOut,
-            ref string[] stringOut)
+            ref string[] stringOut
+        )
         {
             booleanOut = booleanIn;
             sByteOut = sByteIn;
@@ -404,7 +413,8 @@ namespace TestData
             ref QualifiedName[] qualifiedNameOut,
             ref LocalizedText[] localizedTextOut,
             ref StatusCode[] statusCodeOut,
-            ref Variant[] variantOut)
+            ref Variant[] variantOut
+        )
         {
             dateTimeOut = dateTimeIn;
             guidOut = guidIn;

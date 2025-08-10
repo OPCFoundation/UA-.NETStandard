@@ -18,8 +18,8 @@ using System.Threading.Tasks;
 namespace Opc.Ua
 {
     /// <summary>
-	/// The client side interface with a UA server.
-	/// </summary>
+    /// The client side interface with a UA server.
+    /// </summary>
     public class ClientBase : IClientBase
     {
         /// <summary>
@@ -96,7 +96,6 @@ namespace Opc.Ua
                 }
                 throw new ServiceResultException(StatusCodes.BadSecureChannelClosed, "Channel has been closed.");
             }
-
             protected set
             {
                 ITransportChannel channel = Interlocked.Exchange(ref m_channel, value);
@@ -148,7 +147,6 @@ namespace Opc.Ua
         public int OperationTimeout
         {
             get => NullableTransportChannel?.OperationTimeout ?? 0;
-
             set
             {
                 ITransportChannel channel = NullableTransportChannel;
@@ -221,7 +219,7 @@ namespace Opc.Ua
 
             if (channel is UaChannelBase uaChannel)
             {
-                m_useTransportChannel = uaChannel.m_uaBypassChannel != null || uaChannel.UseBinaryEncoding;
+                m_useTransportChannel = uaChannel.UaBypassChannel != null || uaChannel.UseBinaryEncoding;
             }
         }
 
@@ -305,10 +303,7 @@ namespace Opc.Ua
         {
             lock (SyncRoot)
             {
-                if (request.RequestHeader == null)
-                {
-                    request.RequestHeader = new RequestHeader();
-                }
+                request.RequestHeader ??= new RequestHeader();
 
                 if (useDefaults)
                 {
@@ -373,7 +368,12 @@ namespace Opc.Ua
 
             if (statusCode != StatusCodes.Good)
             {
-                Utils.EventLog.ServiceCallBadStop(serviceName, (int)requestHandle, (int)statusCode.Code, pendingRequestCount);
+                Utils.EventLog.ServiceCallBadStop(
+                    serviceName,
+                    (int)requestHandle,
+                    (int)statusCode.Code,
+                    pendingRequestCount
+                );
             }
             else
             {
@@ -404,7 +404,9 @@ namespace Opc.Ua
 
             if (StatusCode.IsBad(header.ServiceResult))
             {
-                throw new ServiceResultException(new ServiceResult(header.ServiceResult, header.ServiceDiagnostics, header.StringTable));
+                throw new ServiceResultException(
+                    new ServiceResult(header.ServiceResult, header.ServiceDiagnostics, header.StringTable)
+                );
             }
         }
 
@@ -417,12 +419,18 @@ namespace Opc.Ua
         {
             if (response is DiagnosticInfoCollection)
             {
-                throw new ArgumentException("Must call ValidateDiagnosticInfos() for DiagnosticInfoCollections.", nameof(response));
+                throw new ArgumentException(
+                    "Must call ValidateDiagnosticInfos() for DiagnosticInfoCollections.",
+                    nameof(response)
+                );
             }
 
             if (response == null || response.Count != request.Count)
             {
-                throw new ServiceResultException(StatusCodes.BadUnexpectedError, "The server returned a list without the expected number of elements.");
+                throw new ServiceResultException(
+                    StatusCodes.BadUnexpectedError,
+                    "The server returned a list without the expected number of elements."
+                );
             }
         }
 
@@ -436,7 +444,10 @@ namespace Opc.Ua
             // returning an empty list for diagnostic info arrays is allowed.
             if (response != null && response.Count != 0 && response.Count != request.Count)
             {
-                throw new ServiceResultException(StatusCodes.BadUnexpectedError, "The server forgot to fill in the DiagnosticInfos array correctly when returning an operation level error.");
+                throw new ServiceResultException(
+                    StatusCodes.BadUnexpectedError,
+                    "The server forgot to fill in the DiagnosticInfos array correctly when returning an operation level error."
+                );
             }
         }
 
@@ -452,7 +463,8 @@ namespace Opc.Ua
             StatusCode statusCode,
             int index,
             DiagnosticInfoCollection diagnosticInfos,
-            ResponseHeader responseHeader)
+            ResponseHeader responseHeader
+        )
         {
             if (diagnosticInfos != null && diagnosticInfos.Count > index)
             {
@@ -476,12 +488,16 @@ namespace Opc.Ua
             Type expectedType,
             int index,
             DiagnosticInfoCollection diagnosticInfos,
-            ResponseHeader responseHeader)
+            ResponseHeader responseHeader
+        )
         {
             // check for null.
             if (value == null)
             {
-                return new ServiceResult(StatusCodes.BadUnexpectedError, "The server returned a value for a data value.");
+                return new ServiceResult(
+                    StatusCodes.BadUnexpectedError,
+                    "The server returned a value for a data value."
+                );
             }
 
             // check status code.
@@ -497,7 +513,8 @@ namespace Opc.Ua
                     StatusCodes.BadUnexpectedError,
                     "The server returned data value of type {0} when a value of type {1} was expected.",
                     (value.Value != null) ? value.Value.GetType().Name : "(null)",
-                    expectedType.Name);
+                    expectedType.Name
+                );
             }
 
             return null;

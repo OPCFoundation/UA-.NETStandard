@@ -60,7 +60,8 @@ namespace Opc.Ua.PubSub
             NodeId nodeId,
             Variant value,
             StatusCode? status = null,
-            DateTime? timestamp = null)
+            DateTime? timestamp = null
+        )
         {
             if (nodeId == null)
             {
@@ -73,7 +74,7 @@ namespace Opc.Ua.PubSub
                 {
                     WrappedValue = value,
                     StatusCode = status ?? StatusCodes.Good,
-                    SourceTimestamp = timestamp ?? DateTime.UtcNow
+                    SourceTimestamp = timestamp ?? DateTime.UtcNow,
                 };
 
                 if (!m_store.TryGetValue(nodeId, out Dictionary<uint, DataValue> dictionary))
@@ -93,7 +94,11 @@ namespace Opc.Ua.PubSub
         /// <param name="nodeId">NodeId identifier for DataValue that will be stored</param>
         /// <param name="attributeId">Default value is <see cref="Attributes.Value"/>.</param>
         /// <param name="dataValue">Default value is null. </param>
-        public void WritePublishedDataItem(NodeId nodeId, uint attributeId = Attributes.Value, DataValue dataValue = null)
+        public void WritePublishedDataItem(
+            NodeId nodeId,
+            uint attributeId = Attributes.Value,
+            DataValue dataValue = null
+        )
         {
             if (nodeId == null)
             {
@@ -115,9 +120,7 @@ namespace Opc.Ua.PubSub
                 }
                 else
                 {
-                    var dictionary = new Dictionary<uint, DataValue> {
-                        { attributeId, dataValue }
-                    };
+                    var dictionary = new Dictionary<uint, DataValue> { { attributeId, dataValue } };
                     m_store.Add(nodeId, dictionary);
                 }
             }
@@ -146,8 +149,10 @@ namespace Opc.Ua.PubSub
             }
             lock (m_lock)
             {
-                if (m_store.TryGetValue(nodeId, out Dictionary<uint, DataValue> dictionary) &&
-                    dictionary.TryGetValue(attributeId, out DataValue value))
+                if (
+                    m_store.TryGetValue(nodeId, out Dictionary<uint, DataValue> dictionary)
+                    && dictionary.TryGetValue(attributeId, out DataValue value)
+                )
                 {
                     return value;
                 }
@@ -158,8 +163,6 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Updates the metadata.
         /// </summary>
-        public void UpdateMetaData(PublishedDataSetDataType publishedDataSet)
-        {
-        }
+        public void UpdateMetaData(PublishedDataSetDataType publishedDataSet) { }
     }
 }

@@ -173,7 +173,6 @@ namespace Opc.Ua
         public int Position
         {
             get => (int)m_writer.BaseStream.Position;
-
             set => m_writer.Seek(value, SeekOrigin.Begin);
         }
 
@@ -222,7 +221,12 @@ namespace Opc.Ua
         /// <summary>
         /// Encodes a session-less message to a buffer.
         /// </summary>
-        public static void EncodeSessionLessMessage(IEncodeable message, Stream stream, IServiceMessageContext context, bool leaveOpen)
+        public static void EncodeSessionLessMessage(
+            IEncodeable message,
+            Stream stream,
+            IServiceMessageContext context,
+            bool leaveOpen
+        )
         {
             if (context == null)
             {
@@ -241,7 +245,7 @@ namespace Opc.Ua
             {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
-                Message = message ?? throw new ArgumentNullException(nameof(message))
+                Message = message ?? throw new ArgumentNullException(nameof(message)),
             };
 
             envelope.Encode(encoder);
@@ -253,14 +257,20 @@ namespace Opc.Ua
                     StatusCodes.BadEncodingLimitsExceeded,
                     "MaxMessageSize {0} < {1}",
                     context.MaxMessageSize,
-                    (int)(encoder.m_ostrm.Position - start));
+                    (int)(encoder.m_ostrm.Position - start)
+                );
             }
         }
 
         /// <summary>
         /// Encodes a message in a stream.
         /// </summary>
-        public static void EncodeMessage(IEncodeable message, Stream stream, IServiceMessageContext context, bool leaveOpen)
+        public static void EncodeMessage(
+            IEncodeable message,
+            Stream stream,
+            IServiceMessageContext context,
+            bool leaveOpen
+        )
         {
             if (message == null)
             {
@@ -311,7 +321,8 @@ namespace Opc.Ua
                     StatusCodes.BadEncodingLimitsExceeded,
                     "MaxMessageSize {0} < {1}",
                     Context.MaxMessageSize,
-                    (int)(m_ostrm.Position - start));
+                    (int)(m_ostrm.Position - start)
+                );
             }
         }
 
@@ -470,7 +481,8 @@ namespace Opc.Ua
                     StatusCodes.BadEncodingLimitsExceeded,
                     "MaxStringLength {0} < {1}",
                     Context.MaxStringLength,
-                    value.Length);
+                    value.Length
+                );
             }
 
             int maxByteCount = Encoding.UTF8.GetMaxByteCount(value.Length);
@@ -523,7 +535,6 @@ namespace Opc.Ua
             {
                 ticks = long.MaxValue;
             }
-
             // check for min value.
             else
             {
@@ -585,7 +596,8 @@ namespace Opc.Ua
                     StatusCodes.BadEncodingLimitsExceeded,
                     "MaxByteStringLength {0} < {1}",
                     Context.MaxByteStringLength,
-                    count);
+                    count
+                );
             }
 
             WriteInt32(null, count);
@@ -611,7 +623,8 @@ namespace Opc.Ua
                     StatusCodes.BadEncodingLimitsExceeded,
                     "MaxByteStringLength {0} < {1}",
                     Context.MaxByteStringLength,
-                    value.Length);
+                    value.Length
+                );
             }
 
             WriteInt32(null, value.Length);
@@ -635,7 +648,8 @@ namespace Opc.Ua
                     StatusCodes.BadEncodingLimitsExceeded,
                     "MaxByteStringLength {0} < {1}",
                     Context.MaxByteStringLength,
-                    value.Length);
+                    value.Length
+                );
             }
 
             WriteInt32(null, (int)value.Length);
@@ -963,7 +977,8 @@ namespace Opc.Ua
                         StatusCodes.BadEncodingError,
                         "Cannot encode bodies of type '{0}' in ExtensionObject unless the NamespaceUri ({1}) is in the encoder's NamespaceTable.",
                         encodeable.GetType().FullName,
-                        typeId.NamespaceUri);
+                        typeId.NamespaceUri
+                    );
                 }
 
                 localTypeId = NodeId.Null;
@@ -1012,7 +1027,8 @@ namespace Opc.Ua
             {
                 throw new ServiceResultException(
                     StatusCodes.BadEncodingError,
-                    Utils.Format("Cannot encode bodies of type '{0}' in extension objects.", body.GetType().FullName));
+                    Utils.Format("Cannot encode bodies of type '{0}' in extension objects.", body.GetType().FullName)
+                );
             }
 
             // check if it possible to write the extension directly to the stream.
@@ -1031,7 +1047,6 @@ namespace Opc.Ua
                 WriteInt32(null, (int)(delta - 4));
                 m_writer.Seek((int)(delta - 4), SeekOrigin.Current);
             }
-
             // must pre-encode and then write the bytes.
             else
             {
@@ -1680,7 +1695,8 @@ namespace Opc.Ua
 
                         throw ServiceResultException.Create(
                             StatusCodes.BadEncodingError,
-                            "Unexpected type encountered while encoding a Matrix.");
+                            "Unexpected type encountered while encoding a Matrix."
+                        );
                     }
                     case BuiltInType.Enumeration:
                         int[] ints = array as int[];
@@ -1700,7 +1716,8 @@ namespace Opc.Ua
                         {
                             throw ServiceResultException.Create(
                                 StatusCodes.BadEncodingError,
-                                "Unexpected type encountered while encoding an Enumeration Array.");
+                                "Unexpected type encountered while encoding an Enumeration Array."
+                            );
                         }
                         break;
                     case BuiltInType.ExtensionObject:
@@ -1729,7 +1746,8 @@ namespace Opc.Ua
                         throw ServiceResultException.Create(
                             StatusCodes.BadEncodingError,
                             "Unexpected type encountered while encoding an Array with BuiltInType: {0}",
-                            builtInType);
+                            builtInType
+                        );
                     }
                 }
             }
@@ -2008,7 +2026,8 @@ namespace Opc.Ua
 
                         throw ServiceResultException.Create(
                             StatusCodes.BadEncodingError,
-                            "Unexpected type encountered while encoding a Matrix.");
+                            "Unexpected type encountered while encoding a Matrix."
+                        );
                     }
                     case BuiltInType.DiagnosticInfo:
                     {
@@ -2033,7 +2052,8 @@ namespace Opc.Ua
                         throw ServiceResultException.Create(
                             StatusCodes.BadEncodingError,
                             "Unexpected type encountered while encoding a Matrix with BuiltInType: {0}",
-                            matrix.TypeInfo.BuiltInType);
+                            matrix.TypeInfo.BuiltInType
+                        );
                     }
                 }
             }
@@ -2114,8 +2134,10 @@ namespace Opc.Ua
                     }
                     else
                     {
-                        Utils.LogWarning("InnerDiagnosticInfo dropped because nesting exceeds maximum of {0}.",
-                            DiagnosticInfo.MaxInnerDepth);
+                        Utils.LogWarning(
+                            "InnerDiagnosticInfo dropped because nesting exceeds maximum of {0}.",
+                            DiagnosticInfo.MaxInnerDepth
+                        );
                     }
                 }
 
@@ -2200,7 +2222,8 @@ namespace Opc.Ua
                     StatusCodes.BadEncodingLimitsExceeded,
                     "MaxArrayLength {0} < {1}",
                     Context.MaxArrayLength,
-                    values.Count);
+                    values.Count
+                );
             }
 
             // write length.
@@ -2226,7 +2249,8 @@ namespace Opc.Ua
                     StatusCodes.BadEncodingLimitsExceeded,
                     "MaxArrayLength {0} < {1}",
                     Context.MaxArrayLength,
-                    values.Length);
+                    values.Length
+                );
             }
 
             // write length.
@@ -2274,8 +2298,9 @@ namespace Opc.Ua
 
                 default:
                     throw new ServiceResultException(
-                            StatusCodes.BadEncodingError,
-                            Utils.Format("NodeId identifier type '{0}' not supported.", idType));
+                        StatusCodes.BadEncodingError,
+                        Utils.Format("NodeId identifier type '{0}' not supported.", idType)
+                    );
             }
 
             return Convert.ToByte(encoding, CultureInfo.InvariantCulture);
@@ -2323,7 +2348,16 @@ namespace Opc.Ua
         /// <summary>
         /// Writes an Variant to the stream.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
+        [
+            System.Diagnostics.CodeAnalysis.SuppressMessage(
+                "Microsoft.Maintainability",
+                "CA1506:AvoidExcessiveClassCoupling"
+            ),
+            System.Diagnostics.CodeAnalysis.SuppressMessage(
+                "Microsoft.Maintainability",
+                "CA1502:AvoidExcessiveComplexity"
+            )
+        ]
         private void WriteVariantValue(string fieldName, Variant value)
         {
             // check for null.
@@ -2452,7 +2486,8 @@ namespace Opc.Ua
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingError,
                     "Unexpected type encountered while encoding a Variant: {0}",
-                    value.TypeInfo.BuiltInType);
+                    value.TypeInfo.BuiltInType
+                );
             }
 
             if (value.TypeInfo.ValueRank >= 0)
@@ -2572,7 +2607,11 @@ namespace Opc.Ua
                             {
                                 throw new ServiceResultException(
                                     StatusCodes.BadEncodingError,
-                                    Utils.Format("Type '{0}' is not allowed in an Enumeration.", value.GetType().FullName));
+                                    Utils.Format(
+                                        "Type '{0}' is not allowed in an Enumeration.",
+                                        value.GetType().FullName
+                                    )
+                                );
                             }
                             ints = new int[enums.Length];
                             for (int ii = 0; ii < enums.Length; ii++)
@@ -2600,7 +2639,8 @@ namespace Opc.Ua
                         throw ServiceResultException.Create(
                             StatusCodes.BadEncodingError,
                             "Unexpected type encountered while encoding a Matrix: {0}",
-                            valueToEncode.GetType());
+                            valueToEncode.GetType()
+                        );
 
                     case BuiltInType.DiagnosticInfo:
                         WriteDiagnosticInfoArray(null, (DiagnosticInfo[])valueToEncode);
@@ -2608,9 +2648,10 @@ namespace Opc.Ua
 
                     default:
                         throw ServiceResultException.Create(
-                                StatusCodes.BadEncodingError,
-                                "Unexpected type encountered while encoding a Variant: {0}",
-                                value.TypeInfo.BuiltInType);
+                            StatusCodes.BadEncodingError,
+                            "Unexpected type encountered while encoding a Variant: {0}",
+                            value.TypeInfo.BuiltInType
+                        );
                 }
 
                 // write the dimensions.
@@ -2632,7 +2673,8 @@ namespace Opc.Ua
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,
                     "Maximum nesting level of {0} was exceeded",
-                    Context.MaxEncodingNestingLevels);
+                    Context.MaxEncodingNestingLevels
+                );
             }
             m_nestingLevel++;
         }
@@ -2655,7 +2697,7 @@ namespace Opc.Ua
         Numeric = 0x02,
         String = 0x03,
         Guid = 0x04,
-        ByteString = 0x05
+        ByteString = 0x05,
     }
 
     /// <summary>
@@ -2682,7 +2724,7 @@ namespace Opc.Ua
     {
         None = 0,
         Locale = 0x01,
-        Text = 0x02
+        Text = 0x02,
     }
 
     /// <summary>
@@ -2697,7 +2739,7 @@ namespace Opc.Ua
         SourceTimestamp = 0x04,
         ServerTimestamp = 0x08,
         SourcePicoseconds = 0x10,
-        ServerPicoseconds = 0x20
+        ServerPicoseconds = 0x20,
     }
 
     /// <summary>
@@ -2709,7 +2751,7 @@ namespace Opc.Ua
         None = 0,
         TypeId = 0x01,
         BinaryBody = 0x02,
-        XmlBody = 0x04
+        XmlBody = 0x04,
     }
 
 #pragma warning disable RCS1157 // Composite enum value contains undefined flag
@@ -2722,7 +2764,7 @@ namespace Opc.Ua
         None = 0,
         TypeMask = 0x3F,
         ArrayDimensions = 0x40,
-        Array = 0x80
+        Array = 0x80,
     }
 #pragma warning restore RCS1157 // Composite enum value contains undefined flag
 }

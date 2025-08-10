@@ -37,10 +37,7 @@ namespace Opc.Ua
         /// <param name="context">The system context.</param>
         public void Activate(ISystemContext context)
         {
-            var state = new TranslationInfo(
-                "ConditionStateDialogActive",
-                "en-US",
-                ConditionStateNames.Active);
+            var state = new TranslationInfo("ConditionStateDialogActive", "en-US", ConditionStateNames.Active);
 
             DialogState.Value = new LocalizedText(state);
             DialogState.Id.Value = true;
@@ -62,10 +59,7 @@ namespace Opc.Ua
         {
             LastResponse.Value = response;
 
-            var state = new TranslationInfo(
-                "ConditionStateDialogInactive",
-                "en-US",
-                ConditionStateNames.Inactive);
+            var state = new TranslationInfo("ConditionStateDialogInactive", "en-US", ConditionStateNames.Inactive);
 
             DialogState.Value = new LocalizedText(state);
             DialogState.Id.Value = false;
@@ -125,7 +119,8 @@ namespace Opc.Ua
             ISystemContext context,
             MethodState method,
             NodeId objectId,
-            int selectedResponse)
+            int selectedResponse
+        )
         {
             ServiceResult error = null;
 
@@ -168,7 +163,8 @@ namespace Opc.Ua
                     var info = new TranslationInfo(
                         "AuditConditionDialogResponse",
                         "en-US",
-                        "The Respond method was called.");
+                        "The Respond method was called."
+                    );
 
                     e.Initialize(
                         context,
@@ -176,7 +172,8 @@ namespace Opc.Ua
                         EventSeverity.Low,
                         new LocalizedText(info),
                         ServiceResult.IsGood(error),
-                        DateTime.UtcNow);
+                        DateTime.UtcNow
+                    );
 
                     e.SetChildValue(context, BrowseNames.SourceNode, NodeId, false);
                     e.SetChildValue(context, BrowseNames.SourceName, "Method/Respond", false);
@@ -184,7 +181,12 @@ namespace Opc.Ua
                     e.SetChildValue(context, BrowseNames.MethodId, method.NodeId, false);
                     e.SetChildValue(context, BrowseNames.InputArguments, new object[] { selectedResponse }, false);
 
-                    e.SetChildValue(context, BrowseNames.SelectedResponse, selectedResponse.ToString(CultureInfo.InvariantCulture), false);
+                    e.SetChildValue(
+                        context,
+                        BrowseNames.SelectedResponse,
+                        selectedResponse.ToString(CultureInfo.InvariantCulture),
+                        false
+                    );
 
                     ReportEvent(context, e);
                 }
@@ -200,5 +202,6 @@ namespace Opc.Ua
     public delegate ServiceResult DialogResponseEventHandler(
         ISystemContext context,
         DialogConditionState dialog,
-        int selectedResponse);
+        int selectedResponse
+    );
 }

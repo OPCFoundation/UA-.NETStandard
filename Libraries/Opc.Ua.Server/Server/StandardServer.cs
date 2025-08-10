@@ -58,9 +58,23 @@ namespace Opc.Ua.Server
         /// An overrideable version of the Dispose.
         /// </summary>
         /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2213:DisposableFieldsShouldBeDisposed", MessageId = "m_serverInternal"),
-         System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2213:DisposableFieldsShouldBeDisposed", MessageId = "m_registrationTimer"),
-         System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2213:DisposableFieldsShouldBeDisposed", MessageId = "m_configurationWatcher")]
+        [
+            System.Diagnostics.CodeAnalysis.SuppressMessage(
+                "Microsoft.Usage",
+                "CA2213:DisposableFieldsShouldBeDisposed",
+                MessageId = "m_serverInternal"
+            ),
+            System.Diagnostics.CodeAnalysis.SuppressMessage(
+                "Microsoft.Usage",
+                "CA2213:DisposableFieldsShouldBeDisposed",
+                MessageId = "m_registrationTimer"
+            ),
+            System.Diagnostics.CodeAnalysis.SuppressMessage(
+                "Microsoft.Usage",
+                "CA2213:DisposableFieldsShouldBeDisposed",
+                MessageId = "m_configurationWatcher"
+            )
+        ]
         protected override void Dispose(bool disposing)
         {
             if (disposing)
@@ -106,7 +120,8 @@ namespace Opc.Ua.Server
             string endpointUrl,
             StringCollection localeIds,
             StringCollection serverUris,
-            out ApplicationDescriptionCollection servers)
+            out ApplicationDescriptionCollection servers
+        )
         {
             servers = [];
 
@@ -163,7 +178,8 @@ namespace Opc.Ua.Server
                         parsedEndpointUrl,
                         server,
                         baseAddresses,
-                        applicationName);
+                        applicationName
+                    );
 
                     uniqueServers.Add(server.ApplicationUri, application);
 
@@ -191,7 +207,8 @@ namespace Opc.Ua.Server
             string endpointUrl,
             StringCollection localeIds,
             StringCollection profileUris,
-            out EndpointDescriptionCollection endpoints)
+            out EndpointDescriptionCollection endpoints
+        )
         {
             endpoints = null;
 
@@ -203,10 +220,7 @@ namespace Opc.Ua.Server
                 IList<BaseAddress> baseAddresses = FilterByProfile(profileUris, BaseAddresses);
 
                 // get the descriptions.
-                endpoints = GetEndpointDescriptions(
-                    endpointUrl,
-                    baseAddresses,
-                    localeIds);
+                endpoints = GetEndpointDescriptions(endpointUrl, baseAddresses, localeIds);
             }
 
             return CreateResponse(requestHeader, StatusCodes.Good);
@@ -218,7 +232,8 @@ namespace Opc.Ua.Server
         protected EndpointDescriptionCollection GetEndpointDescriptions(
             string endpointUrl,
             IList<BaseAddress> baseAddresses,
-            StringCollection localeIds)
+            StringCollection localeIds
+        )
         {
             EndpointDescriptionCollection endpoints = null;
 
@@ -246,14 +261,11 @@ namespace Opc.Ua.Server
                     parsedEndpointUrl,
                     ServerDescription,
                     baseAddresses,
-                    applicationName);
+                    applicationName
+                );
 
                 // translate the endpoint descriptions.
-                endpoints = TranslateEndpointDescriptions(
-                    parsedEndpointUrl,
-                    baseAddresses,
-                    Endpoints,
-                    application);
+                endpoints = TranslateEndpointDescriptions(parsedEndpointUrl, baseAddresses, Endpoints, application);
             }
 
             return endpoints;
@@ -265,23 +277,26 @@ namespace Opc.Ua.Server
             EndpointDescription endpointDescription,
             OpenSecureChannelRequest request,
             X509Certificate2 clientCertificate,
-            Exception exception)
+            Exception exception
+        )
         {
-            ServerInternal?.ReportAuditOpenSecureChannelEvent(globalChannelId, endpointDescription, request, clientCertificate, exception);
+            ServerInternal?.ReportAuditOpenSecureChannelEvent(
+                globalChannelId,
+                endpointDescription,
+                request,
+                clientCertificate,
+                exception
+            );
         }
 
         /// <inheritdoc/>
-        public override void ReportAuditCloseSecureChannelEvent(
-            string globalChannelId,
-            Exception exception)
+        public override void ReportAuditCloseSecureChannelEvent(string globalChannelId, Exception exception)
         {
             ServerInternal?.ReportAuditCloseSecureChannelEvent(globalChannelId, exception);
         }
 
         /// <inheritdoc/>
-        public override void ReportAuditCertificateEvent(
-            X509Certificate2 clientCertificate,
-            Exception exception)
+        public override void ReportAuditCertificateEvent(X509Certificate2 clientCertificate, Exception exception)
         {
             ServerInternal?.ReportAuditCertificateEvent(clientCertificate, exception);
         }
@@ -328,7 +343,8 @@ namespace Opc.Ua.Server
             out EndpointDescriptionCollection serverEndpoints,
             out SignedSoftwareCertificateCollection serverSoftwareCertificates,
             out SignatureData serverSignature,
-            out uint maxRequestMessageSize)
+            out uint maxRequestMessageSize
+        )
         {
             sessionId = 0;
             revisedSessionTimeout = 0;
@@ -364,7 +380,9 @@ namespace Opc.Ua.Server
                 {
                     try
                     {
-                        X509Certificate2Collection clientCertificateChain = ParseCertificateChainBlob(clientCertificate);
+                        X509Certificate2Collection clientCertificateChain = ParseCertificateChainBlob(
+                            clientCertificate
+                        );
                         parsedClientCertificate = clientCertificateChain[0];
 
                         if (clientCertificateChain.Count > 1)
@@ -378,20 +396,31 @@ namespace Opc.Ua.Server
 
                         if (context.SecurityPolicyUri != SecurityPolicies.None)
                         {
-                            string certificateApplicationUri = X509Utils.GetApplicationUriFromCertificate(parsedClientCertificate);
+                            string certificateApplicationUri = X509Utils.GetApplicationUriFromCertificate(
+                                parsedClientCertificate
+                            );
 
                             // verify if applicationUri from ApplicationDescription matches the applicationUri in the client certificate.
-                            if (!string.IsNullOrEmpty(certificateApplicationUri) &&
-                                !string.IsNullOrEmpty(clientDescription.ApplicationUri) &&
-                                certificateApplicationUri != clientDescription.ApplicationUri)
+                            if (
+                                !string.IsNullOrEmpty(certificateApplicationUri)
+                                && !string.IsNullOrEmpty(clientDescription.ApplicationUri)
+                                && certificateApplicationUri != clientDescription.ApplicationUri
+                            )
                             {
                                 // report the AuditCertificateDataMismatch event for invalid uri
-                                ServerInternal?.ReportAuditCertificateDataMismatchEvent(parsedClientCertificate, null, clientDescription.ApplicationUri, StatusCodes.BadCertificateUriInvalid);
+                                ServerInternal?.ReportAuditCertificateDataMismatchEvent(
+                                    parsedClientCertificate,
+                                    null,
+                                    clientDescription.ApplicationUri,
+                                    StatusCodes.BadCertificateUriInvalid
+                                );
 
                                 throw ServiceResultException.Create(
                                     StatusCodes.BadCertificateUriInvalid,
                                     "The URI specified in the ApplicationDescription {0} does not match the URI in the Certificate: {1}.",
-                                    clientDescription.ApplicationUri, certificateApplicationUri);
+                                    clientDescription.ApplicationUri,
+                                    certificateApplicationUri
+                                );
                             }
 
                             CertificateValidator.Validate(clientCertificateChain);
@@ -422,7 +451,9 @@ namespace Opc.Ua.Server
                 }
 
                 // load the certificate for the security profile
-                X509Certificate2 instanceCertificate = InstanceCertificateTypesProvider.GetInstanceCertificate(context.SecurityPolicyUri);
+                X509Certificate2 instanceCertificate = InstanceCertificateTypesProvider.GetInstanceCertificate(
+                    context.SecurityPolicyUri
+                );
 
                 // create the session.
                 session = ServerInternal.SessionManager.CreateSession(
@@ -439,29 +470,37 @@ namespace Opc.Ua.Server
                     out sessionId,
                     out authenticationToken,
                     out serverNonce,
-                    out revisedSessionTimeout);
+                    out revisedSessionTimeout
+                );
 
                 if (endpointUrl != null)
                 {
                     try
                     {
                         // check the endpointurl
-                        var configuredEndpoint = new ConfiguredEndpoint()
-                        {
-                            EndpointUrl = new Uri(endpointUrl)
-                        };
+                        var configuredEndpoint = new ConfiguredEndpoint() { EndpointUrl = new Uri(endpointUrl) };
 
                         CertificateValidator.ValidateDomains(instanceCertificate, configuredEndpoint, true);
                     }
-                    catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadCertificateHostNameInvalid)
+                    catch (ServiceResultException sre)
+                        when (sre.StatusCode == StatusCodes.BadCertificateHostNameInvalid)
                     {
-                        LogWarning("Server - Client connects with an endpointUrl [{0}] which does not match Server hostnames.", endpointUrl);
-                        ServerInternal.ReportAuditUrlMismatchEvent(context?.AuditEntryId, session, revisedSessionTimeout, endpointUrl);
+                        LogWarning(
+                            "Server - Client connects with an endpointUrl [{0}] which does not match Server hostnames.",
+                            endpointUrl
+                        );
+                        ServerInternal.ReportAuditUrlMismatchEvent(
+                            context?.AuditEntryId,
+                            session,
+                            revisedSessionTimeout,
+                            endpointUrl
+                        );
                     }
                 }
 
-#if ECC_SUPPORT 
-                var parameters = ExtensionObject.ToEncodeable(requestHeader.AdditionalHeader) as AdditionalParametersType;
+#if ECC_SUPPORT
+                var parameters =
+                    ExtensionObject.ToEncodeable(requestHeader.AdditionalHeader) as AdditionalParametersType;
 
                 if (parameters != null)
                 {
@@ -476,7 +515,9 @@ namespace Opc.Ua.Server
                         // check if complete chain should be sent.
                         if (InstanceCertificateTypesProvider.SendCertificateChain)
                         {
-                            serverCertificate = InstanceCertificateTypesProvider.LoadCertificateChainRaw(instanceCertificate);
+                            serverCertificate = InstanceCertificateTypesProvider.LoadCertificateChainRaw(
+                                instanceCertificate
+                            );
                         }
                         else
                         {
@@ -497,7 +538,11 @@ namespace Opc.Ua.Server
                     if (parsedClientCertificate != null && clientNonce != null)
                     {
                         byte[] dataToSign = Append(parsedClientCertificate.RawData, clientNonce);
-                        serverSignature = SecurityPolicies.Sign(instanceCertificate, context.SecurityPolicyUri, dataToSign);
+                        serverSignature = SecurityPolicies.Sign(
+                            instanceCertificate,
+                            context.SecurityPolicyUri,
+                            dataToSign
+                        );
                     }
                 }
 
@@ -514,7 +559,7 @@ namespace Opc.Ua.Server
 
                 ResponseHeader responseHeader = CreateResponse(requestHeader, StatusCodes.Good);
 
-#if ECC_SUPPORT 
+#if ECC_SUPPORT
                 if (parameters != null)
                 {
                     responseHeader.AdditionalHeader = new ExtensionObject(parameters);
@@ -562,7 +607,10 @@ namespace Opc.Ua.Server
         /// <param name="session">The session</param>
         /// <param name="parameters">The additional parameters for the session</param>
         /// <returns>An AdditionalParametersType object containing the processed parameters</returns>
-        protected virtual AdditionalParametersType CreateSessionProcessAdditionalParameters(ISession session, AdditionalParametersType parameters)
+        protected virtual AdditionalParametersType CreateSessionProcessAdditionalParameters(
+            ISession session,
+            AdditionalParametersType parameters
+        )
         {
             AdditionalParametersType response = null;
 
@@ -580,11 +628,15 @@ namespace Opc.Ua.Server
                         {
                             session.SetEccUserTokenSecurityPolicy(policyUri);
                             EphemeralKeyType key = session.GetNewEccKey();
-                            response.Parameters.Add(new KeyValuePair() { Key = "ECDHKey", Value = new ExtensionObject(key) });
+                            response.Parameters.Add(
+                                new KeyValuePair() { Key = "ECDHKey", Value = new ExtensionObject(key) }
+                            );
                         }
                         else
                         {
-                            response.Parameters.Add(new KeyValuePair() { Key = "ECDHKey", Value = StatusCodes.BadSecurityPolicyRejected });
+                            response.Parameters.Add(
+                                new KeyValuePair() { Key = "ECDHKey", Value = StatusCodes.BadSecurityPolicyRejected }
+                            );
                         }
                     }
                 }
@@ -599,7 +651,10 @@ namespace Opc.Ua.Server
         /// <param name="session">The session</param>
         /// <param name="parameters">The additional parameters for the session</param>
         /// <returns>An AdditionalParametersType object containing the processed parameters</returns>
-        protected virtual AdditionalParametersType ActivateSessionProcessAdditionalParameters(ISession session, AdditionalParametersType parameters)
+        protected virtual AdditionalParametersType ActivateSessionProcessAdditionalParameters(
+            ISession session,
+            AdditionalParametersType parameters
+        )
         {
             AdditionalParametersType response = null;
 
@@ -613,7 +668,6 @@ namespace Opc.Ua.Server
 
             return response;
         }
-
 #endif
 
         /// <summary>
@@ -640,7 +694,8 @@ namespace Opc.Ua.Server
             SignatureData userTokenSignature,
             out byte[] serverNonce,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos
+        )
         {
             serverNonce = null;
             results = null;
@@ -671,7 +726,8 @@ namespace Opc.Ua.Server
                         ServiceResult result = SoftwareCertificate.Validate(
                             CertificateValidator,
                             signedCertificate.CertificateData,
-                            out softwareCertificate);
+                            out softwareCertificate
+                        );
 
                         if (ServiceResult.IsBad(result))
                         {
@@ -680,7 +736,11 @@ namespace Opc.Ua.Server
                             // add diagnostics if requested.
                             if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                             {
-                                DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(ServerInternal, context, result);
+                                DiagnosticInfo diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
+                                    ServerInternal,
+                                    context,
+                                    result
+                                );
                                 diagnosticInfos.Add(diagnosticInfo);
                                 diagnosticsExist = true;
                             }
@@ -716,7 +776,8 @@ namespace Opc.Ua.Server
                     userIdentityToken,
                     userTokenSignature,
                     localeIds,
-                    out serverNonce);
+                    out serverNonce
+                );
 
                 if (identityChanged)
                 {
@@ -725,7 +786,8 @@ namespace Opc.Ua.Server
 
                 ISession session = ServerInternal.SessionManager.GetSession(requestHeader.AuthenticationToken);
 #if ECC_SUPPORT
-                var parameters = ExtensionObject.ToEncodeable(requestHeader.AdditionalHeader) as AdditionalParametersType;
+                var parameters =
+                    ExtensionObject.ToEncodeable(requestHeader.AdditionalHeader) as AdditionalParametersType;
                 parameters = ActivateSessionProcessAdditionalParameters(session, parameters);
 #endif
 
@@ -827,11 +889,16 @@ namespace Opc.Ua.Server
                 ServiceResult = exception.StatusCode,
 
                 Timestamp = DateTime.UtcNow,
-                RequestHandle = requestHeader.RequestHandle
+                RequestHandle = requestHeader.RequestHandle,
             };
 
             var stringTable = new StringTable();
-            responseHeader.ServiceDiagnostics = new DiagnosticInfo(exception, (DiagnosticsMasks)requestHeader.ReturnDiagnostics, true, stringTable);
+            responseHeader.ServiceDiagnostics = new DiagnosticInfo(
+                exception,
+                (DiagnosticsMasks)requestHeader.ReturnDiagnostics,
+                true,
+                stringTable
+            );
             responseHeader.StringTable = stringTable.ToArray();
 
             return responseHeader;
@@ -855,7 +922,7 @@ namespace Opc.Ua.Server
 
                 ServerInternal.CloseSession(context, context.Session.Id, deleteSubscriptions);
 
-                // report the audit event for close session                
+                // report the audit event for close session
                 ServerInternal.ReportAuditCloseSessionEvent(context.AuditEntryId, session, "Session/CloseSession");
 
                 return CreateResponse(requestHeader, context.StringTable);
@@ -889,10 +956,7 @@ namespace Opc.Ua.Server
         /// <returns>
         /// Returns a <see cref="ResponseHeader"/> object
         /// </returns>
-        public override ResponseHeader Cancel(
-            RequestHeader requestHeader,
-            uint requestHandle,
-            out uint cancelCount)
+        public override ResponseHeader Cancel(RequestHeader requestHeader, uint requestHandle, out uint cancelCount)
         {
             cancelCount = 0;
 
@@ -942,7 +1006,8 @@ namespace Opc.Ua.Server
             uint requestedMaxReferencesPerNode,
             BrowseDescriptionCollection nodesToBrowse,
             out BrowseResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos
+        )
         {
             results = null;
             diagnosticInfos = null;
@@ -959,7 +1024,8 @@ namespace Opc.Ua.Server
                     requestedMaxReferencesPerNode,
                     nodesToBrowse,
                     out results,
-                    out diagnosticInfos);
+                    out diagnosticInfos
+                );
 
                 return CreateResponse(requestHeader, context.StringTable);
             }
@@ -999,7 +1065,8 @@ namespace Opc.Ua.Server
             bool releaseContinuationPoints,
             ByteStringCollection continuationPoints,
             out BrowseResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos
+        )
         {
             results = null;
             diagnosticInfos = null;
@@ -1015,7 +1082,8 @@ namespace Opc.Ua.Server
                     releaseContinuationPoints,
                     continuationPoints,
                     out results,
-                    out diagnosticInfos);
+                    out diagnosticInfos
+                );
 
                 return CreateResponse(requestHeader, context.StringTable);
             }
@@ -1051,7 +1119,8 @@ namespace Opc.Ua.Server
         public override ResponseHeader RegisterNodes(
             RequestHeader requestHeader,
             NodeIdCollection nodesToRegister,
-            out NodeIdCollection registeredNodeIds)
+            out NodeIdCollection registeredNodeIds
+        )
         {
             registeredNodeIds = null;
 
@@ -1061,10 +1130,7 @@ namespace Opc.Ua.Server
             {
                 ValidateOperationLimits(nodesToRegister, OperationLimits.MaxNodesPerRegisterNodes);
 
-                m_serverInternal.NodeManager.RegisterNodes(
-                    context,
-                    nodesToRegister,
-                    out registeredNodeIds);
+                m_serverInternal.NodeManager.RegisterNodes(context, nodesToRegister, out registeredNodeIds);
 
                 return CreateResponse(requestHeader, context.StringTable);
             }
@@ -1104,9 +1170,7 @@ namespace Opc.Ua.Server
             {
                 ValidateOperationLimits(nodesToUnregister, OperationLimits.MaxNodesPerRegisterNodes);
 
-                m_serverInternal.NodeManager.UnregisterNodes(
-                    context,
-                    nodesToUnregister);
+                m_serverInternal.NodeManager.UnregisterNodes(context, nodesToUnregister);
 
                 return CreateResponse(requestHeader, context.StringTable);
             }
@@ -1144,7 +1208,8 @@ namespace Opc.Ua.Server
             RequestHeader requestHeader,
             BrowsePathCollection browsePaths,
             out BrowsePathResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos
+        )
         {
             results = null;
             diagnosticInfos = null;
@@ -1157,14 +1222,18 @@ namespace Opc.Ua.Server
 
                 foreach (BrowsePath bp in browsePaths)
                 {
-                    ValidateOperationLimits(bp.RelativePath.Elements.Count, OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds);
+                    ValidateOperationLimits(
+                        bp.RelativePath.Elements.Count,
+                        OperationLimits.MaxNodesPerTranslateBrowsePathsToNodeIds
+                    );
                 }
 
                 m_serverInternal.NodeManager.TranslateBrowsePathsToNodeIds(
                     context,
                     browsePaths,
                     out results,
-                    out diagnosticInfos);
+                    out diagnosticInfos
+                );
 
                 return CreateResponse(requestHeader, context.StringTable);
             }
@@ -1206,7 +1275,8 @@ namespace Opc.Ua.Server
             TimestampsToReturn timestampsToReturn,
             ReadValueIdCollection nodesToRead,
             out DataValueCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos
+        )
         {
             OperationContext context = ValidateRequest(requestHeader, RequestType.Read);
 
@@ -1220,7 +1290,8 @@ namespace Opc.Ua.Server
                     timestampsToReturn,
                     nodesToRead,
                     out results,
-                    out diagnosticInfos);
+                    out diagnosticInfos
+                );
 
                 return CreateResponse(requestHeader, context.StringTable);
             }
@@ -1266,7 +1337,8 @@ namespace Opc.Ua.Server
             bool releaseContinuationPoints,
             HistoryReadValueIdCollection nodesToRead,
             out HistoryReadResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos
+        )
         {
             OperationContext context = ValidateRequest(requestHeader, RequestType.HistoryRead);
 
@@ -1288,7 +1360,8 @@ namespace Opc.Ua.Server
                     releaseContinuationPoints,
                     nodesToRead,
                     out results,
-                    out diagnosticInfos);
+                    out diagnosticInfos
+                );
 
                 return CreateResponse(requestHeader, context.StringTable);
             }
@@ -1328,7 +1401,8 @@ namespace Opc.Ua.Server
             RequestHeader requestHeader,
             WriteValueCollection nodesToWrite,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos
+        )
         {
             OperationContext context = ValidateRequest(requestHeader, RequestType.Write);
 
@@ -1336,11 +1410,7 @@ namespace Opc.Ua.Server
             {
                 ValidateOperationLimits(nodesToWrite, OperationLimits.MaxNodesPerWrite);
 
-                m_serverInternal.NodeManager.Write(
-                    context,
-                    nodesToWrite,
-                    out results,
-                    out diagnosticInfos);
+                m_serverInternal.NodeManager.Write(context, nodesToWrite, out results, out diagnosticInfos);
 
                 return CreateResponse(requestHeader, context.StringTable);
             }
@@ -1378,7 +1448,8 @@ namespace Opc.Ua.Server
             RequestHeader requestHeader,
             ExtensionObjectCollection historyUpdateDetails,
             out HistoryUpdateResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos
+        )
         {
             OperationContext context = ValidateRequest(requestHeader, RequestType.HistoryUpdate);
 
@@ -1393,7 +1464,8 @@ namespace Opc.Ua.Server
                     context,
                     historyUpdateDetails,
                     out results,
-                    out diagnosticInfos);
+                    out diagnosticInfos
+                );
 
                 return CreateResponse(requestHeader, context.StringTable);
             }
@@ -1445,7 +1517,8 @@ namespace Opc.Ua.Server
             out uint subscriptionId,
             out double revisedPublishingInterval,
             out uint revisedLifetimeCount,
-            out uint revisedMaxKeepAliveCount)
+            out uint revisedMaxKeepAliveCount
+        )
         {
             OperationContext context = ValidateRequest(requestHeader, RequestType.CreateSubscription);
 
@@ -1462,7 +1535,8 @@ namespace Opc.Ua.Server
                     out subscriptionId,
                     out revisedPublishingInterval,
                     out revisedLifetimeCount,
-                    out revisedMaxKeepAliveCount);
+                    out revisedMaxKeepAliveCount
+                );
 
                 return CreateResponse(requestHeader, context.StringTable);
             }
@@ -1499,7 +1573,8 @@ namespace Opc.Ua.Server
             UInt32Collection subscriptionIds,
             bool sendInitialValues,
             out TransferResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos
+        )
         {
             results = null;
             diagnosticInfos = null;
@@ -1515,7 +1590,8 @@ namespace Opc.Ua.Server
                     subscriptionIds,
                     sendInitialValues,
                     out results,
-                    out diagnosticInfos);
+                    out diagnosticInfos
+                );
 
                 return CreateResponse(requestHeader, context.StringTable);
             }
@@ -1553,7 +1629,8 @@ namespace Opc.Ua.Server
             RequestHeader requestHeader,
             UInt32Collection subscriptionIds,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos
+        )
         {
             OperationContext context = ValidateRequest(requestHeader, RequestType.DeleteSubscriptions);
 
@@ -1565,7 +1642,8 @@ namespace Opc.Ua.Server
                     context,
                     subscriptionIds,
                     out results,
-                    out diagnosticInfos);
+                    out diagnosticInfos
+                );
 
                 return CreateResponse(requestHeader, context.StringTable);
             }
@@ -1611,7 +1689,8 @@ namespace Opc.Ua.Server
             out bool moreNotifications,
             out NotificationMessage notificationMessage,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos
+        )
         {
             OperationContext context = ValidateRequest(requestHeader, RequestType.Publish);
 
@@ -1628,7 +1707,11 @@ namespace Opc.Ua.Server
                 }
                 */
 
-                LogTrace("PUBLISH #{0} RECEIVED. TIME={1:hh:mm:ss.fff}", requestHeader.RequestHandle, requestHeader.Timestamp);
+                LogTrace(
+                    "PUBLISH #{0} RECEIVED. TIME={1:hh:mm:ss.fff}",
+                    requestHeader.RequestHandle,
+                    requestHeader.Timestamp
+                );
 
                 notificationMessage = ServerInternal.SubscriptionManager.Publish(
                     context,
@@ -1638,12 +1721,13 @@ namespace Opc.Ua.Server
                     out availableSequenceNumbers,
                     out moreNotifications,
                     out results,
-                    out diagnosticInfos);
+                    out diagnosticInfos
+                );
 
                 /*
                 if (notificationMessage != null)
                 {
-                    Utils.LogTrace(m_eventId, 
+                    Utils.LogTrace(m_eventId,
                         "PublishResponse: SubId={0} SeqNo={1}, PublishTime={2:mm:ss.fff}, Time={3:mm:ss.fff}",
                         subscriptionId,
                         notificationMessage.SequenceNumber,
@@ -1702,7 +1786,8 @@ namespace Opc.Ua.Server
                     out availableSequenceNumbers,
                     out moreNotifications,
                     out results,
-                    out diagnosticInfos);
+                    out diagnosticInfos
+                );
 
                 // request completed asynchronously.
                 if (notificationMessage != null)
@@ -1752,7 +1837,10 @@ namespace Opc.Ua.Server
             {
                 if (ServerInternal.SubscriptionManager.CompletePublish(context, operation))
                 {
-                    operation.Response.ResponseHeader = CreateResponse(request.Request.RequestHeader, context.StringTable);
+                    operation.Response.ResponseHeader = CreateResponse(
+                        request.Request.RequestHeader,
+                        context.StringTable
+                    );
                     request.OperationCompleted(operation.Response, null);
                     OnRequestComplete(context);
                 }
@@ -1789,7 +1877,8 @@ namespace Opc.Ua.Server
             RequestHeader requestHeader,
             uint subscriptionId,
             uint retransmitSequenceNumber,
-            out NotificationMessage notificationMessage)
+            out NotificationMessage notificationMessage
+        )
         {
             OperationContext context = ValidateRequest(requestHeader, RequestType.Republish);
 
@@ -1798,7 +1887,8 @@ namespace Opc.Ua.Server
                 notificationMessage = ServerInternal.SubscriptionManager.Republish(
                     context,
                     subscriptionId,
-                    retransmitSequenceNumber);
+                    retransmitSequenceNumber
+                );
 
                 return CreateResponse(requestHeader, context.StringTable);
             }
@@ -1848,7 +1938,8 @@ namespace Opc.Ua.Server
             byte priority,
             out double revisedPublishingInterval,
             out uint revisedLifetimeCount,
-            out uint revisedMaxKeepAliveCount)
+            out uint revisedMaxKeepAliveCount
+        )
         {
             OperationContext context = ValidateRequest(requestHeader, RequestType.ModifySubscription);
 
@@ -1864,7 +1955,8 @@ namespace Opc.Ua.Server
                     priority,
                     out revisedPublishingInterval,
                     out revisedLifetimeCount,
-                    out revisedMaxKeepAliveCount);
+                    out revisedMaxKeepAliveCount
+                );
 
                 return CreateResponse(requestHeader, context.StringTable);
             }
@@ -1904,7 +1996,8 @@ namespace Opc.Ua.Server
             bool publishingEnabled,
             UInt32Collection subscriptionIds,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos
+        )
         {
             OperationContext context = ValidateRequest(requestHeader, RequestType.SetPublishingMode);
 
@@ -1917,7 +2010,8 @@ namespace Opc.Ua.Server
                     publishingEnabled,
                     subscriptionIds,
                     out results,
-                    out diagnosticInfos);
+                    out diagnosticInfos
+                );
 
                 return CreateResponse(requestHeader, context.StringTable);
             }
@@ -1965,7 +2059,8 @@ namespace Opc.Ua.Server
             out StatusCodeCollection addResults,
             out DiagnosticInfoCollection addDiagnosticInfos,
             out StatusCodeCollection removeResults,
-            out DiagnosticInfoCollection removeDiagnosticInfos)
+            out DiagnosticInfoCollection removeDiagnosticInfos
+        )
         {
             addResults = null;
             addDiagnosticInfos = null;
@@ -1976,7 +2071,9 @@ namespace Opc.Ua.Server
 
             try
             {
-                if ((linksToAdd == null || linksToAdd.Count == 0) && (linksToRemove == null || linksToRemove.Count == 0))
+                if (
+                    (linksToAdd == null || linksToAdd.Count == 0) && (linksToRemove == null || linksToRemove.Count == 0)
+                )
                 {
                     throw new ServiceResultException(StatusCodes.BadNothingToDo);
                 }
@@ -1995,7 +2092,8 @@ namespace Opc.Ua.Server
                     out addResults,
                     out addDiagnosticInfos,
                     out removeResults,
-                    out removeDiagnosticInfos);
+                    out removeDiagnosticInfos
+                );
 
                 return CreateResponse(requestHeader, context.StringTable);
             }
@@ -2037,7 +2135,8 @@ namespace Opc.Ua.Server
             TimestampsToReturn timestampsToReturn,
             MonitoredItemCreateRequestCollection itemsToCreate,
             out MonitoredItemCreateResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos
+        )
         {
             OperationContext context = ValidateRequest(requestHeader, RequestType.CreateMonitoredItems);
 
@@ -2051,7 +2150,8 @@ namespace Opc.Ua.Server
                     timestampsToReturn,
                     itemsToCreate,
                     out results,
-                    out diagnosticInfos);
+                    out diagnosticInfos
+                );
 
                 return CreateResponse(requestHeader, context.StringTable);
             }
@@ -2093,7 +2193,8 @@ namespace Opc.Ua.Server
             TimestampsToReturn timestampsToReturn,
             MonitoredItemModifyRequestCollection itemsToModify,
             out MonitoredItemModifyResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos
+        )
         {
             OperationContext context = ValidateRequest(requestHeader, RequestType.ModifyMonitoredItems);
 
@@ -2107,7 +2208,8 @@ namespace Opc.Ua.Server
                     timestampsToReturn,
                     itemsToModify,
                     out results,
-                    out diagnosticInfos);
+                    out diagnosticInfos
+                );
 
                 return CreateResponse(requestHeader, context.StringTable);
             }
@@ -2147,7 +2249,8 @@ namespace Opc.Ua.Server
             uint subscriptionId,
             UInt32Collection monitoredItemIds,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos
+        )
         {
             OperationContext context = ValidateRequest(requestHeader, RequestType.DeleteMonitoredItems);
 
@@ -2160,7 +2263,8 @@ namespace Opc.Ua.Server
                     subscriptionId,
                     monitoredItemIds,
                     out results,
-                    out diagnosticInfos);
+                    out diagnosticInfos
+                );
 
                 return CreateResponse(requestHeader, context.StringTable);
             }
@@ -2202,7 +2306,8 @@ namespace Opc.Ua.Server
             MonitoringMode monitoringMode,
             UInt32Collection monitoredItemIds,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos
+        )
         {
             OperationContext context = ValidateRequest(requestHeader, RequestType.SetMonitoringMode);
 
@@ -2216,7 +2321,8 @@ namespace Opc.Ua.Server
                     monitoringMode,
                     monitoredItemIds,
                     out results,
-                    out diagnosticInfos);
+                    out diagnosticInfos
+                );
 
                 return CreateResponse(requestHeader, context.StringTable);
             }
@@ -2254,7 +2360,8 @@ namespace Opc.Ua.Server
             RequestHeader requestHeader,
             CallMethodRequestCollection methodsToCall,
             out CallMethodResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos
+        )
         {
             OperationContext context = ValidateRequest(requestHeader, RequestType.Call);
 
@@ -2262,11 +2369,7 @@ namespace Opc.Ua.Server
             {
                 ValidateOperationLimits(methodsToCall, OperationLimits.MaxNodesPerMethodCall);
 
-                m_serverInternal.NodeManager.Call(
-                    context,
-                    methodsToCall,
-                    out results,
-                    out diagnosticInfos);
+                m_serverInternal.NodeManager.Call(context, methodsToCall, out results, out diagnosticInfos);
 
                 return CreateResponse(requestHeader, context.StringTable);
             }
@@ -2315,7 +2418,9 @@ namespace Opc.Ua.Server
         /// Returns the current status of the server.
         /// </summary>
         /// <returns>Returns a ServerStatusDataType object</returns>
-        [Obsolete("No longer thread safe. To read the value use CurrentState, to write use CurrentInstance.UpdateServerStatus.")]
+        [Obsolete(
+            "No longer thread safe. To read the value use CurrentState, to write use CurrentInstance.UpdateServerStatus."
+        )]
         public ServerStatusDataType GetStatus()
         {
             lock (Lock)
@@ -2340,10 +2445,15 @@ namespace Opc.Ua.Server
             var configuration = new ApplicationConfiguration(Configuration);
 
             // use a dedicated certificate validator with the registration, but derive behavior from server config
-            var registrationCertificateValidator = new CertificateValidationEventHandler(RegistrationValidator_CertificateValidation);
+            var registrationCertificateValidator = new CertificateValidationEventHandler(
+                RegistrationValidator_CertificateValidation
+            );
             configuration.CertificateValidator = new CertificateValidator();
             configuration.CertificateValidator.CertificateValidation += registrationCertificateValidator;
-            configuration.CertificateValidator.UpdateAsync(configuration.SecurityConfiguration).GetAwaiter().GetResult();
+            configuration
+                .CertificateValidator.UpdateAsync(configuration.SecurityConfiguration)
+                .GetAwaiter()
+                .GetResult();
 
             try
             {
@@ -2377,18 +2487,19 @@ namespace Opc.Ua.Server
                                     endpoint.UpdateBeforeConnect = false;
                                 }
 
-                                var requestHeader = new RequestHeader
-                                {
-                                    Timestamp = DateTime.UtcNow
-                                };
+                                var requestHeader = new RequestHeader { Timestamp = DateTime.UtcNow };
 
                                 // create the client.
-                                X509Certificate2 instanceCertificate = InstanceCertificateTypesProvider.GetInstanceCertificate(endpoint.Description?.SecurityPolicyUri ?? SecurityPolicies.None);
+                                X509Certificate2 instanceCertificate =
+                                    InstanceCertificateTypesProvider.GetInstanceCertificate(
+                                        endpoint.Description?.SecurityPolicyUri ?? SecurityPolicies.None
+                                    );
                                 client = RegistrationClient.Create(
                                     configuration,
                                     endpoint.Description,
                                     endpoint.Configuration,
-                                    instanceCertificate);
+                                    instanceCertificate
+                                );
 
                                 client.OperationTimeout = 10000;
 
@@ -2401,7 +2512,7 @@ namespace Opc.Ua.Server
                                     var mdnsDiscoveryConfig = new MdnsDiscoveryConfiguration
                                     {
                                         ServerCapabilities = configuration.ServerConfiguration.ServerCapabilities,
-                                        MdnsServerName = GetHostName()
+                                        MdnsServerName = GetHostName(),
                                     };
                                     var extensionObject = new ExtensionObject(mdnsDiscoveryConfig);
                                     discoveryConfiguration.Add(extensionObject);
@@ -2410,7 +2521,8 @@ namespace Opc.Ua.Server
                                         m_registrationInfo,
                                         discoveryConfiguration,
                                         out configurationResults,
-                                        out diagnosticInfos);
+                                        out diagnosticInfos
+                                    );
                                 }
                                 else
                                 {
@@ -2422,8 +2534,12 @@ namespace Opc.Ua.Server
                             }
                             catch (Exception e)
                             {
-                                LogWarning("RegisterServer{0} failed for at: {1}. Exception={2}",
-                                    m_useRegisterServer2 ? "2" : "", endpoint.EndpointUrl, e.Message);
+                                LogWarning(
+                                    "RegisterServer{0} failed for at: {1}. Exception={2}",
+                                    m_useRegisterServer2 ? "2" : "",
+                                    endpoint.EndpointUrl,
+                                    e.Message
+                                );
                                 m_useRegisterServer2 = !m_useRegisterServer2;
                             }
                             finally
@@ -2437,7 +2553,10 @@ namespace Opc.Ua.Server
                                     }
                                     catch (Exception e)
                                     {
-                                        LogWarning("Could not cleanly close connection with LDS. Exception={0}", e.Message);
+                                        LogWarning(
+                                            "Could not cleanly close connection with LDS. Exception={0}",
+                                            e.Message
+                                        );
                                     }
                                 }
                             }
@@ -2461,7 +2580,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Checks that the domains in the certificate match the current host.
         /// </summary>
-        private void RegistrationValidator_CertificateValidation(CertificateValidator sender, CertificateValidationEventArgs e)
+        private void RegistrationValidator_CertificateValidation(
+            CertificateValidator sender,
+            CertificateValidationEventArgs e
+        )
         {
             System.Net.IPAddress[] targetAddresses = GetHostAddresses(GetHostName());
 
@@ -2510,10 +2632,14 @@ namespace Opc.Ua.Server
                                 OnRegisterServer,
                                 this,
                                 m_maxRegistrationInterval,
-                                Timeout.Infinite);
+                                Timeout.Infinite
+                            );
 
                             m_lastRegistrationInterval = m_minRegistrationInterval;
-                            LogInfo("Register server succeeded. Registering again in {0} ms", m_maxRegistrationInterval);
+                            LogInfo(
+                                "Register server succeeded. Registering again in {0} ms",
+                                m_maxRegistrationInterval
+                            );
                         }
                     }
                 }
@@ -2534,7 +2660,12 @@ namespace Opc.Ua.Server
                             LogInfo("Register server failed. Trying again in {0} ms", m_lastRegistrationInterval);
 
                             // create timer.
-                            m_registrationTimer = new Timer(OnRegisterServer, this, m_lastRegistrationInterval, Timeout.Infinite);
+                            m_registrationTimer = new Timer(
+                                OnRegisterServer,
+                                this,
+                                m_lastRegistrationInterval,
+                                Timeout.Infinite
+                            );
                         }
                     }
                 }
@@ -2558,9 +2689,7 @@ namespace Opc.Ua.Server
         {
             get
             {
-                IServerInternal serverInternal = m_serverInternal ?? throw new ServiceResultException(StatusCodes.BadServerHalted);
-
-                return serverInternal;
+                return m_serverInternal ?? throw new ServiceResultException(StatusCodes.BadServerHalted);
             }
         }
 
@@ -2725,7 +2854,11 @@ namespace Opc.Ua.Server
         /// <param name="preferredLocales">The preferred locales.</param>
         /// <param name="e">The ServiceResultException e.</param>
         /// <returns>Returns an exception thrown when a UA defined error occurs, the return type is <seealso cref="ServiceResultException"/>.</returns>
-        protected virtual ServiceResultException TranslateException(DiagnosticsMasks diagnosticsMasks, IList<string> preferredLocales, ServiceResultException e)
+        protected virtual ServiceResultException TranslateException(
+            DiagnosticsMasks diagnosticsMasks,
+            IList<string> preferredLocales,
+            ServiceResultException e
+        )
         {
             if (e == null)
             {
@@ -2735,7 +2868,12 @@ namespace Opc.Ua.Server
             // check if inner result required.
             ServiceResult innerResult = null;
 
-            if ((diagnosticsMasks & (DiagnosticsMasks.ServiceInnerDiagnostics | DiagnosticsMasks.ServiceInnerStatusCode)) != 0)
+            if (
+                (
+                    diagnosticsMasks
+                    & (DiagnosticsMasks.ServiceInnerDiagnostics | DiagnosticsMasks.ServiceInnerStatusCode)
+                ) != 0
+            )
             {
                 innerResult = e.InnerResult;
             }
@@ -2755,7 +2893,8 @@ namespace Opc.Ua.Server
                 e.NamespaceUri,
                 translatedText,
                 e.AdditionalInfo,
-                innerResult);
+                innerResult
+            );
 
             // translate result.
             result = m_serverInternal.ResourceManager.Translate(preferredLocales, result);
@@ -2769,7 +2908,11 @@ namespace Opc.Ua.Server
         /// <param name="preferredLocales">The preferred locales.</param>
         /// <param name="result">The result.</param>
         /// <returns>Returns a class that combines the status code and diagnostic info structures.</returns>
-        protected virtual ServiceResult TranslateResult(DiagnosticsMasks diagnosticsMasks, IList<string> preferredLocales, ServiceResult result)
+        protected virtual ServiceResult TranslateResult(
+            DiagnosticsMasks diagnosticsMasks,
+            IList<string> preferredLocales,
+            ServiceResult result
+        )
         {
             if (result == null)
             {
@@ -2802,14 +2945,13 @@ namespace Opc.Ua.Server
         /// <param name="sender">The sender.</param>
         /// <param name="args">The <see cref="ConfigurationWatcherEventArgs"/> instance containing the event data.</param>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2109:ReviewVisibleEventHandlers")]
-        protected virtual async void OnConfigurationChanged(object sender, ConfigurationWatcherEventArgs args)
+        protected virtual async void OnConfigurationChangedAsync(object sender, ConfigurationWatcherEventArgs args)
         {
             try
             {
-                ApplicationConfiguration configuration = await ApplicationConfiguration.LoadAsync(
-                    new FileInfo(args.FilePath),
-                    Configuration.ApplicationType,
-                    Configuration.GetType()).ConfigureAwait(false);
+                ApplicationConfiguration configuration = await ApplicationConfiguration
+                    .LoadAsync(new FileInfo(args.FilePath), Configuration.ApplicationType, Configuration.GetType())
+                    .ConfigureAwait(false);
 
                 OnUpdateConfiguration(configuration);
             }
@@ -2833,9 +2975,15 @@ namespace Opc.Ua.Server
                 // update security configuration.
                 configuration.SecurityConfiguration.Validate();
 
-                Configuration.SecurityConfiguration.TrustedIssuerCertificates = configuration.SecurityConfiguration.TrustedIssuerCertificates;
-                Configuration.SecurityConfiguration.TrustedPeerCertificates = configuration.SecurityConfiguration.TrustedPeerCertificates;
-                Configuration.SecurityConfiguration.RejectedCertificateStore = configuration.SecurityConfiguration.RejectedCertificateStore;
+                Configuration.SecurityConfiguration.TrustedIssuerCertificates = configuration
+                    .SecurityConfiguration
+                    .TrustedIssuerCertificates;
+                Configuration.SecurityConfiguration.TrustedPeerCertificates = configuration
+                    .SecurityConfiguration
+                    .TrustedPeerCertificates;
+                Configuration.SecurityConfiguration.RejectedCertificateStore = configuration
+                    .SecurityConfiguration
+                    .RejectedCertificateStore;
 
                 Configuration.CertificateValidator.UpdateAsync(Configuration.SecurityConfiguration).Wait();
 
@@ -2878,7 +3026,8 @@ namespace Opc.Ua.Server
             ApplicationConfiguration configuration,
             TransportListenerBindings bindingFactory,
             out ApplicationDescription serverDescription,
-            out EndpointDescriptionCollection endpoints)
+            out EndpointDescriptionCollection endpoints
+        )
         {
             serverDescription = null;
             endpoints = null;
@@ -2894,10 +3043,7 @@ namespace Opc.Ua.Server
             // ensure at least one user token policy exists.
             if (configuration.ServerConfiguration.UserTokenPolicies.Count == 0)
             {
-                var userTokenPolicy = new UserTokenPolicy
-                {
-                    TokenType = UserTokenType.Anonymous
-                };
+                var userTokenPolicy = new UserTokenPolicy { TokenType = UserTokenType.Anonymous };
                 userTokenPolicy.PolicyId = userTokenPolicy.TokenType.ToString();
 
                 configuration.ServerConfiguration.UserTokenPolicies.Add(userTokenPolicy);
@@ -2910,14 +3056,18 @@ namespace Opc.Ua.Server
                 ApplicationName = new LocalizedText("en-US", configuration.ApplicationName),
                 ApplicationType = configuration.ApplicationType,
                 ProductUri = configuration.ProductUri,
-                DiscoveryUrls = GetDiscoveryUrls()
+                DiscoveryUrls = GetDiscoveryUrls(),
             };
 
             endpoints = [];
             IList<EndpointDescription> endpointsForHost = null;
 
             StringCollection baseAddresses = configuration.ServerConfiguration.BaseAddresses;
-            foreach (string scheme in DefaultUriSchemes.Where(scheme => baseAddresses.Any(a => a.StartsWith(scheme, StringComparison.Ordinal))))
+            foreach (
+                string scheme in DefaultUriSchemes.Where(scheme =>
+                    baseAddresses.Any(a => a.StartsWith(scheme, StringComparison.Ordinal))
+                )
+            )
             {
                 ITransportListenerFactory binding = bindingFactory.GetBinding(scheme);
                 if (binding != null)
@@ -2930,7 +3080,7 @@ namespace Opc.Ua.Server
                         serverDescription,
                         configuration.ServerConfiguration.SecurityPolicies,
                         InstanceCertificateTypesProvider
-                        );
+                    );
                     endpoints.AddRange(endpointsForHost);
                 }
             }
@@ -2985,9 +3135,10 @@ namespace Opc.Ua.Server
                         configuration,
                         MessageContext,
                         new CertificateValidator(),
-                        InstanceCertificateTypesProvider);
+                        InstanceCertificateTypesProvider
+                    );
 
-                    // create the manager responsible for providing localized string resources.                    
+                    // create the manager responsible for providing localized string resources.
                     LogInfo(TraceMasks.StartStop, "Server - CreateResourceManager.");
                     ResourceManager resourceManager = CreateResourceManager(m_serverInternal, configuration);
 
@@ -3010,10 +3161,7 @@ namespace Opc.Ua.Server
                     EventManager eventManager = CreateEventManager(m_serverInternal, configuration);
 
                     // creates the server object.
-                    m_serverInternal.CreateServerObject(
-                        eventManager,
-                        resourceManager,
-                        requestManager);
+                    m_serverInternal.CreateServerObject(eventManager, resourceManager, requestManager);
 
                     // do any additional processing now that the node manager is up and running.
                     OnNodeManagerStarted(m_serverInternal);
@@ -3031,7 +3179,10 @@ namespace Opc.Ua.Server
                     sessionManager.SessionChannelKeepAlive += SessionChannelKeepAliveEvent;
 
                     //create the MonitoredItemQueueFactory
-                    IMonitoredItemQueueFactory monitoredItemQueueFactory = CreateMonitoredItemQueueFactory(m_serverInternal, configuration);
+                    IMonitoredItemQueueFactory monitoredItemQueueFactory = CreateMonitoredItemQueueFactory(
+                        m_serverInternal,
+                        configuration
+                    );
 
                     //add the MonitoredItemQueueFactory to the datastore.
                     m_serverInternal.SetMonitoredItemQueueFactory(monitoredItemQueueFactory);
@@ -3044,7 +3195,10 @@ namespace Opc.Ua.Server
 
                     // start the subscription manager.
                     LogInfo(TraceMasks.StartStop, "Server - CreateSubscriptionManager.");
-                    ISubscriptionManager subscriptionManager = CreateSubscriptionManager(m_serverInternal, configuration);
+                    ISubscriptionManager subscriptionManager = CreateSubscriptionManager(
+                        m_serverInternal,
+                        configuration
+                    );
                     subscriptionManager.Startup();
 
                     // add the session manager to the datastore.
@@ -3059,10 +3213,7 @@ namespace Opc.Ua.Server
 
                         ApplicationDescription serverDescription = ServerDescription;
 
-                        m_registrationInfo = new RegisteredServer
-                        {
-                            ServerUri = serverDescription.ApplicationUri
-                        };
+                        m_registrationInfo = new RegisteredServer { ServerUri = serverDescription.ApplicationUri };
                         m_registrationInfo.ServerNames.Add(serverDescription.ApplicationName);
                         m_registrationInfo.ProductUri = serverDescription.ProductUri;
                         m_registrationInfo.ServerType = serverDescription.ApplicationType;
@@ -3095,9 +3246,12 @@ namespace Opc.Ua.Server
                             endpoint = new EndpointDescription
                             {
                                 EndpointUrl = Format(DiscoveryUrls[0], "localhost"),
-                                SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256Sha256),
+                                SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(
+                                    MessageSecurityMode.SignAndEncrypt,
+                                    SecurityPolicies.Basic256Sha256
+                                ),
                                 SecurityMode = MessageSecurityMode.SignAndEncrypt,
-                                SecurityPolicyUri = SecurityPolicies.Basic256Sha256
+                                SecurityPolicyUri = SecurityPolicies.Basic256Sha256,
                             };
                             endpoint.Server.ApplicationType = ApplicationType.DiscoveryServer;
                         }
@@ -3118,7 +3272,12 @@ namespace Opc.Ua.Server
                         if (m_maxRegistrationInterval > 0)
                         {
                             LogInfo(TraceMasks.StartStop, "Server - Registration Timer started.");
-                            m_registrationTimer = new Timer(OnRegisterServer, this, m_minRegistrationInterval, Timeout.Infinite);
+                            m_registrationTimer = new Timer(
+                                OnRegisterServer,
+                                this,
+                                m_minRegistrationInterval,
+                                Timeout.Infinite
+                            );
                         }
                     }
 
@@ -3134,7 +3293,7 @@ namespace Opc.Ua.Server
                     {
                         LogInfo(TraceMasks.StartStop, "Server - Configuration watcher started.");
                         m_configurationWatcher = new ConfigurationWatcher(configuration);
-                        m_configurationWatcher.Changed += OnConfigurationChanged;
+                        m_configurationWatcher.Changed += OnConfigurationChangedAsync;
                     }
 
                     CertificateValidator.CertificateUpdate += OnCertificateUpdate;
@@ -3240,15 +3399,20 @@ namespace Opc.Ua.Server
                 if (currentessions.Count > 0)
                 {
                     // provide some time for the connected clients to detect the shutdown state.
-                    ServerInternal.UpdateServerStatus((status) =>
-                    {
-                        // set the shutdown reason and state.
-                        status.Value.ShutdownReason = new LocalizedText("en-US", "Application is shutting down.");
-                        status.Variable.ShutdownReason.Value = new LocalizedText("en-US", "Application is shutting down.");
-                        status.Value.State = ServerState.Shutdown;
-                        status.Variable.State.Value = ServerState.Shutdown;
-                        status.Variable.ClearChangeMasks(ServerInternal.DefaultSystemContext, true);
-                    });
+                    ServerInternal.UpdateServerStatus(
+                        (status) =>
+                        {
+                            // set the shutdown reason and state.
+                            status.Value.ShutdownReason = new LocalizedText("en-US", "Application is shutting down.");
+                            status.Variable.ShutdownReason.Value = new LocalizedText(
+                                "en-US",
+                                "Application is shutting down."
+                            );
+                            status.Value.State = ServerState.Shutdown;
+                            status.Variable.State.Value = ServerState.Shutdown;
+                            status.Variable.ClearChangeMasks(ServerInternal.DefaultSystemContext, true);
+                        }
+                    );
 
                     foreach (ISession session in currentessions)
                     {
@@ -3256,14 +3420,20 @@ namespace Opc.Ua.Server
                         ServerInternal.ReportAuditCloseSessionEvent(null, session, "Session/Terminated");
                     }
 
-                    for (int timeTillShutdown = Configuration.ServerConfiguration.ShutdownDelay; timeTillShutdown > 0; timeTillShutdown--)
+                    for (
+                        int timeTillShutdown = Configuration.ServerConfiguration.ShutdownDelay;
+                        timeTillShutdown > 0;
+                        timeTillShutdown--
+                    )
                     {
-                        ServerInternal.UpdateServerStatus((status) =>
-                        {
-                            status.Value.SecondsTillShutdown = (uint)timeTillShutdown;
-                            status.Variable.SecondsTillShutdown.Value = (uint)timeTillShutdown;
-                            status.Variable.ClearChangeMasks(ServerInternal.DefaultSystemContext, true);
-                        });
+                        ServerInternal.UpdateServerStatus(
+                            (status) =>
+                            {
+                                status.Value.SecondsTillShutdown = (uint)timeTillShutdown;
+                                status.Variable.SecondsTillShutdown.Value = (uint)timeTillShutdown;
+                                status.Variable.ClearChangeMasks(ServerInternal.DefaultSystemContext, true);
+                            }
+                        );
 
                         // exit if all client connections are closed.
                         int sessions = ServerInternal.SessionManager.GetSessions().Count;
@@ -3272,7 +3442,12 @@ namespace Opc.Ua.Server
                             break;
                         }
 
-                        LogInfo(TraceMasks.StartStop, "{0} active sessions. Seconds until shutdown: {1}s", sessions, timeTillShutdown);
+                        LogInfo(
+                            TraceMasks.StartStop,
+                            "{0} active sessions. Seconds until shutdown: {1}s",
+                            sessions,
+                            timeTillShutdown
+                        );
 
                         Thread.Sleep(1000);
                     }
@@ -3292,7 +3467,10 @@ namespace Opc.Ua.Server
         /// <returns>
         /// Returns an object that manages requests from within the server, return type is <seealso cref="RequestManager"/>.
         /// </returns>
-        protected virtual RequestManager CreateRequestManager(IServerInternal server, ApplicationConfiguration configuration)
+        protected virtual RequestManager CreateRequestManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration
+        )
         {
             return new RequestManager(server);
         }
@@ -3303,52 +3481,203 @@ namespace Opc.Ua.Server
         /// <param name="server">The server.</param>
         /// <param name="configuration">The application configuration.</param>
         /// <returns>The manager.</returns>
-        protected virtual AggregateManager CreateAggregateManager(IServerInternal server, ApplicationConfiguration configuration)
+        protected virtual AggregateManager CreateAggregateManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration
+        )
         {
             var manager = new AggregateManager(server);
 
-            manager.RegisterFactory(ObjectIds.AggregateFunction_Interpolative, BrowseNames.AggregateFunction_Interpolative, Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(ObjectIds.AggregateFunction_Average, BrowseNames.AggregateFunction_Average, Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(ObjectIds.AggregateFunction_TimeAverage, BrowseNames.AggregateFunction_TimeAverage, Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(ObjectIds.AggregateFunction_TimeAverage2, BrowseNames.AggregateFunction_TimeAverage2, Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(ObjectIds.AggregateFunction_Total, BrowseNames.AggregateFunction_Total, Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(ObjectIds.AggregateFunction_Total2, BrowseNames.AggregateFunction_Total2, Aggregators.CreateStandardCalculator);
+            manager.RegisterFactory(
+                ObjectIds.AggregateFunction_Interpolative,
+                BrowseNames.AggregateFunction_Interpolative,
+                Aggregators.CreateStandardCalculator
+            );
+            manager.RegisterFactory(
+                ObjectIds.AggregateFunction_Average,
+                BrowseNames.AggregateFunction_Average,
+                Aggregators.CreateStandardCalculator
+            );
+            manager.RegisterFactory(
+                ObjectIds.AggregateFunction_TimeAverage,
+                BrowseNames.AggregateFunction_TimeAverage,
+                Aggregators.CreateStandardCalculator
+            );
+            manager.RegisterFactory(
+                ObjectIds.AggregateFunction_TimeAverage2,
+                BrowseNames.AggregateFunction_TimeAverage2,
+                Aggregators.CreateStandardCalculator
+            );
+            manager.RegisterFactory(
+                ObjectIds.AggregateFunction_Total,
+                BrowseNames.AggregateFunction_Total,
+                Aggregators.CreateStandardCalculator
+            );
+            manager.RegisterFactory(
+                ObjectIds.AggregateFunction_Total2,
+                BrowseNames.AggregateFunction_Total2,
+                Aggregators.CreateStandardCalculator
+            );
 
-            manager.RegisterFactory(ObjectIds.AggregateFunction_Minimum, BrowseNames.AggregateFunction_Minimum, Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(ObjectIds.AggregateFunction_Maximum, BrowseNames.AggregateFunction_Maximum, Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(ObjectIds.AggregateFunction_MinimumActualTime, BrowseNames.AggregateFunction_MinimumActualTime, Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(ObjectIds.AggregateFunction_MaximumActualTime, BrowseNames.AggregateFunction_MaximumActualTime, Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(ObjectIds.AggregateFunction_Range, BrowseNames.AggregateFunction_Range, Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(ObjectIds.AggregateFunction_Minimum2, BrowseNames.AggregateFunction_Minimum2, Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(ObjectIds.AggregateFunction_Maximum2, BrowseNames.AggregateFunction_Maximum2, Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(ObjectIds.AggregateFunction_MinimumActualTime2, BrowseNames.AggregateFunction_MinimumActualTime2, Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(ObjectIds.AggregateFunction_MaximumActualTime2, BrowseNames.AggregateFunction_MaximumActualTime2, Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(ObjectIds.AggregateFunction_Range2, BrowseNames.AggregateFunction_Range2, Aggregators.CreateStandardCalculator);
+            manager.RegisterFactory(
+                ObjectIds.AggregateFunction_Minimum,
+                BrowseNames.AggregateFunction_Minimum,
+                Aggregators.CreateStandardCalculator
+            );
+            manager.RegisterFactory(
+                ObjectIds.AggregateFunction_Maximum,
+                BrowseNames.AggregateFunction_Maximum,
+                Aggregators.CreateStandardCalculator
+            );
+            manager.RegisterFactory(
+                ObjectIds.AggregateFunction_MinimumActualTime,
+                BrowseNames.AggregateFunction_MinimumActualTime,
+                Aggregators.CreateStandardCalculator
+            );
+            manager.RegisterFactory(
+                ObjectIds.AggregateFunction_MaximumActualTime,
+                BrowseNames.AggregateFunction_MaximumActualTime,
+                Aggregators.CreateStandardCalculator
+            );
+            manager.RegisterFactory(
+                ObjectIds.AggregateFunction_Range,
+                BrowseNames.AggregateFunction_Range,
+                Aggregators.CreateStandardCalculator
+            );
+            manager.RegisterFactory(
+                ObjectIds.AggregateFunction_Minimum2,
+                BrowseNames.AggregateFunction_Minimum2,
+                Aggregators.CreateStandardCalculator
+            );
+            manager.RegisterFactory(
+                ObjectIds.AggregateFunction_Maximum2,
+                BrowseNames.AggregateFunction_Maximum2,
+                Aggregators.CreateStandardCalculator
+            );
+            manager.RegisterFactory(
+                ObjectIds.AggregateFunction_MinimumActualTime2,
+                BrowseNames.AggregateFunction_MinimumActualTime2,
+                Aggregators.CreateStandardCalculator
+            );
+            manager.RegisterFactory(
+                ObjectIds.AggregateFunction_MaximumActualTime2,
+                BrowseNames.AggregateFunction_MaximumActualTime2,
+                Aggregators.CreateStandardCalculator
+            );
+            manager.RegisterFactory(
+                ObjectIds.AggregateFunction_Range2,
+                BrowseNames.AggregateFunction_Range2,
+                Aggregators.CreateStandardCalculator
+            );
 
-            manager.RegisterFactory(ObjectIds.AggregateFunction_Count, BrowseNames.AggregateFunction_Count, Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(ObjectIds.AggregateFunction_AnnotationCount, BrowseNames.AggregateFunction_AnnotationCount, Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(ObjectIds.AggregateFunction_DurationInStateZero, BrowseNames.AggregateFunction_DurationInStateZero, Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(ObjectIds.AggregateFunction_DurationInStateNonZero, BrowseNames.AggregateFunction_DurationInStateNonZero, Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(ObjectIds.AggregateFunction_NumberOfTransitions, BrowseNames.AggregateFunction_NumberOfTransitions, Aggregators.CreateStandardCalculator);
+            manager.RegisterFactory(
+                ObjectIds.AggregateFunction_Count,
+                BrowseNames.AggregateFunction_Count,
+                Aggregators.CreateStandardCalculator
+            );
+            manager.RegisterFactory(
+                ObjectIds.AggregateFunction_AnnotationCount,
+                BrowseNames.AggregateFunction_AnnotationCount,
+                Aggregators.CreateStandardCalculator
+            );
+            manager.RegisterFactory(
+                ObjectIds.AggregateFunction_DurationInStateZero,
+                BrowseNames.AggregateFunction_DurationInStateZero,
+                Aggregators.CreateStandardCalculator
+            );
+            manager.RegisterFactory(
+                ObjectIds.AggregateFunction_DurationInStateNonZero,
+                BrowseNames.AggregateFunction_DurationInStateNonZero,
+                Aggregators.CreateStandardCalculator
+            );
+            manager.RegisterFactory(
+                ObjectIds.AggregateFunction_NumberOfTransitions,
+                BrowseNames.AggregateFunction_NumberOfTransitions,
+                Aggregators.CreateStandardCalculator
+            );
 
-            manager.RegisterFactory(ObjectIds.AggregateFunction_Start, BrowseNames.AggregateFunction_Start, Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(ObjectIds.AggregateFunction_End, BrowseNames.AggregateFunction_End, Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(ObjectIds.AggregateFunction_Delta, BrowseNames.AggregateFunction_Delta, Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(ObjectIds.AggregateFunction_StartBound, BrowseNames.AggregateFunction_StartBound, Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(ObjectIds.AggregateFunction_EndBound, BrowseNames.AggregateFunction_EndBound, Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(ObjectIds.AggregateFunction_DeltaBounds, BrowseNames.AggregateFunction_DeltaBounds, Aggregators.CreateStandardCalculator);
+            manager.RegisterFactory(
+                ObjectIds.AggregateFunction_Start,
+                BrowseNames.AggregateFunction_Start,
+                Aggregators.CreateStandardCalculator
+            );
+            manager.RegisterFactory(
+                ObjectIds.AggregateFunction_End,
+                BrowseNames.AggregateFunction_End,
+                Aggregators.CreateStandardCalculator
+            );
+            manager.RegisterFactory(
+                ObjectIds.AggregateFunction_Delta,
+                BrowseNames.AggregateFunction_Delta,
+                Aggregators.CreateStandardCalculator
+            );
+            manager.RegisterFactory(
+                ObjectIds.AggregateFunction_StartBound,
+                BrowseNames.AggregateFunction_StartBound,
+                Aggregators.CreateStandardCalculator
+            );
+            manager.RegisterFactory(
+                ObjectIds.AggregateFunction_EndBound,
+                BrowseNames.AggregateFunction_EndBound,
+                Aggregators.CreateStandardCalculator
+            );
+            manager.RegisterFactory(
+                ObjectIds.AggregateFunction_DeltaBounds,
+                BrowseNames.AggregateFunction_DeltaBounds,
+                Aggregators.CreateStandardCalculator
+            );
 
-            manager.RegisterFactory(ObjectIds.AggregateFunction_DurationGood, BrowseNames.AggregateFunction_DurationGood, Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(ObjectIds.AggregateFunction_DurationBad, BrowseNames.AggregateFunction_DurationBad, Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(ObjectIds.AggregateFunction_PercentGood, BrowseNames.AggregateFunction_PercentGood, Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(ObjectIds.AggregateFunction_PercentBad, BrowseNames.AggregateFunction_PercentBad, Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(ObjectIds.AggregateFunction_WorstQuality, BrowseNames.AggregateFunction_WorstQuality, Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(ObjectIds.AggregateFunction_WorstQuality2, BrowseNames.AggregateFunction_WorstQuality2, Aggregators.CreateStandardCalculator);
+            manager.RegisterFactory(
+                ObjectIds.AggregateFunction_DurationGood,
+                BrowseNames.AggregateFunction_DurationGood,
+                Aggregators.CreateStandardCalculator
+            );
+            manager.RegisterFactory(
+                ObjectIds.AggregateFunction_DurationBad,
+                BrowseNames.AggregateFunction_DurationBad,
+                Aggregators.CreateStandardCalculator
+            );
+            manager.RegisterFactory(
+                ObjectIds.AggregateFunction_PercentGood,
+                BrowseNames.AggregateFunction_PercentGood,
+                Aggregators.CreateStandardCalculator
+            );
+            manager.RegisterFactory(
+                ObjectIds.AggregateFunction_PercentBad,
+                BrowseNames.AggregateFunction_PercentBad,
+                Aggregators.CreateStandardCalculator
+            );
+            manager.RegisterFactory(
+                ObjectIds.AggregateFunction_WorstQuality,
+                BrowseNames.AggregateFunction_WorstQuality,
+                Aggregators.CreateStandardCalculator
+            );
+            manager.RegisterFactory(
+                ObjectIds.AggregateFunction_WorstQuality2,
+                BrowseNames.AggregateFunction_WorstQuality2,
+                Aggregators.CreateStandardCalculator
+            );
 
-            manager.RegisterFactory(ObjectIds.AggregateFunction_StandardDeviationPopulation, BrowseNames.AggregateFunction_StandardDeviationPopulation, Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(ObjectIds.AggregateFunction_VariancePopulation, BrowseNames.AggregateFunction_VariancePopulation, Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(ObjectIds.AggregateFunction_StandardDeviationSample, BrowseNames.AggregateFunction_StandardDeviationSample, Aggregators.CreateStandardCalculator);
-            manager.RegisterFactory(ObjectIds.AggregateFunction_VarianceSample, BrowseNames.AggregateFunction_VarianceSample, Aggregators.CreateStandardCalculator);
+            manager.RegisterFactory(
+                ObjectIds.AggregateFunction_StandardDeviationPopulation,
+                BrowseNames.AggregateFunction_StandardDeviationPopulation,
+                Aggregators.CreateStandardCalculator
+            );
+            manager.RegisterFactory(
+                ObjectIds.AggregateFunction_VariancePopulation,
+                BrowseNames.AggregateFunction_VariancePopulation,
+                Aggregators.CreateStandardCalculator
+            );
+            manager.RegisterFactory(
+                ObjectIds.AggregateFunction_StandardDeviationSample,
+                BrowseNames.AggregateFunction_StandardDeviationSample,
+                Aggregators.CreateStandardCalculator
+            );
+            manager.RegisterFactory(
+                ObjectIds.AggregateFunction_VarianceSample,
+                BrowseNames.AggregateFunction_VarianceSample,
+                Aggregators.CreateStandardCalculator
+            );
 
             return manager;
         }
@@ -3359,7 +3688,10 @@ namespace Opc.Ua.Server
         /// <param name="server">The server.</param>
         /// <param name="configuration">The configuration.</param>
         /// <returns>Returns an object that manages access to localized resources, the return type is <seealso cref="ResourceManager"/>.</returns>
-        protected virtual ResourceManager CreateResourceManager(IServerInternal server, ApplicationConfiguration configuration)
+        protected virtual ResourceManager CreateResourceManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration
+        )
         {
             var resourceManager = new ResourceManager(server, configuration);
 
@@ -3375,7 +3707,10 @@ namespace Opc.Ua.Server
         /// <param name="server">The server.</param>
         /// <param name="configuration">The configuration.</param>
         /// <returns>Returns the master node manager for the server, the return type is <seealso cref="MasterNodeManager"/>.</returns>
-        protected virtual MasterNodeManager CreateMasterNodeManager(IServerInternal server, ApplicationConfiguration configuration)
+        protected virtual MasterNodeManager CreateMasterNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration
+        )
         {
             var nodeManagers = new List<INodeManager>();
 
@@ -3393,11 +3728,16 @@ namespace Opc.Ua.Server
         /// <param name="server">The server.</param>
         /// <param name="configuration">The configuration.</param>
         /// <returns>Returns an object that manages all events raised within the server, the return type is <seealso cref="EventManager"/>.</returns>
-        protected virtual EventManager CreateEventManager(IServerInternal server, ApplicationConfiguration configuration)
+        protected virtual EventManager CreateEventManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration
+        )
         {
-            return new EventManager(server,
-                                    (uint)configuration.ServerConfiguration.MaxEventQueueSize,
-                                    (uint)configuration.ServerConfiguration.MaxDurableEventQueueSize);
+            return new EventManager(
+                server,
+                (uint)configuration.ServerConfiguration.MaxEventQueueSize,
+                (uint)configuration.ServerConfiguration.MaxDurableEventQueueSize
+            );
         }
 
         /// <summary>
@@ -3406,7 +3746,10 @@ namespace Opc.Ua.Server
         /// <param name="server">The server.</param>
         /// <param name="configuration">The configuration.</param>
         /// <returns>Returns a generic session manager object for a server, the return type is <seealso cref="ISessionManager"/>.</returns>
-        protected virtual ISessionManager CreateSessionManager(IServerInternal server, ApplicationConfiguration configuration)
+        protected virtual ISessionManager CreateSessionManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration
+        )
         {
             return new SessionManager(server, configuration);
         }
@@ -3417,7 +3760,10 @@ namespace Opc.Ua.Server
         /// <param name="server">The server.</param>
         /// <param name="configuration">The configuration.</param>
         /// <returns>Returns a generic session manager object for a server, the return type is <seealso cref="SubscriptionManager"/>.</returns>
-        protected virtual ISubscriptionManager CreateSubscriptionManager(IServerInternal server, ApplicationConfiguration configuration)
+        protected virtual ISubscriptionManager CreateSubscriptionManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration
+        )
         {
             return new SubscriptionManager(server, configuration);
         }
@@ -3428,7 +3774,10 @@ namespace Opc.Ua.Server
         /// <param name="server">The server.</param>
         /// <param name="configuration">The configuration.</param>
         /// <returns>Returns a (durable) monitored item queue factory for a server, the return type is <seealso cref="IMonitoredItemQueueFactory"/>.</returns>
-        protected virtual IMonitoredItemQueueFactory CreateMonitoredItemQueueFactory(IServerInternal server, ApplicationConfiguration configuration)
+        protected virtual IMonitoredItemQueueFactory CreateMonitoredItemQueueFactory(
+            IServerInternal server,
+            ApplicationConfiguration configuration
+        )
         {
             return new MonitoredItemQueueFactory();
         }
@@ -3439,7 +3788,10 @@ namespace Opc.Ua.Server
         /// <param name="server">The server.</param>
         /// <param name="configuration">The configuration.</param>
         /// <returns>Returns a subscriptionStore for a server, the return type is <seealso cref="ISubscriptionStore"/>.</returns>
-        protected virtual ISubscriptionStore CreateSubscriptionStore(IServerInternal server, ApplicationConfiguration configuration)
+        protected virtual ISubscriptionStore CreateSubscriptionStore(
+            IServerInternal server,
+            ApplicationConfiguration configuration
+        )
         {
             return null;
         }
@@ -3499,7 +3851,9 @@ namespace Opc.Ua.Server
             string secureChannelId = session?.SecureChannelId;
             if (!string.IsNullOrEmpty(secureChannelId))
             {
-                ITransportListener transportListener = TransportListeners.FirstOrDefault(tl => secureChannelId.StartsWith(tl.ListenerId, StringComparison.Ordinal));
+                ITransportListener transportListener = TransportListeners.FirstOrDefault(tl =>
+                    secureChannelId.StartsWith(tl.ListenerId, StringComparison.Ordinal)
+                );
                 transportListener?.UpdateChannelLastActiveTime(secureChannelId);
             }
         }

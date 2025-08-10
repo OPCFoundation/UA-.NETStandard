@@ -73,7 +73,8 @@ namespace Opc.Ua.Server
             this IAuditEventServer server,
             OperationContext operationContext,
             string methodName,
-            ServiceResultException serviceResultException)
+            ServiceResultException serviceResultException
+        )
         {
             if (server?.Auditing != true)
             {
@@ -88,23 +89,30 @@ namespace Opc.Ua.Server
                 var e = new AuditEventState(null);
 
                 var message = new TranslationInfo(
-                   "AuditEvent",
-                   "en-US",
-                   $"Method {methodName} failed. Result: {serviceResultException.Message}.");
+                    "AuditEvent",
+                    "en-US",
+                    $"Method {methodName} failed. Result: {serviceResultException.Message}."
+                );
 
                 e.Initialize(
-                   systemContext,
-                   null,
-                   EventSeverity.Min,
-                   new LocalizedText(message),
-                   StatusCode.IsGood(serviceResultException.StatusCode),
-                   DateTime.UtcNow);  // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
+                    systemContext,
+                    null,
+                    EventSeverity.Min,
+                    new LocalizedText(message),
+                    StatusCode.IsGood(serviceResultException.StatusCode),
+                    DateTime.UtcNow
+                ); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
 
                 e.SetChildValue(systemContext, BrowseNames.SourceNode, ObjectIds.Server, false);
                 e.SetChildValue(systemContext, BrowseNames.SourceName, $"Attribute/{methodName}", false);
                 e.SetChildValue(systemContext, BrowseNames.LocalTime, Utils.GetTimeZoneInfo(), false);
 
-                e.SetChildValue(systemContext, BrowseNames.ClientUserId, operationContext?.UserIdentity?.DisplayName, false);
+                e.SetChildValue(
+                    systemContext,
+                    BrowseNames.ClientUserId,
+                    operationContext?.UserIdentity?.DisplayName,
+                    false
+                );
                 e.SetChildValue(systemContext, BrowseNames.ClientAuditEntryId, operationContext?.AuditEntryId, false);
 
                 server.ReportAuditEvent(systemContext, e);
@@ -128,7 +136,8 @@ namespace Opc.Ua.Server
             SystemContext systemContext,
             WriteValue writeValue,
             object oldValue,
-            StatusCode statusCode)
+            StatusCode statusCode
+        )
         {
             if (server?.Auditing != true)
             {
@@ -145,24 +154,27 @@ namespace Opc.Ua.Server
             {
                 var e = new AuditWriteUpdateEventState(null);
 
-                var message = new TranslationInfo(
-                   "AuditWriteUpdateEvent",
-                    "en-US",
-                    "AuditWriteUpdateEvent.");
+                var message = new TranslationInfo("AuditWriteUpdateEvent", "en-US", "AuditWriteUpdateEvent.");
 
                 e.Initialize(
-                   systemContext,
-                   null,
-                   EventSeverity.Min,
-                   new LocalizedText(message),
-                   StatusCode.IsGood(statusCode),
-                   DateTime.UtcNow);  // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
+                    systemContext,
+                    null,
+                    EventSeverity.Min,
+                    new LocalizedText(message),
+                    StatusCode.IsGood(statusCode),
+                    DateTime.UtcNow
+                ); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
 
                 e.SetChildValue(systemContext, BrowseNames.SourceNode, writeValue.NodeId, false);
                 e.SetChildValue(systemContext, BrowseNames.SourceName, "Attribute/Write", false);
                 e.SetChildValue(systemContext, BrowseNames.LocalTime, Utils.GetTimeZoneInfo(), false);
 
-                e.SetChildValue(systemContext, BrowseNames.ClientUserId, systemContext?.UserIdentity?.DisplayName, false);
+                e.SetChildValue(
+                    systemContext,
+                    BrowseNames.ClientUserId,
+                    systemContext?.UserIdentity?.DisplayName,
+                    false
+                );
                 e.SetChildValue(systemContext, BrowseNames.ClientAuditEntryId, systemContext?.AuditEntryId, false);
 
                 e.SetChildValue(systemContext, BrowseNames.AttributeId, writeValue.AttributeId, false);
@@ -198,7 +210,8 @@ namespace Opc.Ua.Server
             ISystemContext systemContext,
             UpdateDataDetails updateDataDetails,
             DataValue[] oldValues,
-            StatusCode statusCode)
+            StatusCode statusCode
+        )
         {
             if (server?.Auditing != true)
             {
@@ -210,15 +223,22 @@ namespace Opc.Ua.Server
             {
                 var e = new AuditHistoryValueUpdateEventState(null);
 
-                InitializeAuditHistoryUpdateEvent(e,
-                        systemContext,
-                        "AuditHistoryValueUpdateEvent",
-                        "Attribute/HistoryValueUpdate",
-                        updateDataDetails,
-                        statusCode);
+                InitializeAuditHistoryUpdateEvent(
+                    e,
+                    systemContext,
+                    "AuditHistoryValueUpdateEvent",
+                    "Attribute/HistoryValueUpdate",
+                    updateDataDetails,
+                    statusCode
+                );
 
                 e.SetChildValue(systemContext, BrowseNames.UpdatedNode, updateDataDetails.NodeId, false);
-                e.SetChildValue(systemContext, BrowseNames.PerformInsertReplace, updateDataDetails.PerformInsertReplace, false);
+                e.SetChildValue(
+                    systemContext,
+                    BrowseNames.PerformInsertReplace,
+                    updateDataDetails.PerformInsertReplace,
+                    false
+                );
                 e.SetChildValue(systemContext, BrowseNames.NewValues, updateDataDetails.UpdateValues.ToArray(), false);
                 e.SetChildValue(systemContext, BrowseNames.OldValues, oldValues, false);
 
@@ -243,7 +263,8 @@ namespace Opc.Ua.Server
             ISystemContext systemContext,
             UpdateStructureDataDetails updateStructureDataDetails,
             DataValue[] oldValues,
-            StatusCode statusCode)
+            StatusCode statusCode
+        )
         {
             if (server?.Auditing != true)
             {
@@ -255,15 +276,27 @@ namespace Opc.Ua.Server
             {
                 var e = new AuditHistoryAnnotationUpdateEventState(null);
 
-                InitializeAuditHistoryUpdateEvent(e,
+                InitializeAuditHistoryUpdateEvent(
+                    e,
                     systemContext,
                     "AuditHistoryAnnotationUpdateEvent",
                     "Attribute/HistoryAnnotationUpdate",
                     updateStructureDataDetails,
-                    statusCode);
+                    statusCode
+                );
 
-                e.SetChildValue(systemContext, BrowseNames.PerformInsertReplace, updateStructureDataDetails.PerformInsertReplace, false);
-                e.SetChildValue(systemContext, BrowseNames.NewValues, updateStructureDataDetails.UpdateValues?.ToArray(), false);
+                e.SetChildValue(
+                    systemContext,
+                    BrowseNames.PerformInsertReplace,
+                    updateStructureDataDetails.PerformInsertReplace,
+                    false
+                );
+                e.SetChildValue(
+                    systemContext,
+                    BrowseNames.NewValues,
+                    updateStructureDataDetails.UpdateValues?.ToArray(),
+                    false
+                );
                 e.SetChildValue(systemContext, BrowseNames.OldValues, oldValues, false);
 
                 server.ReportAuditEvent(systemContext, e);
@@ -287,7 +320,8 @@ namespace Opc.Ua.Server
             ISystemContext systemContext,
             UpdateEventDetails updateEventDetails,
             HistoryEventFieldList[] oldValues,
-            StatusCode statusCode)
+            StatusCode statusCode
+        )
         {
             if (server?.Auditing != true)
             {
@@ -299,15 +333,22 @@ namespace Opc.Ua.Server
             {
                 var e = new AuditHistoryEventUpdateEventState(null);
 
-                InitializeAuditHistoryUpdateEvent(e,
+                InitializeAuditHistoryUpdateEvent(
+                    e,
                     systemContext,
                     "AuditHistoryEventUpdateEvent",
                     "Attribute/HistoryEventUpdate",
                     updateEventDetails,
-                    statusCode);
+                    statusCode
+                );
 
                 e.SetChildValue(systemContext, BrowseNames.UpdatedNode, updateEventDetails.NodeId, false);
-                e.SetChildValue(systemContext, BrowseNames.PerformInsertReplace, updateEventDetails.PerformInsertReplace, false);
+                e.SetChildValue(
+                    systemContext,
+                    BrowseNames.PerformInsertReplace,
+                    updateEventDetails.PerformInsertReplace,
+                    false
+                );
                 e.SetChildValue(systemContext, BrowseNames.Filter, updateEventDetails.Filter, false);
                 e.SetChildValue(systemContext, BrowseNames.NewValues, updateEventDetails.EventData.ToArray(), false);
                 e.SetChildValue(systemContext, BrowseNames.OldValues, oldValues, false);
@@ -333,7 +374,8 @@ namespace Opc.Ua.Server
             ISystemContext systemContext,
             DeleteRawModifiedDetails deleteRawModifiedDetails,
             DataValue[] oldValues,
-            StatusCode statusCode)
+            StatusCode statusCode
+        )
         {
             if (server?.Auditing != true)
             {
@@ -345,15 +387,22 @@ namespace Opc.Ua.Server
             {
                 var e = new AuditHistoryRawModifyDeleteEventState(null);
 
-                InitializeAuditHistoryUpdateEvent(e,
+                InitializeAuditHistoryUpdateEvent(
+                    e,
                     systemContext,
                     "AuditHistoryRawModifyDeleteEvent",
                     "Attribute/HistoryRawModifyDelete",
                     deleteRawModifiedDetails,
-                    statusCode);
+                    statusCode
+                );
 
                 e.SetChildValue(systemContext, BrowseNames.UpdatedNode, deleteRawModifiedDetails.NodeId, false);
-                e.SetChildValue(systemContext, BrowseNames.IsDeleteModified, deleteRawModifiedDetails.IsDeleteModified, false);
+                e.SetChildValue(
+                    systemContext,
+                    BrowseNames.IsDeleteModified,
+                    deleteRawModifiedDetails.IsDeleteModified,
+                    false
+                );
                 e.SetChildValue(systemContext, BrowseNames.StartTime, deleteRawModifiedDetails.StartTime, false);
                 e.SetChildValue(systemContext, BrowseNames.EndTime, deleteRawModifiedDetails.EndTime, false);
                 e.SetChildValue(systemContext, BrowseNames.OldValues, oldValues, false);
@@ -379,7 +428,8 @@ namespace Opc.Ua.Server
             ISystemContext systemContext,
             DeleteAtTimeDetails deleteAtTimeDetails,
             DataValue[] oldValues,
-            StatusCode statusCode)
+            StatusCode statusCode
+        )
         {
             if (server?.Auditing != true)
             {
@@ -391,12 +441,14 @@ namespace Opc.Ua.Server
             {
                 var e = new AuditHistoryAtTimeDeleteEventState(null);
 
-                InitializeAuditHistoryUpdateEvent(e,
+                InitializeAuditHistoryUpdateEvent(
+                    e,
                     systemContext,
                     "AuditHistoryAtTimeDeleteEvent",
                     "Attribute/HistoryAtTimeDelete",
                     deleteAtTimeDetails,
-                    statusCode);
+                    statusCode
+                );
 
                 e.SetChildValue(systemContext, BrowseNames.UpdatedNode, deleteAtTimeDetails.NodeId, false);
                 e.SetChildValue(systemContext, BrowseNames.ReqTimes, deleteAtTimeDetails.ReqTimes.ToArray(), false);
@@ -423,7 +475,8 @@ namespace Opc.Ua.Server
             ISystemContext systemContext,
             DeleteEventDetails deleteEventDetails,
             DataValue[] oldValues,
-            StatusCode statusCode)
+            StatusCode statusCode
+        )
         {
             if (server?.Auditing != true)
             {
@@ -435,12 +488,14 @@ namespace Opc.Ua.Server
             {
                 var e = new AuditHistoryEventDeleteEventState(null);
 
-                InitializeAuditHistoryUpdateEvent(e,
+                InitializeAuditHistoryUpdateEvent(
+                    e,
                     systemContext,
                     "AuditHistoryEventDeleteEvent",
                     "Attribute/HistoryEventDelete",
                     deleteEventDetails,
-                    statusCode);
+                    statusCode
+                );
 
                 e.SetChildValue(systemContext, BrowseNames.UpdatedNode, deleteEventDetails.NodeId, false);
                 e.SetChildValue(systemContext, BrowseNames.EventIds, deleteEventDetails.EventIds.ToArray(), false);
@@ -463,7 +518,8 @@ namespace Opc.Ua.Server
         public static void ReportAuditCertificateEvent(
             this IAuditEventServer server,
             X509Certificate2 clientCertificate,
-            Exception exception)
+            Exception exception
+        )
         {
             if (exception == null)
             {
@@ -503,7 +559,8 @@ namespace Opc.Ua.Server
             this IAuditEventServer server,
             ISystemContext systemContext,
             X509Certificate2 clientCertificate,
-            ServiceResultException sre)
+            ServiceResultException sre
+        )
         {
             try
             {
@@ -543,20 +600,36 @@ namespace Opc.Ua.Server
                     if (auditCertificateEventState != null)
                     {
                         auditCertificateEventState.Initialize(
-                              systemContext,
-                              null,
-                              EventSeverity.Min,
-                              sre.Message,
-                              false,
-                              DateTime.UtcNow);  // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
+                            systemContext,
+                            null,
+                            EventSeverity.Min,
+                            sre.Message,
+                            false,
+                            DateTime.UtcNow
+                        ); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
 
-                        auditCertificateEventState.SetChildValue(systemContext, BrowseNames.SourceName, "Security/Certificate", false);
+                        auditCertificateEventState.SetChildValue(
+                            systemContext,
+                            BrowseNames.SourceName,
+                            "Security/Certificate",
+                            false
+                        );
 
                         // set AuditSecurityEventType fields
-                        auditCertificateEventState.SetChildValue(systemContext, BrowseNames.StatusCodeId, sre.InnerResult.StatusCode, false);
+                        auditCertificateEventState.SetChildValue(
+                            systemContext,
+                            BrowseNames.StatusCodeId,
+                            sre.InnerResult.StatusCode,
+                            false
+                        );
 
                         // set AuditCertificateEventType fields
-                        auditCertificateEventState.SetChildValue(systemContext, BrowseNames.Certificate, clientCertificate?.RawData, false);
+                        auditCertificateEventState.SetChildValue(
+                            systemContext,
+                            BrowseNames.Certificate,
+                            clientCertificate?.RawData,
+                            false
+                        );
 
                         server.ReportAuditEvent(systemContext, auditCertificateEventState);
                     }
@@ -581,7 +654,8 @@ namespace Opc.Ua.Server
             X509Certificate2 clientCertificate,
             string invalidHostName,
             string invalidUri,
-            StatusCode statusCode)
+            StatusCode statusCode
+        )
         {
             if (server?.Auditing != true)
             {
@@ -597,12 +671,13 @@ namespace Opc.Ua.Server
                 var e = new AuditCertificateDataMismatchEventState(null);
 
                 e.Initialize(
-                   systemContext,
-                   null,
-                   EventSeverity.Min,
-                   null,
-                   StatusCode.IsGood(statusCode),
-                   DateTime.UtcNow);  // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
+                    systemContext,
+                    null,
+                    EventSeverity.Min,
+                    null,
+                    StatusCode.IsGood(statusCode),
+                    DateTime.UtcNow
+                ); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
 
                 e.SetChildValue(systemContext, BrowseNames.SourceName, "Security/Certificate", false);
                 e.SetChildValue(systemContext, BrowseNames.SourceNode, ObjectIds.Server, false);
@@ -635,7 +710,8 @@ namespace Opc.Ua.Server
             this IAuditEventServer server,
             NodeId sessionId,
             uint requestHandle,
-            StatusCode statusCode)
+            StatusCode statusCode
+        )
         {
             if (server?.Auditing != true)
             {
@@ -651,12 +727,13 @@ namespace Opc.Ua.Server
                 var e = new AuditCancelEventState(null);
 
                 e.Initialize(
-                   systemContext,
-                   null,
-                   EventSeverity.Min,
-                   $"Cancel requested for sessionId: {sessionId} with requestHandle: {requestHandle}",
-                   StatusCode.IsGood(statusCode),
-                   DateTime.UtcNow);  // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
+                    systemContext,
+                    null,
+                    EventSeverity.Min,
+                    $"Cancel requested for sessionId: {sessionId} with requestHandle: {requestHandle}",
+                    StatusCode.IsGood(statusCode),
+                    DateTime.UtcNow
+                ); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
 
                 e.SetChildValue(systemContext, BrowseNames.SourceName, "Session/Cancel", false);
                 e.SetChildValue(systemContext, BrowseNames.SourceNode, ObjectIds.Server, false);
@@ -692,7 +769,8 @@ namespace Opc.Ua.Server
             NodeId roleStateObjectId,
             MethodState method,
             object[] inputArguments,
-            bool status)
+            bool status
+        )
         {
             if (server?.Auditing != true)
             {
@@ -706,12 +784,13 @@ namespace Opc.Ua.Server
                 var e = new RoleMappingRuleChangedAuditEventState(null);
 
                 e.Initialize(
-                   systemContext,
-                   null,
-                   EventSeverity.Min,
-                   $"RoleMappingRuleChanged - {method?.BrowseName}",
-                   status,
-                   DateTime.UtcNow);  // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
+                    systemContext,
+                    null,
+                    EventSeverity.Min,
+                    $"RoleMappingRuleChanged - {method?.BrowseName}",
+                    status,
+                    DateTime.UtcNow
+                ); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
 
                 e.SetChildValue(systemContext, BrowseNames.SourceName, "Attribute/Call", false);
                 e.SetChildValue(systemContext, BrowseNames.SourceNode, roleStateObjectId, false);
@@ -742,7 +821,8 @@ namespace Opc.Ua.Server
             string auditEntryId,
             ISession session,
             double revisedSessionTimeout,
-            Exception exception = null)
+            Exception exception = null
+        )
         {
             if (server?.Auditing != true)
             {
@@ -761,16 +841,18 @@ namespace Opc.Ua.Server
                 if (exception == null)
                 {
                     message = new TranslationInfo(
-                      "AuditCreateSessionEvent",
-                      "en-US",
-                      $"Session with ID:{session?.Id} was created.");
+                        "AuditCreateSessionEvent",
+                        "en-US",
+                        $"Session with ID:{session?.Id} was created."
+                    );
                 }
                 else
                 {
                     message = new TranslationInfo(
-                      "AuditCreateSessionEvent",
-                      "en-US",
-                      $"Error while creating session with ID:{session?.Id}: Exception: {exception.Message}.");
+                        "AuditCreateSessionEvent",
+                        "en-US",
+                        $"Error while creating session with ID:{session?.Id}: Exception: {exception.Message}."
+                    );
                 }
 
                 InitializeAuditSessionEvent(systemContext, e, message, exception == null, session, auditEntryId);
@@ -779,15 +861,29 @@ namespace Opc.Ua.Server
                 e.SetChildValue(systemContext, BrowseNames.SourceName, "Session/CreateSession", false);
 
                 // set AuditCreateSessionEventState fields
-                e.SetChildValue(systemContext, BrowseNames.ClientCertificate, session?.ClientCertificate?.RawData, false);
-                e.SetChildValue(systemContext, BrowseNames.ClientCertificateThumbprint, session?.ClientCertificate?.Thumbprint, false);
+                e.SetChildValue(
+                    systemContext,
+                    BrowseNames.ClientCertificate,
+                    session?.ClientCertificate?.RawData,
+                    false
+                );
+                e.SetChildValue(
+                    systemContext,
+                    BrowseNames.ClientCertificateThumbprint,
+                    session?.ClientCertificate?.Thumbprint,
+                    false
+                );
                 e.SetChildValue(systemContext, BrowseNames.RevisedSessionTimeout, revisedSessionTimeout, false);
 
                 server.ReportAuditEvent(systemContext, e);
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "Error while reporting AuditCreateSessionEvent event for SessionId {0}.", session?.Id);
+                Utils.LogError(
+                    ex,
+                    "Error while reporting AuditCreateSessionEvent event for SessionId {0}.",
+                    session?.Id
+                );
             }
         }
 
@@ -804,7 +900,8 @@ namespace Opc.Ua.Server
             string auditEntryId,
             ISession session,
             IList<SoftwareCertificate> softwareCertificates,
-            Exception exception = null)
+            Exception exception = null
+        )
         {
             if (server?.Auditing != true)
             {
@@ -822,22 +919,29 @@ namespace Opc.Ua.Server
                 if (exception == null)
                 {
                     message = new TranslationInfo(
-                     "AuditActivateSessionEvent",
-                    "en-US",
-                    $"Session with Id:{session?.Id} was activated.");
+                        "AuditActivateSessionEvent",
+                        "en-US",
+                        $"Session with Id:{session?.Id} was activated."
+                    );
                 }
                 else
                 {
                     message = new TranslationInfo(
-                      "AuditActivateSessionEvent",
-                      "en-US",
-                      $"Error while activate session with ID:{session?.Id}. Exception: {exception.Message}.");
+                        "AuditActivateSessionEvent",
+                        "en-US",
+                        $"Error while activate session with ID:{session?.Id}. Exception: {exception.Message}."
+                    );
                 }
 
                 InitializeAuditSessionEvent(systemContext, e, message, exception == null, session, auditEntryId);
 
                 e.SetChildValue(systemContext, BrowseNames.SourceName, "Session/ActivateSession", false);
-                e.SetChildValue(systemContext, BrowseNames.UserIdentityToken, Utils.Clone(session?.IdentityToken), false);
+                e.SetChildValue(
+                    systemContext,
+                    BrowseNames.UserIdentityToken,
+                    Utils.Clone(session?.IdentityToken),
+                    false
+                );
 
                 if (softwareCertificates != null)
                 {
@@ -847,18 +951,27 @@ namespace Opc.Ua.Server
                     {
                         var item = new SignedSoftwareCertificate
                         {
-                            CertificateData = softwareCertificate.SignedCertificate.RawData
+                            CertificateData = softwareCertificate.SignedCertificate.RawData,
                         };
                         signedSoftwareCertificates.Add(item);
                     }
-                    e.SetChildValue(systemContext, BrowseNames.ClientSoftwareCertificates, signedSoftwareCertificates.ToArray(), false);
+                    e.SetChildValue(
+                        systemContext,
+                        BrowseNames.ClientSoftwareCertificates,
+                        signedSoftwareCertificates.ToArray(),
+                        false
+                    );
                 }
 
                 server.ReportAuditEvent(systemContext, e);
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Error while reporting AuditActivateSessionEvent event for SessionId {0}.", session?.Id);
+                Utils.LogError(
+                    e,
+                    "Error while reporting AuditActivateSessionEvent event for SessionId {0}.",
+                    session?.Id
+                );
             }
         }
 
@@ -875,7 +988,8 @@ namespace Opc.Ua.Server
             string auditEntryId,
             ISession session,
             double revisedSessionTimeout,
-            string endpointUrl)
+            string endpointUrl
+        )
         {
             if (server?.Auditing != true)
             {
@@ -890,9 +1004,10 @@ namespace Opc.Ua.Server
                 var e = new AuditUrlMismatchEventState(null);
 
                 var message = new TranslationInfo(
-                     "AuditUrlMismatchEvent",
-                     "en-US",
-                     $"Session with ID:{session.Id} was created but the endpoint URL does not match the domain names in the server certificate.");
+                    "AuditUrlMismatchEvent",
+                    "en-US",
+                    $"Session with ID:{session.Id} was created but the endpoint URL does not match the domain names in the server certificate."
+                );
 
                 InitializeAuditSessionEvent(systemContext, e, message, false, session, auditEntryId);
 
@@ -900,8 +1015,18 @@ namespace Opc.Ua.Server
                 e.SetChildValue(systemContext, BrowseNames.SourceName, "Session/CreateSession", false);
 
                 // set AuditCreateSessionEventState fields
-                e.SetChildValue(systemContext, BrowseNames.ClientCertificate, session?.ClientCertificate?.RawData, false);
-                e.SetChildValue(systemContext, BrowseNames.ClientCertificateThumbprint, session?.ClientCertificate?.Thumbprint, false);
+                e.SetChildValue(
+                    systemContext,
+                    BrowseNames.ClientCertificate,
+                    session?.ClientCertificate?.RawData,
+                    false
+                );
+                e.SetChildValue(
+                    systemContext,
+                    BrowseNames.ClientCertificateThumbprint,
+                    session?.ClientCertificate?.Thumbprint,
+                    false
+                );
                 e.SetChildValue(systemContext, BrowseNames.RevisedSessionTimeout, revisedSessionTimeout, false);
 
                 // set AuditUrlMismatchEventState
@@ -928,7 +1053,8 @@ namespace Opc.Ua.Server
             this IAuditEventServer server,
             string auditEntryId,
             ISession session,
-            string sourceName = "Session/Terminated")
+            string sourceName = "Session/Terminated"
+        )
         {
             if (server?.Auditing != true)
             {
@@ -946,7 +1072,8 @@ namespace Opc.Ua.Server
                 var message = new TranslationInfo(
                     "AuditCloseSessionEvent",
                     "en-US",
-                    $"Session with ID:{session?.Id} was closed.");
+                    $"Session with ID:{session?.Id} was closed."
+                );
 
                 InitializeAuditSessionEvent(systemContext, e, message, true, session, auditEntryId);
 
@@ -956,7 +1083,11 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "Error while reporting AuditSessionEventState close event for SessionId {0}.", session?.Id);
+                Utils.LogError(
+                    ex,
+                    "Error while reporting AuditSessionEventState close event for SessionId {0}.",
+                    session?.Id
+                );
             }
         }
 
@@ -971,7 +1102,8 @@ namespace Opc.Ua.Server
             this IAuditEventServer server,
             string auditEntryId,
             ISession session,
-            StatusCode statusCode)
+            StatusCode statusCode
+        )
         {
             if (server?.Auditing != true)
             {
@@ -989,9 +1121,17 @@ namespace Opc.Ua.Server
                 var message = new TranslationInfo(
                     "AuditSessionEventState",
                     "en-US",
-                    $"Transfer subscription for session ID:{session?.Id} has statusCode {statusCode}.");
+                    $"Transfer subscription for session ID:{session?.Id} has statusCode {statusCode}."
+                );
 
-                InitializeAuditSessionEvent(systemContext, e, message, StatusCode.IsGood(statusCode), session, auditEntryId);
+                InitializeAuditSessionEvent(
+                    systemContext,
+                    e,
+                    message,
+                    StatusCode.IsGood(statusCode),
+                    session,
+                    auditEntryId
+                );
 
                 e.SetChildValue(systemContext, BrowseNames.SourceNode, session.Id, false);
                 e.SetChildValue(systemContext, BrowseNames.SourceName, "Session/TransferSubscriptions", false);
@@ -1000,7 +1140,11 @@ namespace Opc.Ua.Server
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "Error while reporting AuditSessionEventState close event for SessionId {0}.", session?.Id);
+                Utils.LogError(
+                    ex,
+                    "Error while reporting AuditSessionEventState close event for SessionId {0}.",
+                    session?.Id
+                );
             }
         }
 
@@ -1023,7 +1167,8 @@ namespace Opc.Ua.Server
             object[] inputArguments,
             NodeId certificateGroupId,
             NodeId certificateTypeId,
-            Exception exception = null)
+            Exception exception = null
+        )
         {
             try
             {
@@ -1033,25 +1178,28 @@ namespace Opc.Ua.Server
                 if (exception == null)
                 {
                     message = new TranslationInfo(
-                       "CertificateUpdatedAuditEvent",
-                       "en-US",
-                       "CertificateUpdatedAuditEvent.");
+                        "CertificateUpdatedAuditEvent",
+                        "en-US",
+                        "CertificateUpdatedAuditEvent."
+                    );
                 }
                 else
                 {
                     message = new TranslationInfo(
-                      "CertificateUpdatedAuditEvent",
-                      "en-US",
-                      $"CertificateUpdatedAuditEvent - Exception: {exception.Message}.");
+                        "CertificateUpdatedAuditEvent",
+                        "en-US",
+                        $"CertificateUpdatedAuditEvent - Exception: {exception.Message}."
+                    );
                 }
 
                 e.Initialize(
-                   systemContext,
-                   null,
-                   EventSeverity.Min,
-                   new LocalizedText(message),
-                   exception == null,
-                   DateTime.UtcNow);  // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
+                    systemContext,
+                    null,
+                    EventSeverity.Min,
+                    new LocalizedText(message),
+                    exception == null,
+                    DateTime.UtcNow
+                ); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
 
                 e.SetChildValue(systemContext, BrowseNames.SourceNode, objectId, false);
                 e.SetChildValue(systemContext, BrowseNames.SourceName, "Method/UpdateCertificate", false);
@@ -1084,24 +1232,20 @@ namespace Opc.Ua.Server
             ISystemContext systemContext,
             NodeId objectId,
             MethodState method,
-            object[] inputArguments)
+            object[] inputArguments
+        )
         {
             try
             {
                 var e = new CertificateUpdateRequestedAuditEventState(null);
 
                 var message = new TranslationInfo(
-                       "CertificateUpdateRequestedAuditEvent",
-                       "en-US",
-                       "CertificateUpdateRequestedAuditEvent.");
+                    "CertificateUpdateRequestedAuditEvent",
+                    "en-US",
+                    "CertificateUpdateRequestedAuditEvent."
+                );
 
-                e.Initialize(
-                   systemContext,
-                   null,
-                   EventSeverity.Min,
-                   new LocalizedText(message),
-                   true,
-                   DateTime.UtcNow);  // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
+                e.Initialize(systemContext, null, EventSeverity.Min, new LocalizedText(message), true, DateTime.UtcNow); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
 
                 e.SetChildValue(systemContext, BrowseNames.SourceNode, objectId, false);
                 e.SetChildValue(systemContext, BrowseNames.SourceName, "Method/UpdateCertificate", false);
@@ -1131,7 +1275,8 @@ namespace Opc.Ua.Server
             ISystemContext systemContext,
             AddNodesItem[] addNodesItems,
             string customMessage,
-            StatusCode statusCode)
+            StatusCode statusCode
+        )
         {
             if (server?.Auditing != true)
             {
@@ -1144,17 +1289,19 @@ namespace Opc.Ua.Server
                 var e = new AuditAddNodesEventState(null);
 
                 var message = new TranslationInfo(
-                           "AuditAddNodesEventState",
-                           "en-US",
-                           $"'{customMessage}' returns StatusCode: {statusCode.ToString(null, CultureInfo.InvariantCulture)}.");
+                    "AuditAddNodesEventState",
+                    "en-US",
+                    $"'{customMessage}' returns StatusCode: {statusCode.ToString(null, CultureInfo.InvariantCulture)}."
+                );
 
                 e.Initialize(
-                   systemContext,
-                   null,
-                   EventSeverity.Min,
-                   new LocalizedText(message),
-                   StatusCode.IsGood(statusCode),
-                   DateTime.UtcNow);  // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
+                    systemContext,
+                    null,
+                    EventSeverity.Min,
+                    new LocalizedText(message),
+                    StatusCode.IsGood(statusCode),
+                    DateTime.UtcNow
+                ); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
 
                 e.SetChildValue(systemContext, BrowseNames.SourceNode, ObjectIds.Server, false);
                 e.SetChildValue(systemContext, BrowseNames.SourceName, "NodeManagement/AddNodes", false);
@@ -1183,7 +1330,8 @@ namespace Opc.Ua.Server
             ISystemContext systemContext,
             DeleteNodesItem[] nodesToDelete,
             string customMessage,
-            StatusCode statusCode)
+            StatusCode statusCode
+        )
         {
             if (server?.Auditing != true)
             {
@@ -1196,17 +1344,19 @@ namespace Opc.Ua.Server
                 var e = new AuditDeleteNodesEventState(null);
 
                 var message = new TranslationInfo(
-                           "AuditDeleteNodesEventState",
-                           "en-US",
-                           $"'{customMessage}' returns StatusCode: {statusCode.ToString(null, CultureInfo.InvariantCulture)}.");
+                    "AuditDeleteNodesEventState",
+                    "en-US",
+                    $"'{customMessage}' returns StatusCode: {statusCode.ToString(null, CultureInfo.InvariantCulture)}."
+                );
 
                 e.Initialize(
-                   systemContext,
-                   null,
-                   EventSeverity.Min,
-                   new LocalizedText(message),
-                   StatusCode.IsGood(statusCode),
-                   DateTime.UtcNow);  // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
+                    systemContext,
+                    null,
+                    EventSeverity.Min,
+                    new LocalizedText(message),
+                    StatusCode.IsGood(statusCode),
+                    DateTime.UtcNow
+                ); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
 
                 e.SetChildValue(systemContext, BrowseNames.SourceNode, ObjectIds.Server, false);
                 e.SetChildValue(systemContext, BrowseNames.SourceName, "NodeManagement/DeleteNodes", false);
@@ -1237,7 +1387,8 @@ namespace Opc.Ua.Server
             EndpointDescription endpointDescription,
             OpenSecureChannelRequest request,
             X509Certificate2 clientCertificate,
-            Exception exception)
+            Exception exception
+        )
         {
             if (server?.Auditing != true)
             {
@@ -1255,14 +1406,16 @@ namespace Opc.Ua.Server
                     message = new TranslationInfo(
                         "AuditOpenSecureChannelEvent",
                         "en-US",
-                        "AuditOpenSecureChannelEvent");
+                        "AuditOpenSecureChannelEvent"
+                    );
                 }
                 else
                 {
                     message = new TranslationInfo(
                         "AuditOpenSecureChannelEvent",
                         "en-US",
-                        $"AuditOpenSecureChannelEvent - Exception: {exception.Message}.");
+                        $"AuditOpenSecureChannelEvent - Exception: {exception.Message}."
+                    );
                 }
 
                 StatusCode statusCode = StatusCodes.Good;
@@ -1297,7 +1450,8 @@ namespace Opc.Ua.Server
                     EventSeverity.Min,
                     new LocalizedText(message),
                     exception == null,
-                    actionTimestamp);  // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
+                    actionTimestamp
+                ); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
 
                 e.SetChildValue(systemContext, BrowseNames.SourceName, "SecureChannel/OpenSecureChannel", false);
                 e.SetChildValue(systemContext, BrowseNames.ClientUserId, "System/OpenSecureChannel", false);
@@ -1312,9 +1466,19 @@ namespace Opc.Ua.Server
 
                 // set AuditOpenSecureChannelEventType fields
                 e.SetChildValue(systemContext, BrowseNames.ClientCertificate, clientCertificate?.RawData, false);
-                e.SetChildValue(systemContext, BrowseNames.ClientCertificateThumbprint, clientCertificate?.Thumbprint, false);
+                e.SetChildValue(
+                    systemContext,
+                    BrowseNames.ClientCertificateThumbprint,
+                    clientCertificate?.Thumbprint,
+                    false
+                );
                 e.SetChildValue(systemContext, BrowseNames.RequestType, request?.RequestType, false);
-                e.SetChildValue(systemContext, BrowseNames.SecurityPolicyUri, endpointDescription?.SecurityPolicyUri, false);
+                e.SetChildValue(
+                    systemContext,
+                    BrowseNames.SecurityPolicyUri,
+                    endpointDescription?.SecurityPolicyUri,
+                    false
+                );
                 e.SetChildValue(systemContext, BrowseNames.SecurityMode, endpointDescription?.SecurityMode, false);
                 e.SetChildValue(systemContext, BrowseNames.RequestedLifetime, request?.RequestedLifetime, false);
 
@@ -1335,7 +1499,8 @@ namespace Opc.Ua.Server
         public static void ReportAuditCloseSecureChannelEvent(
             this IAuditEventServer server,
             string globalChannelId,
-            Exception exception)
+            Exception exception
+        )
         {
             if (server?.Auditing != true)
             {
@@ -1354,14 +1519,16 @@ namespace Opc.Ua.Server
                     message = new TranslationInfo(
                         "AuditCloseSecureChannelEvent",
                         "en-US",
-                        "AuditCloseSecureChannelEvent");
+                        "AuditCloseSecureChannelEvent"
+                    );
                 }
                 else
                 {
                     message = new TranslationInfo(
                         "AuditCloseSecureChannelEvent",
                         "en-US",
-                        $"AuditCloseSecureChannelEvent - Exception: {exception.Message}.");
+                        $"AuditCloseSecureChannelEvent - Exception: {exception.Message}."
+                    );
                 }
 
                 StatusCode statusCode = StatusCodes.Good;
@@ -1382,7 +1549,8 @@ namespace Opc.Ua.Server
                     EventSeverity.Min,
                     new LocalizedText(message),
                     exception == null,
-                    DateTime.UtcNow);  // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
+                    DateTime.UtcNow
+                ); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
 
                 e.SetChildValue(systemContext, BrowseNames.SourceName, "SecureChannel/CloseSecureChannel", false);
 
@@ -1417,13 +1585,15 @@ namespace Opc.Ua.Server
         /// <param name="inputArgs">The InputArguments of the method </param>
         /// <param name="customMessage">Custom message for delete nodes.</param>
         /// <param name="statusCode">The resulting status code.</param>
-        public static void ReportAuditUpdateMethodEvent(this IAuditEventServer server,
+        public static void ReportAuditUpdateMethodEvent(
+            this IAuditEventServer server,
             ISystemContext systemContext,
             NodeId objectId,
             NodeId methodId,
             object[] inputArgs,
             string customMessage,
-            StatusCode statusCode)
+            StatusCode statusCode
+        )
         {
             if (server?.Auditing != true)
             {
@@ -1435,23 +1605,30 @@ namespace Opc.Ua.Server
                 var e = new AuditUpdateMethodEventState(null);
 
                 var message = new TranslationInfo(
-                           "AuditUpdateMethodEventState",
-                           "en-US",
-                           $"'{customMessage}' returns StatusCode: {statusCode.ToString(null, CultureInfo.InvariantCulture)}.");
+                    "AuditUpdateMethodEventState",
+                    "en-US",
+                    $"'{customMessage}' returns StatusCode: {statusCode.ToString(null, CultureInfo.InvariantCulture)}."
+                );
 
                 e.Initialize(
-                   systemContext,
-                   null,
-                   EventSeverity.Min,
-                   new LocalizedText(message),
-                   StatusCode.IsGood(statusCode),
-                   DateTime.UtcNow);  // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
+                    systemContext,
+                    null,
+                    EventSeverity.Min,
+                    new LocalizedText(message),
+                    StatusCode.IsGood(statusCode),
+                    DateTime.UtcNow
+                ); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
 
                 e.SetChildValue(systemContext, BrowseNames.SourceNode, objectId, false);
                 e.SetChildValue(systemContext, BrowseNames.SourceName, "Attribute/Call", false);
                 e.SetChildValue(systemContext, BrowseNames.LocalTime, Utils.GetTimeZoneInfo(), false);
 
-                e.SetChildValue(systemContext, BrowseNames.ClientUserId, systemContext?.UserIdentity?.DisplayName, false);
+                e.SetChildValue(
+                    systemContext,
+                    BrowseNames.ClientUserId,
+                    systemContext?.UserIdentity?.DisplayName,
+                    false
+                );
                 e.SetChildValue(systemContext, BrowseNames.ClientAuditEntryId, systemContext?.AuditEntryId, false);
 
                 e.SetChildValue(systemContext, BrowseNames.MethodId, methodId, false);
@@ -1482,24 +1659,27 @@ namespace Opc.Ua.Server
             string sourceName,
             NodeId methodId,
             object[] inputParameters,
-            StatusCode statusCode)
+            StatusCode statusCode
+        )
         {
             try
             {
                 var e = new TrustListUpdatedAuditEventState(null);
 
                 var message = new TranslationInfo(
-                   "TrustListUpdatedAuditEvent",
-                   "en-US",
-                   $"TrustListUpdatedAuditEvent result is: {statusCode.ToString(null, CultureInfo.InvariantCulture)}");
+                    "TrustListUpdatedAuditEvent",
+                    "en-US",
+                    $"TrustListUpdatedAuditEvent result is: {statusCode.ToString(null, CultureInfo.InvariantCulture)}"
+                );
 
                 e.Initialize(
-                   systemContext,
-                   null,
-                   EventSeverity.Min,
-                   new LocalizedText(message),
-                   StatusCode.IsGood(statusCode),
-                   DateTime.UtcNow);  // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
+                    systemContext,
+                    null,
+                    EventSeverity.Min,
+                    new LocalizedText(message),
+                    StatusCode.IsGood(statusCode),
+                    DateTime.UtcNow
+                ); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
 
                 e.SetChildValue(systemContext, BrowseNames.SourceNode, objectId, false);
                 e.SetChildValue(systemContext, BrowseNames.SourceName, sourceName, false);
@@ -1531,24 +1711,20 @@ namespace Opc.Ua.Server
             NodeId objectId,
             string sourceName,
             NodeId methodId,
-            object[] inputParameters)
+            object[] inputParameters
+        )
         {
             try
             {
                 var e = new TrustListUpdateRequestedAuditEventState(null);
 
                 var message = new TranslationInfo(
-                   "TrustListUpdateRequestedAuditEvent",
-                   "en-US",
-                   "TrustListUpdateRequestedAuditEvent.");
+                    "TrustListUpdateRequestedAuditEvent",
+                    "en-US",
+                    "TrustListUpdateRequestedAuditEvent."
+                );
 
-                e.Initialize(
-                   systemContext,
-                   null,
-                   EventSeverity.Min,
-                   new LocalizedText(message),
-                   true,
-                   DateTime.UtcNow);  // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
+                e.Initialize(systemContext, null, EventSeverity.Min, new LocalizedText(message), true, DateTime.UtcNow); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
 
                 e.SetChildValue(systemContext, BrowseNames.SourceNode, objectId, false);
                 e.SetChildValue(systemContext, BrowseNames.SourceName, sourceName, false);
@@ -1580,20 +1756,23 @@ namespace Opc.Ua.Server
             string auditEventName,
             string sourceName,
             HistoryUpdateDetails historyUpdateDetails,
-            StatusCode statusCode)
+            StatusCode statusCode
+        )
         {
             var message = new TranslationInfo(
-               auditEventName,
-               "en-US",
-               $"{auditEventName} has Result: {statusCode.ToString(null, CultureInfo.InvariantCulture)}.");
+                auditEventName,
+                "en-US",
+                $"{auditEventName} has Result: {statusCode.ToString(null, CultureInfo.InvariantCulture)}."
+            );
 
             e.Initialize(
-               systemContext,
-               null,
-               EventSeverity.Min,
-               new LocalizedText(message),
-               StatusCode.IsGood(statusCode),
-               DateTime.UtcNow);  // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
+                systemContext,
+                null,
+                EventSeverity.Min,
+                new LocalizedText(message),
+                StatusCode.IsGood(statusCode),
+                DateTime.UtcNow
+            ); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
 
             e.SetChildValue(systemContext, BrowseNames.SourceNode, historyUpdateDetails.NodeId, false);
             e.SetChildValue(systemContext, BrowseNames.SourceName, sourceName, false);
@@ -1614,15 +1793,10 @@ namespace Opc.Ua.Server
             TranslationInfo message,
             bool status,
             ISession session,
-            string auditEntryId)
+            string auditEntryId
+        )
         {
-            e.Initialize(
-                systemContext,
-                null,
-                EventSeverity.Min,
-                new LocalizedText(message),
-                status,
-                DateTime.UtcNow);
+            e.Initialize(systemContext, null, EventSeverity.Min, new LocalizedText(message), status, DateTime.UtcNow);
 
             e.SetChildValue(systemContext, BrowseNames.SourceNode, ObjectIds.Server, false);
 
@@ -1631,7 +1805,7 @@ namespace Opc.Ua.Server
             e.SetChildValue(systemContext, BrowseNames.ClientAuditEntryId, auditEntryId, false);
             // set AuditCreateSessionEventType & AuditActivateSessionsEventType properties
             e.SetChildValue(systemContext, BrowseNames.SecureChannelId, session?.SecureChannelId, false);
-            // set AuditSessionEventType 
+            // set AuditSessionEventType
             e.SetChildValue(systemContext, BrowseNames.SessionId, session?.Id, false);
         }
     }

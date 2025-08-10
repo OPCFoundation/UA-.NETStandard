@@ -59,9 +59,9 @@ namespace MemoryBuffer
             uint queueSize,
             bool discardOldest,
             double minimumSamplingInterval,
-            bool createDurable)
-        :
-            base(
+            bool createDurable
+        )
+            : base(
                 server,
                 nodeManager,
                 managerHandle,
@@ -79,7 +79,8 @@ namespace MemoryBuffer
                 queueSize,
                 discardOldest,
                 minimumSamplingInterval,
-                createDurable)
+                createDurable
+            )
         {
             Offset = offset;
         }
@@ -92,13 +93,9 @@ namespace MemoryBuffer
             INodeManager nodeManager,
             object managerHandle,
             uint offset,
-            IStoredMonitoredItem storedMonitoredItem)
-        :
-            base(
-                server,
-                nodeManager,
-                managerHandle,
-                storedMonitoredItem)
+            IStoredMonitoredItem storedMonitoredItem
+        )
+            : base(server, nodeManager, managerHandle, storedMonitoredItem)
         {
             Offset = offset;
         }
@@ -110,9 +107,11 @@ namespace MemoryBuffer
             DiagnosticsMasks diagnosticsMasks,
             TimestampsToReturn timestampsToReturn,
             uint clientHandle,
-            double samplingInterval)
+            double samplingInterval
+        )
         {
-            return ModifyAttributes(diagnosticsMasks,
+            return ModifyAttributes(
+                diagnosticsMasks,
                 timestampsToReturn,
                 clientHandle,
                 null,
@@ -120,7 +119,8 @@ namespace MemoryBuffer
                 null,
                 samplingInterval,
                 0,
-                false);
+                false
+            );
         }
 
         /// <summary>

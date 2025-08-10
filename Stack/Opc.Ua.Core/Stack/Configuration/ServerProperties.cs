@@ -15,9 +15,9 @@ using System;
 namespace Opc.Ua
 {
     /// <summary>
-	/// The properties of the current server instance.
-	/// </summary>
-	public class ServerProperties
+    /// The properties of the current server instance.
+    /// </summary>
+    public class ServerProperties
     {
         /// <summary>
         /// The default constructor.

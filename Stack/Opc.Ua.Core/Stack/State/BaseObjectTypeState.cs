@@ -22,9 +22,8 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the instance with its default attribute values.
         /// </summary>
-        public BaseObjectTypeState() : base(NodeClass.ObjectType)
-        {
-        }
+        public BaseObjectTypeState()
+            : base(NodeClass.ObjectType) { }
 
         /// <summary>
         /// Initializes the instance with the default values.
@@ -78,9 +77,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the instance with its default attribute values.
         /// </summary>
-        public FolderTypeState()
-        {
-        }
+        public FolderTypeState() { }
 
         /// <summary>
         /// Initializes the instance with the default values.

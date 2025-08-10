@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2018 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -43,7 +43,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
     [Parallelizable]
     public class StateTypesTests
     {
-        public const string kApplicationUri = "uri:localhost:opcfoundation.org:NodeStates";
+        public const string ApplicationUri = "uri:localhost:opcfoundation.org:NodeStates";
         public const string OpcUa = "http://opcfoundation.org/UA/";
         public IServiceMessageContext Context;
 
@@ -56,7 +56,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             Context = new ServiceMessageContext();
             NamespaceTable nameSpaceUris = Context.NamespaceUris;
             // namespace index 1 must be the ApplicationUri
-            nameSpaceUris.GetIndexOrAppend(kApplicationUri);
+            nameSpaceUris.GetIndexOrAppend(ApplicationUri);
             nameSpaceUris.GetIndexOrAppend(Namespaces.OpcUaGds);
         }
 
@@ -70,9 +70,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         /// Verify activation of a NodeState type.
         /// </summary>
         [Theory]
-        public void ActivateNodeStateType(
-            Type systemType
-            )
+        public void ActivateNodeStateType(Type systemType)
         {
             var testObject = CreateDefaultNodeStateType(systemType) as NodeState;
             Assert.NotNull(testObject);
@@ -93,9 +91,11 @@ namespace Opc.Ua.Core.Tests.Stack.State
             object instance;
             try
             {
-                if (typeof(BaseObjectState).GetTypeInfo().IsAssignableFrom(systemTypeInfo) ||
-                    typeof(BaseVariableState).GetTypeInfo().IsAssignableFrom(systemTypeInfo) ||
-                    typeof(MethodState).GetTypeInfo().IsAssignableFrom(systemTypeInfo))
+                if (
+                    typeof(BaseObjectState).GetTypeInfo().IsAssignableFrom(systemTypeInfo)
+                    || typeof(BaseVariableState).GetTypeInfo().IsAssignableFrom(systemTypeInfo)
+                    || typeof(MethodState).GetTypeInfo().IsAssignableFrom(systemTypeInfo)
+                )
                 {
                     instance = Activator.CreateInstance(systemType, (NodeState)null);
                 }
@@ -122,13 +122,15 @@ namespace Opc.Ua.Core.Tests.Stack.State
             }
 
             System.Reflection.TypeInfo systemTypeInfo = systemType.GetTypeInfo();
-            if (systemTypeInfo.IsAbstract || systemTypeInfo.IsGenericType ||
-                systemTypeInfo.IsGenericTypeDefinition ||
-                !typeof(NodeState).GetTypeInfo().IsAssignableFrom(systemTypeInfo))
+            if (
+                systemTypeInfo.IsAbstract
+                || systemTypeInfo.IsGenericType
+                || systemTypeInfo.IsGenericTypeDefinition
+                || !typeof(NodeState).GetTypeInfo().IsAssignableFrom(systemTypeInfo)
+            )
             {
                 return false;
             }
-
 
             return CreateDefaultNodeStateType(systemType) is NodeState nodeState;
         }

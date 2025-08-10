@@ -209,7 +209,11 @@ namespace Opc.Ua.Server.Tests
             Assert.That(publishResult2.Handle, Is.AssignableTo<AuditUrlMismatchEventState>());
         }
 
-        private static MonitoredItem CreateMonitoredItem(bool events = false, uint queueSize = 10, bool discardOldest = false)
+        private static MonitoredItem CreateMonitoredItem(
+            bool events = false,
+            uint queueSize = 10,
+            bool discardOldest = false
+        )
         {
             MonitoringFilter filter = events ? new EventFilter() : new MonitoringFilter();
 
@@ -238,7 +242,7 @@ namespace Opc.Ua.Server.Tests
                 queueSize,
                 discardOldest,
                 1000
-                );
+            );
         }
     }
 }

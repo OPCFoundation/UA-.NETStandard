@@ -36,9 +36,9 @@ namespace Opc.Ua.Bindings
             BufferManager bufferManager,
             ChannelQuotas quotas,
             CertificateTypesProvider serverCertificateTypesProvider,
-            EndpointDescriptionCollection endpoints)
-        :
-            base(contextId, listener, bufferManager, quotas, serverCertificateTypesProvider, endpoints)
+            EndpointDescriptionCollection endpoints
+        )
+            : base(contextId, listener, bufferManager, quotas, serverCertificateTypesProvider, endpoints)
         {
             m_queuedResponses = [];
         }
@@ -71,17 +71,22 @@ namespace Opc.Ua.Bindings
 
         private class ReverseConnectAsyncResult : AsyncResultBase
         {
-            public ReverseConnectAsyncResult(AsyncCallback callback, object callbackData, int timeout) :
-                base(callback, callbackData, timeout)
-            {
-            }
+            public ReverseConnectAsyncResult(AsyncCallback callback, object callbackData, int timeout)
+                : base(callback, callbackData, timeout) { }
+
             public IMessageSocket Socket;
         }
 
         /// <summary>
         /// Begin a reverse connect.
         /// </summary>
-        public IAsyncResult BeginReverseConnect(uint channelId, Uri endpointUrl, AsyncCallback callback, object callbackData, int timeout)
+        public IAsyncResult BeginReverseConnect(
+            uint channelId,
+            Uri endpointUrl,
+            AsyncCallback callback,
+            object callbackData,
+            int timeout
+        )
         {
             ChannelId = channelId;
             ReverseConnectionUrl = endpointUrl;
@@ -179,7 +184,8 @@ namespace Opc.Ua.Bindings
             uint sequenceNumber,
             X509Certificate2 clientCertificate,
             ChannelToken token,
-            OpenSecureChannelRequest request)
+            OpenSecureChannelRequest request
+        )
         {
             if (socket == null)
             {
@@ -220,7 +226,11 @@ namespace Opc.Ua.Bindings
                 }
                 catch (Exception e)
                 {
-                    SendServiceFault(token, requestId, ServiceResult.Create(e, StatusCodes.BadTcpInternalError, "Unexpected error processing request."));
+                    SendServiceFault(
+                        token,
+                        requestId,
+                        ServiceResult.Create(e, StatusCodes.BadTcpInternalError, "Unexpected error processing request.")
+                    );
                 }
             }
         }
@@ -261,7 +271,11 @@ namespace Opc.Ua.Bindings
                     // process close secure channel response.
                     if (TcpMessageType.IsType(messageType, TcpMessageType.Close))
                     {
-                        LogTrace(TraceMasks.ServiceDetail, "ChannelId {0}: ProcessCloseSecureChannelRequest", ChannelId);
+                        LogTrace(
+                            TraceMasks.ServiceDetail,
+                            "ChannelId {0}: ProcessCloseSecureChannelRequest",
+                            ChannelId
+                        );
                         return ProcessCloseSecureChannelRequest(messageType, messageChunk);
                     }
 
@@ -269,7 +283,8 @@ namespace Opc.Ua.Bindings
                     ForceChannelFault(
                         StatusCodes.BadTcpMessageTypeInvalid,
                         "The server does not recognize the message type: {0:X8}.",
-                        messageType);
+                        messageType
+                    );
 
                     return false;
                 }
@@ -306,7 +321,11 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Processes a Hello message from the client.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1804:RemoveUnusedLocals", MessageId = "protocolVersion")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Microsoft.Performance",
+            "CA1804:RemoveUnusedLocals",
+            MessageId = "protocolVersion"
+        )]
         private bool ProcessHelloMessage(ArraySegment<byte> messageChunk)
         {
             const uint kProtocolVersion = 0;
@@ -373,11 +392,17 @@ namespace Opc.Ua.Bindings
 
                 // update receive buffer size.
                 ReceiveBufferSize = Math.Min(ReceiveBufferSize, (int)receiveBufferSize);
-                ReceiveBufferSize = Math.Min(Math.Max(ReceiveBufferSize, TcpMessageLimits.MinBufferSize), TcpMessageLimits.MaxBufferSize);
+                ReceiveBufferSize = Math.Min(
+                    Math.Max(ReceiveBufferSize, TcpMessageLimits.MinBufferSize),
+                    TcpMessageLimits.MaxBufferSize
+                );
 
                 // update send buffer size.
                 SendBufferSize = Math.Min(SendBufferSize, (int)sendBufferSize);
-                SendBufferSize = Math.Min(Math.Max(SendBufferSize, TcpMessageLimits.MinBufferSize), TcpMessageLimits.MaxBufferSize);
+                SendBufferSize = Math.Min(
+                    Math.Max(SendBufferSize, TcpMessageLimits.MinBufferSize),
+                    TcpMessageLimits.MaxBufferSize
+                );
 
                 // update the max message size.
                 if (maxMessageSize > 0 && maxMessageSize < MaxResponseMessageSize)
@@ -436,7 +461,11 @@ namespace Opc.Ua.Bindings
             }
             catch (Exception e)
             {
-                ForceChannelFault(e, StatusCodes.BadTcpInternalError, "Unexpected error while processing a Hello message.");
+                ForceChannelFault(
+                    e,
+                    StatusCodes.BadTcpInternalError,
+                    "Unexpected error while processing a Hello message."
+                );
             }
 
             return false;
@@ -453,7 +482,10 @@ namespace Opc.Ua.Bindings
             // validate the channel state.
             if (State is not TcpChannelState.Opening and not TcpChannelState.Open)
             {
-                ForceChannelFault(StatusCodes.BadTcpMessageTypeInvalid, "Client sent an unexpected OpenSecureChannel message.");
+                ForceChannelFault(
+                    StatusCodes.BadTcpMessageTypeInvalid,
+                    "Client sent an unexpected OpenSecureChannel message."
+                );
                 return false;
             }
 
@@ -473,7 +505,8 @@ namespace Opc.Ua.Bindings
                     out channelId,
                     out clientCertificate,
                     out requestId,
-                    out sequenceNumber);
+                    out sequenceNumber
+                );
 
                 // check for replay attacks.
                 if (!VerifySequenceNumber(sequenceNumber, "ProcessOpenSecureChannelRequest"))
@@ -495,25 +528,33 @@ namespace Opc.Ua.Bindings
                 // return the other specific validation errors instead of BadSecurityChecksFailed
                 if (e.InnerException is ServiceResultException innerException)
                 {
-                    if (innerException.StatusCode == StatusCodes.BadCertificateUntrusted ||
-                        innerException.StatusCode == StatusCodes.BadCertificateChainIncomplete ||
-                        innerException.StatusCode == StatusCodes.BadCertificateRevoked ||
-                        innerException.StatusCode == StatusCodes.BadCertificateInvalid ||
-                        innerException.StatusCode == StatusCodes.BadCertificatePolicyCheckFailed ||
-                        (innerException.InnerResult != null && innerException.InnerResult.StatusCode == StatusCodes.BadCertificateUntrusted))
+                    if (
+                        innerException.StatusCode == StatusCodes.BadCertificateUntrusted
+                        || innerException.StatusCode == StatusCodes.BadCertificateChainIncomplete
+                        || innerException.StatusCode == StatusCodes.BadCertificateRevoked
+                        || innerException.StatusCode == StatusCodes.BadCertificateInvalid
+                        || innerException.StatusCode == StatusCodes.BadCertificatePolicyCheckFailed
+                        || (
+                            innerException.InnerResult != null
+                            && innerException.InnerResult.StatusCode == StatusCodes.BadCertificateUntrusted
+                        )
+                    )
                     {
                         ForceChannelFault(StatusCodes.BadSecurityChecksFailed, errorSecurityChecksFailed);
                         return false;
                     }
-                    else if (innerException.StatusCode is StatusCodes.BadCertificateTimeInvalid or
-                        StatusCodes.BadCertificateIssuerTimeInvalid or
-                        StatusCodes.BadCertificateHostNameInvalid or
-                        StatusCodes.BadCertificateUriInvalid or
-                        StatusCodes.BadCertificateUseNotAllowed or
-                        StatusCodes.BadCertificateIssuerUseNotAllowed or
-                        StatusCodes.BadCertificateRevocationUnknown or
-                        StatusCodes.BadCertificateIssuerRevocationUnknown or
-                        StatusCodes.BadCertificateIssuerRevoked)
+                    else if (
+                        innerException.StatusCode
+                        is StatusCodes.BadCertificateTimeInvalid
+                            or StatusCodes.BadCertificateIssuerTimeInvalid
+                            or StatusCodes.BadCertificateHostNameInvalid
+                            or StatusCodes.BadCertificateUriInvalid
+                            or StatusCodes.BadCertificateUseNotAllowed
+                            or StatusCodes.BadCertificateIssuerUseNotAllowed
+                            or StatusCodes.BadCertificateRevocationUnknown
+                            or StatusCodes.BadCertificateIssuerRevocationUnknown
+                            or StatusCodes.BadCertificateIssuerRevoked
+                    )
                     {
                         ForceChannelFault(innerException, innerException.StatusCode, e.Message);
                         return false;
@@ -550,14 +591,19 @@ namespace Opc.Ua.Bindings
                 // get the chunks to process.
                 chunksToProcess = GetSavedChunks(requestId, messageBody, true);
 
-                request = (OpenSecureChannelRequest)BinaryDecoder.DecodeMessage(
-                    new ArraySegmentStream(chunksToProcess),
-                    typeof(OpenSecureChannelRequest),
-                    Quotas.MessageContext);
+                request = (OpenSecureChannelRequest)
+                    BinaryDecoder.DecodeMessage(
+                        new ArraySegmentStream(chunksToProcess),
+                        typeof(OpenSecureChannelRequest),
+                        Quotas.MessageContext
+                    );
 
                 if (request == null)
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadStructureMissing, "Could not parse OpenSecureChannel request body.");
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadStructureMissing,
+                        "Could not parse OpenSecureChannel request body."
+                    );
                 }
 
                 // check the security mode.
@@ -574,7 +620,10 @@ namespace Opc.Ua.Bindings
                 token.ClientNonce = request.ClientNonce;
                 if (!ValidateNonce(ClientCertificate, token.ClientNonce))
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadNonceInvalid, "Client nonce is not the correct length or not random enough.");
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadNonceInvalid,
+                        "Client nonce is not the correct length or not random enough."
+                    );
                 }
 
                 // choose the lifetime.
@@ -595,7 +644,10 @@ namespace Opc.Ua.Bindings
 
                 if (requestType == SecurityTokenRequestType.Issue && State != TcpChannelState.Opening)
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadRequestTypeInvalid, "Cannot request a new token for an open channel.");
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadRequestTypeInvalid,
+                        "Cannot request a new token for an open channel."
+                    );
                 }
 
                 if (requestType == SecurityTokenRequestType.Renew && State != TcpChannelState.Open)
@@ -611,7 +663,8 @@ namespace Opc.Ua.Bindings
                             channelId,
                             ClientCertificate,
                             token,
-                            request);
+                            request
+                        );
 
                         token = null;
 
@@ -620,7 +673,8 @@ namespace Opc.Ua.Bindings
                             ChannelName,
                             (Socket?.Handle) ?? 0,
                             (CurrentToken != null) ? CurrentToken.ChannelId : 0,
-                            (CurrentToken != null) ? CurrentToken.TokenId : 0);
+                            (CurrentToken != null) ? CurrentToken.TokenId : 0
+                        );
 
                         // close the channel.
                         ChannelClosed();
@@ -629,32 +683,37 @@ namespace Opc.Ua.Bindings
                         return false;
                     }
 
-                    throw ServiceResultException.Create(StatusCodes.BadRequestTypeInvalid, "Cannot request to renew a token for a channel that has not been opened.");
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadRequestTypeInvalid,
+                        "Cannot request to renew a token for a channel that has not been opened."
+                    );
                 }
 
                 // check the channel id.
                 if (requestType == SecurityTokenRequestType.Renew && channelId != ChannelId)
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadTcpSecureChannelUnknown, "Do not recognize the secure channel id provided.");
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadTcpSecureChannelUnknown,
+                        "Do not recognize the secure channel id provided."
+                    );
                 }
 
                 // log security information.
                 if (requestType == SecurityTokenRequestType.Issue)
                 {
                     Security.Audit.SecureChannelCreated(
-                        m_ImplementationString,
+                        s_implementationString,
                         Listener.EndpointUrl.ToString(),
                         Format("{0}", ChannelId),
                         EndpointDescription,
                         ClientCertificate,
                         ServerCertificate,
-                        BinaryEncodingSupport.Required);
+                        BinaryEncodingSupport.Required
+                    );
                 }
                 else
                 {
-                    Security.Audit.SecureChannelRenewed(
-                        m_ImplementationString,
-                        Format("{0}", ChannelId));
+                    Security.Audit.SecureChannelRenewed(s_implementationString, Format("{0}", ChannelId));
                 }
 
                 if (requestType == SecurityTokenRequestType.Renew)
@@ -681,7 +740,7 @@ namespace Opc.Ua.Bindings
                     SendOpenSecureChannelResponse(requestId, CurrentToken, request);
                 }
 
-                // notify reverse 
+                // notify reverse
                 CompleteReverseHello(null);
 
                 // notify any monitors.
@@ -700,7 +759,14 @@ namespace Opc.Ua.Bindings
                 // report the audit event for open secure channel
                 ReportAuditOpenSecureChannelEvent?.Invoke(this, request, ClientCertificate, e);
 
-                SendServiceFault(requestId, ServiceResult.Create(e, StatusCodes.BadTcpInternalError, "Unexpected error processing OpenSecureChannel request."));
+                SendServiceFault(
+                    requestId,
+                    ServiceResult.Create(
+                        e,
+                        StatusCodes.BadTcpInternalError,
+                        "Unexpected error processing OpenSecureChannel request."
+                    )
+                );
                 CompleteReverseHello(e);
                 return false;
             }
@@ -761,7 +827,8 @@ namespace Opc.Ua.Bindings
                 ServerCertificate,
                 ServerCertificateChain,
                 ClientCertificate,
-                new ArraySegment<byte>(buffer, 0, buffer.Length));
+                new ArraySegment<byte>(buffer, 0, buffer.Length)
+            );
 
             // write the message to the server.
             try
@@ -797,7 +864,10 @@ namespace Opc.Ua.Bindings
                 // check for replay attacks.
                 if (!VerifySequenceNumber(sequenceNumber, "ProcessCloseSecureChannelRequest"))
                 {
-                    throw new ServiceResultException(StatusCodes.BadSequenceNumberInvalid, "Could not verify security on CloseSecureChannel request.");
+                    throw new ServiceResultException(
+                        StatusCodes.BadSequenceNumberInvalid,
+                        "Could not verify security on CloseSecureChannel request."
+                    );
                 }
             }
             catch (Exception e)
@@ -805,7 +875,11 @@ namespace Opc.Ua.Bindings
                 // report the audit event for close secure channel
                 ReportAuditCloseSecureChannelEvent?.Invoke(this, e);
 
-                throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, e, "Could not verify security on CloseSecureChannel request.");
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityChecksFailed,
+                    e,
+                    "Could not verify security on CloseSecureChannel request."
+                );
             }
 
             BufferCollection chunksToProcess = null;
@@ -822,12 +896,19 @@ namespace Opc.Ua.Bindings
                 // get the chunks to process.
                 chunksToProcess = GetSavedChunks(requestId, messageBody, true);
 
-                if (BinaryDecoder.DecodeMessage(
-                    new ArraySegmentStream(chunksToProcess),
-                    typeof(CloseSecureChannelRequest),
-                    Quotas.MessageContext) is not CloseSecureChannelRequest request)
+                if (
+                    BinaryDecoder.DecodeMessage(
+                        new ArraySegmentStream(chunksToProcess),
+                        typeof(CloseSecureChannelRequest),
+                        Quotas.MessageContext
+                    )
+                    is not CloseSecureChannelRequest request
+                )
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadStructureMissing, "Could not parse CloseSecureChannel request body.");
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadStructureMissing,
+                        "Could not parse CloseSecureChannel request body."
+                    );
                 }
 
                 // send the response.
@@ -849,7 +930,11 @@ namespace Opc.Ua.Bindings
 
                 LogInfo(
                     "{0} ProcessCloseSecureChannelRequest success, ChannelId={1}, TokenId={2}, Socket={3:X8}",
-                    ChannelName, CurrentToken?.ChannelId, CurrentToken?.TokenId, Socket?.Handle);
+                    ChannelName,
+                    CurrentToken?.ChannelId,
+                    CurrentToken?.TokenId,
+                    Socket?.Handle
+                );
 
                 // close the channel.
                 ChannelClosed();
@@ -876,7 +961,6 @@ namespace Opc.Ua.Bindings
 
             ArraySegment<byte> messageBody;
 
-
             // validate security on the message.
             ChannelToken token;
 
@@ -894,14 +978,22 @@ namespace Opc.Ua.Bindings
 
                 if (token == CurrentToken && PreviousToken != null && !PreviousToken.Expired)
                 {
-                    LogInfo("ChannelId {0}: Server Current Token #{1}, Revoked Token #{2}.",
-                        PreviousToken.ChannelId, CurrentToken.TokenId, PreviousToken.TokenId);
+                    LogInfo(
+                        "ChannelId {0}: Server Current Token #{1}, Revoked Token #{2}.",
+                        PreviousToken.ChannelId,
+                        CurrentToken.TokenId,
+                        PreviousToken.TokenId
+                    );
                     PreviousToken.Lifetime = 0;
                 }
             }
             catch (Exception e)
             {
-                ForceChannelFault(e, StatusCodes.BadSecurityChecksFailed, "Could not verify security on incoming request.");
+                ForceChannelFault(
+                    e,
+                    StatusCodes.BadSecurityChecksFailed,
+                    "Could not verify security on incoming request."
+                );
                 return false;
             }
 
@@ -928,7 +1020,12 @@ namespace Opc.Ua.Bindings
                 // check for an abort.
                 if (TcpMessageType.IsAbort(messageType))
                 {
-                    LogWarning(TraceMasks.ServiceDetail, "ChannelId {0}: ProcessRequestMessage RequestId {1} was aborted.", ChannelId, requestId);
+                    LogWarning(
+                        TraceMasks.ServiceDetail,
+                        "ChannelId {0}: ProcessRequestMessage RequestId {1} was aborted.",
+                        ChannelId,
+                        requestId
+                    );
                     chunksToProcess = GetSavedChunks(requestId, messageBody, true);
                     return true;
                 }
@@ -951,7 +1048,14 @@ namespace Opc.Ua.Bindings
                         else if (GetSavedChunksTotalSize() > TcpMessageLimits.DefaultDiscoveryMaxMessageSize)
                         {
                             chunksToProcess = GetSavedChunks(0, messageBody, true);
-                            SendServiceFault(token, requestId, ServiceResult.Create(StatusCodes.BadSecurityPolicyRejected, "Discovery Channel message size exceeded."));
+                            SendServiceFault(
+                                token,
+                                requestId,
+                                ServiceResult.Create(
+                                    StatusCodes.BadSecurityPolicyRejected,
+                                    "Discovery Channel message size exceeded."
+                                )
+                            );
                             ChannelClosed();
                         }
                     }
@@ -960,7 +1064,11 @@ namespace Opc.Ua.Bindings
                 }
 
                 // Utils.LogTrace("ChannelId {0}: ProcessRequestMessage RequestId {1}", ChannelId, requestId);
-                if (DiscoveryOnly && GetSavedChunksTotalSize() == 0 && !ValidateDiscoveryServiceCall(token, requestId, messageBody, out chunksToProcess))
+                if (
+                    DiscoveryOnly
+                    && GetSavedChunksTotalSize() == 0
+                    && !ValidateDiscoveryServiceCall(token, requestId, messageBody, out chunksToProcess)
+                )
                 {
                     return true;
                 }
@@ -969,16 +1077,33 @@ namespace Opc.Ua.Bindings
                 chunksToProcess = GetSavedChunks(requestId, messageBody, true);
 
                 // decode the request.
-                if (BinaryDecoder.DecodeMessage(new ArraySegmentStream(chunksToProcess), null, Quotas.MessageContext) is not IServiceRequest request)
+                if (
+                    BinaryDecoder.DecodeMessage(new ArraySegmentStream(chunksToProcess), null, Quotas.MessageContext)
+                    is not IServiceRequest request
+                )
                 {
-                    SendServiceFault(token, requestId, ServiceResult.Create(StatusCodes.BadStructureMissing, "Could not parse request body."));
+                    SendServiceFault(
+                        token,
+                        requestId,
+                        ServiceResult.Create(StatusCodes.BadStructureMissing, "Could not parse request body.")
+                    );
                     return true;
                 }
 
                 // ensure that only discovery requests come through unsecured.
-                if (DiscoveryOnly && request is not (GetEndpointsRequest or FindServersRequest or FindServersOnNetworkRequest))
+                if (
+                    DiscoveryOnly
+                    && request is not (GetEndpointsRequest or FindServersRequest or FindServersOnNetworkRequest)
+                )
                 {
-                    SendServiceFault(token, requestId, ServiceResult.Create(StatusCodes.BadSecurityPolicyRejected, "Channel can only be used for discovery."));
+                    SendServiceFault(
+                        token,
+                        requestId,
+                        ServiceResult.Create(
+                            StatusCodes.BadSecurityPolicyRejected,
+                            "Channel can only be used for discovery."
+                        )
+                    );
                     return true;
                 }
 
@@ -990,7 +1115,11 @@ namespace Opc.Ua.Bindings
             catch (Exception e)
             {
                 LogError(e, "Unexpected error processing request.");
-                SendServiceFault(token, requestId, ServiceResult.Create(e, StatusCodes.BadTcpInternalError, "Unexpected error processing request."));
+                SendServiceFault(
+                    token,
+                    requestId,
+                    ServiceResult.Create(e, StatusCodes.BadTcpInternalError, "Unexpected error processing request.")
+                );
                 return true;
             }
             finally
@@ -1021,7 +1150,10 @@ namespace Opc.Ua.Bindings
                 // if the channel is closed no response can be sent, throw exception to end processing in this specific channel.
                 if (State == TcpChannelState.Closed)
                 {
-                    throw new ServiceResultException(StatusCodes.BadSecureChannelClosed, "Cannot send response over a closed channel.");
+                    throw new ServiceResultException(
+                        StatusCodes.BadSecureChannelClosed,
+                        "Cannot send response over a closed channel."
+                    );
                 }
 
                 EventLog.SendResponse((int)ChannelId, (int)requestId);
@@ -1039,14 +1171,16 @@ namespace Opc.Ua.Bindings
                         CurrentToken,
                         response,
                         false,
-                        out limitsExceeded);
+                        out limitsExceeded
+                    );
                 }
                 catch (Exception e)
                 {
                     SendServiceFault(
                         CurrentToken,
                         requestId,
-                        ServiceResult.Create(e, StatusCodes.BadEncodingError, "Could not encode outgoing message."));
+                        ServiceResult.Create(e, StatusCodes.BadEncodingError, "Could not encode outgoing message.")
+                    );
 
                     return;
                 }
@@ -1092,26 +1226,41 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Validate the type of message before it is decoded.
         /// </summary>
-        private bool ValidateDiscoveryServiceCall(ChannelToken token, uint requestId, ArraySegment<byte> messageBody, out BufferCollection chunksToProcess)
+        private bool ValidateDiscoveryServiceCall(
+            ChannelToken token,
+            uint requestId,
+            ArraySegment<byte> messageBody,
+            out BufferCollection chunksToProcess
+        )
         {
             chunksToProcess = null;
             using var decoder = new BinaryDecoder(messageBody, Quotas.MessageContext);
             // read the type of the message before more chunks are processed.
             NodeId typeId = decoder.ReadNodeId(null);
 
-            if (typeId != ObjectIds.GetEndpointsRequest_Encoding_DefaultBinary &&
-                typeId != ObjectIds.FindServersRequest_Encoding_DefaultBinary &&
-                typeId != ObjectIds.FindServersOnNetworkRequest_Encoding_DefaultBinary)
+            if (
+                typeId != ObjectIds.GetEndpointsRequest_Encoding_DefaultBinary
+                && typeId != ObjectIds.FindServersRequest_Encoding_DefaultBinary
+                && typeId != ObjectIds.FindServersOnNetworkRequest_Encoding_DefaultBinary
+            )
             {
                 chunksToProcess = GetSavedChunks(0, messageBody, true);
-                SendServiceFault(token, requestId, ServiceResult.Create(StatusCodes.BadSecurityPolicyRejected, "Channel can only be used for discovery."));
+                SendServiceFault(
+                    token,
+                    requestId,
+                    ServiceResult.Create(
+                        StatusCodes.BadSecurityPolicyRejected,
+                        "Channel can only be used for discovery."
+                    )
+                );
                 return false;
             }
             return true;
         }
 
         private SortedDictionary<uint, IServiceResponse> m_queuedResponses;
-        private readonly string m_ImplementationString = ".NET Standard ServerChannel UA-TCP " + GetAssemblyBuildNumber();
+        private static readonly string s_implementationString =
+            ".NET Standard ServerChannel UA-TCP " + GetAssemblyBuildNumber();
         private ReverseConnectAsyncResult m_pendingReverseHello;
     }
 }

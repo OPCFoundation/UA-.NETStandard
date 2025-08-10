@@ -50,11 +50,7 @@ namespace Opc.Ua.Bindings
         /// <param name="bufferSize">Size of the buffer.</param>
         /// <param name="start">The start.</param>
         /// <param name="count">The count.</param>
-        public ArraySegmentStream(
-            BufferManager bufferManager,
-            int bufferSize,
-            int start,
-            int count)
+        public ArraySegmentStream(BufferManager bufferManager, int bufferSize, int start, int count)
         {
             m_buffers = [];
 
@@ -73,9 +69,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <param name="bufferManager">The buffer manager.</param>
         public ArraySegmentStream(BufferManager bufferManager)
-            : this(bufferManager, bufferManager.MaxSuggestedBufferSize, 0, bufferManager.MaxSuggestedBufferSize)
-        {
-        }
+            : this(bufferManager, bufferManager.MaxSuggestedBufferSize, 0, bufferManager.MaxSuggestedBufferSize) { }
 
         /// <inheritdoc/>
         protected override void Dispose(bool disposing)
@@ -172,7 +166,6 @@ namespace Opc.Ua.Bindings
         public override long Position
         {
             get => GetAbsolutePosition();
-
             set => Seek(value, SeekOrigin.Begin);
         }
 
@@ -272,14 +265,26 @@ namespace Opc.Ua.Bindings
                 // copy the bytes requested.
                 if (bytesLeft > count)
                 {
-                    Array.Copy(m_currentBuffer.Array, m_currentPosition + m_currentBuffer.Offset, buffer, offset, count);
+                    Array.Copy(
+                        m_currentBuffer.Array,
+                        m_currentPosition + m_currentBuffer.Offset,
+                        buffer,
+                        offset,
+                        count
+                    );
                     bytesRead += count;
                     m_currentPosition += count;
                     return bytesRead;
                 }
 
                 // copy the bytes available and move to next buffer.
-                Array.Copy(m_currentBuffer.Array, m_currentPosition + m_currentBuffer.Offset, buffer, offset, bytesLeft);
+                Array.Copy(
+                    m_currentBuffer.Array,
+                    m_currentPosition + m_currentBuffer.Offset,
+                    buffer,
+                    offset,
+                    bytesLeft
+                );
                 bytesRead += bytesLeft;
 
                 offset += bytesLeft;
@@ -310,7 +315,6 @@ namespace Opc.Ua.Bindings
 
                 default:
                     throw new IOException("Invalid seek origin value.");
-
             }
 
             if (offset < 0)
@@ -439,7 +443,13 @@ namespace Opc.Ua.Bindings
                 // copy the bytes requested.
                 if (bytesLeft >= count)
                 {
-                    Array.Copy(buffer, offset, m_currentBuffer.Array, m_currentPosition + m_currentBuffer.Offset, count);
+                    Array.Copy(
+                        buffer,
+                        offset,
+                        m_currentBuffer.Array,
+                        m_currentPosition + m_currentBuffer.Offset,
+                        count
+                    );
 
                     UpdateCurrentPosition(count);
 
@@ -447,7 +457,13 @@ namespace Opc.Ua.Bindings
                 }
 
                 // copy the bytes available and move to next buffer.
-                Array.Copy(buffer, offset, m_currentBuffer.Array, m_currentPosition + m_currentBuffer.Offset, bytesLeft);
+                Array.Copy(
+                    buffer,
+                    offset,
+                    m_currentBuffer.Array,
+                    m_currentPosition + m_currentBuffer.Offset,
+                    bytesLeft
+                );
 
                 offset += bytesLeft;
                 count -= bytesLeft;

@@ -31,7 +31,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 new NodeId("TestNode", 7),
                 new QualifiedName("TestNode", 7),
                 new LocalizedText("TestNode"),
-                true);
+                true
+            );
 
             var references = new List<IReference>();
 
@@ -42,23 +43,30 @@ namespace Opc.Ua.Core.Tests.Stack.State
             uint index = 0;
             var referenceTargets = new BlockingCollection<ExpandedNodeId>();
 
-            var task = Task.Run(() =>
-            {
-                DateTime utcNow = DateTime.UtcNow;
-
-                while (DateTime.UtcNow - utcNow < TimeSpan.FromSeconds(3))
+            var task = Task.Run(
+                () =>
                 {
-                    var target = new ExpandedNodeId(index++, "test.namespace");
-                    testNodeState.AddReference(ReferenceTypeIds.HasComponent, false, target);
-                    referenceTargets.Add(target);
-                }
+                    DateTime utcNow = DateTime.UtcNow;
 
-                referenceTargets.CompleteAdding();
-            }, cancellationToken);
+                    while (DateTime.UtcNow - utcNow < TimeSpan.FromSeconds(3))
+                    {
+                        var target = new ExpandedNodeId(index++, "test.namespace");
+                        testNodeState.AddReference(ReferenceTypeIds.HasComponent, false, target);
+                        referenceTargets.Add(target);
+                    }
+
+                    referenceTargets.CompleteAdding();
+                },
+                cancellationToken
+            );
 
             foreach (ExpandedNodeId target in referenceTargets.GetConsumingEnumerable(cancellationToken))
             {
-                bool removeReferenceSuccess = testNodeState.RemoveReference(ReferenceTypeIds.HasComponent, false, target);
+                bool removeReferenceSuccess = testNodeState.RemoveReference(
+                    ReferenceTypeIds.HasComponent,
+                    false,
+                    target
+                );
                 Assert.IsTrue(removeReferenceSuccess);
             }
 
@@ -84,7 +92,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 new NodeId("TestNode", 7),
                 new QualifiedName("TestNode", 7),
                 new LocalizedText("TestNode"),
-                true);
+                true
+            );
 
             var notifiers = new List<NodeState.Notifier>();
 
@@ -95,28 +104,32 @@ namespace Opc.Ua.Core.Tests.Stack.State
             uint index = 0;
             var notifierTargets = new BlockingCollection<NodeState>();
 
-            var task = Task.Run(() =>
-            {
-                DateTime utcNow = DateTime.UtcNow;
-
-                while (DateTime.UtcNow - utcNow < TimeSpan.FromSeconds(3))
+            var task = Task.Run(
+                () =>
                 {
-                    var targetState = new AnalogUnitRangeState(null);
+                    DateTime utcNow = DateTime.UtcNow;
 
-                    testNodeState.Create(
-                        new SystemContext() { NamespaceUris = serviceMessageContext.NamespaceUris },
-                        new NodeId("TestNode", 7),
-                        new QualifiedName("TestNode", 7),
-                        new LocalizedText("TestNode"),
-                        true);
+                    while (DateTime.UtcNow - utcNow < TimeSpan.FromSeconds(3))
+                    {
+                        var targetState = new AnalogUnitRangeState(null);
 
-                    var target = new ExpandedNodeId(index++, "test.namespace");
-                    testNodeState.AddNotifier(systemContext, ReferenceTypeIds.HasEventSource, false, targetState);
-                    notifierTargets.Add(targetState);
-                }
+                        testNodeState.Create(
+                            new SystemContext() { NamespaceUris = serviceMessageContext.NamespaceUris },
+                            new NodeId("TestNode", 7),
+                            new QualifiedName("TestNode", 7),
+                            new LocalizedText("TestNode"),
+                            true
+                        );
 
-                notifierTargets.CompleteAdding();
-            }, cancellationToken);
+                        var target = new ExpandedNodeId(index++, "test.namespace");
+                        testNodeState.AddNotifier(systemContext, ReferenceTypeIds.HasEventSource, false, targetState);
+                        notifierTargets.Add(targetState);
+                    }
+
+                    notifierTargets.CompleteAdding();
+                },
+                cancellationToken
+            );
 
             foreach (NodeState target in notifierTargets.GetConsumingEnumerable(cancellationToken))
             {
@@ -145,7 +158,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 new NodeId("TestNode", 7),
                 new QualifiedName("TestNode", 7),
                 new LocalizedText("TestNode"),
-                true);
+                true
+            );
 
             var children = new List<BaseInstanceState>();
 
@@ -156,28 +170,32 @@ namespace Opc.Ua.Core.Tests.Stack.State
             uint index = 0;
             var childrenCollection = new BlockingCollection<BaseInstanceState>();
 
-            var task = Task.Run(() =>
-            {
-                DateTime utcNow = DateTime.UtcNow;
-
-                while (DateTime.UtcNow - utcNow < TimeSpan.FromSeconds(3))
+            var task = Task.Run(
+                () =>
                 {
-                    var targetState = new AnalogUnitRangeState(null);
+                    DateTime utcNow = DateTime.UtcNow;
 
-                    testNodeState.Create(
-                        new SystemContext() { NamespaceUris = serviceMessageContext.NamespaceUris },
-                        new NodeId("TestNode", 7),
-                        new QualifiedName("TestNode", 7),
-                        new LocalizedText("TestNode"),
-                        true);
+                    while (DateTime.UtcNow - utcNow < TimeSpan.FromSeconds(3))
+                    {
+                        var targetState = new AnalogUnitRangeState(null);
 
-                    var target = new ExpandedNodeId(index++, "test.namespace");
-                    testNodeState.AddChild(targetState);
-                    childrenCollection.Add(targetState);
-                }
+                        testNodeState.Create(
+                            new SystemContext() { NamespaceUris = serviceMessageContext.NamespaceUris },
+                            new NodeId("TestNode", 7),
+                            new QualifiedName("TestNode", 7),
+                            new LocalizedText("TestNode"),
+                            true
+                        );
 
-                childrenCollection.CompleteAdding();
-            }, cancellationToken);
+                        var target = new ExpandedNodeId(index++, "test.namespace");
+                        testNodeState.AddChild(targetState);
+                        childrenCollection.Add(targetState);
+                    }
+
+                    childrenCollection.CompleteAdding();
+                },
+                cancellationToken
+            );
 
             foreach (BaseInstanceState child in childrenCollection.GetConsumingEnumerable(cancellationToken))
             {

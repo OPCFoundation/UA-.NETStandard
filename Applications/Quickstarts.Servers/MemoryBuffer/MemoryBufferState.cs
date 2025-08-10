@@ -40,7 +40,8 @@ namespace MemoryBuffer
         /// <summary>
         /// Initializes the buffer from the configuration.
         /// </summary>
-        public MemoryBufferState(ISystemContext context, MemoryBufferInstance configuration) : base(null)
+        public MemoryBufferState(ISystemContext context, MemoryBufferInstance configuration)
+            : base(null)
         {
             Initialize(context);
 
@@ -168,7 +169,8 @@ namespace MemoryBuffer
             BrowseDirection browseDirection,
             QualifiedName browseName,
             IEnumerable<IReference> additionalReferences,
-            bool internalOnly)
+            bool internalOnly
+        )
         {
             NodeBrowser browser = new MemoryBufferBrowser(
                 context,
@@ -179,7 +181,8 @@ namespace MemoryBuffer
                 browseName,
                 additionalReferences,
                 internalOnly,
-                this);
+                this
+            );
 
             PopulateBrowser(context, browser);
 
@@ -196,7 +199,8 @@ namespace MemoryBuffer
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             if (node is not MemoryTagState tag)
             {
@@ -246,7 +250,8 @@ namespace MemoryBuffer
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             if (node is not MemoryTagState tag)
             {
@@ -374,9 +379,7 @@ namespace MemoryBuffer
         /// <summary>
         /// Initializes the instance with the context for the node being monitored.
         /// </summary>
-        public void InitializeMonitoring(
-            IServerInternal server,
-            INodeManager nodeManager)
+        public void InitializeMonitoring(IServerInternal server, INodeManager nodeManager)
         {
             lock (m_dataLock)
             {
@@ -400,8 +403,8 @@ namespace MemoryBuffer
             MonitoringMode monitoringMode,
             uint clientHandle,
             double samplingInterval,
-            bool createDurable)
-
+            bool createDurable
+        )
         /*
         ISystemContext context,
         MemoryTagState tag,
@@ -434,7 +437,8 @@ namespace MemoryBuffer
                     0,
                     false,
                     0,
-                    createDurable);
+                    createDurable
+                );
 
                 /*
                 MemoryBufferMonitoredItem monitoredItem = new MemoryBufferMonitoredItem(
@@ -461,7 +465,8 @@ namespace MemoryBuffer
         public MemoryBufferMonitoredItem RestoreDataChangeItem(
             ServerSystemContext context,
             MemoryTagState tag,
-           IStoredMonitoredItem storedMonitoredItem)
+            IStoredMonitoredItem storedMonitoredItem
+        )
         {
             lock (m_dataLock)
             {
@@ -470,7 +475,8 @@ namespace MemoryBuffer
                     NodeManager,
                     this,
                     tag.Offset,
-                    storedMonitoredItem);
+                    storedMonitoredItem
+                );
 
                 AddMonitoredItemInternal(monitoredItem, tag);
 
@@ -588,7 +594,13 @@ namespace MemoryBuffer
                                 monitoredItems = new MemoryBufferMonitoredItem[monitoredItems.Length - 1];
 
                                 Array.Copy(m_monitoringTable[elementOffet], 0, monitoredItems, 0, index);
-                                Array.Copy(m_monitoringTable[elementOffet], index + 1, monitoredItems, index, monitoredItems.Length - index);
+                                Array.Copy(
+                                    m_monitoringTable[elementOffet],
+                                    index + 1,
+                                    monitoredItems,
+                                    index,
+                                    monitoredItems.Length - index
+                                );
                             }
 
                             m_monitoringTable[elementOffet] = monitoredItems;
@@ -618,7 +630,7 @@ namespace MemoryBuffer
                             WrappedValue = GetValueAtOffset(offset),
                             StatusCode = StatusCodes.Good,
                             ServerTimestamp = DateTime.UtcNow,
-                            SourceTimestamp = m_lastScanTime
+                            SourceTimestamp = m_lastScanTime,
                         };
 
                         for (int ii = 0; ii < monitoredItems.Length; ii++)
@@ -644,7 +656,12 @@ namespace MemoryBuffer
             {
                 if (m_itemCount > 0 && m_updateCount < m_itemCount)
                 {
-                    Utils.LogInfo("{0:HH:mm:ss.fff} MEMORYBUFFER Reported  {1}/{2} items ***.", DateTime.Now, m_updateCount, m_itemCount);
+                    Utils.LogInfo(
+                        "{0:HH:mm:ss.fff} MEMORYBUFFER Reported  {1}/{2} items ***.",
+                        DateTime.Now,
+                        m_updateCount,
+                        m_itemCount
+                    );
                 }
 
                 m_updateCount = 0;

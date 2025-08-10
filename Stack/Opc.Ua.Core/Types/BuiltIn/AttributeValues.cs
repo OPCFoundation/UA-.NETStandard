@@ -181,7 +181,11 @@ namespace Opc.Ua
         /// <summary>
         /// Checks if the actual array dimensions is compatible with the expected value rank and array dimensions.
         /// </summary>
-        public static bool IsValid(IList<uint> actualArrayDimensions, int valueRank, IList<uint> expectedArrayDimensions)
+        public static bool IsValid(
+            IList<uint> actualArrayDimensions,
+            int valueRank,
+            IList<uint> expectedArrayDimensions
+        )
         {
             // check if parameter omitted.
             if (actualArrayDimensions == null || actualArrayDimensions.Count == 0)
@@ -251,4 +255,4 @@ namespace Opc.Ua
         /// </summary>
         public const double Continuous = 0;
     }
-}//namespace
+} //namespace

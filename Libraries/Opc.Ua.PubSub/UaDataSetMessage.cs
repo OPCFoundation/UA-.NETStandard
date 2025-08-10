@@ -42,6 +42,7 @@ namespace Opc.Ua.PubSub
         /// Default value for Configured MetaDataVersion.MajorVersion
         /// </summary>
         protected const uint kDefaultConfigMajorVersion = 0;
+
         /// <summary>
         /// Default value for Configured MetaDataVersion.MinorVersion
         /// </summary>
@@ -57,7 +58,7 @@ namespace Opc.Ua.PubSub
             MetaDataVersion = new ConfigurationVersionDataType()
             {
                 MajorVersion = kDefaultConfigMajorVersion,
-                MinorVersion = kDefaultConfigMinorVersion
+                MinorVersion = kDefaultConfigMinorVersion,
             };
         }
 
@@ -120,9 +121,14 @@ namespace Opc.Ua.PubSub
         /// </summary>
         /// <param name="configurationVersionDataType">The value to validate MetadataVersion against</param>
         /// <returns>NoError if validation passes or the cause of the failure</returns>
-        protected DataSetDecodeErrorReason ValidateMetadataVersion(ConfigurationVersionDataType configurationVersionDataType)
+        protected DataSetDecodeErrorReason ValidateMetadataVersion(
+            ConfigurationVersionDataType configurationVersionDataType
+        )
         {
-            if (MetaDataVersion.MajorVersion != kDefaultConfigMajorVersion && MetaDataVersion.MajorVersion != configurationVersionDataType.MajorVersion)
+            if (
+                MetaDataVersion.MajorVersion != kDefaultConfigMajorVersion
+                && MetaDataVersion.MajorVersion != configurationVersionDataType.MajorVersion
+            )
             {
                 return DataSetDecodeErrorReason.MetadataMajorVersion;
             }

@@ -44,7 +44,8 @@ namespace Opc.Ua.Security
                 throw ServiceResultException.Create(
                     StatusCodes.BadNotReadable,
                     "Cannot find the executable or configuration file: {0}",
-                    filePath);
+                    filePath
+                );
             }
 
             // find the configuration file for the executable.
@@ -58,7 +59,8 @@ namespace Opc.Ua.Security
                     string sectionName = file.Name;
                     sectionName = sectionName[..^file.Extension.Length];
 
-                    configFilePath = ApplicationConfiguration.GetFilePathFromAppConfig(sectionName) ?? filePath + ".config";
+                    configFilePath =
+                        ApplicationConfiguration.GetFilePathFromAppConfig(sectionName) ?? filePath + ".config";
                 }
                 catch (Exception e)
                 {
@@ -66,7 +68,8 @@ namespace Opc.Ua.Security
                         StatusCodes.BadNotReadable,
                         e,
                         "Cannot find the configuration file for the executable: {0}",
-                        filePath);
+                        filePath
+                    );
                 }
 
                 if (!File.Exists(configFilePath))
@@ -74,7 +77,8 @@ namespace Opc.Ua.Security
                     throw ServiceResultException.Create(
                         StatusCodes.BadNotReadable,
                         "Cannot find the configuration file: {0}",
-                        configFilePath);
+                        configFilePath
+                    );
                 }
             }
 
@@ -94,7 +98,9 @@ namespace Opc.Ua.Security
                         throw ServiceResultException.Create(
                             StatusCodes.BadNotReadable,
                             "Cannot read all bytes of the configuration file: {0}<{1}",
-                            bytesRead, reader.Length);
+                            bytesRead,
+                            reader.Length
+                        );
                     }
 
                     // find the SecuredApplication element in the file.
@@ -106,7 +112,6 @@ namespace Opc.Ua.Security
                         application.ConfigurationFile = configFilePath;
                         application.ExecutableFile = exeFilePath;
                     }
-
                     // load the application configuration.
                     else
                     {
@@ -127,7 +132,8 @@ namespace Opc.Ua.Security
                     StatusCodes.BadNotReadable,
                     e,
                     "Cannot load the configuration file: {0}",
-                    filePath);
+                    filePath
+                );
             }
 
             // check if security info store on disk.
@@ -146,7 +152,7 @@ namespace Opc.Ua.Security
                 ConfigurationFile = configFilePath,
                 ExecutableFile = exeFilePath,
                 ConfigurationMode = "http://opcfoundation.org/UASDK/ConfigurationTool",
-                LastExportTime = DateTime.UtcNow
+                LastExportTime = DateTime.UtcNow,
             };
 
             // copy the security settings.
@@ -155,37 +161,57 @@ namespace Opc.Ua.Security
                 if (applicationConfiguration.SecurityConfiguration.IsDeprecatedConfiguration)
                 {
 #pragma warning disable CS0618 // Type or member is obsolete
-                    application.ApplicationCertificate = SecuredApplication.ToCertificateIdentifier(applicationConfiguration.SecurityConfiguration.ApplicationCertificate);
+                    application.ApplicationCertificate = SecuredApplication.ToCertificateIdentifier(
+                        applicationConfiguration.SecurityConfiguration.ApplicationCertificate
+                    );
 #pragma warning restore CS0618 // Type or member is obsolete
                 }
                 else
                 {
-                    application.ApplicationCertificates = SecuredApplication.ToCertificateList(applicationConfiguration.SecurityConfiguration.ApplicationCertificates);
+                    application.ApplicationCertificates = SecuredApplication.ToCertificateList(
+                        applicationConfiguration.SecurityConfiguration.ApplicationCertificates
+                    );
                 }
 
                 if (applicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates != null)
                 {
-                    application.IssuerCertificateStore = SecuredApplication.ToCertificateStoreIdentifier(applicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates);
+                    application.IssuerCertificateStore = SecuredApplication.ToCertificateStoreIdentifier(
+                        applicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates
+                    );
 
-                    if (applicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates.TrustedCertificates != null)
+                    if (
+                        applicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates.TrustedCertificates
+                        != null
+                    )
                     {
-                        application.IssuerCertificates = SecuredApplication.ToCertificateList(applicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates.TrustedCertificates);
+                        application.IssuerCertificates = SecuredApplication.ToCertificateList(
+                            applicationConfiguration.SecurityConfiguration.TrustedIssuerCertificates.TrustedCertificates
+                        );
                     }
                 }
 
                 if (applicationConfiguration.SecurityConfiguration.TrustedPeerCertificates != null)
                 {
-                    application.TrustedCertificateStore = SecuredApplication.ToCertificateStoreIdentifier(applicationConfiguration.SecurityConfiguration.TrustedPeerCertificates);
+                    application.TrustedCertificateStore = SecuredApplication.ToCertificateStoreIdentifier(
+                        applicationConfiguration.SecurityConfiguration.TrustedPeerCertificates
+                    );
 
-                    if (applicationConfiguration.SecurityConfiguration.TrustedPeerCertificates.TrustedCertificates != null)
+                    if (
+                        applicationConfiguration.SecurityConfiguration.TrustedPeerCertificates.TrustedCertificates
+                        != null
+                    )
                     {
-                        application.TrustedCertificates = SecuredApplication.ToCertificateList(applicationConfiguration.SecurityConfiguration.TrustedPeerCertificates.TrustedCertificates);
+                        application.TrustedCertificates = SecuredApplication.ToCertificateList(
+                            applicationConfiguration.SecurityConfiguration.TrustedPeerCertificates.TrustedCertificates
+                        );
                     }
                 }
 
                 if (applicationConfiguration.SecurityConfiguration.RejectedCertificateStore != null)
                 {
-                    application.RejectedCertificatesStore = SecuredApplication.ToCertificateStoreIdentifier(applicationConfiguration.SecurityConfiguration.RejectedCertificateStore);
+                    application.RejectedCertificatesStore = SecuredApplication.ToCertificateStoreIdentifier(
+                        applicationConfiguration.SecurityConfiguration.RejectedCertificateStore
+                    );
                 }
             }
 
@@ -203,7 +229,9 @@ namespace Opc.Ua.Security
             if (serverConfiguration != null)
             {
                 application.BaseAddresses = SecuredApplication.ToListOfBaseAddresses(serverConfiguration);
-                application.SecurityProfiles = SecuredApplication.ToListOfSecurityProfiles(serverConfiguration.SecurityPolicies);
+                application.SecurityProfiles = SecuredApplication.ToListOfSecurityProfiles(
+                    serverConfiguration.SecurityPolicies
+                );
             }
 
             // return exported setttings.
@@ -221,7 +249,11 @@ namespace Opc.Ua.Security
         {
             for (XmlNode ii = parent.FirstChild; ii != null; ii = ii.NextSibling)
             {
-                if (ii is XmlElement xml && ii.LocalName == "SecuredApplication" && ii.NamespaceURI == Namespaces.OpcUaSecurity)
+                if (
+                    ii is XmlElement xml
+                    && ii.LocalName == "SecuredApplication"
+                    && ii.NamespaceURI == Namespaces.OpcUaSecurity
+                )
                 {
                     return xml;
                 }
@@ -255,7 +287,8 @@ namespace Opc.Ua.Security
                 throw ServiceResultException.Create(
                     StatusCodes.BadNotReadable,
                     "Cannot find the configuration file: {0}",
-                    configuration.ConfigurationFile);
+                    configuration.ConfigurationFile
+                );
             }
 
             // load from file.
@@ -273,7 +306,6 @@ namespace Opc.Ua.Security
                 configuration.LastExportTime = DateTime.UtcNow;
                 element.InnerXml = SetObject(typeof(SecuredApplication), configuration);
             }
-
             // update application configuration.
             else
             {
@@ -302,7 +334,8 @@ namespace Opc.Ua.Security
                     StatusCodes.BadNotWritable,
                     e,
                     "Cannot update the configuration file: {0}",
-                    configuration.ConfigurationFile);
+                    configuration.ConfigurationFile
+                );
             }
         }
 
@@ -332,21 +365,35 @@ namespace Opc.Ua.Security
                     if (application.ApplicationCertificate != null)
                     {
 #pragma warning disable CS0618 // Type or member is obsolete
-                        security.ApplicationCertificate = SecuredApplication.FromCertificateIdentifier(application.ApplicationCertificate);
+                        security.ApplicationCertificate = SecuredApplication.FromCertificateIdentifier(
+                            application.ApplicationCertificate
+                        );
 #pragma warning restore CS0618 // Type or member is obsolete
                         security.IsDeprecatedConfiguration = true;
                     }
 
                     if (application.ApplicationCertificates != null)
                     {
-                        security.ApplicationCertificates = SecuredApplication.FromCertificateList(application.ApplicationCertificates);
+                        security.ApplicationCertificates = SecuredApplication.FromCertificateList(
+                            application.ApplicationCertificates
+                        );
                     }
 
-                    security.TrustedIssuerCertificates = SecuredApplication.FromCertificateStoreIdentifierToTrustList(application.IssuerCertificateStore);
-                    security.TrustedIssuerCertificates.TrustedCertificates = SecuredApplication.FromCertificateList(application.IssuerCertificates);
-                    security.TrustedPeerCertificates = SecuredApplication.FromCertificateStoreIdentifierToTrustList(application.TrustedCertificateStore);
-                    security.TrustedPeerCertificates.TrustedCertificates = SecuredApplication.FromCertificateList(application.TrustedCertificates);
-                    security.RejectedCertificateStore = SecuredApplication.FromCertificateStoreIdentifier(application.RejectedCertificatesStore);
+                    security.TrustedIssuerCertificates = SecuredApplication.FromCertificateStoreIdentifierToTrustList(
+                        application.IssuerCertificateStore
+                    );
+                    security.TrustedIssuerCertificates.TrustedCertificates = SecuredApplication.FromCertificateList(
+                        application.IssuerCertificates
+                    );
+                    security.TrustedPeerCertificates = SecuredApplication.FromCertificateStoreIdentifierToTrustList(
+                        application.TrustedCertificateStore
+                    );
+                    security.TrustedPeerCertificates.TrustedCertificates = SecuredApplication.FromCertificateList(
+                        application.TrustedCertificates
+                    );
+                    security.RejectedCertificateStore = SecuredApplication.FromCertificateStoreIdentifier(
+                        application.RejectedCertificatesStore
+                    );
 
                     node.InnerXml = SetObject(typeof(SecurityConfiguration), security);
                     continue;
@@ -357,17 +404,24 @@ namespace Opc.Ua.Security
                     var configuration = (ServerConfiguration)GetObject(typeof(ServerConfiguration), node);
 
                     SecuredApplication.FromListOfBaseAddresses(configuration, application.BaseAddresses);
-                    configuration.SecurityPolicies = SecuredApplication.FromListOfSecurityProfiles(application.SecurityProfiles);
+                    configuration.SecurityPolicies = SecuredApplication.FromListOfSecurityProfiles(
+                        application.SecurityProfiles
+                    );
 
                     node.InnerXml = SetObject(typeof(ServerConfiguration), configuration);
                     continue;
                 }
                 else if (node.Name == "DiscoveryServerConfiguration" && node.NamespaceURI == Namespaces.OpcUaConfig)
                 {
-                    var configuration = (DiscoveryServerConfiguration)GetObject(typeof(DiscoveryServerConfiguration), node);
+                    var configuration = (DiscoveryServerConfiguration)GetObject(
+                        typeof(DiscoveryServerConfiguration),
+                        node
+                    );
 
                     SecuredApplication.FromListOfBaseAddresses(configuration, application.BaseAddresses);
-                    configuration.SecurityPolicies = SecuredApplication.FromListOfSecurityProfiles(application.SecurityProfiles);
+                    configuration.SecurityPolicies = SecuredApplication.FromListOfSecurityProfiles(
+                        application.SecurityProfiles
+                    );
 
                     node.InnerXml = SetObject(typeof(DiscoveryServerConfiguration), configuration);
                     continue;
@@ -381,7 +435,12 @@ namespace Opc.Ua.Security
         private static object GetObject(Type type, XmlNode element)
         {
             using var memoryStream = new MemoryStream(Encoding.UTF8.GetBytes(element.InnerXml));
-            var reader = XmlDictionaryReader.CreateTextReader(memoryStream, Encoding.UTF8, new XmlDictionaryReaderQuotas(), null);
+            var reader = XmlDictionaryReader.CreateTextReader(
+                memoryStream,
+                Encoding.UTF8,
+                new XmlDictionaryReaderQuotas(),
+                null
+            );
             var serializer = new DataContractSerializer(type);
             return serializer.ReadObject(reader);
         }

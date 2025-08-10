@@ -181,7 +181,7 @@ namespace Opc.Ua
         /// <summary>
         /// An enumerated value
         /// </summary>
-        Enumeration = 29
+        Enumeration = 29,
     }
 
     /// <summary>
@@ -576,7 +576,11 @@ namespace Opc.Ua
         /// <returns>
         /// A <see cref="BuiltInType"/> value for <paramref name="datatypeId"/>
         /// </returns>
-        public static async Task<BuiltInType> GetBuiltInTypeAsync(NodeId datatypeId, ITypeTable typeTree, CancellationToken ct = default)
+        public static async Task<BuiltInType> GetBuiltInTypeAsync(
+            NodeId datatypeId,
+            ITypeTable typeTree,
+            CancellationToken ct = default
+        )
         {
             NodeId typeId = datatypeId;
 
@@ -782,15 +786,18 @@ namespace Opc.Ua
         /// <returns>
         /// An data type info if the value is an instance of the data type with the specified value rank; otherwise <c>null</c>.
         /// </returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Microsoft.Maintainability",
+            "CA1502:AvoidExcessiveComplexity"
+        )]
         public static TypeInfo IsInstanceOfDataType(
             object value,
             NodeId expectedDataTypeId,
             int expectedValueRank,
             NamespaceTable namespaceUris,
-            ITypeTable typeTree)
+            ITypeTable typeTree
+        )
         {
-
             // get the type info.
             TypeInfo typeInfo = Construct(value);
 
@@ -826,7 +833,11 @@ namespace Opc.Ua
             }
 
             // A ByteString is equivalent to an Array of Bytes.
-            if (typeInfo.BuiltInType == BuiltInType.ByteString && typeInfo.ValueRank == ValueRanks.Scalar && expectedValueRank is ValueRanks.OneOrMoreDimensions or ValueRanks.OneDimension)
+            if (
+                typeInfo.BuiltInType == BuiltInType.ByteString
+                && typeInfo.ValueRank == ValueRanks.Scalar
+                && expectedValueRank is ValueRanks.OneOrMoreDimensions or ValueRanks.OneDimension
+            )
             {
                 if (typeTree.IsTypeOf(expectedDataTypeId, DataTypeIds.Byte))
                 {
@@ -959,7 +970,10 @@ namespace Opc.Ua
                 }
 
                 // check for enumerations.
-                if (typeInfo.BuiltInType == BuiltInType.Int32 && typeTree.IsTypeOf(expectedDataTypeId, DataTypeIds.Enumeration))
+                if (
+                    typeInfo.BuiltInType == BuiltInType.Int32
+                    && typeTree.IsTypeOf(expectedDataTypeId, DataTypeIds.Enumeration)
+                )
                 {
                     return typeInfo;
                 }
@@ -1058,7 +1072,8 @@ namespace Opc.Ua
                         expectedDataTypeId,
                         ValueRanks.Scalar,
                         namespaceUris,
-                        typeTree);
+                        typeTree
+                    );
 
                     // give up at the first invalid element.
                     if (elementInfo == null)
@@ -1118,7 +1133,10 @@ namespace Opc.Ua
         /// <param name="builtInType">A built-in type.</param>
         /// <param name="valueRank">The value rank.</param>
         /// <returns>A system type equivalent to the built-in type.</returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Microsoft.Maintainability",
+            "CA1502:AvoidExcessiveComplexity"
+        )]
         public static Type GetSystemType(BuiltInType builtInType, int valueRank)
         {
             if (valueRank == ValueRanks.Scalar)
@@ -1343,7 +1361,10 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="systemType">The specified system (framework) type.</param>
         /// <returns><see cref="TypeInfo"/> instance storing information equivalent to the <paramref name="systemType"/> type.</returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Microsoft.Maintainability",
+            "CA1502:AvoidExcessiveComplexity"
+        )]
         public static TypeInfo Construct(Type systemType)
         {
             // check for null.
@@ -1422,7 +1443,10 @@ namespace Opc.Ua
                 }
 
                 // check for encodeable object.
-                if (typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(systemType.GetTypeInfo()) || name == "IEncodeable")
+                if (
+                    typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(systemType.GetTypeInfo())
+                    || name == "IEncodeable"
+                )
                 {
                     return new TypeInfo(BuiltInType.ExtensionObject, ValueRanks.Scalar);
                 }
@@ -1446,7 +1470,10 @@ namespace Opc.Ua
                 }
 
                 // check for encodeable object.
-                if (typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(systemType.GetElementType().GetTypeInfo()) || name == "IEncodeable")
+                if (
+                    typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(systemType.GetElementType().GetTypeInfo())
+                    || name == "IEncodeable"
+                )
                 {
                     return new TypeInfo(BuiltInType.ExtensionObject, ValueRanks.OneDimension);
                 }
@@ -1481,7 +1508,10 @@ namespace Opc.Ua
                 }
 
                 // check for encodeable object.
-                if (typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(systemType.GetTypeInfo()) || name == "IEncodeable")
+                if (
+                    typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(systemType.GetTypeInfo())
+                    || name == "IEncodeable"
+                )
                 {
                     return new TypeInfo(BuiltInType.ExtensionObject, count);
                 }
@@ -1681,7 +1711,16 @@ namespace Opc.Ua
         /// <param name="type">The built-in type.</param>
         /// <param name="dimensions">The dimensions.</param>
         /// <returns>The default value for the specified built-in type</returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2208:InstantiateArgumentExceptionsCorrectly"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
+        [
+            System.Diagnostics.CodeAnalysis.SuppressMessage(
+                "Microsoft.Usage",
+                "CA2208:InstantiateArgumentExceptionsCorrectly"
+            ),
+            System.Diagnostics.CodeAnalysis.SuppressMessage(
+                "Microsoft.Maintainability",
+                "CA1502:AvoidExcessiveComplexity"
+            )
+        ]
         public static Array CreateArray(BuiltInType type, params int[] dimensions)
         {
             if (dimensions == null || dimensions.Length == 0)
@@ -1787,7 +1826,6 @@ namespace Opc.Ua
                         return new Variant[length];
                 }
             }
-
             // create higher dimension arrays.
             else
             {
@@ -1909,7 +1947,10 @@ namespace Opc.Ua
         /// <param name="targetType">Type of the target.</param>
         /// <returns>Return casted value.</returns>
         /// <exception cref="InvalidCastException">if impossible to cast.</exception>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Microsoft.Maintainability",
+            "CA1502:AvoidExcessiveComplexity"
+        )]
         public static object Cast(object source, TypeInfo sourceType, BuiltInType targetType)
         {
             // null always casts to null.
@@ -2003,7 +2044,13 @@ namespace Opc.Ua
         /// <param name="src">The source array.</param>
         /// <param name="srcType">The data type of the elements in the source array.</param>
         /// <param name="convertor">The handler which does the conversion.</param>
-        public static void CastArray(Array dst, BuiltInType dstType, Array src, BuiltInType srcType, CastArrayElementHandler convertor)
+        public static void CastArray(
+            Array dst,
+            BuiltInType dstType,
+            Array src,
+            BuiltInType srcType,
+            CastArrayElementHandler convertor
+        )
         {
             bool isSrcVariant = src.GetType().GetElementType() == typeof(Variant);
             bool isDstVariant = dst.GetType().GetElementType() == typeof(Variant);
@@ -2089,7 +2136,12 @@ namespace Opc.Ua
         /// <param name="dstType">The type of the converted array.</param>
         /// <param name="convertor">The handler which does the conversion.</param>
         /// <returns>The converted array.</returns>
-        public static Array CastArray(Array srcArray, BuiltInType srcType, BuiltInType dstType, CastArrayElementHandler convertor)
+        public static Array CastArray(
+            Array srcArray,
+            BuiltInType srcType,
+            BuiltInType dstType,
+            CastArrayElementHandler convertor
+        )
         {
             if (srcArray == null)
             {
@@ -2121,7 +2173,10 @@ namespace Opc.Ua
         /// <summary>
         /// Maps the type name to a built-in type.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Microsoft.Maintainability",
+            "CA1502:AvoidExcessiveComplexity"
+        )]
         private static BuiltInType GetBuiltInType(string typeName)
         {
             switch (typeName)
@@ -3021,10 +3076,7 @@ namespace Opc.Ua
         /// </summary>
         private static object Cast<T>(object input, TypeInfo sourceType, CastDelegate<T> handler)
         {
-            if (sourceType == null)
-            {
-                sourceType = Construct(input);
-            }
+            sourceType ??= Construct(input);
 
             if (sourceType.ValueRank >= 0)
             {
@@ -3459,8 +3511,7 @@ namespace Opc.Ua
 
             if (obj is TypeInfo typeInfo)
             {
-                return BuiltInType == typeInfo.BuiltInType &&
-                    ValueRank == typeInfo.ValueRank;
+                return BuiltInType == typeInfo.BuiltInType && ValueRank == typeInfo.ValueRank;
             }
 
             return false;

@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -40,14 +40,17 @@ namespace Opc.Ua.Security.Certificates
         /// The Oid string of the Digital Signature Algorithm (DSA) subject public key.
         /// </summary>
         public const string Dsa = "1.2.840.10040.4.1";
+
         /// <summary>
         /// The Oid string for the RSA encryption scheme with PKCS#1.
         /// </summary>
         public const string Rsa = "1.2.840.113549.1.1.1";
+
         /// <summary>
         /// The Oid string for the RSA encryption scheme with OAEP.
         /// </summary>
         public const string RsaOaep = "1.2.840.113549.1.1.7";
+
         /// <summary>
         /// The Oid string for the RSA encryption scheme with PSS.
         /// </summary>
@@ -57,14 +60,17 @@ namespace Opc.Ua.Security.Certificates
         /// The Oid string for RSA signature, PKCS#1 padding with SHA1 hash.
         /// </summary>
         public const string RsaPkcs1Sha1 = "1.2.840.113549.1.1.5";
+
         /// <summary>
         /// The Oid string for RSA signature, PKCS#1 padding with SHA256 hash.
         /// </summary>
         public const string RsaPkcs1Sha256 = "1.2.840.113549.1.1.11";
+
         /// <summary>
         /// The Oid string for RSA signature, PKCS#1 padding with SHA384 hash.
         /// </summary>
         public const string RsaPkcs1Sha384 = "1.2.840.113549.1.1.12";
+
         /// <summary>
         /// The Oid string for RSA signature, PKCS#1 padding with SHA512 hash.
         /// </summary>
@@ -74,18 +80,22 @@ namespace Opc.Ua.Security.Certificates
         /// The Oid string for a EC public key.
         /// </summary>
         public const string ECPublicKey = "1.2.840.10045.2.1";
+
         /// <summary>
         /// The Oid string for ECDsa signature with SHA1 hash.
         /// </summary>
         public const string ECDsaWithSha1 = "1.2.840.10045.4.1";
+
         /// <summary>
         /// The Oid string for ECDsa signature with SHA256 hash.
         /// </summary>
         public const string ECDsaWithSha256 = "1.2.840.10045.4.3.2";
+
         /// <summary>
         /// The Oid string for ECDsa signature with SHA384 hash.
         /// </summary>
         public const string ECDsaWithSha384 = "1.2.840.10045.4.3.3";
+
         /// <summary>
         /// The Oid string for ECDsa signature with SHA512 hash.
         /// </summary>
@@ -95,6 +105,7 @@ namespace Opc.Ua.Security.Certificates
         /// The Oid string for the CRL extension of a CRL Number.
         /// </summary>
         public const string CrlNumber = "2.5.29.20";
+
         /// <summary>
         /// The Oid string for the CRL extension of a CRL Reason Code.
         /// </summary>
@@ -105,6 +116,7 @@ namespace Opc.Ua.Security.Certificates
         /// server authentication.
         /// </summary>
         public const string ServerAuthentication = "1.3.6.1.5.5.7.3.1";
+
         /// <summary>
         /// The Oid string for Transport Layer Security(TLS) World Wide Web(WWW)
         /// client authentication.
@@ -115,14 +127,17 @@ namespace Opc.Ua.Security.Certificates
         /// The Oid string for Authority Information access.
         /// </summary>
         public const string AuthorityInfoAccess = "1.3.6.1.5.5.7.1.1";
+
         /// <summary>
         /// The Oid string for Online Certificate Status Protocol.
         /// </summary>
         public const string OnlineCertificateStatusProtocol = "1.3.6.1.5.5.7.48.1";
+
         /// <summary>
         /// The Oid string for Certificate Authority Issuer.
         /// </summary>
         public const string CertificateAuthorityIssuers = "1.3.6.1.5.5.7.48.2";
+
         /// <summary>
         /// The Oid string for CRL Distribution Point.
         /// </summary>

@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -59,7 +59,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             now += TimeSpan.FromTicks(456789);
             for (int i = 0; i < DataValueCount; i++)
             {
-                m_values.Add(new DataValue(new Variant((m_random.NextDouble() - 0.5) * 1000.0), m_random.NextDouble() > 0.1 ? StatusCodes.Good : StatusCodes.BadDataLost, now, now));
+                m_values.Add(
+                    new DataValue(
+                        new Variant((m_random.NextDouble() - 0.5) * 1000.0),
+                        m_random.NextDouble() > 0.1 ? StatusCodes.Good : StatusCodes.BadDataLost,
+                        now,
+                        now
+                    )
+                );
             }
         }
 
@@ -122,7 +129,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             // for validating benchmark tests
             m_context = new ServiceMessageContext();
-            m_memoryManager = new RecyclableMemoryStreamManager(new RecyclableMemoryStreamManager.Options { BlockSize = StreamBufferSize });
+            m_memoryManager = new RecyclableMemoryStreamManager(
+                new RecyclableMemoryStreamManager.Options { BlockSize = StreamBufferSize }
+            );
             m_bufferManager = new BufferManager(nameof(BinaryEncoder), StreamBufferSize);
         }
 
@@ -140,7 +149,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         {
             // for validating benchmark tests
             m_context = new ServiceMessageContext();
-            m_memoryManager = new RecyclableMemoryStreamManager(new RecyclableMemoryStreamManager.Options { BlockSize = StreamBufferSize });
+            m_memoryManager = new RecyclableMemoryStreamManager(
+                new RecyclableMemoryStreamManager.Options { BlockSize = StreamBufferSize }
+            );
             m_bufferManager = new BufferManager(nameof(BinaryEncoder), StreamBufferSize);
         }
 
@@ -170,14 +181,10 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     public class ArraySegmentStreamNoSpan : ArraySegmentStream
     {
         public ArraySegmentStreamNoSpan(BufferManager bufferManager)
-            : base(bufferManager)
-        {
-        }
+            : base(bufferManager) { }
 
         public ArraySegmentStreamNoSpan(BufferCollection buffers)
-            : base(buffers)
-        {
-        }
+            : base(buffers) { }
 
         public override int Read(Span<byte> buffer)
         {

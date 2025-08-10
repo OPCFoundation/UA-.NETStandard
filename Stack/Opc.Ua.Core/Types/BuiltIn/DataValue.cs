@@ -324,10 +324,14 @@ namespace Opc.Ua
         /// <summary>
         /// The value of data value.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1721:PropertyNamesShouldNotMatchGetMethods")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Microsoft.Naming",
+            "CA1721:PropertyNamesShouldNotMatchGetMethods"
+        )]
         public object Value
         {
-            get => m_value.Value; set => m_value.Value = value;
+            get => m_value.Value;
+            set => m_value.Value = value;
         }
 
         /// <summary>
@@ -336,7 +340,8 @@ namespace Opc.Ua
         [DataMember(Name = "Value", Order = 1, IsRequired = false)]
         public Variant WrappedValue
         {
-            get => m_value; set => m_value = value;
+            get => m_value;
+            set => m_value = value;
         }
 
         /// <summary>
@@ -475,7 +480,11 @@ namespace Opc.Ua
 
                 if (!expectedType.IsInstanceOfType(value))
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadTypeMismatch, "DataValue is not of type {0}.", expectedType.Name);
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadTypeMismatch,
+                        "DataValue is not of type {0}.",
+                        expectedType.Name
+                    );
                 }
             }
 
@@ -511,7 +520,11 @@ namespace Opc.Ua
 
                 if (!typeof(T).IsInstanceOfType(value))
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadTypeMismatch, "DataValue is not of type {0}.", typeof(T).Name);
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadTypeMismatch,
+                        "DataValue is not of type {0}.",
+                        typeof(T).Name
+                    );
                 }
 
                 return (T)value;
@@ -520,7 +533,11 @@ namespace Opc.Ua
             // a null value for a value type should throw
             if (typeof(T).IsValueType)
             {
-                throw ServiceResultException.Create(StatusCodes.BadTypeMismatch, "DataValue is null and not of value type {0}.", typeof(T).Name);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTypeMismatch,
+                    "DataValue is null and not of value type {0}.",
+                    typeof(T).Name
+                );
             }
 
             return default;
@@ -578,13 +595,15 @@ namespace Opc.Ua
         /// Initializes the collection from another collection.
         /// </summary>
         /// <param name="collection">A collection of <see cref="DataValue"/> objects to pre-populate this new collection with</param>
-        public DataValueCollection(IEnumerable<DataValue> collection) : base(collection) { }
+        public DataValueCollection(IEnumerable<DataValue> collection)
+            : base(collection) { }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">The max capacity of this collection</param>
-        public DataValueCollection(int capacity) : base(capacity) { }
+        public DataValueCollection(int capacity)
+            : base(capacity) { }
 
         /// <summary>
         /// Converts an array to a collection.
@@ -630,4 +649,4 @@ namespace Opc.Ua
             return clone;
         }
     }
-}//namespace
+} //namespace

@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -53,35 +53,25 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Creates an empty extension.
         /// </summary>
-        protected X509AuthorityKeyIdentifierExtension()
-        {
-        }
+        protected X509AuthorityKeyIdentifierExtension() { }
 
         /// <summary>
         /// Creates an extension from ASN.1 encoded data.
         /// </summary>
         public X509AuthorityKeyIdentifierExtension(AsnEncodedData encodedExtension, bool critical)
-        :
-            this(encodedExtension.Oid, encodedExtension.RawData, critical)
-        {
-        }
+            : this(encodedExtension.Oid, encodedExtension.RawData, critical) { }
 
         /// <summary>
         /// Creates an extension from ASN.1 encoded data.
         /// </summary>
         public X509AuthorityKeyIdentifierExtension(string oid, byte[] rawData, bool critical)
-        :
-            this(new Oid(oid, kFriendlyName), rawData, critical)
-        {
-        }
+            : this(new Oid(oid, kFriendlyName), rawData, critical) { }
 
         /// <summary>
         /// Build the X509 Authority Key extension.
         /// </summary>
         /// <param name="subjectKeyIdentifier">The subject key identifier</param>
-        public X509AuthorityKeyIdentifierExtension(
-            byte[] subjectKeyIdentifier
-            )
+        public X509AuthorityKeyIdentifierExtension(byte[] subjectKeyIdentifier)
         {
             m_keyIdentifier = subjectKeyIdentifier ?? throw new ArgumentNullException(nameof(subjectKeyIdentifier));
             Oid = new Oid(AuthorityKeyIdentifier2Oid, kFriendlyName);
@@ -103,7 +93,7 @@ namespace Opc.Ua.Security.Certificates
             byte[] subjectKeyIdentifier,
             X500DistinguishedName authorityName,
             byte[] serialNumber
-            )
+        )
         {
             Issuer = authorityName;
             m_keyIdentifier = subjectKeyIdentifier;
@@ -117,8 +107,7 @@ namespace Opc.Ua.Security.Certificates
         /// Creates an extension from ASN.1 encoded data.
         /// </summary>
         public X509AuthorityKeyIdentifierExtension(Oid oid, byte[] rawData, bool critical)
-        :
-            base(oid, rawData, critical)
+            : base(oid, rawData, critical)
         {
             Decode(rawData);
         }
@@ -276,8 +265,7 @@ namespace Opc.Ua.Security.Certificates
 
         private void Decode(byte[] data)
         {
-            if (Oid.Value == AuthorityKeyIdentifierOid ||
-                Oid.Value == AuthorityKeyIdentifier2Oid)
+            if (Oid.Value == AuthorityKeyIdentifierOid || Oid.Value == AuthorityKeyIdentifier2Oid)
             {
                 try
                 {
@@ -300,11 +288,15 @@ namespace Opc.Ua.Security.Certificates
 
                             if (peekTag == dnameSequencyTag)
                             {
-                                AsnReader issuerReader = akiReader.ReadSequence(new Asn1Tag(TagClass.ContextSpecific, 1));
+                                AsnReader issuerReader = akiReader.ReadSequence(
+                                    new Asn1Tag(TagClass.ContextSpecific, 1)
+                                );
                                 if (issuerReader != null)
                                 {
                                     var directoryNameTag = new Asn1Tag(TagClass.ContextSpecific, 4, true);
-                                    Issuer = new X500DistinguishedName(issuerReader.ReadSequence(directoryNameTag).ReadEncodedValue().ToArray());
+                                    Issuer = new X500DistinguishedName(
+                                        issuerReader.ReadSequence(directoryNameTag).ReadEncodedValue().ToArray()
+                                    );
                                     issuerReader.ThrowIfNotEmpty();
                                 }
                                 continue;

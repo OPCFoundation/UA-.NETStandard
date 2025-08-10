@@ -90,8 +90,7 @@ namespace Opc.Ua
     /// <br/></para>
     /// </remarks>
     [DataContract(Name = "StatusCode", Namespace = Namespaces.OpcUaXsd)]
-    public struct StatusCode : IComparable, IFormattable,
-        IComparable<StatusCode>, IEquatable<StatusCode>
+    public struct StatusCode : IComparable, IFormattable, IComparable<StatusCode>, IEquatable<StatusCode>
     {
         /// <summary>
         /// Initializes the object with a numeric value.
@@ -186,7 +185,8 @@ namespace Opc.Ua
         /// </remarks>
         public uint SubCode
         {
-            readonly get => Code & 0x0FFF0000; set => Code = 0x0FFF0000 & value;
+            readonly get => Code & 0x0FFF0000;
+            set => Code = 0x0FFF0000 & value;
         }
 
         /// <summary>
@@ -195,11 +195,10 @@ namespace Opc.Ua
         /// <remarks>
         /// Set to indicate that the structure of the data value has changed.
         /// </remarks>
-        [XmlIgnore()]
+        [XmlIgnore]
         public bool StructureChanged
         {
             readonly get => (Code & kStructureChangedBit) != 0;
-
             set
             {
                 if (value)
@@ -230,11 +229,10 @@ namespace Opc.Ua
         /// <remarks>
         /// Set to indicate that the semantics associated with the data value have changed.
         /// </remarks>
-        [XmlIgnore()]
+        [XmlIgnore]
         public bool SemanticsChanged
         {
             readonly get => (Code & kSemanticsChangedBit) != 0;
-
             set
             {
                 if (value)
@@ -265,11 +263,10 @@ namespace Opc.Ua
         /// <remarks>
         /// The bits that indicate the meaning of the status code
         /// </remarks>
-        [XmlIgnore()]
+        [XmlIgnore]
         public bool HasDataValueInfo
         {
             readonly get => (Code & kDataValueInfoType) != 0;
-
             set
             {
                 if (value)
@@ -291,11 +288,10 @@ namespace Opc.Ua
         /// The limit bits, indicating Hi/Lo etc.
         /// </remarks>
         /// <seealso cref="LimitBits"/>
-        [XmlIgnore()]
+        [XmlIgnore]
         public LimitBits LimitBits
         {
             readonly get => (LimitBits)(Code & kLimitBits);
-
             set
             {
                 Code |= kDataValueInfoType;
@@ -321,11 +317,10 @@ namespace Opc.Ua
         /// <remarks>
         /// Specifies if there is an overflow or not
         /// </remarks>
-        [XmlIgnore()]
+        [XmlIgnore]
         public bool Overflow
         {
             readonly get => ((Code & kDataValueInfoType) != 0) && ((Code & kOverflowBit) != 0);
-
             set
             {
                 Code |= kDataValueInfoType;
@@ -359,11 +354,10 @@ namespace Opc.Ua
         /// The historian bits.
         /// </remarks>
         /// <seealso cref="AggregateBits"/>
-        [XmlIgnore()]
+        [XmlIgnore]
         public AggregateBits AggregateBits
         {
             readonly get => (AggregateBits)(Code & kAggregateBits);
-
             set
             {
                 Code |= kDataValueInfoType;
@@ -726,7 +720,7 @@ namespace Opc.Ua
         /// <summary>
         /// The value is constant and cannot change.
         /// </summary>
-        Constant = Low | High
+        Constant = Low | High,
     }
 
     /// <summary>
@@ -792,7 +786,8 @@ namespace Opc.Ua
         /// Initializes the collection from another collection.
         /// </remarks>
         /// <param name="collection">The collection to copy</param>
-        public StatusCodeCollection(IEnumerable<StatusCode> collection) : base(collection) { }
+        public StatusCodeCollection(IEnumerable<StatusCode> collection)
+            : base(collection) { }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
@@ -801,7 +796,8 @@ namespace Opc.Ua
         /// Initializes the collection with the specified capacity.
         /// </remarks>
         /// <param name="capacity">The maximum capacity allowed for this instance of the collection</param>
-        public StatusCodeCollection(int capacity) : base(capacity) { }
+        public StatusCodeCollection(int capacity)
+            : base(capacity) { }
 
         /// <summary>
         /// Converts an array to a collection.
@@ -873,4 +869,4 @@ namespace Opc.Ua
         /// </summary>
         public const uint Bad = 0x80000000;
     }
-}//namespace
+} //namespace

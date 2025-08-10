@@ -480,7 +480,17 @@ namespace Opc.Ua
             }
 
             // ignore non-types.
-            if (((int)node.NodeClass & ((int)NodeClass.ObjectType | (int)NodeClass.VariableType | (int)NodeClass.ReferenceType | (int)NodeClass.DataType)) == 0)
+            if (
+                (
+                    (int)node.NodeClass
+                    & (
+                        (int)NodeClass.ObjectType
+                        | (int)NodeClass.VariableType
+                        | (int)NodeClass.ReferenceType
+                        | (int)NodeClass.DataType
+                    )
+                ) == 0
+            )
             {
                 return;
             }
@@ -496,7 +506,10 @@ namespace Opc.Ua
 
                 if (localsuperTypeId == null)
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, "A valid supertype identifier is required.");
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadNodeIdInvalid,
+                        "A valid supertype identifier is required."
+                    );
                 }
             }
 
@@ -507,7 +520,10 @@ namespace Opc.Ua
 
                 if (localsuperTypeId != null && !m_nodes.TryGetValue(localsuperTypeId, out superTypeInfo))
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, "A valid supertype identifier is required.");
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadNodeIdInvalid,
+                        "A valid supertype identifier is required."
+                    );
                 }
 
                 // create the type info.
@@ -648,7 +664,10 @@ namespace Opc.Ua
 
                 if (!NodeId.IsNull(superTypeId) && !m_nodes.TryGetValue(superTypeId, out superTypeInfo))
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, "A valid supertype identifier is required.");
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadNodeIdInvalid,
+                        "A valid supertype identifier is required."
+                    );
                 }
 
                 // create the type info.
@@ -685,6 +704,7 @@ namespace Opc.Ua
                 }
             }
         }
+
         /// <summary>
         /// Removes a subtype.
         /// </summary>
@@ -782,10 +802,7 @@ namespace Opc.Ua
             {
                 if (subType != null)
                 {
-                    if (SubTypes == null)
-                    {
-                        SubTypes = [];
-                    }
+                    SubTypes ??= [];
 
                     SubTypes[subType.NodeId] = subType;
                 }

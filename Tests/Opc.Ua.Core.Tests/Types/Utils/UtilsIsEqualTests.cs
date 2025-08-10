@@ -31,14 +31,14 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-#if NET7_0_OR_GREATER
-using System.Runtime.CompilerServices;
-#endif
 using System.Runtime.InteropServices;
 using System.Xml;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
+#if NET7_0_OR_GREATER
+using System.Runtime.CompilerServices;
+#endif
 
 namespace Opc.Ua.Core.Tests.Types.UtilsTests
 {
@@ -49,9 +49,9 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
     [DisassemblyDiagnoser]
     public
 #if NET7_0_OR_GREATER
-        partial
+    partial
 #endif
-        class UtilsIsEqualTests
+    class UtilsIsEqualTests
     {
 #if NET7_0_OR_GREATER
         [LibraryImport("msvcrt")]
@@ -198,7 +198,10 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             Assert.AreEqual(Utils.IsEqual(m_bufferA, (object)null), Utils.IsEqual(m_bufferA, null));
             Assert.AreEqual(Utils.IsEqual(null, null), Utils.IsEqual(null, null));
 
-            Assert.AreEqual(Utils.IsEqual(m_bufferA, (object)m_bufferB), Utils.IsEqual(m_bufferA, (IEnumerable)m_bufferB));
+            Assert.AreEqual(
+                Utils.IsEqual(m_bufferA, (object)m_bufferB),
+                Utils.IsEqual(m_bufferA, (IEnumerable)m_bufferB)
+            );
             Assert.AreEqual(Utils.IsEqual(null, (object)m_bufferB), Utils.IsEqual(null, (IEnumerable)m_bufferB));
             Assert.AreEqual(Utils.IsEqual(m_bufferA, (object)null), Utils.IsEqual(m_bufferA, (IEnumerable)null));
 
@@ -222,9 +225,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         }
 
         [OneTimeTearDown]
-        public void OneTimeTearDown()
-        {
-        }
+        public void OneTimeTearDown() { }
 
         /// <summary>
         /// Set up some variables for benchmarks.
@@ -244,9 +245,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         /// Tear down benchmark variables.
         /// </summary>
         [GlobalCleanup]
-        public void GlobalCleanup()
-        {
-        }
+        public void GlobalCleanup() { }
 
         /// <summary>
         /// Checks if two byte[] values are equal.
@@ -363,8 +362,10 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 // compare each rank.
                 for (int ii = 0; ii < array1.Rank; ii++)
                 {
-                    if (array1.GetLowerBound(ii) != array2.GetLowerBound(ii) ||
-                        array1.GetUpperBound(ii) != array2.GetUpperBound(ii))
+                    if (
+                        array1.GetLowerBound(ii) != array2.GetLowerBound(ii)
+                        || array1.GetUpperBound(ii) != array2.GetUpperBound(ii)
+                    )
                     {
                         return false;
                     }

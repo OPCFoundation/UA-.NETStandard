@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2018 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -60,7 +60,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// Clean up the test cert store folder.
         /// </summary>
         [OneTimeTearDown]
-        protected async Task OneTimeTearDown()
+        protected async Task OneTimeTearDownAsync()
         {
             foreach (string certStore in CertStores)
             {
@@ -100,15 +100,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// Verify new app certificate is stored in X509Store with private key.
         /// </summary>
         [Theory, Order(10)]
-        public async Task VerifyAppCertX509Store(string storePath)
+        public async Task VerifyAppCertX509StoreAsync(string storePath)
         {
             X509Certificate2 appCertificate = GetTestCert();
             Assert.NotNull(appCertificate);
             Assert.True(appCertificate.HasPrivateKey);
-            appCertificate.AddToStore(
-                    CertificateStoreType.X509Store,
-                    storePath
-                );
+            appCertificate.AddToStore(CertificateStoreType.X509Store, storePath);
             using X509Certificate2 publicKey = X509CertificateLoader.LoadCertificate(appCertificate.RawData);
             Assert.NotNull(publicKey);
             Assert.False(publicKey.HasPrivateKey);
@@ -117,7 +114,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 Thumbprint = publicKey.Thumbprint,
                 StorePath = storePath,
-                StoreType = CertificateStoreType.X509Store
+                StoreType = CertificateStoreType.X509Store,
             };
             X509Certificate2 privateKey = await id.LoadPrivateKeyAsync(null).ConfigureAwait(false);
             Assert.NotNull(privateKey);
@@ -135,7 +132,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// with password for private key (PFX).
         /// </summary>
         [Test, Order(20)]
-        public async Task VerifyAppCertDirectoryStore()
+        public async Task VerifyAppCertDirectoryStoreAsync()
         {
             X509Certificate2 appCertificate = GetTestCert();
             Assert.NotNull(appCertificate);
@@ -147,9 +144,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             string storePath = pkiRoot + "own";
             var certificateStoreIdentifier = new CertificateStoreIdentifier(storePath, false);
             const string storeType = CertificateStoreType.Directory;
-            appCertificate.AddToStore(
-                certificateStoreIdentifier, password
-                );
+            appCertificate.AddToStore(certificateStoreIdentifier, password);
 
             using X509Certificate2 publicKey = X509CertificateLoader.LoadCertificate(appCertificate.RawData);
             Assert.NotNull(publicKey);
@@ -159,7 +154,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 Thumbprint = publicKey.Thumbprint,
                 StorePath = storePath,
-                StoreType = storeType
+                StoreType = storeType,
             };
 
             {
@@ -176,11 +171,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             {
                 // check invalid password fails to load
-                X509Certificate2 nullKey = await id.LoadPrivateKeyExAsync(new CertificatePasswordProvider("123")).ConfigureAwait(false);
+                X509Certificate2 nullKey = await id.LoadPrivateKeyExAsync(new CertificatePasswordProvider("123"))
+                    .ConfigureAwait(false);
                 Assert.IsNull(nullKey);
             }
 
-            X509Certificate2 privateKey = await id.LoadPrivateKeyExAsync(new CertificatePasswordProvider(password)).ConfigureAwait(false);
+            X509Certificate2 privateKey = await id.LoadPrivateKeyExAsync(new CertificatePasswordProvider(password))
+                .ConfigureAwait(false);
 
             Assert.NotNull(privateKey);
             Assert.True(privateKey.HasPrivateKey);
@@ -196,7 +193,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// Verify PEM Certs are stored in Directory Store
         /// </summary>
         [Test, Order(25)]
-        public async Task VerifyPEMSupportDirectoryStore()
+        public async Task VerifyPEMSupportDirectoryStoreAsync()
         {
 #if !NET8_0_OR_GREATER
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
@@ -219,20 +216,28 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 store.Open(storePath, false);
                 //Add Test PEM Chain
-                File.Copy(TestUtils.EnumerateTestAssets("Test_chain.pem").First(), certPath + Path.DirectorySeparatorChar + "Test_chain.pem");
+                File.Copy(
+                    TestUtils.EnumerateTestAssets("Test_chain.pem").First(),
+                    certPath + Path.DirectorySeparatorChar + "Test_chain.pem"
+                );
 
                 X509Certificate2Collection certificates = await store.EnumerateAsync().ConfigureAwait(false);
 
                 Assert.AreEqual(3, certificates.Count);
 
                 //Add private key for leaf cert to private folder
-                File.WriteAllBytes(privatePath + Path.DirectorySeparatorChar + "Test_chain.pem", DecryptKeyPairPemBase64());
+                File.WriteAllBytes(
+                    privatePath + Path.DirectorySeparatorChar + "Test_chain.pem",
+                    DecryptKeyPairPemBase64()
+                );
 
                 //refresh store to obtain private key
                 await store.EnumerateAsync().ConfigureAwait(false);
 
                 //Load private key
-                X509Certificate2 cert = await store.LoadPrivateKeyAsync("14A630438BF775E19169D3279069BBF20419EF84", null, null, null, null).ConfigureAwait(false);
+                X509Certificate2 cert = await store
+                    .LoadPrivateKeyAsync("14A630438BF775E19169D3279069BBF20419EF84", null, null, null, null)
+                    .ConfigureAwait(false);
 
                 Assert.NotNull(cert);
                 Assert.True(cert.HasPrivateKey);
@@ -246,7 +251,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 certificates = await store.EnumerateAsync().ConfigureAwait(false);
 
                 Assert.AreEqual(2, certificates.Count);
-                Assert.IsEmpty(certificates.Find(X509FindType.FindByThumbprint, "14A630438BF775E19169D3279069BBF20419EF84", false));
+                Assert.IsEmpty(
+                    certificates.Find(X509FindType.FindByThumbprint, "14A630438BF775E19169D3279069BBF20419EF84", false)
+                );
             }
             finally
             {
@@ -258,7 +265,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// Verify PEM Certs with private key in single file are stored in Directory Store
         /// </summary>
         [Test, Order(25)]
-        public async Task VerifyPEMSupportPrivateKeyPairDirectoryStore()
+        public async Task VerifyPEMSupportPrivateKeyPairDirectoryStoreAsync()
         {
 #if !NET8_0_OR_GREATER
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
@@ -281,15 +288,22 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             {
                 store.Open(storePath, false);
                 // Add leaf cert with private key
-                File.WriteAllBytes(certPath + Path.DirectorySeparatorChar + "Test_keyPair.pem", DecryptKeyPairPemBase64());
+                File.WriteAllBytes(
+                    certPath + Path.DirectorySeparatorChar + "Test_keyPair.pem",
+                    DecryptKeyPairPemBase64()
+                );
 
                 X509Certificate2Collection certificates = await store.EnumerateAsync().ConfigureAwait(false);
 
                 Assert.AreEqual(1, certificates.Count);
 
-                Assert.NotNull(certificates.Find(X509FindType.FindByThumbprint, "14A630438BF775E19169D3279069BBF20419EF84", false));
+                Assert.NotNull(
+                    certificates.Find(X509FindType.FindByThumbprint, "14A630438BF775E19169D3279069BBF20419EF84", false)
+                );
                 //Load private key
-                X509Certificate2 cert = await store.LoadPrivateKeyAsync("14A630438BF775E19169D3279069BBF20419EF84", null, null, null, null).ConfigureAwait(false);
+                X509Certificate2 cert = await store
+                    .LoadPrivateKeyAsync("14A630438BF775E19169D3279069BBF20419EF84", null, null, null, null)
+                    .ConfigureAwait(false);
 
                 Assert.NotNull(cert);
                 Assert.True(cert.HasPrivateKey);
@@ -313,14 +327,12 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public void VerifyInvalidAppCertX509Store()
         {
             X509Certificate2 appCertificate = GetTestCert();
-            _ = NUnit.Framework.Assert.Throws<ServiceResultException>(
-                () => appCertificate.AddToStore(
-                    CertificateStoreType.X509Store,
-                    "User\\UA_MachineDefault"));
-            _ = NUnit.Framework.Assert.Throws<ServiceResultException>(
-                () => appCertificate.AddToStore(
-                    CertificateStoreType.X509Store,
-                    "System\\UA_MachineDefault"));
+            _ = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
+                appCertificate.AddToStore(CertificateStoreType.X509Store, "User\\UA_MachineDefault")
+            );
+            _ = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
+                appCertificate.AddToStore(CertificateStoreType.X509Store, "System\\UA_MachineDefault")
+            );
         }
 
         /// <summary>
@@ -348,7 +360,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// </summary>
         /// <returns></returns>
         [Theory, Order(50)]
-        public async Task AddAndEnumerateNewCrlInX509StoreOnWindows(string storePath)
+        public async Task AddAndEnumerateNewCrlInX509StoreOnWindowsAsync(string storePath)
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
@@ -372,8 +384,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             Assert.AreEqual(1, crls.Count);
             Assert.AreEqual(crl.RawData, crls[0].RawData);
-            Assert.AreEqual(GetTestCert().SerialNumber,
-                crls[0].RevokedCertificates[0].SerialNumber);
+            Assert.AreEqual(GetTestCert().SerialNumber, crls[0].RevokedCertificates[0].SerialNumber);
 
             //TestRevocation
             StatusCode statusCode = await x509Store.IsRevokedAsync(GetTestCert(), GetTestCert()).ConfigureAwait(false);
@@ -385,7 +396,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// </summary>
         /// <returns></returns>
         [Theory, Order(60)]
-        public async Task UpdateExistingCrlInX509StoreOnWindows(string storePath)
+        public async Task UpdateExistingCrlInX509StoreOnWindowsAsync(string storePath)
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
@@ -412,7 +423,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             Assert.AreEqual(2, crls[0].RevokedCertificates.Count);
             //Test Revocation after adding cert
-            StatusCode statusCode2 = await x509Store.IsRevokedAsync(GetTestCert(), GetTestCert2()).ConfigureAwait(false);
+            StatusCode statusCode2 = await x509Store
+                .IsRevokedAsync(GetTestCert(), GetTestCert2())
+                .ConfigureAwait(false);
             Assert.AreEqual((StatusCode)StatusCodes.BadCertificateRevoked, statusCode2);
         }
 
@@ -421,7 +434,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// </summary>
         /// <returns></returns>
         [Theory, Order(70)]
-        public async Task AddSecondCrlToX509StoreOnWindows(string storePath)
+        public async Task AddSecondCrlToX509StoreOnWindowsAsync(string storePath)
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
@@ -449,7 +462,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// </summary>
         /// <returns></returns>
         [Theory, Order(80)]
-        public async Task DeleteCrlsFromX509StoreOnWindows(string storePath)
+        public async Task DeleteCrlsFromX509StoreOnWindowsAsync(string storePath)
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
@@ -459,7 +472,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             x509Store.Open(storePath);
 
             //Delete first crl with revoked certificates
-            X509CRL crl = (await x509Store.EnumerateCRLsAsync().ConfigureAwait(false)).Single(c => c.Issuer == X509StoreSubject);
+            X509CRL crl = (await x509Store.EnumerateCRLsAsync().ConfigureAwait(false)).Single(c =>
+                c.Issuer == X509StoreSubject
+            );
             await x509Store.DeleteCRLAsync(crl).ConfigureAwait(false);
 
             X509CRLCollection crlsAfterFirstDelete = await x509Store.EnumerateCRLsAsync().ConfigureAwait(false);
@@ -506,9 +521,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 x509Store.Open(storePath);
                 if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
-                    NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(() => x509Store.AddCRLAsync(new X509CRL()));
+                    NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(() =>
+                        x509Store.AddCRLAsync(new X509CRL())
+                    );
                     NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(x509Store.EnumerateCRLsAsync);
-                    NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(() => x509Store.DeleteCRLAsync(new X509CRL()));
+                    NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(() =>
+                        x509Store.DeleteCRLAsync(new X509CRL())
+                    );
                 }
                 else
                 {
@@ -519,21 +538,17 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
         private X509Certificate2 GetTestCert()
         {
-            return m_testCertificate ??=
-CertificateFactory.CreateCertificate(X509StoreSubject).CreateForRSA();
+            return m_testCertificate ??= CertificateFactory.CreateCertificate(X509StoreSubject).CreateForRSA();
         }
 
         private X509Certificate2 GetTestCert2()
         {
-            return m_testCertificate2 ??=
-CertificateFactory.CreateCertificate(X509StoreSubject2).CreateForRSA();
+            return m_testCertificate2 ??= CertificateFactory.CreateCertificate(X509StoreSubject2).CreateForRSA();
         }
 
         private static string[] GetCertStores()
         {
-            var result = new List<string> {
-                "CurrentUser\\My"
-            };
+            var result = new List<string> { "CurrentUser\\My" };
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
                 result.Add("CurrentUser\\UA_MachineDefault");
@@ -543,15 +558,54 @@ CertificateFactory.CreateCertificate(X509StoreSubject2).CreateForRSA();
 
         private X509Certificate2 m_testCertificate;
         private X509Certificate2 m_testCertificate2;
-        private const string kEyPairPemBase64Encrypted = "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";
+        private const string kEyPairPemBase64Encrypted =
+            "4FJ9EkT20K8SB/QHUSU8/gV70D1LrJ7scXagGkJUc8gKK1Fk85hdNdOuHKV5hBkzpeod5VsC3ino1rg++1FhXVJ/DSLntQkbWzNC6Hhl/CDmBt5aMzJW+6HhRvC/pE1FRHJkWdkQijUdXL5hw3oos8PZfXN/B0OEsGQPvxYJ66g0Z9U2jusPW81Q+ps1cRy2wcoPAllwB4tEawrAop5+71jZL+EOVCxQ5i0VBFDgCATFIT6zyFfQ4jKD1Uk7bxNm2Mcb04eyUI+dsR1cYUuW8nisesVLXPkENpZYMAXBiZMB58pNJQuhZZk0iw8muWonbzA0n9hhAN28dX/tnc6HcjSn4TSxnRUpbsSAUnT66TIoxgAb/1x9Q4LihjV9AimLFu9RCTJ26EjECoAhzFBIvy1Wh2ReAceveJLauyQnSlpmsHB/K4ePmKQGLw+0Ce8qpVr8f5bAvzK6dbDVlJzvoO0E471U8RiyL6Sp2xVtvYYSo5FeTQdxBxRerSA2GhXUohevww06cauCfamNy7yBLUC+vOC5/teXDHBiPdGJFzpPPzyB5xMgCAWjeBoyyKYXgrL5ivS/rNUCMK/0XXLxSAujYUTcnnuCE+FVbVDbNdkvuSC1aKMAX6RLxZFOj7oovHChrUf1+P5srFnLsomF8/8ucoiyFFjJcVi2FQ/2pw828o/Oh9hLdOUlcVj40OuaUyymmChREM45HaxLC0As+SWKmc572HV7MUHOgWUnt0jVbFO6gR8CK3nspfV5PxNyeRU2UnGW6DBam81NLwGIWOxsVvYAiterStmcDppb5RBrFUffL46iEo8r5hij/u47k3nXebeoqtl/Uv8QCwaX2cJoHRX1+9LQc5FJKojBqcX8n0onoWzW4vfqUWwgjedFWGU09klXYQFBn/OmGJrjj0FqhBY/mQuuLbjslL9FmV2S+8/g7xINL20pSR+ahtGqQbuUsvodWEP2ndn5ATeVr0HY2FFsCPdBRHtHYsgxrxyMSy8DCFIKZ4PAQc1UvUokVMqNJLRnC66Px8i0OZyUHIbkEIkFMPk2duOiv6VVm8YgSL3DGkrD9ee5X4pdNzEN8TtxV0XDpeotDEcv7O2dhzmblQS9qspEfH91XOmcX/ot5wrAV0xuzyDcuAZUtly63k5q0dRzNwwZ6VeCDYRXx3A50ZViTY9CaHxeHub6H1/czVF5/0qnLeYIwSyrSGg/dGWJMQFiydgizJ6JJ3fVKIRnvkTwi3N9q+3716w3uDNCawlf7ybLHtLIuiNMz+fn4HWH8e6Gyw1iu9JmYFNRmJqcKQV+Owb7TCgLKmSqRQAAeFtCM/mj8pyHTBxfnhVFUr2aOQbCqUUTh0HonT/G/H1tz6P6VcCtR26RasKu2csDCSU6cdFxKy/SU+ecDVqIJP78Sg53iZ3Zh1FsGRFZklFPoND7Bp2q3C0khyf9jc9S9kNwv3X75ExkKWmK/psQW9Rd/wEYx5HMQns+3zNETBlcd4N/uPQQYeoT3dW+PRj6uZdvgVDLgO+MVHhCkoEHKAH3DEhudPLTeSBe1a6OrfnpwE+ln9jdf9C24ScH67ZyQmQRhp0G0fIKHHSD8XB7LPpptezUZDB4C8ShsFxewSI1RwRqr8+NwwDiJvkjN0F7GT1CoKxXu8DnhMVHPg4XNpBuklNmY7NhZiH0Kz3/r5+WxWBF3YYaAOCxstxUfiLUMFQgszUCZmTZ0ErRVeUCcrDKjqlrQcYAQW+sTDy4zKMjbvmhF3Qrl4pktA6upfu/QaukwRduoqPXHAbBV9EU6tDrF5czphIxJNCyhqUXUEsRhqBh1rAf9jD3kujtMD6bug5tPLefYWpzZC6rtGSNuuw0BuwlezxhaM+Cn4+eOYDFl3XmfwudmwurOTEuVePbBFjGQNCbP6/QkoNXNwgGohtmydkugmoQesqK+Whs9kEoGLcuYTjLJYTM1AyN2N3Ub7R4JOCOa/cEr+5YVzKXmUXpeM8nUZ8qGOHW5sZtCMEteGxVR35ondJJPEb72XjtotlaqwLbN26Q/FJGscPIfAQ2weRUXgXjZFZeFGh+GJd09xbH0jkRzAIkH5WXSuVLJRzLQk1uZ8teS+aem1+O2YC8/ZcRH7Q9FB1ECZOgfLJbNFX3EX2elhhLQD/3Za6mhok8FacHwQF/mahfEslCHKXeaMFFhIXijeIrutOG+KJvjqPAf2eK11WvqXdOlejgazP0KAZbQqKLWcFTYJMWu92k5Flf6S6hh7TLcngsZNQLVmd/42Px42Rr91IfLJdLyEENYps7k7kjZbJfs0YPKjqwkZbV6TcvBlGHZJsjNwt0GZvdK52MqqT0O2bkBIep7fn9B7psuz1GaNeec7dFvQfIA47vwcxEZfjzkGygQ2is+QjZaeMa9+k58uFCbkLwjm34SQiMl8XayPtgkU1DkVpxN7dwzuxnqG2TagDSHUfR1QoY+YoxNUwIt2GzCIXPna1S1UolHBwc/g4/RQIlaGTwesOC4kHSPoAAWS1E34K/mJP/cgEM1FsxcDo+YYdnZyKLqWRVqjuPI1DFZBhqdMPCc5xzW8onMgPQoq8OY2iHJ+oTizrFZy7NKgH52dki9pnW7GERcmBET7actjGa3WJtSO6q9xxcNUPGeE8m4ZUA/x5+7WyzgSVIRpeCNylk410Sfm/qGZJOaATKqheHu4iY/bBzWbENJXAJt9kcFViaG10pyVe88NJ5fvRwUZJcPbxg/yVBPwMEETaQu3bwpf36hT5wAkiwhucVnFM8b8RXrmYx3rFt28IKW+Kl7EJq1bqQJv6HoeFfYArH1k+mReLruGEUEWEbGLyUieuTFRVOsttNJcdzCtqMYF+CE/z0mJRZ/OLQh3QJ0evgZtK7j+sQb5y7fuw13xrRDK+N3wz545uGTu9+739ormVpKXmA1995YtxYd2kAfiZqIPbM+aeX47maKDYG6fn+AGI9KbPayi6msZl3IGOD/oZ8wDJyeUYLa9GPS+Alq/0QQxIDyCy+9q/E+MKJVghgHSfvA+q+agyGdL8rROmzeVKIz6dzuXBy9ku/n3Uw1gKRmkryw6QePIaPeH6jqSK8IbYokfC9fLA02xT8xD09vICwdgclNa/sMgyLn9b3bS8LYn7vSMNZZW3tFnFM5SMqstKGm3TJ62I2sk7wmXNIknEf6KyBjU9Nr1ktuDIUWijuHXPn69HLuhI7lcgqeOdbZXLr0kurul64puYGHHp9PotTzsxL+y+GueJF5hdj6VRDpzqPRPfGCDEpiiAA7sqmeB8+1Lf9dDQadPTM2KqZTWCclK1M5mTs0h+yxQsBX8S2GgSq6El/mfnDHgcQY5OyzOXXH+h8BT9uht0cpPfepCCZPDiAgTotdjhM1cS00xXbuqXggmt27PbgvmLLL1vDqtrgju/wytnt7Mzp38BwV4J9xPvoeGKKoLBOheZkEFn0dU0cnRX8jRPdLmr5LOcHoBCs1jQiIoTG9ikGflSo8LzQdECEBJ+BlHdMZ6dQRV0QytF/xyOylny3G0SYdvmrVMv/H12fwRVqcoSRFW6mRPqWSeJv1aHCO5M9LFXtRn/MbpvgogQqTmfSrluUVWGKEmnOH00ZnS3uyjh7G2bZI9GrEqJ4AnAW+et0s0++TVW8KAqUFBgkR9f0NIn/kYOKoXY46CafQ0pFzKgfH5c0ZvNa5m9sazdwMa4Qv1PjAYzR+/Y2fFa4goffwKnbX7nZfidmktyA8t1V8DmEt9tzEZE+WpPMFfRv/ujZkIHPy7GAFWLNFP95VbRh3ZBY/AtYF62Sn4TT+rC+V4JxfJfhs5p6SoqpAF+u8qamvP+fxQ354foMHoaGBZFqrigh1ay5XGA8pXEsBe7d4e/n/JgLAyfuiRTDv7GSGmn8Z9aUbGtVg4TtVE29fHJVD2pX8L3xtXAOqQ==";
+
         /// <summary>
         /// 16 bytes for AES-128
         /// </summary>
-        private static readonly byte[] s_aesKey = [0x13, 0x5e, 0xcf, 0xdd, 0x96, 0xf2, 0x99, 0x63, 0x9e, 0x2d, 0x50, 0x1c, 0x3a, 0xbb, 0xde, 0x02];
+        private static readonly byte[] s_aesKey =
+        [
+            0x13,
+            0x5e,
+            0xcf,
+            0xdd,
+            0x96,
+            0xf2,
+            0x99,
+            0x63,
+            0x9e,
+            0x2d,
+            0x50,
+            0x1c,
+            0x3a,
+            0xbb,
+            0xde,
+            0x02,
+        ];
+
         /// <summary>
         /// 16 bytes
         /// </summary>
-        private static readonly byte[] s_aesIV = [0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10, 0xEF, 0xCD, 0xAB, 0x89, 0x67, 0x45, 0x23, 0x01];
+        private static readonly byte[] s_aesIV =
+        [
+            0xFE,
+            0xDC,
+            0xBA,
+            0x98,
+            0x76,
+            0x54,
+            0x32,
+            0x10,
+            0xEF,
+            0xCD,
+            0xAB,
+            0x89,
+            0x67,
+            0x45,
+            0x23,
+            0x01,
+        ];
 
         private static byte[] DecryptKeyPairPemBase64()
         {

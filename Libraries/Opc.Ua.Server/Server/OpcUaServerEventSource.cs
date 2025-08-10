@@ -73,7 +73,10 @@ namespace Opc.Ua.Server
         private readonly EventId m_sendResponseEventId = new(TraceMasks.ServiceDetail, nameof(SendResponse));
         private readonly EventId m_serverCallEventId = new(TraceMasks.ServiceDetail, nameof(ServerCall));
         private readonly EventId m_sessionStateMessageEventId = new(TraceMasks.Information, nameof(SessionState));
-        private readonly EventId m_monitoredItemReadyEventId = new(TraceMasks.OperationDetail, nameof(MonitoredItemReady));
+        private readonly EventId m_monitoredItemReadyEventId = new(
+            TraceMasks.OperationDetail,
+            nameof(MonitoredItemReady)
+        );
 
         /// <summary>
         /// The send response.
@@ -85,8 +88,7 @@ namespace Opc.Ua.Server
             {
                 WriteEvent(kSendResponseId, channelId, requestId);
             }
-            else if ((TraceMask & TraceMasks.ServiceDetail) != 0 &&
-                Logger.IsEnabled(LogLevel.Trace))
+            else if ((TraceMask & TraceMasks.ServiceDetail) != 0 && Logger.IsEnabled(LogLevel.Trace))
             {
                 LogTrace(m_sendResponseEventId, kSendResponseMessage, channelId, requestId);
             }
@@ -105,7 +107,13 @@ namespace Opc.Ua.Server
         /// The state of the session.
         /// </summary>
         [Event(kSessionStateId, Message = kSessionStateMessage, Level = EventLevel.Informational)]
-        public void SessionState(string context, string sessionId, string sessionName, string secureChannelId, string identity)
+        public void SessionState(
+            string context,
+            string sessionId,
+            string sessionName,
+            string secureChannelId,
+            string identity
+        )
         {
             if (IsEnabled())
             {
@@ -113,7 +121,15 @@ namespace Opc.Ua.Server
             }
             else if (Logger.IsEnabled(LogLevel.Information))
             {
-                LogInfo(m_sessionStateMessageEventId, kSessionStateMessage, context, sessionId, sessionName, secureChannelId, identity);
+                LogInfo(
+                    m_sessionStateMessageEventId,
+                    kSessionStateMessage,
+                    context,
+                    sessionId,
+                    sessionName,
+                    secureChannelId,
+                    identity
+                );
             }
         }
 
@@ -151,8 +167,7 @@ namespace Opc.Ua.Server
             {
                 ServerCall(requestTypeString, requestId);
             }
-            else if ((TraceMask & TraceMasks.ServiceDetail) != 0 &&
-                Logger.IsEnabled(LogLevel.Trace))
+            else if ((TraceMask & TraceMasks.ServiceDetail) != 0 && Logger.IsEnabled(LogLevel.Trace))
             {
                 LogTrace(m_serverCallEventId, kServerCallMessage, requestTypeString, requestId);
             }
@@ -172,7 +187,13 @@ namespace Opc.Ua.Server
                 }
                 else if (Logger.IsEnabled(LogLevel.Trace))
                 {
-                    LogTrace(TraceMasks.ServiceDetail, "WRITE: NodeId={0} Value={1} Range={2}", nodeId, wrappedValue, range);
+                    LogTrace(
+                        TraceMasks.ServiceDetail,
+                        "WRITE: NodeId={0} Value={1} Range={2}",
+                        nodeId,
+                        wrappedValue,
+                        range
+                    );
                 }
             }
         }
@@ -191,7 +212,13 @@ namespace Opc.Ua.Server
                 }
                 else if (Logger.IsEnabled(LogLevel.Trace))
                 {
-                    LogTrace(TraceMasks.ServiceDetail, "READ: NodeId={0} Value={1} Range={2}", nodeId, wrappedValue, range);
+                    LogTrace(
+                        TraceMasks.ServiceDetail,
+                        "READ: NodeId={0} Value={1} Range={2}",
+                        nodeId,
+                        wrappedValue,
+                        range
+                    );
                 }
             }
         }
@@ -229,8 +256,13 @@ namespace Opc.Ua.Server
                 }
                 else if (Logger.IsEnabled(LogLevel.Trace))
                 {
-                    LogTrace("DEQUEUE VALUE: Value={0} CODE={1}<{2:X8}> OVERFLOW={3}",
-                        wrappedValue, statusCode.Code, statusCode.Code, statusCode.Overflow);
+                    LogTrace(
+                        "DEQUEUE VALUE: Value={0} CODE={1}<{2:X8}> OVERFLOW={3}",
+                        wrappedValue,
+                        statusCode.Code,
+                        statusCode.Code,
+                        statusCode.Overflow
+                    );
                 }
             }
         }
@@ -249,8 +281,15 @@ namespace Opc.Ua.Server
                 }
                 else if (Logger.IsEnabled(LogLevel.Trace))
                 {
-                    LogTrace(TraceMasks.OperationDetail, "QUEUE VALUE[{0}]: Value={1} CODE={2}<{3:X8}> OVERFLOW={4}",
-                        id, wrappedValue, statusCode.Code, statusCode.Code, statusCode.Overflow);
+                    LogTrace(
+                        TraceMasks.OperationDetail,
+                        "QUEUE VALUE[{0}]: Value={1} CODE={2}<{3:X8}> OVERFLOW={4}",
+                        id,
+                        wrappedValue,
+                        statusCode.Code,
+                        statusCode.Code,
+                        statusCode.Overflow
+                    );
                 }
             }
         }

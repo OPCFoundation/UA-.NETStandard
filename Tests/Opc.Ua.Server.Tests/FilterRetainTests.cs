@@ -1,4 +1,3 @@
-
 // Archie - December 17 2024
 // Requires discussion with Part 9 Editor
 #define AddActiveState
@@ -57,11 +56,12 @@ namespace Opc.Ua.Server.Tests
             SystemContext systemContext = GetSystemContext();
             var alarm = new DeviceFailureEventState(null);
             alarm.Create(
-               systemContext,
-               new NodeId(12345, 1),
-               new QualifiedName("AnyAlarm", 1),
-               new LocalizedText("", "AnyAlarm"),
-               true);
+                systemContext,
+                new NodeId(12345, 1),
+                new QualifiedName("AnyAlarm", 1),
+                new LocalizedText("", "AnyAlarm"),
+                true
+            );
 
             alarm.EventType.Value = ObjectTypeIds.DeviceFailureEventType;
 
@@ -92,8 +92,7 @@ namespace Opc.Ua.Server.Tests
         [TestCase(true, Description = "Set SupportsFilteredRetain True")]
         public void TestFilteredRetainExists(bool supportsFilteredRetain)
         {
-            ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
-                addFilterRetain: true, supportsFilteredRetain);
+            ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(addFilterRetain: true, supportsFilteredRetain);
 
             alarm.SetLimitState(GetSystemContext(), LimitAlarmStates.Inactive);
 
@@ -108,8 +107,7 @@ namespace Opc.Ua.Server.Tests
         [TestCase(true, Description = "Should pass filter")]
         public void TestCanSendMultiple(bool supportsFilteredRetain)
         {
-            ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
-                addFilterRetain: true, supportsFilteredRetain);
+            ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(addFilterRetain: true, supportsFilteredRetain);
 
             FilterContext filterContext = GetFilterContext();
 
@@ -139,8 +137,7 @@ namespace Opc.Ua.Server.Tests
         [TestCase(true, Description = "Should pass filter")]
         public void TestCanSendOnceSimple(bool supportsFilteredRetain)
         {
-            ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
-                addFilterRetain: true, supportsFilteredRetain);
+            ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(addFilterRetain: true, supportsFilteredRetain);
 
             EventFilter filter = GetHighOnlyEventFilter(addClauses: true);
             MonitoredItem monitoredItem = CreateMonitoredItem(filter);
@@ -165,8 +162,7 @@ namespace Opc.Ua.Server.Tests
         [TestCase(true, Description = "Should pass filter")]
         public void TestSendMultiple(bool supportsFilteredRetain)
         {
-            ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
-                addFilterRetain: true, supportsFilteredRetain);
+            ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(addFilterRetain: true, supportsFilteredRetain);
 
             EventFilter filter = GetHighOnlyEventFilter(addClauses: true);
             MonitoredItem monitoredItem = CreateMonitoredItem(filter);
@@ -205,8 +201,7 @@ namespace Opc.Ua.Server.Tests
         {
             // https://reference.opcfoundation.org/Core/Part9/v105/docs/B.1.4
 
-            ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(
-                addFilterRetain: true, supportsFilteredRetain);
+            ExclusiveLevelAlarmState alarm = GetExclusiveLevelAlarm(addFilterRetain: true, supportsFilteredRetain);
 
             SystemContext systemContext = GetSystemContext();
 
@@ -214,11 +209,7 @@ namespace Opc.Ua.Server.Tests
             alarm.OutOfServiceState.Value = InService;
 
             FilterContext filterContext = GetFilterContext();
-            var filter = new EventFilter
-            {
-                SelectClauses = GetSelectFields(),
-                WhereClause = GetStateFilter()
-            };
+            var filter = new EventFilter { SelectClauses = GetSelectFields(), WhereClause = GetStateFilter() };
             filter.Validate(filterContext);
 
             MonitoredItem monitoredItem = CreateMonitoredItem(filter);
@@ -331,7 +322,8 @@ namespace Opc.Ua.Server.Tests
             FilterContext context,
             EventFilter filter,
             BaseObjectState alarm,
-            bool expected)
+            bool expected
+        )
         {
             SystemContext systemContext = GetSystemContext();
 
@@ -348,25 +340,22 @@ namespace Opc.Ua.Server.Tests
             Assert.That((bool)result, Is.EqualTo(expected));
         }
 
-        private ExclusiveLevelAlarmState GetExclusiveLevelAlarm(
-            bool addFilterRetain, bool filterRetainValue = false)
+        private ExclusiveLevelAlarmState GetExclusiveLevelAlarm(bool addFilterRetain, bool filterRetainValue = false)
         {
             var alarm = new ExclusiveLevelAlarmState(null);
             alarm.Create(
-               GetSystemContext(),
-               new NodeId(12345, 1),
-               new QualifiedName("AnyAlarm", 1),
-               new LocalizedText("", "AnyAlarm"),
-               true);
+                GetSystemContext(),
+                new NodeId(12345, 1),
+                new QualifiedName("AnyAlarm", 1),
+                new LocalizedText("", "AnyAlarm"),
+                true
+            );
 
             alarm.EventType.Value = ObjectTypeIds.ExclusiveLevelAlarmType;
 
             if (addFilterRetain)
             {
-                alarm.SupportsFilteredRetain = new PropertyState<bool>(alarm)
-                {
-                    Value = filterRetainValue
-                };
+                alarm.SupportsFilteredRetain = new PropertyState<bool>(alarm) { Value = filterRetainValue };
             }
 
             return alarm;
@@ -377,33 +366,44 @@ namespace Opc.Ua.Server.Tests
             var simpleAttributeOperands = new SimpleAttributeOperandCollection();
 
             int eventIndexCounter = 0;
-            var desiredEventFields = new Dictionary<int, QualifiedNameCollection> {
+            var desiredEventFields = new Dictionary<int, QualifiedNameCollection>
+            {
                 { eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.EventId }] },
                 { eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.EventType }] },
                 { eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.Time }] },
                 { eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.ActiveState }] },
                 { eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.Message }] },
                 { eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.LimitState, BrowseNames.CurrentState }] },
-                { eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.LimitState, BrowseNames.CurrentState, BrowseNames.Id }] },
-                { eventIndexCounter++, [.. new QualifiedName[] { BrowseNames.LimitState, BrowseNames.LastTransition }] }
+                {
+                    eventIndexCounter++,
+                    [.. new QualifiedName[] { BrowseNames.LimitState, BrowseNames.CurrentState, BrowseNames.Id }]
+                },
+                {
+                    eventIndexCounter++,
+                    [.. new QualifiedName[] { BrowseNames.LimitState, BrowseNames.LastTransition }]
+                },
             };
 
             foreach (QualifiedNameCollection desiredEventField in desiredEventFields.Values)
             {
-                simpleAttributeOperands.Add(new SimpleAttributeOperand()
-                {
-                    AttributeId = Attributes.Value,
-                    TypeDefinitionId = ObjectTypeIds.BaseEventType,
-                    BrowsePath = desiredEventField
-                });
+                simpleAttributeOperands.Add(
+                    new SimpleAttributeOperand()
+                    {
+                        AttributeId = Attributes.Value,
+                        TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                        BrowsePath = desiredEventField,
+                    }
+                );
             }
 
             // ConditionId
-            simpleAttributeOperands.Add(new SimpleAttributeOperand()
-            {
-                AttributeId = Attributes.NodeId,
-                TypeDefinitionId = ObjectTypeIds.ConditionType
-            });
+            simpleAttributeOperands.Add(
+                new SimpleAttributeOperand()
+                {
+                    AttributeId = Attributes.NodeId,
+                    TypeDefinitionId = ObjectTypeIds.ConditionType,
+                }
+            );
 
             return simpleAttributeOperands;
         }
@@ -428,15 +428,15 @@ namespace Opc.Ua.Server.Tests
             {
                 AttributeId = Attributes.Value,
                 TypeDefinitionId = ObjectTypeIds.ExclusiveLevelAlarmType,
-                BrowsePath = [.. new QualifiedName[] {
-                    BrowseNames.LimitState,
-                    BrowseNames.CurrentState,
-                    BrowseNames.Id }]
+                BrowsePath =
+                [
+                    .. new QualifiedName[] { BrowseNames.LimitState, BrowseNames.CurrentState, BrowseNames.Id },
+                ],
             };
 
             var desiredEventLevel = new LiteralOperand
             {
-                Value = new Variant(new NodeId(Objects.ExclusiveLimitStateMachineType_High))
+                Value = new Variant(new NodeId(Objects.ExclusiveLimitStateMachineType_High)),
             };
 
             whereClause.Push(FilterOperator.Equals, [eventLevel, desiredEventLevel]);
@@ -452,14 +452,10 @@ namespace Opc.Ua.Server.Tests
             {
                 AttributeId = Attributes.Value,
                 TypeDefinitionId = null,
-                BrowsePath = [.. new QualifiedName[] {
-                    BrowseNames.OutOfServiceState }]
+                BrowsePath = [.. new QualifiedName[] { BrowseNames.OutOfServiceState }],
             };
 
-            var desiredOutOfServiceValue = new LiteralOperand
-            {
-                Value = new Variant(InService)
-            };
+            var desiredOutOfServiceValue = new LiteralOperand { Value = new Variant(InService) };
 
             whereClause.Push(FilterOperator.Equals, [notOutOfServiceState, desiredOutOfServiceValue]);
 
@@ -467,14 +463,10 @@ namespace Opc.Ua.Server.Tests
             {
                 AttributeId = Attributes.Value,
                 TypeDefinitionId = null,
-                BrowsePath = [.. new QualifiedName[] {
-                    BrowseNames.SuppressedState }]
+                BrowsePath = [.. new QualifiedName[] { BrowseNames.SuppressedState }],
             };
 
-            var desiredSuppressedValue = new LiteralOperand
-            {
-                Value = new Variant(Unsuppressed)
-            };
+            var desiredSuppressedValue = new LiteralOperand { Value = new Variant(Unsuppressed) };
 
             whereClause.Push(FilterOperator.Equals, [notSuppressed, desiredSuppressedValue]);
 
@@ -484,28 +476,18 @@ namespace Opc.Ua.Server.Tests
             {
                 AttributeId = Attributes.Value,
                 TypeDefinitionId = null,
-                BrowsePath = [.. new QualifiedName[] {
-                    BrowseNames.ActiveState }]
+                BrowsePath = [.. new QualifiedName[] { BrowseNames.ActiveState }],
             };
 
-            var activeValue = new LiteralOperand
-            {
-                Value = new Variant(Active)
-            };
+            var activeValue = new LiteralOperand { Value = new Variant(Active) };
 
-            whereClause.Push(FilterOperator.Equals, [
-                activeState,
-                activeValue ]);
+            whereClause.Push(FilterOperator.Equals, [activeState, activeValue]);
 
-            whereClause.Push(FilterOperator.And, [
-                new ElementOperand(1),
-                new ElementOperand(2) ]);
+            whereClause.Push(FilterOperator.And, [new ElementOperand(1), new ElementOperand(2)]);
 
 #endif
 
-            whereClause.Push(FilterOperator.And, [
-                new ElementOperand(0),
-                new ElementOperand(1) ]);
+            whereClause.Push(FilterOperator.And, [new ElementOperand(0), new ElementOperand(1)]);
 
             return whereClause;
         }
@@ -514,10 +496,7 @@ namespace Opc.Ua.Server.Tests
         {
             if (m_systemContext == null)
             {
-                m_systemContext = new SystemContext
-                {
-                    NamespaceUris = new NamespaceTable()
-                };
+                m_systemContext = new SystemContext { NamespaceUris = new NamespaceTable() };
                 m_systemContext.NamespaceUris.Append(Namespaces.OpcUa);
                 var typeTable = new TypeTable(m_systemContext.NamespaceUris);
                 typeTable.AddSubtype(ObjectTypeIds.BaseObjectType, null);
@@ -540,9 +519,7 @@ namespace Opc.Ua.Server.Tests
             if (m_filterContext == null)
             {
                 SystemContext systemContext = GetSystemContext();
-                m_filterContext = new FilterContext(
-                    systemContext.NamespaceUris,
-                    systemContext.TypeTable);
+                m_filterContext = new FilterContext(systemContext.NamespaceUris, systemContext.TypeTable);
             }
 
             return m_filterContext;
@@ -577,7 +554,7 @@ namespace Opc.Ua.Server.Tests
                 10,
                 false,
                 1000
-                );
+            );
         }
     }
 }

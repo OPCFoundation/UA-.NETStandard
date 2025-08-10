@@ -163,6 +163,7 @@ namespace Opc.Ua
         /// </summary>
         void WriteByteString(string fieldName, ReadOnlySpan<byte> value);
 #endif
+
         /// <summary>
         /// Writes a XmlElement to the stream.
         /// </summary>
@@ -399,6 +400,6 @@ namespace Opc.Ua
         /// <summary>
         /// JSON
         /// </summary>
-        Json
+        Json,
     }
 }

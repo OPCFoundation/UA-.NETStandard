@@ -488,7 +488,15 @@ namespace Opc.Ua
         {
             if (InnerNodeId != null)
             {
-                Format(formatProvider, buffer, InnerNodeId.Identifier, InnerNodeId.IdType, InnerNodeId.NamespaceIndex, NamespaceUri, ServerIndex);
+                Format(
+                    formatProvider,
+                    buffer,
+                    InnerNodeId.Identifier,
+                    InnerNodeId.IdType,
+                    InnerNodeId.NamespaceIndex,
+                    NamespaceUri,
+                    ServerIndex
+                );
             }
             else
             {
@@ -505,9 +513,18 @@ namespace Opc.Ua
             IdType identifierType,
             ushort namespaceIndex,
             string namespaceUri,
-            uint serverIndex)
+            uint serverIndex
+        )
         {
-            Format(CultureInfo.InvariantCulture, buffer, identifier, identifierType, namespaceIndex, namespaceUri, serverIndex);
+            Format(
+                CultureInfo.InvariantCulture,
+                buffer,
+                identifier,
+                identifierType,
+                namespaceIndex,
+                namespaceUri,
+                serverIndex
+            );
         }
 
         /// <summary>
@@ -520,7 +537,8 @@ namespace Opc.Ua
             IdType identifierType,
             ushort namespaceIndex,
             string namespaceUri,
-            uint serverIndex)
+            uint serverIndex
+        )
         {
             if (serverIndex != 0)
             {
@@ -540,7 +558,11 @@ namespace Opc.Ua
         /// <summary>
         /// Parses a expanded node id string, translated any namespace indexes and returns the result.
         /// </summary>
-        public static ExpandedNodeId Parse(string text, NamespaceTable currentNamespaces, NamespaceTable targetNamespaces)
+        public static ExpandedNodeId Parse(
+            string text,
+            NamespaceTable currentNamespaces,
+            NamespaceTable targetNamespaces
+        )
         {
             // parse the string.
             ExpandedNodeId nodeId = Parse(text);
@@ -565,7 +587,8 @@ namespace Opc.Ua
                     throw ServiceResultException.Create(
                         StatusCodes.BadNodeIdInvalid,
                         "Cannot map namespace URI onto an index in the target namespace table: {0}",
-                        uri);
+                        uri
+                    );
                 }
 
                 namespaceIndex = (ushort)index;
@@ -611,7 +634,8 @@ namespace Opc.Ua
                 throw new ServiceResultException(
                     StatusCodes.BadNodeIdInvalid,
                     Utils.Format("Cannot parse expanded node id text: '{0}'", text),
-                    e);
+                    e
+                );
             }
         }
 
@@ -629,7 +653,10 @@ namespace Opc.Ua
                     case '%':
                         if (ii + 2 >= index)
                         {
-                            throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, "Invalid escaped character in namespace uri.");
+                            throw new ServiceResultException(
+                                StatusCodes.BadNodeIdInvalid,
+                                "Invalid escaped character in namespace uri."
+                            );
                         }
 
                         ushort value = 0;
@@ -638,7 +665,10 @@ namespace Opc.Ua
 
                         if (digit == -1)
                         {
-                            throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, "Invalid escaped character in namespace uri.");
+                            throw new ServiceResultException(
+                                StatusCodes.BadNodeIdInvalid,
+                                "Invalid escaped character in namespace uri."
+                            );
                         }
 
                         value += (ushort)digit;
@@ -648,7 +678,10 @@ namespace Opc.Ua
 
                         if (digit == -1)
                         {
-                            throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, "Invalid escaped character in namespace uri.");
+                            throw new ServiceResultException(
+                                StatusCodes.BadNodeIdInvalid,
+                                "Invalid escaped character in namespace uri."
+                            );
                         }
 
                         value += (ushort)digit;
@@ -954,7 +987,11 @@ namespace Opc.Ua
         /// <param name="options">The options to use when parsing the ExpandedNodeId.</param>
         /// <returns>The local identifier.</returns>
         /// <exception cref="ServiceResultException">Thrown if the namespace URI is not in the namespace table.</exception>
-        public static ExpandedNodeId Parse(IServiceMessageContext context, string text, NodeIdParsingOptions options = null)
+        public static ExpandedNodeId Parse(
+            IServiceMessageContext context,
+            string text,
+            NodeIdParsingOptions options = null
+        )
         {
             if (string.IsNullOrEmpty(text))
             {
@@ -970,15 +1007,24 @@ namespace Opc.Ua
 
                 if (index < 0)
                 {
-                    throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, $"Invalid ExpandedNodeId ({originalText}).");
+                    throw new ServiceResultException(
+                        StatusCodes.BadNodeIdInvalid,
+                        $"Invalid ExpandedNodeId ({originalText})."
+                    );
                 }
 
                 string serverUri = Utils.UnescapeUri(text.AsSpan()[4..index]);
-                serverIndex = (options?.UpdateTables == true) ? context.ServerUris.GetIndexOrAppend(serverUri) : context.ServerUris.GetIndex(serverUri);
+                serverIndex =
+                    (options?.UpdateTables == true)
+                        ? context.ServerUris.GetIndexOrAppend(serverUri)
+                        : context.ServerUris.GetIndex(serverUri);
 
                 if (serverIndex < 0)
                 {
-                    throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, $"No mapping to ServerIndex for ServerUri ({serverUri}).");
+                    throw new ServiceResultException(
+                        StatusCodes.BadNodeIdInvalid,
+                        $"No mapping to ServerIndex for ServerUri ({serverUri})."
+                    );
                 }
 
                 text = text[(index + 1)..];
@@ -990,7 +1036,10 @@ namespace Opc.Ua
 
                 if (index < 0)
                 {
-                    throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, $"Invalid ExpandedNodeId ({originalText}).");
+                    throw new ServiceResultException(
+                        StatusCodes.BadNodeIdInvalid,
+                        $"Invalid ExpandedNodeId ({originalText})."
+                    );
                 }
 
                 if (ushort.TryParse(text[4..index], out ushort ns))
@@ -1015,11 +1064,17 @@ namespace Opc.Ua
 
                 if (index < 0)
                 {
-                    throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, $"Invalid ExpandedNodeId ({originalText}).");
+                    throw new ServiceResultException(
+                        StatusCodes.BadNodeIdInvalid,
+                        $"Invalid ExpandedNodeId ({originalText})."
+                    );
                 }
 
                 namespaceUri = Utils.UnescapeUri(text[4..index]);
-                namespaceIndex = (options?.UpdateTables == true) ? context.NamespaceUris.GetIndexOrAppend(namespaceUri) : context.NamespaceUris.GetIndex(namespaceUri);
+                namespaceIndex =
+                    (options?.UpdateTables == true)
+                        ? context.NamespaceUris.GetIndexOrAppend(namespaceUri)
+                        : context.NamespaceUris.GetIndex(namespaceUri);
 
                 text = text[(index + 1)..];
             }
@@ -1028,11 +1083,7 @@ namespace Opc.Ua
 
             if (namespaceIndex > 0)
             {
-                return new ExpandedNodeId(
-                    nodeId.Identifier,
-                    (ushort)namespaceIndex,
-                    null,
-                    (uint)serverIndex);
+                return new ExpandedNodeId(nodeId.Identifier, (ushort)namespaceIndex, null, (uint)serverIndex);
             }
 
             return new ExpandedNodeId(nodeId, namespaceUri, (uint)serverIndex);
@@ -1109,8 +1160,12 @@ namespace Opc.Ua
                 return nodeId.InnerNodeId;
             }
 
-            return ToNodeId(nodeId, namespaceUris) ??
-                throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, "NamespaceUri ({0}) is not in the namespace table.", nodeId.NamespaceUri);
+            return ToNodeId(nodeId, namespaceUris)
+                ?? throw ServiceResultException.Create(
+                    StatusCodes.BadNodeIdInvalid,
+                    "NamespaceUri ({0}) is not in the namespace table.",
+                    nodeId.NamespaceUri
+                );
         }
 
         /// <summary>
@@ -1126,7 +1181,9 @@ namespace Opc.Ua
 
             if (value.IsAbsolute)
             {
-                throw new InvalidCastException("Cannot cast an absolute ExpandedNodeId to a NodeId. Use ExpandedNodeId.ToNodeId instead.");
+                throw new InvalidCastException(
+                    "Cannot cast an absolute ExpandedNodeId to a NodeId. Use ExpandedNodeId.ToNodeId instead."
+                );
             }
 
             return value.InnerNodeId;
@@ -1224,7 +1281,8 @@ namespace Opc.Ua
                 throw new ServiceResultException(
                     StatusCodes.BadNodeIdInvalid,
                     Utils.Format("Cannot parse expanded node id text: '{0}'", text),
-                    e);
+                    e
+                );
             }
 
             // parse the node id.
@@ -1239,7 +1297,11 @@ namespace Opc.Ua
     /// <summary>
     /// A collection of ExpandedNodeId objects.
     /// </summary>
-    [CollectionDataContract(Name = "ListOfExpandedNodeId", Namespace = Namespaces.OpcUaXsd, ItemName = "ExpandedNodeId")]
+    [CollectionDataContract(
+        Name = "ListOfExpandedNodeId",
+        Namespace = Namespaces.OpcUaXsd,
+        ItemName = "ExpandedNodeId"
+    )]
     public class ExpandedNodeIdCollection : List<ExpandedNodeId>, ICloneable
     {
         /// <summary>
@@ -1256,7 +1318,8 @@ namespace Opc.Ua
         /// <remarks>
         /// Initializes the collection from another collection.
         /// </remarks>
-        public ExpandedNodeIdCollection(IEnumerable<ExpandedNodeId> collection) : base(collection) { }
+        public ExpandedNodeIdCollection(IEnumerable<ExpandedNodeId> collection)
+            : base(collection) { }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
@@ -1264,7 +1327,8 @@ namespace Opc.Ua
         /// <remarks>
         /// Initializes the collection with the specified capacity.
         /// </remarks>
-        public ExpandedNodeIdCollection(int capacity) : base(capacity) { }
+        public ExpandedNodeIdCollection(int capacity)
+            : base(capacity) { }
 
         /// <summary>
         /// Converts an array to a collection.
@@ -1313,5 +1377,5 @@ namespace Opc.Ua
 
             return clone;
         }
-    }//class
-}//namespace
+    } //class
+} //namespace

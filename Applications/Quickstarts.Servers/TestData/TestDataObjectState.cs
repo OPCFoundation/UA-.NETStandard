@@ -102,10 +102,7 @@ namespace TestData
         /// <summary>
         /// Validates a written value.
         /// </summary>
-        public ServiceResult OnWriteAnalogValue(
-            ISystemContext context,
-            NodeState node,
-            ref object value)
+        public ServiceResult OnWriteAnalogValue(ISystemContext context, NodeState node, ref object value)
         {
             try
             {
@@ -118,7 +115,6 @@ namespace TestData
                 {
                     return ServiceResult.Good;
                 }
-
 
                 if (value is Array array)
                 {
@@ -174,7 +170,8 @@ namespace TestData
             ISystemContext context,
             MethodState method,
             NodeId objectId,
-            uint count)
+            uint count
+        )
         {
             ClearChangeMasks(context, true);
 
@@ -186,23 +183,14 @@ namespace TestData
                     "GenerateValuesEventType",
                     "en-US",
                     "New values generated for test source '{0}'.",
-                    DisplayName);
+                    DisplayName
+                );
 
-                e.Initialize(
-                    context,
-                    this,
-                    EventSeverity.MediumLow,
-                    new LocalizedText(message));
+                e.Initialize(context, this, EventSeverity.MediumLow, new LocalizedText(message));
 
-                e.Iterations = new PropertyState<uint>(e)
-                {
-                    Value = count
-                };
+                e.Iterations = new PropertyState<uint>(e) { Value = count };
 
-                e.NewValueCount = new PropertyState<uint>(e)
-                {
-                    Value = 10
-                };
+                e.NewValueCount = new PropertyState<uint>(e) { Value = 10 };
 
                 ReportEvent(context, e);
             }
@@ -224,7 +212,8 @@ namespace TestData
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             if (node is not BaseVariableState variable)
             {
@@ -252,7 +241,8 @@ namespace TestData
                     context,
                     indexRange,
                     dataEncoding,
-                    ref value);
+                    ref value
+                );
 
                 if (ServiceResult.IsBad(error))
                 {

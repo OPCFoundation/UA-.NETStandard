@@ -69,27 +69,24 @@ namespace Opc.Ua.Security.Certificates
         /// Constructor of a Certificate builder.
         /// </summary>
         private CertificateBuilder(X500DistinguishedName subjectName)
-            : base(subjectName)
-        {
-        }
+            : base(subjectName) { }
 
         /// <summary>
         /// Constructor of a Certificate builder.
         /// </summary>
         private CertificateBuilder(string subjectName)
-            : base(subjectName)
-        {
-        }
+            : base(subjectName) { }
 
         /// <inheritdoc/>
         public override X509Certificate2 CreateForRSA()
         {
             CreateDefaults();
 
-            if (m_rsaPublicKey != null &&
-               (IssuerCAKeyCert == null || !IssuerCAKeyCert.HasPrivateKey))
+            if (m_rsaPublicKey != null && (IssuerCAKeyCert == null || !IssuerCAKeyCert.HasPrivateKey))
             {
-                throw new NotSupportedException("Cannot use a public key without an issuer certificate with a private key.");
+                throw new NotSupportedException(
+                    "Cannot use a public key without an issuer certificate with a private key."
+                );
             }
 
             RSA rsaKeyPair = null;
@@ -116,7 +113,7 @@ namespace Opc.Ua.Security.Certificates
                     NotBefore,
                     NotAfter,
                     serialNumber
-                    );
+                );
             }
             else
             {
@@ -126,7 +123,7 @@ namespace Opc.Ua.Security.Certificates
                     NotBefore,
                     NotAfter,
                     serialNumber
-                    );
+                );
             }
 
             return (rsaKeyPair == null) ? signedCert : signedCert.CopyWithPrivateKey(rsaKeyPair);
@@ -139,7 +136,9 @@ namespace Opc.Ua.Security.Certificates
 
             if (m_rsaPublicKey == null && IssuerCAKeyCert == null)
             {
-                throw new NotSupportedException("Need an issuer certificate or a public key for a signature generator.");
+                throw new NotSupportedException(
+                    "Need an issuer certificate or a public key for a signature generator."
+                );
             }
 
             X500DistinguishedName issuerSubjectName = SubjectName;
@@ -156,7 +155,12 @@ namespace Opc.Ua.Security.Certificates
                 rsaPublicKey = rsaKeyPair;
             }
 
-            var request = new CertificateRequest(SubjectName, rsaPublicKey, HashAlgorithmName, RSASignaturePadding.Pkcs1);
+            var request = new CertificateRequest(
+                SubjectName,
+                rsaPublicKey,
+                HashAlgorithmName,
+                RSASignaturePadding.Pkcs1
+            );
 
             CreateX509Extensions(request, false);
 
@@ -166,7 +170,7 @@ namespace Opc.Ua.Security.Certificates
                 NotBefore,
                 NotAfter,
                 [.. m_serialNumber.Reverse()]
-                );
+            );
 
             return (rsaKeyPair == null) ? signedCert : signedCert.CopyWithPrivateKey(rsaKeyPair);
         }
@@ -177,7 +181,9 @@ namespace Opc.Ua.Security.Certificates
         {
             if (m_ecdsaPublicKey != null && IssuerCAKeyCert == null)
             {
-                throw new NotSupportedException("Cannot use a public key without an issuer certificate with a private key.");
+                throw new NotSupportedException(
+                    "Cannot use a public key without an issuer certificate with a private key."
+                );
             }
 
             if (m_ecdsaPublicKey == null && m_curve == null)
@@ -211,7 +217,7 @@ namespace Opc.Ua.Security.Certificates
                     NotBefore,
                     NotAfter,
                     serialNumber
-                    );
+                );
             }
             else
             {
@@ -221,7 +227,7 @@ namespace Opc.Ua.Security.Certificates
                     NotBefore,
                     NotAfter,
                     serialNumber
-                    );
+                );
             }
 
             return (key == null) ? cert : cert.CopyWithPrivateKey(key);
@@ -260,7 +266,7 @@ namespace Opc.Ua.Security.Certificates
                 NotBefore,
                 NotAfter,
                 [.. m_serialNumber.Reverse()]
-                );
+            );
 
             // return a X509Certificate2
             return (key == null) ? signedCert : signedCert.CopyWithPrivateKey(key);
@@ -279,8 +285,10 @@ namespace Opc.Ua.Security.Certificates
             {
                 m_ecdsaPublicKey = ECDsa.Create();
 #if NET472_OR_GREATER
-
-                if (Org.BouncyCastle.Security.PublicKeyFactory.CreateKey(publicKey) is not Org.BouncyCastle.Crypto.Parameters.ECPublicKeyParameters asymmetricPubKeyParameters)
+                if (
+                    Org.BouncyCastle.Security.PublicKeyFactory.CreateKey(publicKey)
+                    is not Org.BouncyCastle.Crypto.Parameters.ECPublicKeyParameters asymmetricPubKeyParameters
+                )
                 {
                     throw new ArgumentException("Invalid public key format or key type.");
                 }
@@ -292,7 +300,8 @@ namespace Opc.Ua.Security.Certificates
 
                 var ecParameters = new ECParameters();
 
-                Org.BouncyCastle.Crypto.Parameters.ECDomainParameters domainParameters = asymmetricPubKeyParameters.Parameters;
+                Org.BouncyCastle.Crypto.Parameters.ECDomainParameters domainParameters =
+                    asymmetricPubKeyParameters.Parameters;
                 Org.BouncyCastle.Math.EC.ECPoint q = asymmetricPubKeyParameters.Q;
                 // calculate keySize round up (bitLength + 7) / 8
                 int keySizeBytes = (domainParameters.N.BitLength + 7) / 8;
@@ -307,19 +316,27 @@ namespace Opc.Ua.Security.Certificates
                 else
                 {
                     // Explicit parameters
-                    byte[] a = X509Utils.PadWithLeadingZeros(domainParameters.Curve.A.ToBigInteger().ToByteArrayUnsigned(), keySizeBytes);
-                    byte[] b = X509Utils.PadWithLeadingZeros(domainParameters.Curve.B.ToBigInteger().ToByteArrayUnsigned(), keySizeBytes);
+                    byte[] a = X509Utils.PadWithLeadingZeros(
+                        domainParameters.Curve.A.ToBigInteger().ToByteArrayUnsigned(),
+                        keySizeBytes
+                    );
+                    byte[] b = X509Utils.PadWithLeadingZeros(
+                        domainParameters.Curve.B.ToBigInteger().ToByteArrayUnsigned(),
+                        keySizeBytes
+                    );
                     ecParameters.Curve = X509Utils.IdentifyEccCurveByCoefficients(a, b);
                 }
 
-                byte[] x = X509Utils.PadWithLeadingZeros(q.AffineXCoord.ToBigInteger().ToByteArrayUnsigned(), keySizeBytes);
-                byte[] y = X509Utils.PadWithLeadingZeros(q.AffineYCoord.ToBigInteger().ToByteArrayUnsigned(), keySizeBytes);
+                byte[] x = X509Utils.PadWithLeadingZeros(
+                    q.AffineXCoord.ToBigInteger().ToByteArrayUnsigned(),
+                    keySizeBytes
+                );
+                byte[] y = X509Utils.PadWithLeadingZeros(
+                    q.AffineYCoord.ToBigInteger().ToByteArrayUnsigned(),
+                    keySizeBytes
+                );
                 // Use the Q point
-                ecParameters.Q = new ECPoint
-                {
-                    X = x,
-                    Y = y
-                };
+                ecParameters.Q = new ECPoint { X = x, Y = y };
 
                 m_ecdsaPublicKey.ImportParameters(ecParameters);
                 bytes = publicKey.Length;
@@ -339,8 +356,8 @@ namespace Opc.Ua.Security.Certificates
                 throw new ArgumentException("Decoded the public key but extra bytes were found.");
             }
             return this;
-#endif
         }
+#endif
 
         /// <inheritdoc/>
         public override ICertificateBuilderCreateForRSAAny SetRSAPublicKey(byte[] publicKey)
@@ -405,7 +422,8 @@ namespace Opc.Ua.Security.Certificates
             var ski = new X509SubjectKeyIdentifierExtension(
                 request.PublicKey,
                 X509SubjectKeyIdentifierHashAlgorithm.Sha1,
-                false);
+                false
+            );
             if (m_extensions.FindExtension<X509SubjectKeyIdentifierExtension>() == null)
             {
                 request.CertificateExtensions.Add(ski);
@@ -414,12 +432,14 @@ namespace Opc.Ua.Security.Certificates
             // Authority Key Identifier
             if (m_extensions.FindExtension<X509AuthorityKeyIdentifierExtension>() == null)
             {
-                X509Extension authorityKeyIdentifier = IssuerCAKeyCert != null
-                    ? IssuerCAKeyCert.BuildAuthorityKeyIdentifier()
-                    : new X509AuthorityKeyIdentifierExtension(
-                        ski.SubjectKeyIdentifier.FromHexString(),
-                        IssuerName,
-                        m_serialNumber);
+                X509Extension authorityKeyIdentifier =
+                    IssuerCAKeyCert != null
+                        ? IssuerCAKeyCert.BuildAuthorityKeyIdentifier()
+                        : new X509AuthorityKeyIdentifierExtension(
+                            ski.SubjectKeyIdentifier.FromHexString(),
+                            IssuerName,
+                            m_serialNumber
+                        );
                 request.CertificateExtensions.Add(authorityKeyIdentifier);
             }
 
@@ -429,21 +449,27 @@ namespace Opc.Ua.Security.Certificates
                 X509KeyUsageFlags keyUsageFlags;
                 if (m_isCA)
                 {
-                    keyUsageFlags = X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyCertSign | X509KeyUsageFlags.CrlSign;
+                    keyUsageFlags =
+                        X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyCertSign | X509KeyUsageFlags.CrlSign;
                 }
                 else
                 {
                     if (forECDsa)
                     {
                         // Key Usage for ECDsa
-                        keyUsageFlags = X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.NonRepudiation
+                        keyUsageFlags =
+                            X509KeyUsageFlags.DigitalSignature
+                            | X509KeyUsageFlags.NonRepudiation
                             | X509KeyUsageFlags.KeyAgreement;
                     }
                     else
                     {
                         // Key usage for RSA
-                        keyUsageFlags = X509KeyUsageFlags.DataEncipherment | X509KeyUsageFlags.KeyEncipherment
-                            | X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.NonRepudiation;
+                        keyUsageFlags =
+                            X509KeyUsageFlags.DataEncipherment
+                            | X509KeyUsageFlags.KeyEncipherment
+                            | X509KeyUsageFlags.DigitalSignature
+                            | X509KeyUsageFlags.NonRepudiation;
                     }
                     if (IssuerCAKeyCert == null)
                     {
@@ -452,21 +478,18 @@ namespace Opc.Ua.Security.Certificates
                     }
                 }
 
-                request.CertificateExtensions.Add(
-                                    new X509KeyUsageExtension(
-                                        keyUsageFlags,
-                                        true));
+                request.CertificateExtensions.Add(new X509KeyUsageExtension(keyUsageFlags, true));
             }
 
             if (!m_isCA && !forECDsa && m_extensions.FindExtension<X509EnhancedKeyUsageExtension>() == null)
             {
                 // Enhanced key usage
                 request.CertificateExtensions.Add(
-                new X509EnhancedKeyUsageExtension(
-                    [
-                            new Oid(Oids.ServerAuthentication),
-                            new Oid(Oids.ClientAuthentication)
-                    ], true));
+                    new X509EnhancedKeyUsageExtension(
+                        [new Oid(Oids.ServerAuthentication), new Oid(Oids.ClientAuthentication)],
+                        true
+                    )
+                );
             }
 
             foreach (X509Extension extension in m_extensions)

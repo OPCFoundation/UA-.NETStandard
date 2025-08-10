@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -99,7 +99,6 @@ namespace Opc.Ua.Client
         public ISession Session
         {
             get => m_session;
-
             set
             {
                 CheckBrowserState();
@@ -114,7 +113,6 @@ namespace Opc.Ua.Client
         public ViewDescription View
         {
             get => m_view;
-
             set
             {
                 CheckBrowserState();
@@ -129,7 +127,6 @@ namespace Opc.Ua.Client
         public uint MaxReferencesReturned
         {
             get => m_maxReferencesReturned;
-
             set
             {
                 CheckBrowserState();
@@ -144,7 +141,6 @@ namespace Opc.Ua.Client
         public BrowseDirection BrowseDirection
         {
             get => m_browseDirection;
-
             set
             {
                 CheckBrowserState();
@@ -159,7 +155,6 @@ namespace Opc.Ua.Client
         public NodeId ReferenceTypeId
         {
             get => m_referenceTypeId;
-
             set
             {
                 CheckBrowserState();
@@ -174,7 +169,6 @@ namespace Opc.Ua.Client
         public bool IncludeSubtypes
         {
             get => m_includeSubtypes;
-
             set
             {
                 CheckBrowserState();
@@ -189,7 +183,6 @@ namespace Opc.Ua.Client
         public int NodeClassMask
         {
             get => Utils.ToInt32(m_nodeClassMask);
-
             set
             {
                 CheckBrowserState();
@@ -204,7 +197,6 @@ namespace Opc.Ua.Client
         public uint ResultMask
         {
             get => m_resultMask;
-
             set
             {
                 CheckBrowserState();
@@ -218,7 +210,8 @@ namespace Opc.Ua.Client
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1009:DeclareEventHandlersCorrectly")]
         public event BrowserEventHandler MoreReferences
         {
-            add => m_MoreReferences += value; remove => m_MoreReferences -= value;
+            add => m_MoreReferences += value;
+            remove => m_MoreReferences -= value;
         }
 
         /// <summary>
@@ -227,7 +220,6 @@ namespace Opc.Ua.Client
         public bool ContinueUntilDone
         {
             get => m_continueUntilDone;
-
             set
             {
                 CheckBrowserState();
@@ -242,7 +234,10 @@ namespace Opc.Ua.Client
         {
             if (m_session == null)
             {
-                throw new ServiceResultException(StatusCodes.BadServerNotConnected, "Cannot browse if not connected to a server.");
+                throw new ServiceResultException(
+                    StatusCodes.BadServerNotConnected,
+                    "Cannot browse if not connected to a server."
+                );
             }
 
             try
@@ -257,12 +252,10 @@ namespace Opc.Ua.Client
                     ReferenceTypeId = m_referenceTypeId,
                     IncludeSubtypes = m_includeSubtypes,
                     NodeClassMask = m_nodeClassMask,
-                    ResultMask = m_resultMask
+                    ResultMask = m_resultMask,
                 };
 
-                var nodesToBrowse = new BrowseDescriptionCollection {
-                    nodeToBrowse
-                };
+                var nodesToBrowse = new BrowseDescriptionCollection { nodeToBrowse };
 
                 // make the call to the server.
                 BrowseResultCollection results;
@@ -274,7 +267,8 @@ namespace Opc.Ua.Client
                     m_maxReferencesReturned,
                     nodesToBrowse,
                     out results,
-                    out diagnosticInfos);
+                    out diagnosticInfos
+                );
 
                 // ensure that the server returned valid results.
                 ClientBase.ValidateResponse(results, nodesToBrowse);
@@ -283,7 +277,12 @@ namespace Opc.Ua.Client
                 // check if valid.
                 if (StatusCode.IsBad(results[0].StatusCode))
                 {
-                    throw ServiceResultException.Create(results[0].StatusCode, 0, diagnosticInfos, responseHeader.StringTable);
+                    throw ServiceResultException.Create(
+                        results[0].StatusCode,
+                        0,
+                        diagnosticInfos,
+                        responseHeader.StringTable
+                    );
                 }
 
                 // fetch initial set of references.
@@ -338,7 +337,10 @@ namespace Opc.Ua.Client
         {
             if (m_browseInProgress)
             {
-                throw new ServiceResultException(StatusCodes.BadInvalidState, "Cannot change browse parameters while a browse operation is in progress.");
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidState,
+                    "Cannot change browse parameters while a browse operation is in progress."
+                );
             }
         }
 
@@ -350,9 +352,7 @@ namespace Opc.Ua.Client
         /// <returns>The next batch of references</returns>
         private ReferenceDescriptionCollection BrowseNext(ref byte[] continuationPoint, bool cancel)
         {
-            var continuationPoints = new ByteStringCollection {
-                continuationPoint
-            };
+            var continuationPoints = new ByteStringCollection { continuationPoint };
 
             // make the call to the server.
             BrowseResultCollection results;
@@ -363,7 +363,8 @@ namespace Opc.Ua.Client
                 cancel,
                 continuationPoints,
                 out results,
-                out diagnosticInfos);
+                out diagnosticInfos
+            );
 
             // ensure that the server returned valid results.
             ClientBase.ValidateResponse(results, continuationPoints);
@@ -372,7 +373,12 @@ namespace Opc.Ua.Client
             // check if valid.
             if (StatusCode.IsBad(results[0].StatusCode))
             {
-                throw ServiceResultException.Create(results[0].StatusCode, 0, diagnosticInfos, responseHeader.StringTable);
+                throw ServiceResultException.Create(
+                    results[0].StatusCode,
+                    0,
+                    diagnosticInfos,
+                    responseHeader.StringTable
+                );
             }
 
             // update continuation point.

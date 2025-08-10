@@ -61,14 +61,26 @@ namespace Opc.Ua
         /// Call an IEncoder action where the reversible encoding is applied
         /// before the call to the Action and restored before return.
         /// </summary>
-        [Obsolete("Non/Reversible encoding is deprecated. Use UsingAlternateEncoding instead to support new encoding types.")]
-        void UsingReversibleEncoding<T>(Action<string, T> action, string fieldName, T value, bool useReversibleEncoding);
+        [Obsolete(
+            "Non/Reversible encoding is deprecated. Use UsingAlternateEncoding instead to support new encoding types."
+        )]
+        void UsingReversibleEncoding<T>(
+            Action<string, T> action,
+            string fieldName,
+            T value,
+            bool useReversibleEncoding
+        );
 
         /// <summary>
         /// Call an IEncoder action where the alternate encoding type is applied
         /// before the call to the Action and restored before return.
         /// </summary>
-        void UsingAlternateEncoding<T>(Action<string, T> action, string fieldName, T value, JsonEncodingType useEncodingType);
+        void UsingAlternateEncoding<T>(
+            Action<string, T> action,
+            string fieldName,
+            T value,
+            JsonEncodingType useEncodingType
+        );
     }
 
     /// <summary>
@@ -94,6 +106,6 @@ namespace Opc.Ua
         /// <summary>
         /// The non reversible encoding supported for backward compatibitility.
         /// </summary>
-        NonReversible
+        NonReversible,
     }
 }

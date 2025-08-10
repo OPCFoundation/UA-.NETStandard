@@ -43,6 +43,7 @@ namespace Opc.Ua.Server
         /// <param name="queueSize">The new queue size.</param>
         /// <param name="discardOldest">Whether to discard the oldest values if the queue overflows.</param>
         void SetQueueSize(uint queueSize, bool discardOldest);
+
         /// <summary>
         /// The number of Items in the queue
         /// </summary>
@@ -80,6 +81,7 @@ namespace Opc.Ua.Server
         /// <returns>the number of events that were added to the notification queue</returns>
         uint Publish(OperationContext context, Queue<EventFieldList> notifications, uint maxNotificationsPerPublish);
     }
+
     /// <summary>
     /// Mangages an event queue for usage by a MonitoredItem
     /// </summary>
@@ -102,9 +104,7 @@ namespace Opc.Ua.Server
         /// Create an EventQueueHandler from an existing queue
         /// Used for restore after a server restart
         /// </summary>
-        public EventQueueHandler(
-            IEventMonitoredItemQueue eventQueue,
-            bool discardOldest)
+        public EventQueueHandler(IEventMonitoredItemQueue eventQueue, bool discardOldest)
         {
             m_eventQueue = eventQueue;
             m_discardOldest = discardOldest;
@@ -121,6 +121,7 @@ namespace Opc.Ua.Server
             m_discardOldest = discardOldest;
             m_eventQueue.SetQueueSize(queueSize, discardOldest);
         }
+
         /// <summary>
         /// The number of Items in the queue
         /// </summary>
@@ -198,7 +199,11 @@ namespace Opc.Ua.Server
         /// <param name="context"></param>
         /// <param name="notifications"></param>
         /// <param name="maxNotificationsPerPublish">the maximum number of notifications to enqueue per call</param>
-        public uint Publish(OperationContext context, Queue<EventFieldList> notifications, uint maxNotificationsPerPublish)
+        public uint Publish(
+            OperationContext context,
+            Queue<EventFieldList> notifications,
+            uint maxNotificationsPerPublish
+        )
         {
             uint notificationCount = 0;
             while (notificationCount < maxNotificationsPerPublish && m_eventQueue.Dequeue(out EventFieldList fields))

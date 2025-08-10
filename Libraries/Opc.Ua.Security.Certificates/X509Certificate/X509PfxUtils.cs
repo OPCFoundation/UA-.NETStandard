@@ -29,11 +29,11 @@
 
 using System;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 #if NETSTANDARD2_1_OR_GREATER || NET472_OR_GREATER || NET5_0_OR_GREATER
 using System.Runtime.InteropServices;
 #endif
-using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 
 namespace Opc.Ua.Security.Certificates
 {
@@ -71,7 +71,8 @@ namespace Opc.Ua.Security.Certificates
         public static bool VerifyKeyPair(
             X509Certificate2 certWithPublicKey,
             X509Certificate2 certWithPrivateKey,
-            bool throwOnError = false)
+            bool throwOnError = false
+        )
         {
             if (IsECDsaSignature(certWithPublicKey))
             {
@@ -93,7 +94,8 @@ namespace Opc.Ua.Security.Certificates
         public static bool VerifyRSAKeyPair(
             X509Certificate2 certWithPublicKey,
             X509Certificate2 certWithPrivateKey,
-            bool throwOnError = false)
+            bool throwOnError = false
+        )
         {
             bool result = false;
             try
@@ -123,9 +125,7 @@ namespace Opc.Ua.Security.Certificates
                     throw new CryptographicException("The certificate does not contain a RSA public/private key pair.");
                 }
             }
-            catch (Exception) when (!throwOnError)
-            {
-            }
+            catch (Exception) when (!throwOnError) { }
 
             if (!result && throwOnError)
             {
@@ -146,7 +146,7 @@ namespace Opc.Ua.Security.Certificates
             byte[] rawData,
             string password,
             bool noEphemeralKeySet = false
-            )
+        )
         {
             Exception ex = null;
             X509Certificate2 certificate = null;
@@ -162,9 +162,10 @@ namespace Opc.Ua.Security.Certificates
             // By default keys are not persisted
             defaultStorageSet |= X509KeyStorageFlags.Exportable;
 
-            X509KeyStorageFlags[] storageFlags = [
+            X509KeyStorageFlags[] storageFlags =
+            [
                 defaultStorageSet | X509KeyStorageFlags.MachineKeySet,
-                defaultStorageSet | X509KeyStorageFlags.UserKeySet
+                defaultStorageSet | X509KeyStorageFlags.UserKeySet,
             ];
 
             // try some combinations of storage flags, support is platform dependent
@@ -173,10 +174,7 @@ namespace Opc.Ua.Security.Certificates
                 try
                 {
                     // merge first cert with private key into X509Certificate2
-                    certificate = X509CertificateLoader.LoadPkcs12(
-                        rawData,
-                        password ?? string.Empty,
-                        flag);
+                    certificate = X509CertificateLoader.LoadPkcs12(rawData, password ?? string.Empty, flag);
                     if (VerifyKeyPair(certificate, certificate, true))
                     {
                         return certificate;
@@ -201,9 +199,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Verify a RSA key pair using a encryption.
         /// </summary>
-        internal static bool VerifyRSAKeyPairCrypt(
-            RSA rsaPublicKey,
-            RSA rsaPrivateKey)
+        internal static bool VerifyRSAKeyPairCrypt(RSA rsaPublicKey, RSA rsaPrivateKey)
         {
             byte[] testBlock = new byte[TestBlockSize];
             s_rnd.NextBytes(testBlock);
@@ -219,9 +215,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Verify a RSA key pair using a signature.
         /// </summary>
-        internal static bool VerifyRSAKeyPairSign(
-            RSA rsaPublicKey,
-            RSA rsaPrivateKey)
+        internal static bool VerifyRSAKeyPairSign(RSA rsaPublicKey, RSA rsaPrivateKey)
         {
             byte[] testBlock = new byte[TestBlockSize];
             s_rnd.NextBytes(testBlock);
@@ -248,7 +242,8 @@ namespace Opc.Ua.Security.Certificates
         public static bool VerifyECDsaKeyPair(
             X509Certificate2 certWithPublicKey,
             X509Certificate2 certWithPrivateKey,
-            bool throwOnError = false)
+            bool throwOnError = false
+        )
         {
             bool result = false;
             using (ECDsa ecdsaPublicKey = certWithPublicKey.GetECDsaPublicKey())
@@ -286,9 +281,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Verify a ECDsa key pair using a signature.
         /// </summary>
-        internal static bool VerifyECDsaKeyPairSign(
-            ECDsa ecdsaPublicKey,
-            ECDsa ecdsaPrivateKey)
+        internal static bool VerifyECDsaKeyPairSign(ECDsa ecdsaPublicKey, ECDsa ecdsaPrivateKey)
         {
             byte[] testBlock = new byte[TestBlockSize];
             s_rnd.NextBytes(testBlock);

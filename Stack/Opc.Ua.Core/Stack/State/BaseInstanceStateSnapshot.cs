@@ -30,9 +30,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context.</param>
         /// <param name="state">The state.</param>
-        public void Initialize(
-            ISystemContext context,
-            BaseInstanceState state)
+        public void Initialize(ISystemContext context, BaseInstanceState state)
         {
             m_typeDefinitionId = state.TypeDefinitionId;
             m_snapshot = CreateChildNode(context, state);
@@ -45,10 +43,7 @@ namespace Opc.Ua
         /// <param name="browseName">The BrowseName.</param>
         /// <param name="nodeClass">The node class.</param>
         /// <param name="value">The value.</param>
-        public void SetChildValue(
-            QualifiedName browseName,
-            NodeClass nodeClass,
-            object value)
+        public void SetChildValue(QualifiedName browseName, NodeClass nodeClass, object value)
         {
             SetChildValue(m_snapshot, browseName, nodeClass, value);
         }
@@ -82,18 +77,15 @@ namespace Opc.Ua
             NodeId typeDefinitionId,
             IList<QualifiedName> relativePath,
             uint attributeId,
-            NumericRange indexRange)
+            NumericRange indexRange
+        )
         {
             if (!NodeId.IsNull(typeDefinitionId) && !context.TypeTree.IsTypeOf(m_typeDefinitionId, typeDefinitionId))
             {
                 return null;
             }
 
-            object value = GetAttributeValue(
-                m_snapshot,
-                relativePath,
-                0,
-                attributeId);
+            object value = GetAttributeValue(m_snapshot, relativePath, 0, attributeId);
 
             if (indexRange != NumericRange.Empty)
             {
@@ -126,11 +118,7 @@ namespace Opc.Ua
         /// <param name="browseName">The BrowseName.</param>
         /// <param name="nodeClass">The node class.</param>
         /// <param name="value">The value.</param>
-        private static void SetChildValue(
-            ChildNode node,
-            QualifiedName browseName,
-            NodeClass nodeClass,
-            object value)
+        private static void SetChildValue(ChildNode node, QualifiedName browseName, NodeClass nodeClass, object value)
         {
             ChildNode child = null;
 
@@ -172,11 +160,7 @@ namespace Opc.Ua
         /// <returns>A snapshot of a node.</returns>
         private ChildNode CreateChildNode(ISystemContext context, BaseInstanceState state)
         {
-            var node = new ChildNode
-            {
-                NodeClass = state.NodeClass,
-                BrowseName = state.BrowseName
-            };
+            var node = new ChildNode { NodeClass = state.NodeClass, BrowseName = state.BrowseName };
 
             if (state is BaseVariableState variable && !StatusCode.IsBad(variable.StatusCode))
             {
@@ -234,7 +218,8 @@ namespace Opc.Ua
             ChildNode node,
             IList<QualifiedName> relativePath,
             int index,
-            uint attributeId)
+            uint attributeId
+        )
         {
             if (index >= relativePath.Count)
             {

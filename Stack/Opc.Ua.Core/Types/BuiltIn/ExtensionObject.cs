@@ -314,9 +314,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="body">The body of the object: IEncodeable, XmlElement or Byte-array</param>
         public ExtensionObject(object body)
-            : this(ExpandedNodeId.Null, body)
-        {
-        }
+            : this(ExpandedNodeId.Null, body) { }
 
         /// <summary>
         /// Initializes the object with an encodeable object.
@@ -376,7 +374,6 @@ namespace Opc.Ua
         public object Body
         {
             get => m_body;
-
             set
             {
                 m_body = value;
@@ -405,7 +402,11 @@ namespace Opc.Ua
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadNotSupported,
-                        Utils.Format("Cannot add an object with type '{0}' to an extension object.", m_body.GetType().FullName));
+                        Utils.Format(
+                            "Cannot add an object with type '{0}' to an extension object.",
+                            m_body.GetType().FullName
+                        )
+                    );
                 }
             }
         }
@@ -511,7 +512,11 @@ namespace Opc.Ua
                 {
                     var body = new StringBuilder();
 
-                    foreach (PropertyInfo property in m_body.GetType().GetProperties(BindingFlags.Public | BindingFlags.FlattenHierarchy | BindingFlags.Instance))
+                    foreach (
+                        PropertyInfo property in m_body
+                            .GetType()
+                            .GetProperties(BindingFlags.Public | BindingFlags.FlattenHierarchy | BindingFlags.Instance)
+                    )
                     {
                         object[] attributes = [.. property.GetCustomAttributes(typeof(DataMemberAttribute), true)];
 
@@ -636,7 +641,8 @@ namespace Opc.Ua
         /// <remarks>
         /// Will add null elements if individual elements cannot be converted.
         /// </remarks>
-        public static List<T> ToList<T>(object source) where T : class
+        public static List<T> ToList<T>(object source)
+            where T : class
         {
             if (source is not Array extensions)
             {
@@ -687,7 +693,6 @@ namespace Opc.Ua
 
                 return ExpandedNodeId.ToNodeId(TypeId, m_context.NamespaceUris);
             }
-
             set => TypeId = NodeId.ToExpandedNodeId(value, m_context.NamespaceUris);
         }
 
@@ -714,7 +719,6 @@ namespace Opc.Ua
                 // return root element.
                 return document.DocumentElement;
             }
-
             set
             {
                 // check null bodies.
@@ -745,7 +749,8 @@ namespace Opc.Ua
                     throw new ServiceResultException(
                         StatusCodes.BadDecodingError,
                         Utils.Format("Did not read all of a extension object body: '{0}'", TypeId),
-                        e);
+                        e
+                    );
                 }
             }
         }
@@ -782,7 +787,7 @@ namespace Opc.Ua
         /// <summary>
         /// The extension object has a JSON encoded body.
         /// </summary>
-        Json = 4
+        Json = 4,
     }
 
     /// <summary>
@@ -791,7 +796,11 @@ namespace Opc.Ua
     /// <remarks>
     /// A strongly-typed collection of ExtensionObjects.
     /// </remarks>
-    [CollectionDataContract(Name = "ListOfExtensionObject", Namespace = Namespaces.OpcUaXsd, ItemName = "ExtensionObject")]
+    [CollectionDataContract(
+        Name = "ListOfExtensionObject",
+        Namespace = Namespaces.OpcUaXsd,
+        ItemName = "ExtensionObject"
+    )]
     public class ExtensionObjectCollection : List<ExtensionObject>, ICloneable
     {
         /// <summary>
@@ -803,13 +812,15 @@ namespace Opc.Ua
         /// Initializes the collection from another collection.
         /// </summary>
         /// <param name="collection">The collection containing the objects to copy into this new instance</param>
-        public ExtensionObjectCollection(IEnumerable<ExtensionObject> collection) : base(collection) { }
+        public ExtensionObjectCollection(IEnumerable<ExtensionObject> collection)
+            : base(collection) { }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">Max capacity of the collection</param>
-        public ExtensionObjectCollection(int capacity) : base(capacity) { }
+        public ExtensionObjectCollection(int capacity)
+            : base(capacity) { }
 
         /// <summary>
         /// Converts an array of ExtensionObjects to a collection.
@@ -850,7 +861,6 @@ namespace Opc.Ua
                     {
                         extensibles.Add(extensible);
                     }
-
                     // wrap the encodeable with an extension object and let the serializer choose the encoding.
                     else
                     {
@@ -882,5 +892,5 @@ namespace Opc.Ua
 
             return clone;
         }
-    }//class
-}//namespace
+    } //class
+} //namespace

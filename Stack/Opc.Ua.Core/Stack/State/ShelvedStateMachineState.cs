@@ -37,7 +37,7 @@ namespace Opc.Ua
         [
             new(Objects.ShelvedStateMachineType_OneShotShelved, BrowseNames.OneShotShelve, 1),
             new(Objects.ShelvedStateMachineType_TimedShelved, BrowseNames.TimedShelved, 2),
-            new(Objects.ShelvedStateMachineType_Unshelved, BrowseNames.Unshelved, 3)
+            new(Objects.ShelvedStateMachineType_Unshelved, BrowseNames.Unshelved, 3),
         ];
 
         /// <summary>
@@ -50,9 +50,17 @@ namespace Opc.Ua
         /// </summary>
         private static readonly ElementInfo[] s_TransitionTable =
         [
-            new(Objects.ShelvedStateMachineType_OneShotShelvedToTimedShelved, BrowseNames.OneShotShelvedToTimedShelved, 1),
+            new(
+                Objects.ShelvedStateMachineType_OneShotShelvedToTimedShelved,
+                BrowseNames.OneShotShelvedToTimedShelved,
+                1
+            ),
             new(Objects.ShelvedStateMachineType_OneShotShelvedToUnshelved, BrowseNames.OneShotShelvedToUnshelved, 2),
-            new(Objects.ShelvedStateMachineType_TimedShelvedToOneShotShelved, BrowseNames.TimedShelvedToOneShotShelved, 3),
+            new(
+                Objects.ShelvedStateMachineType_TimedShelvedToOneShotShelved,
+                BrowseNames.TimedShelvedToOneShotShelved,
+                3
+            ),
             new(Objects.ShelvedStateMachineType_TimedShelvedToUnshelved, BrowseNames.TimedShelvedToUnshelved, 4),
             new(Objects.ShelvedStateMachineType_UnshelvedToOneShotShelved, BrowseNames.UnshelvedToOneShotShelved, 5),
             new(Objects.ShelvedStateMachineType_UnshelvedToTimedShelved, BrowseNames.UnshelvedToTimedShelved, 6),
@@ -68,30 +76,84 @@ namespace Opc.Ua
         /// </summary>
         private static readonly uint[,] s_TransitionMappings = new uint[,]
         {
-            { Objects.ShelvedStateMachineType_OneShotShelvedToTimedShelved, Objects.ShelvedStateMachineType_OneShotShelved, Objects.ShelvedStateMachineType_TimedShelved, 0 },
-            { Objects.ShelvedStateMachineType_OneShotShelvedToUnshelved, Objects.ShelvedStateMachineType_OneShotShelved, Objects.ShelvedStateMachineType_Unshelved, 1 },
-            { Objects.ShelvedStateMachineType_TimedShelvedToOneShotShelved, Objects.ShelvedStateMachineType_TimedShelved, Objects.ShelvedStateMachineType_OneShotShelved, 0 },
-            { Objects.ShelvedStateMachineType_TimedShelvedToUnshelved, Objects.ShelvedStateMachineType_TimedShelved, Objects.ShelvedStateMachineType_Unshelved, 1 },
-            { Objects.ShelvedStateMachineType_UnshelvedToOneShotShelved, Objects.ShelvedStateMachineType_Unshelved, Objects.ShelvedStateMachineType_OneShotShelved, 1 },
-            { Objects.ShelvedStateMachineType_UnshelvedToTimedShelved, Objects.ShelvedStateMachineType_Unshelved, Objects.ShelvedStateMachineType_TimedShelved, 1 },
+            {
+                Objects.ShelvedStateMachineType_OneShotShelvedToTimedShelved,
+                Objects.ShelvedStateMachineType_OneShotShelved,
+                Objects.ShelvedStateMachineType_TimedShelved,
+                0,
+            },
+            {
+                Objects.ShelvedStateMachineType_OneShotShelvedToUnshelved,
+                Objects.ShelvedStateMachineType_OneShotShelved,
+                Objects.ShelvedStateMachineType_Unshelved,
+                1,
+            },
+            {
+                Objects.ShelvedStateMachineType_TimedShelvedToOneShotShelved,
+                Objects.ShelvedStateMachineType_TimedShelved,
+                Objects.ShelvedStateMachineType_OneShotShelved,
+                0,
+            },
+            {
+                Objects.ShelvedStateMachineType_TimedShelvedToUnshelved,
+                Objects.ShelvedStateMachineType_TimedShelved,
+                Objects.ShelvedStateMachineType_Unshelved,
+                1,
+            },
+            {
+                Objects.ShelvedStateMachineType_UnshelvedToOneShotShelved,
+                Objects.ShelvedStateMachineType_Unshelved,
+                Objects.ShelvedStateMachineType_OneShotShelved,
+                1,
+            },
+            {
+                Objects.ShelvedStateMachineType_UnshelvedToTimedShelved,
+                Objects.ShelvedStateMachineType_Unshelved,
+                Objects.ShelvedStateMachineType_TimedShelved,
+                1,
+            },
         };
 
         /// <summary>
         /// The mapping between causes, the current state and a transition.
         /// </summary>
-        protected override uint[,] CauseMappings => s_CauseMappings;
+        protected override uint[,] CauseMappings => s_causeMappings;
 
         /// <summary>
         /// A table of transitions for the available causes.
         /// </summary>
-        private static readonly uint[,] s_CauseMappings = new uint[,]
+        private static readonly uint[,] s_causeMappings = new uint[,]
         {
-            { Methods.ShelvedStateMachineType_TimedShelve, Objects.ShelvedStateMachineType_OneShotShelved, Objects.ShelvedStateMachineType_OneShotShelvedToTimedShelved },
-            { Methods.ShelvedStateMachineType_Unshelve, Objects.ShelvedStateMachineType_OneShotShelved, Objects.ShelvedStateMachineType_OneShotShelvedToUnshelved },
-            { Methods.ShelvedStateMachineType_OneShotShelve, Objects.ShelvedStateMachineType_TimedShelved, Objects.ShelvedStateMachineType_TimedShelvedToOneShotShelved },
-            { Methods.ShelvedStateMachineType_Unshelve, Objects.ShelvedStateMachineType_TimedShelved, Objects.ShelvedStateMachineType_TimedShelvedToUnshelved },
-            { Methods.ShelvedStateMachineType_OneShotShelve, Objects.ShelvedStateMachineType_Unshelved, Objects.ShelvedStateMachineType_UnshelvedToOneShotShelved },
-            { Methods.ShelvedStateMachineType_TimedShelve, Objects.ShelvedStateMachineType_Unshelved, Objects.ShelvedStateMachineType_UnshelvedToTimedShelved },
+            {
+                Methods.ShelvedStateMachineType_TimedShelve,
+                Objects.ShelvedStateMachineType_OneShotShelved,
+                Objects.ShelvedStateMachineType_OneShotShelvedToTimedShelved,
+            },
+            {
+                Methods.ShelvedStateMachineType_Unshelve,
+                Objects.ShelvedStateMachineType_OneShotShelved,
+                Objects.ShelvedStateMachineType_OneShotShelvedToUnshelved,
+            },
+            {
+                Methods.ShelvedStateMachineType_OneShotShelve,
+                Objects.ShelvedStateMachineType_TimedShelved,
+                Objects.ShelvedStateMachineType_TimedShelvedToOneShotShelved,
+            },
+            {
+                Methods.ShelvedStateMachineType_Unshelve,
+                Objects.ShelvedStateMachineType_TimedShelved,
+                Objects.ShelvedStateMachineType_TimedShelvedToUnshelved,
+            },
+            {
+                Methods.ShelvedStateMachineType_OneShotShelve,
+                Objects.ShelvedStateMachineType_Unshelved,
+                Objects.ShelvedStateMachineType_UnshelvedToOneShotShelved,
+            },
+            {
+                Methods.ShelvedStateMachineType_TimedShelve,
+                Objects.ShelvedStateMachineType_Unshelved,
+                Objects.ShelvedStateMachineType_UnshelvedToTimedShelved,
+            },
         };
     }
 }

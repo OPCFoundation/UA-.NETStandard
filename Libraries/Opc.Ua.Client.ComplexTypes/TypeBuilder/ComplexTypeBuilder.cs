@@ -48,7 +48,8 @@ namespace Opc.Ua.Client.ComplexTypes
             AssemblyModule moduleFactory,
             string targetNamespace,
             int targetNamespaceIndex,
-            string moduleName = null)
+            string moduleName = null
+        )
         {
             TargetNamespace = targetNamespace;
             TargetNamespaceIndex = targetNamespaceIndex;
@@ -92,7 +93,8 @@ namespace Opc.Ua.Client.ComplexTypes
             EnumBuilder enumBuilder = m_moduleBuilder.DefineEnum(
                 GetFullQualifiedTypeName(typeName),
                 TypeAttributes.Public,
-                typeof(int));
+                typeof(int)
+            );
             enumBuilder.DataContractAttribute(TargetNamespace);
             if (enumDefinition.Fields != null)
             {
@@ -120,9 +122,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Create a complex type from a StructureDefinition.
         /// Available since OPC UA V1.04 in the DataTypeDefinition attribute.
         /// </summary>
-        public IComplexTypeFieldBuilder AddStructuredType(
-            QualifiedName name,
-            StructureDefinition structureDefinition)
+        public IComplexTypeFieldBuilder AddStructuredType(QualifiedName name, StructureDefinition structureDefinition)
         {
             if (structureDefinition == null)
             {
@@ -139,7 +139,8 @@ namespace Opc.Ua.Client.ComplexTypes
             TypeBuilder structureBuilder = m_moduleBuilder.DefineType(
                 GetFullQualifiedTypeName(name),
                 TypeAttributes.Public | TypeAttributes.Class,
-                baseType);
+                baseType
+            );
             structureBuilder.DataContractAttribute(TargetNamespace);
             structureBuilder.StructureDefinitionAttribute(structureDefinition);
             return new ComplexTypeFieldBuilder(structureBuilder, structureDefinition.StructureType);
@@ -181,4 +182,4 @@ namespace Opc.Ua.Client.ComplexTypes
         private readonly ModuleBuilder m_moduleBuilder;
         private readonly string m_moduleName;
     }
-}//namespace
+} //namespace

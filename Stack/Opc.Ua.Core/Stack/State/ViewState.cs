@@ -22,9 +22,8 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the instance with its default attribute values.
         /// </summary>
-        public ViewState() : base(NodeClass.View)
-        {
-        }
+        public ViewState()
+            : base(NodeClass.View) { }
 
         /// <summary>
         /// Constructs an instance of a node.
@@ -90,7 +89,6 @@ namespace Opc.Ua
         public byte EventNotifier
         {
             get => m_eventNotifier;
-
             set
             {
                 if (m_eventNotifier != value)
@@ -108,7 +106,6 @@ namespace Opc.Ua
         public bool ContainsNoLoops
         {
             get => m_containsNoLoops;
-
             set
             {
                 if (m_containsNoLoops != value)
@@ -274,7 +271,8 @@ namespace Opc.Ua
         protected override ServiceResult ReadNonValueAttribute(
             ISystemContext context,
             uint attributeId,
-            ref object value)
+            ref object value
+        )
         {
             ServiceResult result = null;
 
@@ -321,10 +319,7 @@ namespace Opc.Ua
         /// <summary>
         /// Write the value for any non-value attribute.
         /// </summary>
-        protected override ServiceResult WriteNonValueAttribute(
-            ISystemContext context,
-            uint attributeId,
-            object value)
+        protected override ServiceResult WriteNonValueAttribute(ISystemContext context, uint attributeId, object value)
         {
             ServiceResult result = null;
 

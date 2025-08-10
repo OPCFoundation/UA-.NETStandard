@@ -54,10 +54,7 @@ namespace Opc.Ua
         /// <summary>
         /// Sets the reference type for the reference.
         /// </summary>
-        public void SetReferenceType(
-            BrowseResultMask resultMask,
-            NodeId referenceTypeId,
-            bool isForward)
+        public void SetReferenceType(BrowseResultMask resultMask, NodeId referenceTypeId, bool isForward)
         {
             if (((int)resultMask & (int)BrowseResultMask.ReferenceTypeId) != 0)
             {
@@ -86,7 +83,8 @@ namespace Opc.Ua
             NodeClass nodeClass,
             QualifiedName browseName,
             LocalizedText displayName,
-            ExpandedNodeId typeDefinition)
+            ExpandedNodeId typeDefinition
+        )
         {
             if (((int)resultMask & (int)BrowseResultMask.NodeClass) != 0)
             {

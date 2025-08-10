@@ -53,19 +53,42 @@ namespace Opc.Ua.Gds.Tests
         /// <summary>
         /// CertificateTypes to run the Test with
         /// </summary>
-        public static readonly object[] FixtureArgs = [
-            new object [] { nameof(OpcUa.ObjectTypeIds.RsaSha256ApplicationCertificateType), OpcUa.ObjectTypeIds.RsaSha256ApplicationCertificateType},
-            new object [] { nameof(OpcUa.ObjectTypeIds.EccNistP256ApplicationCertificateType), OpcUa.ObjectTypeIds.EccNistP256ApplicationCertificateType},
-            new object [] { nameof(OpcUa.ObjectTypeIds.EccNistP384ApplicationCertificateType), OpcUa.ObjectTypeIds.EccNistP384ApplicationCertificateType },
-            new object [] { nameof(OpcUa.ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType), OpcUa.ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType },
-            new object [] { nameof(OpcUa.ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType), OpcUa.ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType },
+        public static readonly object[] FixtureArgs =
+        [
+            new object[]
+            {
+                nameof(OpcUa.ObjectTypeIds.RsaSha256ApplicationCertificateType),
+                OpcUa.ObjectTypeIds.RsaSha256ApplicationCertificateType,
+            },
+            new object[]
+            {
+                nameof(OpcUa.ObjectTypeIds.EccNistP256ApplicationCertificateType),
+                OpcUa.ObjectTypeIds.EccNistP256ApplicationCertificateType,
+            },
+            new object[]
+            {
+                nameof(OpcUa.ObjectTypeIds.EccNistP384ApplicationCertificateType),
+                OpcUa.ObjectTypeIds.EccNistP384ApplicationCertificateType,
+            },
+            new object[]
+            {
+                nameof(OpcUa.ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType),
+                OpcUa.ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType,
+            },
+            new object[]
+            {
+                nameof(OpcUa.ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType),
+                OpcUa.ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType,
+            },
         ];
 
         public PushTest(string certificateTypeString, NodeId certificateType)
         {
             if (!Utils.IsSupportedCertificateType(certificateType))
             {
-                NUnit.Framework.Assert.Ignore($"Certificate type {certificateTypeString} is not supported on this platform.");
+                NUnit.Framework.Assert.Ignore(
+                    $"Certificate type {certificateTypeString} is not supported on this platform."
+                );
             }
 
             m_certificateType = certificateType;
@@ -99,7 +122,9 @@ namespace Opc.Ua.Gds.Tests
             ConnectGDSClient(true);
             RegisterPushServerApplication(m_pushClient.PushClient.EndpointUrl);
 
-            m_selfSignedServerCert = X509CertificateLoader.LoadCertificate(m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate);
+            m_selfSignedServerCert = X509CertificateLoader.LoadCertificate(
+                m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate
+            );
             m_domainNames = [.. X509Utils.GetDomainsFromCertificate(m_selfSignedServerCert)];
 
             await CreateCATestCerts(m_pushClient.TempStorePath).ConfigureAwait(false);
@@ -172,7 +197,8 @@ namespace Opc.Ua.Gds.Tests
             Assert.IsTrue(noneTrustList.TrustedCertificates.Count == 0);
             Assert.IsTrue(noneTrustList.TrustedCrls.Count == 0);
             TrustListDataType issuerTrustList = m_pushClient.PushClient.ReadTrustList(
-                (TrustListMasks)((int)TrustListMasks.IssuerCertificates | (int)TrustListMasks.IssuerCrls));
+                (TrustListMasks)((int)TrustListMasks.IssuerCertificates | (int)TrustListMasks.IssuerCrls)
+            );
             Assert.IsNotNull(issuerTrustList);
             Assert.IsNotNull(issuerTrustList.IssuerCertificates);
             Assert.IsNotNull(issuerTrustList.IssuerCrls);
@@ -183,7 +209,8 @@ namespace Opc.Ua.Gds.Tests
             Assert.IsTrue(issuerTrustList.TrustedCertificates.Count == 0);
             Assert.IsTrue(issuerTrustList.TrustedCrls.Count == 0);
             TrustListDataType trustedTrustList = m_pushClient.PushClient.ReadTrustList(
-                (TrustListMasks)((int)TrustListMasks.TrustedCertificates | (int)TrustListMasks.TrustedCrls));
+                (TrustListMasks)((int)TrustListMasks.TrustedCertificates | (int)TrustListMasks.TrustedCrls)
+            );
             Assert.IsNotNull(trustedTrustList);
             Assert.IsNotNull(trustedTrustList.IssuerCertificates);
             Assert.IsNotNull(trustedTrustList.IssuerCrls);
@@ -215,8 +242,12 @@ namespace Opc.Ua.Gds.Tests
         [Test, Order(301)]
         public void AddRemoveCert()
         {
-            using X509Certificate2 trustedCert = CertificateFactory.CreateCertificate("uri:x:y:z", "TrustedCert", "CN=Push Server Test", null).CreateForRSA();
-            using X509Certificate2 issuerCert = CertificateFactory.CreateCertificate("uri:x:y:z", "IssuerCert", "CN=Push Server Test", null).CreateForRSA();
+            using X509Certificate2 trustedCert = CertificateFactory
+                .CreateCertificate("uri:x:y:z", "TrustedCert", "CN=Push Server Test", null)
+                .CreateForRSA();
+            using X509Certificate2 issuerCert = CertificateFactory
+                .CreateCertificate("uri:x:y:z", "IssuerCert", "CN=Push Server Test", null)
+                .CreateForRSA();
             ConnectPushClient(true);
             TrustListDataType beforeTrustList = m_pushClient.PushClient.ReadTrustList();
             m_pushClient.PushClient.AddCertificate(trustedCert, true);
@@ -241,8 +272,14 @@ namespace Opc.Ua.Gds.Tests
             Assert.Greater(afterAddTrustList.TrustedCertificates.Count, beforeTrustList.TrustedCertificates.Count);
             Assert.AreEqual(afterAddTrustList.TrustedCrls.Count, beforeTrustList.TrustedCrls.Count);
             Assert.IsFalse(Utils.IsEqual(beforeTrustList, afterAddTrustList));
-            ServiceResultException serviceResultException = NUnit.Framework.Assert.Throws<ServiceResultException>(() => m_pushClient.PushClient.RemoveCertificate(m_caCert.Thumbprint, false));
-            Assert.AreEqual((StatusCode)StatusCodes.BadInvalidArgument, (StatusCode)serviceResultException.StatusCode, serviceResultException.Message);
+            ServiceResultException serviceResultException = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
+                m_pushClient.PushClient.RemoveCertificate(m_caCert.Thumbprint, false)
+            );
+            Assert.AreEqual(
+                (StatusCode)StatusCodes.BadInvalidArgument,
+                (StatusCode)serviceResultException.StatusCode,
+                serviceResultException.Message
+            );
             TrustListDataType afterRemoveTrustList = m_pushClient.PushClient.ReadTrustList();
             Assert.IsFalse(Utils.IsEqual(beforeTrustList, afterRemoveTrustList));
             m_pushClient.PushClient.RemoveCertificate(m_caCert.Thumbprint, true);
@@ -260,7 +297,10 @@ namespace Opc.Ua.Gds.Tests
             Assert.Greater(afterAddTrustList.IssuerCertificates.Count, beforeTrustList.IssuerCertificates.Count);
             Assert.AreEqual(afterAddTrustList.IssuerCrls.Count, beforeTrustList.IssuerCrls.Count);
             Assert.IsFalse(Utils.IsEqual(beforeTrustList, afterAddTrustList));
-            NUnit.Framework.Assert.That(() => m_pushClient.PushClient.RemoveCertificate(m_caCert.Thumbprint, true), Throws.Exception);
+            NUnit.Framework.Assert.That(
+                () => m_pushClient.PushClient.RemoveCertificate(m_caCert.Thumbprint, true),
+                Throws.Exception
+            );
             TrustListDataType afterRemoveTrustList = m_pushClient.PushClient.ReadTrustList();
             Assert.IsFalse(Utils.IsEqual(beforeTrustList, afterRemoveTrustList));
             m_pushClient.PushClient.RemoveCertificate(m_caCert.Thumbprint, false);
@@ -274,10 +314,23 @@ namespace Opc.Ua.Gds.Tests
             ConnectPushClient(true);
             var invalidCertGroup = new NodeId(333);
             var invalidCertType = new NodeId(Guid.NewGuid());
-            NUnit.Framework.Assert.That(() => m_pushClient.PushClient.CreateSigningRequest(invalidCertGroup, null, null, false, null), Throws.Exception);
-            NUnit.Framework.Assert.That(() => m_pushClient.PushClient.CreateSigningRequest(null, invalidCertType, null, false, null), Throws.Exception);
-            NUnit.Framework.Assert.That(() => m_pushClient.PushClient.CreateSigningRequest(null, null, null, false, null), Throws.Exception);
-            NUnit.Framework.Assert.That(() => m_pushClient.PushClient.CreateSigningRequest(invalidCertGroup, invalidCertType, null, false, null), Throws.Exception);
+            NUnit.Framework.Assert.That(
+                () => m_pushClient.PushClient.CreateSigningRequest(invalidCertGroup, null, null, false, null),
+                Throws.Exception
+            );
+            NUnit.Framework.Assert.That(
+                () => m_pushClient.PushClient.CreateSigningRequest(null, invalidCertType, null, false, null),
+                Throws.Exception
+            );
+            NUnit.Framework.Assert.That(
+                () => m_pushClient.PushClient.CreateSigningRequest(null, null, null, false, null),
+                Throws.Exception
+            );
+            NUnit.Framework.Assert.That(
+                () =>
+                    m_pushClient.PushClient.CreateSigningRequest(invalidCertGroup, invalidCertType, null, false, null),
+                Throws.Exception
+            );
         }
 
         [Test, Order(401)]
@@ -295,7 +348,17 @@ namespace Opc.Ua.Gds.Tests
             NUnit.Framework.Assert.Ignore("SHA1 not supported on .NET Standard 2.1 and .NET 5.0 or greater");
 #endif
             ConnectPushClient(true);
-            NUnit.Framework.Assert.That(() => m_pushClient.PushClient.CreateSigningRequest(null, OpcUa.ObjectTypeIds.RsaMinApplicationCertificateType, null, false, null), Throws.Exception);
+            NUnit.Framework.Assert.That(
+                () =>
+                    m_pushClient.PushClient.CreateSigningRequest(
+                        null,
+                        OpcUa.ObjectTypeIds.RsaMinApplicationCertificateType,
+                        null,
+                        false,
+                        null
+                    ),
+                Throws.Exception
+            );
         }
 
         [Test, Order(409)]
@@ -308,7 +371,8 @@ namespace Opc.Ua.Gds.Tests
                 m_certificateType,
                 "",
                 false,
-                nonce);
+                nonce
+            );
             Assert.IsNotNull(csr);
         }
 
@@ -316,7 +380,13 @@ namespace Opc.Ua.Gds.Tests
         public void CreateSigningRequestNullParmsWithNewPrivateKey()
         {
             ConnectPushClient(true);
-            byte[] csr = m_pushClient.PushClient.CreateSigningRequest(null, m_certificateType, null, true, Encoding.ASCII.GetBytes("OPCTest"));
+            byte[] csr = m_pushClient.PushClient.CreateSigningRequest(
+                null,
+                m_certificateType,
+                null,
+                true,
+                Encoding.ASCII.GetBytes("OPCTest")
+            );
             Assert.IsNotNull(csr);
         }
 
@@ -331,7 +401,8 @@ namespace Opc.Ua.Gds.Tests
                 m_certificateType,
                 "",
                 true,
-                nonce);
+                nonce
+            );
             Assert.IsNotNull(csr);
         }
 
@@ -339,8 +410,12 @@ namespace Opc.Ua.Gds.Tests
         public void UpdateCertificateSelfSignedNoPrivateKeyAsserts()
         {
             ConnectPushClient(true);
-            using X509Certificate2 invalidCert = CertificateFactory.CreateCertificate("uri:x:y:z", "TestApp", "CN=Push Server Test", null).CreateForRSA();
-            using X509Certificate2 serverCert = X509CertificateLoader.LoadCertificate(m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate);
+            using X509Certificate2 invalidCert = CertificateFactory
+                .CreateCertificate("uri:x:y:z", "TestApp", "CN=Push Server Test", null)
+                .CreateForRSA();
+            using X509Certificate2 serverCert = X509CertificateLoader.LoadCertificate(
+                m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate
+            );
             if (!X509Utils.CompareDistinguishedName(serverCert.Subject, serverCert.Issuer))
             {
                 NUnit.Framework.Assert.Ignore("Server has no self signed cert in use.");
@@ -349,19 +424,122 @@ namespace Opc.Ua.Gds.Tests
             // negative test all parameter combinations
             var invalidCertGroup = new NodeId(333);
             var invalidCertType = new NodeId(Guid.NewGuid());
-            NUnit.Framework.Assert.That(() => m_pushClient.PushClient.UpdateCertificate(null, null, null, null, null, null), Throws.Exception);
-            NUnit.Framework.Assert.That(() => m_pushClient.PushClient.UpdateCertificate(invalidCertGroup, null, serverCert.RawData, null, null, null), Throws.Exception);
-            NUnit.Framework.Assert.That(() => m_pushClient.PushClient.UpdateCertificate(null, invalidCertType, serverCert.RawData, null, null, null), Throws.Exception);
-            NUnit.Framework.Assert.That(() => m_pushClient.PushClient.UpdateCertificate(invalidCertGroup, invalidCertType, serverCert.RawData, null, null, null), Throws.Exception);
-            NUnit.Framework.Assert.That(() => m_pushClient.PushClient.UpdateCertificate(null, null, invalidRawCert, null, null, null), Throws.Exception);
-            NUnit.Framework.Assert.That(() => m_pushClient.PushClient.UpdateCertificate(null, null, invalidCert.RawData, null, null, null), Throws.Exception);
-            NUnit.Framework.Assert.That(() => m_pushClient.PushClient.UpdateCertificate(null, null, serverCert.RawData, "XYZ", null, null), Throws.Exception);
-            NUnit.Framework.Assert.That(() => m_pushClient.PushClient.UpdateCertificate(null, null, serverCert.RawData, "XYZ", invalidCert.RawData, null), Throws.Exception);
-            NUnit.Framework.Assert.That(() => m_pushClient.PushClient.UpdateCertificate(null, null, invalidCert.RawData, null, null, [serverCert.RawData, invalidCert.RawData]), Throws.Exception);
-            NUnit.Framework.Assert.That(() => m_pushClient.PushClient.UpdateCertificate(null, null, null, null, null, [serverCert.RawData, invalidCert.RawData]), Throws.Exception);
-            NUnit.Framework.Assert.That(() => m_pushClient.PushClient.UpdateCertificate(null, null, invalidRawCert, null, null, [serverCert.RawData, invalidCert.RawData]), Throws.Exception);
-            NUnit.Framework.Assert.That(() => m_pushClient.PushClient.UpdateCertificate(null, null, serverCert.RawData, null, null, [serverCert.RawData, invalidRawCert]), Throws.Exception);
-            NUnit.Framework.Assert.That(() => m_pushClient.PushClient.UpdateCertificate(null, null, serverCert.RawData, null, null, null), Throws.Exception);
+            NUnit.Framework.Assert.That(
+                () => m_pushClient.PushClient.UpdateCertificate(null, null, null, null, null, null),
+                Throws.Exception
+            );
+            NUnit.Framework.Assert.That(
+                () =>
+                    m_pushClient.PushClient.UpdateCertificate(
+                        invalidCertGroup,
+                        null,
+                        serverCert.RawData,
+                        null,
+                        null,
+                        null
+                    ),
+                Throws.Exception
+            );
+            NUnit.Framework.Assert.That(
+                () =>
+                    m_pushClient.PushClient.UpdateCertificate(
+                        null,
+                        invalidCertType,
+                        serverCert.RawData,
+                        null,
+                        null,
+                        null
+                    ),
+                Throws.Exception
+            );
+            NUnit.Framework.Assert.That(
+                () =>
+                    m_pushClient.PushClient.UpdateCertificate(
+                        invalidCertGroup,
+                        invalidCertType,
+                        serverCert.RawData,
+                        null,
+                        null,
+                        null
+                    ),
+                Throws.Exception
+            );
+            NUnit.Framework.Assert.That(
+                () => m_pushClient.PushClient.UpdateCertificate(null, null, invalidRawCert, null, null, null),
+                Throws.Exception
+            );
+            NUnit.Framework.Assert.That(
+                () => m_pushClient.PushClient.UpdateCertificate(null, null, invalidCert.RawData, null, null, null),
+                Throws.Exception
+            );
+            NUnit.Framework.Assert.That(
+                () => m_pushClient.PushClient.UpdateCertificate(null, null, serverCert.RawData, "XYZ", null, null),
+                Throws.Exception
+            );
+            NUnit.Framework.Assert.That(
+                () =>
+                    m_pushClient.PushClient.UpdateCertificate(
+                        null,
+                        null,
+                        serverCert.RawData,
+                        "XYZ",
+                        invalidCert.RawData,
+                        null
+                    ),
+                Throws.Exception
+            );
+            NUnit.Framework.Assert.That(
+                () =>
+                    m_pushClient.PushClient.UpdateCertificate(
+                        null,
+                        null,
+                        invalidCert.RawData,
+                        null,
+                        null,
+                        [serverCert.RawData, invalidCert.RawData]
+                    ),
+                Throws.Exception
+            );
+            NUnit.Framework.Assert.That(
+                () =>
+                    m_pushClient.PushClient.UpdateCertificate(
+                        null,
+                        null,
+                        null,
+                        null,
+                        null,
+                        [serverCert.RawData, invalidCert.RawData]
+                    ),
+                Throws.Exception
+            );
+            NUnit.Framework.Assert.That(
+                () =>
+                    m_pushClient.PushClient.UpdateCertificate(
+                        null,
+                        null,
+                        invalidRawCert,
+                        null,
+                        null,
+                        [serverCert.RawData, invalidCert.RawData]
+                    ),
+                Throws.Exception
+            );
+            NUnit.Framework.Assert.That(
+                () =>
+                    m_pushClient.PushClient.UpdateCertificate(
+                        null,
+                        null,
+                        serverCert.RawData,
+                        null,
+                        null,
+                        [serverCert.RawData, invalidRawCert]
+                    ),
+                Throws.Exception
+            );
+            NUnit.Framework.Assert.That(
+                () => m_pushClient.PushClient.UpdateCertificate(null, null, serverCert.RawData, null, null, null),
+                Throws.Exception
+            );
         }
 
         [Test, Order(501)]
@@ -372,7 +550,9 @@ namespace Opc.Ua.Gds.Tests
                 NUnit.Framework.Assert.Ignore("Test only supported for RSA");
             }
             ConnectPushClient(true);
-            using X509Certificate2 serverCert = X509CertificateLoader.LoadCertificate(m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate);
+            using X509Certificate2 serverCert = X509CertificateLoader.LoadCertificate(
+                m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate
+            );
             if (!X509Utils.CompareDistinguishedName(serverCert.Subject, serverCert.Issuer))
             {
                 NUnit.Framework.Assert.Ignore("Server has no self signed cert in use.");
@@ -383,7 +563,8 @@ namespace Opc.Ua.Gds.Tests
                 serverCert.RawData,
                 null,
                 null,
-                null);
+                null
+            );
             if (success)
             {
                 m_pushClient.PushClient.ApplyChanges();
@@ -413,14 +594,16 @@ namespace Opc.Ua.Gds.Tests
                 m_certificateType,
                 m_selfSignedServerCert.Subject + "2",
                 regeneratePrivateKey,
-                null);
+                null
+            );
             Assert.IsNotNull(csr);
             TestContext.Out.WriteLine("Start Signing Request");
             NodeId requestId = m_gdsClient.GDSClient.StartSigningRequest(
                 m_applicationRecord.ApplicationId,
                 null,
                 m_certificateType,
-                csr);
+                csr
+            );
             Assert.NotNull(requestId);
             byte[] privateKey = null;
             byte[] certificate = null;
@@ -438,13 +621,13 @@ namespace Opc.Ua.Gds.Tests
                         m_applicationRecord.ApplicationId,
                         requestId,
                         out privateKey,
-                        out issuerCertificates);
+                        out issuerCertificates
+                    );
                 }
                 catch (ServiceResultException sre)
                 {
                     // wait if GDS requires manual approval of cert request
-                    if (sre.StatusCode == StatusCodes.BadNothingToDo &&
-                        now.AddMinutes(5) > DateTime.UtcNow)
+                    if (sre.StatusCode == StatusCodes.BadNothingToDo && now.AddMinutes(5) > DateTime.UtcNow)
                     {
                         Thread.Sleep(10000);
                     }
@@ -464,7 +647,8 @@ namespace Opc.Ua.Gds.Tests
                 certificate,
                 null,
                 null,
-                issuerCertificates);
+                issuerCertificates
+            );
             if (success)
             {
                 TestContext.Out.WriteLine("Apply Changes");
@@ -502,23 +686,28 @@ namespace Opc.Ua.Gds.Tests
 
             if (curve != null)
             {
-                newCert = CertificateFactory.CreateCertificate(
-                m_applicationRecord.ApplicationUri,
-                m_applicationRecord.ApplicationNames[0].Text,
-                m_selfSignedServerCert.Subject + "1",
-                null)
-               .SetECCurve(curve.Value)
-               .CreateForECDsa();
+                newCert = CertificateFactory
+                    .CreateCertificate(
+                        m_applicationRecord.ApplicationUri,
+                        m_applicationRecord.ApplicationNames[0].Text,
+                        m_selfSignedServerCert.Subject + "1",
+                        null
+                    )
+                    .SetECCurve(curve.Value)
+                    .CreateForECDsa();
             }
             // RSA Certificate
             else
             {
 #endif
-                newCert = CertificateFactory.CreateCertificate(
-                 m_applicationRecord.ApplicationUri,
-                 m_applicationRecord.ApplicationNames[0].Text,
-                 m_selfSignedServerCert.Subject + "1",
-                 null).CreateForRSA();
+                newCert = CertificateFactory
+                    .CreateCertificate(
+                        m_applicationRecord.ApplicationUri,
+                        m_applicationRecord.ApplicationNames[0].Text,
+                        m_selfSignedServerCert.Subject + "1",
+                        null
+                    )
+                    .CreateForRSA();
 #if ECC_SUPPORT
             }
 #endif
@@ -545,7 +734,8 @@ namespace Opc.Ua.Gds.Tests
                 newCert.RawData,
                 keyFormat,
                 privateKey,
-                null);
+                null
+            );
 
             if (success)
             {
@@ -582,7 +772,8 @@ namespace Opc.Ua.Gds.Tests
                 m_selfSignedServerCert.Subject + "3",
                 m_domainNames,
                 keyFormat,
-                null);
+                null
+            );
 
             Assert.NotNull(requestId);
             byte[] privateKey = null;
@@ -598,13 +789,13 @@ namespace Opc.Ua.Gds.Tests
                         m_applicationRecord.ApplicationId,
                         requestId,
                         out privateKey,
-                        out issuerCertificates);
+                        out issuerCertificates
+                    );
                 }
                 catch (ServiceResultException sre)
                 {
                     // wait if GDS requires manual approval of cert request
-                    if (sre.StatusCode == StatusCodes.BadNothingToDo &&
-                        now.AddMinutes(5) > DateTime.UtcNow)
+                    if (sre.StatusCode == StatusCodes.BadNothingToDo && now.AddMinutes(5) > DateTime.UtcNow)
                     {
                         Thread.Sleep(10000);
                     }
@@ -624,7 +815,8 @@ namespace Opc.Ua.Gds.Tests
                 certificate,
                 keyFormat,
                 privateKey,
-                issuerCertificates);
+                issuerCertificates
+            );
             if (success)
             {
                 m_pushClient.PushClient.ApplyChanges();
@@ -645,9 +837,16 @@ namespace Opc.Ua.Gds.Tests
         {
             ConnectPushClient(true);
 
-            NUnit.Framework.Assert.That(() => m_pushClient.PushClient.GetCertificates(null, out NodeId[] _, out byte[][] _), Throws.Exception);
+            NUnit.Framework.Assert.That(
+                () => m_pushClient.PushClient.GetCertificates(null, out NodeId[] _, out byte[][] _),
+                Throws.Exception
+            );
 
-            m_pushClient.PushClient.GetCertificates(m_pushClient.PushClient.DefaultApplicationGroup, out NodeId[] certificateTypeIds, out byte[][] certificates);
+            m_pushClient.PushClient.GetCertificates(
+                m_pushClient.PushClient.DefaultApplicationGroup,
+                out NodeId[] certificateTypeIds,
+                out byte[][] certificates
+            );
 
             NUnit.Framework.Assert.That(certificateTypeIds.Length == certificates.Length);
             Assert.NotNull(certificates[0]);
@@ -668,15 +867,33 @@ namespace Opc.Ua.Gds.Tests
             ConnectPushClient(false);
             NUnit.Framework.Assert.That(m_pushClient.PushClient.ApplyChanges, Throws.Exception);
             NUnit.Framework.Assert.That(m_pushClient.PushClient.GetRejectedList, Throws.Exception);
-            NUnit.Framework.Assert.That(() => m_pushClient.PushClient.GetCertificates(null, out _, out _), Throws.Exception);
-            NUnit.Framework.Assert.That(() => m_pushClient.PushClient.UpdateCertificate(null, null, m_selfSignedServerCert.RawData, null, null, null), Throws.Exception);
-            NUnit.Framework.Assert.That(() => m_pushClient.PushClient.CreateSigningRequest(null, null, null, false, null), Throws.Exception);
+            NUnit.Framework.Assert.That(
+                () => m_pushClient.PushClient.GetCertificates(null, out _, out _),
+                Throws.Exception
+            );
+            NUnit.Framework.Assert.That(
+                () =>
+                    m_pushClient.PushClient.UpdateCertificate(
+                        null,
+                        null,
+                        m_selfSignedServerCert.RawData,
+                        null,
+                        null,
+                        null
+                    ),
+                Throws.Exception
+            );
+            NUnit.Framework.Assert.That(
+                () => m_pushClient.PushClient.CreateSigningRequest(null, null, null, false, null),
+                Throws.Exception
+            );
             NUnit.Framework.Assert.That(() => m_pushClient.PushClient.ReadTrustList(), Throws.Exception);
         }
 
-        private void ConnectPushClient(bool sysAdmin,
+        private void ConnectPushClient(
+            bool sysAdmin,
             [System.Runtime.CompilerServices.CallerMemberName] string memberName = ""
-            )
+        )
         {
             m_pushClient.PushClient.AdminCredentials = sysAdmin ? m_pushClient.SysAdminUser : m_pushClient.AppUser;
             m_pushClient.PushClient.ConnectAsync(m_pushClient.PushClient.EndpointUrl).GetAwaiter().GetResult();
@@ -688,9 +905,10 @@ namespace Opc.Ua.Gds.Tests
             m_pushClient.PushClient.Disconnect();
         }
 
-        private void ConnectGDSClient(bool admin,
+        private void ConnectGDSClient(
+            bool admin,
             [System.Runtime.CompilerServices.CallerMemberName] string memberName = ""
-            )
+        )
         {
             m_gdsClient.GDSClient.AdminCredentials = admin ? m_gdsClient.AdminUser : m_gdsClient.AppUser;
             m_gdsClient.GDSClient.ConnectAsync(m_gdsClient.GDSClient.EndpointUrl).Wait();
@@ -706,7 +924,11 @@ namespace Opc.Ua.Gds.Tests
         {
             if (m_applicationRecord == null && discoveryUrl != null)
             {
-                EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(m_gdsClient.Configuration, discoveryUrl, true);
+                EndpointDescription endpointDescription = CoreClientUtils.SelectEndpoint(
+                    m_gdsClient.Configuration,
+                    discoveryUrl,
+                    true
+                );
                 ApplicationDescription description = endpointDescription.Server;
                 m_applicationRecord = new ApplicationRecordDataType
                 {
@@ -746,14 +968,13 @@ namespace Opc.Ua.Gds.Tests
             m_gdsClient.GDSClient.ConnectAsync(m_gdsClient.GDSClient.EndpointUrl).GetAwaiter().GetResult();
             m_pushClient.PushClient.ConnectAsync(m_pushClient.PushClient.EndpointUrl).GetAwaiter().GetResult();
             // compare leaf certificates, ServerCertificate might be a chain if sendCertChain is sets
-            X509Certificate2 serverCertificate = Utils.ParseCertificateBlob(m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate);
+            X509Certificate2 serverCertificate = Utils.ParseCertificateBlob(
+                m_pushClient.PushClient.Session.ConfiguredEndpoint.Description.ServerCertificate
+            );
             //validation currently only works for RSA certificates
             if (m_certificateType == OpcUa.ObjectTypeIds.RsaSha256ApplicationCertificateType)
             {
-                Assert.AreEqual(
-                    certificateBlob,
-                    serverCertificate.RawData
-                    );
+                Assert.AreEqual(certificateBlob, serverCertificate.RawData);
             }
         }
 
@@ -803,19 +1024,33 @@ namespace Opc.Ua.Gds.Tests
             // update store
             // test integrity of all CRLs
             int updateMasks = (int)TrustListMasks.None;
-            if ((masks & (int)TrustListMasks.IssuerCertificates) != 0 && await UpdateStoreCertificates(config.TrustedIssuerCertificates, issuerCertificates).ConfigureAwait(false))
+            if (
+                (masks & (int)TrustListMasks.IssuerCertificates) != 0
+                && await UpdateStoreCertificates(config.TrustedIssuerCertificates, issuerCertificates)
+                    .ConfigureAwait(false)
+            )
             {
                 updateMasks |= (int)TrustListMasks.IssuerCertificates;
             }
-            if ((masks & (int)TrustListMasks.IssuerCrls) != 0 && await UpdateStoreCrls(config.TrustedIssuerCertificates, issuerCrls).ConfigureAwait(false))
+            if (
+                (masks & (int)TrustListMasks.IssuerCrls) != 0
+                && await UpdateStoreCrls(config.TrustedIssuerCertificates, issuerCrls).ConfigureAwait(false)
+            )
             {
                 updateMasks |= (int)TrustListMasks.IssuerCrls;
             }
-            if ((masks & (int)TrustListMasks.TrustedCertificates) != 0 && await UpdateStoreCertificates(config.TrustedPeerCertificates, trustedCertificates).ConfigureAwait(false))
+            if (
+                (masks & (int)TrustListMasks.TrustedCertificates) != 0
+                && await UpdateStoreCertificates(config.TrustedPeerCertificates, trustedCertificates)
+                    .ConfigureAwait(false)
+            )
             {
                 updateMasks |= (int)TrustListMasks.TrustedCertificates;
             }
-            if ((masks & (int)TrustListMasks.TrustedCrls) != 0 && await UpdateStoreCrls(config.TrustedPeerCertificates, trustedCrls).ConfigureAwait(false))
+            if (
+                (masks & (int)TrustListMasks.TrustedCrls) != 0
+                && await UpdateStoreCrls(config.TrustedPeerCertificates, trustedCrls).ConfigureAwait(false)
+            )
             {
                 updateMasks |= (int)TrustListMasks.TrustedCrls;
             }
@@ -823,9 +1058,7 @@ namespace Opc.Ua.Gds.Tests
             return masks == updateMasks;
         }
 
-        private static async Task<bool> UpdateStoreCrls(
-            CertificateTrustList trustList,
-            X509CRLCollection updatedCrls)
+        private static async Task<bool> UpdateStoreCrls(CertificateTrustList trustList, X509CRLCollection updatedCrls)
         {
             bool result = true;
             ICertificateStore store = null;
@@ -858,7 +1091,8 @@ namespace Opc.Ua.Gds.Tests
 
         private static async Task<bool> UpdateStoreCertificates(
             CertificateTrustList trustList,
-            X509Certificate2Collection updatedCerts)
+            X509Certificate2Collection updatedCerts
+        )
         {
             bool result = true;
             ICertificateStore store = null;
@@ -909,28 +1143,32 @@ namespace Opc.Ua.Gds.Tests
 
             if (curve != null)
             {
-                m_caCert = await CertificateFactory.CreateCertificate(
-           null, null, subjectName, null)
-               .SetCAConstraint()
-               .SetECCurve(curve.Value)
-               .CreateForECDsa()
-               .AddToStoreAsync(certificateStoreIdentifier).ConfigureAwait(false);
+                m_caCert = await CertificateFactory
+                    .CreateCertificate(null, null, subjectName, null)
+                    .SetCAConstraint()
+                    .SetECCurve(curve.Value)
+                    .CreateForECDsa()
+                    .AddToStoreAsync(certificateStoreIdentifier)
+                    .ConfigureAwait(false);
             }
             // RSA Certificate
             else
             {
 #endif
-                m_caCert = await CertificateFactory.CreateCertificate(
-            null, null, subjectName, null)
-                .SetCAConstraint()
-                .CreateForRSA()
-                .AddToStoreAsync(certificateStoreIdentifier).ConfigureAwait(false);
+                m_caCert = await CertificateFactory
+                    .CreateCertificate(null, null, subjectName, null)
+                    .SetCAConstraint()
+                    .CreateForRSA()
+                    .AddToStoreAsync(certificateStoreIdentifier)
+                    .ConfigureAwait(false);
 #if ECC_SUPPORT
             }
 #endif
 
             // initialize cert revocation list (CRL)
-            m_caCrl = await CertificateGroup.RevokeCertificateAsync(certificateStoreIdentifier, m_caCert).ConfigureAwait(false);
+            m_caCrl = await CertificateGroup
+                .RevokeCertificateAsync(certificateStoreIdentifier, m_caCert)
+                .ConfigureAwait(false);
         }
 
         private static bool EraseStore(CertificateStoreIdentifier storeIdentifier)

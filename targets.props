@@ -20,7 +20,7 @@
   <Choose>
     <!-- Note: to test targets which support deprecated platforms,
          set the CustomTestTarget environment variable accordingly -->
-    <When  Condition="'$(CustomTestTarget)' == 'net462'">
+    <When Condition="'$(CustomTestTarget)' == 'net462'">
       <PropertyGroup>
         <DisableECCTests>true</DisableECCTests>
         <AppTargetFrameworks>net462</AppTargetFrameworks>
@@ -32,7 +32,7 @@
         <HttpsTargetFrameworks>net462</HttpsTargetFrameworks>
       </PropertyGroup>
     </When>
-    <When  Condition="'$(CustomTestTarget)' == 'net472'">
+    <When Condition="'$(CustomTestTarget)' == 'net472'">
       <PropertyGroup>
         <AnalysisLevel>preview</AnalysisLevel>
         <AnalysisMode>all</AnalysisMode>
@@ -46,7 +46,7 @@
         <HttpsTargetFrameworks>net472</HttpsTargetFrameworks>
       </PropertyGroup>
     </When>
-    <When  Condition="'$(CustomTestTarget)' == 'netstandard2.0'">
+    <When Condition="'$(CustomTestTarget)' == 'netstandard2.0'">
       <PropertyGroup>
         <DisableECCTests>true</DisableECCTests>
         <AppTargetFrameworks>net8.0</AppTargetFrameworks>
@@ -58,7 +58,7 @@
         <HttpsTargetFrameworks>netstandard2.0</HttpsTargetFrameworks>
       </PropertyGroup>
     </When>
-    <When  Condition="'$(CustomTestTarget)' == 'netstandard2.1'">
+    <When Condition="'$(CustomTestTarget)' == 'netstandard2.1'">
       <PropertyGroup>
         <AppTargetFrameworks>net8.0</AppTargetFrameworks>
         <AppTargetFramework>net8.0</AppTargetFramework>
@@ -69,7 +69,7 @@
         <HttpsTargetFrameworks>netstandard2.1</HttpsTargetFrameworks>
       </PropertyGroup>
     </When>
-    <When  Condition="'$(CustomTestTarget)' == 'net48'">
+    <When Condition="'$(CustomTestTarget)' == 'net48'">
       <PropertyGroup>
         <AppTargetFrameworks>net48</AppTargetFrameworks>
         <AppTargetFramework>net48</AppTargetFramework>
@@ -80,7 +80,7 @@
         <HttpsTargetFrameworks>net48</HttpsTargetFrameworks>
       </PropertyGroup>
     </When>
-    <When  Condition="'$(CustomTestTarget)' == 'net8.0'">
+    <When Condition="'$(CustomTestTarget)' == 'net8.0'">
       <PropertyGroup>
         <AppTargetFrameworks>net8.0</AppTargetFrameworks>
         <AppTargetFramework>net8.0</AppTargetFramework>
@@ -91,7 +91,7 @@
         <HttpsTargetFrameworks>net8.0</HttpsTargetFrameworks>
       </PropertyGroup>
     </When>
-    <When  Condition="'$(CustomTestTarget)' == 'net9.0'">
+    <When Condition="'$(CustomTestTarget)' == 'net9.0'">
       <PropertyGroup>
         <AppTargetFrameworks>net9.0</AppTargetFrameworks>
         <AppTargetFramework>net9.0</AppTargetFramework>
@@ -102,7 +102,7 @@
         <HttpsTargetFrameworks>net9.0</HttpsTargetFrameworks>
       </PropertyGroup>
     </When>
-    <When  Condition="'$(CustomTestTarget)' == 'net10.0'">
+    <When Condition="'$(CustomTestTarget)' == 'net10.0'">
       <PropertyGroup>
         <AppTargetFrameworks>net10.0</AppTargetFrameworks>
         <AppTargetFramework>net10.0</AppTargetFramework>

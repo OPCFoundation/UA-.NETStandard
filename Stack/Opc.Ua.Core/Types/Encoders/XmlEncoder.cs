@@ -49,10 +49,7 @@ namespace Opc.Ua
         /// Initializes the object with a system type to encode and a XML writer.
         /// </summary>
         public XmlEncoder(Type systemType, XmlWriter writer, IServiceMessageContext context)
-        :
-            this(EncodeableFactory.GetXmlName(systemType), writer, context)
-        {
-        }
+            : this(EncodeableFactory.GetXmlName(systemType), writer, context) { }
 
         /// <summary>
         /// Initializes the object with a system type to encode and a XML writer.
@@ -553,7 +550,9 @@ namespace Opc.Ua
                     throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
-                m_writer.WriteValue(Convert.ToBase64String(value, index, count, Base64FormattingOptions.InsertLineBreaks));
+                m_writer.WriteValue(
+                    Convert.ToBase64String(value, index, count, Base64FormattingOptions.InsertLineBreaks)
+                );
                 EndField(fieldName);
             }
         }
@@ -630,7 +629,15 @@ namespace Opc.Ua
                     }
 
                     var buffer = new StringBuilder();
-                    ExpandedNodeId.Format(CultureInfo.InvariantCulture, buffer, value.Identifier, value.IdType, namespaceIndex, value.NamespaceUri, serverIndex);
+                    ExpandedNodeId.Format(
+                        CultureInfo.InvariantCulture,
+                        buffer,
+                        value.Identifier,
+                        value.IdType,
+                        namespaceIndex,
+                        value.NamespaceUri,
+                        serverIndex
+                    );
                     WriteString("Identifier", buffer.ToString());
                 }
 
@@ -690,8 +697,10 @@ namespace Opc.Ua
                     }
                     else
                     {
-                        Utils.LogWarning("InnerDiagnosticInfo dropped because nesting exceeds maximum of {0}.",
-                            DiagnosticInfo.MaxInnerDepth);
+                        Utils.LogWarning(
+                            "InnerDiagnosticInfo dropped because nesting exceeds maximum of {0}.",
+                            DiagnosticInfo.MaxInnerDepth
+                        );
                     }
                 }
 
@@ -856,7 +865,8 @@ namespace Opc.Ua
                             StatusCodes.BadEncodingError,
                             "Cannot encode bodies of type '{0}' in ExtensionObject unless the NamespaceUri ({1}) is in the encoder's NamespaceTable.",
                             encodeable.GetType().FullName,
-                            typeId.NamespaceUri);
+                            typeId.NamespaceUri
+                        );
                     }
 
                     localTypeId = NodeId.Null;
@@ -913,7 +923,9 @@ namespace Opc.Ua
                 if (value != null)
                 {
                     string valueSymbol = value.ToString();
-                    string valueInt32 = Convert.ToInt32(value, CultureInfo.InvariantCulture).ToString(CultureInfo.InvariantCulture);
+                    string valueInt32 = Convert
+                        .ToInt32(value, CultureInfo.InvariantCulture)
+                        .ToString(CultureInfo.InvariantCulture);
                     if (valueSymbol != valueInt32)
                     {
                         m_writer.WriteString(Utils.Format("{0}_{1}", valueSymbol, valueInt32));
@@ -1692,11 +1704,17 @@ namespace Opc.Ua
                 // check the length.
                 if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadEncodingLimitsExceeded, "Encodeable Array length={0}", values.Count);
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingLimitsExceeded,
+                        "Encodeable Array length={0}",
+                        values.Count
+                    );
                 }
 
                 // get name for type being encoded.
-                XmlQualifiedName xmlName = EncodeableFactory.GetXmlName(systemType) ?? new XmlQualifiedName("IEncodeable", Namespaces.OpcUaXsd);
+                XmlQualifiedName xmlName =
+                    EncodeableFactory.GetXmlName(systemType)
+                    ?? new XmlQualifiedName("IEncodeable", Namespaces.OpcUaXsd);
 
                 PushNamespace(xmlName.Namespace);
 
@@ -1711,7 +1729,11 @@ namespace Opc.Ua
                         {
                             throw new ServiceResultException(
                                 StatusCodes.BadEncodingError,
-                                Utils.Format("Objects with type '{0}' are not allowed in the array being serialized.", systemType.FullName));
+                                Utils.Format(
+                                    "Objects with type '{0}' are not allowed in the array being serialized.",
+                                    systemType.FullName
+                                )
+                            );
                         }
 
                         WriteEncodeable(xmlName.Name, value, systemType);
@@ -1734,11 +1756,16 @@ namespace Opc.Ua
                 // check the length.
                 if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Length)
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadEncodingLimitsExceeded, "Enumerated Array length={0}", values.Length);
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingLimitsExceeded,
+                        "Enumerated Array length={0}",
+                        values.Length
+                    );
                 }
 
                 // get name for type being encoded.
-                XmlQualifiedName xmlName = EncodeableFactory.GetXmlName(systemType) ?? new XmlQualifiedName("Enumerated", Namespaces.OpcUaXsd);
+                XmlQualifiedName xmlName =
+                    EncodeableFactory.GetXmlName(systemType) ?? new XmlQualifiedName("Enumerated", Namespaces.OpcUaXsd);
 
                 PushNamespace(xmlName.Namespace);
 
@@ -1773,7 +1800,16 @@ namespace Opc.Ua
         /// <summary>
         /// Writes the contents of an Variant to the stream.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
+        [
+            System.Diagnostics.CodeAnalysis.SuppressMessage(
+                "Microsoft.Maintainability",
+                "CA1506:AvoidExcessiveClassCoupling"
+            ),
+            System.Diagnostics.CodeAnalysis.SuppressMessage(
+                "Microsoft.Maintainability",
+                "CA1502:AvoidExcessiveComplexity"
+            )
+        ]
         public void WriteVariantContents(object value, TypeInfo typeInfo)
         {
             // check for null.
@@ -1889,7 +1925,6 @@ namespace Opc.Ua
                             return;
                     }
                 }
-
                 // write array.
                 else if (typeInfo.ValueRank <= 1)
                 {
@@ -1994,7 +2029,9 @@ namespace Opc.Ua
                                 {
                                     throw ServiceResultException.Create(
                                         StatusCodes.BadEncodingError,
-                                        "Type '{0}' is not allowed in an Enumeration.", value.GetType().FullName);
+                                        "Type '{0}' is not allowed in an Enumeration.",
+                                        value.GetType().FullName
+                                    );
                                 }
                                 ints = new int[enums.Length];
                                 for (int ii = 0; ii < enums.Length; ii++)
@@ -2022,10 +2059,10 @@ namespace Opc.Ua
                             throw ServiceResultException.Create(
                                 StatusCodes.BadEncodingError,
                                 "Unexpected type encountered while encoding an array of Variants: {0}",
-                                value.GetType());
+                                value.GetType()
+                            );
                     }
                 }
-
                 // write matrix.
                 else if (typeInfo.ValueRank > 1)
                 {
@@ -2036,7 +2073,8 @@ namespace Opc.Ua
                 // oops - should never happen.
                 throw new ServiceResultException(
                     StatusCodes.BadEncodingError,
-                    Utils.Format("Type '{0}' is not allowed in an Variant.", value.GetType().FullName));
+                    Utils.Format("Type '{0}' is not allowed in an Variant.", value.GetType().FullName)
+                );
             }
             finally
             {
@@ -2077,7 +2115,11 @@ namespace Opc.Ua
             {
                 throw new ServiceResultException(
                     StatusCodes.BadEncodingError,
-                    Utils.Format("Don't know how to encode extension object body with type '{0}'.", body.GetType().FullName));
+                    Utils.Format(
+                        "Don't know how to encode extension object body with type '{0}'.",
+                        body.GetType().FullName
+                    )
+                );
             }
 
             // encode extension object in xml.
@@ -2236,7 +2278,11 @@ namespace Opc.Ua
                                 {
                                     throw new ServiceResultException(
                                         StatusCodes.BadEncodingError,
-                                        Utils.Format("Type '{0}' is not allowed in an Enumeration.", array.GetType().FullName));
+                                        Utils.Format(
+                                            "Type '{0}' is not allowed in an Enumeration.",
+                                            array.GetType().FullName
+                                        )
+                                    );
                                 }
                                 ints = new int[enums.Length];
                                 for (int ii = 0; ii < enums.Length; ii++)
@@ -2272,7 +2318,8 @@ namespace Opc.Ua
                             throw ServiceResultException.Create(
                                 StatusCodes.BadEncodingError,
                                 "Unexpected type encountered while encoding an array of Variants: {0}",
-                                array.GetType());
+                                array.GetType()
+                            );
                         }
 
                         default:
@@ -2287,11 +2334,11 @@ namespace Opc.Ua
                             throw ServiceResultException.Create(
                                 StatusCodes.BadEncodingError,
                                 "Unexpected BuiltInType encountered while encoding an array: {0}",
-                                builtInType);
+                                builtInType
+                            );
                         }
                     }
                 }
-
                 // write matrix.
                 else if (valueRank > ValueRanks.OneDimension)
                 {
@@ -2311,7 +2358,8 @@ namespace Opc.Ua
                             throw ServiceResultException.Create(
                                 StatusCodes.BadEncodingError,
                                 "Unexpected array type encountered while encoding array: {0}",
-                                array.GetType().Name);
+                                array.GetType().Name
+                            );
                         }
                     }
 
@@ -2416,7 +2464,8 @@ namespace Opc.Ua
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,
                     "Maximum nesting level of {0} was exceeded",
-                    Context.MaxEncodingNestingLevels);
+                    Context.MaxEncodingNestingLevels
+                );
             }
             m_nestingLevel++;
         }

@@ -36,7 +36,7 @@ namespace Opc.Ua.Gds.Client
 {
     public partial class RegisteredApplication
     {
-        [System.Xml.Serialization.XmlIgnore()]
+        [System.Xml.Serialization.XmlIgnore]
         public string ApplicationId { get; set; }
 
         /// <summary>
@@ -66,7 +66,10 @@ namespace Opc.Ua.Gds.Client
 
             if (RegistrationType != RegistrationType.ServerPush)
             {
-                if (!string.IsNullOrEmpty(CertificatePrivateKeyPath) && CertificatePrivateKeyPath.EndsWith("PEM", StringComparison.OrdinalIgnoreCase))
+                if (
+                    !string.IsNullOrEmpty(CertificatePrivateKeyPath)
+                    && CertificatePrivateKeyPath.EndsWith("PEM", StringComparison.OrdinalIgnoreCase)
+                )
                 {
                     privateKeyFormat = "PEM";
                 }

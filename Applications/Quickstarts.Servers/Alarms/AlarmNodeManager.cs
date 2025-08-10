@@ -67,10 +67,8 @@ namespace Alarms
         /// <summary>
         /// Initializes the node manager.
         /// </summary>
-        public AlarmNodeManager(IServerInternal server, ApplicationConfiguration configuration, string[] namespaceUris) :
-            base(server, configuration, namespaceUris)
-        {
-        }
+        public AlarmNodeManager(IServerInternal server, ApplicationConfiguration configuration, string[] namespaceUris)
+            : base(server, configuration, namespaceUris) { }
 
         /// <summary>
         /// An overrideable version of the Dispose.
@@ -88,7 +86,9 @@ namespace Alarms
         /// </summary>
         public override NodeId New(ISystemContext context, NodeState node)
         {
-            if (node is BaseInstanceState instance && instance.Parent != null && instance.Parent.NodeId.Identifier is string id)
+            if (node is BaseInstanceState instance
+                && instance.Parent != null
+                && instance.Parent.NodeId.Identifier is string id)
             {
                 return new NodeId(id + "_" + instance.SymbolicName, instance.Parent.NodeId.NamespaceIndex);
             }
@@ -134,36 +134,62 @@ namespace Alarms
 
                     const string startMethodName = "Start";
                     const string startMethodNodeName = alarmsNodeName + "." + startMethodName;
-                    MethodState startMethod = AlarmHelpers.CreateMethod(alarmsFolder, NamespaceIndex, startMethodNodeName, startMethodName);
+                    MethodState startMethod = AlarmHelpers.CreateMethod(
+                        alarmsFolder,
+                        NamespaceIndex,
+                        startMethodNodeName,
+                        startMethodName
+                    );
                     AlarmHelpers.AddStartInputParameters(startMethod, NamespaceIndex);
                     startMethod.OnCallMethod = new GenericMethodCalledEventHandler(OnStart);
 
                     const string startBranchMethodName = "StartBranch";
                     const string startBranchMethodNodeName = alarmsNodeName + "." + startBranchMethodName;
-                    MethodState startBranchMethod = AlarmHelpers.CreateMethod(alarmsFolder, NamespaceIndex, startBranchMethodNodeName, startBranchMethodName);
+                    MethodState startBranchMethod = AlarmHelpers.CreateMethod(
+                        alarmsFolder,
+                        NamespaceIndex,
+                        startBranchMethodNodeName,
+                        startBranchMethodName
+                    );
                     AlarmHelpers.AddStartInputParameters(startBranchMethod, NamespaceIndex);
                     startBranchMethod.OnCallMethod = new GenericMethodCalledEventHandler(OnStartBranch);
 
                     const string endMethodName = "End";
                     const string endMethodNodeName = alarmsNodeName + "." + endMethodName;
-                    MethodState endMethod = AlarmHelpers.CreateMethod(alarmsFolder, NamespaceIndex, endMethodNodeName, endMethodName);
+                    MethodState endMethod = AlarmHelpers.CreateMethod(
+                        alarmsFolder,
+                        NamespaceIndex,
+                        endMethodNodeName,
+                        endMethodName
+                    );
                     endMethod.OnCallMethod = new GenericMethodCalledEventHandler(OnEnd);
 
                     const string analogTriggerName = "AnalogSource";
                     const string analogTriggerNodeName = alarmsNodeName + "." + analogTriggerName;
-                    BaseDataVariableState analogTrigger = AlarmHelpers.CreateVariable(alarmsFolder,
-                        NamespaceIndex, analogTriggerNodeName, analogTriggerName);
+                    BaseDataVariableState analogTrigger = AlarmHelpers.CreateVariable(
+                        alarmsFolder,
+                        NamespaceIndex,
+                        analogTriggerNodeName,
+                        analogTriggerName
+                    );
                     analogTrigger.OnWriteValue = OnWriteAlarmTrigger;
-                    var analogAlarmController = (AlarmController)Activator.CreateInstance(alarmControllerType, analogTrigger, interval, false);
+                    var analogAlarmController = (AlarmController)
+                        Activator.CreateInstance(alarmControllerType, analogTrigger, interval, false);
                     var analogSourceController = new SourceController(analogTrigger, analogAlarmController);
                     m_triggerMap.Add("Analog", analogSourceController);
 
                     const string booleanTriggerName = "BooleanSource";
                     const string booleanTriggerNodeName = alarmsNodeName + "." + booleanTriggerName;
-                    BaseDataVariableState booleanTrigger = AlarmHelpers.CreateVariable(alarmsFolder,
-                        NamespaceIndex, booleanTriggerNodeName, booleanTriggerName, boolValue: true);
+                    BaseDataVariableState booleanTrigger = AlarmHelpers.CreateVariable(
+                        alarmsFolder,
+                        NamespaceIndex,
+                        booleanTriggerNodeName,
+                        booleanTriggerName,
+                        boolValue: true
+                    );
                     booleanTrigger.OnWriteValue = OnWriteAlarmTrigger;
-                    var booleanAlarmController = (AlarmController)Activator.CreateInstance(alarmControllerType, booleanTrigger, interval, true);
+                    var booleanAlarmController = (AlarmController)
+                        Activator.CreateInstance(alarmControllerType, booleanTrigger, interval, true);
                     var booleanSourceController = new SourceController(booleanTrigger, booleanAlarmController);
                     m_triggerMap.Add("Boolean", booleanSourceController);
 
@@ -175,7 +201,8 @@ namespace Alarms
                         GetSupportedAlarmConditionType(ref conditionTypeIndex),
                         alarmControllerType,
                         interval,
-                        optional: false);
+                        optional: false
+                    );
 
                     m_alarms.Add(mandatoryExclusiveLevel.AlarmNodeName, mandatoryExclusiveLevel);
 
@@ -187,7 +214,8 @@ namespace Alarms
                         GetSupportedAlarmConditionType(ref conditionTypeIndex),
                         alarmControllerType,
                         interval,
-                        optional: false);
+                        optional: false
+                    );
                     m_alarms.Add(mandatoryNonExclusiveLevel.AlarmNodeName, mandatoryNonExclusiveLevel);
 
                     AlarmHolder offNormal = new OffNormalAlarmTypeHolder(
@@ -198,7 +226,8 @@ namespace Alarms
                         GetSupportedAlarmConditionType(ref conditionTypeIndex),
                         alarmControllerType,
                         interval,
-                        optional: false);
+                        optional: false
+                    );
                     m_alarms.Add(offNormal.AlarmNodeName, offNormal);
 
                     AddPredefinedNode(SystemContext, alarmsFolder);
@@ -227,7 +256,7 @@ namespace Alarms
                 DisplayName = new LocalizedText("en", name),
                 WriteMask = AttributeWriteMask.None,
                 UserWriteMask = AttributeWriteMask.None,
-                EventNotifier = EventNotifiers.None
+                EventNotifier = EventNotifiers.None,
             };
 
             parent?.AddChild(folder);
@@ -251,7 +280,12 @@ namespace Alarms
                             bool updated = controller.Controller.Update(SystemContext);
 
                             IList<IReference> references = [];
-                            controller.Source.GetReferences(SystemContext, references, ReferenceTypes.HasCondition, false);
+                            controller.Source.GetReferences(
+                                SystemContext,
+                                references,
+                                ReferenceTypes.HasCondition,
+                                false
+                            );
                             foreach (IReference reference in references)
                             {
                                 string identifier = reference.TargetId.ToString();
@@ -280,7 +314,8 @@ namespace Alarms
             ISystemContext context,
             NodeState node,
             IList<object> inputArguments,
-            IList<object> outputArguments)
+            IList<object> outputArguments
+        )
         {
             // all arguments must be provided.
             uint seconds;
@@ -315,7 +350,12 @@ namespace Alarms
                     foreach (SourceController sourceController in sourceControllers.Values)
                     {
                         IList<IReference> references = [];
-                        sourceController.Source.GetReferences(SystemContext, references, ReferenceTypes.HasCondition, false);
+                        sourceController.Source.GetReferences(
+                            SystemContext,
+                            references,
+                            ReferenceTypes.HasCondition,
+                            false
+                        );
                         foreach (IReference reference in references)
                         {
                             string identifier = reference.TargetId.ToString();
@@ -338,7 +378,8 @@ namespace Alarms
             ISystemContext context,
             NodeState node,
             IList<object> inputArguments,
-            IList<object> outputArguments)
+            IList<object> outputArguments
+        )
         {
             // all arguments must be provided.
             uint seconds;
@@ -373,7 +414,12 @@ namespace Alarms
                     foreach (SourceController sourceController in sourceControllers.Values)
                     {
                         IList<IReference> references = [];
-                        sourceController.Source.GetReferences(SystemContext, references, ReferenceTypes.HasCondition, false);
+                        sourceController.Source.GetReferences(
+                            SystemContext,
+                            references,
+                            ReferenceTypes.HasCondition,
+                            false
+                        );
                         foreach (IReference reference in references)
                         {
                             string identifier = reference.TargetId.ToString();
@@ -396,7 +442,8 @@ namespace Alarms
             ISystemContext context,
             NodeState node,
             IList<object> inputArguments,
-            IList<object> outputArguments)
+            IList<object> outputArguments
+        )
         {
             ServiceResult result = ServiceResult.Good;
 
@@ -415,7 +462,12 @@ namespace Alarms
                     foreach (SourceController sourceController in sourceControllers.Values)
                     {
                         IList<IReference> references = [];
-                        sourceController.Source.GetReferences(SystemContext, references, ReferenceTypes.HasCondition, false);
+                        sourceController.Source.GetReferences(
+                            SystemContext,
+                            references,
+                            ReferenceTypes.HasCondition,
+                            false
+                        );
                         foreach (IReference reference in references)
                         {
                             string identifier = reference.TargetId.ToString();
@@ -440,7 +492,8 @@ namespace Alarms
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             Dictionary<string, SourceController> sourceControllers = GetUnitAlarms(node);
             if (sourceControllers == null)
@@ -465,7 +518,12 @@ namespace Alarms
                     Type valueType = value.GetType();
                     sourceController.Controller.ManualWrite(value);
                     IList<IReference> references = [];
-                    sourceController.Source.GetReferences(SystemContext, references, ReferenceTypes.HasCondition, false);
+                    sourceController.Source.GetReferences(
+                        SystemContext,
+                        references,
+                        ReferenceTypes.HasCondition,
+                        false
+                    );
                     foreach (IReference reference in references)
                     {
                         string identifier = reference.TargetId.ToString();
@@ -512,10 +570,7 @@ namespace Alarms
             return alarmHolder;
         }
 
-        public ServiceResult OnEnableDisableAlarm(
-            ISystemContext context,
-            ConditionState condition,
-            bool enabling)
+        public ServiceResult OnEnableDisableAlarm(ISystemContext context, ConditionState condition, bool enabling)
         {
             return ServiceResult.Good;
         }
@@ -548,7 +603,10 @@ namespace Alarms
             return unit;
         }
 
-        public SourceController GetSourceControllerFromNodeState(NodeState nodeState, Dictionary<string, SourceController> map)
+        public SourceController GetSourceControllerFromNodeState(
+            NodeState nodeState,
+            Dictionary<string, SourceController> map
+        )
         {
             SourceController sourceController = null;
 
@@ -590,9 +648,9 @@ namespace Alarms
 
         public SupportedAlarmConditionType GetSupportedAlarmConditionType(ref int index)
         {
-            SupportedAlarmConditionType conditionType = m_ConditionTypes[index];
+            SupportedAlarmConditionType conditionType = m_conditionTypes[index];
             index++;
-            if (index >= m_ConditionTypes.Length)
+            if (index >= m_conditionTypes.Length)
             {
                 index = 0;
             }
@@ -617,7 +675,8 @@ namespace Alarms
             OperationContext context,
             IList<CallMethodRequest> methodsToCall,
             IList<CallMethodResult> results,
-            IList<ServiceResult> errors)
+            IList<ServiceResult> errors
+        )
         {
             ServerSystemContext systemContext = SystemContext.Copy(context);
             IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
@@ -628,8 +687,9 @@ namespace Alarms
             {
                 CallMethodRequest methodToCall = methodsToCall[ii];
 
-                bool refreshMethod = methodToCall.MethodId.Equals(MethodIds.ConditionType_ConditionRefresh) ||
-                    methodToCall.MethodId.Equals(MethodIds.ConditionType_ConditionRefresh2);
+                bool refreshMethod =
+                    methodToCall.MethodId.Equals(MethodIds.ConditionType_ConditionRefresh)
+                    || methodToCall.MethodId.Equals(MethodIds.ConditionType_ConditionRefresh2);
 
                 if (refreshMethod)
                 {
@@ -722,11 +782,7 @@ namespace Alarms
                 // call the method.
                 CallMethodResult result = results[ii] = new CallMethodResult();
 
-                errors[ii] = Call(
-                    systemContext,
-                    methodToCall,
-                    method,
-                    result);
+                errors[ii] = Call(systemContext, methodToCall, method, result);
             }
         }
 
@@ -735,7 +791,8 @@ namespace Alarms
         /// </summary>
         public override ServiceResult ConditionRefresh(
             OperationContext context,
-            IList<IEventMonitoredItem> monitoredItems)
+            IList<IEventMonitoredItem> monitoredItems
+        )
         {
             ServerSystemContext systemContext = SystemContext.Copy(context);
 
@@ -797,7 +854,11 @@ namespace Alarms
             return ServiceResult.Good;
         }
 
-        public NodeHandle FindBranchNodeHandle(ISystemContext systemContext, NodeHandle initialHandle, CallMethodRequest methodToCall)
+        public NodeHandle FindBranchNodeHandle(
+            ISystemContext systemContext,
+            NodeHandle initialHandle,
+            CallMethodRequest methodToCall
+        )
         {
             NodeHandle nodeHandle = initialHandle;
 
@@ -819,7 +880,7 @@ namespace Alarms
                             {
                                 NodeId = methodToCall.ObjectId,
                                 Node = state,
-                                Validated = true
+                                Validated = true,
                             };
                         }
                     }
@@ -841,8 +902,10 @@ namespace Alarms
         private static bool IsAckConfirm(NodeId methodId)
         {
             bool isAckConfirm = false;
-            if (methodId.Equals(MethodIds.AcknowledgeableConditionType_Acknowledge) ||
-                 methodId.Equals(MethodIds.AcknowledgeableConditionType_Confirm))
+            if (
+                methodId.Equals(MethodIds.AcknowledgeableConditionType_Acknowledge)
+                || methodId.Equals(MethodIds.AcknowledgeableConditionType_Confirm)
+            )
             {
                 isAckConfirm = true;
             }
@@ -854,7 +917,11 @@ namespace Alarms
             byte[] eventId = null;
 
             // Bad magic Numbers here
-            if (request.InputArguments != null && request.InputArguments.Count == 2 && request.InputArguments[0].TypeInfo.BuiltInType.Equals(BuiltInType.ByteString))
+            if (
+                request.InputArguments != null
+                && request.InputArguments.Count == 2
+                && request.InputArguments[0].TypeInfo.BuiltInType.Equals(BuiltInType.ByteString)
+            )
             {
                 eventId = (byte[])request.InputArguments[0].Value;
             }
@@ -880,16 +947,29 @@ namespace Alarms
         }
 
         private readonly Dictionary<string, AlarmHolder> m_alarms = [];
-        private readonly Dictionary<string, SourceController> m_triggerMap =
-            [];
+        private readonly Dictionary<string, SourceController> m_triggerMap = [];
         private bool m_allowEntry;
         private uint m_success;
         private uint m_missed;
 
-        private readonly SupportedAlarmConditionType[] m_ConditionTypes = [
-                    new SupportedAlarmConditionType( "Process", "ProcessConditionClassType",  ObjectTypeIds.ProcessConditionClassType ),
-                    new SupportedAlarmConditionType( "Maintenance", "MaintenanceConditionClassType",  ObjectTypeIds.MaintenanceConditionClassType ),
-                    new SupportedAlarmConditionType( "System", "SystemConditionClassType",  ObjectTypeIds.SystemConditionClassType ) ];
+        private readonly SupportedAlarmConditionType[] m_conditionTypes =
+        [
+            new SupportedAlarmConditionType(
+                "Process",
+                "ProcessConditionClassType",
+                ObjectTypeIds.ProcessConditionClassType
+            ),
+            new SupportedAlarmConditionType(
+                "Maintenance",
+                "MaintenanceConditionClassType",
+                ObjectTypeIds.MaintenanceConditionClassType
+            ),
+            new SupportedAlarmConditionType(
+                "System",
+                "SystemConditionClassType",
+                ObjectTypeIds.SystemConditionClassType
+            ),
+        ];
 
         private const ushort kSimulationInterval = 100;
         private Timer m_simulationTimer;

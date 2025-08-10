@@ -52,13 +52,17 @@ namespace Opc.Ua.Client.Tests
         public ReverseConnectManager ReverseConnectManager { get; private set; }
         public uint SessionTimeout { get; set; } = 10000;
         public int OperationTimeout { get; set; } = 10000;
-        public int TraceMasks { get; set; } = Utils.TraceMasks.Error | Utils.TraceMasks.StackTrace | Utils.TraceMasks.Security | Utils.TraceMasks.Information;
+        public int TraceMasks { get; set; } =
+            Utils.TraceMasks.Error
+            | Utils.TraceMasks.StackTrace
+            | Utils.TraceMasks.Security
+            | Utils.TraceMasks.Information;
         public ISessionFactory SessionFactory { get; set; } = DefaultSessionFactory.Instance;
         public ActivityListener ActivityListener { get; private set; }
 
-        public ClientFixture(bool UseTracing, bool disableActivityLogging)
+        public ClientFixture(bool useTracing, bool disableActivityLogging)
         {
-            if (UseTracing)
+            if (useTracing)
             {
                 SessionFactory = TraceableRequestHeaderClientSessionFactory.Instance;
                 StartActivityListenerInternal(disableActivityLogging);
@@ -97,47 +101,45 @@ namespace Opc.Ua.Client.Tests
         /// </summary>
         public async Task LoadClientConfiguration(string pkiRoot = null, string clientName = "TestClient")
         {
-            var application = new ApplicationInstance
-            {
-                ApplicationName = clientName
-            };
+            var application = new ApplicationInstance { ApplicationName = clientName };
 
             pkiRoot ??= Path.Combine("%LocalApplicationData%", "OPC", "pki");
 
-            CertificateIdentifierCollection applicationCerts = ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
-                "CN=" + clientName + ", O=OPC Foundation, DC=localhost",
-                CertificateStoreType.Directory,
-                pkiRoot
+            CertificateIdentifierCollection applicationCerts =
+                ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                    "CN=" + clientName + ", O=OPC Foundation, DC=localhost",
+                    CertificateStoreType.Directory,
+                    pkiRoot
                 );
 
             // build the application configuration.
             Config = await application
-                .Build(
-                    "urn:localhost:opcfoundation.org:" + clientName,
-                    "http://opcfoundation.org/UA/" + clientName)
+                .Build("urn:localhost:opcfoundation.org:" + clientName, "http://opcfoundation.org/UA/" + clientName)
                 .SetMaxByteStringLength(4 * 1024 * 1024)
                 .SetMaxArrayLength(1024 * 1024)
                 .AsClient()
-                .SetClientOperationLimits(new OperationLimits
-                {
-                    MaxNodesPerBrowse = kDefaultOperationLimits,
-                    MaxNodesPerRead = kDefaultOperationLimits,
-                    MaxMonitoredItemsPerCall = kDefaultOperationLimits,
-                    MaxNodesPerWrite = kDefaultOperationLimits
-                })
-                .AddSecurityConfiguration(
-                    applicationCerts,
-                    pkiRoot)
-
+                .SetClientOperationLimits(
+                    new OperationLimits
+                    {
+                        MaxNodesPerBrowse = kDefaultOperationLimits,
+                        MaxNodesPerRead = kDefaultOperationLimits,
+                        MaxMonitoredItemsPerCall = kDefaultOperationLimits,
+                        MaxNodesPerWrite = kDefaultOperationLimits,
+                    }
+                )
+                .AddSecurityConfiguration(applicationCerts, pkiRoot)
                 // .SetApplicationCertificates(applicationCerts)
                 .SetAutoAcceptUntrustedCertificates(true)
                 .SetRejectSHA1SignedCertificates(false)
                 .SetOutputFilePath(Path.Combine(pkiRoot, "Logs", "Opc.Ua.Client.Tests.log.txt"))
                 .SetTraceMasks(TraceMasks)
-                .Create().ConfigureAwait(false);
+                .Create()
+                .ConfigureAwait(false);
 
             // check the application certificate.
-            bool haveAppCertificate = await application.CheckApplicationInstanceCertificates(true).ConfigureAwait(false);
+            bool haveAppCertificate = await application
+                .CheckApplicationInstanceCertificates(true)
+                .ConfigureAwait(false);
             if (!haveAppCertificate)
             {
                 throw new Exception("Application instance certificate invalid!");
@@ -167,8 +169,7 @@ namespace Opc.Ua.Client.Tests
                 catch (ServiceResultException sre)
                 {
                     serverStartRetries--;
-                    if (serverStartRetries == 0 ||
-                        sre.StatusCode != StatusCodes.BadNoCommunication)
+                    if (serverStartRetries == 0 || sre.StatusCode != StatusCodes.BadNoCommunication)
                     {
                         throw;
                     }
@@ -219,17 +220,25 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Connects the url endpoint with specified security profile.
         /// </summary>
-        public async Task<ISession> ConnectAsync(Uri url, string securityProfile, EndpointDescriptionCollection endpoints = null, IUserIdentity userIdentity = null)
+        public async Task<ISession> ConnectAsync(
+            Uri url,
+            string securityProfile,
+            EndpointDescriptionCollection endpoints = null,
+            IUserIdentity userIdentity = null
+        )
         {
             string uri = url.AbsoluteUri;
             Uri getEndpointsUrl = url;
-            if (uri.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal) ||
-                Utils.IsUriHttpsScheme(uri))
+            if (uri.StartsWith(Utils.UriSchemeHttp, StringComparison.Ordinal) || Utils.IsUriHttpsScheme(uri))
             {
                 getEndpointsUrl = CoreClientUtils.GetDiscoveryUrl(uri);
             }
 
-            return await ConnectAsync(await GetEndpointAsync(getEndpointsUrl, securityProfile, endpoints).ConfigureAwait(false), userIdentity).ConfigureAwait(false);
+            return await ConnectAsync(
+                    await GetEndpointAsync(getEndpointsUrl, securityProfile, endpoints).ConfigureAwait(false),
+                    userIdentity
+                )
+                .ConfigureAwait(false);
         }
 
         /// <summary>
@@ -247,9 +256,9 @@ namespace Opc.Ua.Client.Tests
                 }
             }
 
-            ISession session = await SessionFactory.CreateAsync(
-                Config, endpoint, false, false,
-                Config.ApplicationName, SessionTimeout, userIdentity, null).ConfigureAwait(false);
+            ISession session = await SessionFactory
+                .CreateAsync(Config, endpoint, false, false, Config.ApplicationName, SessionTimeout, userIdentity, null)
+                .ConfigureAwait(false);
 
             Endpoint = session.ConfiguredEndpoint;
 
@@ -291,12 +300,10 @@ namespace Opc.Ua.Client.Tests
         public async Task<ConfiguredEndpoint> GetEndpointAsync(
             Uri url,
             string securityPolicy,
-            EndpointDescriptionCollection endpoints = null)
+            EndpointDescriptionCollection endpoints = null
+        )
         {
-            if (endpoints == null)
-            {
-                endpoints = await GetEndpoints(url).ConfigureAwait(false);
-            }
+            endpoints ??= await GetEndpoints(url).ConfigureAwait(false);
             EndpointDescription endpointDescription = SelectEndpoint(Config, endpoints, url, securityPolicy);
             if (endpointDescription == null)
             {
@@ -314,7 +321,8 @@ namespace Opc.Ua.Client.Tests
             ApplicationConfiguration configuration,
             EndpointDescriptionCollection endpoints,
             Uri url,
-            string securityPolicy)
+            string securityPolicy
+        )
         {
             EndpointDescription selectedEndpoint = null;
 
@@ -325,22 +333,29 @@ namespace Opc.Ua.Client.Tests
                 if (endpoint.EndpointUrl.StartsWith(url.Scheme))
                 {
                     // skip unsupported security policies
-                    if (!configuration.SecurityConfiguration.SupportedSecurityPolicies.
-                            Contains(endpoint.SecurityPolicyUri))
+                    if (
+                        !configuration.SecurityConfiguration.SupportedSecurityPolicies.Contains(
+                            endpoint.SecurityPolicyUri
+                        )
+                    )
                     {
                         continue;
                     }
 
                     // pick the first available endpoint by default.
-                    if (selectedEndpoint == null &&
-                        securityPolicy.Equals(endpoint.SecurityPolicyUri, StringComparison.Ordinal))
+                    if (
+                        selectedEndpoint == null
+                        && securityPolicy.Equals(endpoint.SecurityPolicyUri, StringComparison.Ordinal)
+                    )
                     {
                         selectedEndpoint = endpoint;
                         continue;
                     }
 
-                    if (selectedEndpoint?.SecurityMode < endpoint.SecurityMode &&
-                        securityPolicy.Equals(endpoint.SecurityPolicyUri, StringComparison.Ordinal))
+                    if (
+                        selectedEndpoint?.SecurityMode < endpoint.SecurityMode
+                        && securityPolicy.Equals(endpoint.SecurityPolicyUri, StringComparison.Ordinal)
+                    )
                     {
                         selectedEndpoint = endpoint;
                     }
@@ -404,10 +419,11 @@ namespace Opc.Ua.Client.Tests
                     ShouldListenTo = (source) => source.Name == TraceableSession.ActivitySourceName,
 
                     // Sample all data and recorded activities
-                    Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
+                    Sample = (ref ActivityCreationOptions<ActivityContext> _) =>
+                        ActivitySamplingResult.AllDataAndRecorded,
                     // Do not log during benchmarks
                     ActivityStarted = _ => { },
-                    ActivityStopped = _ => { }
+                    ActivityStopped = _ => { },
                 };
             }
             else
@@ -418,11 +434,23 @@ namespace Opc.Ua.Client.Tests
                     ShouldListenTo = (source) => source.Name == TraceableSession.ActivitySourceName,
 
                     // Sample all data and recorded activities
-                    Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
-                    ActivityStarted = activity => Utils.LogInfo("Client Started: {0,-15} - TraceId: {1,-32} SpanId: {2,-16}",
-                        activity.OperationName, activity.TraceId, activity.SpanId),
-                    ActivityStopped = activity => Utils.LogInfo("Client Stopped: {0,-15} - TraceId: {1,-32} SpanId: {2,-16} Duration: {3}",
-                        activity.OperationName, activity.TraceId, activity.SpanId, activity.Duration)
+                    Sample = (ref ActivityCreationOptions<ActivityContext> _) =>
+                        ActivitySamplingResult.AllDataAndRecorded,
+                    ActivityStarted = activity =>
+                        Utils.LogInfo(
+                            "Client Started: {0,-15} - TraceId: {1,-32} SpanId: {2,-16}",
+                            activity.OperationName,
+                            activity.TraceId,
+                            activity.SpanId
+                        ),
+                    ActivityStopped = activity =>
+                        Utils.LogInfo(
+                            "Client Stopped: {0,-15} - TraceId: {1,-32} SpanId: {2,-16} Duration: {3}",
+                            activity.OperationName,
+                            activity.TraceId,
+                            activity.SpanId,
+                            activity.Duration
+                        ),
                 };
             }
             ActivitySource.AddActivityListener(ActivityListener);

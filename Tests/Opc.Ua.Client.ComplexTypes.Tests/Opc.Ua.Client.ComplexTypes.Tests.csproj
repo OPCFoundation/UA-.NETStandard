@@ -19,8 +19,7 @@
     </PackageReference>
   </ItemGroup>
   <Choose>
-    <When Condition="'$(TargetFramework)' == 'net462'">
-    </When>
+    <When Condition="'$(TargetFramework)' == 'net462'"></When>
     <Otherwise>
       <PropertyGroup Condition="'$(DisableECCTests)' != 'true'">
         <DefineConstants>$(DefineConstants);ECC_SUPPORT</DefineConstants>
@@ -28,7 +27,10 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
-    <Compile Include="..\..\Applications\ConsoleReferenceClient\ClientSamples.cs" Link="Links\ClientSamples.cs" />
+    <Compile
+      Include="..\..\Applications\ConsoleReferenceClient\ClientSamples.cs"
+      Link="Links\ClientSamples.cs"
+    />
     <Compile Include="..\Common\Main.cs" />
   </ItemGroup>
   <ItemGroup>

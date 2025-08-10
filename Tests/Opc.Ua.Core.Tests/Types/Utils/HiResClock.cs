@@ -44,9 +44,9 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
     [NonParallelizable]
     public
 #if NET8_0_OR_GREATER
-        partial
+    partial
 #endif
-        class HiResClockTests
+    class HiResClockTests
     {
         /// <summary>
         /// How long the tests are running.
@@ -116,8 +116,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 do
                 {
                     tickCount = HiResClock.TickCount64;
-                }
-                while (tickCount == lastTickCount);
+                } while (tickCount == lastTickCount);
                 Assert.LessOrEqual(lastTickCount, tickCount);
                 lastTickCount = tickCount;
                 counts++;
@@ -128,7 +127,11 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             }
             stopWatch.Stop();
             long elapsed = lastTickCount - firstTickCount;
-            TestContext.Out.WriteLine("HiResClock counts: {0} resolution: {1}µs", counts, stopWatch.ElapsedMilliseconds * 1000 / counts);
+            TestContext.Out.WriteLine(
+                "HiResClock counts: {0} resolution: {1}µs",
+                counts,
+                stopWatch.ElapsedMilliseconds * 1000 / counts
+            );
             // test accuracy of counter vs. stop watch
             try
             {
@@ -159,8 +162,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 do
                 {
                     tickCount = HiResClock.UtcNow.Ticks;
-                }
-                while (tickCount == lastTickCount);
+                } while (tickCount == lastTickCount);
                 Assert.LessOrEqual(lastTickCount, tickCount);
                 lastTickCount = tickCount;
                 counts++;
@@ -171,7 +173,11 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             }
             stopWatch.Stop();
             long elapsed = (lastTickCount - firstTickCount) / TimeSpan.TicksPerMillisecond;
-            TestContext.Out.WriteLine("HiResClock counts: {0} resolution: {1}µs", counts, stopWatch.ElapsedMilliseconds * 1000 / counts);
+            TestContext.Out.WriteLine(
+                "HiResClock counts: {0} resolution: {1}µs",
+                counts,
+                stopWatch.ElapsedMilliseconds * 1000 / counts
+            );
             // test accuracy of counter vs. stop watch
             try
             {

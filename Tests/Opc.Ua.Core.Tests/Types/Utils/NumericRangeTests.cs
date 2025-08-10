@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2018 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -41,24 +41,16 @@ namespace Opc.Ua.Core.Tests.Types.NumericRange
     public class NumericRangeTests
     {
         [OneTimeSetUp]
-        protected void OneTimeSetUp()
-        {
-        }
+        protected void OneTimeSetUp() { }
 
         [OneTimeTearDown]
-        protected void OneTimeTearDown()
-        {
-        }
+        protected void OneTimeTearDown() { }
 
         [SetUp]
-        protected void SetUp()
-        {
-        }
+        protected void SetUp() { }
 
         [TearDown]
-        protected void TearDown()
-        {
-        }
+        protected void TearDown() { }
 
         /// <summary>
         /// Test that NumericRange can be applied to Matrix objects
@@ -111,7 +103,13 @@ namespace Opc.Ua.Core.Tests.Types.NumericRange
             // Update the center element
             var numericRange = Ua.NumericRange.Parse("1,1");
             object dst = dstMatrix;
-            StatusCode statusCode = numericRange.UpdateRange(ref dst, new int[,] { { 10 } });
+            StatusCode statusCode = numericRange.UpdateRange(
+                ref dst,
+                new int[,]
+                {
+                    { 10 },
+                }
+            );
 
             Assert.AreEqual(new StatusCode(StatusCodes.Good), statusCode);
 
@@ -120,12 +118,15 @@ namespace Opc.Ua.Core.Tests.Types.NumericRange
 
             int[,] modifiedInt3x3Matrix = dstMatrix.ToArray() as int[,];
 
-            Assert.AreEqual(new int[,]
-            {
-                { 1, 2, 3 },
-                { 4, 10, 6 },
-                { 7, 8, 9 },
-            }, modifiedInt3x3Matrix);
+            Assert.AreEqual(
+                new int[,]
+                {
+                    { 1, 2, 3 },
+                    { 4, 10, 6 },
+                    { 7, 8, 9 },
+                },
+                modifiedInt3x3Matrix
+            );
         }
 
         private static readonly string[] s_src = ["ha"];
@@ -158,23 +159,16 @@ namespace Opc.Ua.Core.Tests.Types.NumericRange
         {
             // Update the middle element <0x55, 0x66, 0x77, 0x88> to <0x55, 0xDD, 0xEE, 0x88> by modifying 0x66 to 0xDD and 0x77 to 0xEE.
             var numericRange = Ua.NumericRange.Parse("1,1:2");
-            object dst = new byte[][]
-            {
-                [0x11, 0x22, 0x33, 0x44],
-                [0x55, 0x66, 0x77, 0x88],
-                [0x99, 0xAA, 0xBB, 0xCC]
-            };
+            object dst = new byte[][] { [0x11, 0x22, 0x33, 0x44], [0x55, 0x66, 0x77, 0x88], [0x99, 0xAA, 0xBB, 0xCC] };
             StatusCode statusCode = numericRange.UpdateRange(ref dst, new byte[][] { [0xDD, 0xEE] });
             Assert.AreEqual(new StatusCode(StatusCodes.Good), statusCode);
 
             byte[][] updatedValue = dst as byte[][];
             Assert.NotNull(updatedValue);
-            Assert.AreEqual(new byte[][]
-            {
-                [0x11, 0x22, 0x33, 0x44],
-                [0x55, 0xDD, 0xEE, 0x88],
-                [0x99, 0xAA, 0xBB, 0xCC]
-            }, updatedValue);
+            Assert.AreEqual(
+                new byte[][] { [0x11, 0x22, 0x33, 0x44], [0x55, 0xDD, 0xEE, 0x88], [0x99, 0xAA, 0xBB, 0xCC] },
+                updatedValue
+            );
         }
     }
 }

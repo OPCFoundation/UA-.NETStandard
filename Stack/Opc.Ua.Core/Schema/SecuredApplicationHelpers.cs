@@ -53,7 +53,7 @@ namespace Opc.Ua.Security
                     Thumbprint = input.Thumbprint,
                     ValidationOptions = (int)input.ValidationOptions,
                     OfflineRevocationList = null,
-                    OnlineRevocationList = null
+                    OnlineRevocationList = null,
                 };
             }
 
@@ -90,7 +90,7 @@ namespace Opc.Ua.Security
                 {
                     StoreType = input.StoreType,
                     StorePath = input.StorePath,
-                    ValidationOptions = (int)input.ValidationOptions
+                    ValidationOptions = (int)input.ValidationOptions,
                 };
             }
 
@@ -252,13 +252,14 @@ namespace Opc.Ua.Security
         /// </summary>
         public static ListOfSecurityProfiles ToListOfSecurityProfiles(ServerSecurityPolicyCollection policies)
         {
-            var profiles = new ListOfSecurityProfiles {
+            var profiles = new ListOfSecurityProfiles
+            {
                 CreateProfile(SecurityPolicies.None),
                 CreateProfile(SecurityPolicies.Basic128Rsa15),
                 CreateProfile(SecurityPolicies.Basic256),
                 CreateProfile(SecurityPolicies.Basic256Sha256),
                 CreateProfile(SecurityPolicies.Aes128_Sha256_RsaOaep),
-                CreateProfile(SecurityPolicies.Aes256_Sha256_RsaPss)
+                CreateProfile(SecurityPolicies.Aes256_Sha256_RsaPss),
             };
 
             if (policies != null)
@@ -311,9 +312,7 @@ namespace Opc.Ua.Security
         /// </summary>
         public static byte CalculateSecurityLevel(MessageSecurityMode mode, string policyUri)
         {
-            if ((mode != MessageSecurityMode.Sign &&
-                mode != MessageSecurityMode.SignAndEncrypt) ||
-                policyUri == null)
+            if ((mode != MessageSecurityMode.Sign && mode != MessageSecurityMode.SignAndEncrypt) || policyUri == null)
             {
                 return 0;
             }
@@ -355,7 +354,10 @@ namespace Opc.Ua.Security
                 case SecurityPolicies.None:
                     return 0;
                 default:
-                    Utils.LogWarning("Security level requested for unknown Security Policy {policy}. Returning security level 0", policyUri);
+                    Utils.LogWarning(
+                        "Security level requested for unknown Security Policy {policy}. Returning security level 0",
+                        policyUri
+                    );
                     return 0;
             }
 
@@ -373,10 +375,7 @@ namespace Opc.Ua.Security
         /// </summary>
         private static ServerSecurityPolicy CreatePolicy(string profileUri)
         {
-            var policy = new ServerSecurityPolicy
-            {
-                SecurityPolicyUri = profileUri
-            };
+            var policy = new ServerSecurityPolicy { SecurityPolicyUri = profileUri };
 
             if (profileUri != null)
             {
@@ -413,21 +412,14 @@ namespace Opc.Ua.Security
         /// </summary>
         private static SecurityProfile CreateProfile(string profileUri)
         {
-            return new SecurityProfile
-            {
-                ProfileUri = profileUri,
-                Enabled = false
-            };
+            return new SecurityProfile { ProfileUri = profileUri, Enabled = false };
         }
 
         /// <summary>
         ///  TODO: Holds the application certificates but should be generated and the Opc.Ua.Security namespace automatically
         ///  TODO: Should replace ApplicationCertificateField in the generated Opc.Ua.Security.SecuredApplication class
         /// </summary>
-        public CertificateList ApplicationCertificates
-        {
-            get; set;
-        }
+        public CertificateList ApplicationCertificates { get; set; }
     }
 
     /// <summary>

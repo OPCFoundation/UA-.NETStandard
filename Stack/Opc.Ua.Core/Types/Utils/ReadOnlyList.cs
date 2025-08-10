@@ -129,7 +129,6 @@ namespace Opc.Ua
         public T this[int index]
         {
             get => m_list[index];
-
             set => throw new NotSupportedException();
         }
 
@@ -241,7 +240,6 @@ namespace Opc.Ua
         object IList.this[int index]
         {
             get => this[index];
-
             set => this[index] = (T)value;
         }
 

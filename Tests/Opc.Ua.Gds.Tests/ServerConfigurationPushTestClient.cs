@@ -50,6 +50,7 @@ namespace Opc.Ua.Gds.Tests
         public IUserIdentity SysAdminUser { get; private set; }
         public string TempStorePath { get; private set; }
         public ApplicationConfiguration Config { get; private set; }
+
         public async Task LoadClientConfiguration(int port = -1)
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
@@ -57,7 +58,7 @@ namespace Opc.Ua.Gds.Tests
             {
                 ApplicationName = "Server Configuration Push Test Client",
                 ApplicationType = ApplicationType.Client,
-                ConfigSectionName = "Opc.Ua.ServerConfigurationPushTestClient"
+                ConfigSectionName = "Opc.Ua.ServerConfigurationPushTestClient",
             };
 #if USE_FILE_CONFIG
             // load the application configuration.
@@ -72,7 +73,7 @@ namespace Opc.Ua.Gds.Tests
                 AppPassword = "",
                 SysAdminUserName = "sysadmin",
                 SysAdminPassword = "demo",
-                TempStorePath = Path.Combine(pkiRoot, "temp")
+                TempStorePath = Path.Combine(pkiRoot, "temp"),
             };
 
             var transportQuotas = new TransportQuotas()
@@ -87,21 +88,22 @@ namespace Opc.Ua.Gds.Tests
                 SecurityTokenLifetime = 3600000,
             };
 
-            CertificateIdentifierCollection applicationCerts = ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
-                "CN=Server Configuration Push Test Client, O=OPC Foundation",
-                CertificateStoreType.Directory,
-                pkiRoot);
+            CertificateIdentifierCollection applicationCerts =
+                ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                    "CN=Server Configuration Push Test Client, O=OPC Foundation",
+                    CertificateStoreType.Directory,
+                    pkiRoot
+                );
 
             // build the application configuration.
             Config = await application
                 .Build(
                     "urn:localhost:opcfoundation.org:ServerConfigurationPushTestClient",
-                    "http://opcfoundation.org/UA/ServerConfigurationPushTestClient")
+                    "http://opcfoundation.org/UA/ServerConfigurationPushTestClient"
+                )
                 .SetTransportQuotas(transportQuotas)
                 .AsClient()
-                .AddSecurityConfiguration(
-                    applicationCerts,
-                    pkiRoot, pkiRoot)
+                .AddSecurityConfiguration(applicationCerts, pkiRoot, pkiRoot)
                 .SetAutoAcceptUntrustedCertificates(true)
                 .SetRejectSHA1SignedCertificates(false)
                 .SetRejectUnknownRevocationStatus(true)
@@ -109,21 +111,27 @@ namespace Opc.Ua.Gds.Tests
                 .AddExtension<ServerConfigurationPushTestClientConfiguration>(null, clientConfig)
                 .SetOutputFilePath(Path.Combine(root, "Logs", "Opc.Ua.Gds.Tests.log.txt"))
                 .SetTraceMasks(Utils.TraceMasks.Error)
-                .Create().ConfigureAwait(false);
+                .Create()
+                .ConfigureAwait(false);
 #endif
             // check the application certificate.
-            bool haveAppCertificate = await application.CheckApplicationInstanceCertificates(true).ConfigureAwait(false);
+            bool haveAppCertificate = await application
+                .CheckApplicationInstanceCertificates(true)
+                .ConfigureAwait(false);
             if (!haveAppCertificate)
             {
                 throw new Exception("Application instance certificate invalid!");
             }
 
-            Config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
+            Config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(
+                CertificateValidator_CertificateValidation
+            );
 
-            ServerConfigurationPushTestClientConfiguration clientConfiguration = application.ApplicationConfiguration.ParseExtension<ServerConfigurationPushTestClientConfiguration>();
+            ServerConfigurationPushTestClientConfiguration clientConfiguration =
+                application.ApplicationConfiguration.ParseExtension<ServerConfigurationPushTestClientConfiguration>();
             PushClient = new ServerPushConfigurationClient(application.ApplicationConfiguration)
             {
-                EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(clientConfiguration.ServerUrl, port)
+                EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(clientConfiguration.ServerUrl, port),
             };
             if (string.IsNullOrEmpty(clientConfiguration.AppUserName))
             {
@@ -154,7 +162,10 @@ namespace Opc.Ua.Gds.Tests
             return File.ReadAllText(Utils.ReplaceSpecialFolderNames(Config.TraceConfiguration.OutputFilePath));
         }
 
-        private static void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
+        private static void CertificateValidator_CertificateValidation(
+            CertificateValidator validator,
+            CertificateValidationEventArgs e
+        )
         {
             if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted)
             {
@@ -188,7 +199,7 @@ namespace Opc.Ua.Gds.Tests
         /// <summary>
         /// Initializes the object during deserialization.
         /// </summary>
-        [OnDeserializing()]
+        [OnDeserializing]
         private static void Initialize(StreamingContext context)
         {
             Initialize();
@@ -197,20 +208,23 @@ namespace Opc.Ua.Gds.Tests
         /// <summary>
         /// Sets private members to default values.
         /// </summary>
-        private static void Initialize()
-        {
-        }
+        private static void Initialize() { }
 
         [DataMember(Order = 1, IsRequired = true)]
         public string ServerUrl { get; set; }
+
         [DataMember(Order = 2)]
         public string AppUserName { get; set; }
+
         [DataMember(Order = 3)]
         public string AppPassword { get; set; }
+
         [DataMember(Order = 4, IsRequired = true)]
         public string SysAdminUserName { get; set; }
+
         [DataMember(Order = 5, IsRequired = true)]
         public string SysAdminPassword { get; set; }
+
         [DataMember(Order = 6, IsRequired = true)]
         public string TempStorePath { get; set; }
     }

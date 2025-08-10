@@ -233,7 +233,8 @@ namespace Opc.Ua.Bindings
 #else
                     if (timeout != int.MaxValue || ct != default)
                     {
-                        Task completedTask = await Task.WhenAny(m_tcs.Task, Task.Delay(timeout, ct)).ConfigureAwait(false);
+                        Task completedTask = await Task.WhenAny(m_tcs.Task, Task.Delay(timeout, ct))
+                            .ConfigureAwait(false);
                         if (m_tcs.Task == completedTask)
                         {
                             if (!m_tcs.Task.Result)
@@ -297,10 +298,7 @@ namespace Opc.Ua.Bindings
             {
                 lock (m_lock)
                 {
-                    if (m_properties == null)
-                    {
-                        m_properties = [];
-                    }
+                    m_properties ??= [];
 
                     return m_properties;
                 }
@@ -331,10 +329,7 @@ namespace Opc.Ua.Bindings
             {
                 lock (m_lock)
                 {
-                    if (m_event == null)
-                    {
-                        m_event = new ManualResetEvent(m_completed);
-                    }
+                    m_event ??= new ManualResetEvent(m_completed);
 
                     return m_event;
                 }

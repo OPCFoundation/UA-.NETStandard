@@ -18,8 +18,8 @@ using System.Security.Cryptography.X509Certificates;
 namespace Opc.Ua
 {
     /// <summary>
-	/// A base class for UA endpoints.
-	/// </summary>
+    /// A base class for UA endpoints.
+    /// </summary>
     public abstract class EndpointBase : IEndpointBase, ITransportListenerCallback
     {
         /// <summary>
@@ -89,7 +89,8 @@ namespace Opc.Ua
             EndpointDescription endpointDescription,
             IServiceRequest request,
             AsyncCallback callback,
-            object callbackData)
+            object callbackData
+        )
         {
             if (channeId == null)
             {
@@ -104,10 +105,7 @@ namespace Opc.Ua
             // create operation.
             var result = new ProcessRequestAsyncResult(this, callback, callbackData, 0);
 
-            var context = new SecureChannelContext(
-                channeId,
-                endpointDescription,
-                RequestEncoding.Binary);
+            var context = new SecureChannelContext(channeId, endpointDescription, RequestEncoding.Binary);
 
             // begin invoke service.
             return result.BeginProcessRequest(context, request);
@@ -145,16 +143,21 @@ namespace Opc.Ua
             EndpointDescription endpointDescription,
             OpenSecureChannelRequest request,
             X509Certificate2 clientCertificate,
-            Exception exception)
+            Exception exception
+        )
         {
             // trigger the reporting of AuditOpenSecureChannelEventType
-            ServerForContext?.ReportAuditOpenSecureChannelEvent(globalChannelId, endpointDescription, request, clientCertificate, exception);
+            ServerForContext?.ReportAuditOpenSecureChannelEvent(
+                globalChannelId,
+                endpointDescription,
+                request,
+                clientCertificate,
+                exception
+            );
         }
 
         /// <inheritdoc/>
-        public void ReportAuditCloseSecureChannelEvent(
-            string globalChannelId,
-            Exception exception)
+        public void ReportAuditCloseSecureChannelEvent(string globalChannelId, Exception exception)
         {
             // trigger the reporting of close AuditChannelEventType
             ServerForContext?.ReportAuditCloseSecureChannelEvent(globalChannelId, exception);
@@ -176,12 +179,17 @@ namespace Opc.Ua
         /// Activity Source static instance.
         /// </summary>
         public static ActivitySource ActivitySource => s_activitySource.Value;
-        private static readonly Lazy<ActivitySource> s_activitySource = new(() => new ActivitySource(ActivitySourceName, "1.0.0"));
+        private static readonly Lazy<ActivitySource> s_activitySource = new(() =>
+            new ActivitySource(ActivitySourceName, "1.0.0")
+        );
 
         /// <summary>
         /// Tries to extract the trace details from the AdditionalParametersType.
         /// </summary>
-        public static bool TryExtractActivityContextFromParameters(AdditionalParametersType parameters, out ActivityContext activityContext)
+        public static bool TryExtractActivityContextFromParameters(
+            AdditionalParametersType parameters,
+            out ActivityContext activityContext
+        )
         {
             if (parameters == null)
             {
@@ -206,7 +214,9 @@ namespace Opc.Ua
 
                         var traceId = ActivityTraceId.CreateFromString(traceIdSpan);
                         var spanId = ActivitySpanId.CreateFromString(spanIdSpan);
-                        ActivityTraceFlags traceFlags = traceFlagsSpan.SequenceEqual("01".AsSpan()) ? ActivityTraceFlags.Recorded : ActivityTraceFlags.None;
+                        ActivityTraceFlags traceFlags = traceFlagsSpan.SequenceEqual("01".AsSpan())
+                            ? ActivityTraceFlags.Recorded
+                            : ActivityTraceFlags.None;
                         activityContext = new ActivityContext(traceId, spanId, traceFlags);
                         return true;
                     }
@@ -235,7 +245,10 @@ namespace Opc.Ua
                 // find service.
                 if (!SupportedServices.TryGetValue(incoming.TypeId, out service))
                 {
-                    throw new ServiceResultException(StatusCodes.BadServiceUnsupported, Utils.Format("'{0}' is an unrecognized service identifier.", incoming.TypeId));
+                    throw new ServiceResultException(
+                        StatusCodes.BadServiceUnsupported,
+                        Utils.Format("'{0}' is an unrecognized service identifier.", incoming.TypeId)
+                    );
                 }
 
                 // invoke service.
@@ -257,7 +270,7 @@ namespace Opc.Ua
         public virtual InvokeServiceResponseMessage InvokeService(InvokeServiceMessage request)
         {
             IServiceRequest decodedRequest = null;
-            IServiceResponse  response = null;
+            IServiceResponse response = null;
 
             // create context for request and reply.
             ServiceMessageContext context = MessageContext;
@@ -267,11 +280,15 @@ namespace Opc.Ua
                 // check for null.
                 if (request == null || request.InvokeServiceRequest == null)
                 {
-                    throw new ServiceResultException(StatusCodes.BadDecodingError, Utils.Format("Null message cannot be processed."));
+                    throw new ServiceResultException(
+                        StatusCodes.BadDecodingError,
+                        Utils.Format("Null message cannot be processed.")
+                    );
                 }
 
                 // decoding incoming message.
-                decodedRequest = BinaryDecoder.DecodeMessage(request.InvokeServiceRequest, null, context) as IServiceRequest;
+                decodedRequest =
+                    BinaryDecoder.DecodeMessage(request.InvokeServiceRequest, null, context) as IServiceRequest;
 
                 // invoke service.
                 response = ProcessRequest(decodedRequest);
@@ -301,7 +318,11 @@ namespace Opc.Ua
         /// <summary>
         /// Dispatches an incoming binary encoded request.
         /// </summary>
-        public virtual IAsyncResult BeginInvokeService(InvokeServiceMessage request, AsyncCallback callback, object asyncState)
+        public virtual IAsyncResult BeginInvokeService(
+            InvokeServiceMessage request,
+            AsyncCallback callback,
+            object asyncState
+        )
         {
             try
             {
@@ -338,7 +359,7 @@ namespace Opc.Ua
                 // encode the response.
                 return new InvokeServiceResponseMessage
                 {
-                    InvokeServiceResponse = BinaryEncoder.EncodeMessage(response, MessageContext)
+                    InvokeServiceResponse = BinaryEncoder.EncodeMessage(response, MessageContext),
                 };
             }
             catch (Exception e)
@@ -349,7 +370,7 @@ namespace Opc.Ua
                 // encode the fault as a response.
                 return new InvokeServiceResponseMessage
                 {
-                    InvokeServiceResponse = BinaryEncoder.EncodeMessage(fault, MessageContext)
+                    InvokeServiceResponse = BinaryEncoder.EncodeMessage(fault, MessageContext),
                 };
             }
         }
@@ -368,14 +389,20 @@ namespace Opc.Ua
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         protected static IServiceHostBase GetHostForContext()
         {
-            throw new ServiceResultException(StatusCodes.BadInternalError, "The endpoint is not associated with a host that supports IServerHostBase.");
+            throw new ServiceResultException(
+                StatusCodes.BadInternalError,
+                "The endpoint is not associated with a host that supports IServerHostBase."
+            );
         }
 
         /// <summary>
         /// Gets the server object from the operation context.
         /// </summary>
         /// <value>The server object from the operation context.</value>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1721:PropertyNamesShouldNotMatchGetMethods")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Microsoft.Naming",
+            "CA1721:PropertyNamesShouldNotMatchGetMethods"
+        )]
         protected IServerBase ServerForContext => m_server ??= GetServerForContext();
 
         /// <summary>
@@ -386,7 +413,12 @@ namespace Opc.Ua
         protected IServerBase GetServerForContext()
         {
             // get the server associated with the host.
-            IServerBase server = HostForContext.Server ?? throw new ServiceResultException(StatusCodes.BadInternalError, "The endpoint is not associated with a server instance.");
+            IServerBase server =
+                HostForContext.Server
+                ?? throw new ServiceResultException(
+                    StatusCodes.BadInternalError,
+                    "The endpoint is not associated with a server instance."
+                );
 
             // check the server status.
             if (ServiceResult.IsBad(server.ServerError))
@@ -416,7 +448,8 @@ namespace Opc.Ua
                 throw ServiceResultException.Create(
                     StatusCodes.BadServiceUnsupported,
                     "'{0}' is an unrecognized service identifier.",
-                    requestTypeId);
+                    requestTypeId
+                );
             }
 
             return service;
@@ -465,11 +498,7 @@ namespace Opc.Ua
 
             var stringTable = new StringTable();
 
-            fault.ResponseHeader.ServiceDiagnostics = new DiagnosticInfo(
-                result,
-                diagnosticsMask,
-                true,
-                stringTable);
+            fault.ResponseHeader.ServiceDiagnostics = new DiagnosticInfo(result, diagnosticsMask, true, stringTable);
 
             fault.ResponseHeader.StringTable = stringTable.ToArray();
 
@@ -522,33 +551,25 @@ namespace Opc.Ua
         /// Sets the request context for the thread.
         /// </summary>
         /// <param name="encoding">The encoding.</param>
-        protected void SetRequestContext(RequestEncoding encoding)
-        {
-        }
+        protected void SetRequestContext(RequestEncoding encoding) { }
 
         /// <summary>
         /// Called when a new request is received by the endpoint.
         /// </summary>
         /// <param name="request">The request.</param>
-        protected virtual void OnRequestReceived(IServiceRequest request)
-        {
-        }
+        protected virtual void OnRequestReceived(IServiceRequest request) { }
 
         /// <summary>
         /// Called when a response sent via the endpoint.
         /// </summary>
         /// <param name="response">The response.</param>
-        protected virtual void OnResponseSent(IServiceResponse response)
-        {
-        }
+        protected virtual void OnResponseSent(IServiceResponse response) { }
 
         /// <summary>
         /// Called when a response fault sent via the endpoint.
         /// </summary>
         /// <param name="fault">The fault.</param>
-        protected virtual void OnResponseFaultSent(Exception fault)
-        {
-        }
+        protected virtual void OnResponseFaultSent(Exception fault) { }
 
         /// <summary>
         /// Stores the definition of a service supported by the server.
@@ -560,12 +581,10 @@ namespace Opc.Ua
             /// </summary>
             /// <param name="requestType">Type of the request.</param>
             /// <param name="invokeMethod">The invoke method.</param>
-            public ServiceDefinition(
-                Type requestType,
-                InvokeServiceEventHandler invokeMethod)
+            public ServiceDefinition(Type requestType, InvokeServiceEventHandler invokeMethod)
             {
                 RequestType = requestType;
-                m_InvokeService = invokeMethod;
+                m_invokeService = invokeMethod;
             }
 
             /// <summary>
@@ -587,10 +606,10 @@ namespace Opc.Ua
             /// <returns></returns>
             public IServiceResponse Invoke(IServiceRequest request)
             {
-                return m_InvokeService?.Invoke(request);
+                return m_invokeService?.Invoke(request);
             }
 
-            private readonly InvokeServiceEventHandler m_InvokeService;
+            private readonly InvokeServiceEventHandler m_invokeService;
         }
 
         /// <summary>
@@ -614,9 +633,9 @@ namespace Opc.Ua
                 EndpointBase endpoint,
                 AsyncCallback callback,
                 object callbackData,
-                int timeout)
-            :
-                base(callback, callbackData, timeout)
+                int timeout
+            )
+                : base(callback, callbackData, timeout)
             {
                 m_endpoint = endpoint;
             }
@@ -681,23 +700,26 @@ namespace Opc.Ua
             /// <returns>
             /// The result object that is used to call the EndProcessRequest method.
             /// </returns>
-            public IAsyncResult BeginProcessRequest(
-                SecureChannelContext context,
-                byte[] requestData)
+            public IAsyncResult BeginProcessRequest(SecureChannelContext context, byte[] requestData)
             {
                 SecureChannelContext = context;
 
                 try
                 {
                     // decoding incoming message.
-                    Request = BinaryDecoder.DecodeMessage(requestData, null, m_endpoint.MessageContext) as IServiceRequest;
+                    Request =
+                        BinaryDecoder.DecodeMessage(requestData, null, m_endpoint.MessageContext) as IServiceRequest;
 
                     // find service.
                     m_service = m_endpoint.FindService(Request.TypeId);
 
                     if (m_service == null)
                     {
-                        throw ServiceResultException.Create(StatusCodes.BadServiceUnsupported, "'{0}' is an unrecognized service type.", Request.TypeId);
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadServiceUnsupported,
+                            "'{0}' is an unrecognized service type.",
+                            Request.TypeId
+                        );
                     }
 
                     // queue request.
@@ -721,9 +743,7 @@ namespace Opc.Ua
             /// <param name="context">The security context for the request</param>
             /// <param name="request">The request.</param>
             /// <returns>The result object that is used to call the EndProcessRequest method.</returns>
-            public IAsyncResult BeginProcessRequest(
-                SecureChannelContext context,
-                IServiceRequest request)
+            public IAsyncResult BeginProcessRequest(SecureChannelContext context, IServiceRequest request)
             {
                 SecureChannelContext = context;
                 Request = request;
@@ -735,7 +755,11 @@ namespace Opc.Ua
 
                     if (m_service == null)
                     {
-                        throw ServiceResultException.Create(StatusCodes.BadServiceUnsupported, "'{0}' is an unrecognized service type.", Request.TypeId);
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadServiceUnsupported,
+                            "'{0}' is an unrecognized service type.",
+                            Request.TypeId
+                        );
                     }
 
                     // queue request.
@@ -823,10 +847,16 @@ namespace Opc.Ua
                     if (ActivitySource.HasListeners())
                     {
                         // extract trace information from the request header if available
-                        if (Request.RequestHeader?.AdditionalHeader?.Body is AdditionalParametersType parameters &&
-                            TryExtractActivityContextFromParameters(parameters, out ActivityContext activityContext))
+                        if (
+                            Request.RequestHeader?.AdditionalHeader?.Body is AdditionalParametersType parameters
+                            && TryExtractActivityContextFromParameters(parameters, out ActivityContext activityContext)
+                        )
                         {
-                            using Activity activity = ActivitySource.StartActivity(Request.GetType().Name, ActivityKind.Server, activityContext);
+                            using Activity activity = ActivitySource.StartActivity(
+                                Request.GetType().Name,
+                                ActivityKind.Server,
+                                activityContext
+                            );
                             // call the service.
                             m_response = m_service.Invoke(Request);
                         }

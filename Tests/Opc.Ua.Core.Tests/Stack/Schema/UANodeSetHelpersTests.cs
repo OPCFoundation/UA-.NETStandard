@@ -45,27 +45,22 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
     public class UANodeSetHelpersTests
     {
         [DatapointSource]
-        public static readonly NodeSet2Asset[] NodeSet2AssetArray = [.. AssetCollection<NodeSet2Asset>.CreateFromFiles(Ua.Tests.TestUtils.EnumerateTestAssets("*.NodeSet2.xml"))];
+        public static readonly NodeSet2Asset[] NodeSet2AssetArray =
+        [
+            .. AssetCollection<NodeSet2Asset>.CreateFromFiles(Ua.Tests.TestUtils.EnumerateTestAssets("*.NodeSet2.xml")),
+        ];
 
         [OneTimeSetUp]
-        protected void OneTimeSetUp()
-        {
-        }
+        protected void OneTimeSetUp() { }
 
         [OneTimeTearDown]
-        protected void OneTimeTearDown()
-        {
-        }
+        protected void OneTimeTearDown() { }
 
         [SetUp]
-        protected void SetUp()
-        {
-        }
+        protected void SetUp() { }
 
         [TearDown]
-        protected void TearDown()
-        {
-        }
+        protected void TearDown() { }
 
         /// <summary>
         /// Test Structure Field ArrayDimensions attribute is correctly imported respectively exported
@@ -74,7 +69,8 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
         public void ArrayDimensionsValidationTest()
         {
             const string bufferPath = "./ArrayDimensionsValidationTest.xml";
-            const string importBuffer = @"<?xml version='1.0' encoding='utf-8'?>
+            const string importBuffer =
+                @"<?xml version='1.0' encoding='utf-8'?>
                 <UANodeSet xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xmlns:xsd='http://www.w3.org/2001/XMLSchema' LastModified='2021-09-16T19:10:18.097476Z' xmlns='http://opcfoundation.org/UA/2011/03/UANodeSet.xsd'>
                   <NamespaceUris>
                     <Uri>urn:foobar</Uri>
@@ -130,10 +126,7 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
             var importedNodeSet = Export.UANodeSet.Read(importStream);
 
             var importedNodeStates = new NodeStateCollection();
-            var localContext = new SystemContext
-            {
-                NamespaceUris = new NamespaceTable()
-            };
+            var localContext = new SystemContext { NamespaceUris = new NamespaceTable() };
             foreach (string namespaceUri in importedNodeSet.NamespaceUris)
             {
                 localContext.NamespaceUris.Append(namespaceUri);
@@ -214,10 +207,7 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
             Assert.NotNull(importedNodeSet);
 
             var importedNodeStates = new NodeStateCollection();
-            var localContext = new SystemContext
-            {
-                NamespaceUris = new NamespaceTable()
-            };
+            var localContext = new SystemContext { NamespaceUris = new NamespaceTable() };
             if (importedNodeSet.NamespaceUris != null)
             {
                 foreach (string namespaceUri in importedNodeSet.NamespaceUris)
@@ -239,10 +229,7 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
             Assert.NotNull(importedNodeSet);
 
             var importedNodeStates = new NodeStateCollection();
-            var localContext = new SystemContext
-            {
-                NamespaceUris = new NamespaceTable()
-            };
+            var localContext = new SystemContext { NamespaceUris = new NamespaceTable() };
             if (importedNodeSet.NamespaceUris != null)
             {
                 foreach (string namespaceUri in importedNodeSet.NamespaceUris)

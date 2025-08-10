@@ -37,10 +37,7 @@ namespace Opc.Ua.Fuzzing
 
         public static readonly ServiceMessageContext MessageContext = ServiceMessageContext.GlobalContext;
 
-        public static readonly MessageEncoder[] MessageEncoders = [
-            ReadRequest,
-            ReadResponse,
-        ];
+        public static readonly MessageEncoder[] MessageEncoders = [ReadRequest, ReadResponse];
 
         public static void ReadRequest(IEncoder encoder)
         {
@@ -53,27 +50,13 @@ namespace Opc.Ua.Fuzzing
                     RequestHandle = 42,
                     AdditionalHeader = new ExtensionObject(),
                 },
-                NodesToRead = [
-                    new ReadValueId {
-                        NodeId = nodeId,
-                        AttributeId = Attributes.Description,
-                    },
-                    new ReadValueId {
-                        NodeId = nodeId,
-                        AttributeId = Attributes.Value,
-                    },
-                    new ReadValueId {
-                        NodeId = nodeId,
-                        AttributeId = Attributes.DisplayName,
-                    },
-                    new ReadValueId {
-                        NodeId = nodeId,
-                        AttributeId = Attributes.AccessLevel,
-                    },
-                    new ReadValueId {
-                        NodeId = nodeId,
-                        AttributeId = Attributes.RolePermissions,
-                    },
+                NodesToRead =
+                [
+                    new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Description },
+                    new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value },
+                    new ReadValueId { NodeId = nodeId, AttributeId = Attributes.DisplayName },
+                    new ReadValueId { NodeId = nodeId, AttributeId = Attributes.AccessLevel },
+                    new ReadValueId { NodeId = nodeId, AttributeId = Attributes.RolePermissions },
                 ],
             };
             encoder.EncodeMessage(readRequest);
@@ -85,42 +68,46 @@ namespace Opc.Ua.Fuzzing
             var nodeId = new NodeId(1000);
             var readRequest = new ReadResponse
             {
-                Results = [
-                        new DataValue {
-                            Value = new Variant("Hello World"),
-                            ServerTimestamp = now,
-                            SourceTimestamp = now.AddMinutes(1),
-                            ServerPicoseconds = 100,
-                            SourcePicoseconds = 10,
-                            StatusCode = StatusCodes.Good,
+                Results =
+                [
+                    new DataValue
+                    {
+                        Value = new Variant("Hello World"),
+                        ServerTimestamp = now,
+                        SourceTimestamp = now.AddMinutes(1),
+                        ServerPicoseconds = 100,
+                        SourcePicoseconds = 10,
+                        StatusCode = StatusCodes.Good,
+                    },
+                    new DataValue
+                    {
+                        Value = new Variant((uint)12345678),
+                        ServerTimestamp = now,
+                        SourceTimestamp = now.AddMinutes(1),
+                        StatusCode = StatusCodes.BadDataLost,
+                    },
+                    new DataValue
+                    {
+                        Value = new Variant(new byte[] { 0, 1, 2, 3, 4, 5, 6 }),
+                        ServerTimestamp = now,
+                        SourceTimestamp = now.AddMinutes(1),
+                        StatusCode = StatusCodes.Good,
+                    },
+                    new DataValue { Value = new Variant((byte)42), SourceTimestamp = now },
+                ],
+                DiagnosticInfos =
+                [
+                    new DiagnosticInfo
+                    {
+                        AdditionalInfo = "Hello World",
+                        InnerStatusCode = StatusCodes.BadCertificateHostNameInvalid,
+                        InnerDiagnosticInfo = new DiagnosticInfo
+                        {
+                            AdditionalInfo = "Hello World",
+                            InnerStatusCode = StatusCodes.BadNodeIdUnknown,
                         },
-                        new DataValue {
-                            Value = new Variant((uint)12345678),
-                            ServerTimestamp = now,
-                            SourceTimestamp = now.AddMinutes(1),
-                            StatusCode = StatusCodes.BadDataLost,
-                        },
-                        new DataValue {
-                            Value = new Variant(new byte[] { 0,1,2,3,4,5,6 }),
-                            ServerTimestamp = now,
-                            SourceTimestamp = now.AddMinutes(1),
-                            StatusCode = StatusCodes.Good,
-                        },
-                        new DataValue {
-                            Value = new Variant((byte)42),
-                            SourceTimestamp = now,
-                        },
-                    ],
-                DiagnosticInfos = [
-                            new DiagnosticInfo {
-                                AdditionalInfo = "Hello World",
-                                InnerStatusCode = StatusCodes.BadCertificateHostNameInvalid,
-                                InnerDiagnosticInfo = new DiagnosticInfo {
-                                    AdditionalInfo = "Hello World",
-                                    InnerStatusCode = StatusCodes.BadNodeIdUnknown,
-                                },
-                            },
-                        ],
+                    },
+                ],
                 ResponseHeader = new ResponseHeader
                 {
                     Timestamp = DateTime.UtcNow,

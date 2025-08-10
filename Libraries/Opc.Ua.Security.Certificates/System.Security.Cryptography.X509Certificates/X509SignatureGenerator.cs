@@ -24,6 +24,7 @@ namespace Opc.Ua.Security.Certificates
         public abstract byte[] GetSignatureAlgorithmIdentifier(HashAlgorithmName hashAlgorithm);
         public abstract byte[] SignData(byte[] data, HashAlgorithmName hashAlgorithm);
         protected abstract PublicKey BuildPublicKey();
+
 #if NOT_SUPPORTED
         public static X509SignatureGenerator CreateForECDsa(ECDsa key)
         {
@@ -33,6 +34,7 @@ namespace Opc.Ua.Security.Certificates
             return new ECDsaX509SignatureGenerator(key);
         }
 #endif
+
         public static X509SignatureGenerator CreateForRSA(RSA key, RSASignaturePadding signaturePadding)
         {
             if (key == null)

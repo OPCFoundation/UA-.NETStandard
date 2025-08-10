@@ -123,8 +123,10 @@ namespace Opc.Ua.Fuzzing
                         reader.MoveToContent();
                         string typeName = reader.LocalName;
                         string namespaceUri = reader.NamespaceURI;
-                        systemType = s_messageContext.Factory.EncodeableTypes
-                            .Where(entry => entry.Value.Name == typeName/* && entry.Key.NamespaceUri == namespaceUri*/)
+                        systemType = s_messageContext
+                            .Factory.EncodeableTypes.Where(entry =>
+                                entry.Value.Name == typeName /* && entry.Key.NamespaceUri == namespaceUri*/
+                            )
                             .Select(entry => entry.Value)
                             .FirstOrDefault();
                     }
@@ -143,7 +145,10 @@ namespace Opc.Ua.Fuzzing
                         {
                             return null;
                         }
-                        throw ServiceResultException.Create(StatusCodes.BadDecodingError, "Could not find type for decoding.");
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadDecodingError,
+                            "Could not find type for decoding."
+                        );
                     }
 
                     // TODO: match ns GetEncodeableFactory(typeName, namespaceUri, out IEncodeable encodeable, out _);
@@ -168,7 +173,11 @@ namespace Opc.Ua.Fuzzing
                         break;
                 }
 
-                Console.WriteLine("Unexpected ServiceResultException: {0} {1}", (StatusCode)sre.StatusCode, sre.Message);
+                Console.WriteLine(
+                    "Unexpected ServiceResultException: {0} {1}",
+                    (StatusCode)sre.StatusCode,
+                    sre.Message
+                );
 
                 throw;
             }

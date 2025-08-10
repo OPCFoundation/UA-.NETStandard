@@ -73,22 +73,30 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         public IEncodeableFactory Factory => m_factory;
 
         /// <inheritdoc/>
-        public Task<IReadOnlyDictionary<NodeId, DataDictionary>> LoadDataTypeSystem(NodeId dataTypeSystem = null, CancellationToken ct = default)
+        public Task<IReadOnlyDictionary<NodeId, DataDictionary>> LoadDataTypeSystem(
+            NodeId dataTypeSystem = null,
+            CancellationToken ct = default
+        )
         {
             return Task.FromResult<IReadOnlyDictionary<NodeId, DataDictionary>>(DataTypeSystem);
         }
 
         /// <inheritdoc/>
-        public Task<IList<NodeId>> BrowseForEncodingsAsync(IList<ExpandedNodeId> nodeIds, string[] supportedEncodings, CancellationToken ct = default)
+        public Task<IList<NodeId>> BrowseForEncodingsAsync(
+            IList<ExpandedNodeId> nodeIds,
+            string[] supportedEncodings,
+            CancellationToken ct = default
+        )
         {
             return Task.FromResult((IList<NodeId>)[]);
         }
 
         /// <inheritdoc/>
-        public Task<(IList<NodeId> encodings, ExpandedNodeId binaryEncodingId, ExpandedNodeId xmlEncodingId)> BrowseForEncodingsAsync(
-            ExpandedNodeId nodeId,
-            string[] supportedEncodings,
-            CancellationToken ct = default)
+        public Task<(
+            IList<NodeId> encodings,
+            ExpandedNodeId binaryEncodingId,
+            ExpandedNodeId xmlEncodingId
+        )> BrowseForEncodingsAsync(ExpandedNodeId nodeId, string[] supportedEncodings, CancellationToken ct = default)
         {
             ExpandedNodeId binaryEncodingId = ExpandedNodeId.Null;
             ExpandedNodeId xmlEncodingId = ExpandedNodeId.Null;
@@ -98,7 +106,11 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             if (node is DataTypeNode dataTypeNode)
             {
                 var result = new List<NodeId>();
-                foreach (ReferenceNode reference in dataTypeNode.References.Where(r => r.ReferenceTypeId.Equals(ReferenceTypeIds.HasEncoding)))
+                foreach (
+                    ReferenceNode reference in dataTypeNode.References.Where(r =>
+                        r.ReferenceTypeId.Equals(ReferenceTypeIds.HasEncoding)
+                    )
+                )
                 {
                     INode encodingNode = DataTypeNodes[ExpandedNodeId.ToNodeId(reference.TargetId, NamespaceUris)];
                     if (encodingNode == null)
@@ -125,11 +137,15 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         }
 
         /// <inheritdoc/>
-        public Task<(ExpandedNodeId typeId, ExpandedNodeId encodingId, DataTypeNode dataTypeNode)> BrowseTypeIdsForDictionaryComponentAsync(
-            ExpandedNodeId nodeId,
-            CancellationToken ct = default)
+        public Task<(
+            ExpandedNodeId typeId,
+            ExpandedNodeId encodingId,
+            DataTypeNode dataTypeNode
+        )> BrowseTypeIdsForDictionaryComponentAsync(ExpandedNodeId nodeId, CancellationToken ct = default)
         {
-            return Task.FromResult<(ExpandedNodeId typeId, ExpandedNodeId encodingId, DataTypeNode dataTypeNode)>((null, null, null));
+            return Task.FromResult<(ExpandedNodeId typeId, ExpandedNodeId encodingId, DataTypeNode dataTypeNode)>(
+                (null, null, null)
+            );
         }
 
         /// <inheritdoc/>
@@ -138,12 +154,11 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             bool nestedSubTypes = false,
             bool addRootNode = false,
             bool filterUATypes = true,
-            CancellationToken ct = default)
+            CancellationToken ct = default
+        )
         {
             var result = new List<INode>();
-            var nodesToBrowse = new ExpandedNodeIdCollection {
-                dataType
-            };
+            var nodesToBrowse = new ExpandedNodeIdCollection { dataType };
 
             if (addRootNode)
             {
@@ -160,10 +175,18 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 var nextNodesToBrowse = new ExpandedNodeIdCollection();
                 foreach (ExpandedNodeId node in nodesToBrowse)
                 {
-                    IEnumerable<DataTypeNode> response = DataTypeNodes.Values.Where(n => n.NodeClass == NodeClass.DataType && ((DataTypeNode)n).DataTypeDefinition.Body is StructureDefinition structureDefinition && Utils.IsEqual(structureDefinition.BaseDataType, node)).Cast<DataTypeNode>();
+                    IEnumerable<DataTypeNode> response = DataTypeNodes
+                        .Values.Where(n =>
+                            n.NodeClass == NodeClass.DataType
+                            && ((DataTypeNode)n).DataTypeDefinition.Body is StructureDefinition structureDefinition
+                            && Utils.IsEqual(structureDefinition.BaseDataType, node)
+                        )
+                        .Cast<DataTypeNode>();
                     if (nestedSubTypes)
                     {
-                        nextNodesToBrowse.AddRange(response.Select(r => NodeId.ToExpandedNodeId(r.NodeId, NamespaceUris)));
+                        nextNodesToBrowse.AddRange(
+                            response.Select(r => NodeId.ToExpandedNodeId(r.NodeId, NamespaceUris))
+                        );
                     }
                     if (filterUATypes)
                     {
@@ -222,5 +245,5 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         }
 
         private EncodeableFactory m_factory;
-    }//namespace
+    } //namespace
 }

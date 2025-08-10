@@ -212,8 +212,10 @@ namespace Opc.Ua
                     m_encodeableTypes[nodeId] = systemType;
                 }
             }
-            else if (unboundTypeIds != null &&
-                unboundTypeIds.TryGetValue(systemType.Name, out ExpandedNodeId jsonEncodingId))
+            else if (
+                unboundTypeIds != null
+                && unboundTypeIds.TryGetValue(systemType.Name, out ExpandedNodeId jsonEncodingId)
+            )
             {
                 m_encodeableTypes[jsonEncodingId] = systemType;
             }
@@ -241,7 +243,10 @@ namespace Opc.Ua
                 return null;
             }
 
-            object[] attributes = [.. systemType.GetTypeInfo().GetCustomAttributes(typeof(DataContractAttribute), true)];
+            object[] attributes =
+            [
+                .. systemType.GetTypeInfo().GetCustomAttributes(typeof(DataContractAttribute), true),
+            ];
 
             if (attributes != null)
             {
@@ -259,7 +264,10 @@ namespace Opc.Ua
                 }
             }
 
-            attributes = [.. systemType.GetTypeInfo().GetCustomAttributes(typeof(CollectionDataContractAttribute), true)];
+            attributes =
+            [
+                .. systemType.GetTypeInfo().GetCustomAttributes(typeof(CollectionDataContractAttribute), true),
+            ];
 
             if (attributes != null)
             {
@@ -383,7 +391,11 @@ namespace Opc.Ua
 #if DEBUG
                 if (m_shared)
                 {
-                    Utils.LogWarning("WARNING: Adding types from assembly '{0}' to shared Factory #{1}.", assembly.FullName, InstanceId);
+                    Utils.LogWarning(
+                        "WARNING: Adding types from assembly '{0}' to shared Factory #{1}.",
+                        assembly.FullName,
+                        InstanceId
+                    );
                 }
 #endif
 
@@ -402,7 +414,9 @@ namespace Opc.Ua
                             continue;
                         }
 
-                        foreach (FieldInfo field in systemTypes[ii].GetFields(BindingFlags.Static | BindingFlags.Public))
+                        foreach (
+                            FieldInfo field in systemTypes[ii].GetFields(BindingFlags.Static | BindingFlags.Public)
+                        )
                         {
                             if (field.Name.EndsWith(jsonEncodingSuffix, StringComparison.Ordinal))
                             {
@@ -538,5 +552,5 @@ namespace Opc.Ua
         private readonly bool m_shared;
         private static int s_globalInstanceCount;
 #endif
-    }//class
-}//namespace
+    } //class
+} //namespace

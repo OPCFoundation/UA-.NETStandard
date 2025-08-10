@@ -39,13 +39,13 @@ namespace Opc.Ua.Client.Tests
     [TestFixture, Category("Client")]
     [SetCulture("en-us"), SetUICulture("en-us")]
     [TestFixtureSource(nameof(FixtureArgs))]
-
     public class ClientTestNoSecurity
     {
         private ClientTest m_clientTest { get; }
 
-        public static readonly object[] FixtureArgs = [
-            new object [] { Utils.UriSchemeOpcTcp},
+        public static readonly object[] FixtureArgs =
+        [
+            new object[] { Utils.UriSchemeOpcTcp },
             // https protocol security None is not supported
             // new object [] { Utils.UriSchemeHttps},
             // new object [] { Utils.UriSchemeOpcHttps},
@@ -128,9 +128,16 @@ namespace Opc.Ua.Client.Tests
         [TestCase(true, false)]
         [TestCase(false, false)]
         [TestCase(false, true)]
-        public Task ReconnectSessionOnAlternateChannelWithSavedSessionSecretsSecurityNone(bool anonymous, bool asyncReconnect)
+        public Task ReconnectSessionOnAlternateChannelWithSavedSessionSecretsSecurityNone(
+            bool anonymous,
+            bool asyncReconnect
+        )
         {
-            return m_clientTest.ReconnectSessionOnAlternateChannelWithSavedSessionSecrets(SecurityPolicies.None, anonymous, asyncReconnect);
+            return m_clientTest.ReconnectSessionOnAlternateChannelWithSavedSessionSecrets(
+                SecurityPolicies.None,
+                anonymous,
+                asyncReconnect
+            );
         }
 
         [Theory, Order(400)]

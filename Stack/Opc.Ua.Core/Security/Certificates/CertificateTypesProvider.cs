@@ -92,19 +92,21 @@ namespace Opc.Ua.Security.Certificates
             }
             foreach (NodeId certType in Ua.CertificateIdentifier.MapSecurityPolicyToCertificateTypes(securityPolicyUri))
             {
-                Ua.CertificateIdentifier instanceCertificate = m_securityConfiguration.ApplicationCertificates.FirstOrDefault(id => id.CertificateType == certType);
-                if (instanceCertificate == null &&
-                    certType == ObjectTypeIds.RsaSha256ApplicationCertificateType)
+                Ua.CertificateIdentifier instanceCertificate =
+                    m_securityConfiguration.ApplicationCertificates.FirstOrDefault(id =>
+                        id.CertificateType == certType
+                    );
+                if (instanceCertificate == null && certType == ObjectTypeIds.RsaSha256ApplicationCertificateType)
                 {
-                    instanceCertificate = m_securityConfiguration.ApplicationCertificates.FirstOrDefault(id => id.CertificateType == null);
+                    instanceCertificate = m_securityConfiguration.ApplicationCertificates.FirstOrDefault(id =>
+                        id.CertificateType == null
+                    );
                 }
-                if (instanceCertificate == null &&
-                    certType == ObjectTypeIds.ApplicationCertificateType)
+                if (instanceCertificate == null && certType == ObjectTypeIds.ApplicationCertificateType)
                 {
                     instanceCertificate = m_securityConfiguration.ApplicationCertificates.FirstOrDefault();
                 }
-                if (instanceCertificate == null &&
-                    certType == ObjectTypeIds.HttpsCertificateType)
+                if (instanceCertificate == null && certType == ObjectTypeIds.HttpsCertificateType)
                 {
                     instanceCertificate = m_securityConfiguration.ApplicationCertificates.FirstOrDefault();
                 }
@@ -127,7 +129,13 @@ namespace Opc.Ua.Security.Certificates
                 return null;
             }
 
-            if (m_certificateChain.TryGetValue(certificate.Thumbprint, out Tuple<X509Certificate2Collection, byte[]> result) && result.Item2 != null)
+            if (
+                m_certificateChain.TryGetValue(
+                    certificate.Thumbprint,
+                    out Tuple<X509Certificate2Collection, byte[]> result
+                )
+                && result.Item2 != null
+            )
             {
                 return result.Item2;
             }
@@ -146,7 +154,12 @@ namespace Opc.Ua.Security.Certificates
                 return null;
             }
 
-            if (m_certificateChain.TryGetValue(certificate.Thumbprint, out Tuple<X509Certificate2Collection, byte[]> certificateChainTuple))
+            if (
+                m_certificateChain.TryGetValue(
+                    certificate.Thumbprint,
+                    out Tuple<X509Certificate2Collection, byte[]> certificateChainTuple
+                )
+            )
             {
                 return certificateChainTuple.Item1;
             }
@@ -165,7 +178,10 @@ namespace Opc.Ua.Security.Certificates
             byte[] certificateChainRaw = Utils.CreateCertificateChainBlob(certificateChain);
 
             // update cached values
-            m_certificateChain[certificate.Thumbprint] = new Tuple<X509Certificate2Collection, byte[]>(certificateChain, certificateChainRaw);
+            m_certificateChain[certificate.Thumbprint] = new Tuple<X509Certificate2Collection, byte[]>(
+                certificateChain,
+                certificateChainRaw
+            );
 
             return certificateChain;
         }
@@ -181,7 +197,12 @@ namespace Opc.Ua.Security.Certificates
                 return null;
             }
 
-            if (m_certificateChain.TryGetValue(certificate.Thumbprint, out Tuple<X509Certificate2Collection, byte[]> certificateChainTuple))
+            if (
+                m_certificateChain.TryGetValue(
+                    certificate.Thumbprint,
+                    out Tuple<X509Certificate2Collection, byte[]> certificateChainTuple
+                )
+            )
             {
                 return certificateChainTuple.Item1;
             }

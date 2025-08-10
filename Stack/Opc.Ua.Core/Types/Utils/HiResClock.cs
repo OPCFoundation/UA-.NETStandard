@@ -31,35 +31,35 @@ namespace Opc.Ua
         {
             get
             {
-                if (s_Default.m_disabled)
+                if (s_default.m_disabled)
                 {
                     return DateTime.UtcNow;
                 }
                 long counter = Stopwatch.GetTimestamp();
-                decimal ticks = (counter - s_Default.m_baseline) * s_Default.m_ratio;
-                return new DateTime((long)ticks + s_Default.m_offset);
+                decimal ticks = (counter - s_default.m_baseline) * s_default.m_ratio;
+                return new DateTime((long)ticks + s_default.m_offset);
             }
         }
 
         /// <summary>
         /// Returns a monotonic increasing tick count in milliseconds.
         /// </summary>
-        public static long TickCount64 => (long)(s_Default.m_ticksDelegate() / s_Default.m_ticksPerMillisecond);
+        public static long TickCount64 => (long)(s_default.m_ticksDelegate() / s_default.m_ticksPerMillisecond);
 
         /// <summary>
         /// Returns a monotonic increasing tick count based on the frequency of the underlying timer.
         /// </summary>
-        public static long Ticks => s_Default.m_ticksDelegate();
+        public static long Ticks => s_default.m_ticksDelegate();
 
         /// <summary>
         /// Return the frequency of the ticks.
         /// </summary>
-        public static long Frequency => s_Default.m_frequency;
+        public static long Frequency => s_default.m_frequency;
 
         /// <summary>
         /// Return the number of ticks per millisecond.
         /// </summary>
-        public static double TicksPerMillisecond => s_Default.m_ticksPerMillisecond;
+        public static double TicksPerMillisecond => s_default.m_ticksPerMillisecond;
 
         /// <summary>
         /// A monotonic tick count in milliseconds as a 32 bit signed number.
@@ -89,26 +89,25 @@ namespace Opc.Ua
         /// </summary>
         public static bool Disabled
         {
-            get => s_Default.m_disabled;
-
+            get => s_default.m_disabled;
             set
             {
                 // do not enable if unsupported
                 if (Stopwatch.IsHighResolution)
                 {
                     // check if already initialized.
-                    if (!s_Default.m_initialized)
+                    if (!s_default.m_initialized)
                     {
-                        if (s_Default.m_disabled != value)
+                        if (s_default.m_disabled != value)
                         {
                             // reset baseline
-                            s_Default = new HiResClock(value);
+                            s_default = new HiResClock(value);
                         }
-                        s_Default.m_initialized = true;
+                        s_default.m_initialized = true;
                     }
                     else
                     {
-                        // do not allow to set the value multiple times since 
+                        // do not allow to set the value multiple times since
                         // it affects the notifications for existing monitored items.
                     }
                 }
@@ -121,7 +120,7 @@ namespace Opc.Ua
         public static void Reset()
         {
             // reset baseline
-            s_Default = new HiResClock(s_Default.m_disabled);
+            s_default = new HiResClock(s_default.m_disabled);
         }
 
         /// <summary>
@@ -154,6 +153,7 @@ namespace Opc.Ua
         /// Helper for tick functions.
         /// </summary>
         private delegate long TicksDelegate();
+
         private long UtcNowTicks()
         {
             return DateTime.UtcNow.Ticks;
@@ -162,7 +162,7 @@ namespace Opc.Ua
         /// <summary>
         /// Defines a global instance.
         /// </summary>
-        private static HiResClock s_Default = new(false);
+        private static HiResClock s_default = new(false);
         private readonly TicksDelegate m_ticksDelegate;
         private readonly long m_frequency;
         private readonly long m_baseline;

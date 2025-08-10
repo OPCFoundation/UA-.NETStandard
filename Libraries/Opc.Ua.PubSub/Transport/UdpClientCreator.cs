@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -80,7 +80,7 @@ namespace Opc.Ua.PubSub.Transport
                 {
                     IPHostEntry hostEntry = Dns.GetHostEntry(hostName);
 
-                    //you might get more than one IP for a hostname since 
+                    //you might get more than one IP for a hostname since
                     //DNS supports more than one record
                     foreach (IPAddress address in hostEntry.AddressList)
                     {
@@ -105,11 +105,23 @@ namespace Opc.Ua.PubSub.Transport
         /// <param name="networkInterface">The configured network interface name.</param>
         /// <param name="configuredEndpoint">The configured <see cref="IPEndPoint"/> that will be used for data exchange.</param>
         /// <returns></returns>
-        internal static List<UdpClient> GetUdpClients(UsedInContext pubSubContext, string networkInterface, IPEndPoint configuredEndpoint)
+        internal static List<UdpClient> GetUdpClients(
+            UsedInContext pubSubContext,
+            string networkInterface,
+            IPEndPoint configuredEndpoint
+        )
         {
             var buffer = new StringBuilder();
-            buffer.AppendFormat(CultureInfo.InvariantCulture, "networkAddressUrl.NetworkInterface = {0} \n", networkInterface ?? "null");
-            buffer.AppendFormat(CultureInfo.InvariantCulture, "configuredEndpoint = {0}", configuredEndpoint != null ? configuredEndpoint.ToString() : "null");
+            buffer.AppendFormat(
+                CultureInfo.InvariantCulture,
+                "networkAddressUrl.NetworkInterface = {0} \n",
+                networkInterface ?? "null"
+            );
+            buffer.AppendFormat(
+                CultureInfo.InvariantCulture,
+                "configuredEndpoint = {0}",
+                configuredEndpoint != null ? configuredEndpoint.ToString() : "null"
+            );
 
             Utils.Trace(Utils.TraceMasks.Information, buffer.ToString());
 
@@ -125,7 +137,10 @@ namespace Opc.Ua.PubSub.Transport
             NetworkInterface[] interfaces = NetworkInterface.GetAllNetworkInterfaces();
             if (string.IsNullOrEmpty(networkInterface))
             {
-                Utils.Trace(Utils.TraceMasks.Information, "No NetworkInterface name was provided. Use all available NICs.");
+                Utils.Trace(
+                    Utils.TraceMasks.Information,
+                    "No NetworkInterface name was provided. Use all available NICs."
+                );
                 usableNetworkInterfaces.AddRange(interfaces);
             }
             else
@@ -140,18 +155,28 @@ namespace Opc.Ua.PubSub.Transport
                 }
                 if (usableNetworkInterfaces.Count == 0)
                 {
-                    Utils.Trace(Utils.TraceMasks.Information, "The configured value for NetworkInterface name('{0}') could not be used.", networkInterface);
+                    Utils.Trace(
+                        Utils.TraceMasks.Information,
+                        "The configured value for NetworkInterface name('{0}') could not be used.",
+                        networkInterface
+                    );
                     usableNetworkInterfaces.AddRange(interfaces);
                 }
             }
 
             foreach (NetworkInterface nic in usableNetworkInterfaces)
             {
-                Utils.Trace(Utils.TraceMasks.Information, "NetworkInterface name('{0}') attempts to create instance of UdpClient.", nic.Name);
+                Utils.Trace(
+                    Utils.TraceMasks.Information,
+                    "NetworkInterface name('{0}') attempts to create instance of UdpClient.",
+                    nic.Name
+                );
 
-                if ((nic.NetworkInterfaceType == NetworkInterfaceType.Loopback) ||
-                    (nic.NetworkInterfaceType == NetworkInterfaceType.Tunnel) ||
-                    (nic.OperationalStatus != OperationalStatus.Up))
+                if (
+                    (nic.NetworkInterfaceType == NetworkInterfaceType.Loopback)
+                    || (nic.NetworkInterfaceType == NetworkInterfaceType.Tunnel)
+                    || (nic.OperationalStatus != OperationalStatus.Up)
+                )
                 {
                     //ignore loop-back interface
                     //ignore tunnel interface
@@ -166,7 +191,11 @@ namespace Opc.Ua.PubSub.Transport
                 }
                 //store UdpClient
                 udpClients.Add(udpClient);
-                Utils.Trace(Utils.TraceMasks.Information, "NetworkInterface name('{0}') UdpClient successfully created.", nic.Name);
+                Utils.Trace(
+                    Utils.TraceMasks.Information,
+                    "NetworkInterface name('{0}') UdpClient successfully created.",
+                    nic.Name
+                );
             }
 
             return udpClients;
@@ -179,7 +208,11 @@ namespace Opc.Ua.PubSub.Transport
         /// <param name="networkInterface"></param>
         /// <param name="configuredEndpoint"></param>
         /// <returns></returns>
-        private static UdpClient CreateUdpClientForNetworkInterface(UsedInContext pubSubContext, NetworkInterface networkInterface, IPEndPoint configuredEndpoint)
+        private static UdpClient CreateUdpClientForNetworkInterface(
+            UsedInContext pubSubContext,
+            NetworkInterface networkInterface,
+            IPEndPoint configuredEndpoint
+        )
         {
             UdpClient udpClient = null;
             IPInterfaceProperties ipProps = networkInterface.GetIPProperties();
@@ -231,11 +264,15 @@ namespace Opc.Ua.PubSub.Transport
             }
             catch (Exception ex)
             {
-                Utils.Trace(Utils.TraceMasks.Information, "Cannot use Network interface '{0}'. Exception: {1}",
-                       networkInterface.Name, ex.Message);
+                Utils.Trace(
+                    Utils.TraceMasks.Information,
+                    "Cannot use Network interface '{0}'. Exception: {1}",
+                    networkInterface.Name,
+                    ex.Message
+                );
                 if (udpClient != null)
                 {
-                    //cleanup 
+                    //cleanup
                     udpClient.Dispose();
                     udpClient = null;
                 }

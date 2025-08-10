@@ -77,7 +77,7 @@ namespace Opc.Ua
         /// Initializes the object during deserialization.
         /// </summary>
         /// <param name="context">The context.</param>
-        [OnDeserializing()]
+        [OnDeserializing]
         public void Initialize(StreamingContext context)
         {
             Initialize();
@@ -141,7 +141,6 @@ namespace Opc.Ua
         public SecurityConfiguration SecurityConfiguration
         {
             get => m_securityConfiguration;
-
             set => m_securityConfiguration = value ?? new SecurityConfiguration();
         }
 
@@ -153,7 +152,6 @@ namespace Opc.Ua
         public TransportConfigurationCollection TransportConfigurations
         {
             get => m_transportConfigurations;
-
             set => m_transportConfigurations = value ?? [];
         }
 
@@ -192,7 +190,8 @@ namespace Opc.Ua
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 10)]
         public XmlElementCollection Extensions
         {
-            get => m_extensions; set => m_extensions = value;
+            get => m_extensions;
+            set => m_extensions = value;
         }
 
         /// <summary>
@@ -255,7 +254,7 @@ namespace Opc.Ua
         /// Initializes the object during deserialization.
         /// </summary>
         /// <param name="context">The context.</param>
-        [OnDeserializing()]
+        [OnDeserializing]
         public void Initialize(StreamingContext context)
         {
             Initialize();
@@ -358,7 +357,7 @@ namespace Opc.Ua
         /// Initializes the object during deserialization.
         /// </summary>
         /// <param name="context">The context.</param>
-        [OnDeserializing()]
+        [OnDeserializing]
         public void Initialize(StreamingContext context)
         {
             Initialize();
@@ -410,9 +409,7 @@ namespace Opc.Ua
         /// <summary>
         /// The default constructor.
         /// </summary>
-        public TransportConfiguration()
-        {
-        }
+        public TransportConfiguration() { }
 
         /// <summary>
         /// The default constructor.
@@ -454,7 +451,11 @@ namespace Opc.Ua
     /// <summary>
     /// A collection of TransportConfiguration objects.
     /// </summary>
-    [CollectionDataContract(Name = "ListOfTransportConfiguration", Namespace = Namespaces.OpcUaConfig, ItemName = "TransportConfiguration")]
+    [CollectionDataContract(
+        Name = "ListOfTransportConfiguration",
+        Namespace = Namespaces.OpcUaConfig,
+        ItemName = "TransportConfiguration"
+    )]
     public class TransportConfigurationCollection : List<TransportConfiguration>
     {
         /// <summary>
@@ -469,13 +470,15 @@ namespace Opc.Ua
         /// <exception cref="ArgumentNullException">
         /// 	<paramref name="collection"/> is null.
         /// </exception>
-        public TransportConfigurationCollection(IEnumerable<TransportConfiguration> collection) : base(collection) { }
+        public TransportConfigurationCollection(IEnumerable<TransportConfiguration> collection)
+            : base(collection) { }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">The capacity.</param>
-        public TransportConfigurationCollection(int capacity) : base(capacity) { }
+        public TransportConfigurationCollection(int capacity)
+            : base(capacity) { }
     }
 
     /// <summary>
@@ -505,7 +508,7 @@ namespace Opc.Ua
         /// Initializes the object during deserialization.
         /// </summary>
         /// <param name="context">The context.</param>
-        [OnDeserializing()]
+        [OnDeserializing]
         public void Initialize(StreamingContext context)
         {
             Initialize();
@@ -539,7 +542,11 @@ namespace Opc.Ua
     /// <summary>
     /// A collection of ServerSecurityPolicy objects.
     /// </summary>
-    [CollectionDataContract(Name = "ListOfServerSecurityPolicy", Namespace = Namespaces.OpcUaConfig, ItemName = "ServerSecurityPolicy")]
+    [CollectionDataContract(
+        Name = "ListOfServerSecurityPolicy",
+        Namespace = Namespaces.OpcUaConfig,
+        ItemName = "ServerSecurityPolicy"
+    )]
     public class ServerSecurityPolicyCollection : List<ServerSecurityPolicy>
     {
         /// <summary>
@@ -554,13 +561,15 @@ namespace Opc.Ua
         /// <exception cref="ArgumentNullException">
         /// 	<paramref name="collection"/> is null.
         /// </exception>
-        public ServerSecurityPolicyCollection(IEnumerable<ServerSecurityPolicy> collection) : base(collection) { }
+        public ServerSecurityPolicyCollection(IEnumerable<ServerSecurityPolicy> collection)
+            : base(collection) { }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">The capacity.</param>
-        public ServerSecurityPolicyCollection(int capacity) : base(capacity) { }
+        public ServerSecurityPolicyCollection(int capacity)
+            : base(capacity) { }
     }
 
     /// <summary>
@@ -600,7 +609,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object during deserialization.
         /// </summary>
-        [OnDeserializing()]
+        [OnDeserializing]
         public void Initialize(StreamingContext context)
         {
             Initialize();
@@ -677,7 +686,9 @@ namespace Opc.Ua
                 {
                     for (int j = m_applicationCertificates.Count - 1; j > i; j--)
                     {
-                        if (m_applicationCertificates[i].CertificateType == m_applicationCertificates[j].CertificateType)
+                        if (
+                            m_applicationCertificates[i].CertificateType == m_applicationCertificates[j].CertificateType
+                        )
                         {
                             m_applicationCertificates.RemoveAt(j);
                         }
@@ -695,7 +706,6 @@ namespace Opc.Ua
         public CertificateTrustList TrustedIssuerCertificates
         {
             get => m_trustedIssuerCertificates;
-
             set => m_trustedIssuerCertificates = value ?? new CertificateTrustList();
         }
 
@@ -706,7 +716,6 @@ namespace Opc.Ua
         public CertificateTrustList TrustedPeerCertificates
         {
             get => m_trustedPeerCertificates;
-
             set => m_trustedPeerCertificates = value ?? new CertificateTrustList();
         }
 
@@ -820,7 +829,6 @@ namespace Opc.Ua
         public CertificateTrustList UserIssuerCertificates
         {
             get => m_userIssuerCertificates;
-
             set => m_userIssuerCertificates = value ?? new CertificateTrustList();
         }
 
@@ -831,7 +839,6 @@ namespace Opc.Ua
         public CertificateTrustList TrustedUserCertificates
         {
             get => m_trustedUserCertificates;
-
             set => m_trustedUserCertificates = value ?? new CertificateTrustList();
         }
 
@@ -842,7 +849,6 @@ namespace Opc.Ua
         public CertificateTrustList HttpsIssuerCertificates
         {
             get => m_httpsIssuerCertificates;
-
             set => m_httpsIssuerCertificates = value ?? new CertificateTrustList();
         }
 
@@ -853,7 +859,6 @@ namespace Opc.Ua
         public CertificateTrustList TrustedHttpsCertificates
         {
             get => m_trustedHttpsCertificates;
-
             set => m_trustedHttpsCertificates = value ?? new CertificateTrustList();
         }
 
@@ -923,7 +928,7 @@ namespace Opc.Ua
         /// Initializes the object during deserialization.
         /// </summary>
         /// <param name="context">The context.</param>
-        [OnDeserializing()]
+        [OnDeserializing]
         public void Initialize(StreamingContext context)
         {
             Initialize();
@@ -960,7 +965,11 @@ namespace Opc.Ua
     /// <summary>
     /// A collection of SamplingRateGroup objects.
     /// </summary>
-    [CollectionDataContract(Name = "ListOfSamplingRateGroup", Namespace = Namespaces.OpcUaConfig, ItemName = "SamplingRateGroup")]
+    [CollectionDataContract(
+        Name = "ListOfSamplingRateGroup",
+        Namespace = Namespaces.OpcUaConfig,
+        ItemName = "SamplingRateGroup"
+    )]
     public class SamplingRateGroupCollection : List<SamplingRateGroup>
     {
         /// <summary>
@@ -975,13 +984,15 @@ namespace Opc.Ua
         /// <exception cref="ArgumentNullException">
         /// 	<paramref name="collection"/> is null.
         /// </exception>
-        public SamplingRateGroupCollection(IEnumerable<SamplingRateGroup> collection) : base(collection) { }
+        public SamplingRateGroupCollection(IEnumerable<SamplingRateGroup> collection)
+            : base(collection) { }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">The capacity.</param>
-        public SamplingRateGroupCollection(int capacity) : base(capacity) { }
+        public SamplingRateGroupCollection(int capacity)
+            : base(capacity) { }
     }
 
     /// <summary>
@@ -1015,7 +1026,7 @@ namespace Opc.Ua
         /// Initializes the object during deserialization.
         /// </summary>
         /// <param name="context">The context.</param>
-        [OnDeserializing()]
+        [OnDeserializing]
         public void Initialize(StreamingContext context)
         {
             Initialize();
@@ -1024,7 +1035,7 @@ namespace Opc.Ua
         /// <summary>
         /// Remove unsupported security policies and expand wild cards.
         /// </summary>
-        [OnDeserialized()]
+        [OnDeserialized]
         private void ValidateSecurityPolicyCollection(StreamingContext context)
         {
             string[] supportedPolicies = Ua.SecurityPolicies.GetDisplayNames();
@@ -1039,11 +1050,18 @@ namespace Opc.Ua
                         var newPolicy = new ServerSecurityPolicy()
                         {
                             SecurityMode = securityPolicy.SecurityMode,
-                            SecurityPolicyUri = policyUri
+                            SecurityPolicyUri = policyUri,
                         };
-                        if (newPolicies.Find(s =>
-                            s.SecurityMode == newPolicy.SecurityMode &&
-                            string.Equals(s.SecurityPolicyUri, newPolicy.SecurityPolicyUri, StringComparison.Ordinal)) == null)
+                        if (
+                            newPolicies.Find(s =>
+                                s.SecurityMode == newPolicy.SecurityMode
+                                && string.Equals(
+                                    s.SecurityPolicyUri,
+                                    newPolicy.SecurityPolicyUri,
+                                    StringComparison.Ordinal
+                                )
+                            ) == null
+                        )
                         {
                             newPolicies.Add(newPolicy);
                         }
@@ -1055,10 +1073,16 @@ namespace Opc.Ua
                     {
                         if (securityPolicy.SecurityPolicyUri.Contains(supportedPolicies[i], StringComparison.Ordinal))
                         {
-                            if (newPolicies.Find(s =>
-                                s.SecurityMode == securityPolicy.SecurityMode &&
-                                string.Equals(s.SecurityPolicyUri, securityPolicy.SecurityPolicyUri,
-                                    StringComparison.Ordinal)) == null)
+                            if (
+                                newPolicies.Find(s =>
+                                    s.SecurityMode == securityPolicy.SecurityMode
+                                    && string.Equals(
+                                        s.SecurityPolicyUri,
+                                        securityPolicy.SecurityPolicyUri,
+                                        StringComparison.Ordinal
+                                    )
+                                ) == null
+                            )
                             {
                                 newPolicies.Add(securityPolicy);
                             }
@@ -1082,7 +1106,6 @@ namespace Opc.Ua
         public StringCollection BaseAddresses
         {
             get => m_baseAddresses;
-
             set => m_baseAddresses = value ?? [];
         }
 
@@ -1100,7 +1123,6 @@ namespace Opc.Ua
         public StringCollection AlternateBaseAddresses
         {
             get => m_alternateBaseAddresses;
-
             set => m_alternateBaseAddresses = value ?? [];
         }
 
@@ -1115,7 +1137,6 @@ namespace Opc.Ua
         public ServerSecurityPolicyCollection SecurityPolicies
         {
             get => m_securityPolicies;
-
             set => m_securityPolicies = value ?? [];
         }
 
@@ -1208,7 +1229,7 @@ namespace Opc.Ua
         /// Initializes the object during deserialization.
         /// </summary>
         /// <param name="context">The context.</param>
-        [OnDeserializing()]
+        [OnDeserializing]
         public new void Initialize(StreamingContext context)
         {
             Initialize();
@@ -1222,7 +1243,6 @@ namespace Opc.Ua
         public UserTokenPolicyCollection UserTokenPolicies
         {
             get => m_userTokenPolicies;
-
             set => m_userTokenPolicies = value ?? [];
         }
 
@@ -1412,7 +1432,8 @@ namespace Opc.Ua
         [DataMember(IsRequired = false, Order = 29)]
         public StringCollection ServerProfileArray
         {
-            get => m_serverProfileArray; set => m_serverProfileArray = value ?? [];
+            get => m_serverProfileArray;
+            set => m_serverProfileArray = value ?? [];
         }
 
         /// <summary>
@@ -1431,7 +1452,8 @@ namespace Opc.Ua
         [DataMember(IsRequired = false, Order = 31)]
         public StringCollection ServerCapabilities
         {
-            get => m_serverCapabilities; set => m_serverCapabilities = value ?? [];
+            get => m_serverCapabilities;
+            set => m_serverCapabilities = value ?? [];
         }
 
         /// <summary>
@@ -1441,7 +1463,8 @@ namespace Opc.Ua
         [DataMember(IsRequired = false, Order = 32)]
         public StringCollection SupportedPrivateKeyFormats
         {
-            get => m_supportedPrivateKeyFormats; set => m_supportedPrivateKeyFormats = value ?? [];
+            get => m_supportedPrivateKeyFormats;
+            set => m_supportedPrivateKeyFormats = value ?? [];
         }
 
         /// <summary>
@@ -1622,57 +1645,67 @@ namespace Opc.Ua
         /// </summary>
         [DataMember(Order = 10)]
         public uint MaxNodesPerRead { get; set; }
+
         /// <summary>
         /// Indicates the maximum size of the nodesToRead array when a Client calls the HistoryRead
         /// Service using the historyReadDetails RAW, PROCESSED, MODIFIED or ATTIME.
         /// </summary>
         [DataMember(Order = 20)]
         public uint MaxNodesPerHistoryReadData { get; set; }
+
         /// <summary>
         /// Indicates the maximum size of the nodesToRead array when a Client calls the HistoryRead
         /// Service using the historyReadDetails EVENTS.
         /// </summary>
         [DataMember(Order = 30)]
         public uint MaxNodesPerHistoryReadEvents { get; set; }
+
         /// <summary>
         /// Indicates the maximum size of the nodesToWrite array when a Client calls the Write Service.
         /// </summary>
         [DataMember(Order = 40)]
         public uint MaxNodesPerWrite { get; set; }
+
         /// <summary>
         /// Indicates the maximum size of the historyUpdateDetails array supported by the Server
         /// when a Client calls the HistoryUpdate Service.
         /// </summary>
         [DataMember(Order = 50)]
         public uint MaxNodesPerHistoryUpdateData { get; set; }
+
         /// <summary>
         /// Indicates the maximum size of the historyUpdateDetails array
         /// when a Client calls the HistoryUpdate Service.
         /// </summary>
         [DataMember(Order = 60)]
         public uint MaxNodesPerHistoryUpdateEvents { get; set; }
+
         /// <summary>
         /// Indicates the maximum size of the methodsToCall array when a Client calls the Call Service.
         /// </summary>
         [DataMember(Order = 70)]
         public uint MaxNodesPerMethodCall { get; set; }
+
         /// <summary>
         /// Indicates the maximum size of the nodesToBrowse array when calling the Browse Service
         /// or the continuationPoints array when a Client calls the BrowseNext Service.
         /// </summary>
         [DataMember(Order = 80)]
         public uint MaxNodesPerBrowse { get; set; }
+
         /// <summary>
         /// Indicates the maximum size of the nodesToRegister array when a Client calls the RegisterNodes Service
         /// and the maximum size of the nodesToUnregister when calling the UnregisterNodes Service.
         /// </summary>
         [DataMember(Order = 90)]
         public uint MaxNodesPerRegisterNodes { get; set; }
+
         /// <summary>
         /// Indicates the maximum size of the browsePaths array when a Client calls the TranslateBrowsePathsToNodeIds Service.
         /// </summary>
         [DataMember(Order = 100)]
         public uint MaxNodesPerTranslateBrowsePathsToNodeIds { get; set; }
+
         /// <summary>
         /// Indicates the maximum size of the nodesToAdd array when a Client calls the AddNodes Service,
         /// the maximum size of the referencesToAdd array when a Client calls the AddReferences Service,
@@ -1681,6 +1714,7 @@ namespace Opc.Ua
         /// </summary>
         [DataMember(Order = 110)]
         public uint MaxNodesPerNodeManagement { get; set; }
+
         /// <summary>
         /// Indicates the maximum size of the itemsToCreate array when a Client calls the CreateMonitoredItems Service,
         /// the maximum size of the itemsToModify array when a Client calls the ModifyMonitoredItems Service,
@@ -1755,7 +1789,11 @@ namespace Opc.Ua
     /// <summary>
     /// A collection of reverse connect clients.
     /// </summary>
-    [CollectionDataContract(Name = "ListOfReverseConnectClient", Namespace = Namespaces.OpcUaConfig, ItemName = "ReverseConnectClient")]
+    [CollectionDataContract(
+        Name = "ListOfReverseConnectClient",
+        Namespace = Namespaces.OpcUaConfig,
+        ItemName = "ReverseConnectClient"
+    )]
     public class ReverseConnectClientCollection : List<ReverseConnectClient>
     {
         /// <summary>
@@ -1770,13 +1808,15 @@ namespace Opc.Ua
         /// <exception cref="ArgumentNullException">
         /// 	<paramref name="collection"/> is null.
         /// </exception>
-        public ReverseConnectClientCollection(IEnumerable<ReverseConnectClient> collection) : base(collection) { }
+        public ReverseConnectClientCollection(IEnumerable<ReverseConnectClient> collection)
+            : base(collection) { }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">The capacity.</param>
-        public ReverseConnectClientCollection(int capacity) : base(capacity) { }
+        public ReverseConnectClientCollection(int capacity)
+            : base(capacity) { }
     }
 
     /// <summary>
@@ -1809,7 +1849,7 @@ namespace Opc.Ua
         /// Initializes the object during deserialization.
         /// </summary>
         /// <param name="context">The context.</param>
-        [OnDeserializing()]
+        [OnDeserializing]
         public void Initialize(StreamingContext context)
         {
             Initialize();
@@ -1830,7 +1870,6 @@ namespace Opc.Ua
         public StringCollection WellKnownDiscoveryUrls
         {
             get => m_wellKnownDiscoveryUrls;
-
             set => m_wellKnownDiscoveryUrls = value ?? [];
         }
 
@@ -1842,7 +1881,6 @@ namespace Opc.Ua
         public EndpointDescriptionCollection DiscoveryServers
         {
             get => m_discoveryServers;
-
             set => m_discoveryServers = value ?? [];
         }
 
@@ -1906,9 +1944,7 @@ namespace Opc.Ua
         /// <summary>
         /// Sets private members to default values.
         /// </summary>
-        private static void Initialize()
-        {
-        }
+        private static void Initialize() { }
 
         /// <summary>
         /// A collection of reverse connect client endpoints.
@@ -1956,9 +1992,7 @@ namespace Opc.Ua
         /// <summary>
         /// Sets private members to default values.
         /// </summary>
-        private static void Initialize()
-        {
-        }
+        private static void Initialize() { }
 
         /// <summary>
         /// The endpoint Url of a reverse connect client.
@@ -1970,7 +2004,11 @@ namespace Opc.Ua
     /// <summary>
     /// A collection of reverse connect client endpoints.
     /// </summary>
-    [CollectionDataContract(Name = "ListOfReverseConnectClientEndpoint", Namespace = Namespaces.OpcUaConfig, ItemName = "ClientEndpoint")]
+    [CollectionDataContract(
+        Name = "ListOfReverseConnectClientEndpoint",
+        Namespace = Namespaces.OpcUaConfig,
+        ItemName = "ClientEndpoint"
+    )]
     public class ReverseConnectClientEndpointCollection : List<ReverseConnectClientEndpoint>
     {
         /// <summary>
@@ -1985,13 +2023,15 @@ namespace Opc.Ua
         /// <exception cref="ArgumentNullException">
         /// 	<paramref name="collection"/> is null.
         /// </exception>
-        public ReverseConnectClientEndpointCollection(IEnumerable<ReverseConnectClientEndpoint> collection) : base(collection) { }
+        public ReverseConnectClientEndpointCollection(IEnumerable<ReverseConnectClientEndpoint> collection)
+            : base(collection) { }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">The capacity.</param>
-        public ReverseConnectClientEndpointCollection(int capacity) : base(capacity) { }
+        public ReverseConnectClientEndpointCollection(int capacity)
+            : base(capacity) { }
     }
 
     /// <summary>
@@ -2021,7 +2061,7 @@ namespace Opc.Ua
         /// Initializes the object during deserialization.
         /// </summary>
         /// <param name="context">The context.</param>
-        [OnDeserializing()]
+        [OnDeserializing]
         public new void Initialize(StreamingContext context)
         {
             Initialize();
@@ -2035,7 +2075,6 @@ namespace Opc.Ua
         public LocalizedTextCollection ServerNames
         {
             get => m_serverNames;
-
             set => m_serverNames = value ?? [];
         }
 
@@ -2083,7 +2122,7 @@ namespace Opc.Ua
         /// Initializes the object during deserialization.
         /// </summary>
         /// <param name="context">The context.</param>
-        [OnDeserializing()]
+        [OnDeserializing]
         public void Initialize(StreamingContext context)
         {
             Initialize();
@@ -2117,7 +2156,6 @@ namespace Opc.Ua
         public StringCollection AlternateDiscoveryUrls
         {
             get => m_alternateDiscoveryUrls;
-
             set => m_alternateDiscoveryUrls = value ?? [];
         }
 
@@ -2127,7 +2165,11 @@ namespace Opc.Ua
     /// <summary>
     /// A collection of AdditionalServerRegistrationInfo objects.
     /// </summary>
-    [CollectionDataContract(Name = "ListOfServerRegistration", Namespace = Namespaces.OpcUaConfig, ItemName = "ServerRegistration")]
+    [CollectionDataContract(
+        Name = "ListOfServerRegistration",
+        Namespace = Namespaces.OpcUaConfig,
+        ItemName = "ServerRegistration"
+    )]
     public class ServerRegistrationCollection : List<ServerRegistration>
     {
         /// <summary>
@@ -2142,13 +2184,15 @@ namespace Opc.Ua
         /// <exception cref="ArgumentNullException">
         /// 	<paramref name="collection"/> is null.
         /// </exception>
-        public ServerRegistrationCollection(IEnumerable<ServerRegistration> collection) : base(collection) { }
+        public ServerRegistrationCollection(IEnumerable<ServerRegistration> collection)
+            : base(collection) { }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">The capacity.</param>
-        public ServerRegistrationCollection(int capacity) : base(capacity) { }
+        public ServerRegistrationCollection(int capacity)
+            : base(capacity) { }
     }
 
     /// <summary>
@@ -2178,7 +2222,6 @@ namespace Opc.Ua
         public string StorePath
         {
             get => m_storePath;
-
             set
             {
                 m_storePath = value;
@@ -2196,7 +2239,8 @@ namespace Opc.Ua
         [DataMember(Name = "ValidationOptions", IsRequired = false, EmitDefaultValue = false, Order = 4)]
         private int XmlEncodedValidationOptions
         {
-            get => (int)ValidationOptions; set => ValidationOptions = (CertificateValidationOptions)value;
+            get => (int)ValidationOptions;
+            set => ValidationOptions = (CertificateValidationOptions)value;
         }
 
         private string m_storePath;
@@ -2225,7 +2269,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object during deserialization.
         /// </summary>
-        [OnDeserializing()]
+        [OnDeserializing]
         public void Initialize(StreamingContext context)
         {
             Initialize();
@@ -2242,14 +2286,17 @@ namespace Opc.Ua
         public CertificateIdentifierCollection TrustedCertificates
         {
             get => m_trustedCertificates;
-
             set => m_trustedCertificates = value ?? [];
         }
 
         private CertificateIdentifierCollection m_trustedCertificates;
     }
 
-    [CollectionDataContract(Name = "ApplicationCertificates", Namespace = Namespaces.OpcUaConfig, ItemName = "CertificateIdentifier")]
+    [CollectionDataContract(
+        Name = "ApplicationCertificates",
+        Namespace = Namespaces.OpcUaConfig,
+        ItemName = "CertificateIdentifier"
+    )]
     public partial class CertificateIdentifierCollection : List<CertificateIdentifier>
     {
         /// <summary>
@@ -2261,12 +2308,14 @@ namespace Opc.Ua
         /// Initializes the collection from another collection.
         /// </summary>
         /// <param name="collection">A collection of values to add to this new collection</param>
-        public CertificateIdentifierCollection(IEnumerable<CertificateIdentifier> collection) : base(collection) { }
+        public CertificateIdentifierCollection(IEnumerable<CertificateIdentifier> collection)
+            : base(collection) { }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
-        public CertificateIdentifierCollection(int capacity) : base(capacity) { }
+        public CertificateIdentifierCollection(int capacity)
+            : base(capacity) { }
     }
 
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
@@ -2311,14 +2360,12 @@ namespace Opc.Ua
         /// <summary>
         /// Sets private members to default values.
         /// </summary>
-        private static void Initialize()
-        {
-        }
+        private static void Initialize() { }
 
         /// <summary>
         /// Initializes the object during deserialization.
         /// </summary>
-        [OnDeserializing()]
+        [OnDeserializing]
         public void Initialize(StreamingContext context)
         {
             Initialize();
@@ -2339,7 +2386,6 @@ namespace Opc.Ua
         public string StorePath
         {
             get => m_storePath;
-
             set
             {
                 m_storePath = value;
@@ -2413,12 +2459,13 @@ namespace Opc.Ua
 
                 return m_certificate.Subject;
             }
-
             set
             {
                 if (m_certificate != null && !string.IsNullOrEmpty(value) && m_certificate.Subject != value)
                 {
-                    throw new ArgumentException("SubjectName does not match the SubjectName of the current certificate.");
+                    throw new ArgumentException(
+                        "SubjectName does not match the SubjectName of the current certificate."
+                    );
                 }
 
                 m_subjectName = value;
@@ -2442,7 +2489,6 @@ namespace Opc.Ua
 
                 return m_certificate.Thumbprint;
             }
-
             set
             {
                 if (m_certificate != null && !string.IsNullOrEmpty(value) && m_certificate.Thumbprint != value)
@@ -2470,7 +2516,6 @@ namespace Opc.Ua
 
                 return m_certificate.RawData;
             }
-
             set
             {
                 if (value == null || value.Length == 0)
@@ -2493,7 +2538,8 @@ namespace Opc.Ua
         [DataMember(Name = "ValidationOptions", IsRequired = false, EmitDefaultValue = false, Order = 70)]
         private int XmlEncodedValidationOptions
         {
-            get => (int)ValidationOptions; set => ValidationOptions = (CertificateValidationOptions)value;
+            get => (int)ValidationOptions;
+            set => ValidationOptions = (CertificateValidationOptions)value;
         }
 
         /// <summary>
@@ -2561,7 +2607,6 @@ namespace Opc.Ua
         public StringCollection KnownHosts
         {
             get => m_knownHosts;
-
             set => m_knownHosts = value ?? [];
         }
 
@@ -2572,7 +2617,6 @@ namespace Opc.Ua
         public List<ConfiguredEndpoint> Endpoints
         {
             get => m_endpoints;
-
             private set
             {
                 m_endpoints = value ?? [];
@@ -2583,6 +2627,7 @@ namespace Opc.Ua
                 }
             }
         }
+
         /// <summary>
         /// The URL of the UA TCP proxy server.
         /// </summary>
@@ -2643,7 +2688,6 @@ namespace Opc.Ua
         public EndpointDescription Description
         {
             get => m_description;
-
             private set => m_description = value ?? new EndpointDescription();
         }
 
@@ -2654,7 +2698,6 @@ namespace Opc.Ua
         public EndpointConfiguration Configuration
         {
             get => m_configuration;
-
             set
             {
                 m_configuration = value;
@@ -2710,7 +2753,8 @@ namespace Opc.Ua
         [DataMember(IsRequired = false, EmitDefaultValue = false, Order = 9)]
         public XmlElementCollection Extensions
         {
-            get => m_extensions; set => m_extensions = value;
+            get => m_extensions;
+            set => m_extensions = value;
         }
 
         private ConfiguredEndpointCollection m_collection;
@@ -2728,20 +2772,20 @@ namespace Opc.Ua
         /// <summary>
         /// The UA binary encoding may be used.
         /// </summary>
-        [EnumMember()]
+        [EnumMember]
         Optional,
 
         /// <summary>
         /// The UA binary encoding must be used.
         /// </summary>
-        [EnumMember()]
+        [EnumMember]
         Required,
 
         /// <summary>
         /// The UA binary encoding may not be used.
         /// </summary>
-        [EnumMember()]
-        None
+        [EnumMember]
+        None,
     }
 
     /// <summary>

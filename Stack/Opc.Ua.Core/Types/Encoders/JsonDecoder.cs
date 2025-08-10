@@ -42,15 +42,17 @@ namespace Opc.Ua
         private ushort[] m_namespaceMappings;
         private ushort[] m_serverMappings;
         private uint m_nestingLevel;
+
         /// <summary>
         /// JSON encoded value of: “9999-12-31T23:59:59Z”
         /// </summary>
         private readonly DateTime m_dateTimeMaxJsonValue = new(3155378975990000000);
+
         private enum JTokenNullObject
         {
             Undefined = 0,
             Object = 1,
-            Array = 2
+            Array = 2,
         }
 
         /// <summary>
@@ -129,7 +131,11 @@ namespace Opc.Ua
         /// <summary>
         /// Decodes a message from a buffer.
         /// </summary>
-        public static IEncodeable DecodeMessage(ArraySegment<byte> buffer, Type expectedType, IServiceMessageContext context)
+        public static IEncodeable DecodeMessage(
+            ArraySegment<byte> buffer,
+            Type expectedType,
+            IServiceMessageContext context
+        )
         {
             if (context == null)
             {
@@ -143,10 +149,14 @@ namespace Opc.Ua
                     StatusCodes.BadEncodingLimitsExceeded,
                     "MaxMessageSize {0} < {1}",
                     context.MaxMessageSize,
-                    buffer.Count);
+                    buffer.Count
+                );
             }
 
-            using var decoder = new JsonDecoder(Encoding.UTF8.GetString(buffer.Array, buffer.Offset, buffer.Count), context);
+            using var decoder = new JsonDecoder(
+                Encoding.UTF8.GetString(buffer.Array, buffer.Offset, buffer.Count),
+                context
+            );
             return decoder.DecodeMessage(expectedType);
         }
 
@@ -160,8 +170,12 @@ namespace Opc.Ua
 
             if ((namespaceUris != null && namespaceUris.Count > 0) || (serverUris != null && serverUris.Count > 0))
             {
-                NamespaceTable namespaces = (namespaceUris == null || namespaceUris.Count == 0) ? Context.NamespaceUris : new NamespaceTable(namespaceUris);
-                StringTable servers = (serverUris == null || serverUris.Count == 0) ? Context.ServerUris : new StringTable(serverUris);
+                NamespaceTable namespaces =
+                    (namespaceUris == null || namespaceUris.Count == 0)
+                        ? Context.NamespaceUris
+                        : new NamespaceTable(namespaceUris);
+                StringTable servers =
+                    (serverUris == null || serverUris.Count == 0) ? Context.ServerUris : new StringTable(serverUris);
 
                 SetMappingTables(namespaces, servers);
             }
@@ -173,7 +187,12 @@ namespace Opc.Ua
             var absoluteId = NodeId.ToExpandedNodeId(typeId, Context.NamespaceUris);
 
             // lookup message type.
-            Type actualType = Context.Factory.GetSystemType(absoluteId) ?? throw new ServiceResultException(StatusCodes.BadDecodingError, Utils.Format("Cannot decode message with type id: {0}.", absoluteId));
+            Type actualType =
+                Context.Factory.GetSystemType(absoluteId)
+                ?? throw new ServiceResultException(
+                    StatusCodes.BadDecodingError,
+                    Utils.Format("Cannot decode message with type id: {0}.", absoluteId)
+                );
 
             // read the message.
 
@@ -253,8 +272,7 @@ namespace Opc.Ua
             if (checkEof && m_reader.TokenType != JsonToken.EndObject)
             {
                 while (m_reader.Read() && m_reader.TokenType != JsonToken.EndObject)
-                {
-                }
+                { }
             }
 
             m_reader.Close();
@@ -302,16 +320,12 @@ namespace Opc.Ua
         /// <summary>
         /// Pushes a namespace onto the namespace stack.
         /// </summary>
-        public void PushNamespace(string namespaceUri)
-        {
-        }
+        public void PushNamespace(string namespaceUri) { }
 
         /// <summary>
         /// Pops a namespace from the namespace stack.
         /// </summary>
-        public void PopNamespace()
-        {
-        }
+        public void PopNamespace() { }
 
         /// <summary>
         /// Read a decoded JSON field.
@@ -526,7 +540,10 @@ namespace Opc.Ua
             if (value == null)
             {
                 long number;
-                if (token is not string text || !long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out number))
+                if (
+                    token is not string text
+                    || !long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out number)
+                )
                 {
                     return 0;
                 }
@@ -553,7 +570,10 @@ namespace Opc.Ua
             if (value == null)
             {
                 ulong number;
-                if (token is not string text || !ulong.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out number))
+                if (
+                    token is not string text
+                    || !ulong.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out number)
+                )
                 {
                     return 0;
                 }
@@ -642,7 +662,10 @@ namespace Opc.Ua
             {
                 string text = token as string;
                 double number;
-                if (text == null || !double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out number))
+                if (
+                    text == null
+                    || !double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out number)
+                )
                 {
                     if (text != null)
                     {
@@ -726,7 +749,11 @@ namespace Opc.Ua
                 }
                 catch (FormatException fe)
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadDecodingError, "Failed to decode DateTime: {0}", fe.Message);
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Failed to decode DateTime: {0}",
+                        fe.Message
+                    );
                 }
             }
 
@@ -755,7 +782,11 @@ namespace Opc.Ua
             }
             catch (FormatException fe)
             {
-                throw ServiceResultException.Create(StatusCodes.BadDecodingError, "Failed to create Guid: {0}", fe.Message);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Failed to create Guid: {0}",
+                    fe.Message
+                );
             }
         }
 
@@ -819,7 +850,11 @@ namespace Opc.Ua
             }
             catch (XmlException xe)
             {
-                throw ServiceResultException.Create(StatusCodes.BadDecodingError, "Unable to decode Xml: {0}", xe.Message);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Unable to decode Xml: {0}",
+                    xe.Message
+                );
             }
         }
 
@@ -847,8 +882,9 @@ namespace Opc.Ua
                         {
                             UpdateTables = UpdateNamespaceTable,
                             NamespaceMappings = m_namespaceMappings,
-                            ServerMappings = m_serverMappings
-                        });
+                            ServerMappings = m_serverMappings,
+                        }
+                    );
                 }
                 catch
                 {
@@ -945,8 +981,9 @@ namespace Opc.Ua
                         {
                             UpdateTables = UpdateNamespaceTable,
                             NamespaceMappings = m_namespaceMappings,
-                            ServerMappings = m_serverMappings
-                        });
+                            ServerMappings = m_serverMappings,
+                        }
+                    );
                 }
                 catch
                 {
@@ -1225,7 +1262,11 @@ namespace Opc.Ua
             return new LocalizedText(locale, text);
         }
 
-        private Variant ReadVariantFromObject(string valueName, BuiltInType builtInType, Dictionary<string, object> value)
+        private Variant ReadVariantFromObject(
+            string valueName,
+            BuiltInType builtInType,
+            Dictionary<string, object> value
+        )
         {
             if (value.TryGetValue(valueName, out object innerValue))
             {
@@ -1281,7 +1322,9 @@ namespace Opc.Ua
             try
             {
                 m_stack.Push(value);
-                BuiltInType builtInType = value.ContainsKey("UaType") ? (BuiltInType)ReadByte("UaType") : (BuiltInType)ReadByte("Type");
+                BuiltInType builtInType = value.ContainsKey("UaType")
+                    ? (BuiltInType)ReadByte("UaType")
+                    : (BuiltInType)ReadByte("Type");
 
                 if (value.ContainsKey("Value"))
                 {
@@ -1331,9 +1374,11 @@ namespace Opc.Ua
 
                 dv.StatusCode = ReadStatusCode("StatusCode");
                 dv.SourceTimestamp = ReadDateTime("SourceTimestamp");
-                dv.SourcePicoseconds = (dv.SourceTimestamp != DateTime.MinValue) ? ReadUInt16("SourcePicoseconds") : (ushort)0;
+                dv.SourcePicoseconds =
+                    (dv.SourceTimestamp != DateTime.MinValue) ? ReadUInt16("SourcePicoseconds") : (ushort)0;
                 dv.ServerTimestamp = ReadDateTime("ServerTimestamp");
-                dv.ServerPicoseconds = (dv.ServerTimestamp != DateTime.MinValue) ? ReadUInt16("ServerPicoseconds") : (ushort)0;
+                dv.ServerPicoseconds =
+                    (dv.ServerTimestamp != DateTime.MinValue) ? ReadUInt16("ServerPicoseconds") : (ushort)0;
             }
             finally
             {
@@ -1373,14 +1418,16 @@ namespace Opc.Ua
                     inlineValues = false;
                 }
 
-                ExpandedNodeId absoluteId =
-                    typeId.IsAbsolute ?
-                    typeId :
-                    NodeId.ToExpandedNodeId(typeId.InnerNodeId, Context.NamespaceUris);
+                ExpandedNodeId absoluteId = typeId.IsAbsolute
+                    ? typeId
+                    : NodeId.ToExpandedNodeId(typeId.InnerNodeId, Context.NamespaceUris);
 
                 if (!NodeId.IsNull(typeId) && NodeId.IsNull(absoluteId))
                 {
-                    Utils.LogWarning("Cannot de-serialized extension objects if the NamespaceUri is not in the NamespaceTable: Type = {0}", typeId);
+                    Utils.LogWarning(
+                        "Cannot de-serialized extension objects if the NamespaceUri is not in the NamespaceTable: Type = {0}",
+                        typeId
+                    );
                 }
                 else
                 {
@@ -1440,7 +1487,10 @@ namespace Opc.Ua
 
                         if (encodeable == null)
                         {
-                            throw new ServiceResultException(StatusCodes.BadDecodingError, Utils.Format("Type does not support IEncodeable interface: '{0}'", systemType.FullName));
+                            throw new ServiceResultException(
+                                StatusCodes.BadDecodingError,
+                                Utils.Format("Type does not support IEncodeable interface: '{0}'", systemType.FullName)
+                            );
                         }
 
                         encodeable.Decode(this);
@@ -1495,7 +1545,10 @@ namespace Opc.Ua
 
             if (Activator.CreateInstance(systemType) is not IEncodeable value)
             {
-                throw new ServiceResultException(StatusCodes.BadDecodingError, Utils.Format("Type does not support IEncodeable interface: '{0}'", systemType.FullName));
+                throw new ServiceResultException(
+                    StatusCodes.BadDecodingError,
+                    Utils.Format("Type does not support IEncodeable interface: '{0}'", systemType.FullName)
+                );
             }
 
             if (encodeableTypeId != null)
@@ -2383,7 +2436,8 @@ namespace Opc.Ua
             int valueRank,
             BuiltInType builtInType,
             Type systemType = null,
-            ExpandedNodeId encodeableTypeId = null)
+            ExpandedNodeId encodeableTypeId = null
+        )
         {
             if (valueRank == ValueRanks.OneDimension)
             {
@@ -2460,7 +2514,11 @@ namespace Opc.Ua
 
                         throw new ServiceResultException(
                             StatusCodes.BadDecodingError,
-                            Utils.Format("Cannot decode unknown type in Array object with BuiltInType: {0}.", builtInType));
+                            Utils.Format(
+                                "Cannot decode unknown type in Array object with BuiltInType: {0}.",
+                                builtInType
+                            )
+                        );
                 }
             }
             else if (valueRank >= ValueRanks.TwoDimensions)
@@ -2513,7 +2571,16 @@ namespace Opc.Ua
                 {
                     DetermineIEncodeableSystemType(ref systemType, encodeableTypeId);
                 }
-                ReadMatrixPart(fieldName, array, builtInType, ref elements, ref dimensions, 0, systemType, encodeableTypeId);
+                ReadMatrixPart(
+                    fieldName,
+                    array,
+                    builtInType,
+                    ref elements,
+                    ref dimensions,
+                    0,
+                    systemType,
+                    encodeableTypeId
+                );
 
                 if (dimensions.Count == 0)
                 {
@@ -2525,7 +2592,9 @@ namespace Opc.Ua
                     throw ServiceResultException.Create(
                         StatusCodes.BadDecodingError,
                         "The ValueRank {0} of the decoded array doesn't match the desired ValueRank {1}.",
-                        dimensions.Count, valueRank);
+                        dimensions.Count,
+                        valueRank
+                    );
                 }
 
                 Matrix matrix;
@@ -2585,7 +2654,11 @@ namespace Opc.Ua
                             matrix = new Matrix(elements.Cast<NodeId>().ToArray(), builtInType, [.. dimensions]);
                             break;
                         case BuiltInType.ExpandedNodeId:
-                            matrix = new Matrix(elements.Cast<ExpandedNodeId>().ToArray(), builtInType, [.. dimensions]);
+                            matrix = new Matrix(
+                                elements.Cast<ExpandedNodeId>().ToArray(),
+                                builtInType,
+                                [.. dimensions]
+                            );
                             break;
                         case BuiltInType.StatusCode:
                             matrix = new Matrix(elements.Cast<StatusCode>().ToArray(), builtInType, [.. dimensions]);
@@ -2607,7 +2680,10 @@ namespace Opc.Ua
                                 int ii = 0;
                                 foreach (object element in elements)
                                 {
-                                    newElements.SetValue(Convert.ChangeType(element, systemType, CultureInfo.InvariantCulture), ii++);
+                                    newElements.SetValue(
+                                        Convert.ChangeType(element, systemType, CultureInfo.InvariantCulture),
+                                        ii++
+                                    );
                                 }
                                 matrix = new Matrix(newElements, builtInType, [.. dimensions]);
                             }
@@ -2624,7 +2700,10 @@ namespace Opc.Ua
                                 var newElements = Array.CreateInstance(systemType, elements.Count);
                                 for (int i = 0; i < elements.Count; i++)
                                 {
-                                    newElements.SetValue(Convert.ChangeType(elements[i], systemType, CultureInfo.InvariantCulture), i);
+                                    newElements.SetValue(
+                                        Convert.ChangeType(elements[i], systemType, CultureInfo.InvariantCulture),
+                                        i
+                                    );
                                 }
                                 matrix = new Matrix(newElements, builtInType, [.. dimensions]);
                                 break;
@@ -2633,10 +2712,18 @@ namespace Opc.Ua
                             break;
                         }
                         case BuiltInType.ExtensionObject:
-                            matrix = new Matrix(elements.Cast<ExtensionObject>().ToArray(), builtInType, [.. dimensions]);
+                            matrix = new Matrix(
+                                elements.Cast<ExtensionObject>().ToArray(),
+                                builtInType,
+                                [.. dimensions]
+                            );
                             break;
                         case BuiltInType.DiagnosticInfo:
-                            matrix = new Matrix(elements.Cast<DiagnosticInfo>().ToArray(), builtInType, [.. dimensions]);
+                            matrix = new Matrix(
+                                elements.Cast<DiagnosticInfo>().ToArray(),
+                                builtInType,
+                                [.. dimensions]
+                            );
                             break;
                         default:
                         {
@@ -2645,7 +2732,10 @@ namespace Opc.Ua
                                 var newElements = Array.CreateInstance(systemType, elements.Count);
                                 for (int i = 0; i < elements.Count; i++)
                                 {
-                                    newElements.SetValue(Convert.ChangeType(elements[i], systemType, CultureInfo.InvariantCulture), i);
+                                    newElements.SetValue(
+                                        Convert.ChangeType(elements[i], systemType, CultureInfo.InvariantCulture),
+                                        i
+                                    );
                                 }
                                 matrix = new Matrix(newElements, builtInType, [.. dimensions]);
                                 break;
@@ -2654,7 +2744,8 @@ namespace Opc.Ua
                             throw ServiceResultException.Create(
                                 StatusCodes.BadDecodingError,
                                 "Cannot decode unknown type in Array object with BuiltInType: {0}.",
-                                builtInType);
+                                builtInType
+                            );
                         }
                     }
                 }
@@ -2845,7 +2936,10 @@ namespace Opc.Ua
 
             if (index < 0 || index >= m_namespaceMappings.Length)
             {
-                throw new ServiceResultException(StatusCodes.BadDecodingError, $"No mapping for NamespaceIndex={index}.");
+                throw new ServiceResultException(
+                    StatusCodes.BadDecodingError,
+                    $"No mapping for NamespaceIndex={index}."
+                );
             }
 
             return m_namespaceMappings[index];
@@ -2888,7 +2982,12 @@ namespace Opc.Ua
         /// <summary>
         /// Helper to provide the TryParse method when reading an enumerated string.
         /// </summary>
-        private delegate bool TryParseHandler<T>(string s, NumberStyles numberStyles, CultureInfo cultureInfo, out T result);
+        private delegate bool TryParseHandler<T>(
+            string s,
+            NumberStyles numberStyles,
+            CultureInfo cultureInfo,
+            out T result
+        );
 
         /// <summary>
         /// Helper to read an enumerated string in an extension object.
@@ -2897,7 +2996,8 @@ namespace Opc.Ua
         /// <param name="token"></param>
         /// <param name="handler"></param>
         /// <returns>The parsed number or 0.</returns>
-        private static T ReadEnumeratedString<T>(object token, TryParseHandler<T> handler) where T : struct
+        private static T ReadEnumeratedString<T>(object token, TryParseHandler<T> handler)
+            where T : struct
         {
             T number = default;
             if (token is string text)
@@ -2941,7 +3041,8 @@ namespace Opc.Ua
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,
-                    "Maximum nesting level of InnerDiagnosticInfo was exceeded");
+                    "Maximum nesting level of InnerDiagnosticInfo was exceeded"
+                );
             }
 
             CheckAndIncrementNestingLevel();
@@ -3299,7 +3400,11 @@ namespace Opc.Ua
             }
             catch (JsonReaderException jre)
             {
-                throw ServiceResultException.Create(StatusCodes.BadDecodingError, "Error reading JSON object: {0}", jre.Message);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Error reading JSON object: {0}",
+                    jre.Message
+                );
             }
             return fields;
         }
@@ -3315,7 +3420,8 @@ namespace Opc.Ua
             ref List<int> dimensions,
             int level,
             Type systemType,
-            ExpandedNodeId encodeableTypeId)
+            ExpandedNodeId encodeableTypeId
+        )
         {
             CheckAndIncrementNestingLevel();
 
@@ -3337,7 +3443,16 @@ namespace Opc.Ua
 
                             PushArray(fieldName, ii);
 
-                            ReadMatrixPart(null, currentArray[ii] as List<object>, builtInType, ref elements, ref dimensions, level + 1, systemType, encodeableTypeId);
+                            ReadMatrixPart(
+                                null,
+                                currentArray[ii] as List<object>,
+                                builtInType,
+                                ref elements,
+                                ref dimensions,
+                                level + 1,
+                                systemType,
+                                encodeableTypeId
+                            );
 
                             Pop();
                         }
@@ -3349,7 +3464,13 @@ namespace Opc.Ua
                     if (!hasInnerArray)
                     {
                         // read array from one dimension
-                        Array part = ReadArray(null, ValueRanks.OneDimension, builtInType, systemType, encodeableTypeId);
+                        Array part = ReadArray(
+                            null,
+                            ValueRanks.OneDimension,
+                            builtInType,
+                            systemType,
+                            encodeableTypeId
+                        );
                         if (part != null && part.Length > 0)
                         {
                             // add part elements to final list
@@ -3417,7 +3538,11 @@ namespace Opc.Ua
             }
             catch (JsonWriterException jwe)
             {
-                throw ServiceResultException.Create(StatusCodes.BadDecodingError, "Unable to encode ExtensionObject Body as Json: {0}", jwe.Message);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Unable to encode ExtensionObject Body as Json: {0}",
+                    jwe.Message
+                );
             }
         }
 
@@ -3470,7 +3595,11 @@ namespace Opc.Ua
             }
             catch (FormatException fe)
             {
-                throw ServiceResultException.Create(StatusCodes.BadDecodingError, "Error decoding base64 string: {0}", fe.Message);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Error decoding base64 string: {0}",
+                    fe.Message
+                );
             }
         }
 
@@ -3484,7 +3613,8 @@ namespace Opc.Ua
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,
                     "Maximum nesting level of {0} was exceeded",
-                    Context.MaxEncodingNestingLevels);
+                    Context.MaxEncodingNestingLevels
+                );
             }
             m_nestingLevel++;
         }

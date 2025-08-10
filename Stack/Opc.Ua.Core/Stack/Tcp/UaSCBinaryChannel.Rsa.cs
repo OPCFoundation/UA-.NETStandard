@@ -31,10 +31,16 @@ namespace Opc.Ua.Bindings
             ArraySegment<byte> dataToSign,
             X509Certificate2 signingCertificate,
             HashAlgorithmName algorithm,
-            RSASignaturePadding padding)
+            RSASignaturePadding padding
+        )
         {
             // extract the private key.
-            using RSA rsa = signingCertificate.GetRSAPrivateKey() ?? throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No private key for certificate.");
+            using RSA rsa =
+                signingCertificate.GetRSAPrivateKey()
+                ?? throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "No private key for certificate."
+                );
 
             // create the signature.
             return rsa.SignData(dataToSign.Array, dataToSign.Offset, dataToSign.Count, algorithm, padding);
@@ -48,21 +54,40 @@ namespace Opc.Ua.Bindings
             byte[] signature,
             X509Certificate2 signingCertificate,
             HashAlgorithmName algorithm,
-            RSASignaturePadding padding)
+            RSASignaturePadding padding
+        )
         {
             // extract the public key.
-            using RSA rsa = signingCertificate.GetRSAPublicKey() ?? throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
+            using RSA rsa =
+                signingCertificate.GetRSAPublicKey()
+                ?? throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "No public key for certificate."
+                );
 
             // verify signature.
-            if (!rsa.VerifyData(dataToVerify.Array, dataToVerify.Offset, dataToVerify.Count, signature, algorithm, padding))
+            if (
+                !rsa.VerifyData(
+                    dataToVerify.Array,
+                    dataToVerify.Offset,
+                    dataToVerify.Count,
+                    signature,
+                    algorithm,
+                    padding
+                )
+            )
             {
                 string messageType = Encoding.UTF8.GetString(dataToVerify.Array, dataToVerify.Offset, 4);
                 int messageLength = BitConverter.ToInt32(dataToVerify.Array, dataToVerify.Offset + 4);
                 string actualSignature = Utils.ToHexString(signature);
                 Utils.LogError("Could not validate signature.");
                 Utils.LogCertificate(LogLevel.Error, "Certificate: ", signingCertificate);
-                Utils.LogError("MessageType ={0}, Length ={1}, ActualSignature={2}",
-                    messageType, messageLength, actualSignature);
+                Utils.LogError(
+                    "MessageType ={0}, Length ={1}, ActualSignature={2}",
+                    messageType,
+                    messageLength,
+                    actualSignature
+                );
                 return false;
             }
             return true;
@@ -75,10 +100,16 @@ namespace Opc.Ua.Bindings
             ArraySegment<byte> dataToEncrypt,
             ArraySegment<byte> headerToCopy,
             X509Certificate2 encryptingCertificate,
-            RsaUtils.Padding padding)
+            RsaUtils.Padding padding
+        )
         {
             // get the encrypting key.
-            using RSA rsa = encryptingCertificate.GetRSAPublicKey() ?? throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No public key for certificate.");
+            using RSA rsa =
+                encryptingCertificate.GetRSAPublicKey()
+                ?? throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "No public key for certificate."
+                );
 
             int inputBlockSize = RsaUtils.GetPlainTextBlockSize(rsa, padding);
             int outputBlockSize = RsaUtils.GetCipherTextBlockSize(rsa, padding);
@@ -86,22 +117,33 @@ namespace Opc.Ua.Bindings
             // verify the input data is the correct block size.
             if (dataToEncrypt.Count % inputBlockSize != 0)
             {
-                Utils.LogWarning("Message is not an integral multiple of the block size. Length = {0}, BlockSize = {1}.", dataToEncrypt.Count, inputBlockSize);
+                Utils.LogWarning(
+                    "Message is not an integral multiple of the block size. Length = {0}, BlockSize = {1}.",
+                    dataToEncrypt.Count,
+                    inputBlockSize
+                );
             }
 
             byte[] encryptedBuffer = BufferManager.TakeBuffer(SendBufferSize, "Rsa_Encrypt");
             Array.Copy(headerToCopy.Array, headerToCopy.Offset, encryptedBuffer, 0, headerToCopy.Count);
             RSAEncryptionPadding rsaPadding = RsaUtils.GetRSAEncryptionPadding(padding);
 
-            using (var ostrm = new MemoryStream(
-                encryptedBuffer,
-                headerToCopy.Count,
-                encryptedBuffer.Length - headerToCopy.Count))
+            using (
+                var ostrm = new MemoryStream(
+                    encryptedBuffer,
+                    headerToCopy.Count,
+                    encryptedBuffer.Length - headerToCopy.Count
+                )
+            )
             {
                 // encrypt body.
                 byte[] input = new byte[inputBlockSize];
 
-                for (int ii = dataToEncrypt.Offset; ii < dataToEncrypt.Offset + dataToEncrypt.Count; ii += inputBlockSize)
+                for (
+                    int ii = dataToEncrypt.Offset;
+                    ii < dataToEncrypt.Offset + dataToEncrypt.Count;
+                    ii += inputBlockSize
+                )
                 {
                     Array.Copy(dataToEncrypt.Array, ii, input, 0, input.Length);
                     byte[] cipherText = rsa.Encrypt(input, rsaPadding);
@@ -109,7 +151,11 @@ namespace Opc.Ua.Bindings
                 }
             }
             // return buffer
-            return new ArraySegment<byte>(encryptedBuffer, 0, (dataToEncrypt.Count / inputBlockSize * outputBlockSize) + headerToCopy.Count);
+            return new ArraySegment<byte>(
+                encryptedBuffer,
+                0,
+                (dataToEncrypt.Count / inputBlockSize * outputBlockSize) + headerToCopy.Count
+            );
         }
 
         /// <summary>
@@ -119,10 +165,16 @@ namespace Opc.Ua.Bindings
             ArraySegment<byte> dataToDecrypt,
             ArraySegment<byte> headerToCopy,
             X509Certificate2 encryptingCertificate,
-            RsaUtils.Padding padding)
+            RsaUtils.Padding padding
+        )
         {
             // get the encrypting key.
-            using RSA rsa = encryptingCertificate.GetRSAPrivateKey() ?? throw ServiceResultException.Create(StatusCodes.BadSecurityChecksFailed, "No private key for certificate.");
+            using RSA rsa =
+                encryptingCertificate.GetRSAPrivateKey()
+                ?? throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "No private key for certificate."
+                );
 
             int inputBlockSize = RsaUtils.GetCipherTextBlockSize(rsa, padding);
             int outputBlockSize = RsaUtils.GetPlainTextBlockSize(rsa, padding);
@@ -130,22 +182,33 @@ namespace Opc.Ua.Bindings
             // verify the input data is the correct block size.
             if (dataToDecrypt.Count % inputBlockSize != 0)
             {
-                Utils.LogWarning("Message is not an integral multiple of the block size. Length = {0}, BlockSize = {1}.", dataToDecrypt.Count, inputBlockSize);
+                Utils.LogWarning(
+                    "Message is not an integral multiple of the block size. Length = {0}, BlockSize = {1}.",
+                    dataToDecrypt.Count,
+                    inputBlockSize
+                );
             }
 
             byte[] decryptedBuffer = BufferManager.TakeBuffer(SendBufferSize, "Rsa_Decrypt");
             Array.Copy(headerToCopy.Array, headerToCopy.Offset, decryptedBuffer, 0, headerToCopy.Count);
             RSAEncryptionPadding rsaPadding = RsaUtils.GetRSAEncryptionPadding(padding);
 
-            using (var ostrm = new MemoryStream(
-                decryptedBuffer,
-                headerToCopy.Count,
-                decryptedBuffer.Length - headerToCopy.Count))
+            using (
+                var ostrm = new MemoryStream(
+                    decryptedBuffer,
+                    headerToCopy.Count,
+                    decryptedBuffer.Length - headerToCopy.Count
+                )
+            )
             {
                 // decrypt body.
                 byte[] input = new byte[inputBlockSize];
 
-                for (int ii = dataToDecrypt.Offset; ii < dataToDecrypt.Offset + dataToDecrypt.Count; ii += inputBlockSize)
+                for (
+                    int ii = dataToDecrypt.Offset;
+                    ii < dataToDecrypt.Offset + dataToDecrypt.Count;
+                    ii += inputBlockSize
+                )
                 {
                     Array.Copy(dataToDecrypt.Array, ii, input, 0, input.Length);
                     byte[] plainText = rsa.Decrypt(input, rsaPadding);
@@ -154,7 +217,11 @@ namespace Opc.Ua.Bindings
             }
 
             // return buffers.
-            return new ArraySegment<byte>(decryptedBuffer, 0, (dataToDecrypt.Count / inputBlockSize * outputBlockSize) + headerToCopy.Count);
+            return new ArraySegment<byte>(
+                decryptedBuffer,
+                0,
+                (dataToDecrypt.Count / inputBlockSize * outputBlockSize) + headerToCopy.Count
+            );
         }
     }
 }

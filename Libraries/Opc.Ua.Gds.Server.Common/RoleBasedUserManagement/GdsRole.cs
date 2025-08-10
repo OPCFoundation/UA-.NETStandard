@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -40,35 +40,55 @@ namespace Opc.Ua.Gds.Server
         /// <summary>
         /// This Role grants rights to register, update and unregister any OPC UA Application.
         /// </summary>
-        public static Role DiscoveryAdmin { get; } = new Role(ExpandedNodeId.ToNodeId(ObjectIds.WellKnownRole_DiscoveryAdmin, new NamespaceTable([Namespaces.OpcUa, Namespaces.OpcUaGds])), BrowseNames.WellKnownRole_DiscoveryAdmin);
+        public static Role DiscoveryAdmin { get; } =
+            new Role(
+                ExpandedNodeId.ToNodeId(
+                    ObjectIds.WellKnownRole_DiscoveryAdmin,
+                    new NamespaceTable([Namespaces.OpcUa, Namespaces.OpcUaGds])
+                ),
+                BrowseNames.WellKnownRole_DiscoveryAdmin
+            );
 
-        public static Role CertificateAuthorityAdmin { get; } = new Role(ExpandedNodeId.ToNodeId(ObjectIds.WellKnownRole_CertificateAuthorityAdmin, new NamespaceTable([Namespaces.OpcUa, Namespaces.OpcUaGds])), BrowseNames.WellKnownRole_CertificateAuthorityAdmin);
+        public static Role CertificateAuthorityAdmin { get; } =
+            new Role(
+                ExpandedNodeId.ToNodeId(
+                    ObjectIds.WellKnownRole_CertificateAuthorityAdmin,
+                    new NamespaceTable([Namespaces.OpcUa, Namespaces.OpcUaGds])
+                ),
+                BrowseNames.WellKnownRole_CertificateAuthorityAdmin
+            );
 
-        public static Role RegistrationAuthorityAdmin { get; } = new Role(ExpandedNodeId.ToNodeId(ObjectIds.WellKnownRole_RegistrationAuthorityAdmin, new NamespaceTable([Namespaces.OpcUa, Namespaces.OpcUaGds])), BrowseNames.WellKnownRole_RegistrationAuthorityAdmin);
+        public static Role RegistrationAuthorityAdmin { get; } =
+            new Role(
+                ExpandedNodeId.ToNodeId(
+                    ObjectIds.WellKnownRole_RegistrationAuthorityAdmin,
+                    new NamespaceTable([Namespaces.OpcUa, Namespaces.OpcUaGds])
+                ),
+                BrowseNames.WellKnownRole_RegistrationAuthorityAdmin
+            );
 
         /// <summary>
         ///  A privilege to manage the own Certificates and pull trust list
         /// </summary>
         public static Role ApplicationSelfAdmin { get; } = new Role(NodeId.Null, "ApplicationSelfAdmin");
 
-        public GdsRole(NodeId roleId, string name) :
-            base(roleId, name)
-        { }
+        public GdsRole(NodeId roleId, string name)
+            : base(roleId, name) { }
     }
+
     /// <summary>
     /// RoleBasedIdentity with additional Property ApplicationId
     /// </summary>
     public class GdsRoleBasedIdentity : RoleBasedIdentity
     {
         public GdsRoleBasedIdentity(IUserIdentity identity, IEnumerable<Role> roles, NodeId applicationId)
-     : base(identity, roles)
+            : base(identity, roles)
         {
             ApplicationId = applicationId;
         }
 
         public GdsRoleBasedIdentity(IUserIdentity identity, IEnumerable<Role> roles)
-     : base(identity, roles)
-        { }
+            : base(identity, roles) { }
 
         /// <summary>
         /// The applicationId in case the ApplicationSelfAdminPrivilege is used

@@ -40,8 +40,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
     [TestFixture(Description = "Tests for Encoding/Decoding of UadpDataSetMessage objects")]
     public class UadpDataSetMessageTests
     {
-        private readonly string m_publisherConfigurationFileName = Path.Combine("Configuration", "PublisherConfiguration.xml");
-        private readonly string m_subscriberConfigurationFileName = Path.Combine("Configuration", "SubscriberConfiguration.xml");
+        private readonly string m_publisherConfigurationFileName = Path.Combine(
+            "Configuration",
+            "PublisherConfiguration.xml"
+        );
+        private readonly string m_subscriberConfigurationFileName = Path.Combine(
+            "Configuration",
+            "SubscriberConfiguration.xml"
+        );
 
         private PubSubConfigurationDataType m_publisherConfiguration;
         private UaPubSubApplication m_publisherApplication;
@@ -61,12 +67,17 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         private const ushort kTestDataSetWriterId = 1;
         private const ushort kMessageContentMask = 0x3f;
 
-        [OneTimeSetUp()]
+        [OneTimeSetUp]
         public void MyTestInitialize()
         {
             // Create a publisher application
             // todo refactor to use the MessagesHelper create configuration
-            string publisherConfigurationFile = Utils.GetAbsoluteFilePath(m_publisherConfigurationFileName, true, true, false);
+            string publisherConfigurationFile = Utils.GetAbsoluteFilePath(
+                m_publisherConfigurationFileName,
+                true,
+                true,
+                false
+            );
             m_publisherApplication = UaPubSubApplication.Create(publisherConfigurationFile);
             Assert.IsNotNull(m_publisherApplication, "m_publisherApplication should not be null");
 
@@ -75,21 +86,41 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             Assert.IsNotNull(m_publisherConfiguration, "m_publisherConfiguration should not be null");
 
             // Get first connection
-            Assert.IsNotNull(m_publisherConfiguration.Connections, "m_publisherConfiguration.Connections should not be null");
-            Assert.IsNotEmpty(m_publisherConfiguration.Connections, "m_publisherConfiguration.Connections should not be empty");
+            Assert.IsNotNull(
+                m_publisherConfiguration.Connections,
+                "m_publisherConfiguration.Connections should not be null"
+            );
+            Assert.IsNotEmpty(
+                m_publisherConfiguration.Connections,
+                "m_publisherConfiguration.Connections should not be empty"
+            );
             m_firstPublisherConnection = m_publisherApplication.PubSubConnections[0];
             Assert.IsNotNull(m_firstPublisherConnection, "m_firstPublisherConnection should not be null");
 
             // Read the first writer group
-            Assert.IsNotEmpty(m_publisherConfiguration.Connections[0].WriterGroups, "pubSubConfigConnection.WriterGroups should not be empty");
+            Assert.IsNotEmpty(
+                m_publisherConfiguration.Connections[0].WriterGroups,
+                "pubSubConfigConnection.WriterGroups should not be empty"
+            );
             m_firstWriterGroup = m_publisherConfiguration.Connections[0].WriterGroups[0];
             Assert.IsNotNull(m_firstWriterGroup, "m_firstWriterGroup should not be null");
 
-            Assert.IsNotNull(m_publisherConfiguration.PublishedDataSets, "m_publisherConfiguration.PublishedDataSets should not be null");
-            Assert.IsNotEmpty(m_publisherConfiguration.PublishedDataSets, "m_publisherConfiguration.PublishedDataSets should not be empty");
+            Assert.IsNotNull(
+                m_publisherConfiguration.PublishedDataSets,
+                "m_publisherConfiguration.PublishedDataSets should not be null"
+            );
+            Assert.IsNotEmpty(
+                m_publisherConfiguration.PublishedDataSets,
+                "m_publisherConfiguration.PublishedDataSets should not be empty"
+            );
 
             // Create a subscriber application
-            string subscriberConfigurationFile = Utils.GetAbsoluteFilePath(m_subscriberConfigurationFileName, true, true, false);
+            string subscriberConfigurationFile = Utils.GetAbsoluteFilePath(
+                m_subscriberConfigurationFileName,
+                true,
+                true,
+                false
+            );
             m_subscriberApplication = UaPubSubApplication.Create(subscriberConfigurationFile);
             Assert.IsNotNull(m_subscriberApplication, "m_subscriberApplication should not be null");
 
@@ -104,31 +135,59 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             m_firstDataSetReaderType = GetFirstDataSetReader();
         }
 
-        [Test(Description = "Validate dataset message mask with Variant data type;" +
-                            "Change the Uadp dataset message mask into the [0,63] range that covers all options(properties)")]
+        [Test(
+            Description = "Validate dataset message mask with Variant data type;"
+                + "Change the Uadp dataset message mask into the [0,63] range that covers all options(properties)"
+        )]
         public void ValidateDataSetMessageMask(
-            [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
-            DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
-            DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourcePicoSeconds,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourceTimestamp,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.StatusCode,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourceTimestamp,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.StatusCode,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.StatusCode,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode
+            [Values(
+                DataSetFieldContentMask.None,
+                DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
+                DataSetFieldContentMask.ServerPicoSeconds,
+                DataSetFieldContentMask.ServerTimestamp,
+                DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.ServerTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.SourcePicoSeconds
+                    | DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.SourcePicoSeconds
+                    | DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.SourcePicoSeconds
+                    | DataSetFieldContentMask.SourceTimestamp
+                    | DataSetFieldContentMask.StatusCode
             )]
-            DataSetFieldContentMask dataSetFieldContentMask)
+                DataSetFieldContentMask dataSetFieldContentMask
+        )
         {
             // Arrange
             UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(dataSetFieldContentMask);
 
             // Act
             // change network message mask
-            for (uint dataSetMessageContentMask = 0; dataSetMessageContentMask < kMessageContentMask; dataSetMessageContentMask++)
+            for (
+                uint dataSetMessageContentMask = 0;
+                dataSetMessageContentMask < kMessageContentMask;
+                dataSetMessageContentMask++
+            )
             {
                 uadpDataSetMessage.SetMessageContentMask((UadpDataSetMessageContentMask)dataSetMessageContentMask);
 
@@ -139,21 +198,43 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
         [Test(Description = "Validate TimeStamp")]
         public void ValidateDataSetTimeStamp(
-            [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
-            DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
-            DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourcePicoSeconds,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourceTimestamp,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.StatusCode,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourceTimestamp,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.StatusCode,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.StatusCode,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode
+            [Values(
+                DataSetFieldContentMask.None,
+                DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
+                DataSetFieldContentMask.ServerPicoSeconds,
+                DataSetFieldContentMask.ServerTimestamp,
+                DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.ServerTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.SourcePicoSeconds
+                    | DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.SourcePicoSeconds
+                    | DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.SourcePicoSeconds
+                    | DataSetFieldContentMask.SourceTimestamp
+                    | DataSetFieldContentMask.StatusCode
             )]
-            DataSetFieldContentMask dataSetFieldContentMask)
+                DataSetFieldContentMask dataSetFieldContentMask
+        )
         {
             // Arrange
             UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(dataSetFieldContentMask);
@@ -168,21 +249,43 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
         [Test(Description = "Validate PicoSeconds")]
         public void ValidatePicoSeconds(
-            [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
-            DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
-            DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourcePicoSeconds,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourceTimestamp,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.StatusCode,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourceTimestamp,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.StatusCode,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.StatusCode,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode
+            [Values(
+                DataSetFieldContentMask.None,
+                DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
+                DataSetFieldContentMask.ServerPicoSeconds,
+                DataSetFieldContentMask.ServerTimestamp,
+                DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.ServerTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.SourcePicoSeconds
+                    | DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.SourcePicoSeconds
+                    | DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.SourcePicoSeconds
+                    | DataSetFieldContentMask.SourceTimestamp
+                    | DataSetFieldContentMask.StatusCode
             )]
-            DataSetFieldContentMask dataSetFieldContentMask)
+                DataSetFieldContentMask dataSetFieldContentMask
+        )
         {
             // Arrange
             UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(dataSetFieldContentMask);
@@ -197,16 +300,30 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
         [Test(Description = "Validate Status")]
         public void ValidateStatus(
-            [Values(UadpDataSetMessageContentMask.None, UadpDataSetMessageContentMask.Timestamp,
-                UadpDataSetMessageContentMask.MajorVersion, UadpDataSetMessageContentMask.MinorVersion,
+            [Values(
+                UadpDataSetMessageContentMask.None,
+                UadpDataSetMessageContentMask.Timestamp,
+                UadpDataSetMessageContentMask.MajorVersion,
+                UadpDataSetMessageContentMask.MinorVersion,
                 UadpDataSetMessageContentMask.SequenceNumber,
                 UadpDataSetMessageContentMask.MajorVersion | UadpDataSetMessageContentMask.MinorVersion,
-                UadpDataSetMessageContentMask.MajorVersion | UadpDataSetMessageContentMask.MinorVersion | UadpDataSetMessageContentMask.SequenceNumber)]
-            UadpDataSetMessageContentMask messageContentMask,
-            [Values(StatusCodes.Good, StatusCodes.UncertainDataSubNormal, StatusCodes.BadAggregateListMismatch, StatusCodes.BadUnknownResponse,
-            StatusCodes.Bad, StatusCodes.BadAggregateConfigurationRejected, StatusCodes.BadAggregateInvalidInputs, StatusCodes.BadAlreadyExists)]
-            uint statusCode
-            )
+                UadpDataSetMessageContentMask.MajorVersion
+                    | UadpDataSetMessageContentMask.MinorVersion
+                    | UadpDataSetMessageContentMask.SequenceNumber
+            )]
+                UadpDataSetMessageContentMask messageContentMask,
+            [Values(
+                StatusCodes.Good,
+                StatusCodes.UncertainDataSubNormal,
+                StatusCodes.BadAggregateListMismatch,
+                StatusCodes.BadUnknownResponse,
+                StatusCodes.Bad,
+                StatusCodes.BadAggregateConfigurationRejected,
+                StatusCodes.BadAggregateInvalidInputs,
+                StatusCodes.BadAlreadyExists
+            )]
+                uint statusCode
+        )
         {
             // Arrange
             UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(DataSetFieldContentMask.None);
@@ -221,21 +338,43 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
         [Test(Description = "Validate MajorVersion and MinorVersion with Equal values")]
         public void ValidateMajorVersionEqMinorVersionEq(
-            [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
-            DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
-            DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourcePicoSeconds,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourceTimestamp,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.StatusCode,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourceTimestamp,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.StatusCode,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.StatusCode,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode
+            [Values(
+                DataSetFieldContentMask.None,
+                DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
+                DataSetFieldContentMask.ServerPicoSeconds,
+                DataSetFieldContentMask.ServerTimestamp,
+                DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.ServerTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.SourcePicoSeconds
+                    | DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.SourcePicoSeconds
+                    | DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.SourcePicoSeconds
+                    | DataSetFieldContentMask.SourceTimestamp
+                    | DataSetFieldContentMask.StatusCode
             )]
-            DataSetFieldContentMask dataSetFieldContentMask)
+                DataSetFieldContentMask dataSetFieldContentMask
+        )
         {
             const int versionValue = 2;
 
@@ -243,7 +382,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(dataSetFieldContentMask);
 
             // Act
-            uadpDataSetMessage.SetMessageContentMask(UadpDataSetMessageContentMask.MajorVersion | UadpDataSetMessageContentMask.MinorVersion);
+            uadpDataSetMessage.SetMessageContentMask(
+                UadpDataSetMessageContentMask.MajorVersion | UadpDataSetMessageContentMask.MinorVersion
+            );
             uadpDataSetMessage.MetaDataVersion.MajorVersion = versionValue;
             uadpDataSetMessage.MetaDataVersion.MinorVersion = versionValue * 10;
 
@@ -280,31 +421,55 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
         [Test(Description = "Validate MajorVersion equal and MinorVersion differ")]
         public void ValidateMajorVersionEqMinorVersionDiffer(
-            [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
-            DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
-            DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourcePicoSeconds,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourceTimestamp,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.StatusCode,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourceTimestamp,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.StatusCode,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.StatusCode,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode
+            [Values(
+                DataSetFieldContentMask.None,
+                DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
+                DataSetFieldContentMask.ServerPicoSeconds,
+                DataSetFieldContentMask.ServerTimestamp,
+                DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.ServerTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.SourcePicoSeconds
+                    | DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.SourcePicoSeconds
+                    | DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.SourcePicoSeconds
+                    | DataSetFieldContentMask.SourceTimestamp
+                    | DataSetFieldContentMask.StatusCode
             )]
-            DataSetFieldContentMask dataSetFieldContentMask)
+                DataSetFieldContentMask dataSetFieldContentMask
+        )
         {
-            const int VersionValue = 2;
+            const int versionValue = 2;
 
             // Arrange
             UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(dataSetFieldContentMask);
 
             // Act
-            uadpDataSetMessage.SetMessageContentMask(UadpDataSetMessageContentMask.MajorVersion | UadpDataSetMessageContentMask.MinorVersion);
-            uadpDataSetMessage.MetaDataVersion.MajorVersion = VersionValue;
-            uadpDataSetMessage.MetaDataVersion.MinorVersion = VersionValue * 10;
+            uadpDataSetMessage.SetMessageContentMask(
+                UadpDataSetMessageContentMask.MajorVersion | UadpDataSetMessageContentMask.MinorVersion
+            );
+            uadpDataSetMessage.MetaDataVersion.MajorVersion = versionValue;
+            uadpDataSetMessage.MetaDataVersion.MinorVersion = versionValue * 10;
 
             IServiceMessageContext messageContextEncode = new ServiceMessageContext();
             byte[] bytes;
@@ -320,8 +485,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 // Make sure the reader MajorVersion is same with the ones on the dataset message
                 // and MinorVersion differ
                 var reader = (DataSetReaderDataType)m_firstDataSetReaderType.MemberwiseClone();
-                reader.DataSetMetaData.ConfigurationVersion.MajorVersion = uadpDataSetMessage.MetaDataVersion.MajorVersion;
-                reader.DataSetMetaData.ConfigurationVersion.MinorVersion = uadpDataSetMessage.MetaDataVersion.MinorVersion + 1;
+                reader.DataSetMetaData.ConfigurationVersion.MajorVersion = uadpDataSetMessage
+                    .MetaDataVersion
+                    .MajorVersion;
+                reader.DataSetMetaData.ConfigurationVersion.MinorVersion =
+                    uadpDataSetMessage.MetaDataVersion.MinorVersion + 1;
 
                 // workaround
                 uaDataSetMessageDecoded.DataSetWriterId = kTestDataSetWriterId;
@@ -338,31 +506,55 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
         [Test(Description = "Validate MajorVersion differ and MinorVersion are equal")]
         public void ValidateMajorVersionDiffMinorVersionEq(
-            [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
-            DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
-            DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourcePicoSeconds,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourceTimestamp,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.StatusCode,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourceTimestamp,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.StatusCode,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.StatusCode,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode
+            [Values(
+                DataSetFieldContentMask.None,
+                DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
+                DataSetFieldContentMask.ServerPicoSeconds,
+                DataSetFieldContentMask.ServerTimestamp,
+                DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.ServerTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.SourcePicoSeconds
+                    | DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.SourcePicoSeconds
+                    | DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.SourcePicoSeconds
+                    | DataSetFieldContentMask.SourceTimestamp
+                    | DataSetFieldContentMask.StatusCode
             )]
-            DataSetFieldContentMask dataSetFieldContentMask)
+                DataSetFieldContentMask dataSetFieldContentMask
+        )
         {
-            const int VersionValue = 2;
+            const int versionValue = 2;
 
             // Arrange
             UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(dataSetFieldContentMask);
 
             // Act
-            uadpDataSetMessage.SetMessageContentMask(UadpDataSetMessageContentMask.MajorVersion | UadpDataSetMessageContentMask.MinorVersion);
-            uadpDataSetMessage.MetaDataVersion.MajorVersion = VersionValue;
-            uadpDataSetMessage.MetaDataVersion.MinorVersion = VersionValue * 10;
+            uadpDataSetMessage.SetMessageContentMask(
+                UadpDataSetMessageContentMask.MajorVersion | UadpDataSetMessageContentMask.MinorVersion
+            );
+            uadpDataSetMessage.MetaDataVersion.MajorVersion = versionValue;
+            uadpDataSetMessage.MetaDataVersion.MinorVersion = versionValue * 10;
 
             IServiceMessageContext messageContextEncode = new ServiceMessageContext();
             byte[] bytes;
@@ -379,8 +571,11 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             {
                 // Make sure the reader MajorVersion differ and MinorVersion are equal
                 var reader = (DataSetReaderDataType)m_firstDataSetReaderType.MemberwiseClone();
-                reader.DataSetMetaData.ConfigurationVersion.MajorVersion = uadpDataSetMessage.MetaDataVersion.MajorVersion + 1;
-                reader.DataSetMetaData.ConfigurationVersion.MinorVersion = uadpDataSetMessage.MetaDataVersion.MinorVersion;
+                reader.DataSetMetaData.ConfigurationVersion.MajorVersion =
+                    uadpDataSetMessage.MetaDataVersion.MajorVersion + 1;
+                reader.DataSetMetaData.ConfigurationVersion.MinorVersion = uadpDataSetMessage
+                    .MetaDataVersion
+                    .MinorVersion;
 
                 // workaround
                 uaDataSetMessageDecoded.DataSetWriterId = kTestDataSetWriterId;
@@ -395,21 +590,43 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
         [Test(Description = "Validate MajorVersion differ and MinorVersion differ")]
         public void ValidateMajorVersionDiffMinorVersionDiff(
-            [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
-            DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
-            DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourcePicoSeconds,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourceTimestamp,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.StatusCode,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourceTimestamp,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.StatusCode,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.StatusCode,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode
+            [Values(
+                DataSetFieldContentMask.None,
+                DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
+                DataSetFieldContentMask.ServerPicoSeconds,
+                DataSetFieldContentMask.ServerTimestamp,
+                DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.ServerTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.SourcePicoSeconds
+                    | DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.SourcePicoSeconds
+                    | DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.SourcePicoSeconds
+                    | DataSetFieldContentMask.SourceTimestamp
+                    | DataSetFieldContentMask.StatusCode
             )]
-            DataSetFieldContentMask dataSetFieldContentMask)
+                DataSetFieldContentMask dataSetFieldContentMask
+        )
         {
             const int versionValue = 2;
 
@@ -417,7 +634,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(dataSetFieldContentMask);
 
             // Act
-            uadpDataSetMessage.SetMessageContentMask(UadpDataSetMessageContentMask.MajorVersion | UadpDataSetMessageContentMask.MinorVersion);
+            uadpDataSetMessage.SetMessageContentMask(
+                UadpDataSetMessageContentMask.MajorVersion | UadpDataSetMessageContentMask.MinorVersion
+            );
             uadpDataSetMessage.MetaDataVersion.MajorVersion = versionValue;
             uadpDataSetMessage.MetaDataVersion.MinorVersion = versionValue * 10;
 
@@ -436,8 +655,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             {
                 // Make sure the reader MajorVersion differ and MinorVersion differ
                 var reader = (DataSetReaderDataType)m_firstDataSetReaderType.MemberwiseClone();
-                reader.DataSetMetaData.ConfigurationVersion.MajorVersion = uadpDataSetMessage.MetaDataVersion.MajorVersion + 1;
-                reader.DataSetMetaData.ConfigurationVersion.MinorVersion = uadpDataSetMessage.MetaDataVersion.MinorVersion + 1;
+                reader.DataSetMetaData.ConfigurationVersion.MajorVersion =
+                    uadpDataSetMessage.MetaDataVersion.MajorVersion + 1;
+                reader.DataSetMetaData.ConfigurationVersion.MinorVersion =
+                    uadpDataSetMessage.MetaDataVersion.MinorVersion + 1;
 
                 // workaround
                 uaDataSetMessageDecoded.DataSetWriterId = kTestDataSetWriterId;
@@ -452,21 +673,43 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
         [Test(Description = "Validate SequenceNumber")]
         public void ValidateSequenceNumber(
-            [Values(DataSetFieldContentMask.None, DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
-            DataSetFieldContentMask.ServerPicoSeconds, DataSetFieldContentMask.ServerTimestamp, DataSetFieldContentMask.SourcePicoSeconds,
-            DataSetFieldContentMask.SourceTimestamp, DataSetFieldContentMask.StatusCode,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourcePicoSeconds,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.SourceTimestamp,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.StatusCode,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourceTimestamp,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.StatusCode,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.StatusCode,
-            DataSetFieldContentMask.ServerPicoSeconds| DataSetFieldContentMask.ServerTimestamp| DataSetFieldContentMask.SourcePicoSeconds| DataSetFieldContentMask.SourceTimestamp| DataSetFieldContentMask.StatusCode
+            [Values(
+                DataSetFieldContentMask.None,
+                DataSetFieldContentMask.RawData, // list here all possible DataSetFieldContentMask
+                DataSetFieldContentMask.ServerPicoSeconds,
+                DataSetFieldContentMask.ServerTimestamp,
+                DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.ServerTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds | DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.SourcePicoSeconds,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.SourcePicoSeconds
+                    | DataSetFieldContentMask.SourceTimestamp,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.SourcePicoSeconds
+                    | DataSetFieldContentMask.StatusCode,
+                DataSetFieldContentMask.ServerPicoSeconds
+                    | DataSetFieldContentMask.ServerTimestamp
+                    | DataSetFieldContentMask.SourcePicoSeconds
+                    | DataSetFieldContentMask.SourceTimestamp
+                    | DataSetFieldContentMask.StatusCode
             )]
-            DataSetFieldContentMask dataSetFieldContentMask)
+                DataSetFieldContentMask dataSetFieldContentMask
+        )
         {
             // Arrange
             UadpDataSetMessage uadpDataSetMessage = GetFirstDataSetMessage(dataSetFieldContentMask);
@@ -488,13 +731,29 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             // DataSet 'Simple' fill with data
             var booleanValue = new DataValue(new Variant(true), StatusCodes.Good);
-            m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId("BoolToggle", kNamespaceIndexSimple), Attributes.Value, booleanValue);
+            m_publisherApplication.DataStore.WritePublishedDataItem(
+                new NodeId("BoolToggle", kNamespaceIndexSimple),
+                Attributes.Value,
+                booleanValue
+            );
             var scalarInt32XValue = new DataValue(new Variant(100), StatusCodes.Good);
-            m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId("Int32", kNamespaceIndexSimple), Attributes.Value, scalarInt32XValue);
+            m_publisherApplication.DataStore.WritePublishedDataItem(
+                new NodeId("Int32", kNamespaceIndexSimple),
+                Attributes.Value,
+                scalarInt32XValue
+            );
             var scalarInt32YValue = new DataValue(new Variant(50), StatusCodes.Good);
-            m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId("Int32Fast", kNamespaceIndexSimple), Attributes.Value, scalarInt32YValue);
+            m_publisherApplication.DataStore.WritePublishedDataItem(
+                new NodeId("Int32Fast", kNamespaceIndexSimple),
+                Attributes.Value,
+                scalarInt32YValue
+            );
             var dateTimeValue = new DataValue(new Variant(DateTime.UtcNow), StatusCodes.Good);
-            m_publisherApplication.DataStore.WritePublishedDataItem(new NodeId("DateTime", kNamespaceIndexSimple), Attributes.Value, dateTimeValue);
+            m_publisherApplication.DataStore.WritePublishedDataItem(
+                new NodeId("DateTime", kNamespaceIndexSimple),
+                Attributes.Value,
+                dateTimeValue
+            );
         }
 
         /// <summary>
@@ -505,8 +764,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         {
             // Read the first configured ReaderGroup
             Assert.IsNotNull(m_firstReaderGroup, "m_firstReaderGroup should not be null");
-            Assert.IsNotEmpty(m_firstReaderGroup.DataSetReaders, "m_firstReaderGroup.DataSetReaders should not be empty");
-            Assert.IsNotNull(m_firstReaderGroup.DataSetReaders[0], "m_firstReaderGroup.DataSetReaders[0] should not be null");
+            Assert.IsNotEmpty(
+                m_firstReaderGroup.DataSetReaders,
+                "m_firstReaderGroup.DataSetReaders should not be empty"
+            );
+            Assert.IsNotNull(
+                m_firstReaderGroup.DataSetReaders[0],
+                "m_firstReaderGroup.DataSetReaders[0] should not be null"
+            );
 
             return m_firstReaderGroup.DataSetReaders[0];
         }
@@ -534,13 +799,16 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 dataSetWriter.DataSetFieldContentMask = (uint)fieldContentMask;
             }
 
-            System.Collections.Generic.IList<UaNetworkMessage> networkMessages = m_firstPublisherConnection.CreateNetworkMessages(m_firstWriterGroup, new WriterGroupPublishState());
+            System.Collections.Generic.IList<UaNetworkMessage> networkMessages =
+                m_firstPublisherConnection.CreateNetworkMessages(m_firstWriterGroup, new WriterGroupPublishState());
             // filter out the metadata message
-            networkMessages = [.. from m in networkMessages
-                               where !m.IsMetaDataMessage
-                               select m];
+            networkMessages = [.. from m in networkMessages where !m.IsMetaDataMessage select m];
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
-            Assert.AreEqual(1, networkMessages.Count, "connection.CreateNetworkMessages shall return only one network message");
+            Assert.AreEqual(
+                1,
+                networkMessages.Count,
+                "connection.CreateNetworkMessages shall return only one network message"
+            );
 
             var uaNetworkMessage = networkMessages[0] as UadpNetworkMessage;
 
@@ -591,54 +859,92 @@ namespace Opc.Ua.PubSub.Tests.Encoding
         /// <param name="uadpDataSetMessageEncode"></param>
         /// <param name="uadpDataSetMessageDecoded"></param>
         /// <returns></returns>
-        private static void CompareUadpDataSetMessages(UadpDataSetMessage uadpDataSetMessageEncode, UadpDataSetMessage uadpDataSetMessageDecoded)
+        private static void CompareUadpDataSetMessages(
+            UadpDataSetMessage uadpDataSetMessageEncode,
+            UadpDataSetMessage uadpDataSetMessageDecoded
+        )
         {
             DataSet dataSetDecoded = uadpDataSetMessageDecoded.DataSet;
-            UadpDataSetMessageContentMask dataSetMessageContentMask = uadpDataSetMessageEncode.DataSetMessageContentMask;
+            UadpDataSetMessageContentMask dataSetMessageContentMask =
+                uadpDataSetMessageEncode.DataSetMessageContentMask;
 
-            Assert.AreEqual(uadpDataSetMessageEncode.DataSetFlags1, uadpDataSetMessageDecoded.DataSetFlags1,
-                    "DataSetMessages DataSetFlags1 do not match:");
-            Assert.AreEqual(uadpDataSetMessageEncode.DataSetFlags2, uadpDataSetMessageDecoded.DataSetFlags2,
-                   "DataSetMessages DataSetFlags2 do not match:");
+            Assert.AreEqual(
+                uadpDataSetMessageEncode.DataSetFlags1,
+                uadpDataSetMessageDecoded.DataSetFlags1,
+                "DataSetMessages DataSetFlags1 do not match:"
+            );
+            Assert.AreEqual(
+                uadpDataSetMessageEncode.DataSetFlags2,
+                uadpDataSetMessageDecoded.DataSetFlags2,
+                "DataSetMessages DataSetFlags2 do not match:"
+            );
 
-            if ((dataSetMessageContentMask & UadpDataSetMessageContentMask.Timestamp) ==
-                UadpDataSetMessageContentMask.Timestamp)
+            if (
+                (dataSetMessageContentMask & UadpDataSetMessageContentMask.Timestamp)
+                == UadpDataSetMessageContentMask.Timestamp
+            )
             {
-                Assert.AreEqual(uadpDataSetMessageEncode.Timestamp, uadpDataSetMessageDecoded.Timestamp,
-                    "DataSetMessages TimeStamp do not match:");
+                Assert.AreEqual(
+                    uadpDataSetMessageEncode.Timestamp,
+                    uadpDataSetMessageDecoded.Timestamp,
+                    "DataSetMessages TimeStamp do not match:"
+                );
             }
 
-            if ((dataSetMessageContentMask & UadpDataSetMessageContentMask.PicoSeconds) ==
-                UadpDataSetMessageContentMask.PicoSeconds)
+            if (
+                (dataSetMessageContentMask & UadpDataSetMessageContentMask.PicoSeconds)
+                == UadpDataSetMessageContentMask.PicoSeconds
+            )
             {
-                Assert.AreEqual(uadpDataSetMessageEncode.PicoSeconds, uadpDataSetMessageDecoded.PicoSeconds,
-                    "DataSetMessages PicoSeconds do not match:");
+                Assert.AreEqual(
+                    uadpDataSetMessageEncode.PicoSeconds,
+                    uadpDataSetMessageDecoded.PicoSeconds,
+                    "DataSetMessages PicoSeconds do not match:"
+                );
             }
 
-            if ((dataSetMessageContentMask & UadpDataSetMessageContentMask.Status) ==
-                UadpDataSetMessageContentMask.Status)
+            if (
+                (dataSetMessageContentMask & UadpDataSetMessageContentMask.Status)
+                == UadpDataSetMessageContentMask.Status
+            )
             {
-                Assert.AreEqual(uadpDataSetMessageEncode.Status, uadpDataSetMessageDecoded.Status,
-                    "DataSetMessages Status do not match:");
+                Assert.AreEqual(
+                    uadpDataSetMessageEncode.Status,
+                    uadpDataSetMessageDecoded.Status,
+                    "DataSetMessages Status do not match:"
+                );
             }
 
-            if ((dataSetMessageContentMask & UadpDataSetMessageContentMask.MajorVersion) ==
-                UadpDataSetMessageContentMask.MajorVersion)
+            if (
+                (dataSetMessageContentMask & UadpDataSetMessageContentMask.MajorVersion)
+                == UadpDataSetMessageContentMask.MajorVersion
+            )
             {
-                Assert.AreEqual(uadpDataSetMessageEncode.MetaDataVersion.MajorVersion, uadpDataSetMessageDecoded.MetaDataVersion.MajorVersion,
-                    "DataSetMessages ConfigurationMajorVersion do not match:");
+                Assert.AreEqual(
+                    uadpDataSetMessageEncode.MetaDataVersion.MajorVersion,
+                    uadpDataSetMessageDecoded.MetaDataVersion.MajorVersion,
+                    "DataSetMessages ConfigurationMajorVersion do not match:"
+                );
             }
 
-            if ((dataSetMessageContentMask & UadpDataSetMessageContentMask.MinorVersion) ==
-                UadpDataSetMessageContentMask.MinorVersion)
+            if (
+                (dataSetMessageContentMask & UadpDataSetMessageContentMask.MinorVersion)
+                == UadpDataSetMessageContentMask.MinorVersion
+            )
             {
-                Assert.AreEqual(uadpDataSetMessageEncode.MetaDataVersion.MinorVersion, uadpDataSetMessageDecoded.MetaDataVersion.MinorVersion,
-                    "DataSetMessages ConfigurationMajorVersion do not match:");
+                Assert.AreEqual(
+                    uadpDataSetMessageEncode.MetaDataVersion.MinorVersion,
+                    uadpDataSetMessageDecoded.MetaDataVersion.MinorVersion,
+                    "DataSetMessages ConfigurationMajorVersion do not match:"
+                );
             }
 
             // check also the payload data
-            Assert.AreEqual(uadpDataSetMessageEncode.DataSet.Fields.Length, dataSetDecoded.Fields.Length,
-                "DataSetMessages DataSet fields size do not match:");
+            Assert.AreEqual(
+                uadpDataSetMessageEncode.DataSet.Fields.Length,
+                dataSetDecoded.Fields.Length,
+                "DataSetMessages DataSet fields size do not match:"
+            );
 
             for (int index = 0; index < uadpDataSetMessageEncode.DataSet.Fields.Length; index++)
             {
@@ -650,8 +956,14 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 object encodedValue = dataSetFieldEncoded.Value.Value;
                 object decodedValue = dataSetFieldDecoded.Value.Value;
 
-                Assert.AreEqual(encodedValue, decodedValue,
-                    "DataSetMessages Field.Value does not match value field at position: {0} {1}|{2}", index, encodedValue, decodedValue);
+                Assert.AreEqual(
+                    encodedValue,
+                    decodedValue,
+                    "DataSetMessages Field.Value does not match value field at position: {0} {1}|{2}",
+                    index,
+                    encodedValue,
+                    decodedValue
+                );
             }
         }
 

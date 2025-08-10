@@ -17,6 +17,6 @@ namespace Opc.Ua.Configuration
     /// configuration and security information for a UA application.
     /// </summary>
     ///<exclude/>
-    [System.Runtime.CompilerServices.CompilerGenerated()]
+    [System.Runtime.CompilerServices.CompilerGenerated]
     public class NamespaceDoc;
 }

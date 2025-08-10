@@ -91,7 +91,8 @@ namespace TestData
             TimestampsToReturn timestampsToReturn,
             NumericRange indexRange,
             QualifiedName dataEncoding,
-            DataValueCollection values)
+            DataValueCollection values
+        )
         {
             m_request = request;
 
@@ -111,7 +112,12 @@ namespace TestData
             // get first bound.
             if (m_request.ReturnBounds)
             {
-                DataValue value = m_source.FirstRaw(m_startTime, !m_isForward, m_request.IsReadModified, out m_position);
+                DataValue value = m_source.FirstRaw(
+                    m_startTime,
+                    !m_isForward,
+                    m_request.IsReadModified,
+                    out m_position
+                );
 
                 if (value != null)
                 {
@@ -134,7 +140,8 @@ namespace TestData
             TimestampsToReturn timestampsToReturn,
             NumericRange indexRange,
             QualifiedName dataEncoding,
-            DataValueCollection values)
+            DataValueCollection values
+        )
         {
             DataValue value;
             do
@@ -154,7 +161,10 @@ namespace TestData
                 }
 
                 // check for bound.
-                if ((m_isForward && value.ServerTimestamp >= m_endTime) || (!m_isForward && value.ServerTimestamp <= m_endTime))
+                if (
+                    (m_isForward && value.ServerTimestamp >= m_endTime)
+                    || (!m_isForward && value.ServerTimestamp <= m_endTime)
+                )
                 {
                     if (m_request.ReturnBounds)
                     {
@@ -165,8 +175,7 @@ namespace TestData
 
                 // add value.
                 AddValue(timestampsToReturn, indexRange, dataEncoding, values, value);
-            }
-            while (value != null);
+            } while (value != null);
 
             return true;
         }
@@ -179,7 +188,8 @@ namespace TestData
             NumericRange indexRange,
             QualifiedName dataEncoding,
             DataValueCollection values,
-            DataValue value)
+            DataValue value
+        )
         {
             // ignore invalid case.
             if (value == null)

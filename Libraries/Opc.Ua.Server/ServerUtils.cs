@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -45,7 +45,7 @@ namespace Opc.Ua.Server
             QueueValue,
             FilterValue,
             DiscardValue,
-            PublishValue
+            PublishValue,
         }
 
         private class Event
@@ -68,7 +68,6 @@ namespace Opc.Ua.Server
         public static bool EventsEnabled
         {
             get => s_eventsEnabled;
-
             set
             {
                 if (s_eventsEnabled != value && !value)
@@ -103,15 +102,12 @@ namespace Opc.Ua.Server
                     Timestamp = HiResClock.UtcNow,
                     Value = value,
                     Parameters = null,
-                    MonitoringMode = MonitoringMode.Disabled
+                    MonitoringMode = MonitoringMode.Disabled,
                 };
 
                 if (StatusCode.IsBad(error))
                 {
-                    e.Value = new DataValue(error)
-                    {
-                        WrappedValue = value.WrappedValue
-                    };
+                    e.Value = new DataValue(error) { WrappedValue = value.WrappedValue };
                 }
 
                 s_events.Enqueue(e);
@@ -138,7 +134,7 @@ namespace Opc.Ua.Server
                     Timestamp = HiResClock.UtcNow,
                     Value = value,
                     Parameters = null,
-                    MonitoringMode = MonitoringMode.Disabled
+                    MonitoringMode = MonitoringMode.Disabled,
                 };
                 s_events.Enqueue(e);
             }
@@ -164,7 +160,7 @@ namespace Opc.Ua.Server
                     Timestamp = HiResClock.UtcNow,
                     Value = value,
                     Parameters = null,
-                    MonitoringMode = MonitoringMode.Disabled
+                    MonitoringMode = MonitoringMode.Disabled,
                 };
                 s_events.Enqueue(e);
             }
@@ -190,7 +186,7 @@ namespace Opc.Ua.Server
                     Timestamp = HiResClock.UtcNow,
                     Value = value,
                     Parameters = null,
-                    MonitoringMode = MonitoringMode.Disabled
+                    MonitoringMode = MonitoringMode.Disabled,
                 };
                 s_events.Enqueue(e);
             }
@@ -216,7 +212,7 @@ namespace Opc.Ua.Server
                     Timestamp = HiResClock.UtcNow,
                     Value = value,
                     Parameters = null,
-                    MonitoringMode = MonitoringMode.Disabled
+                    MonitoringMode = MonitoringMode.Disabled,
                 };
                 s_events.Enqueue(e);
             }
@@ -232,7 +228,8 @@ namespace Opc.Ua.Server
             uint queueSize,
             bool discardOldest,
             MonitoringFilter filter,
-            MonitoringMode monitoringMode)
+            MonitoringMode monitoringMode
+        )
         {
             if (!s_eventsEnabled)
             {
@@ -253,9 +250,9 @@ namespace Opc.Ua.Server
                         SamplingInterval = samplingInterval,
                         QueueSize = queueSize,
                         DiscardOldest = discardOldest,
-                        Filter = new ExtensionObject(filter)
+                        Filter = new ExtensionObject(filter),
                     },
-                    MonitoringMode = monitoringMode
+                    MonitoringMode = monitoringMode,
                 };
                 s_events.Enqueue(e);
             }
@@ -271,7 +268,8 @@ namespace Opc.Ua.Server
             uint queueSize,
             bool discardOldest,
             MonitoringFilter filter,
-            MonitoringMode monitoringMode)
+            MonitoringMode monitoringMode
+        )
         {
             if (!s_eventsEnabled)
             {
@@ -292,9 +290,9 @@ namespace Opc.Ua.Server
                         SamplingInterval = samplingInterval,
                         QueueSize = queueSize,
                         DiscardOldest = discardOldest,
-                        Filter = new ExtensionObject(filter)
+                        Filter = new ExtensionObject(filter),
                     },
-                    MonitoringMode = monitoringMode
+                    MonitoringMode = monitoringMode,
                 };
                 s_events.Enqueue(e);
             }
@@ -307,7 +305,8 @@ namespace Opc.Ua.Server
             uint code,
             OperationContext context,
             DiagnosticInfoCollection diagnosticInfos,
-            int index)
+            int index
+        )
         {
             var error = new ServiceResult(code);
 
@@ -326,7 +325,8 @@ namespace Opc.Ua.Server
             uint code,
             StatusCodeCollection results,
             DiagnosticInfoCollection diagnosticInfos,
-            OperationContext context)
+            OperationContext context
+        )
         {
             var error = new ServiceResult(code);
             results.Add(error.Code);
@@ -348,7 +348,8 @@ namespace Opc.Ua.Server
             StatusCodeCollection results,
             DiagnosticInfoCollection diagnosticInfos,
             int index,
-            OperationContext context)
+            OperationContext context
+        )
         {
             var error = new ServiceResult(code);
             results[index] = error.Code;
@@ -368,7 +369,8 @@ namespace Opc.Ua.Server
         public static void CreateSuccess(
             StatusCodeCollection results,
             DiagnosticInfoCollection diagnosticInfos,
-            OperationContext context)
+            OperationContext context
+        )
         {
             results.Add(StatusCodes.Good);
 
@@ -383,7 +385,8 @@ namespace Opc.Ua.Server
         /// </summary>
         public static DiagnosticInfoCollection CreateDiagnosticInfoCollection(
             OperationContext context,
-            IList<ServiceResult> errors)
+            IList<ServiceResult> errors
+        )
         {
             // all done if no diagnostics requested.
             if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) == 0)
@@ -415,7 +418,8 @@ namespace Opc.Ua.Server
         public static StatusCodeCollection CreateStatusCodeCollection(
             OperationContext context,
             IList<ServiceResult> errors,
-            out DiagnosticInfoCollection diagnosticInfos)
+            out DiagnosticInfoCollection diagnosticInfos
+        )
         {
             diagnosticInfos = null;
 
@@ -454,7 +458,8 @@ namespace Opc.Ua.Server
         public static DiagnosticInfo CreateDiagnosticInfo(
             IServerInternal server,
             OperationContext context,
-            ServiceResult error)
+            ServiceResult error
+        )
         {
             if (error == null)
             {
@@ -468,11 +473,7 @@ namespace Opc.Ua.Server
                 translatedError = server.ResourceManager.Translate(context.PreferredLocales, error);
             }
 
-            return new DiagnosticInfo(
-                translatedError,
-                context.DiagnosticsMask,
-                false,
-                context.StringTable);
+            return new DiagnosticInfo(translatedError, context.DiagnosticsMask, false, context.StringTable);
         }
     }
 }

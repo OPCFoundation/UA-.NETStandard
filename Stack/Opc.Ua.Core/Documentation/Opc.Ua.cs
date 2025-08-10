@@ -17,6 +17,6 @@ namespace Opc.Ua
     /// and services defined by the UA specification.
     /// </summary>
     ///<exclude/>
-    [System.Runtime.CompilerServices.CompilerGenerated()]
+    [System.Runtime.CompilerServices.CompilerGenerated]
     public class NamespaceDoc;
 }

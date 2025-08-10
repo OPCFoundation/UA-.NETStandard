@@ -69,7 +69,8 @@ namespace Opc.Ua
             NodeId referenceTypeId,
             bool isInverse,
             bool includeSubtypes,
-            QualifiedName browseName);
+            QualifiedName browseName
+        );
 
         /// <summary>
         /// Follows the reference from the source and returns all target nodes.
@@ -81,11 +82,7 @@ namespace Opc.Ua
         /// <returns>
         /// Returns an empty list if the source does not exist or if there are no matching targets.
         /// </returns>
-        IList<INode> Find(
-            ExpandedNodeId sourceId,
-            NodeId referenceTypeId,
-            bool isInverse,
-            bool includeSubtypes);
+        IList<INode> Find(ExpandedNodeId sourceId, NodeId referenceTypeId, bool isInverse, bool includeSubtypes);
     }
 
     /// <summary>
@@ -100,10 +97,7 @@ namespace Opc.Ua
         /// <param name="namespaceUris">The namespace URIs.</param>
         /// <param name="serverUris">The server URIs.</param>
         /// <param name="typeTree">The type tree.</param>
-        public NodeTable(
-            NamespaceTable namespaceUris,
-            StringTable serverUris,
-            TypeTable typeTree)
+        public NodeTable(NamespaceTable namespaceUris, StringTable serverUris, TypeTable typeTree)
         {
             NamespaceUris = namespaceUris;
             ServerUris = serverUris;
@@ -139,7 +133,8 @@ namespace Opc.Ua
             NodeId referenceTypeId,
             bool isInverse,
             bool includeSubtypes,
-            QualifiedName browseName)
+            QualifiedName browseName
+        )
         {
             // find the source.
             INode source = InternalFind(sourceId);
@@ -160,7 +155,8 @@ namespace Opc.Ua
                 referenceTypeId,
                 isInverse,
                 includeSubtypes,
-                m_typeTree);
+                m_typeTree
+            );
 
             // look for the target.
             foreach (IReference reference in references)
@@ -188,11 +184,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public IList<INode> Find(
-            ExpandedNodeId sourceId,
-            NodeId referenceTypeId,
-            bool isInverse,
-            bool includeSubtypes)
+        public IList<INode> Find(ExpandedNodeId sourceId, NodeId referenceTypeId, bool isInverse, bool includeSubtypes)
         {
             // create an empty list.
             IList<INode> nodes = [];
@@ -216,7 +208,8 @@ namespace Opc.Ua
                 referenceTypeId,
                 isInverse,
                 includeSubtypes,
-                m_typeTree);
+                m_typeTree
+            );
 
             // look for the targets.
             foreach (IReference reference in references)
@@ -385,7 +378,7 @@ namespace Opc.Ua
                             {
                                 ReferenceTypeId = reference.ReferenceTypeId,
                                 IsInverse = !reference.IsInverse,
-                                TargetId = node.NodeId
+                                TargetId = node.NodeId,
                             };
 
                             referenceList.Add(reverseReference);
@@ -395,7 +388,10 @@ namespace Opc.Ua
                     }
 
                     // type definition and modelling rule references are one way.
-                    if (reference.ReferenceTypeId != ReferenceTypeIds.HasTypeDefinition && reference.ReferenceTypeId != ReferenceTypeIds.HasModellingRule)
+                    if (
+                        reference.ReferenceTypeId != ReferenceTypeIds.HasTypeDefinition
+                        && reference.ReferenceTypeId != ReferenceTypeIds.HasModellingRule
+                    )
                     {
                         targetNode.ReferenceTable.Add(reference.ReferenceTypeId, !reference.IsInverse, node.NodeId);
                     }
@@ -429,10 +425,7 @@ namespace Opc.Ua
                 }
                 else
                 {
-                    var node = new Node
-                    {
-                        NodeId = ExpandedNodeId.ToNodeId(reference.NodeId, NamespaceUris)
-                    };
+                    var node = new Node { NodeId = ExpandedNodeId.ToNodeId(reference.NodeId, NamespaceUris) };
 
                     InternalAdd(node);
                     target = node;
@@ -488,7 +481,11 @@ namespace Opc.Ua
 
             // check if importing a node from a XML source (must copy references from References array to ReferenceTable).
 
-            if (node is Node serializedNode && serializedNode.References.Count > 0 && serializedNode.ReferenceTable.Count == 0)
+            if (
+                node is Node serializedNode
+                && serializedNode.References.Count > 0
+                && serializedNode.ReferenceTable.Count == 0
+            )
             {
                 // index references.
                 foreach (ReferenceNode reference in node.References.OfType<ReferenceNode>())
@@ -530,7 +527,8 @@ namespace Opc.Ua
                 }
 
                 // type definition and modelling rule references are one way.
-                if (reference.ReferenceTypeId != ReferenceTypeIds.HasTypeDefinition && reference.ReferenceTypeId != ReferenceTypeIds.HasModellingRule)
+                if (reference.ReferenceTypeId != ReferenceTypeIds.HasTypeDefinition &&
+				    reference.ReferenceTypeId != ReferenceTypeIds.HasModellingRule)
                 {
                     targetNode.References.Add(reference.ReferenceTypeId, !reference.IsInverse, node.NodeId);
                 }

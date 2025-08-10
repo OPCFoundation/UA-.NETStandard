@@ -20,8 +20,8 @@ namespace Opc.Ua
     public static partial class StatusCodes
     {
         /// <summary>
-		/// Returns the browse name for the attribute.
-		/// </summary>
+        /// Returns the browse name for the attribute.
+        /// </summary>
         public static string GetBrowseName(uint identifier)
         {
             foreach (FieldInfo field in typeof(StatusCodes).GetFields(BindingFlags.Public | BindingFlags.Static))

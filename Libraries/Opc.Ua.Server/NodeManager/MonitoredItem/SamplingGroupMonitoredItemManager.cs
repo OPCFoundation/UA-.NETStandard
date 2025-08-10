@@ -41,21 +41,25 @@ namespace Opc.Ua.Server
         public SamplingGroupMonitoredItemManager(
             CustomNodeManager2 nodeManager,
             IServerInternal server,
-            ApplicationConfiguration configuration)
+            ApplicationConfiguration configuration
+        )
         {
             m_samplingGroupManager = new SamplingGroupManager(
                 server,
                 nodeManager,
                 (uint)configuration.ServerConfiguration.MaxNotificationQueueSize,
                 (uint)configuration.ServerConfiguration.MaxDurableNotificationQueueSize,
-                configuration.ServerConfiguration.AvailableSamplingRates);
+                configuration.ServerConfiguration.AvailableSamplingRates
+            );
 
             m_nodeManager = nodeManager;
             MonitoredNodes = [];
             MonitoredItems = new ConcurrentDictionary<uint, IMonitoredItem>();
         }
+
         /// <inheritdoc/>
         public NodeIdDictionary<MonitoredNode2> MonitoredNodes { get; }
+
         /// <inheritdoc/>
         public ConcurrentDictionary<uint, IMonitoredItem> MonitoredItems { get; }
 
@@ -76,7 +80,8 @@ namespace Opc.Ua.Server
             uint revisedQueueSize,
             bool createDurable,
             uint monitoredItemId,
-            Func<ISystemContext, NodeHandle, NodeState, NodeState> AddNodeToComponentCache)
+            Func<ISystemContext, NodeHandle, NodeState, NodeState> addNodeToComponentCache
+        )
         {
             // set min sampling interval if 0
             if (samplingInterval.CompareTo(0.0) == 0)
@@ -95,13 +100,15 @@ namespace Opc.Ua.Server
                 itemToCreate,
                 euRange,
                 samplingInterval,
-                createDurable);
+                createDurable
+            );
 
             // save the monitored item.
             MonitoredItems.AddOrUpdate(monitoredItemId, monitoredItem, (key, oldValue) => monitoredItem);
 
             return monitoredItem;
         }
+
         /// <inheritdoc/>
         public void ApplyChanges()
         {
@@ -128,7 +135,11 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public StatusCode DeleteMonitoredItem(ServerSystemContext context, ISampledDataChangeMonitoredItem monitoredItem, NodeHandle handle)
+        public StatusCode DeleteMonitoredItem(
+            ServerSystemContext context,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            NodeHandle handle
+        )
         {
             // validate monitored item.
             IMonitoredItem existingMonitoredItem;
@@ -151,16 +162,19 @@ namespace Opc.Ua.Server
             // delete successful.
             return StatusCodes.Good;
         }
+
         /// <inheritdoc/>
-        public ServiceResult ModifyMonitoredItem(ServerSystemContext context,
-                                                 DiagnosticsMasks diagnosticsMasks,
-                                                 TimestampsToReturn timestampsToReturn,
-                                                 MonitoringFilter filterToUse,
-                                                 Range euRange,
-                                                 double samplingInterval,
-                                                 uint revisedQueueSize,
-                                                 ISampledDataChangeMonitoredItem monitoredItem,
-                                                 MonitoredItemModifyRequest itemToModify)
+        public ServiceResult ModifyMonitoredItem(
+            ServerSystemContext context,
+            DiagnosticsMasks diagnosticsMasks,
+            TimestampsToReturn timestampsToReturn,
+            MonitoringFilter filterToUse,
+            Range euRange,
+            double samplingInterval,
+            uint revisedQueueSize,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            MonitoredItemModifyRequest itemToModify
+        )
         {
             // validate monitored item.
             IMonitoredItem existingMonitoredItem;
@@ -175,15 +189,21 @@ namespace Opc.Ua.Server
             }
 
             return m_samplingGroupManager.ModifyMonitoredItem(
-                        context.OperationContext,
-                        timestampsToReturn,
-                        monitoredItem,
-                        itemToModify,
-                        euRange);
+                context.OperationContext,
+                timestampsToReturn,
+                monitoredItem,
+                itemToModify,
+                euRange
+            );
         }
 
         /// <inheritdoc/>
-        public (ServiceResult, MonitoringMode?) SetMonitoringMode(ServerSystemContext context, ISampledDataChangeMonitoredItem monitoredItem, MonitoringMode monitoringMode, NodeHandle handle)
+        public (ServiceResult, MonitoringMode?) SetMonitoringMode(
+            ServerSystemContext context,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            MonitoringMode monitoringMode,
+            NodeHandle handle
+        )
         {
             IMonitoredItem existingMonitoredItem;
 
@@ -206,7 +226,7 @@ namespace Opc.Ua.Server
                 var initialValue = new DataValue
                 {
                     ServerTimestamp = DateTime.UtcNow,
-                    StatusCode = StatusCodes.BadWaitingForInitialData
+                    StatusCode = StatusCodes.BadWaitingForInitialData,
                 };
 
                 // read the initial value.
@@ -229,21 +249,23 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public bool RestoreMonitoredItem(IServerInternal server,
-                                         INodeManager nodeManager,
-                                         ServerSystemContext context,
-                                         NodeHandle handle,
-                                         IStoredMonitoredItem storedMonitoredItem,
-                                         IUserIdentity savedOwnerIdentity,
-                                         Func<ISystemContext, NodeHandle, NodeState, NodeState> AddNodeToComponentCache,
-                                         out ISampledDataChangeMonitoredItem monitoredItem)
+        public bool RestoreMonitoredItem(
+            IServerInternal server,
+            INodeManager nodeManager,
+            ServerSystemContext context,
+            NodeHandle handle,
+            IStoredMonitoredItem storedMonitoredItem,
+            IUserIdentity savedOwnerIdentity,
+            Func<ISystemContext, NodeHandle, NodeState, NodeState> addNodeToComponentCache,
+            out ISampledDataChangeMonitoredItem monitoredItem
+        )
         {
             // create monitored item.
             monitoredItem = m_samplingGroupManager.RestoreMonitoredItem(
                 handle,
                 storedMonitoredItem,
                 savedOwnerIdentity
-                );
+            );
 
             // save monitored item.
             MonitoredItems.TryAdd(monitoredItem.Id, monitoredItem);
@@ -252,7 +274,12 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public (MonitoredNode2, ServiceResult) SubscribeToEvents(ServerSystemContext context, NodeState source, IEventMonitoredItem monitoredItem, bool unsubscribe)
+        public (MonitoredNode2, ServiceResult) SubscribeToEvents(
+            ServerSystemContext context,
+            NodeState source,
+            IEventMonitoredItem monitoredItem,
+            bool unsubscribe
+        )
         {
             MonitoredNode2 monitoredNode = null;
             // handle unsubscribe.
@@ -277,7 +304,10 @@ namespace Opc.Ua.Server
             }
 
             // only objects or views can be subscribed to.
-            if (!(source is BaseObjectState instance) || (instance.EventNotifier & EventNotifiers.SubscribeToEvents) == 0)
+            if (
+                !(source is BaseObjectState instance)
+                || (instance.EventNotifier & EventNotifiers.SubscribeToEvents) == 0
+            )
             {
                 if (!(source is ViewState view) || (view.EventNotifier & EventNotifiers.SubscribeToEvents) == 0)
                 {

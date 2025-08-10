@@ -50,14 +50,10 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         protected DataGenerator DataGenerator { get; private set; }
 
         [OneTimeSetUp]
-        protected void OneTimeSetUp()
-        {
-        }
+        protected void OneTimeSetUp() { }
 
         [OneTimeTearDown]
-        protected void OneTimeTearDown()
-        {
-        }
+        protected void OneTimeTearDown() { }
 
         [SetUp]
         protected void SetUp()
@@ -68,9 +64,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         }
 
         [TearDown]
-        protected void TearDown()
-        {
-        }
+        protected void TearDown() { }
 
         /// <summary>
         /// Ensure repeated tests get different seed.
@@ -94,12 +88,15 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         [DatapointSource]
         public static readonly BuiltInType[] BuiltInTypes =
 #if NET8_0_OR_GREATER
-            [.. Enum.GetValues<BuiltInType>()
+        [
+            .. Enum.GetValues<BuiltInType>()
 #else
-            [.. Enum.GetValues(typeof(BuiltInType))
+        [
+            .. Enum.GetValues(typeof(BuiltInType))
                 .Cast<BuiltInType>()
 #endif
-                .Where(b => (b > BuiltInType.Null) && (b < BuiltInType.DataValue))];
+            .Where(b => (b > BuiltInType.Null) && (b < BuiltInType.DataValue)),
+        ];
 
         /// <summary>
         /// Initialize Variant with BuiltInType Scalar.
@@ -169,7 +166,11 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             var variant3 = new Variant(days);
 
             // Enum 2-dim Array
-            var daysdays = new DayOfWeek[,] { { DayOfWeek.Monday, DayOfWeek.Tuesday }, { DayOfWeek.Monday, DayOfWeek.Tuesday } };
+            var daysdays = new DayOfWeek[,]
+            {
+                { DayOfWeek.Monday, DayOfWeek.Tuesday },
+                { DayOfWeek.Monday, DayOfWeek.Tuesday },
+            };
             var variant5 = new Variant(daysdays, new TypeInfo(BuiltInType.Enumeration, ValueRanks.TwoDimensions));
 
             // not supported
@@ -267,7 +268,13 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         public void DiagnosticInfoInnerDiagnostics()
         {
             var stringTable = new StringTable();
-            var serviceResult = new ServiceResult(StatusCodes.BadAggregateConfigurationRejected, "SymbolicId", Namespaces.OpcUa, new LocalizedText("The text", "en-us"), new Exception("The inner exception."));
+            var serviceResult = new ServiceResult(
+                StatusCodes.BadAggregateConfigurationRejected,
+                "SymbolicId",
+                Namespaces.OpcUa,
+                new LocalizedText("The text", "en-us"),
+                new Exception("The inner exception.")
+            );
             var diagnosticInfo = new DiagnosticInfo(serviceResult, DiagnosticsMasks.All, true, stringTable);
             Assert.NotNull(diagnosticInfo);
             Assert.AreEqual(0, diagnosticInfo.SymbolicId);
@@ -304,9 +311,19 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         [Test]
         public void MatrixFlatToArray()
         {
-            int[,,] testArray = new int[,,] {
-                { { 1, 2, 3 }, { 4, 5, 6 }, { 7, 8, 9 } },
-                { { 11, 12, 13 }, { 14, 15, 16 }, { 17, 18, 19 } } };
+            int[,,] testArray = new int[,,]
+            {
+                {
+                    { 1, 2, 3 },
+                    { 4, 5, 6 },
+                    { 7, 8, 9 },
+                },
+                {
+                    { 11, 12, 13 },
+                    { 14, 15, 16 },
+                    { 17, 18, 19 },
+                },
+            };
             var matrix = new Matrix(testArray, TypeInfo.GetBuiltInType(new NodeId((int)BuiltInType.Int32)));
             var toArray = matrix.ToArray();
             Assert.AreEqual(testArray, toArray);
@@ -368,7 +385,9 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.AreEqual(guid, id.Identifier);
             NUnit.Framework.Assert.Throws<ArgumentException>(() => _ = new NodeId((long)7777777, 123));
 
-            ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() => _ = NodeId.Create(123, "urn:xyz", new NamespaceTable()));
+            ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
+                _ = NodeId.Create(123, "urn:xyz", new NamespaceTable())
+            );
             Assert.AreEqual((StatusCode)StatusCodes.BadNodeIdInvalid, (StatusCode)sre.StatusCode);
 
             NodeId opaqueId = "!,7B"u8.ToArray();
@@ -383,7 +402,8 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.IsNull(nullId);
 
             // create a nodeId from a guid
-            Guid guid1 = Guid.NewGuid(), guid2 = Guid.NewGuid();
+            Guid guid1 = Guid.NewGuid(),
+                guid2 = Guid.NewGuid();
             var nodeGuid1 = new NodeId(id1);
 
             // now to compare the nodeId to the guids
@@ -402,9 +422,17 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             NUnit.Framework.Assert.Throws<ServiceResultException>(() => _ = NodeId.Parse("ns="));
             NUnit.Framework.Assert.Throws<ArgumentException>(() => _ = NodeId.Parse("nsu="));
             NUnit.Framework.Assert.Throws<ArgumentException>(() => _ = NodeId.Parse("Test"));
-            NUnit.Framework.Assert.Throws<ArgumentException>(() => { NodeId _ = "Test"; });
-            NUnit.Framework.Assert.Throws<ArgumentException>(() => _ = NodeId.Parse("nsu=http://opcfoundation.org/Tests;s=Test"));
-            NUnit.Framework.Assert.Throws<ArgumentException>(() => { NodeId _ = "nsu=http://opcfoundation.org/Tests;s=Test"; });
+            NUnit.Framework.Assert.Throws<ArgumentException>(() =>
+            {
+                NodeId _ = "Test";
+            });
+            NUnit.Framework.Assert.Throws<ArgumentException>(() =>
+                _ = NodeId.Parse("nsu=http://opcfoundation.org/Tests;s=Test")
+            );
+            NUnit.Framework.Assert.Throws<ArgumentException>(() =>
+            {
+                NodeId _ = "nsu=http://opcfoundation.org/Tests;s=Test";
+            });
             Assert.IsNull(NodeId.ToExpandedNodeId(null, null));
 
             // IsNull
@@ -416,9 +444,16 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.True(NodeId.IsNull(new ExpandedNodeId(0)));
             Assert.False(NodeId.IsNull(new ExpandedNodeId(1)));
 
-            string[] testStrings = [
-                "i=1234", "s=HelloWorld", "g=af469096-f02a-4563-940b-603958363b81", "b=01020304",
-                "ns=2;s=HelloWorld", "ns=2;i=1234", "ns=2;g=af469096-f02a-4563-940b-603958363b82", "ns=2;b=04030201"
+            string[] testStrings =
+            [
+                "i=1234",
+                "s=HelloWorld",
+                "g=af469096-f02a-4563-940b-603958363b81",
+                "b=01020304",
+                "ns=2;s=HelloWorld",
+                "ns=2;i=1234",
+                "ns=2;g=af469096-f02a-4563-940b-603958363b82",
+                "ns=2;b=04030201",
             ];
 
             foreach (string testString in testStrings)
@@ -528,9 +563,16 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             NUnit.Framework.Assert.Throws<ArgumentException>(() => id = "Test");
             Assert.IsNull(NodeId.ToExpandedNodeId(null, null));
 
-            string[] testStrings = [
-                "i=1234", "s=HelloWorld", "g=af469096-f02a-4563-940b-603958363b81", "b=01020304",
-                "ns=2;s=HelloWorld", "ns=2;i=1234", "ns=2;g=af469096-f02a-4563-940b-603958363b82", "ns=2;b=04030201"
+            string[] testStrings =
+            [
+                "i=1234",
+                "s=HelloWorld",
+                "g=af469096-f02a-4563-940b-603958363b81",
+                "b=01020304",
+                "ns=2;s=HelloWorld",
+                "ns=2;i=1234",
+                "ns=2;g=af469096-f02a-4563-940b-603958363b82",
+                "ns=2;b=04030201",
             ];
 
             foreach (string testString in testStrings)
@@ -546,7 +588,8 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         public void NodeIdHashCode()
         {
             // ensure that the hash code is the same for the same node id
-            var nodeIds = new List<NodeId> {
+            var nodeIds = new List<NodeId>
+            {
                 // Null NodeIds
                 0,
                 "",
@@ -554,7 +597,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                 new(0),
                 new(Guid.Empty),
                 new(""),
-                new([])
+                new([]),
             };
 
             foreach (NodeId nodeId in nodeIds)
@@ -567,7 +610,11 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             {
                 foreach (NodeId nodeIdExpected in nodeIds)
                 {
-                    Assert.AreEqual(nodeIdExpected.GetHashCode(), nodeId.GetHashCode(), $"Expected{nodeIdExpected}!=NodeId={nodeId}");
+                    Assert.AreEqual(
+                        nodeIdExpected.GetHashCode(),
+                        nodeId.GetHashCode(),
+                        $"Expected{nodeIdExpected}!=NodeId={nodeId}"
+                    );
                 }
             }
 
@@ -634,9 +681,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.False(id > nodeId);
             Assert.True(id == nodeId);
 
-            var dictionary = new Dictionary<NodeId, string> {
-                { nodeId, "Test" }
-            };
+            var dictionary = new Dictionary<NodeId, string> { { nodeId, "Test" } };
             Assert.IsTrue(dictionary.ContainsKey(nodeId));
             Assert.IsTrue(dictionary.ContainsKey(nodeIdClone));
             Assert.IsTrue(dictionary.ContainsKey((NodeId)nodeIdClone.Clone()));
@@ -710,7 +755,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             var dataValue = new DataValue(Attributes.NodeClass)
             {
                 WrappedValue = new Variant((int)Attributes.NodeClass), // without this cast the second and third asserts evaluate correctly.
-                StatusCode = nodeIdBasedDataValue.StatusCode
+                StatusCode = nodeIdBasedDataValue.StatusCode,
             };
 
             bool comparisonResult1b = dataValue.Equals(nodeIdBasedDataValue);
@@ -749,17 +794,30 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         [TestCase(ValueRanks.OneOrMoreDimensions)]
         [TestCase(ValueRanks.OneDimension)]
         [TestCase(ValueRanks.TwoDimensions)]
-
         public void ValueRanksTests(int actualValueRank)
         {
             Assert.IsTrue(ValueRanks.IsValid(actualValueRank, actualValueRank));
             Assert.IsTrue(ValueRanks.IsValid(actualValueRank, ValueRanks.Any));
-            Assert.AreEqual(actualValueRank == ValueRanks.Scalar || actualValueRank == ValueRanks.OneDimension || actualValueRank == ValueRanks.ScalarOrOneDimension, ValueRanks.IsValid(actualValueRank, ValueRanks.ScalarOrOneDimension));
+            Assert.AreEqual(
+                actualValueRank == ValueRanks.Scalar
+                    || actualValueRank == ValueRanks.OneDimension
+                    || actualValueRank == ValueRanks.ScalarOrOneDimension,
+                ValueRanks.IsValid(actualValueRank, ValueRanks.ScalarOrOneDimension)
+            );
             Assert.AreEqual(actualValueRank >= 0, ValueRanks.IsValid(actualValueRank, ValueRanks.OneOrMoreDimensions));
-            Assert.AreEqual(actualValueRank == ValueRanks.TwoDimensions, ValueRanks.IsValid(actualValueRank, ValueRanks.TwoDimensions));
-            Assert.AreEqual(actualValueRank == ValueRanks.OneDimension, ValueRanks.IsValid(actualValueRank, ValueRanks.OneDimension));
+            Assert.AreEqual(
+                actualValueRank == ValueRanks.TwoDimensions,
+                ValueRanks.IsValid(actualValueRank, ValueRanks.TwoDimensions)
+            );
+            Assert.AreEqual(
+                actualValueRank == ValueRanks.OneDimension,
+                ValueRanks.IsValid(actualValueRank, ValueRanks.OneDimension)
+            );
             Assert.AreEqual(actualValueRank >= 0, ValueRanks.IsValid(actualValueRank, ValueRanks.OneOrMoreDimensions));
-            Assert.AreEqual(actualValueRank == ValueRanks.Scalar, ValueRanks.IsValid(actualValueRank, ValueRanks.Scalar));
+            Assert.AreEqual(
+                actualValueRank == ValueRanks.Scalar,
+                ValueRanks.IsValid(actualValueRank, ValueRanks.Scalar)
+            );
         }
     }
 }

@@ -104,6 +104,7 @@ namespace Opc.Ua.Client
         /// <param name="ct"></param>
         Task FetchSuperTypesAsync(ExpandedNodeId nodeId, CancellationToken ct = default);
 #endif
+
         /// <summary>
         /// Adds the supertypes of the node to the cache.
         /// </summary>
@@ -112,23 +113,45 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Returns the references of the specified node that meet the criteria specified.
         /// </summary>
-        IList<INode> FindReferences(ExpandedNodeId nodeId, NodeId referenceTypeId, bool isInverse, bool includeSubtypes);
+        IList<INode> FindReferences(
+            ExpandedNodeId nodeId,
+            NodeId referenceTypeId,
+            bool isInverse,
+            bool includeSubtypes
+        );
 
         /// <summary>
         /// Returns the references of the specified nodes that meet the criteria specified.
         /// </summary>
-        IList<INode> FindReferences(IList<ExpandedNodeId> nodeIds, IList<NodeId> referenceTypeIds, bool isInverse, bool includeSubtypes);
+        IList<INode> FindReferences(
+            IList<ExpandedNodeId> nodeIds,
+            IList<NodeId> referenceTypeIds,
+            bool isInverse,
+            bool includeSubtypes
+        );
 
 #if CLIENT_ASYNC
         /// <summary>
         /// Returns the references of the specified node that meet the criteria specified.
         /// </summary>
-        Task<IList<INode>> FindReferencesAsync(ExpandedNodeId nodeId, NodeId referenceTypeId, bool isInverse, bool includeSubtypes, CancellationToken ct = default);
+        Task<IList<INode>> FindReferencesAsync(
+            ExpandedNodeId nodeId,
+            NodeId referenceTypeId,
+            bool isInverse,
+            bool includeSubtypes,
+            CancellationToken ct = default
+        );
 
         /// <summary>
         /// Returns the references of the specified nodes that meet the criteria specified.
         /// </summary>
-        Task<IList<INode>> FindReferencesAsync(IList<ExpandedNodeId> nodeIds, IList<NodeId> referenceTypeIds, bool isInverse, bool includeSubtypes, CancellationToken ct = default);
+        Task<IList<INode>> FindReferencesAsync(
+            IList<ExpandedNodeId> nodeIds,
+            IList<NodeId> referenceTypeIds,
+            bool isInverse,
+            bool includeSubtypes,
+            CancellationToken ct = default
+        );
 #endif
 
         /// <summary>

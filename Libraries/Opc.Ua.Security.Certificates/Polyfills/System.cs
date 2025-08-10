@@ -84,7 +84,12 @@ namespace System
         /// <summary>
         /// Replace a string in a string using a specified comparison type.
         /// </summary>
-        public static string Replace(this string target, string oldValue, string newValue, StringComparison comparisonType)
+        public static string Replace(
+            this string target,
+            string oldValue,
+            string newValue,
+            StringComparison comparisonType
+        )
         {
             return target.Replace(oldValue, newValue);
         }

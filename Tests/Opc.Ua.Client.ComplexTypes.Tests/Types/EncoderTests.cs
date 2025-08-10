@@ -53,7 +53,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             EncoderContext = new ServiceMessageContext()
             {
                 // create private copy of factory
-                Factory = new EncodeableFactory(ServiceMessageContext.GlobalContext.Factory)
+                Factory = new EncodeableFactory(ServiceMessageContext.GlobalContext.Factory),
             };
             // add a few random namespaces
             EncoderContext.NamespaceUris.Append("urn:This:is:my:test:encoder");
@@ -65,19 +65,13 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         }
 
         [OneTimeTearDown]
-        protected new void OneTimeTearDown()
-        {
-        }
+        protected new void OneTimeTearDown() { }
 
         [SetUp]
-        protected new void SetUp()
-        {
-        }
+        protected new void SetUp() { }
 
         [TearDown]
-        protected new void TearDown()
-        {
-        }
+        protected new void TearDown() { }
 
         /// <summary>
         /// Verify encode and decode of a structured type.
@@ -85,11 +79,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         [Theory]
         [Category("ComplexTypes")]
         public void ReEncodeComplexType(
-            [ValueSource(nameof(EncodingTypesReversibleCompact))]
-            EncodingTypeGroup encoderTypeGroup,
+            [ValueSource(nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType,
             StructureType structureType
-            )
+        )
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
@@ -99,7 +92,15 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             object emittedType = Activator.CreateInstance(complexType);
             var baseType = emittedType as BaseComplexType;
             FillStructWithValues(baseType, true);
-            EncodeDecodeComplexType(EncoderContext, memoryStreamType, encoderType, jsonEncodingType, structureType, nodeId, emittedType);
+            EncodeDecodeComplexType(
+                EncoderContext,
+                memoryStreamType,
+                encoderType,
+                jsonEncodingType,
+                structureType,
+                nodeId,
+                emittedType
+            );
         }
 
         /// <summary>
@@ -109,11 +110,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         [Theory]
         [Category("ComplexTypes")]
         public void ReEncodeStructureWithOptionalFieldsComplexType(
-            [ValueSource(nameof(EncodingTypesReversibleCompact))]
-            EncodingTypeGroup encoderTypeGroup,
+            [ValueSource(nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType,
             StructureFieldParameter structureFieldParameter
-            )
+        )
         {
             ExpandedNodeId nodeId;
             EncodingType encoderType = encoderTypeGroup.EncoderType;
@@ -125,17 +125,51 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             BuiltInType builtInType = structureFieldParameter.BuiltInType;
             TestContext.Out.WriteLine($"Optional Field: {structureFieldParameter.BuiltInType} is the only value.");
             baseType[structureFieldParameter.Name] = DataGenerator.GetRandom(builtInType);
-            EncodeDecodeComplexType(EncoderContext, memoryStreamType, encoderType, jsonEncodingType, StructureType.StructureWithOptionalFields, nodeId, emittedType);
+            EncodeDecodeComplexType(
+                EncoderContext,
+                memoryStreamType,
+                encoderType,
+                jsonEncodingType,
+                StructureType.StructureWithOptionalFields,
+                nodeId,
+                emittedType
+            );
             TestContext.Out.WriteLine($"Optional Field: {structureFieldParameter.BuiltInType} is null.");
             baseType[structureFieldParameter.Name] = null;
-            EncodeDecodeComplexType(EncoderContext, memoryStreamType, encoderType, jsonEncodingType, StructureType.StructureWithOptionalFields, nodeId, emittedType);
-            TestContext.Out.WriteLine($"Optional Field: {structureFieldParameter.BuiltInType} is null, all other fields have random values.");
+            EncodeDecodeComplexType(
+                EncoderContext,
+                memoryStreamType,
+                encoderType,
+                jsonEncodingType,
+                StructureType.StructureWithOptionalFields,
+                nodeId,
+                emittedType
+            );
+            TestContext.Out.WriteLine(
+                $"Optional Field: {structureFieldParameter.BuiltInType} is null, all other fields have random values."
+            );
             FillStructWithValues(baseType, true);
             baseType[structureFieldParameter.Name] = null;
-            EncodeDecodeComplexType(EncoderContext, memoryStreamType, encoderType, jsonEncodingType, StructureType.StructureWithOptionalFields, nodeId, emittedType);
+            EncodeDecodeComplexType(
+                EncoderContext,
+                memoryStreamType,
+                encoderType,
+                jsonEncodingType,
+                StructureType.StructureWithOptionalFields,
+                nodeId,
+                emittedType
+            );
             TestContext.Out.WriteLine($"Optional Field: {structureFieldParameter.BuiltInType} has random value.");
             baseType[structureFieldParameter.Name] = DataGenerator.GetRandom(builtInType);
-            EncodeDecodeComplexType(EncoderContext, memoryStreamType, encoderType, jsonEncodingType, StructureType.StructureWithOptionalFields, nodeId, emittedType);
+            EncodeDecodeComplexType(
+                EncoderContext,
+                memoryStreamType,
+                encoderType,
+                jsonEncodingType,
+                StructureType.StructureWithOptionalFields,
+                nodeId,
+                emittedType
+            );
         }
 
         /// <summary>
@@ -145,11 +179,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         [Theory]
         [Category("ComplexTypes")]
         public void ReEncodeUnionComplexType(
-            [ValueSource(nameof(EncodingTypesReversibleCompact))]
-            EncodingTypeGroup encoderTypeGroup,
+            [ValueSource(nameof(EncodingTypesReversibleCompact))] EncodingTypeGroup encoderTypeGroup,
             MemoryStreamType memoryStreamType,
             StructureFieldParameter structureFieldParameter
-            )
+        )
         {
             EncodingType encoderType = encoderTypeGroup.EncoderType;
             JsonEncodingType jsonEncodingType = encoderTypeGroup.JsonEncodingType;
@@ -161,10 +194,26 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             BuiltInType builtInType = structureFieldParameter.BuiltInType;
             TestContext.Out.WriteLine($"Union Field: {structureFieldParameter.BuiltInType} is random.");
             baseType[structureFieldParameter.Name] = DataGenerator.GetRandom(builtInType);
-            EncodeDecodeComplexType(EncoderContext, memoryStreamType, encoderType, jsonEncodingType, StructureType.Union, nodeId, emittedType);
+            EncodeDecodeComplexType(
+                EncoderContext,
+                memoryStreamType,
+                encoderType,
+                jsonEncodingType,
+                StructureType.Union,
+                nodeId,
+                emittedType
+            );
             TestContext.Out.WriteLine($"Union Field: {structureFieldParameter.BuiltInType} is null.");
             baseType[structureFieldParameter.Name] = null;
-            EncodeDecodeComplexType(EncoderContext, memoryStreamType, encoderType, jsonEncodingType, StructureType.Union, nodeId, emittedType);
+            EncodeDecodeComplexType(
+                EncoderContext,
+                memoryStreamType,
+                encoderType,
+                jsonEncodingType,
+                StructureType.Union,
+                nodeId,
+                emittedType
+            );
         }
 
         /// <summary>
@@ -172,10 +221,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         /// </summary>
         [Theory]
         [Category("ComplexTypes")]
-        public void ReEncodeComplexTypeScopedContext(
-            MemoryStreamType memoryStreamType,
-            StructureType structureType
-            )
+        public void ReEncodeComplexTypeScopedContext(MemoryStreamType memoryStreamType, StructureType structureType)
         {
             ExpandedNodeId nodeId;
             Type complexType;
@@ -186,22 +232,20 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             var extensionObject = new ExtensionObject(emittedType);
 
-            var keyValuePair = new KeyValuePair
-            {
-                Key = "AKEY",
-                Value = extensionObject
-            };
+            var keyValuePair = new KeyValuePair { Key = "AKEY", Value = extensionObject };
 
             var localCtxt = (ServiceMessageContext)EncoderContext;
 
             // Serialize/Encode a Variant fails without a context available
-            Assert.Throws<Newtonsoft.Json.JsonSerializationException>(
-               () => Newtonsoft.Json.JsonConvert.SerializeObject(keyValuePair));
+            Assert.Throws<Newtonsoft.Json.JsonSerializationException>(() =>
+                Newtonsoft.Json.JsonConvert.SerializeObject(keyValuePair)
+            );
 
             // Serialize/Encode an ExtensionObject fails without a context available
             var extObjToEncode = new ExtensionObject(keyValuePair);
-            Assert.Throws<Newtonsoft.Json.JsonSerializationException>(
-                () => Newtonsoft.Json.JsonConvert.SerializeObject(extObjToEncode));
+            Assert.Throws<Newtonsoft.Json.JsonSerializationException>(() =>
+                Newtonsoft.Json.JsonConvert.SerializeObject(extObjToEncode)
+            );
 
             // Serialize/Encode a Variant succeeds with a context available
             using (MessageContextExtension.SetScopedContext(localCtxt))

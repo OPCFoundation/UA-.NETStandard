@@ -27,17 +27,14 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Creates an empty collection.
         /// </summary>
-        public BufferCollection()
-        {
-        }
+        public BufferCollection() { }
 
         /// <summary>
         /// Creates an empty collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">The capacity.</param>
-        public BufferCollection(int capacity) : base(capacity)
-        {
-        }
+        public BufferCollection(int capacity)
+            : base(capacity) { }
 
         /// <summary>
         /// Creates a collection with a single element.
@@ -113,9 +110,10 @@ namespace Opc.Ua.Bindings
         public BufferManager(string name, int maxBufferSize)
         {
             m_name = name;
-            m_arrayPool = maxBufferSize <= 1024 * 1024
-                ? ArrayPool<byte>.Shared
-                : ArrayPool<byte>.Create(maxBufferSize + kCookieLength, 4);
+            m_arrayPool =
+                maxBufferSize <= 1024 * 1024
+                    ? ArrayPool<byte>.Shared
+                    : ArrayPool<byte>.Create(maxBufferSize + kCookieLength, 4);
             m_maxBufferSize = maxBufferSize;
             MaxSuggestedBufferSize = DetermineSuggestedBufferSize(maxBufferSize);
         }
@@ -153,7 +151,14 @@ namespace Opc.Ua.Bindings
             }
 #endif
 #if TRACE_MEMORY
-            Utils.LogTrace("{0:X}:TakeBuffer({1:X},{2:X},{3},{4})", this.GetHashCode(), buffer.GetHashCode(), buffer.Length, owner, ++m_buffersTaken);
+            Utils.LogTrace(
+                "{0:X}:TakeBuffer({1:X},{2:X},{3},{4})",
+                this.GetHashCode(),
+                buffer.GetHashCode(),
+                buffer.Length,
+                owner,
+                ++m_buffersTaken
+            );
 #endif
             buffer[^1] = kCookieUnlocked;
 
@@ -185,17 +190,25 @@ namespace Opc.Ua.Bindings
 
                     if (allocation.Reported > 0)
                     {
-                        Utils.LogTrace("{0}: Id={1}; Owner={2}; Size={3} KB; *** TRANSFERRED ***",
+                        Utils.LogTrace(
+                            "{0}: Id={1}; Owner={2}; Size={3} KB; *** TRANSFERRED ***",
                             m_name,
                             allocation.Id,
                             allocation.Owner,
-                            allocation.Buffer.Length / 1024);
+                            allocation.Buffer.Length / 1024
+                        );
                     }
                 }
             }
 #endif
 #if TRACE_MEMORY
-            Utils.LogTrace("{0:X}:TransferBuffer({1:X},{2:X},{3})", this.GetHashCode(), buffer.GetHashCode(), buffer.Length, owner);
+            Utils.LogTrace(
+                "{0:X}:TransferBuffer({1:X},{2:X},{3})",
+                this.GetHashCode(),
+                buffer.GetHashCode(),
+                buffer.Length,
+                owner
+            );
 #endif
         }
 
@@ -244,7 +257,14 @@ namespace Opc.Ua.Bindings
             }
 
 #if TRACE_MEMORY
-            Utils.LogTrace("{0:X}:ReturnBuffer({1:X},{2:X},{3},{4})", this.GetHashCode(), buffer.GetHashCode(), buffer.Length, owner, --m_buffersTaken);
+            Utils.LogTrace(
+                "{0:X}:ReturnBuffer({1:X},{2:X},{3},{4})",
+                this.GetHashCode(),
+                buffer.GetHashCode(),
+                buffer.Length,
+                owner,
+                --m_buffersTaken
+            );
 #endif
             if (buffer[^1] != kCookieUnlocked)
             {
@@ -257,7 +277,6 @@ namespace Opc.Ua.Bindings
 #if TRACK_MEMORY
             lock (m_lock)
             {
-
                 m_allocated -= buffer.Length;
 
                 int id = BitConverter.ToInt32(buffer, buffer.Length - 5);
@@ -270,12 +289,14 @@ namespace Opc.Ua.Bindings
 
                     if (allocation.Reported > 0)
                     {
-                        Utils.LogTrace("{0}: Id={1}; Owner={2}; ReleasedBy={3}; Size={4} KB; *** RETURNED ***",
+                        Utils.LogTrace(
+                            "{0}: Id={1}; Owner={2}; ReleasedBy={3}; Size={4} KB; *** RETURNED ***",
                             m_name,
                             allocation.Id,
                             allocation.Owner,
                             allocation.ReleasedBy,
-                            allocation.Buffer.Length / 1024);
+                            allocation.Buffer.Length / 1024
+                        );
                     }
                 }
 
@@ -300,12 +321,14 @@ namespace Opc.Ua.Bindings
                     {
                         if (allocation.Reported < age)
                         {
-                            Utils.LogTrace("{0}: Id={1}; Owner={2}; Size={3} KB; Age={4}",
+                            Utils.LogTrace(
+                                "{0}: Id={1}; Owner={2}; Size={3} KB; Age={4}",
                                 m_name,
                                 allocation.Id,
                                 allocation.Owner,
                                 allocation.Buffer.Length / 1024,
-                                age);
+                                age
+                            );
 
                             allocation.Reported = (int)age;
                         }
@@ -338,7 +361,11 @@ namespace Opc.Ua.Bindings
             int maxDataRentSize = RoundUpToPowerOfTwo(maxBufferSize + kCookieLength);
             if (bufferArrayPoolSize != maxDataRentSize)
             {
-                Utils.LogWarning("BufferManager: Max buffer size {0} + cookie length {1} may waste memory because it allocates buffers in the next bucket!", maxBufferSize, kCookieLength);
+                Utils.LogWarning(
+                    "BufferManager: Max buffer size {0} + cookie length {1} may waste memory because it allocates buffers in the next bucket!",
+                    maxBufferSize,
+                    kCookieLength
+                );
                 return bufferArrayPoolSize - kCookieLength;
             }
             return maxBufferSize;
@@ -380,6 +407,7 @@ namespace Opc.Ua.Bindings
         private const byte kCookieUnlocked = 0x5a;
 #if TRACK_MEMORY
         private const byte kCookieLength = 5;
+
         class Allocation
         {
             public int Id;
@@ -389,6 +417,7 @@ namespace Opc.Ua.Bindings
             public string ReleasedBy;
             public int Reported;
         }
+
         private readonly object m_lock = new object();
         private int m_allocated;
         private int m_id;
@@ -396,6 +425,5 @@ namespace Opc.Ua.Bindings
 #else
         private const byte kCookieLength = 1;
 #endif
-
     }
 }

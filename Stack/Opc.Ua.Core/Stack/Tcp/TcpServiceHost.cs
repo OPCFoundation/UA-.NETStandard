@@ -42,7 +42,8 @@ namespace Opc.Ua.Bindings
             IList<string> baseAddresses,
             ApplicationDescription serverDescription,
             List<ServerSecurityPolicy> securityPolicies,
-            CertificateTypesProvider instanceCertificateTypesProvider)
+            CertificateTypesProvider instanceCertificateTypesProvider
+        )
         {
             // generate a unique host name.
             string hostName = "/Tcp";
@@ -92,25 +93,37 @@ namespace Opc.Ua.Bindings
                             TransportProfileUri = Profiles.UaTcpTransport,
                             SecurityMode = policy.SecurityMode,
                             SecurityPolicyUri = policy.SecurityPolicyUri,
-                            SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(policy.SecurityMode, policy.SecurityPolicyUri)
+                            SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(
+                                policy.SecurityMode,
+                                policy.SecurityPolicyUri
+                            ),
                         };
                         description.UserIdentityTokens = serverBase.GetUserTokenPolicies(configuration, description);
 
                         ServerBase.SetServerCertificateInEndpointDescription(
                             description,
-                            instanceCertificateTypesProvider);
+                            instanceCertificateTypesProvider
+                        );
 
                         listenerEndpoints.Add(description);
                     }
 
-                    serverBase.CreateServiceHostEndpoint(uri.Uri, listenerEndpoints, endpointConfiguration, listener,
-                        configuration.CertificateValidator.GetChannelValidator());
+                    serverBase.CreateServiceHostEndpoint(
+                        uri.Uri,
+                        listenerEndpoints,
+                        endpointConfiguration,
+                        listener,
+                        configuration.CertificateValidator.GetChannelValidator()
+                    );
 
                     endpoints.AddRange(listenerEndpoints);
                 }
                 else
                 {
-                    Utils.LogError("Failed to create endpoint {0} because the transport profile is unsupported.", Redaction.Redact.Create(uri));
+                    Utils.LogError(
+                        "Failed to create endpoint {0} because the transport profile is unsupported.",
+                        Redaction.Redact.Create(uri)
+                    );
                 }
             }
 

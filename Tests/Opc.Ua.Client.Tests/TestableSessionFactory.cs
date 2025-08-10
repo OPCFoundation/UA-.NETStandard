@@ -47,9 +47,7 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Force use of the default instance.
         /// </summary>
-        protected TestableSessionFactory()
-        {
-        }
+        protected TestableSessionFactory() { }
 
         /// <inheritdoc/>
         public override Task<ISession> CreateAsync(
@@ -60,9 +58,20 @@ namespace Opc.Ua.Client.Tests
             uint sessionTimeout,
             IUserIdentity identity,
             IList<string> preferredLocales,
-            CancellationToken ct = default)
+            CancellationToken ct = default
+        )
         {
-            return CreateAsync(configuration, endpoint, updateBeforeConnect, false, sessionName, sessionTimeout, identity, preferredLocales, ct);
+            return CreateAsync(
+                configuration,
+                endpoint,
+                updateBeforeConnect,
+                false,
+                sessionName,
+                sessionTimeout,
+                identity,
+                preferredLocales,
+                ct
+            );
         }
 
         /// <inheritdoc/>
@@ -75,11 +84,24 @@ namespace Opc.Ua.Client.Tests
             uint sessionTimeout,
             IUserIdentity identity,
             IList<string> preferredLocales,
-            CancellationToken ct = default)
+            CancellationToken ct = default
+        )
         {
-            return await Session.Create(this, configuration, (ITransportWaitingConnection)null, endpoint,
-                updateBeforeConnect, checkDomain, sessionName, sessionTimeout,
-                identity, preferredLocales, ct).ConfigureAwait(false);
+            return await Session
+                .Create(
+                    this,
+                    configuration,
+                    (ITransportWaitingConnection)null,
+                    endpoint,
+                    updateBeforeConnect,
+                    checkDomain,
+                    sessionName,
+                    sessionTimeout,
+                    identity,
+                    preferredLocales,
+                    ct
+                )
+                .ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -93,12 +115,24 @@ namespace Opc.Ua.Client.Tests
             uint sessionTimeout,
             IUserIdentity identity,
             IList<string> preferredLocales,
-            CancellationToken ct = default)
+            CancellationToken ct = default
+        )
         {
-            return await Session.Create(this, configuration, connection, endpoint,
-                updateBeforeConnect, checkDomain, sessionName, sessionTimeout,
-                identity, preferredLocales, ct
-                ).ConfigureAwait(false);
+            return await Session
+                .Create(
+                    this,
+                    configuration,
+                    connection,
+                    endpoint,
+                    updateBeforeConnect,
+                    checkDomain,
+                    sessionName,
+                    sessionTimeout,
+                    identity,
+                    preferredLocales,
+                    ct
+                )
+                .ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -113,64 +147,89 @@ namespace Opc.Ua.Client.Tests
             IUserIdentity userIdentity,
             IList<string> preferredLocales,
             CancellationToken ct = default
-            )
+        )
         {
             if (reverseConnectManager == null)
             {
-                return await CreateAsync(configuration, endpoint, updateBeforeConnect,
-                    checkDomain, sessionName, sessionTimeout, userIdentity, preferredLocales, ct).ConfigureAwait(false);
+                return await CreateAsync(
+                        configuration,
+                        endpoint,
+                        updateBeforeConnect,
+                        checkDomain,
+                        sessionName,
+                        sessionTimeout,
+                        userIdentity,
+                        preferredLocales,
+                        ct
+                    )
+                    .ConfigureAwait(false);
             }
 
             ITransportWaitingConnection connection;
             do
             {
-                connection = await reverseConnectManager.WaitForConnectionAsync(
-                    endpoint.EndpointUrl,
-                    endpoint.ReverseConnect?.ServerUri,
-                    ct).ConfigureAwait(false);
+                connection = await reverseConnectManager
+                    .WaitForConnectionAsync(endpoint.EndpointUrl, endpoint.ReverseConnect?.ServerUri, ct)
+                    .ConfigureAwait(false);
 
                 if (updateBeforeConnect)
                 {
-                    await endpoint.UpdateFromServerAsync(
-                        endpoint.EndpointUrl, connection,
-                        endpoint.Description.SecurityMode,
-                        endpoint.Description.SecurityPolicyUri,
-                        ct).ConfigureAwait(false);
+                    await endpoint
+                        .UpdateFromServerAsync(
+                            endpoint.EndpointUrl,
+                            connection,
+                            endpoint.Description.SecurityMode,
+                            endpoint.Description.SecurityPolicyUri,
+                            ct
+                        )
+                        .ConfigureAwait(false);
                     updateBeforeConnect = false;
                     connection = null;
                 }
             } while (connection == null);
 
             return await CreateAsync(
-                configuration,
-                connection,
-                endpoint,
-                false,
-                checkDomain,
-                sessionName,
-                sessionTimeout,
-                userIdentity,
-                preferredLocales,
-                ct).ConfigureAwait(false);
+                    configuration,
+                    connection,
+                    endpoint,
+                    false,
+                    checkDomain,
+                    sessionName,
+                    sessionTimeout,
+                    userIdentity,
+                    preferredLocales,
+                    ct
+                )
+                .ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
         public override ISession Create(
-           ApplicationConfiguration configuration,
-           ITransportChannel channel,
-           ConfiguredEndpoint endpoint,
-           X509Certificate2 clientCertificate,
-           EndpointDescriptionCollection availableEndpoints = null,
-           StringCollection discoveryProfileUris = null)
+            ApplicationConfiguration configuration,
+            ITransportChannel channel,
+            ConfiguredEndpoint endpoint,
+            X509Certificate2 clientCertificate,
+            EndpointDescriptionCollection availableEndpoints = null,
+            StringCollection discoveryProfileUris = null
+        )
         {
-            return Session.Create(this, configuration, channel, endpoint, clientCertificate, availableEndpoints, discoveryProfileUris);
+            return Session.Create(
+                this,
+                configuration,
+                channel,
+                endpoint,
+                clientCertificate,
+                availableEndpoints,
+                discoveryProfileUris
+            );
         }
 
         /// <inheritdoc/>
         public override Session Create(
             ISessionChannel channel,
             ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint)
+            ConfiguredEndpoint endpoint
+        )
         {
             return new TestableSession(channel, configuration, endpoint);
         }
@@ -182,9 +241,17 @@ namespace Opc.Ua.Client.Tests
             ConfiguredEndpoint endpoint,
             X509Certificate2 clientCertificate,
             EndpointDescriptionCollection availableEndpoints = null,
-            StringCollection discoveryProfileUris = null)
+            StringCollection discoveryProfileUris = null
+        )
         {
-            return new TestableSession(channel, configuration, endpoint, clientCertificate, availableEndpoints, discoveryProfileUris);
+            return new TestableSession(
+                channel,
+                configuration,
+                endpoint,
+                clientCertificate,
+                availableEndpoints,
+                discoveryProfileUris
+            );
         }
     }
 }

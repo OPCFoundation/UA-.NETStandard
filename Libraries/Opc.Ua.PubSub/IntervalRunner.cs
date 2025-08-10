@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -168,7 +168,8 @@ namespace Opc.Ua.PubSub
                 if (sleepCycle > 16)
                 {
                     // Use Task.Delay if sleep cycle is larger
-                    await Task.Delay(TimeSpan.FromMilliseconds(sleepCycle), m_cancellationToken.Token).ConfigureAwait(false);
+                    await Task.Delay(TimeSpan.FromMilliseconds(sleepCycle), m_cancellationToken.Token)
+                        .ConfigureAwait(false);
 
                     // Still ticks to consume (spurious wakeup too early), improbable
                     nowTick = HiResClock.Ticks;

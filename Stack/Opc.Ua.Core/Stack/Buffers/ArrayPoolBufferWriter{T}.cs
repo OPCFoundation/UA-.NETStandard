@@ -54,17 +54,13 @@ namespace Opc.Ua.Buffers
         /// Initializes a new instance of the <see cref="ArrayPoolBufferWriter{T}"/> class.
         /// </summary>
         public ArrayPoolBufferWriter()
-            : this(false, kDefaultChunkSize, kMaxChunkSize)
-        {
-        }
+            : this(false, kDefaultChunkSize, kMaxChunkSize) { }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ArrayPoolBufferWriter{T}"/> class.
         /// </summary>
         public ArrayPoolBufferWriter(int defaultChunksize, int maxChunkSize)
-            : this(false, defaultChunksize, maxChunkSize)
-        {
-        }
+            : this(false, defaultChunksize, maxChunkSize) { }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ArrayPoolBufferWriter{T}"/> class.
@@ -112,7 +108,9 @@ namespace Opc.Ua.Buffers
 
             if (m_offset + count > m_currentBuffer.Length)
             {
-                throw new InvalidOperationException($"Cannot advance past the end of the buffer, which has a size of {m_currentBuffer.Length}.");
+                throw new InvalidOperationException(
+                    $"Cannot advance past the end of the buffer, which has a size of {m_currentBuffer.Length}."
+                );
             }
 
             m_offset += count;

@@ -32,7 +32,8 @@ namespace Opc.Ua
             ApplicationConfiguration configuration,
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
-            X509Certificate2 instanceCertificate)
+            X509Certificate2 instanceCertificate
+        )
         {
             if (configuration == null)
             {
@@ -49,7 +50,8 @@ namespace Opc.Ua
                 description,
                 endpointConfiguration,
                 instanceCertificate,
-                new ServiceMessageContext());
+                new ServiceMessageContext()
+            );
 
             return new RegistrationClient(channel);
         }
@@ -74,7 +76,8 @@ namespace Opc.Ua
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
             X509Certificate2 clientCertificate,
-            IServiceMessageContext messageContext)
+            IServiceMessageContext messageContext
+        )
         {
             // create a UA binary channel.
             ITransportChannel channel = CreateUaBinaryChannel(
@@ -82,7 +85,8 @@ namespace Opc.Ua
                 description,
                 endpointConfiguration,
                 clientCertificate,
-                messageContext);
+                messageContext
+            );
 
             // create a registration channel.
             if (channel == null)
@@ -94,7 +98,7 @@ namespace Opc.Ua
                 {
                     Configuration = endpointConfiguration,
                     Description = description,
-                    ClientCertificate = clientCertificate
+                    ClientCertificate = clientCertificate,
                 };
                 channel.Initialize(endpointUrl, settings);
             }

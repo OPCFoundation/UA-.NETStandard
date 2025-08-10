@@ -23,7 +23,8 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the instance with its default attribute values.
         /// </summary>
-        protected BaseVariableTypeState() : base(NodeClass.VariableType)
+        protected BaseVariableTypeState()
+            : base(NodeClass.VariableType)
         {
             m_valueRank = ValueRanks.Any;
         }
@@ -83,7 +84,6 @@ namespace Opc.Ua
         public object Value
         {
             get => m_value;
-
             set
             {
                 if (!ReferenceEquals(m_value, value))
@@ -127,7 +127,6 @@ namespace Opc.Ua
         public int ValueRank
         {
             get => m_valueRank;
-
             set
             {
                 if (m_valueRank != value)
@@ -145,7 +144,6 @@ namespace Opc.Ua
         public ReadOnlyList<uint> ArrayDimensions
         {
             get => m_arrayDimensions;
-
             set
             {
                 if (!ReferenceEquals(m_arrayDimensions, value))
@@ -397,7 +395,8 @@ namespace Opc.Ua
         protected override ServiceResult ReadNonValueAttribute(
             ISystemContext context,
             uint attributeId,
-            ref object value)
+            ref object value
+        )
         {
             ServiceResult result = null;
 
@@ -466,7 +465,8 @@ namespace Opc.Ua
             NumericRange indexRange,
             QualifiedName dataEncoding,
             ref object value,
-            ref DateTime sourceTimestamp)
+            ref DateTime sourceTimestamp
+        )
         {
             value = m_value;
 
@@ -477,10 +477,7 @@ namespace Opc.Ua
             // use default behavior.
             if (OnSimpleReadValue != null)
             {
-                result = OnSimpleReadValue(
-                    context,
-                    this,
-                    ref value);
+                result = OnSimpleReadValue(context, this, ref value);
 
                 if (ServiceResult.IsBad(result))
                 {
@@ -518,10 +515,7 @@ namespace Opc.Ua
         /// <summary>
         /// Write the value for any non-value attribute.
         /// </summary>
-        protected override ServiceResult WriteNonValueAttribute(
-            ISystemContext context,
-            uint attributeId,
-            object value)
+        protected override ServiceResult WriteNonValueAttribute(ISystemContext context, uint attributeId, object value)
         {
             ServiceResult result = null;
 
@@ -622,7 +616,8 @@ namespace Opc.Ua
             NumericRange indexRange,
             object value,
             StatusCode statusCode,
-            DateTime sourceTimestamp)
+            DateTime sourceTimestamp
+        )
         {
             ServiceResult result = null;
 
@@ -649,7 +644,8 @@ namespace Opc.Ua
                 m_dataType,
                 m_valueRank,
                 context.NamespaceUris,
-                context.TypeTable);
+                context.TypeTable
+            );
 
             if (typeInfo == null || typeInfo == TypeInfo.Unknown)
             {
@@ -659,10 +655,7 @@ namespace Opc.Ua
             // check for simple write value handler.
             if (OnSimpleWriteValue != null)
             {
-                result = OnSimpleWriteValue(
-                    context,
-                    this,
-                    ref value);
+                result = OnSimpleWriteValue(context, this, ref value);
 
                 if (ServiceResult.IsBad(result))
                 {
@@ -690,9 +683,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the type with its default attribute values.
         /// </summary>
-        public BaseDataVariableTypeState()
-        {
-        }
+        public BaseDataVariableTypeState() { }
 
         /// <summary>
         /// Constructs an instance of a node.
@@ -711,8 +702,16 @@ namespace Opc.Ua
         {
             SuperTypeId = NodeId.Create(VariableTypes.BaseVariableType, Namespaces.OpcUa, context.NamespaceUris);
             NodeId = NodeId.Create(VariableTypes.BaseDataVariableType, Namespaces.OpcUa, context.NamespaceUris);
-            BrowseName = QualifiedName.Create(BrowseNames.BaseDataVariableType, Namespaces.OpcUa, context.NamespaceUris);
-            DisplayName = new LocalizedText(BrowseNames.BaseDataVariableType, string.Empty, BrowseNames.BaseDataVariableType);
+            BrowseName = QualifiedName.Create(
+                BrowseNames.BaseDataVariableType,
+                Namespaces.OpcUa,
+                context.NamespaceUris
+            );
+            DisplayName = new LocalizedText(
+                BrowseNames.BaseDataVariableType,
+                string.Empty,
+                BrowseNames.BaseDataVariableType
+            );
             Description = null;
             WriteMask = AttributeWriteMask.None;
             UserWriteMask = AttributeWriteMask.None;
@@ -732,9 +731,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the type with its default attribute values.
         /// </summary>
-        public BaseDataVariableTypeState()
-        {
-        }
+        public BaseDataVariableTypeState() { }
 
         /// <summary>
         /// Initializes the instance with the default values.
@@ -762,7 +759,6 @@ namespace Opc.Ua
         public new T Value
         {
             get => BaseVariableState.CheckTypeBeforeCast<T>(base.Value, true);
-
             set => base.Value = value;
         }
     }
@@ -775,9 +771,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the type with its default attribute values.
         /// </summary>
-        public PropertyTypeState()
-        {
-        }
+        public PropertyTypeState() { }
 
         /// <summary>
         /// Constructs an instance of a node.
@@ -817,9 +811,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the type with its default attribute values.
         /// </summary>
-        public PropertyTypeState()
-        {
-        }
+        public PropertyTypeState() { }
 
         /// <summary>
         /// Initializes the instance with the default values.
@@ -847,7 +839,6 @@ namespace Opc.Ua
         public new T Value
         {
             get => BaseVariableState.CheckTypeBeforeCast<T>(base.Value, true);
-
             set => base.Value = value;
         }
     }

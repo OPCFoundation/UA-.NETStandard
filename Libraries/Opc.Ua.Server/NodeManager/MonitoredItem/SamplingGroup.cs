@@ -49,7 +49,8 @@ namespace Opc.Ua.Server
             List<SamplingRateGroup> samplingRates,
             OperationContext context,
             double samplingInterval,
-            IUserIdentity savedOwnerIdentity = null)
+            IUserIdentity savedOwnerIdentity = null
+        )
         {
             m_server = server ?? throw new ArgumentNullException(nameof(server));
             m_nodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
@@ -57,7 +58,12 @@ namespace Opc.Ua.Server
             m_session = context.Session;
             if (m_session == null)
             {
-                m_effectiveIdentity = savedOwnerIdentity ?? throw new ArgumentNullException(nameof(savedOwnerIdentity), "Either a context with a Session or an owner identity need to be provided");
+                m_effectiveIdentity =
+                    savedOwnerIdentity
+                    ?? throw new ArgumentNullException(
+                        nameof(savedOwnerIdentity),
+                        "Either a context with a Session or an owner identity need to be provided"
+                    );
             }
             m_diagnosticsMask = context.DiagnosticsMask & DiagnosticsMasks.OperationAll;
             m_samplingInterval = AdjustSamplingInterval(samplingInterval);
@@ -98,7 +104,9 @@ namespace Opc.Ua.Server
                     {
                         m_samplingTask.Wait();
                     }
-                    catch (AggregateException) { /* Ignore exceptions on shutdown */ }
+                    catch (AggregateException)
+                    { /* Ignore exceptions on shutdown */
+                    }
                 }
 
                 Utils.SilentDispose(m_samplingTask);
@@ -115,7 +123,10 @@ namespace Opc.Ua.Server
             {
                 m_shutdownEvent.Reset();
 
-                m_samplingTask = Task.Factory.StartNew(() => SampleMonitoredItems(m_samplingInterval), TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach);
+                m_samplingTask = Task.Factory.StartNew(
+                    () => SampleMonitoredItems(m_samplingInterval),
+                    TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach
+                );
             }
         }
 
@@ -141,7 +152,11 @@ namespace Opc.Ua.Server
         /// <remarks>
         /// The ApplyChanges() method must be called to actually start sampling the item.
         /// </remarks>
-        public bool StartMonitoring(OperationContext context, ISampledDataChangeMonitoredItem monitoredItem, IUserIdentity savedOwnerIdentity = null)
+        public bool StartMonitoring(
+            OperationContext context,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            IUserIdentity savedOwnerIdentity = null
+        )
         {
             lock (m_lock)
             {
@@ -221,7 +236,10 @@ namespace Opc.Ua.Server
                 {
                     ISampledDataChangeMonitoredItem monitoredItem = m_itemsToAdd[ii];
 
-                    if (m_items.TryAdd(monitoredItem.Id, monitoredItem) && monitoredItem.MonitoringMode != MonitoringMode.Disabled)
+                    if (
+                        m_items.TryAdd(monitoredItem.Id, monitoredItem)
+                        && monitoredItem.MonitoringMode != MonitoringMode.Disabled
+                    )
                     {
                         itemsToSample.Add(monitoredItem);
                     }
@@ -248,7 +266,6 @@ namespace Opc.Ua.Server
                 {
                     Startup();
                 }
-
                 // stop the group if it is running.
                 else if (m_items.Count == 0)
                 {
@@ -263,7 +280,11 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Checks if the item meets the group's criteria.
         /// </summary>
-        private bool MeetsGroupCriteria(OperationContext context, ISampledDataChangeMonitoredItem monitoredItem, IUserIdentity savedOwnerIdentity = null)
+        private bool MeetsGroupCriteria(
+            OperationContext context,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            IUserIdentity savedOwnerIdentity = null
+        )
         {
             // can only sample variables.
             if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.DataChange) == 0)
@@ -376,7 +397,8 @@ namespace Opc.Ua.Server
                     lock (m_lock)
                     {
                         uint disabledItemCount = 0;
-                        Dictionary<uint, ISampledDataChangeMonitoredItem>.Enumerator enumerator = m_items.GetEnumerator();
+                        Dictionary<uint, ISampledDataChangeMonitoredItem>.Enumerator enumerator =
+                            m_items.GetEnumerator();
 
                         while (enumerator.MoveNext())
                         {
@@ -410,7 +432,11 @@ namespace Opc.Ua.Server
 
                         if (timeToWait < 0)
                         {
-                            Utils.LogWarning("WARNING: SamplingGroup cannot sample fast enough. TimeToSample={0}ms, SamplingInterval={1}ms", delay, sleepCycle);
+                            Utils.LogWarning(
+                                "WARNING: SamplingGroup cannot sample fast enough. TimeToSample={0}ms, SamplingInterval={1}ms",
+                                delay,
+                                sleepCycle
+                            );
                             timeToWait = sleepCycle;
                         }
                     }
@@ -464,12 +490,7 @@ namespace Opc.Ua.Server
                     }
 
                     // read values.
-                    m_nodeManager.Read(
-                        context,
-                        0,
-                        itemsToRead,
-                        values,
-                        errors);
+                    m_nodeManager.Read(context, 0, itemsToRead, values, errors);
 
                     // update monitored items.
                     for (int ii = 0; ii < items.Count; ii++)

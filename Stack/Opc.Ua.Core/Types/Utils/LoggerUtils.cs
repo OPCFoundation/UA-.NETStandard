@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -115,7 +115,12 @@ namespace Opc.Ua
         /// <param name="message">The log message as string.</param>
         /// <param name="certificate">The certificate information to be logged.</param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        public static void LogCertificate(LogLevel logLevel, string message, X509Certificate2 certificate, params object[] args)
+        public static void LogCertificate(
+            LogLevel logLevel,
+            string message,
+            X509Certificate2 certificate,
+            params object[] args
+        )
         {
             LogCertificate(logLevel, 0, message, certificate, args);
         }
@@ -127,7 +132,12 @@ namespace Opc.Ua
         /// <param name="message">The log message as string.</param>
         /// <param name="certificate">The certificate information to be logged.</param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        public static void LogCertificate(EventId eventId, string message, X509Certificate2 certificate, params object[] args)
+        public static void LogCertificate(
+            EventId eventId,
+            string message,
+            X509Certificate2 certificate,
+            params object[] args
+        )
         {
             LogCertificate(LogLevel.Information, eventId, message, certificate, args);
         }
@@ -140,12 +150,17 @@ namespace Opc.Ua
         /// <param name="message">The log message as string.</param>
         /// <param name="certificate">The certificate information to be logged.</param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        public static void LogCertificate(LogLevel logLevel, EventId eventId, string message, X509Certificate2 certificate, params object[] args)
+        public static void LogCertificate(
+            LogLevel logLevel,
+            EventId eventId,
+            string message,
+            X509Certificate2 certificate,
+            params object[] args
+        )
         {
             if (Logger.IsEnabled(logLevel))
             {
-                StringBuilder builder = new StringBuilder()
-                    .Append(message);
+                StringBuilder builder = new StringBuilder().Append(message);
                 if (certificate != null)
                 {
                     int argsLength = args.Length;
@@ -566,7 +581,13 @@ namespace Opc.Ua
         /// <param name="exception">The exception to log.</param>
         /// <param name="message">Format string of the log message.</param>
         /// <param name="args">An object array that contains zero or more objects to format.</param>
-        public static void Log(LogLevel logLevel, EventId eventId, Exception exception, string message, params object[] args)
+        public static void Log(
+            LogLevel logLevel,
+            EventId eventId,
+            Exception exception,
+            string message,
+            params object[] args
+        )
         {
             if (EventLog.IsEnabled())
             {
@@ -580,7 +601,9 @@ namespace Opc.Ua
                 {
                     // call the legacy logging handler (TraceEvent)
                     int traceMask = GetTraceMask(eventId, logLevel);
-                    Tracing.Instance.RaiseTraceEvent(new TraceEventArgs(traceMask, message, string.Empty, exception, args));
+                    Tracing.Instance.RaiseTraceEvent(
+                        new TraceEventArgs(traceMask, message, string.Empty, exception, args)
+                    );
                     // done if mask not enabled, otherwise legacy write handler is
                     // called via logger interface to handle semantic logging.
                     if ((TraceMask & traceMask) == 0)
@@ -605,9 +628,7 @@ namespace Opc.Ua
         /// {
         /// }
         /// </example>
-        public static IDisposable BeginScope(
-            string messageFormat,
-            params object[] args)
+        public static IDisposable BeginScope(string messageFormat, params object[] args)
         {
             if (EventLog.IsEnabled())
             {

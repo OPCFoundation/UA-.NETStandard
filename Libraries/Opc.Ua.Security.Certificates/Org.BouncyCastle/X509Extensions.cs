@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -45,7 +45,11 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         /// <summary>
         /// Build the Subject Alternate Name.
         /// </summary>
-        public static X509Extension BuildSubjectAltNameExtension(this IList<string> uris, IList<string> domainNames, IList<string> ipAddresses)
+        public static X509Extension BuildSubjectAltNameExtension(
+            this IList<string> uris,
+            IList<string> domainNames,
+            IList<string> ipAddresses
+        )
         {
             // subject alternate name
             var generalNames = new List<GeneralName>();
@@ -56,7 +60,11 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             generalNames.AddRange(CreateSubjectAlternateNameDomains(domainNames));
             generalNames.AddRange(CreateSubjectAlternateNameDomains(ipAddresses));
             byte[] rawData = new DerOctetString(new GeneralNames([.. generalNames]).GetDerEncoded()).GetOctets();
-            return new X509Extension(Org.BouncyCastle.Asn1.X509.X509Extensions.SubjectAlternativeName.Id, rawData, false);
+            return new X509Extension(
+                Org.BouncyCastle.Asn1.X509.X509Extensions.SubjectAlternativeName.Id,
+                rawData,
+                false
+            );
         }
 
         /// <summary>

@@ -94,8 +94,7 @@ namespace Opc.Ua.Security.Certificates
         /// </summary>
         /// <param name="pemDataBlob">The PEM datablob as byte array.</param>
         /// <returns>The certificates.</returns>
-        public static X509Certificate2Collection ImportPublicKeysFromPEM(
-            byte[] pemDataBlob)
+        public static X509Certificate2Collection ImportPublicKeysFromPEM(byte[] pemDataBlob)
         {
             var certificates = new X509Certificate2Collection();
             using (var ms = new MemoryStream(pemDataBlob))
@@ -129,9 +128,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Import an RSA private key from PEM.
         /// </summary>
-        public static RSA ImportRsaPrivateKeyFromPEM(
-            byte[] pemDataBlob,
-            string password = null)
+        public static RSA ImportRsaPrivateKeyFromPEM(byte[] pemDataBlob, string password = null)
         {
             AsymmetricAlgorithm key = ImportPrivateKey(pemDataBlob, password);
             if (key is RSA rsaKey)
@@ -147,9 +144,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Import an ECDSa private key from PEM.
         /// </summary>
-        public static ECDsa ImportECDsaPrivateKeyFromPEM(
-            byte[] pemDataBlob,
-            string password = null)
+        public static ECDsa ImportECDsaPrivateKeyFromPEM(byte[] pemDataBlob, string password = null)
         {
             AsymmetricAlgorithm key = ImportPrivateKey(pemDataBlob, password);
             if (key is ECDsa ecKey)
@@ -165,9 +160,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Import a private key from PEM.
         /// </summary>
-        private static AsymmetricAlgorithm ImportPrivateKey(
-            byte[] pemDataBlob,
-            string password = null)
+        private static AsymmetricAlgorithm ImportPrivateKey(byte[] pemDataBlob, string password = null)
         {
             PemReader pemReader;
             using var pemStreamReader = new StreamReader(new MemoryStream(pemDataBlob), Encoding.UTF8, true);
@@ -249,12 +242,8 @@ namespace Opc.Ua.Security.Certificates
             var ecParams = new ECParameters
             {
                 Curve = curve,
-                Q =
-                {
-                    X = x,
-                    Y = y
-                },
-                D = d
+                Q = { X = x, Y = y },
+                D = d,
             };
 
             var ecdsa = ECDsa.Create();
@@ -267,13 +256,11 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Wrapper for a password string.
         /// </summary>
-        internal class Password
-            : IPasswordFinder
+        internal class Password : IPasswordFinder
         {
             private readonly char[] m_password;
 
-            public Password(
-                char[] word)
+            public Password(char[] word)
             {
                 m_password = (char[])word.Clone();
             }

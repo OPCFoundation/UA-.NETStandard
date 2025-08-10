@@ -38,11 +38,7 @@ namespace TestData
 {
     public interface ITestDataSystemCallback
     {
-        void OnDataChange(
-            BaseVariableState variable,
-            object value,
-            StatusCode statusCode,
-            DateTime timestamp);
+        void OnDataChange(BaseVariableState variable, object value, StatusCode statusCode, DateTime timestamp);
 
         void OnGenerateValues(BaseVariableState variable);
     }
@@ -63,7 +59,7 @@ namespace TestData
             m_generator = new Opc.Ua.Test.DataGenerator(null)
             {
                 NamespaceUris = namespaceUris,
-                ServerUris = serverUris
+                ServerUris = serverUris,
             };
             m_historyArchive = new HistoryArchive();
         }
@@ -99,7 +95,6 @@ namespace TestData
                     return m_systemStatus;
                 }
             }
-
             set
             {
                 lock (m_lock)
@@ -794,7 +789,7 @@ namespace TestData
                 VariantValue = m_generator.GetRandomVariant(false),
                 IntegerValue = new Variant(m_generator.GetRandomInteger()),
                 UIntegerValue = new Variant(m_generator.GetRandomUInteger()),
-                NumberValue = new Variant(m_generator.GetRandomNumber())
+                NumberValue = new Variant(m_generator.GetRandomNumber()),
             };
         }
 
@@ -839,10 +834,7 @@ namespace TestData
         {
             lock (m_lock)
             {
-                if (m_monitoredNodes == null)
-                {
-                    m_monitoredNodes = [];
-                }
+                m_monitoredNodes ??= [];
 
                 m_monitoredNodes[monitoredItemId] = variable;
                 m_samplingNodes = null;
@@ -903,10 +895,10 @@ namespace TestData
                     return;
                 }
 
-                if (m_samplingNodes == null)
-                {
-                    m_samplingNodes = [.. m_monitoredNodes.Values.Distinct(new NodeStateComparer()).Cast<BaseVariableState>()];
-                }
+                m_samplingNodes ??=
+                [
+                    .. m_monitoredNodes.Values.Distinct(new NodeStateComparer()).Cast<BaseVariableState>(),
+                ];
 
                 foreach (BaseVariableState variable in m_samplingNodes)
                 {
@@ -928,7 +920,7 @@ namespace TestData
                                 Variable = variable,
                                 Value = value,
                                 StatusCode = StatusCodes.Good,
-                                Timestamp = DateTime.UtcNow
+                                Timestamp = DateTime.UtcNow,
                             };
                             samples.Enqueue(sample);
                         }
@@ -940,11 +932,7 @@ namespace TestData
             {
                 Sample sample = samples.Dequeue();
 
-                m_callback.OnDataChange(
-                    sample.Variable,
-                    sample.Value,
-                    sample.StatusCode,
-                    sample.Timestamp);
+                m_callback.OnDataChange(sample.Variable, sample.Value, sample.StatusCode, sample.Timestamp);
             }
 
             foreach (BaseVariableState generateValue in generateValues)

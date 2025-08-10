@@ -15,9 +15,6 @@ using System.IO;
 using System.Net;
 using System.Net.Security;
 using System.Security.Authentication;
-#if NETCOREAPP3_1_OR_GREATER || NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
-using System.Security.Cryptography;
-#endif
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -27,6 +24,9 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.Hosting;
 using Opc.Ua.Security.Certificates;
+#if NETCOREAPP3_1_OR_GREATER || NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
+using System.Security.Cryptography;
+#endif
 
 namespace Opc.Ua.Bindings
 {
@@ -137,7 +137,11 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2213:DisposableFieldsShouldBeDisposed", MessageId = "m_simulator")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Microsoft.Usage",
+            "CA2213:DisposableFieldsShouldBeDisposed",
+            MessageId = "m_simulator"
+        )]
         protected virtual void Dispose(bool disposing)
         {
             if (disposing)
@@ -163,10 +167,7 @@ namespace Opc.Ua.Bindings
         /// <param name="callback">The callback to use when requests arrive via the channel.</param>
         /// <exception cref="ArgumentNullException">Thrown if any parameter is null.</exception>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        public void Open(
-            Uri baseAddress,
-            TransportListenerSettings settings,
-            ITransportListenerCallback callback)
+        public void Open(Uri baseAddress, TransportListenerSettings settings, ITransportListenerCallback callback)
         {
             // assign a unique guid to the listener.
             ListenerId = Guid.NewGuid().ToString();
@@ -194,10 +195,10 @@ namespace Opc.Ua.Bindings
                     MaxDecoderRecoveries = configuration.MaxDecoderRecoveries,
                     NamespaceUris = settings.NamespaceUris,
                     ServerUris = new StringTable(),
-                    Factory = settings.Factory
+                    Factory = settings.Factory,
                 },
 
-                CertificateValidator = settings.CertificateValidator
+                CertificateValidator = settings.CertificateValidator,
             };
 
             // save the callback to the server.
@@ -283,7 +284,9 @@ namespace Opc.Ua.Bindings
             var httpsOptions = new HttpsConnectionAdapterOptions()
             {
                 CheckCertificateRevocation = false,
-                ClientCertificateMode = m_mutualTlsEnabled ? ClientCertificateMode.AllowCertificate : ClientCertificateMode.NoCertificate,
+                ClientCertificateMode = m_mutualTlsEnabled
+                    ? ClientCertificateMode.AllowCertificate
+                    : ClientCertificateMode.NoCertificate,
                 // note: this is the TLS certificate!
                 ServerCertificate = serverCertificate,
                 ClientCertificateValidation = ValidateClientCertificate,
@@ -300,18 +303,24 @@ namespace Opc.Ua.Bindings
 #endif
 
             UriHostNameType hostType = Uri.CheckHostName(EndpointUrl.Host);
-            if (hostType == UriHostNameType.Dns ||
-                hostType == UriHostNameType.Unknown ||
-                hostType == UriHostNameType.Basic)
+            if (
+                hostType == UriHostNameType.Dns
+                || hostType == UriHostNameType.Unknown
+                || hostType == UriHostNameType.Basic
+            )
             {
                 // bind to any address
-                m_hostBuilder.UseKestrel(options => options.ListenAnyIP(EndpointUrl.Port, listenOptions => listenOptions.UseHttps(httpsOptions)));
+                m_hostBuilder.UseKestrel(options =>
+                    options.ListenAnyIP(EndpointUrl.Port, listenOptions => listenOptions.UseHttps(httpsOptions))
+                );
             }
             else
             {
                 // bind to specific address
                 var ipAddress = IPAddress.Parse(EndpointUrl.Host);
-                m_hostBuilder.UseKestrel(options => options.Listen(ipAddress, EndpointUrl.Port, listenOptions => listenOptions.UseHttps(httpsOptions)));
+                m_hostBuilder.UseKestrel(options =>
+                    options.Listen(ipAddress, EndpointUrl.Port, listenOptions => listenOptions.UseHttps(httpsOptions))
+                );
             }
 
             m_hostBuilder.UseContentRoot(Directory.GetCurrentDirectory());
@@ -338,14 +347,16 @@ namespace Opc.Ua.Bindings
             {
                 if (m_callback == null)
                 {
-                    await WriteResponseAsync(context.Response, message, HttpStatusCode.NotImplemented).ConfigureAwait(false);
+                    await WriteResponseAsync(context.Response, message, HttpStatusCode.NotImplemented)
+                        .ConfigureAwait(false);
                     return;
                 }
 
                 if (context.Request.ContentType != kApplicationContentType)
                 {
                     message = "HTTPSLISTENER - Unsupported content type.";
-                    await WriteResponseAsync(context.Response, message, HttpStatusCode.BadRequest).ConfigureAwait(false);
+                    await WriteResponseAsync(context.Response, message, HttpStatusCode.BadRequest)
+                        .ConfigureAwait(false);
                     return;
                 }
 
@@ -355,7 +366,8 @@ namespace Opc.Ua.Bindings
                 if (buffer.Length != length)
                 {
                     message = "HTTPSLISTENER - Invalid buffer.";
-                    await WriteResponseAsync(context.Response, message, HttpStatusCode.BadRequest).ConfigureAwait(false);
+                    await WriteResponseAsync(context.Response, message, HttpStatusCode.BadRequest)
+                        .ConfigureAwait(false);
                     return;
                 }
 
@@ -369,33 +381,46 @@ namespace Opc.Ua.Bindings
 
                     if (tlsClientCertificate == null || !Utils.IsEqual(tlsClientCertificate, opcUaClientCertificate))
                     {
-                        message = "Client TLS certificate does not match with ClientCertificate provided in CreateSessionRequest";
+                        message =
+                            "Client TLS certificate does not match with ClientCertificate provided in CreateSessionRequest";
                         Utils.LogError(message);
-                        await WriteResponseAsync(context.Response, message, HttpStatusCode.Unauthorized).ConfigureAwait(false);
+                        await WriteResponseAsync(context.Response, message, HttpStatusCode.Unauthorized)
+                            .ConfigureAwait(false);
                         return;
                     }
                 }
 
                 // extract the JWT token from the HTTP headers.
-                if (input.RequestHeader == null)
-                {
-                    input.RequestHeader = new RequestHeader();
-                }
+                input.RequestHeader ??= new RequestHeader();
 
-                if (NodeId.IsNull(input.RequestHeader.AuthenticationToken) &&
-                    input.TypeId != DataTypeIds.CreateSessionRequest && context.Request.Headers.TryGetValue(kAuthorizationKey, out Microsoft.Extensions.Primitives.StringValues keys))
+                if (
+                    NodeId.IsNull(input.RequestHeader.AuthenticationToken)
+                    && input.TypeId != DataTypeIds.CreateSessionRequest
+                    && context.Request.Headers.TryGetValue(
+                        kAuthorizationKey,
+                        out Microsoft.Extensions.Primitives.StringValues keys
+                    )
+                )
                 {
                     foreach (string value in keys)
                     {
                         if (value.StartsWith(kBearerKey, StringComparison.OrdinalIgnoreCase))
                         {
                             // note: use NodeId(string, uint) to avoid the NodeId.Parse call.
-                            input.RequestHeader.AuthenticationToken = new NodeId(value[(kBearerKey.Length + 1)..].Trim(), 0);
+                            input.RequestHeader.AuthenticationToken = new NodeId(
+                                value[(kBearerKey.Length + 1)..].Trim(),
+                                0
+                            );
                         }
                     }
                 }
 
-                if (!context.Request.Headers.TryGetValue(Profiles.HttpsSecurityPolicyHeader, out Microsoft.Extensions.Primitives.StringValues header))
+                if (
+                    !context.Request.Headers.TryGetValue(
+                        Profiles.HttpsSecurityPolicyHeader,
+                        out Microsoft.Extensions.Primitives.StringValues header
+                    )
+                )
                 {
                     header = SecurityPolicies.None;
                 }
@@ -405,7 +430,10 @@ namespace Opc.Ua.Bindings
                 {
                     if (Utils.IsUriHttpsScheme(ep.EndpointUrl))
                     {
-                        if (!string.IsNullOrEmpty(header) && !string.Equals(ep.SecurityPolicyUri, header, StringComparison.Ordinal))
+                        if (
+                            !string.IsNullOrEmpty(header)
+                            && !string.Equals(ep.SecurityPolicyUri, header, StringComparison.Ordinal)
+                        )
                         {
                             continue;
                         }
@@ -418,15 +446,23 @@ namespace Opc.Ua.Bindings
                 if (endpoint == null)
                 {
                     ServiceResultException serviceResultException = null;
-                    if (input.TypeId != DataTypeIds.GetEndpointsRequest &&
-                        input.TypeId != DataTypeIds.FindServersRequest &&
-                        input.TypeId != DataTypeIds.FindServersOnNetworkRequest)
+                    if (
+                        input.TypeId != DataTypeIds.GetEndpointsRequest
+                        && input.TypeId != DataTypeIds.FindServersRequest
+                        && input.TypeId != DataTypeIds.FindServersOnNetworkRequest
+                    )
                     {
-                        serviceResultException = new ServiceResultException(StatusCodes.BadSecurityPolicyRejected, "Channel can only be used for discovery.");
+                        serviceResultException = new ServiceResultException(
+                            StatusCodes.BadSecurityPolicyRejected,
+                            "Channel can only be used for discovery."
+                        );
                     }
                     else if (length > TcpMessageLimits.DefaultDiscoveryMaxMessageSize)
                     {
-                        serviceResultException = new ServiceResultException(StatusCodes.BadSecurityPolicyRejected, "Discovery Channel message size exceeded.");
+                        serviceResultException = new ServiceResultException(
+                            StatusCodes.BadSecurityPolicyRejected,
+                            "Discovery Channel message size exceeded."
+                        );
                     }
 
                     if (serviceResultException != null)
@@ -438,12 +474,7 @@ namespace Opc.Ua.Bindings
                 }
 
                 // note: do not use Task.Factory.FromAsync here
-                IAsyncResult result = m_callback.BeginProcessRequest(
-                    ListenerId,
-                    endpoint,
-                    input,
-                    null,
-                    null);
+                IAsyncResult result = m_callback.BeginProcessRequest(ListenerId, endpoint, input, null, null);
 
                 IServiceResponse output = m_callback.EndProcessRequest(result);
 
@@ -460,15 +491,14 @@ namespace Opc.Ua.Bindings
                 Utils.LogError(e, message);
             }
 
-            await WriteResponseAsync(context.Response, message, HttpStatusCode.InternalServerError).ConfigureAwait(false);
+            await WriteResponseAsync(context.Response, message, HttpStatusCode.InternalServerError)
+                .ConfigureAwait(false);
         }
 
         /// <summary>
         /// Called when a UpdateCertificate event occured.
         /// </summary>
-        public void CertificateUpdate(
-            ICertificateValidator validator,
-            CertificateTypesProvider certificateTypeProvider)
+        public void CertificateUpdate(ICertificateValidator validator, CertificateTypesProvider certificateTypeProvider)
         {
             Stop();
 
@@ -477,9 +507,7 @@ namespace Opc.Ua.Bindings
 
             foreach (EndpointDescription description in m_descriptions)
             {
-                ServerBase.SetServerCertificateInEndpointDescription(description,
-                    certificateTypeProvider,
-                    false);
+                ServerBase.SetServerCertificateInEndpointDescription(description, certificateTypeProvider, false);
             }
 
             Start();
@@ -488,16 +516,24 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Encodes a service response and writes it back.
         /// </summary>
-        private async Task WriteServiceResponseAsync(HttpContext context, IServiceResponse response, CancellationToken ct)
+        private async Task WriteServiceResponseAsync(
+            HttpContext context,
+            IServiceResponse response,
+            CancellationToken ct
+        )
         {
             byte[] encodedResponse = BinaryEncoder.EncodeMessage(response, m_quotas.MessageContext);
             context.Response.ContentLength = encodedResponse.Length;
             context.Response.ContentType = context.Request.ContentType;
             context.Response.StatusCode = (int)HttpStatusCode.OK;
 #if NETSTANDARD2_1 || NET5_0_OR_GREATER || NETCOREAPP3_1_OR_GREATER
-            await context.Response.Body.WriteAsync(encodedResponse.AsMemory(0, encodedResponse.Length), ct).ConfigureAwait(false);
+            await context
+                .Response.Body.WriteAsync(encodedResponse.AsMemory(0, encodedResponse.Length), ct)
+                .ConfigureAwait(false);
 #else
-            await context.Response.Body.WriteAsync(encodedResponse, 0, encodedResponse.Length, ct).ConfigureAwait(false);
+            await context
+                .Response.Body.WriteAsync(encodedResponse, 0, encodedResponse.Length, ct)
+                .ConfigureAwait(false);
 #endif
         }
 
@@ -526,7 +562,8 @@ namespace Opc.Ua.Bindings
         private bool ValidateClientCertificate(
             X509Certificate2 clientCertificate,
             X509Chain chain,
-            SslPolicyErrors sslPolicyErrors)
+            SslPolicyErrors sslPolicyErrors
+        )
         {
             if (sslPolicyErrors == SslPolicyErrors.None)
             {

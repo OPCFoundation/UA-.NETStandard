@@ -71,32 +71,31 @@ namespace Opc.Ua
             var sanityCheck = TypeInfo.Construct(m_value);
 
             // except special case byte array vs. bytestring
-            if (sanityCheck.BuiltInType == BuiltInType.ByteString &&
-                sanityCheck.ValueRank == ValueRanks.Scalar &&
-                typeInfo.BuiltInType == BuiltInType.Byte &&
-                typeInfo.ValueRank == ValueRanks.OneDimension)
+            if (
+                sanityCheck.BuiltInType == BuiltInType.ByteString
+                && sanityCheck.ValueRank == ValueRanks.Scalar
+                && typeInfo.BuiltInType == BuiltInType.Byte
+                && typeInfo.ValueRank == ValueRanks.OneDimension
+            )
             {
                 return;
             }
 
             // An enumeration can contain Int32
-            if (sanityCheck.BuiltInType == BuiltInType.Int32 &&
-                typeInfo.BuiltInType == BuiltInType.Enumeration)
+            if (sanityCheck.BuiltInType == BuiltInType.Int32 && typeInfo.BuiltInType == BuiltInType.Enumeration)
             {
                 return;
             }
 
             Debug.Assert(
                 sanityCheck.BuiltInType == TypeInfo.BuiltInType,
-                Utils.Format("{0} != {1}",
-                sanityCheck.BuiltInType,
-                typeInfo.BuiltInType));
+                Utils.Format("{0} != {1}", sanityCheck.BuiltInType, typeInfo.BuiltInType)
+            );
 
             Debug.Assert(
                 sanityCheck.ValueRank == TypeInfo.ValueRank,
-                Utils.Format("{0} != {1}",
-                sanityCheck.ValueRank,
-                typeInfo.ValueRank));
+                Utils.Format("{0} != {1}", sanityCheck.ValueRank, typeInfo.ValueRank)
+            );
 
 #endif
         }
@@ -793,7 +792,6 @@ namespace Opc.Ua
                 // return element.
                 return document.DocumentElement;
             }
-
             set
             {
                 // check for null values.
@@ -803,12 +801,10 @@ namespace Opc.Ua
                     return;
                 }
 
-
                 // create decoder.
                 using var decoder = new XmlDecoder(value, MessageContextExtension.CurrentContext);
                 try
                 {
-
                     TypeInfo typeInfo;
                     // read value.
                     object body = decoder.ReadVariantContents(out typeInfo);
@@ -819,7 +815,8 @@ namespace Opc.Ua
                     throw ServiceResultException.Create(
                         StatusCodes.BadDecodingError,
                         e,
-                        "Error decoding Variant value.");
+                        "Error decoding Variant value."
+                    );
                 }
                 finally
                 {
@@ -837,7 +834,8 @@ namespace Opc.Ua
         /// </remarks>
         public object Value
         {
-            readonly get => m_value; set => Set(value, TypeInfo.Construct(value));
+            readonly get => m_value;
+            set => Set(value, TypeInfo.Construct(value));
         }
 
         /// <summary>
@@ -2285,7 +2283,8 @@ namespace Opc.Ua
                     // not supported.
                     throw new ServiceResultException(
                         StatusCodes.BadNotSupported,
-                        Utils.Format("The type '{0}' cannot be stored in a Variant object.", value.GetType().FullName));
+                        Utils.Format("The type '{0}' cannot be stored in a Variant object.", value.GetType().FullName)
+                    );
 
                 // convert Guids to Uuids.
                 case BuiltInType.Guid:
@@ -2353,7 +2352,8 @@ namespace Opc.Ua
                     // not supported.
                     throw new ServiceResultException(
                         StatusCodes.BadNotSupported,
-                        Utils.Format("The type '{0}' cannot be stored in a Variant object.", array.GetType().FullName));
+                        Utils.Format("The type '{0}' cannot be stored in a Variant object.", array.GetType().FullName)
+                    );
                 }
 
                 // convert Guids to Uuids.
@@ -2497,8 +2497,9 @@ namespace Opc.Ua
 
             // not supported.
             throw new ServiceResultException(
-                   StatusCodes.BadNotSupported,
-                   Utils.Format("Arrays of the type '{0}' cannot be stored in a Variant object.", value.GetType().FullName));
+                StatusCodes.BadNotSupported,
+                Utils.Format("Arrays of the type '{0}' cannot be stored in a Variant object.", value.GetType().FullName)
+            );
         }
 
         private object m_value;
@@ -2521,7 +2522,8 @@ namespace Opc.Ua
         /// <remarks>
         /// Provides a strongly-typed collection of <see cref="Variant"/> objects.
         /// </remarks>
-        public VariantCollection(IEnumerable<Variant> collection) : base(collection) { }
+        public VariantCollection(IEnumerable<Variant> collection)
+            : base(collection) { }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
@@ -2530,7 +2532,8 @@ namespace Opc.Ua
         /// Initializes the collection with the specified capacity.
         /// </remarks>
         /// <param name="capacity">The capacity to constrain the collection to</param>
-        public VariantCollection(int capacity) : base(capacity) { }
+        public VariantCollection(int capacity)
+            : base(capacity) { }
 
         /// <summary>
         /// Converts an array to a collection.
@@ -2581,5 +2584,5 @@ namespace Opc.Ua
 
             return clone;
         }
-    }//class
-}//namespace
+    } //class
+} //namespace

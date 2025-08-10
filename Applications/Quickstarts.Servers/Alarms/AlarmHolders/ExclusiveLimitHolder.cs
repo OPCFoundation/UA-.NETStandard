@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-
 using Opc.Ua;
 #pragma warning disable CS0219
 
@@ -46,8 +45,20 @@ namespace Alarms
             int interval,
             bool optional = true,
             double maxShelveTime = AlarmDefines.NORMAL_MAX_TIME_SHELVED,
-            bool create = true) :
-            base(alarmNodeManager, parent, trigger, name, alarmConditionType, controllerType, interval, optional, maxShelveTime, false)
+            bool create = true
+        )
+            : base(
+                alarmNodeManager,
+                parent,
+                trigger,
+                name,
+                alarmConditionType,
+                controllerType,
+                interval,
+                optional,
+                maxShelveTime,
+                false
+            )
         {
             if (create)
             {
@@ -58,14 +69,12 @@ namespace Alarms
         public new void Initialize(
             uint alarmTypeIdentifier,
             string name,
-            double maxTimeShelved = AlarmDefines.NORMAL_MAX_TIME_SHELVED)
+            double maxTimeShelved = AlarmDefines.NORMAL_MAX_TIME_SHELVED
+        )
         {
             // Create an alarm and trigger name - Create a base method for creating the trigger, just provide the name
 
-            if (m_alarm == null)
-            {
-                m_alarm = new ExclusiveLimitAlarmState(m_parent);
-            }
+            m_alarm ??= new ExclusiveLimitAlarmState(m_parent);
 
             ExclusiveLimitAlarmState alarm = GetAlarm();
 

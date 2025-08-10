@@ -20,7 +20,11 @@ namespace Opc.Ua
         public StringCollection Scopes { get; set; }
     }
 
-    [CollectionDataContract(Name = "ListOfOAuth2ServerSettings", Namespace = Namespaces.OpcUaConfig, ItemName = "OAuth2ServerSettings")]
+    [CollectionDataContract(
+        Name = "ListOfOAuth2ServerSettings",
+        Namespace = Namespaces.OpcUaConfig,
+        ItemName = "OAuth2ServerSettings"
+    )]
     public class OAuth2ServerSettingsCollection : List<OAuth2ServerSettings>;
 
     [DataContract(Namespace = Namespaces.OpcUaConfig)]
@@ -37,7 +41,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object during deserialization.
         /// </summary>
-        [OnDeserializing()]
+        [OnDeserializing]
         private static void Initialize(StreamingContext context)
         {
             Initialize();
@@ -46,9 +50,7 @@ namespace Opc.Ua
         /// <summary>
         /// Sets private members to default values.
         /// </summary>
-        private static void Initialize()
-        {
-        }
+        private static void Initialize() { }
 
         [DataMember(Order = 1)]
         public string AuthorityUrl { get; set; }
@@ -77,7 +79,11 @@ namespace Opc.Ua
         public OAuth2ServerSettings SelectedServer { get; set; }
     }
 
-    [CollectionDataContract(Name = "ListOfOAuth2Credential", Namespace = Namespaces.OpcUaConfig, ItemName = "OAuth2Credential")]
+    [CollectionDataContract(
+        Name = "ListOfOAuth2Credential",
+        Namespace = Namespaces.OpcUaConfig,
+        ItemName = "OAuth2Credential"
+    )]
     public class OAuth2CredentialCollection : List<OAuth2Credential>
     {
         public static OAuth2CredentialCollection Load(ApplicationConfiguration configuration)
@@ -109,7 +115,10 @@ namespace Opc.Ua
             return list;
         }
 
-        public static OAuth2Credential FindByServerUri(ApplicationConfiguration configuration, string serverApplicationUri)
+        public static OAuth2Credential FindByServerUri(
+            ApplicationConfiguration configuration,
+            string serverApplicationUri
+        )
         {
             if (serverApplicationUri == null || !Uri.IsWellFormedUriString(serverApplicationUri, UriKind.Absolute))
             {
@@ -128,7 +137,11 @@ namespace Opc.Ua
                         {
                             // this is too allow generic sample config files to work on any machine.
                             // in a real system explicit host names would be used so this would have no effect.
-                            string uri = jj.ApplicationUri.Replace("localhost", System.Net.Dns.GetHostName().ToLowerInvariant(), StringComparison.Ordinal);
+                            string uri = jj.ApplicationUri.Replace(
+                                "localhost",
+                                System.Net.Dns.GetHostName().ToLowerInvariant(),
+                                StringComparison.Ordinal
+                            );
 
                             if (uri == serverApplicationUri)
                             {
@@ -141,7 +154,7 @@ namespace Opc.Ua
                                     RedirectUrl = ii.RedirectUrl,
                                     TokenEndpoint = ii.TokenEndpoint,
                                     AuthorizationEndpoint = ii.AuthorizationEndpoint,
-                                    SelectedServer = jj
+                                    SelectedServer = jj,
                                 };
                             }
                         }
@@ -172,7 +185,11 @@ namespace Opc.Ua
                 {
                     // this is too allow generic sample config files to work on any machine.
                     // in a real system explicit host names would be used so this would have no effect.
-                    string uri = ii.AuthorityUrl.Replace("localhost", System.Net.Dns.GetHostName().ToLowerInvariant(), StringComparison.Ordinal);
+                    string uri = ii.AuthorityUrl.Replace(
+                        "localhost",
+                        System.Net.Dns.GetHostName().ToLowerInvariant(),
+                        StringComparison.Ordinal
+                    );
 
                     if (!uri.EndsWith('/'))
                     {
@@ -189,7 +206,7 @@ namespace Opc.Ua
                             ClientSecret = ii.ClientSecret,
                             RedirectUrl = ii.RedirectUrl,
                             TokenEndpoint = ii.TokenEndpoint,
-                            AuthorizationEndpoint = ii.AuthorizationEndpoint
+                            AuthorizationEndpoint = ii.AuthorizationEndpoint,
                         };
                     }
                 }

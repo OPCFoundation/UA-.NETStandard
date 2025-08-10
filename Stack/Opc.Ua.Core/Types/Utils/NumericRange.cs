@@ -46,6 +46,7 @@ namespace Opc.Ua
 
             Begin = begin;
         }
+
         /// <summary>
         /// Initializes the object with a begin and end indexes.
         /// </summary>
@@ -74,7 +75,6 @@ namespace Opc.Ua
         public int Begin
         {
             readonly get => m_begin;
-
             set
             {
                 if (value < -1)
@@ -102,7 +102,6 @@ namespace Opc.Ua
         public int End
         {
             readonly get => m_end;
-
             set
             {
                 if (value < -1)
@@ -416,7 +415,8 @@ namespace Opc.Ua
                         return ServiceResult.Create(
                             StatusCodes.BadIndexRangeInvalid,
                             "NumericRange does not have a valid end index ({0}).",
-                            range.End);
+                            range.End
+                        );
                     }
 
                     if (range.Begin >= range.End)
@@ -424,7 +424,8 @@ namespace Opc.Ua
                         return ServiceResult.Create(
                             StatusCodes.BadIndexRangeInvalid,
                             "NumericRange does not have a start index that is less than the end index ({0}).",
-                            range);
+                            range
+                        );
                     }
                 }
                 else
@@ -438,7 +439,8 @@ namespace Opc.Ua
                     return ServiceResult.Create(
                         StatusCodes.BadIndexRangeInvalid,
                         "NumericRange does not have a valid start index ({0}).",
-                        range.Begin);
+                        range.Begin
+                    );
                 }
             }
             catch (Exception e)
@@ -447,7 +449,8 @@ namespace Opc.Ua
                     e,
                     StatusCodes.BadIndexRangeInvalid,
                     "NumericRange cannot be parsed ({0}).",
-                    textToParse);
+                    textToParse
+                );
             }
 
             return ServiceResult.Good;
@@ -479,7 +482,10 @@ namespace Opc.Ua
 
             if (SubRanges.Length > typeInfo.ValueRank)
             {
-                if (typeInfo.BuiltInType is BuiltInType.ByteString or BuiltInType.String && SubRanges.Length == typeInfo.ValueRank + 1)
+                if (
+                    typeInfo.BuiltInType is BuiltInType.ByteString or BuiltInType.String
+                    && SubRanges.Length == typeInfo.ValueRank + 1
+                )
                 {
                     finalRange = SubRanges[^1];
                 }
@@ -622,7 +628,6 @@ namespace Opc.Ua
                     dst = new string(dstString);
                     return StatusCodes.Good;
                 }
-
                 // update elements within a byte string.
                 else if (dstTypeInfo.BuiltInType == BuiltInType.ByteString)
                 {
@@ -724,7 +729,10 @@ namespace Opc.Ua
 
             if (SubRanges != null && SubRanges.Length > srcTypeInfo.ValueRank)
             {
-                if (srcTypeInfo.BuiltInType is BuiltInType.ByteString or BuiltInType.String && SubRanges.Length == srcTypeInfo.ValueRank + 1)
+                if (
+                    srcTypeInfo.BuiltInType is BuiltInType.ByteString or BuiltInType.String
+                    && SubRanges.Length == srcTypeInfo.ValueRank + 1
+                )
                 {
                     finalRange = SubRanges[^1];
                 }
@@ -802,7 +810,6 @@ namespace Opc.Ua
                         return StatusCodes.BadIndexRangeNoData;
                     }
                 }
-
                 // check for subset of byte string.
                 else if (dstTypeInfo.BuiltInType == BuiltInType.ByteString)
                 {
@@ -870,7 +877,6 @@ namespace Opc.Ua
 
                     dstArray.SetValue(new string(dstString), dstIndexes);
                 }
-
                 // update elements within a byte string.
                 else if (dstTypeInfo.BuiltInType == BuiltInType.ByteString)
                 {
@@ -995,7 +1001,6 @@ namespace Opc.Ua
             {
                 end = begin;
             }
-
             // ensure end of array is not exceeded.
             else if (end >= length - 1)
             {
@@ -1003,7 +1008,6 @@ namespace Opc.Ua
             }
 
             int subLength = end - begin + 1;
-
 
             Array clone;
             // check for list.
@@ -1067,5 +1071,5 @@ namespace Opc.Ua
 
         private int m_begin;
         private int m_end;
-    }//class
-}//namespace
+    } //class
+} //namespace

@@ -38,6 +38,7 @@ namespace Opc.Ua.Server
     {
         /// <inheritdoc/>
         public bool SupportsDurableQueues => false;
+
         /// <inheritdoc/>
         public IDataChangeMonitoredItemQueue CreateDataChangeQueue(bool createDurable, uint monitoredItemId)
         {

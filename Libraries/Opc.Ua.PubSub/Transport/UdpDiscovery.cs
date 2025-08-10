@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -41,7 +41,7 @@ namespace Opc.Ua.PubSub.Transport
     {
         private const string kDefaultDiscoveryUrl = "opc.udp://224.0.2.14:4840";
 
-        protected readonly object m_lock = new();
+        protected object Lock { get; } = new();
         protected UdpPubSubConnection m_udpConnection;
         protected List<UdpClient> m_discoveryUdpClients;
 
@@ -79,15 +79,20 @@ namespace Opc.Ua.PubSub.Transport
         public virtual async Task StartAsync(IServiceMessageContext messageContext)
         {
             await Task.Run(() =>
-            {
-                lock (m_lock)
                 {
-                    MessageContext = messageContext;
+                    lock (Lock)
+                    {
+                        MessageContext = messageContext;
 
-                    // initialize Discovery channels
-                    m_discoveryUdpClients = UdpClientCreator.GetUdpClients(UsedInContext.Discovery, DiscoveryNetworkInterfaceName, DiscoveryNetworkAddressEndPoint);
-                }
-            }).ConfigureAwait(false);
+                        // initialize Discovery channels
+                        m_discoveryUdpClients = UdpClientCreator.GetUdpClients(
+                            UsedInContext.Discovery,
+                            DiscoveryNetworkInterfaceName,
+                            DiscoveryNetworkAddressEndPoint
+                        );
+                    }
+                })
+                .ConfigureAwait(false);
         }
 
         /// <summary>
@@ -96,7 +101,7 @@ namespace Opc.Ua.PubSub.Transport
         /// <returns></returns>
         public virtual async Task StopAsync()
         {
-            lock (m_lock)
+            lock (Lock)
             {
                 if (m_discoveryUdpClients != null && m_discoveryUdpClients.Count > 0)
                 {
@@ -119,10 +124,19 @@ namespace Opc.Ua.PubSub.Transport
         {
             PubSubConnectionDataType pubSubConnectionConfiguration = m_udpConnection.PubSubConnectionConfiguration;
 
-            if (ExtensionObject.ToEncodeable(pubSubConnectionConfiguration.TransportSettings) is DatagramConnectionTransportDataType transportSettings && transportSettings.DiscoveryAddress != null && ExtensionObject.ToEncodeable(transportSettings.DiscoveryAddress) is NetworkAddressUrlDataType discoveryNetworkAddressUrlState)
+            if (
+                ExtensionObject.ToEncodeable(pubSubConnectionConfiguration.TransportSettings)
+                    is DatagramConnectionTransportDataType transportSettings
+                && transportSettings.DiscoveryAddress != null
+                && ExtensionObject.ToEncodeable(transportSettings.DiscoveryAddress)
+                    is NetworkAddressUrlDataType discoveryNetworkAddressUrlState
+            )
             {
-                Utils.Trace(Utils.TraceMasks.Information, "The configuration for connection {0} has custom DiscoveryAddress configuration.",
-                          pubSubConnectionConfiguration.Name);
+                Utils.Trace(
+                    Utils.TraceMasks.Information,
+                    "The configuration for connection {0} has custom DiscoveryAddress configuration.",
+                    pubSubConnectionConfiguration.Name
+                );
 
                 DiscoveryNetworkInterfaceName = discoveryNetworkAddressUrlState.NetworkInterface;
                 DiscoveryNetworkAddressEndPoint = UdpClientCreator.GetEndPoint(discoveryNetworkAddressUrlState.Url);
@@ -130,8 +144,12 @@ namespace Opc.Ua.PubSub.Transport
 
             if (DiscoveryNetworkAddressEndPoint == null)
             {
-                Utils.Trace(Utils.TraceMasks.Information, "The configuration for connection {0} will use the default DiscoveryAddress: {1}.",
-                              pubSubConnectionConfiguration.Name, kDefaultDiscoveryUrl);
+                Utils.Trace(
+                    Utils.TraceMasks.Information,
+                    "The configuration for connection {0} will use the default DiscoveryAddress: {1}.",
+                    pubSubConnectionConfiguration.Name,
+                    kDefaultDiscoveryUrl
+                );
 
                 DiscoveryNetworkAddressEndPoint = UdpClientCreator.GetEndPoint(kDefaultDiscoveryUrl);
             }

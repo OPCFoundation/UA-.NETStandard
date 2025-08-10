@@ -62,14 +62,8 @@ namespace Opc.Ua.Client
         /// <param name="channel">The channel used to communicate with the server.</param>
         /// <param name="configuration">The configuration for the client application.</param>
         /// <param name="endpoint">The endpoint use to initialize the channel.</param>
-        public Session(
-            ISessionChannel channel,
-            ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint)
-        :
-            this(channel as ITransportChannel, configuration, endpoint, null)
-        {
-        }
+        public Session(ISessionChannel channel, ApplicationConfiguration configuration, ConfiguredEndpoint endpoint)
+            : this(channel as ITransportChannel, configuration, endpoint, null) { }
 
         /// <summary>
         /// Constructs a new instance of the <see cref="ISession"/> class.
@@ -94,9 +88,9 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             X509Certificate2 clientCertificate,
             EndpointDescriptionCollection availableEndpoints = null,
-            StringCollection discoveryProfileUris = null)
-            :
-                base(channel)
+            StringCollection discoveryProfileUris = null
+        )
+            : base(channel)
         {
             Initialize(channel, configuration, endpoint);
             LoadInstanceCertificateAsync(clientCertificate).GetAwaiter().GetResult();
@@ -111,8 +105,7 @@ namespace Opc.Ua.Client
         /// <param name="template">The template session.</param>
         /// <param name="copyEventHandlers">if set to <c>true</c> the event handlers are copied.</param>
         public Session(ITransportChannel channel, Session template, bool copyEventHandlers)
-        :
-            base(channel)
+            : base(channel)
         {
             Initialize(channel, template.m_configuration, template.ConfiguredEndpoint);
             LoadInstanceCertificateAsync(template.m_instanceCertificate).GetAwaiter().GetResult();
@@ -161,7 +154,8 @@ namespace Opc.Ua.Client
         private void Initialize(
             ITransportChannel channel,
             ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint)
+            ConfiguredEndpoint endpoint
+        )
         {
             Initialize();
 
@@ -206,7 +200,7 @@ namespace Opc.Ua.Client
                 TypeTable = TypeTree,
                 PreferredLocales = null,
                 SessionId = null,
-                UserIdentity = null
+                UserIdentity = null,
             };
         }
 
@@ -249,7 +243,7 @@ namespace Opc.Ua.Client
                 KeepAliveCount = 10,
                 LifetimeCount = 1000,
                 Priority = 255,
-                PublishingEnabled = true
+                PublishingEnabled = true,
             };
         }
 
@@ -282,7 +276,8 @@ namespace Opc.Ua.Client
 
             throw new ServiceResultException(
                 StatusCodes.BadConfigurationError,
-                $"The client configuration does not specify the {configurationField}.");
+                $"The client configuration does not specify the {configurationField}."
+            );
         }
 
         /// <summary>
@@ -293,7 +288,8 @@ namespace Opc.Ua.Client
             byte[] serverNonce,
             string securityPolicyUri,
             byte[] previousServerNonce,
-            MessageSecurityMode channelSecurityMode = MessageSecurityMode.None)
+            MessageSecurityMode channelSecurityMode = MessageSecurityMode.None
+        )
         {
             // skip validation if server nonce is not used for encryption.
             if (string.IsNullOrEmpty(securityPolicyUri) || securityPolicyUri == SecurityPolicies.None)
@@ -304,30 +300,52 @@ namespace Opc.Ua.Client
             if (identity != null && identity.TokenType != UserTokenType.Anonymous)
             {
                 // the server nonce should be validated if the token includes a secret.
-                if (!Nonce.ValidateNonce(serverNonce, MessageSecurityMode.SignAndEncrypt, (uint)m_configuration.SecurityConfiguration.NonceLength))
+                if (
+                    !Nonce.ValidateNonce(
+                        serverNonce,
+                        MessageSecurityMode.SignAndEncrypt,
+                        (uint)m_configuration.SecurityConfiguration.NonceLength
+                    )
+                )
                 {
-                    if (channelSecurityMode == MessageSecurityMode.SignAndEncrypt ||
-                        m_configuration.SecurityConfiguration.SuppressNonceValidationErrors)
+                    if (
+                        channelSecurityMode == MessageSecurityMode.SignAndEncrypt
+                        || m_configuration.SecurityConfiguration.SuppressNonceValidationErrors
+                    )
                     {
-                        Utils.LogWarning(Utils.TraceMasks.Security, "Warning: The server nonce has not the correct length or is not random enough. The error is suppressed by user setting or because the channel is encrypted.");
+                        Utils.LogWarning(
+                            Utils.TraceMasks.Security,
+                            "Warning: The server nonce has not the correct length or is not random enough. The error is suppressed by user setting or because the channel is encrypted."
+                        );
                     }
                     else
                     {
-                        throw ServiceResultException.Create(StatusCodes.BadNonceInvalid, "The server nonce has not the correct length or is not random enough.");
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadNonceInvalid,
+                            "The server nonce has not the correct length or is not random enough."
+                        );
                     }
                 }
 
                 // check that new nonce is different from the previously returned server nonce.
                 if (previousServerNonce != null && Nonce.CompareNonce(serverNonce, previousServerNonce))
                 {
-                    if (channelSecurityMode == MessageSecurityMode.SignAndEncrypt ||
-                        m_configuration.SecurityConfiguration.SuppressNonceValidationErrors)
+                    if (
+                        channelSecurityMode == MessageSecurityMode.SignAndEncrypt
+                        || m_configuration.SecurityConfiguration.SuppressNonceValidationErrors
+                    )
                     {
-                        Utils.LogWarning(Utils.TraceMasks.Security, "Warning: The Server nonce is equal with previously returned nonce. The error is suppressed by user setting or because the channel is encrypted.");
+                        Utils.LogWarning(
+                            Utils.TraceMasks.Security,
+                            "Warning: The Server nonce is equal with previously returned nonce. The error is suppressed by user setting or because the channel is encrypted."
+                        );
                     }
                     else
                     {
-                        throw ServiceResultException.Create(StatusCodes.BadNonceInvalid, "Server nonce is equal with previously returned nonce.");
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadNonceInvalid,
+                            "Server nonce is equal with previously returned nonce."
+                        );
                     }
                 }
             }
@@ -389,7 +407,6 @@ namespace Opc.Ua.Client
         public event KeepAliveEventHandler KeepAlive
         {
             add => m_KeepAlive += value;
-
             remove => m_KeepAlive -= value;
         }
 
@@ -404,7 +421,6 @@ namespace Opc.Ua.Client
         public event NotificationEventHandler Notification
         {
             add => m_Publish += value;
-
             remove => m_Publish -= value;
         }
 
@@ -423,7 +439,6 @@ namespace Opc.Ua.Client
         public event PublishErrorEventHandler PublishError
         {
             add => m_PublishError += value;
-
             remove => m_PublishError -= value;
         }
 
@@ -431,7 +446,6 @@ namespace Opc.Ua.Client
         public event PublishSequenceNumbersToAcknowledgeEventHandler PublishSequenceNumbersToAcknowledge
         {
             add => m_PublishSequenceNumbersToAcknowledge += value;
-
             remove => m_PublishSequenceNumbersToAcknowledge -= value;
         }
 
@@ -441,7 +455,6 @@ namespace Opc.Ua.Client
         public event EventHandler SubscriptionsChanged
         {
             add => m_SubscriptionsChanged += value;
-
             remove => m_SubscriptionsChanged -= value;
         }
 
@@ -451,7 +464,6 @@ namespace Opc.Ua.Client
         public event EventHandler SessionClosing
         {
             add => m_SessionClosing += value;
-
             remove => m_SessionClosing -= value;
         }
 
@@ -459,7 +471,6 @@ namespace Opc.Ua.Client
         public event EventHandler SessionConfigurationChanged
         {
             add => m_SessionConfigurationChanged += value;
-
             remove => m_SessionConfigurationChanged -= value;
         }
 
@@ -604,7 +615,6 @@ namespace Opc.Ua.Client
         public int KeepAliveInterval
         {
             get => m_keepAliveInterval;
-
             set
             {
                 m_keepAliveInterval = value;
@@ -626,7 +636,10 @@ namespace Opc.Ua.Client
             get
             {
                 StatusCode lastKeepAliveErrorStatusCode = m_lastKeepAliveErrorStatusCode;
-                if (StatusCode.IsGood(lastKeepAliveErrorStatusCode) || lastKeepAliveErrorStatusCode == StatusCodes.BadNoCommunication)
+                if (
+                    StatusCode.IsGood(lastKeepAliveErrorStatusCode)
+                    || lastKeepAliveErrorStatusCode == StatusCodes.BadNoCommunication
+                )
                 {
                     int delta = HiResClock.TickCount - LastKeepAliveTickCount;
 
@@ -735,8 +748,10 @@ namespace Opc.Ua.Client
                     }
                     else
                     {
-                        throw new ArgumentOutOfRangeException(nameof(MinPublishRequestCount),
-                            $"Minimum publish request count must be between {kDefaultPublishRequestCount} and {kMinPublishRequestCountMax}.");
+                        throw new ArgumentOutOfRangeException(
+                            nameof(MinPublishRequestCount),
+                            $"Minimum publish request count must be between {kDefaultPublishRequestCount} and {kMinPublishRequestCountMax}."
+                        );
                     }
                 }
             }
@@ -758,8 +773,10 @@ namespace Opc.Ua.Client
                     }
                     else
                     {
-                        throw new ArgumentOutOfRangeException(nameof(MaxPublishRequestCount),
-                            $"Maximum publish request count must be between {kDefaultPublishRequestCount} and {kMaxPublishRequestCountMax}.");
+                        throw new ArgumentOutOfRangeException(
+                            nameof(MaxPublishRequestCount),
+                            $"Maximum publish request count must be between {kDefaultPublishRequestCount} and {kMaxPublishRequestCountMax}."
+                        );
                     }
                 }
             }
@@ -798,9 +815,20 @@ namespace Opc.Ua.Client
             uint sessionTimeout,
             IUserIdentity identity,
             IList<string> preferredLocales,
-            CancellationToken ct = default)
+            CancellationToken ct = default
+        )
         {
-            return Create(configuration, endpoint, updateBeforeConnect, false, sessionName, sessionTimeout, identity, preferredLocales, ct);
+            return Create(
+                configuration,
+                endpoint,
+                updateBeforeConnect,
+                false,
+                sessionName,
+                sessionTimeout,
+                identity,
+                preferredLocales,
+                ct
+            );
         }
 
         /// <summary>
@@ -825,9 +853,21 @@ namespace Opc.Ua.Client
             uint sessionTimeout,
             IUserIdentity identity,
             IList<string> preferredLocales,
-            CancellationToken ct = default)
+            CancellationToken ct = default
+        )
         {
-            return Create(configuration, (ITransportWaitingConnection)null, endpoint, updateBeforeConnect, checkDomain, sessionName, sessionTimeout, identity, preferredLocales, ct);
+            return Create(
+                configuration,
+                (ITransportWaitingConnection)null,
+                endpoint,
+                updateBeforeConnect,
+                checkDomain,
+                sessionName,
+                sessionTimeout,
+                identity,
+                preferredLocales,
+                ct
+            );
         }
 
         /// <summary>
@@ -840,14 +880,23 @@ namespace Opc.Ua.Client
         /// <param name="availableEndpoints">The list of available endpoints returned by server in GetEndpoints() response.</param>
         /// <param name="discoveryProfileUris">The value of profileUris used in GetEndpoints() request.</param>
         public static Session Create(
-           ApplicationConfiguration configuration,
-           ITransportChannel channel,
-           ConfiguredEndpoint endpoint,
-           X509Certificate2 clientCertificate,
-           EndpointDescriptionCollection availableEndpoints = null,
-           StringCollection discoveryProfileUris = null)
+            ApplicationConfiguration configuration,
+            ITransportChannel channel,
+            ConfiguredEndpoint endpoint,
+            X509Certificate2 clientCertificate,
+            EndpointDescriptionCollection availableEndpoints = null,
+            StringCollection discoveryProfileUris = null
+        )
         {
-            return Create(DefaultSessionFactory.Instance, configuration, channel, endpoint, clientCertificate, availableEndpoints, discoveryProfileUris);
+            return Create(
+                DefaultSessionFactory.Instance,
+                configuration,
+                channel,
+                endpoint,
+                clientCertificate,
+                availableEndpoints,
+                discoveryProfileUris
+            );
         }
 
         /// <summary>
@@ -868,9 +917,17 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             X509Certificate2 clientCertificate,
             EndpointDescriptionCollection availableEndpoints = null,
-            StringCollection discoveryProfileUris = null)
+            StringCollection discoveryProfileUris = null
+        )
         {
-            return sessionInstantiator.Create(channel, configuration, endpoint, clientCertificate, availableEndpoints, discoveryProfileUris);
+            return sessionInstantiator.Create(
+                channel,
+                configuration,
+                endpoint,
+                clientCertificate,
+                availableEndpoints,
+                discoveryProfileUris
+            );
         }
 
         /// <summary>
@@ -889,7 +946,8 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
             bool checkDomain,
-            CancellationToken ct = default)
+            CancellationToken ct = default
+        )
         {
             endpoint.UpdateBeforeConnect = updateBeforeConnect;
 
@@ -915,21 +973,26 @@ namespace Opc.Ua.Client
             }
 
             // checks the domains in the certificate.
-            if (checkDomain &&
-                endpoint.Description.ServerCertificate != null &&
-                endpoint.Description.ServerCertificate.Length > 0)
+            if (
+                checkDomain
+                && endpoint.Description.ServerCertificate != null
+                && endpoint.Description.ServerCertificate.Length > 0
+            )
             {
                 configuration.CertificateValidator?.ValidateDomains(
                     X509CertificateLoader.LoadCertificate(endpoint.Description.ServerCertificate),
-                    endpoint);
+                    endpoint
+                );
             }
 
             X509Certificate2 clientCertificate = null;
             X509Certificate2Collection clientCertificateChain = null;
             if (endpointDescription.SecurityPolicyUri != SecurityPolicies.None)
             {
-                clientCertificate = await LoadCertificateAsync(configuration, endpointDescription.SecurityPolicyUri).ConfigureAwait(false);
-                clientCertificateChain = await LoadCertificateChainAsync(configuration, clientCertificate).ConfigureAwait(false);
+                clientCertificate = await LoadCertificateAsync(configuration, endpointDescription.SecurityPolicyUri)
+                    .ConfigureAwait(false);
+                clientCertificateChain = await LoadCertificateChainAsync(configuration, clientCertificate)
+                    .ConfigureAwait(false);
             }
 
             // initialize the channel which will be created with the server.
@@ -942,17 +1005,19 @@ namespace Opc.Ua.Client
                     endpointConfiguration,
                     clientCertificate,
                     clientCertificateChain,
-                    messageContext);
+                    messageContext
+                );
             }
             else
             {
                 return SessionChannel.Create(
-                     configuration,
-                     endpointDescription,
-                     endpointConfiguration,
-                     clientCertificate,
-                     clientCertificateChain,
-                     messageContext);
+                    configuration,
+                    endpointDescription,
+                    endpointConfiguration,
+                    clientCertificate,
+                    clientCertificateChain,
+                    messageContext
+                );
             }
         }
 
@@ -980,9 +1045,22 @@ namespace Opc.Ua.Client
             uint sessionTimeout,
             IUserIdentity identity,
             IList<string> preferredLocales,
-            CancellationToken ct = default)
+            CancellationToken ct = default
+        )
         {
-            return Create(DefaultSessionFactory.Instance, configuration, connection, endpoint, updateBeforeConnect, checkDomain, sessionName, sessionTimeout, identity, preferredLocales, ct);
+            return Create(
+                DefaultSessionFactory.Instance,
+                configuration,
+                connection,
+                endpoint,
+                updateBeforeConnect,
+                checkDomain,
+                sessionName,
+                sessionTimeout,
+                identity,
+                preferredLocales,
+                ct
+            );
         }
 
         /// <summary>
@@ -1011,10 +1089,19 @@ namespace Opc.Ua.Client
             uint sessionTimeout,
             IUserIdentity identity,
             IList<string> preferredLocales,
-            CancellationToken ct = default)
+            CancellationToken ct = default
+        )
         {
             // initialize the channel which will be created with the server.
-            ITransportChannel channel = await CreateChannelAsync(configuration, connection, endpoint, updateBeforeConnect, checkDomain, ct).ConfigureAwait(false);
+            ITransportChannel channel = await CreateChannelAsync(
+                    configuration,
+                    connection,
+                    endpoint,
+                    updateBeforeConnect,
+                    checkDomain,
+                    ct
+                )
+                .ConfigureAwait(false);
 
             // create the session object.
             Session session = sessionInstantiator.Create(channel, configuration, endpoint, null);
@@ -1022,7 +1109,9 @@ namespace Opc.Ua.Client
             // create the session.
             try
             {
-                await session.OpenAsync(sessionName, sessionTimeout, identity, preferredLocales, checkDomain, ct).ConfigureAwait(false);
+                await session
+                    .OpenAsync(sessionName, sessionTimeout, identity, preferredLocales, checkDomain, ct)
+                    .ConfigureAwait(false);
             }
             catch (Exception)
             {
@@ -1058,9 +1147,21 @@ namespace Opc.Ua.Client
             IUserIdentity userIdentity,
             IList<string> preferredLocales,
             CancellationToken ct = default
-            )
+        )
         {
-            return Create(DefaultSessionFactory.Instance, configuration, reverseConnectManager, endpoint, updateBeforeConnect, checkDomain, sessionName, sessionTimeout, userIdentity, preferredLocales, ct);
+            return Create(
+                DefaultSessionFactory.Instance,
+                configuration,
+                reverseConnectManager,
+                endpoint,
+                updateBeforeConnect,
+                checkDomain,
+                sessionName,
+                sessionTimeout,
+                userIdentity,
+                preferredLocales,
+                ct
+            );
         }
 
         /// <summary>
@@ -1090,45 +1191,63 @@ namespace Opc.Ua.Client
             IUserIdentity userIdentity,
             IList<string> preferredLocales,
             CancellationToken ct = default
-            )
+        )
         {
             if (reverseConnectManager == null)
             {
-                return await Create(sessionInstantiator, configuration, (ITransportWaitingConnection)null, endpoint, updateBeforeConnect, checkDomain, sessionName, sessionTimeout, userIdentity, preferredLocales, ct).ConfigureAwait(false);
+                return await Create(
+                        sessionInstantiator,
+                        configuration,
+                        (ITransportWaitingConnection)null,
+                        endpoint,
+                        updateBeforeConnect,
+                        checkDomain,
+                        sessionName,
+                        sessionTimeout,
+                        userIdentity,
+                        preferredLocales,
+                        ct
+                    )
+                    .ConfigureAwait(false);
             }
 
             ITransportWaitingConnection connection;
             do
             {
-                connection = await reverseConnectManager.WaitForConnectionAsync(
-                    endpoint.EndpointUrl,
-                    endpoint.ReverseConnect?.ServerUri,
-                    ct).ConfigureAwait(false);
+                connection = await reverseConnectManager
+                    .WaitForConnectionAsync(endpoint.EndpointUrl, endpoint.ReverseConnect?.ServerUri, ct)
+                    .ConfigureAwait(false);
 
                 if (updateBeforeConnect)
                 {
-                    await endpoint.UpdateFromServerAsync(
-                        endpoint.EndpointUrl, connection,
-                        endpoint.Description.SecurityMode,
-                        endpoint.Description.SecurityPolicyUri,
-                        ct).ConfigureAwait(false);
+                    await endpoint
+                        .UpdateFromServerAsync(
+                            endpoint.EndpointUrl,
+                            connection,
+                            endpoint.Description.SecurityMode,
+                            endpoint.Description.SecurityPolicyUri,
+                            ct
+                        )
+                        .ConfigureAwait(false);
                     updateBeforeConnect = false;
                     connection = null;
                 }
             } while (connection == null);
 
             return await Create(
-                sessionInstantiator,
-                configuration,
-                connection,
-                endpoint,
-                false,
-                checkDomain,
-                sessionName,
-                sessionTimeout,
-                userIdentity,
-                preferredLocales,
-                ct).ConfigureAwait(false);
+                    sessionInstantiator,
+                    configuration,
+                    connection,
+                    endpoint,
+                    false,
+                    checkDomain,
+                    sessionName,
+                    sessionTimeout,
+                    userIdentity,
+                    preferredLocales,
+                    ct
+                )
+                .ConfigureAwait(false);
         }
 
         /// <summary>
@@ -1147,9 +1266,11 @@ namespace Opc.Ua.Client
                 template.ConfiguredEndpoint.Description,
                 template.ConfiguredEndpoint.Configuration,
                 template.m_instanceCertificate,
-                template.m_configuration.SecurityConfiguration.SendCertificateChain ?
-                    template.m_instanceCertificateChain : null,
-                messageContext);
+                template.m_configuration.SecurityConfiguration.SendCertificateChain
+                    ? template.m_instanceCertificateChain
+                    : null,
+                messageContext
+            );
 
             // create the session object.
             Session session = template.CloneSession(channel, true);
@@ -1163,7 +1284,8 @@ namespace Opc.Ua.Client
                     (uint)template.SessionTimeout,
                     session.Identity,
                     template.PreferredLocales,
-                    template.m_checkDomain);
+                    template.m_checkDomain
+                );
 
                 session.RecreateSubscriptions(template.Subscriptions);
             }
@@ -1194,9 +1316,11 @@ namespace Opc.Ua.Client
                 template.m_endpoint.Description,
                 template.m_endpoint.Configuration,
                 template.m_instanceCertificate,
-                template.m_configuration.SecurityConfiguration.SendCertificateChain ?
-                    template.m_instanceCertificateChain : null,
-                messageContext);
+                template.m_configuration.SecurityConfiguration.SendCertificateChain
+                    ? template.m_instanceCertificateChain
+                    : null,
+                messageContext
+            );
 
             // create the session object.
             Session session = template.CloneSession(channel, true);
@@ -1210,7 +1334,8 @@ namespace Opc.Ua.Client
                     (uint)template.m_sessionTimeout,
                     session.Identity,
                     template.m_preferredLocales,
-                    template.m_checkDomain);
+                    template.m_checkDomain
+                );
 
                 session.RecreateSubscriptions(template.Subscriptions);
             }
@@ -1247,7 +1372,8 @@ namespace Opc.Ua.Client
                     session.Identity,
                     template.m_preferredLocales,
                     template.m_checkDomain,
-                    false);
+                    false
+                );
 
                 // create the subscriptions.
                 foreach (Subscription subscription in session.Subscriptions)
@@ -1267,7 +1393,8 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public event RenewUserIdentityEventHandler RenewUserIdentity
         {
-            add => m_RenewUserIdentity += value; remove => m_RenewUserIdentity -= value;
+            add => m_RenewUserIdentity += value;
+            remove => m_RenewUserIdentity -= value;
         }
 
         private event RenewUserIdentityEventHandler m_RenewUserIdentity;
@@ -1282,7 +1409,8 @@ namespace Opc.Ua.Client
 
             byte[] serverCertificate = m_endpoint.Description?.ServerCertificate;
             m_sessionName = sessionConfiguration.SessionName;
-            m_serverCertificate = serverCertificate != null ? X509CertificateLoader.LoadCertificate(serverCertificate) : null;
+            m_serverCertificate =
+                serverCertificate != null ? X509CertificateLoader.LoadCertificate(serverCertificate) : null;
             m_identity = sessionConfiguration.Identity;
             m_checkDomain = sessionConfiguration.CheckDomain;
             m_serverNonce = sessionConfiguration.ServerNonce.Data;
@@ -1298,7 +1426,13 @@ namespace Opc.Ua.Client
         {
             var serverNonce = Nonce.CreateNonce(m_endpoint.Description?.SecurityPolicyUri, m_serverNonce);
 
-            var sessionConfiguration = new SessionConfiguration(this, serverNonce, m_userTokenSecurityPolicyUri, m_eccServerEphemeralKey, AuthenticationToken);
+            var sessionConfiguration = new SessionConfiguration(
+                this,
+                serverNonce,
+                m_userTokenSecurityPolicyUri,
+                m_eccServerEphemeralKey,
+                AuthenticationToken
+            );
 
             if (stream != null)
             {
@@ -1349,18 +1483,22 @@ namespace Opc.Ua.Client
 
                     throw ServiceResultException.Create(
                         StatusCodes.BadInvalidState,
-                        "Session is already attempting to reconnect.");
+                        "Session is already attempting to reconnect."
+                    );
                 }
 
                 StopKeepAliveTimer();
 
-                IAsyncResult result = PrepareReconnectBeginActivate(
-                    connection,
-                    transportChannel);
+                IAsyncResult result = PrepareReconnectBeginActivate(connection, transportChannel);
 
                 if (!result.AsyncWaitHandle.WaitOne(kReconnectTimeout / 2))
                 {
-                    var error = ServiceResult.Create(StatusCodes.BadRequestTimeout, "ACTIVATE SESSION timed out. {0}/{1}", GoodPublishRequestCount, OutstandingRequestCount);
+                    var error = ServiceResult.Create(
+                        StatusCodes.BadRequestTimeout,
+                        "ACTIVATE SESSION timed out. {0}/{1}",
+                        GoodPublishRequestCount,
+                        OutstandingRequestCount
+                    );
                     Utils.LogWarning("WARNING: {0}", error.ToString());
                     var operation = result as ChannelAsyncOperation<int>;
                     operation?.Fault(false, error);
@@ -1375,7 +1513,8 @@ namespace Opc.Ua.Client
                     result,
                     out serverNonce,
                     out certificateResults,
-                    out certificateDiagnosticInfos);
+                    out certificateDiagnosticInfos
+                );
 
                 ProcessResponseAdditionalHeader(responseHeader, m_serverCertificate);
 
@@ -1434,7 +1573,11 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public IEnumerable<Subscription> Load(Stream stream, bool transferSubscriptions = false, IEnumerable<Type> knownTypes = null)
+        public IEnumerable<Subscription> Load(
+            Stream stream,
+            bool transferSubscriptions = false,
+            IEnumerable<Type> knownTypes = null
+        )
         {
             // secure settings
             XmlReaderSettings settings = Utils.DefaultXmlReaderSettings();
@@ -1460,7 +1603,11 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public IEnumerable<Subscription> Load(string filePath, bool transferSubscriptions = false, IEnumerable<Type> knownTypes = null)
+        public IEnumerable<Subscription> Load(
+            string filePath,
+            bool transferSubscriptions = false,
+            IEnumerable<Type> knownTypes = null
+        )
         {
             using FileStream stream = File.OpenRead(filePath);
             return Load(stream, transferSubscriptions, knownTypes);
@@ -1478,7 +1625,8 @@ namespace Opc.Ua.Client
                 TimestampsToReturn.Neither,
                 nodesToRead,
                 out DataValueCollection values,
-                out DiagnosticInfoCollection diagnosticInfos);
+                out DiagnosticInfoCollection diagnosticInfos
+            );
 
             ValidateResponse(values, nodesToRead);
             ValidateDiagnosticInfos(diagnosticInfos, nodesToRead);
@@ -1493,17 +1641,23 @@ namespace Opc.Ua.Client
         {
             try
             {
-                var operationLimitsProperties = typeof(OperationLimits)
-                    .GetProperties().Select(p => p.Name).ToList();
+                var operationLimitsProperties = typeof(OperationLimits).GetProperties().Select(p => p.Name).ToList();
 
                 var nodeIds = new NodeIdCollection(
-                    operationLimitsProperties.Select(name => (NodeId)typeof(VariableIds)
-                    .GetField("Server_ServerCapabilities_OperationLimits_" + name, BindingFlags.Public | BindingFlags.Static)
-                    .GetValue(null))
-                    ) {
+                    operationLimitsProperties.Select(name =>
+                        (NodeId)
+                            typeof(VariableIds)
+                                .GetField(
+                                    "Server_ServerCapabilities_OperationLimits_" + name,
+                                    BindingFlags.Public | BindingFlags.Static
+                                )
+                                .GetValue(null)
+                    )
+                )
+                {
                     // add the server capability MaxContinuationPointPerBrowse. Add further capabilities
                     // later (when support for them will be implemented and in a more generic fashion)
-                    VariableIds.Server_ServerCapabilities_MaxBrowseContinuationPoints
+                    VariableIds.Server_ServerCapabilities_MaxBrowseContinuationPoints,
                 };
                 int maxBrowseContinuationPointIndex = nodeIds.Count - 1;
 
@@ -1511,21 +1665,25 @@ namespace Opc.Ua.Client
                 nodeIds.Add(VariableIds.Server_ServerCapabilities_MaxByteStringLength);
                 int maxByteStringLengthIndex = nodeIds.Count - 1;
 
-                ReadValues(nodeIds, [.. Enumerable.Repeat(typeof(uint), nodeIds.Count)], out IList<object> values, out IList<ServiceResult> errors);
+                ReadValues(
+                    nodeIds,
+                    [.. Enumerable.Repeat(typeof(uint), nodeIds.Count)],
+                    out IList<object> values,
+                    out IList<ServiceResult> errors
+                );
 
-                OperationLimits configOperationLimits = m_configuration?.ClientConfiguration?.OperationLimits ?? new OperationLimits();
+                OperationLimits configOperationLimits =
+                    m_configuration?.ClientConfiguration?.OperationLimits ?? new OperationLimits();
                 var operationLimits = new OperationLimits();
 
                 for (int ii = 0; ii < operationLimitsProperties.Count; ii++)
                 {
                     PropertyInfo property = typeof(OperationLimits).GetProperty(operationLimitsProperties[ii]);
                     uint value = (uint)property.GetValue(configOperationLimits);
-                    if (values[ii] != null &&
-                        ServiceResult.IsNotBad(errors[ii]))
+                    if (values[ii] != null && ServiceResult.IsNotBad(errors[ii]))
                     {
                         uint serverValue = (uint)values[ii];
-                        if (serverValue > 0 &&
-                           (value == 0 || serverValue < value))
+                        if (serverValue > 0 && (value == 0 || serverValue < value))
                         {
                             value = serverValue;
                         }
@@ -1534,14 +1692,18 @@ namespace Opc.Ua.Client
                 }
                 OperationLimits = operationLimits;
 
-                if (values[maxBrowseContinuationPointIndex] is ushort serverMaxContinuationPointsPerBrowse &&
-                    ServiceResult.IsNotBad(errors[maxBrowseContinuationPointIndex]))
+                if (
+                    values[maxBrowseContinuationPointIndex] is ushort serverMaxContinuationPointsPerBrowse
+                    && ServiceResult.IsNotBad(errors[maxBrowseContinuationPointIndex])
+                )
                 {
                     ServerMaxContinuationPointsPerBrowse = serverMaxContinuationPointsPerBrowse;
                 }
 
-                if (values[maxByteStringLengthIndex] is uint serverMaxByteStringLength &&
-                    ServiceResult.IsNotBad(errors[maxByteStringLengthIndex]))
+                if (
+                    values[maxByteStringLengthIndex] is uint serverMaxByteStringLength
+                    && ServiceResult.IsNotBad(errors[maxByteStringLengthIndex])
+                )
                 {
                     ServerMaxByteStringLength = serverMaxByteStringLength;
                 }
@@ -1604,7 +1766,10 @@ namespace Opc.Ua.Client
         {
             if (NodeCache.Find(variableId) is not VariableNode variable)
             {
-                throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, "NodeId does not refer to a valid variable node.");
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNodeIdInvalid,
+                    "NodeId does not refer to a valid variable node."
+                );
             }
 
             // no encodings available if there was a problem reading the data type for the node.
@@ -1636,7 +1801,7 @@ namespace Opc.Ua.Client
                         NodeClass = encoding.NodeClass,
                         BrowseName = encoding.BrowseName,
                         DisplayName = encoding.DisplayName,
-                        TypeDefinition = encoding.TypeDefinitionId
+                        TypeDefinition = encoding.TypeDefinitionId,
                     };
 
                     references.Add(reference);
@@ -1650,7 +1815,7 @@ namespace Opc.Ua.Client
                 BrowseDirection = BrowseDirection.Forward,
                 ReferenceTypeId = ReferenceTypeIds.HasEncoding,
                 IncludeSubtypes = false,
-                NodeClassMask = 0
+                NodeClassMask = 0,
             };
 
             return browser.Browse(variable.DataType);
@@ -1664,14 +1829,17 @@ namespace Opc.Ua.Client
                 BrowseDirection = BrowseDirection.Forward,
                 ReferenceTypeId = ReferenceTypeIds.HasDescription,
                 IncludeSubtypes = false,
-                NodeClassMask = 0
+                NodeClassMask = 0,
             };
 
             ReferenceDescriptionCollection references = browser.Browse(encodingId);
 
             if (references.Count == 0)
             {
-                throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, "Encoding does not refer to a valid data description.");
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNodeIdInvalid,
+                    "Encoding does not refer to a valid data description."
+                );
             }
 
             return references[0];
@@ -1683,7 +1851,8 @@ namespace Opc.Ua.Client
             NodeClass nodeClass,
             out IList<Node> nodeCollection,
             out IList<ServiceResult> errors,
-            bool optionalAttributes = false)
+            bool optionalAttributes = false
+        )
         {
             if (nodeIds.Count == 0)
             {
@@ -1704,9 +1873,13 @@ namespace Opc.Ua.Client
             nodeCollection = new NodeCollection(nodeIds.Count);
 
             CreateNodeClassAttributesReadNodesRequest(
-                nodeIds, nodeClass,
-                attributesToRead, attributesPerNodeId,
-                nodeCollection, optionalAttributes);
+                nodeIds,
+                nodeClass,
+                attributesToRead,
+                attributesPerNodeId,
+                nodeCollection,
+                optionalAttributes
+            );
 
             ResponseHeader responseHeader = Read(
                 null,
@@ -1714,7 +1887,8 @@ namespace Opc.Ua.Client
                 TimestampsToReturn.Neither,
                 attributesToRead,
                 out DataValueCollection values,
-                out DiagnosticInfoCollection diagnosticInfos);
+                out DiagnosticInfoCollection diagnosticInfos
+            );
 
             ValidateResponse(values, attributesToRead);
             ValidateDiagnosticInfos(diagnosticInfos, attributesToRead);
@@ -1722,9 +1896,13 @@ namespace Opc.Ua.Client
             errors = new ServiceResult[nodeIds.Count].ToList();
             ProcessAttributesReadNodesResponse(
                 responseHeader,
-                attributesToRead, attributesPerNodeId,
-                values, diagnosticInfos,
-                nodeCollection, errors);
+                attributesToRead,
+                attributesPerNodeId,
+                values,
+                diagnosticInfos,
+                nodeCollection,
+                errors
+            );
         }
 
         /// <inheritdoc/>
@@ -1732,7 +1910,8 @@ namespace Opc.Ua.Client
             IList<NodeId> nodeIds,
             out IList<Node> nodeCollection,
             out IList<ServiceResult> errors,
-            bool optionalAttributes = false)
+            bool optionalAttributes = false
+        )
         {
             int count = nodeIds.Count;
             nodeCollection = new NodeCollection(count);
@@ -1745,12 +1924,8 @@ namespace Opc.Ua.Client
 
             // first read only nodeclasses for nodes from server.
             var itemsToRead = new ReadValueIdCollection(
-                nodeIds.Select(nodeId =>
-                    new ReadValueId
-                    {
-                        NodeId = nodeId,
-                        AttributeId = Attributes.NodeClass
-                    }));
+                nodeIds.Select(nodeId => new ReadValueId { NodeId = nodeId, AttributeId = Attributes.NodeClass })
+            );
 
             DataValueCollection nodeClassValues = null;
             DiagnosticInfoCollection diagnosticInfos = null;
@@ -1764,7 +1939,8 @@ namespace Opc.Ua.Client
                     TimestampsToReturn.Neither,
                     itemsToRead,
                     out nodeClassValues,
-                    out diagnosticInfos);
+                    out diagnosticInfos
+                );
 
                 ValidateResponse(nodeClassValues, itemsToRead);
                 ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
@@ -1772,10 +1948,10 @@ namespace Opc.Ua.Client
             else
             {
                 // for a single node read all attributes to skip the first service call
-                nodeClassValues = [
-                    new DataValue(new Variant((int)NodeClass.Unspecified),
-                    statusCode: StatusCodes.Good)
-                    ];
+                nodeClassValues =
+                [
+                    new DataValue(new Variant((int)NodeClass.Unspecified), statusCode: StatusCodes.Good),
+                ];
             }
 
             // second determine attributes to read per nodeclass
@@ -1784,10 +1960,15 @@ namespace Opc.Ua.Client
 
             CreateAttributesReadNodesRequest(
                 responseHeader,
-                itemsToRead, nodeClassValues, diagnosticInfos,
-                attributesToRead, attributesPerNodeId,
-                nodeCollection, errors,
-                optionalAttributes);
+                itemsToRead,
+                nodeClassValues,
+                diagnosticInfos,
+                attributesToRead,
+                attributesPerNodeId,
+                nodeCollection,
+                errors,
+                optionalAttributes
+            );
 
             if (attributesToRead.Count > 0)
             {
@@ -1797,16 +1978,21 @@ namespace Opc.Ua.Client
                     TimestampsToReturn.Neither,
                     attributesToRead,
                     out DataValueCollection values,
-                    out diagnosticInfos);
+                    out diagnosticInfos
+                );
 
                 ValidateResponse(values, attributesToRead);
                 ValidateDiagnosticInfos(diagnosticInfos, attributesToRead);
 
                 ProcessAttributesReadNodesResponse(
                     responseHeader,
-                    attributesToRead, attributesPerNodeId,
-                    values, diagnosticInfos,
-                    nodeCollection, errors);
+                    attributesToRead,
+                    attributesPerNodeId,
+                    values,
+                    diagnosticInfos,
+                    nodeCollection,
+                    errors
+                );
             }
         }
 
@@ -1817,10 +2003,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public Node ReadNode(
-            NodeId nodeId,
-            NodeClass nodeClass,
-            bool optionalAttributes = true)
+        public Node ReadNode(NodeId nodeId, NodeClass nodeClass, bool optionalAttributes = true)
         {
             // build list of attributes.
             Dictionary<uint, DataValue> attributes = CreateAttributes(nodeClass, optionalAttributes);
@@ -1829,15 +2012,9 @@ namespace Opc.Ua.Client
             var itemsToRead = new ReadValueIdCollection();
             foreach (uint attributeId in attributes.Keys)
             {
-                var itemToRead = new ReadValueId
-                {
-                    NodeId = nodeId,
-                    AttributeId = attributeId
-                };
+                var itemToRead = new ReadValueId { NodeId = nodeId, AttributeId = attributeId };
                 itemsToRead.Add(itemToRead);
             }
-
-
 
             // read from server.
             DataValueCollection values;
@@ -1849,7 +2026,8 @@ namespace Opc.Ua.Client
                 TimestampsToReturn.Neither,
                 itemsToRead,
                 out values,
-                out diagnosticInfos);
+                out diagnosticInfos
+            );
 
             ValidateResponse(values, itemsToRead);
             ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
@@ -1860,17 +2038,9 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public DataValue ReadValue(NodeId nodeId)
         {
-            var itemToRead = new ReadValueId
-            {
-                NodeId = nodeId,
-                AttributeId = Attributes.Value
-            };
+            var itemToRead = new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value };
 
-            var itemsToRead = new ReadValueIdCollection {
-                itemToRead
-            };
-
-
+            var itemsToRead = new ReadValueIdCollection { itemToRead };
 
             // read from server.
             DataValueCollection values;
@@ -1882,7 +2052,8 @@ namespace Opc.Ua.Client
                 TimestampsToReturn.Both,
                 itemsToRead,
                 out values,
-                out diagnosticInfos);
+                out diagnosticInfos
+            );
 
             ValidateResponse(values, itemsToRead);
             ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
@@ -1897,10 +2068,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public void ReadValues(
-            IList<NodeId> nodeIds,
-            out DataValueCollection values,
-            out IList<ServiceResult> errors)
+        public void ReadValues(IList<NodeId> nodeIds, out DataValueCollection values, out IList<ServiceResult> errors)
         {
             if (nodeIds.Count == 0)
             {
@@ -1911,12 +2079,8 @@ namespace Opc.Ua.Client
 
             // read all values from server.
             var itemsToRead = new ReadValueIdCollection(
-                nodeIds.Select(nodeId =>
-                    new ReadValueId
-                    {
-                        NodeId = nodeId,
-                        AttributeId = Attributes.Value
-                    }));
+                nodeIds.Select(nodeId => new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value })
+            );
 
             // read from server.
             errors = new List<ServiceResult>(itemsToRead.Count);
@@ -1927,7 +2091,8 @@ namespace Opc.Ua.Client
                 TimestampsToReturn.Both,
                 itemsToRead,
                 out values,
-                out DiagnosticInfoCollection diagnosticInfos);
+                out DiagnosticInfoCollection diagnosticInfos
+            );
 
             ValidateResponse(values, itemsToRead);
             ValidateDiagnosticInfos(diagnosticInfos, itemsToRead);
@@ -1964,7 +2129,8 @@ namespace Opc.Ua.Client
                     throw ServiceResultException.Create(
                         StatusCodes.BadTypeMismatch,
                         "Server returned value unexpected type: {0}",
-                        (value != null) ? value.GetType().Name : "(null)");
+                        (value != null) ? value.GetType().Name : "(null)"
+                    );
                 }
             }
 
@@ -1985,7 +2151,7 @@ namespace Opc.Ua.Client
                 nodeClassMask: 0,
                 out IList<ReferenceDescriptionCollection> descriptionsList,
                 out IList<ServiceResult> errors
-                );
+            );
             return descriptionsList[0];
         }
 
@@ -1993,7 +2159,8 @@ namespace Opc.Ua.Client
         public void FetchReferences(
             IList<NodeId> nodeIds,
             out IList<ReferenceDescriptionCollection> referenceDescriptions,
-            out IList<ServiceResult> errors)
+            out IList<ServiceResult> errors
+        )
         {
             ManagedBrowse(
                 requestHeader: null,
@@ -2006,7 +2173,7 @@ namespace Opc.Ua.Client
                 nodeClassMask: 0,
                 out IList<ReferenceDescriptionCollection> result,
                 out IList<ServiceResult> errors01
-                );
+            );
 
             errors = errors01;
             referenceDescriptions = result;
@@ -2014,9 +2181,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public void Open(
-            string sessionName,
-            IUserIdentity identity)
+        public void Open(string sessionName, IUserIdentity identity)
         {
             Open(sessionName, 0, identity, null);
         }
@@ -2026,32 +2191,45 @@ namespace Opc.Ua.Client
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
-            IList<string> preferredLocales)
+            IList<string> preferredLocales
+        )
         {
             Open(sessionName, sessionTimeout, identity, preferredLocales, true);
         }
+
         /// <inheritdoc/>
         public void Open(
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
             IList<string> preferredLocales,
-            bool checkDomain)
+            bool checkDomain
+        )
         {
             Open(sessionName, sessionTimeout, identity, preferredLocales, checkDomain, true);
         }
 
         /// <inheritdoc/>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Microsoft.Maintainability",
+            "CA1506:AvoidExcessiveClassCoupling"
+        )]
         public void Open(
             string sessionName,
             uint sessionTimeout,
             IUserIdentity identity,
             IList<string> preferredLocales,
             bool checkDomain,
-            bool closeChannel)
+            bool closeChannel
+        )
         {
-            OpenValidateIdentity(ref identity, out UserIdentityToken identityToken, out UserTokenPolicy identityPolicy, out string securityPolicyUri, out bool requireEncryption);
+            OpenValidateIdentity(
+                ref identity,
+                out UserIdentityToken identityToken,
+                out UserTokenPolicy identityPolicy,
+                out string securityPolicyUri,
+                out bool requireEncryption
+            );
 
             // validate the server certificate /certificate chain.
             X509Certificate2 serverCertificate = null;
@@ -2102,7 +2280,7 @@ namespace Opc.Ua.Client
                 ApplicationUri = m_configuration.ApplicationUri,
                 ApplicationName = m_configuration.ApplicationName,
                 ApplicationType = ApplicationType.Client,
-                ProductUri = m_configuration.ProductUri
+                ProductUri = m_configuration.ProductUri,
             };
 
             if (sessionTimeout == 0)
@@ -2111,7 +2289,10 @@ namespace Opc.Ua.Client
             }
 
             // select the security policy for the user token.
-            RequestHeader requestHeader = CreateRequestHeaderPerUserTokenPolicy(identityPolicy.SecurityPolicyUri, m_endpoint.Description.SecurityPolicyUri);
+            RequestHeader requestHeader = CreateRequestHeaderPerUserTokenPolicy(
+                identityPolicy.SecurityPolicyUri,
+                m_endpoint.Description.SecurityPolicyUri
+            );
 
             bool successCreateSession = false;
             ResponseHeader responseHeader = null;
@@ -2140,7 +2321,8 @@ namespace Opc.Ua.Client
                         out serverEndpoints,
                         out serverSoftwareCertificates,
                         out serverSignature,
-                        out m_maxRequestMessageSize);
+                        out m_maxRequestMessageSize
+                    );
 
                     successCreateSession = true;
                 }
@@ -2154,24 +2336,25 @@ namespace Opc.Ua.Client
             if (!successCreateSession)
             {
                 responseHeader = base.CreateSession(
-                        requestHeader,
-                        clientDescription,
-                        m_endpoint.Description.Server.ApplicationUri,
-                        m_endpoint.EndpointUrl.ToString(),
-                        sessionName,
-                        clientNonce,
-                        clientCertificateChainData ?? clientCertificateData,
-                        sessionTimeout,
-                        (uint)MessageContext.MaxMessageSize,
-                        out sessionId,
-                        out sessionCookie,
-                        out m_sessionTimeout,
-                        out serverNonce,
-                        out serverCertificateData,
-                        out serverEndpoints,
-                        out serverSoftwareCertificates,
-                        out serverSignature,
-                        out m_maxRequestMessageSize);
+                    requestHeader,
+                    clientDescription,
+                    m_endpoint.Description.Server.ApplicationUri,
+                    m_endpoint.EndpointUrl.ToString(),
+                    sessionName,
+                    clientNonce,
+                    clientCertificateChainData ?? clientCertificateData,
+                    sessionTimeout,
+                    (uint)MessageContext.MaxMessageSize,
+                    out sessionId,
+                    out sessionCookie,
+                    out m_sessionTimeout,
+                    out serverNonce,
+                    out serverCertificateData,
+                    out serverEndpoints,
+                    out serverSoftwareCertificates,
+                    out serverSignature,
+                    out m_maxRequestMessageSize
+                );
             }
 
             // save session id.
@@ -2182,8 +2365,11 @@ namespace Opc.Ua.Client
             }
 
             Utils.LogInfo("Revised session timeout value: {0}. ", m_sessionTimeout);
-            Utils.LogInfo("Max response message size value: {0}. Max request message size: {1} ",
-                MessageContext.MaxMessageSize, m_maxRequestMessageSize);
+            Utils.LogInfo(
+                "Max response message size value: {0}. Max request message size: {1} ",
+                MessageContext.MaxMessageSize,
+                m_maxRequestMessageSize
+            );
 
             //we need to call CloseSession if CreateSession was successful but some other exception is thrown
             try
@@ -2193,7 +2379,13 @@ namespace Opc.Ua.Client
 
                 ValidateServerEndpoints(serverEndpoints);
 
-                ValidateServerSignature(serverCertificate, serverSignature, clientCertificateData, clientCertificateChainData, clientNonce);
+                ValidateServerSignature(
+                    serverCertificate,
+                    serverSignature,
+                    clientCertificateData,
+                    clientCertificateChainData,
+                    clientNonce
+                );
 
                 HandleSignedSoftwareCertificates(serverSoftwareCertificates);
 
@@ -2202,7 +2394,11 @@ namespace Opc.Ua.Client
 
                 // create the client signature.
                 byte[] dataToSign = Utils.Append(serverCertificate?.RawData, serverNonce);
-                SignatureData clientSignature = SecurityPolicies.Sign(m_instanceCertificate, securityPolicyUri, dataToSign);
+                SignatureData clientSignature = SecurityPolicies.Sign(
+                    m_instanceCertificate,
+                    securityPolicyUri,
+                    dataToSign
+                );
 
                 // select the security policy for the user token.
                 string tokenSecurityPolicyUri = identityPolicy.SecurityPolicyUri;
@@ -2221,7 +2417,8 @@ namespace Opc.Ua.Client
                     serverNonce,
                     tokenSecurityPolicyUri,
                     previousServerNonce,
-                    m_endpoint.Description.SecurityMode);
+                    m_endpoint.Description.SecurityMode
+                );
 
                 // sign data with user token.
                 SignatureData userTokenSignature = identityToken.Sign(dataToSign, tokenSecurityPolicyUri);
@@ -2234,7 +2431,8 @@ namespace Opc.Ua.Client
                     m_eccServerEphemeralKey,
                     m_instanceCertificate,
                     m_instanceCertificateChain,
-                    m_endpoint.Description.SecurityMode != MessageSecurityMode.None);
+                    m_endpoint.Description.SecurityMode != MessageSecurityMode.None
+                );
 
                 // send the software certificates assigned to the client.
                 SignedSoftwareCertificateCollection clientSoftwareCertificates = GetSoftwareCertificates();
@@ -2258,7 +2456,8 @@ namespace Opc.Ua.Client
                     userTokenSignature,
                     out serverNonce,
                     out certificateResults,
-                    out certificateDiagnosticInfos);
+                    out certificateDiagnosticInfos
+                );
 
                 ProcessResponseAdditionalHeader(responseHeader, serverCertificate);
 
@@ -2346,10 +2545,7 @@ namespace Opc.Ua.Client
                 // get current nonce.
                 serverNonce = m_serverNonce;
 
-                if (preferredLocales == null)
-                {
-                    preferredLocales = m_preferredLocales;
-                }
+                preferredLocales ??= m_preferredLocales;
             }
 
             // get the identity token.
@@ -2360,15 +2556,19 @@ namespace Opc.Ua.Client
             SignatureData clientSignature = SecurityPolicies.Sign(m_instanceCertificate, securityPolicyUri, dataToSign);
 
             // choose a default token.
-            if (identity == null)
-            {
-                identity = new UserIdentity();
-            }
+            identity ??= new UserIdentity();
 
             // check that the user identity is supported by the endpoint.
-            UserTokenPolicy identityPolicy = m_endpoint.Description.FindUserTokenPolicy(identity.TokenType, identity.IssuedTokenType, securityPolicyUri) ?? throw ServiceResultException.Create(
+            UserTokenPolicy identityPolicy =
+                m_endpoint.Description.FindUserTokenPolicy(
+                    identity.TokenType,
+                    identity.IssuedTokenType,
+                    securityPolicyUri
+                )
+                ?? throw ServiceResultException.Create(
                     StatusCodes.BadUserAccessDenied,
-                    "Endpoint does not support the user identity type provided.");
+                    "Endpoint does not support the user identity type provided."
+                );
 
             // select the security policy for the user token.
             string tokenSecurityPolicyUri = identityPolicy.SecurityPolicyUri;
@@ -2392,7 +2592,8 @@ namespace Opc.Ua.Client
                 serverNonce,
                 tokenSecurityPolicyUri,
                 m_previousServerNonce,
-                m_endpoint.Description.SecurityMode);
+                m_endpoint.Description.SecurityMode
+            );
 
             // sign data with user token.
             UserIdentityToken identityToken = identity.GetIdentityToken();
@@ -2409,12 +2610,11 @@ namespace Opc.Ua.Client
                 m_eccServerEphemeralKey,
                 m_instanceCertificate,
                 m_instanceCertificateChain,
-                m_endpoint.Description.SecurityMode != MessageSecurityMode.None);
+                m_endpoint.Description.SecurityMode != MessageSecurityMode.None
+            );
 
             // send the software certificates assigned to the client.
             SignedSoftwareCertificateCollection clientSoftwareCertificates = GetSoftwareCertificates();
-
-
 
             StatusCodeCollection certificateResults;
 
@@ -2429,7 +2629,8 @@ namespace Opc.Ua.Client
                 userTokenSignature,
                 out serverNonce,
                 out certificateResults,
-                out certificateDiagnosticInfos);
+                out certificateDiagnosticInfos
+            );
 
             ProcessResponseAdditionalHeader(responseHeader, m_serverCertificate);
 
@@ -2459,7 +2660,8 @@ namespace Opc.Ua.Client
             NodeId instanceId,
             IList<string> componentPaths,
             out NodeIdCollection componentIds,
-            out IList<ServiceResult> errors)
+            out IList<ServiceResult> errors
+        )
         {
             componentIds = [];
             errors = [];
@@ -2472,13 +2674,11 @@ namespace Opc.Ua.Client
                 var pathToTranslate = new BrowsePath
                 {
                     StartingNode = instanceId,
-                    RelativePath = RelativePath.Parse(componentPaths[ii], TypeTree)
+                    RelativePath = RelativePath.Parse(componentPaths[ii], TypeTree),
                 };
 
                 pathsToTranslate.Add(pathToTranslate);
             }
-
-
 
             // translate the paths.
             BrowsePathResultCollection results;
@@ -2488,7 +2688,8 @@ namespace Opc.Ua.Client
                 null,
                 pathsToTranslate,
                 out results,
-                out diagnosticInfos);
+                out diagnosticInfos
+            );
 
             // verify that the server returned the correct number of results.
             ValidateResponse(results, pathsToTranslate);
@@ -2502,7 +2703,12 @@ namespace Opc.Ua.Client
                 // process any diagnostics associated with any error.
                 if (StatusCode.IsBad(results[ii].StatusCode))
                 {
-                    errors[ii] = new ServiceResult(results[ii].StatusCode, ii, diagnosticInfos, responseHeader.StringTable);
+                    errors[ii] = new ServiceResult(
+                        results[ii].StatusCode,
+                        ii,
+                        diagnosticInfos,
+                        responseHeader.StringTable
+                    );
                     continue;
                 }
 
@@ -2514,7 +2720,8 @@ namespace Opc.Ua.Client
                     errors[ii] = ServiceResult.Create(
                         StatusCodes.BadTargetNodeIdInvalid,
                         "Could not find target for path: {0}.",
-                        componentPaths[ii]);
+                        componentPaths[ii]
+                    );
 
                     continue;
                 }
@@ -2524,7 +2731,8 @@ namespace Opc.Ua.Client
                     errors[ii] = ServiceResult.Create(
                         StatusCodes.BadTooManyMatches,
                         "Too many matches found for path: {0}.",
-                        componentPaths[ii]);
+                        componentPaths[ii]
+                    );
 
                     continue;
                 }
@@ -2534,7 +2742,8 @@ namespace Opc.Ua.Client
                     errors[ii] = ServiceResult.Create(
                         StatusCodes.BadTargetNodeIdInvalid,
                         "Cannot follow path to external server: {0}.",
-                        componentPaths[ii]);
+                        componentPaths[ii]
+                    );
 
                     continue;
                 }
@@ -2544,7 +2753,8 @@ namespace Opc.Ua.Client
                     errors[ii] = ServiceResult.Create(
                         StatusCodes.BadUnexpectedError,
                         "Server returned a null NodeId for path: {0}.",
-                        componentPaths[ii]);
+                        componentPaths[ii]
+                    );
 
                     continue;
                 }
@@ -2554,7 +2764,8 @@ namespace Opc.Ua.Client
                     errors[ii] = ServiceResult.Create(
                         StatusCodes.BadUnexpectedError,
                         "Server returned a remote node for path: {0}.",
-                        componentPaths[ii]);
+                        componentPaths[ii]
+                    );
 
                     continue;
                 }
@@ -2569,7 +2780,8 @@ namespace Opc.Ua.Client
             IList<NodeId> variableIds,
             IList<Type> expectedTypes,
             out IList<object> values,
-            out IList<ServiceResult> errors)
+            out IList<ServiceResult> errors
+        )
         {
             values = [];
             errors = [];
@@ -2584,13 +2796,11 @@ namespace Opc.Ua.Client
                     NodeId = variableIds[ii],
                     AttributeId = Attributes.Value,
                     IndexRange = null,
-                    DataEncoding = null
+                    DataEncoding = null,
                 };
 
                 valuesToRead.Add(valueToRead);
             }
-
-
 
             // read the values.
             DataValueCollection results;
@@ -2602,7 +2812,8 @@ namespace Opc.Ua.Client
                 TimestampsToReturn.Both,
                 valuesToRead,
                 out results,
-                out diagnosticInfos);
+                out diagnosticInfos
+            );
 
             // verify that the server returned the correct number of results.
             ValidateResponse(results, valuesToRead);
@@ -2616,7 +2827,12 @@ namespace Opc.Ua.Client
                 // process any diagnostics associated with bad or uncertain data.
                 if (StatusCode.IsNotGood(results[ii].StatusCode))
                 {
-                    errors[ii] = new ServiceResult(results[ii].StatusCode, ii, diagnosticInfos, responseHeader.StringTable);
+                    errors[ii] = new ServiceResult(
+                        results[ii].StatusCode,
+                        ii,
+                        diagnosticInfos,
+                        responseHeader.StringTable
+                    );
                     if (StatusCode.IsBad(results[ii].StatusCode))
                     {
                         continue;
@@ -2639,7 +2855,8 @@ namespace Opc.Ua.Client
                         StatusCodes.BadTypeMismatch,
                         "Value {0} does not have expected type: {1}.",
                         value,
-                        expectedTypes[ii].Name);
+                        expectedTypes[ii].Name
+                    );
 
                     continue;
                 }
@@ -2657,14 +2874,18 @@ namespace Opc.Ua.Client
             int maxByteStringLength = m_configuration.TransportQuotas.MaxByteStringLength;
             if (maxByteStringLength > 0)
             {
-                count = ServerMaxByteStringLength > maxByteStringLength ?
-                    maxByteStringLength : (int)ServerMaxByteStringLength;
+                count =
+                    ServerMaxByteStringLength > maxByteStringLength
+                        ? maxByteStringLength
+                        : (int)ServerMaxByteStringLength;
             }
 
             if (count <= 1)
             {
-                throw ServiceResultException.Create(StatusCodes.BadIndexRangeNoData,
-                    "The MaxByteStringLength is not known or too small for reading data in chunks.");
+                throw ServiceResultException.Create(
+                    StatusCodes.BadIndexRangeNoData,
+                    "The MaxByteStringLength is not known or too small for reading data in chunks."
+                );
             }
 
             int offset = 0;
@@ -2676,7 +2897,7 @@ namespace Opc.Ua.Client
                     NodeId = nodeId,
                     AttributeId = Attributes.Value,
                     IndexRange = new NumericRange(offset, offset + count - 1).ToString(),
-                    DataEncoding = null
+                    DataEncoding = null,
                 };
                 var readValueIds = new ReadValueIdCollection { valueToRead };
 
@@ -2686,7 +2907,8 @@ namespace Opc.Ua.Client
                     TimestampsToReturn.Neither,
                     readValueIds,
                     out DataValueCollection results,
-                    out DiagnosticInfoCollection diagnosticInfos);
+                    out DiagnosticInfoCollection diagnosticInfos
+                );
 
                 ValidateResponse(results, readValueIds);
                 ValidateDiagnosticInfos(diagnosticInfos, readValueIds);
@@ -2694,10 +2916,15 @@ namespace Opc.Ua.Client
                 if (offset == 0)
                 {
                     Variant wrappedValue = results[0].WrappedValue;
-                    if (wrappedValue.TypeInfo.BuiltInType != BuiltInType.ByteString ||
-                        wrappedValue.TypeInfo.ValueRank != ValueRanks.Scalar)
+                    if (
+                        wrappedValue.TypeInfo.BuiltInType != BuiltInType.ByteString
+                        || wrappedValue.TypeInfo.ValueRank != ValueRanks.Scalar
+                    )
                     {
-                        throw new ServiceResultException(StatusCodes.BadTypeMismatch, "Value is not a ByteString scalar.");
+                        throw new ServiceResultException(
+                            StatusCodes.BadTypeMismatch,
+                            "Value is not a ByteString scalar."
+                        );
                     }
                 }
 
@@ -2733,7 +2960,8 @@ namespace Opc.Ua.Client
         public void ReadDisplayName(
             IList<NodeId> nodeIds,
             out IList<string> displayNames,
-            out IList<ServiceResult> errors)
+            out IList<ServiceResult> errors
+        )
         {
             displayNames = [];
             errors = [];
@@ -2748,13 +2976,11 @@ namespace Opc.Ua.Client
                     NodeId = nodeIds[ii],
                     AttributeId = Attributes.DisplayName,
                     IndexRange = null,
-                    DataEncoding = null
+                    DataEncoding = null,
                 };
 
                 valuesToRead.Add(valueToRead);
             }
-
-
 
             // read the values.
             DataValueCollection results;
@@ -2766,7 +2992,8 @@ namespace Opc.Ua.Client
                 TimestampsToReturn.Neither,
                 valuesToRead,
                 out results,
-                out diagnosticInfos);
+                out diagnosticInfos
+            );
 
             // verify that the server returned the correct number of results.
             ValidateResponse(results, valuesToRead);
@@ -2780,7 +3007,12 @@ namespace Opc.Ua.Client
                 // process any diagnostics associated with bad or uncertain data.
                 if (StatusCode.IsNotGood(results[ii].StatusCode))
                 {
-                    errors[ii] = new ServiceResult(results[ii].StatusCode, ii, diagnosticInfos, responseHeader.StringTable);
+                    errors[ii] = new ServiceResult(
+                        results[ii].StatusCode,
+                        ii,
+                        diagnosticInfos,
+                        responseHeader.StringTable
+                    );
                     continue;
                 }
 
@@ -2898,7 +3130,8 @@ namespace Opc.Ua.Client
                         // close the session and delete all subscriptions if specified.
                         var requestHeader = new RequestHeader()
                         {
-                            TimeoutHint = timeout > 0 ? (uint)timeout : (uint)(OperationTimeout > 0 ? OperationTimeout : 0),
+                            TimeoutHint =
+                                timeout > 0 ? (uint)timeout : (uint)(OperationTimeout > 0 ? OperationTimeout : 0),
                         };
                         CloseSession(requestHeader, DeleteSubscriptionsOnClose);
 
@@ -3037,9 +3270,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public bool ReactivateSubscriptions(
-            SubscriptionCollection subscriptions,
-            bool sendInitialValues)
+        public bool ReactivateSubscriptions(SubscriptionCollection subscriptions, bool sendInitialValues)
         {
             int failedSubscriptions = 0;
             UInt32Collection subscriptionIds = CreateSubscriptionIdsForTransfer(subscriptions);
@@ -3079,7 +3310,11 @@ namespace Opc.Ua.Client
                         }
                     }
 
-                    Utils.LogInfo("Session REACTIVATE of {0} subscriptions completed. {1} failed.", subscriptions.Count, failedSubscriptions);
+                    Utils.LogInfo(
+                        "Session REACTIVATE of {0} subscriptions completed. {1} failed.",
+                        subscriptions.Count,
+                        failedSubscriptions
+                    );
                 }
                 finally
                 {
@@ -3098,9 +3333,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public bool TransferSubscriptions(
-            SubscriptionCollection subscriptions,
-            bool sendInitialValues)
+        public bool TransferSubscriptions(SubscriptionCollection subscriptions, bool sendInitialValues)
         {
             int failedSubscriptions = 0;
             UInt32Collection subscriptionIds = CreateSubscriptionIdsForTransfer(subscriptions);
@@ -3118,8 +3351,13 @@ namespace Opc.Ua.Client
                     m_reconnectLock.Wait();
                     m_reconnecting = true;
 
-                    ResponseHeader responseHeader = base.TransferSubscriptions(null, subscriptionIds, sendInitialValues,
-                        out TransferResultCollection results, out DiagnosticInfoCollection diagnosticInfos);
+                    ResponseHeader responseHeader = base.TransferSubscriptions(
+                        null,
+                        subscriptionIds,
+                        sendInitialValues,
+                        out TransferResultCollection results,
+                        out DiagnosticInfoCollection diagnosticInfos
+                    );
                     if (!StatusCode.IsGood(responseHeader.ServiceResult))
                     {
                         Utils.LogError("TransferSubscription failed: {0}", responseHeader.ServiceResult);
@@ -3132,14 +3370,21 @@ namespace Opc.Ua.Client
                     {
                         if (StatusCode.IsGood(results[ii].StatusCode))
                         {
-                            if (subscriptions[ii].Transfer(this, subscriptionIds[ii], results[ii].AvailableSequenceNumbers))
+                            if (
+                                subscriptions[ii]
+                                    .Transfer(this, subscriptionIds[ii], results[ii].AvailableSequenceNumbers)
+                            )
                             {
                                 lock (m_acknowledgementsToSendLock)
                                 {
                                     // create ack for available sequence numbers
                                     foreach (uint sequenceNumber in results[ii].AvailableSequenceNumbers)
                                     {
-                                        AddAcknowledgementToSend(m_acknowledgementsToSend, subscriptionIds[ii], sequenceNumber);
+                                        AddAcknowledgementToSend(
+                                            m_acknowledgementsToSend,
+                                            subscriptionIds[ii],
+                                            sequenceNumber
+                                        );
                                     }
                                 }
                             }
@@ -3151,12 +3396,20 @@ namespace Opc.Ua.Client
                         }
                         else
                         {
-                            Utils.LogError("SubscriptionId {0} failed to transfer, StatusCode={1}", subscriptionIds[ii], results[ii].StatusCode);
+                            Utils.LogError(
+                                "SubscriptionId {0} failed to transfer, StatusCode={1}",
+                                subscriptionIds[ii],
+                                results[ii].StatusCode
+                            );
                             failedSubscriptions++;
                         }
                     }
 
-                    Utils.LogInfo("Session TRANSFER of {0} subscriptions completed. {1} failed.", subscriptions.Count, failedSubscriptions);
+                    Utils.LogInfo(
+                        "Session TRANSFER of {0} subscriptions completed. {1} failed.",
+                        subscriptions.Count,
+                        failedSubscriptions
+                    );
                 }
                 finally
                 {
@@ -3185,7 +3438,8 @@ namespace Opc.Ua.Client
             bool includeSubtypes,
             uint nodeClassMask,
             out byte[] continuationPoint,
-            out ReferenceDescriptionCollection references)
+            out ReferenceDescriptionCollection references
+        )
         {
             var description = new BrowseDescription
             {
@@ -3194,12 +3448,10 @@ namespace Opc.Ua.Client
                 ReferenceTypeId = referenceTypeId,
                 IncludeSubtypes = includeSubtypes,
                 NodeClassMask = nodeClassMask,
-                ResultMask = (uint)BrowseResultMask.All
+                ResultMask = (uint)BrowseResultMask.All,
             };
 
-            var nodesToBrowse = new BrowseDescriptionCollection {
-                description
-            };
+            var nodesToBrowse = new BrowseDescriptionCollection { description };
 
             BrowseResultCollection results;
             DiagnosticInfoCollection diagnosticInfos;
@@ -3210,14 +3462,17 @@ namespace Opc.Ua.Client
                 maxResultsToReturn,
                 nodesToBrowse,
                 out results,
-                out diagnosticInfos);
+                out diagnosticInfos
+            );
 
             ValidateResponse(results, nodesToBrowse);
             ValidateDiagnosticInfos(diagnosticInfos, nodesToBrowse);
 
             if (StatusCode.IsBad(results[0].StatusCode))
             {
-                throw new ServiceResultException(new ServiceResult(results[0].StatusCode, 0, diagnosticInfos, responseHeader.StringTable));
+                throw new ServiceResultException(
+                    new ServiceResult(results[0].StatusCode, 0, diagnosticInfos, responseHeader.StringTable)
+                );
             }
 
             continuationPoint = results[0].ContinuationPoint;
@@ -3238,7 +3493,8 @@ namespace Opc.Ua.Client
             uint nodeClassMask,
             out ByteStringCollection continuationPoints,
             out IList<ReferenceDescriptionCollection> referencesList,
-            out IList<ServiceResult> errors)
+            out IList<ServiceResult> errors
+        )
         {
             var browseDescriptions = new BrowseDescriptionCollection();
             foreach (NodeId nodeToBrowse in nodesToBrowse)
@@ -3250,7 +3506,7 @@ namespace Opc.Ua.Client
                     ReferenceTypeId = referenceTypeId,
                     IncludeSubtypes = includeSubtypes,
                     NodeClassMask = nodeClassMask,
-                    ResultMask = (uint)BrowseResultMask.All
+                    ResultMask = (uint)BrowseResultMask.All,
                 };
 
                 browseDescriptions.Add(description);
@@ -3262,7 +3518,8 @@ namespace Opc.Ua.Client
                 maxResultsToReturn,
                 browseDescriptions,
                 out BrowseResultCollection results,
-                out DiagnosticInfoCollection diagnosticInfos);
+                out DiagnosticInfoCollection diagnosticInfos
+            );
 
             ValidateResponse(results, browseDescriptions);
             ValidateDiagnosticInfos(diagnosticInfos, browseDescriptions);
@@ -3300,7 +3557,8 @@ namespace Opc.Ua.Client
             bool includeSubtypes,
             uint nodeClassMask,
             AsyncCallback callback,
-            object asyncState)
+            object asyncState
+        )
         {
             var description = new BrowseDescription
             {
@@ -3309,35 +3567,25 @@ namespace Opc.Ua.Client
                 ReferenceTypeId = referenceTypeId,
                 IncludeSubtypes = includeSubtypes,
                 NodeClassMask = nodeClassMask,
-                ResultMask = (uint)BrowseResultMask.All
+                ResultMask = (uint)BrowseResultMask.All,
             };
 
-            var nodesToBrowse = new BrowseDescriptionCollection {
-                description
-            };
+            var nodesToBrowse = new BrowseDescriptionCollection { description };
 
-            return BeginBrowse(
-                requestHeader,
-                view,
-                maxResultsToReturn,
-                nodesToBrowse,
-                callback,
-                asyncState);
+            return BeginBrowse(requestHeader, view, maxResultsToReturn, nodesToBrowse, callback, asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndBrowse(
             IAsyncResult result,
             out byte[] continuationPoint,
-            out ReferenceDescriptionCollection references)
+            out ReferenceDescriptionCollection references
+        )
         {
             BrowseResultCollection results;
             DiagnosticInfoCollection diagnosticInfos;
 
-            ResponseHeader responseHeader = EndBrowse(
-                result,
-                out results,
-                out diagnosticInfos);
+            ResponseHeader responseHeader = EndBrowse(result, out results, out diagnosticInfos);
 
             if (results == null || results.Count != 1)
             {
@@ -3346,7 +3594,9 @@ namespace Opc.Ua.Client
 
             if (StatusCode.IsBad(results[0].StatusCode))
             {
-                throw new ServiceResultException(new ServiceResult(results[0].StatusCode, 0, diagnosticInfos, responseHeader.StringTable));
+                throw new ServiceResultException(
+                    new ServiceResult(results[0].StatusCode, 0, diagnosticInfos, responseHeader.StringTable)
+                );
             }
 
             continuationPoint = results[0].ContinuationPoint;
@@ -3361,11 +3611,10 @@ namespace Opc.Ua.Client
             bool releaseContinuationPoint,
             byte[] continuationPoint,
             out byte[] revisedContinuationPoint,
-            out ReferenceDescriptionCollection references)
+            out ReferenceDescriptionCollection references
+        )
         {
-            var continuationPoints = new ByteStringCollection {
-                continuationPoint
-            };
+            var continuationPoints = new ByteStringCollection { continuationPoint };
 
             BrowseResultCollection results;
             DiagnosticInfoCollection diagnosticInfos;
@@ -3375,14 +3624,17 @@ namespace Opc.Ua.Client
                 releaseContinuationPoint,
                 continuationPoints,
                 out results,
-                out diagnosticInfos);
+                out diagnosticInfos
+            );
 
             ValidateResponse(results, continuationPoints);
             ValidateDiagnosticInfos(diagnosticInfos, continuationPoints);
 
             if (StatusCode.IsBad(results[0].StatusCode))
             {
-                throw new ServiceResultException(new ServiceResult(results[0].StatusCode, 0, diagnosticInfos, responseHeader.StringTable));
+                throw new ServiceResultException(
+                    new ServiceResult(results[0].StatusCode, 0, diagnosticInfos, responseHeader.StringTable)
+                );
             }
 
             revisedContinuationPoint = results[0].ContinuationPoint;
@@ -3398,7 +3650,8 @@ namespace Opc.Ua.Client
             ByteStringCollection continuationPoints,
             out ByteStringCollection revisedContinuationPoints,
             out IList<ReferenceDescriptionCollection> referencesList,
-            out IList<ServiceResult> errors)
+            out IList<ServiceResult> errors
+        )
         {
             BrowseResultCollection results;
             DiagnosticInfoCollection diagnosticInfos;
@@ -3408,7 +3661,8 @@ namespace Opc.Ua.Client
                 releaseContinuationPoint,
                 continuationPoints,
                 out results,
-                out diagnosticInfos);
+                out diagnosticInfos
+            );
 
             ValidateResponse(results, continuationPoints);
             ValidateDiagnosticInfos(diagnosticInfos, continuationPoints);
@@ -3441,33 +3695,25 @@ namespace Opc.Ua.Client
             bool releaseContinuationPoint,
             byte[] continuationPoint,
             AsyncCallback callback,
-            object asyncState)
+            object asyncState
+        )
         {
-            var continuationPoints = new ByteStringCollection {
-                continuationPoint
-            };
+            var continuationPoints = new ByteStringCollection { continuationPoint };
 
-            return BeginBrowseNext(
-                requestHeader,
-                releaseContinuationPoint,
-                continuationPoints,
-                callback,
-                asyncState);
+            return BeginBrowseNext(requestHeader, releaseContinuationPoint, continuationPoints, callback, asyncState);
         }
 
         /// <inheritdoc/>
         public ResponseHeader EndBrowseNext(
             IAsyncResult result,
             out byte[] revisedContinuationPoint,
-            out ReferenceDescriptionCollection references)
+            out ReferenceDescriptionCollection references
+        )
         {
             BrowseResultCollection results;
             DiagnosticInfoCollection diagnosticInfos;
 
-            ResponseHeader responseHeader = EndBrowseNext(
-                result,
-                out results,
-                out diagnosticInfos);
+            ResponseHeader responseHeader = EndBrowseNext(result, out results, out diagnosticInfos);
 
             if (results == null || results.Count != 1)
             {
@@ -3476,7 +3722,9 @@ namespace Opc.Ua.Client
 
             if (StatusCode.IsBad(results[0].StatusCode))
             {
-                throw new ServiceResultException(new ServiceResult(results[0].StatusCode, 0, diagnosticInfos, responseHeader.StringTable));
+                throw new ServiceResultException(
+                    new ServiceResult(results[0].StatusCode, 0, diagnosticInfos, responseHeader.StringTable)
+                );
             }
 
             revisedContinuationPoint = results[0].ContinuationPoint;
@@ -3497,18 +3745,20 @@ namespace Opc.Ua.Client
             uint nodeClassMask,
             out IList<ReferenceDescriptionCollection> result,
             out IList<ServiceResult> errors
-            )
+        )
         {
             (result, errors) = ManagedBrowseAsync(
-                requestHeader,
-                view,
-                nodesToBrowse,
-                maxResultsToReturn,
-                browseDirection,
-                referenceTypeId,
-                includeSubtypes,
-                nodeClassMask
-                ).GetAwaiter().GetResult();
+                    requestHeader,
+                    view,
+                    nodesToBrowse,
+                    maxResultsToReturn,
+                    browseDirection,
+                    referenceTypeId,
+                    includeSubtypes,
+                    nodeClassMask
+                )
+                .GetAwaiter()
+                .GetResult();
         }
 
         /// <inheritdoc/>
@@ -3528,28 +3778,27 @@ namespace Opc.Ua.Client
             {
                 ObjectId = objectId,
                 MethodId = methodId,
-                InputArguments = inputArguments
+                InputArguments = inputArguments,
             };
 
-            var requests = new CallMethodRequestCollection {
-                request
-            };
+            var requests = new CallMethodRequestCollection { request };
 
             CallMethodResultCollection results;
             DiagnosticInfoCollection diagnosticInfos;
 
-            ResponseHeader responseHeader = Call(
-                null,
-                requests,
-                out results,
-                out diagnosticInfos);
+            ResponseHeader responseHeader = Call(null, requests, out results, out diagnosticInfos);
 
             ValidateResponse(results, requests);
             ValidateDiagnosticInfos(diagnosticInfos, requests);
 
             if (StatusCode.IsBad(results[0].StatusCode))
             {
-                throw ServiceResultException.Create(results[0].StatusCode, 0, diagnosticInfos, responseHeader.StringTable);
+                throw ServiceResultException.Create(
+                    results[0].StatusCode,
+                    0,
+                    diagnosticInfos,
+                    responseHeader.StringTable
+                );
             }
 
             var outputArguments = new List<object>();
@@ -3581,7 +3830,10 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Handles an error when validating software certificates provided by the server.
         /// </summary>
-        protected virtual void OnSoftwareCertificateError(SignedSoftwareCertificate signedCertificate, ServiceResult result)
+        protected virtual void OnSoftwareCertificateError(
+            SignedSoftwareCertificate signedCertificate,
+            ServiceResult result
+        )
         {
             throw new ServiceResultException(result);
         }
@@ -3607,14 +3859,16 @@ namespace Opc.Ua.Client
 
             m_serverState = ServerState.Unknown;
 
-            var nodesToRead = new ReadValueIdCollection() {
+            var nodesToRead = new ReadValueIdCollection()
+            {
                 // read the server state.
-                new ReadValueId {
+                new ReadValueId
+                {
                     NodeId = Variables.Server_ServerStatus_State,
                     AttributeId = Attributes.Value,
                     DataEncoding = null,
-                    IndexRange = null
-                }
+                    IndexRange = null,
+                },
             };
 
             // restart the publish timer.
@@ -3648,7 +3902,10 @@ namespace Opc.Ua.Client
             {
                 for (LinkedListNode<AsyncRequestState> ii = m_outstandingRequests.First; ii != null; ii = ii.Next)
                 {
-                    if (ReferenceEquals(result, ii.Value.Result) || (requestId == ii.Value.RequestId && typeId == ii.Value.RequestTypeId))
+                    if (
+                        ReferenceEquals(result, ii.Value.Result)
+                        || (requestId == ii.Value.RequestId && typeId == ii.Value.RequestTypeId)
+                    )
                     {
                         AsyncRequestState state = ii.Value;
                         m_outstandingRequests.Remove(ii);
@@ -3679,7 +3936,7 @@ namespace Opc.Ua.Client
                         RequestId = requestId,
                         RequestTypeId = typeId,
                         Result = result,
-                        TickCount = HiResClock.TickCount
+                        TickCount = HiResClock.TickCount,
                     };
 
                     m_outstandingRequests.AddLast(state);
@@ -3720,7 +3977,7 @@ namespace Opc.Ua.Client
                         RequestId = requestId,
                         RequestTypeId = typeId,
                         Result = result,
-                        TickCount = HiResClock.TickCount
+                        TickCount = HiResClock.TickCount,
                     };
 
                     m_outstandingRequests.AddLast(state);
@@ -3758,7 +4015,15 @@ namespace Opc.Ua.Client
                 }
 
                 // raise error if keep alives are not coming back.
-                if (KeepAliveStopped && !OnKeepAliveError(ServiceResult.Create(StatusCodes.BadNoCommunication, "Server not responding to keep alive requests.")))
+                if (
+                    KeepAliveStopped
+                    && !OnKeepAliveError(
+                        ServiceResult.Create(
+                            StatusCodes.BadNoCommunication,
+                            "Server not responding to keep alive requests."
+                        )
+                    )
+                )
                 {
                     return;
                 }
@@ -3767,7 +4032,7 @@ namespace Opc.Ua.Client
                 {
                     RequestHandle = Utils.IncrementIdentifier(ref m_keepAliveCounter),
                     TimeoutHint = (uint)(KeepAliveInterval * 2),
-                    ReturnDiagnostics = 0
+                    ReturnDiagnostics = 0,
                 };
 
                 IAsyncResult result = BeginRead(
@@ -3776,7 +4041,8 @@ namespace Opc.Ua.Client
                     TimestampsToReturn.Neither,
                     nodesToRead,
                     OnKeepAliveComplete,
-                    nodesToRead);
+                    nodesToRead
+                );
 
                 AsyncRequestStarted(result, requestHeader.RequestHandle, DataTypes.ReadRequest);
             }
@@ -3806,10 +4072,7 @@ namespace Opc.Ua.Client
                 var values = new DataValueCollection();
                 var diagnosticInfos = new DiagnosticInfoCollection();
 
-                ResponseHeader responseHeader = EndRead(
-                    result,
-                    out values,
-                    out diagnosticInfos);
+                ResponseHeader responseHeader = EndRead(result, out values, out diagnosticInfos);
 
                 ValidateResponse(values, nodesToRead);
                 ValidateDiagnosticInfos(diagnosticInfos, nodesToRead);
@@ -3909,7 +4172,8 @@ namespace Opc.Ua.Client
                     delta,
                     Endpoint?.EndpointUrl,
                     GoodPublishRequestCount,
-                    OutstandingRequestCount);
+                    OutstandingRequestCount
+                );
             }
 
             KeepAliveEventHandler callback = m_KeepAlive;
@@ -3934,7 +4198,10 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Prepare a list of subscriptions to delete.
         /// </summary>
-        private bool PrepareSubscriptionsToDelete(IEnumerable<Subscription> subscriptions, List<Subscription> subscriptionsToDelete)
+        private bool PrepareSubscriptionsToDelete(
+            IEnumerable<Subscription> subscriptions,
+            List<Subscription> subscriptionsToDelete
+        )
         {
             bool removed = false;
             lock (SyncRoot)
@@ -3964,24 +4231,17 @@ namespace Opc.Ua.Client
             ReadValueIdCollection attributesToRead,
             List<IDictionary<uint, DataValue>> attributesPerNodeId,
             IList<Node> nodeCollection,
-            bool optionalAttributes)
+            bool optionalAttributes
+        )
         {
             for (int ii = 0; ii < nodeIdCollection.Count; ii++)
             {
-                var node = new Node
-                {
-                    NodeId = nodeIdCollection[ii],
-                    NodeClass = nodeClass
-                };
+                var node = new Node { NodeId = nodeIdCollection[ii], NodeClass = nodeClass };
 
                 Dictionary<uint, DataValue> attributes = CreateAttributes(node.NodeClass, optionalAttributes);
                 foreach (uint attributeId in attributes.Keys)
                 {
-                    var itemToRead = new ReadValueId
-                    {
-                        NodeId = node.NodeId,
-                        AttributeId = attributeId
-                    };
+                    var itemToRead = new ReadValueId { NodeId = node.NodeId, AttributeId = attributeId };
                     attributesToRead.Add(itemToRead);
                 }
 
@@ -3998,20 +4258,12 @@ namespace Opc.Ua.Client
             var nodesToRead = new ReadValueIdCollection();
 
             // request namespace array.
-            var valueId = new ReadValueId
-            {
-                NodeId = Variables.Server_NamespaceArray,
-                AttributeId = Attributes.Value
-            };
+            var valueId = new ReadValueId { NodeId = Variables.Server_NamespaceArray, AttributeId = Attributes.Value };
 
             nodesToRead.Add(valueId);
 
             // request server array.
-            valueId = new ReadValueId
-            {
-                NodeId = Variables.Server_ServerArray,
-                AttributeId = Attributes.Value
-            };
+            valueId = new ReadValueId { NodeId = Variables.Server_ServerArray, AttributeId = Attributes.Value };
 
             nodesToRead.Add(valueId);
 
@@ -4021,7 +4273,11 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Updates the NamespaceTable with the result of the <see cref="PrepareNamespaceTableNodesToRead"/> read operation.
         /// </summary>
-        private void UpdateNamespaceTable(DataValueCollection values, DiagnosticInfoCollection diagnosticInfos, ResponseHeader responseHeader)
+        private void UpdateNamespaceTable(
+            DataValueCollection values,
+            DiagnosticInfoCollection diagnosticInfos,
+            ResponseHeader responseHeader
+        )
         {
             // validate namespace array.
             ServiceResult result = ValidateDataValue(values[0], typeof(string[]), 0, diagnosticInfos, responseHeader);
@@ -4061,19 +4317,23 @@ namespace Opc.Ua.Client
             IList<Node> nodeCollection,
             IList<ServiceResult> errors,
             bool optionalAttributes
-            )
+        )
         {
             int? nodeClass;
             for (int ii = 0; ii < itemsToRead.Count; ii++)
             {
-                var node = new Node
-                {
-                    NodeId = itemsToRead[ii].NodeId
-                };
+                var node = new Node { NodeId = itemsToRead[ii].NodeId };
                 if (!DataValue.IsGood(nodeClassValues[ii]))
                 {
                     nodeCollection.Add(node);
-                    errors.Add(new ServiceResult(nodeClassValues[ii].StatusCode, ii, diagnosticInfos, responseHeader.StringTable));
+                    errors.Add(
+                        new ServiceResult(
+                            nodeClassValues[ii].StatusCode,
+                            ii,
+                            diagnosticInfos,
+                            responseHeader.StringTable
+                        )
+                    );
                     attributesPerNodeId.Add(null);
                     continue;
                 }
@@ -4084,8 +4344,13 @@ namespace Opc.Ua.Client
                 if (nodeClass == null)
                 {
                     nodeCollection.Add(node);
-                    errors.Add(ServiceResult.Create(StatusCodes.BadUnexpectedError,
-                        "Node does not have a valid value for NodeClass: {0}.", nodeClassValues[ii].Value));
+                    errors.Add(
+                        ServiceResult.Create(
+                            StatusCodes.BadUnexpectedError,
+                            "Node does not have a valid value for NodeClass: {0}.",
+                            nodeClassValues[ii].Value
+                        )
+                    );
                     attributesPerNodeId.Add(null);
                     continue;
                 }
@@ -4095,11 +4360,7 @@ namespace Opc.Ua.Client
                 Dictionary<uint, DataValue> attributes = CreateAttributes(node.NodeClass, optionalAttributes);
                 foreach (uint attributeId in attributes.Keys)
                 {
-                    var itemToRead = new ReadValueId
-                    {
-                        NodeId = node.NodeId,
-                        AttributeId = attributeId
-                    };
+                    var itemToRead = new ReadValueId { NodeId = node.NodeId, AttributeId = attributeId };
                     attributesToRead.Add(itemToRead);
                 }
 
@@ -4126,7 +4387,8 @@ namespace Opc.Ua.Client
             DataValueCollection values,
             DiagnosticInfoCollection diagnosticInfos,
             IList<Node> nodeCollection,
-            IList<ServiceResult> errors)
+            IList<ServiceResult> errors
+        )
         {
             int readIndex = 0;
             for (int ii = 0; ii < nodeCollection.Count; ii++)
@@ -4140,11 +4402,17 @@ namespace Opc.Ua.Client
                 int readCount = attributes.Count;
                 var subRangeAttributes = new ReadValueIdCollection(attributesToRead.GetRange(readIndex, readCount));
                 var subRangeValues = new DataValueCollection(values.GetRange(readIndex, readCount));
-                DiagnosticInfoCollection subRangeDiagnostics = diagnosticInfos.Count > 0 ? [.. diagnosticInfos.GetRange(readIndex, readCount)] : diagnosticInfos;
+                DiagnosticInfoCollection subRangeDiagnostics =
+                    diagnosticInfos.Count > 0 ? [.. diagnosticInfos.GetRange(readIndex, readCount)] : diagnosticInfos;
                 try
                 {
-                    nodeCollection[ii] = ProcessReadResponse(responseHeader, attributes,
-                        subRangeAttributes, subRangeValues, subRangeDiagnostics);
+                    nodeCollection[ii] = ProcessReadResponse(
+                        responseHeader,
+                        attributes,
+                        subRangeAttributes,
+                        subRangeValues,
+                        subRangeDiagnostics
+                    );
                     errors[ii] = ServiceResult.Good;
                 }
                 catch (ServiceResultException sre)
@@ -4163,7 +4431,8 @@ namespace Opc.Ua.Client
             IDictionary<uint, DataValue> attributes,
             ReadValueIdCollection itemsToRead,
             DataValueCollection values,
-            DiagnosticInfoCollection diagnosticInfos)
+            DiagnosticInfoCollection diagnosticInfos
+        )
         {
             // process results.
             int? nodeClass = null;
@@ -4177,7 +4446,12 @@ namespace Opc.Ua.Client
                 {
                     if (!DataValue.IsGood(values[ii]))
                     {
-                        throw ServiceResultException.Create(values[ii].StatusCode, ii, diagnosticInfos, responseHeader.StringTable);
+                        throw ServiceResultException.Create(
+                            values[ii].StatusCode,
+                            ii,
+                            diagnosticInfos,
+                            responseHeader.StringTable
+                        );
                     }
 
                     // check for valid node class.
@@ -4185,7 +4459,11 @@ namespace Opc.Ua.Client
 
                     if (nodeClass == null)
                     {
-                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Node does not have a valid value for NodeClass: {0}.", values[ii].Value);
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadUnexpectedError,
+                            "Node does not have a valid value for NodeClass: {0}.",
+                            values[ii].Value
+                        );
                     }
                 }
                 else if (!DataValue.IsGood(values[ii]))
@@ -4197,19 +4475,21 @@ namespace Opc.Ua.Client
                     }
 
                     // ignore errors on optional attributes
-                    if (StatusCode.IsBad(values[ii].StatusCode) &&
-                        attributeId is
-                            Attributes.AccessRestrictions or
-                            Attributes.Description or
-                            Attributes.RolePermissions or
-                            Attributes.UserRolePermissions or
-                            Attributes.UserWriteMask or
-                            Attributes.WriteMask or
-                            Attributes.AccessLevelEx or
-                            Attributes.ArrayDimensions or
-                            Attributes.DataTypeDefinition or
-                            Attributes.InverseName or
-                            Attributes.MinimumSamplingInterval)
+                    if (
+                        StatusCode.IsBad(values[ii].StatusCode)
+                        && attributeId
+                            is Attributes.AccessRestrictions
+                                or Attributes.Description
+                                or Attributes.RolePermissions
+                                or Attributes.UserRolePermissions
+                                or Attributes.UserWriteMask
+                                or Attributes.WriteMask
+                                or Attributes.AccessLevelEx
+                                or Attributes.ArrayDimensions
+                                or Attributes.DataTypeDefinition
+                                or Attributes.InverseName
+                                or Attributes.MinimumSamplingInterval
+                    )
                     {
                         continue;
                     }
@@ -4217,7 +4497,12 @@ namespace Opc.Ua.Client
                     // all supported attributes must be readable.
                     if (attributeId != Attributes.Value)
                     {
-                        throw ServiceResultException.Create(values[ii].StatusCode, ii, diagnosticInfos, responseHeader.StringTable);
+                        throw ServiceResultException.Create(
+                            values[ii].StatusCode,
+                            ii,
+                            diagnosticInfos,
+                            responseHeader.StringTable
+                        );
                     }
                 }
 
@@ -4229,7 +4514,11 @@ namespace Opc.Ua.Client
             switch ((NodeClass)nodeClass.Value)
             {
                 default:
-                    throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Node does not have a valid value for NodeClass: {0}.", nodeClass.Value);
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadUnexpectedError,
+                        "Node does not have a valid value for NodeClass: {0}.",
+                        nodeClass.Value
+                    );
 
                 case NodeClass.Object:
                     var objectNode = new ObjectNode();
@@ -4238,7 +4527,10 @@ namespace Opc.Ua.Client
 
                     if (value == null)
                     {
-                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Object does not support the EventNotifier attribute.");
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadUnexpectedError,
+                            "Object does not support the EventNotifier attribute."
+                        );
                     }
 
                     objectNode.EventNotifier = value.GetValueOrDefault<byte>();
@@ -4252,7 +4544,10 @@ namespace Opc.Ua.Client
 
                     if (value == null)
                     {
-                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "ObjectType does not support the IsAbstract attribute.");
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadUnexpectedError,
+                            "ObjectType does not support the IsAbstract attribute."
+                        );
                     }
 
                     objectTypeNode.IsAbstract = value.GetValueOrDefault<bool>();
@@ -4267,7 +4562,10 @@ namespace Opc.Ua.Client
 
                     if (value == null)
                     {
-                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Variable does not support the DataType attribute.");
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadUnexpectedError,
+                            "Variable does not support the DataType attribute."
+                        );
                     }
 
                     variableNode.DataType = (NodeId)value.GetValue(typeof(NodeId));
@@ -4277,7 +4575,10 @@ namespace Opc.Ua.Client
 
                     if (value == null)
                     {
-                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Variable does not support the ValueRank attribute.");
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadUnexpectedError,
+                            "Variable does not support the ValueRank attribute."
+                        );
                     }
 
                     variableNode.ValueRank = value.GetValueOrDefault<int>();
@@ -4302,7 +4603,10 @@ namespace Opc.Ua.Client
 
                     if (value == null)
                     {
-                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Variable does not support the AccessLevel attribute.");
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadUnexpectedError,
+                            "Variable does not support the AccessLevel attribute."
+                        );
                     }
 
                     variableNode.AccessLevel = value.GetValueOrDefault<byte>();
@@ -4312,7 +4616,10 @@ namespace Opc.Ua.Client
 
                     if (value == null)
                     {
-                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Variable does not support the UserAccessLevel attribute.");
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadUnexpectedError,
+                            "Variable does not support the UserAccessLevel attribute."
+                        );
                     }
 
                     variableNode.UserAccessLevel = value.GetValueOrDefault<byte>();
@@ -4322,7 +4629,10 @@ namespace Opc.Ua.Client
 
                     if (value == null)
                     {
-                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Variable does not support the Historizing attribute.");
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadUnexpectedError,
+                            "Variable does not support the Historizing attribute."
+                        );
                     }
 
                     variableNode.Historizing = value.GetValueOrDefault<bool>();
@@ -4332,7 +4642,10 @@ namespace Opc.Ua.Client
 
                     if (value != null)
                     {
-                        variableNode.MinimumSamplingInterval = Convert.ToDouble(attributes[Attributes.MinimumSamplingInterval].Value, CultureInfo.InvariantCulture);
+                        variableNode.MinimumSamplingInterval = Convert.ToDouble(
+                            attributes[Attributes.MinimumSamplingInterval].Value,
+                            CultureInfo.InvariantCulture
+                        );
                     }
 
                     // AccessLevelEx Attribute
@@ -4354,7 +4667,10 @@ namespace Opc.Ua.Client
 
                     if (value == null)
                     {
-                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "VariableType does not support the IsAbstract attribute.");
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadUnexpectedError,
+                            "VariableType does not support the IsAbstract attribute."
+                        );
                     }
 
                     variableTypeNode.IsAbstract = value.GetValueOrDefault<bool>();
@@ -4364,7 +4680,10 @@ namespace Opc.Ua.Client
 
                     if (value == null)
                     {
-                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "VariableType does not support the DataType attribute.");
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadUnexpectedError,
+                            "VariableType does not support the DataType attribute."
+                        );
                     }
 
                     variableTypeNode.DataType = (NodeId)value.GetValue(typeof(NodeId));
@@ -4374,7 +4693,10 @@ namespace Opc.Ua.Client
 
                     if (value == null)
                     {
-                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "VariableType does not support the ValueRank attribute.");
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadUnexpectedError,
+                            "VariableType does not support the ValueRank attribute."
+                        );
                     }
 
                     variableTypeNode.ValueRank = value.GetValueOrDefault<int>();
@@ -4398,7 +4720,10 @@ namespace Opc.Ua.Client
 
                     if (value == null)
                     {
-                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Method does not support the Executable attribute.");
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadUnexpectedError,
+                            "Method does not support the Executable attribute."
+                        );
                     }
 
                     methodNode.Executable = value.GetValueOrDefault<bool>();
@@ -4408,7 +4733,10 @@ namespace Opc.Ua.Client
 
                     if (value == null)
                     {
-                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Method does not support the UserExecutable attribute.");
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadUnexpectedError,
+                            "Method does not support the UserExecutable attribute."
+                        );
                     }
 
                     methodNode.UserExecutable = value.GetValueOrDefault<bool>();
@@ -4424,7 +4752,10 @@ namespace Opc.Ua.Client
 
                     if (value == null)
                     {
-                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "DataType does not support the IsAbstract attribute.");
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadUnexpectedError,
+                            "DataType does not support the IsAbstract attribute."
+                        );
                     }
 
                     dataTypeNode.IsAbstract = value.GetValueOrDefault<bool>();
@@ -4448,7 +4779,10 @@ namespace Opc.Ua.Client
 
                     if (value == null)
                     {
-                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "ReferenceType does not support the IsAbstract attribute.");
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadUnexpectedError,
+                            "ReferenceType does not support the IsAbstract attribute."
+                        );
                     }
 
                     referenceTypeNode.IsAbstract = value.GetValueOrDefault<bool>();
@@ -4458,7 +4792,10 @@ namespace Opc.Ua.Client
 
                     if (value == null)
                     {
-                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "ReferenceType does not support the Symmetric attribute.");
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadUnexpectedError,
+                            "ReferenceType does not support the Symmetric attribute."
+                        );
                     }
 
                     referenceTypeNode.Symmetric = value.GetValueOrDefault<bool>();
@@ -4482,7 +4819,10 @@ namespace Opc.Ua.Client
 
                     if (value == null)
                     {
-                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "View does not support the EventNotifier attribute.");
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadUnexpectedError,
+                            "View does not support the EventNotifier attribute."
+                        );
                     }
 
                     viewNode.EventNotifier = value.GetValueOrDefault<byte>();
@@ -4492,7 +4832,10 @@ namespace Opc.Ua.Client
 
                     if (value == null)
                     {
-                        throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "View does not support the ContainsNoLoops attribute.");
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadUnexpectedError,
+                            "View does not support the ContainsNoLoops attribute."
+                        );
                     }
 
                     viewNode.ContainsNoLoops = value.GetValueOrDefault<bool>();
@@ -4506,7 +4849,10 @@ namespace Opc.Ua.Client
 
             if (value == null)
             {
-                throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Node does not support the NodeId attribute.");
+                throw ServiceResultException.Create(
+                    StatusCodes.BadUnexpectedError,
+                    "Node does not support the NodeId attribute."
+                );
             }
 
             node.NodeId = (NodeId)value.GetValue(typeof(NodeId));
@@ -4517,7 +4863,10 @@ namespace Opc.Ua.Client
 
             if (value == null)
             {
-                throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Node does not support the BrowseName attribute.");
+                throw ServiceResultException.Create(
+                    StatusCodes.BadUnexpectedError,
+                    "Node does not support the BrowseName attribute."
+                );
             }
 
             node.BrowseName = (QualifiedName)value.GetValue(typeof(QualifiedName));
@@ -4527,7 +4876,10 @@ namespace Opc.Ua.Client
 
             if (value == null)
             {
-                throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Node does not support the DisplayName attribute.");
+                throw ServiceResultException.Create(
+                    StatusCodes.BadUnexpectedError,
+                    "Node does not support the DisplayName attribute."
+                );
             }
 
             node.DisplayName = (LocalizedText)value.GetValue(typeof(LocalizedText));
@@ -4535,29 +4887,25 @@ namespace Opc.Ua.Client
             // all optional attributes follow
 
             // Description Attribute
-            if (attributes.TryGetValue(Attributes.Description, out value) &&
-                value != null && value.Value != null)
+            if (attributes.TryGetValue(Attributes.Description, out value) && value != null && value.Value != null)
             {
                 node.Description = (LocalizedText)value.GetValue(typeof(LocalizedText));
             }
 
             // WriteMask Attribute
-            if (attributes.TryGetValue(Attributes.WriteMask, out value) &&
-                value != null)
+            if (attributes.TryGetValue(Attributes.WriteMask, out value) && value != null)
             {
                 node.WriteMask = value.GetValueOrDefault<uint>();
             }
 
             // UserWriteMask Attribute
-            if (attributes.TryGetValue(Attributes.UserWriteMask, out value) &&
-                value != null)
+            if (attributes.TryGetValue(Attributes.UserWriteMask, out value) && value != null)
             {
                 node.UserWriteMask = value.GetValueOrDefault<uint>();
             }
 
             // RolePermissions Attribute
-            if (attributes.TryGetValue(Attributes.RolePermissions, out value) &&
-                value != null)
+            if (attributes.TryGetValue(Attributes.RolePermissions, out value) && value != null)
             {
                 if (value.Value is ExtensionObject[] rolePermissions)
                 {
@@ -4571,8 +4919,7 @@ namespace Opc.Ua.Client
             }
 
             // UserRolePermissions Attribute
-            if (attributes.TryGetValue(Attributes.UserRolePermissions, out value) &&
-                value != null)
+            if (attributes.TryGetValue(Attributes.UserRolePermissions, out value) && value != null)
             {
                 if (value.Value is ExtensionObject[] userRolePermissions)
                 {
@@ -4586,8 +4933,7 @@ namespace Opc.Ua.Client
             }
 
             // AccessRestrictions Attribute
-            if (attributes.TryGetValue(Attributes.AccessRestrictions, out value) &&
-                value != null)
+            if (attributes.TryGetValue(Attributes.AccessRestrictions, out value) && value != null)
             {
                 node.AccessRestrictions = value.GetValueOrDefault<ushort>();
             }
@@ -4598,10 +4944,14 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Create a dictionary of attributes to read for a nodeclass.
         /// </summary>
-        private static Dictionary<uint, DataValue> CreateAttributes(NodeClass nodeclass = NodeClass.Unspecified, bool optionalAttributes = true)
+        private static Dictionary<uint, DataValue> CreateAttributes(
+            NodeClass nodeclass = NodeClass.Unspecified,
+            bool optionalAttributes = true
+        )
         {
             // Attributes to read for all types of nodes
-            var attributes = new Dictionary<uint, DataValue>(Attributes.MaxAttributes) {
+            var attributes = new Dictionary<uint, DataValue>(Attributes.MaxAttributes)
+            {
                 { Attributes.NodeId, null },
                 { Attributes.NodeClass, null },
                 { Attributes.BrowseName, null },
@@ -4659,7 +5009,8 @@ namespace Opc.Ua.Client
 
                 default:
                     // build complete list of attributes.
-                    attributes = new Dictionary<uint, DataValue>(Attributes.MaxAttributes) {
+                    attributes = new Dictionary<uint, DataValue>(Attributes.MaxAttributes)
+                    {
                         { Attributes.NodeId, null },
                         { Attributes.NodeClass, null },
                         { Attributes.BrowseName, null },
@@ -4685,7 +5036,7 @@ namespace Opc.Ua.Client
                         //{ Attributes.RolePermissions, null },
                         //{ Attributes.UserRolePermissions, null },
                         //{ Attributes.AccessRestrictions, null },
-                        { Attributes.AccessLevelEx, null }
+                        { Attributes.AccessLevelEx, null },
                     };
                     break;
             }
@@ -4727,13 +5078,22 @@ namespace Opc.Ua.Client
                     try
                     {
                         var deferredAcknowledgementsToSend = new SubscriptionAcknowledgementCollection();
-                        callback(this, new PublishSequenceNumbersToAcknowledgeEventArgs(m_acknowledgementsToSend, deferredAcknowledgementsToSend));
+                        callback(
+                            this,
+                            new PublishSequenceNumbersToAcknowledgeEventArgs(
+                                m_acknowledgementsToSend,
+                                deferredAcknowledgementsToSend
+                            )
+                        );
                         acknowledgementsToSend = m_acknowledgementsToSend;
                         m_acknowledgementsToSend = deferredAcknowledgementsToSend;
                     }
                     catch (Exception e2)
                     {
-                        Utils.LogError(e2, "Session: Unexpected error invoking PublishSequenceNumbersToAcknowledgeEventArgs.");
+                        Utils.LogError(
+                            e2,
+                            "Session: Unexpected error invoking PublishSequenceNumbersToAcknowledgeEventArgs."
+                        );
                     }
                 }
 
@@ -4760,14 +5120,14 @@ namespace Opc.Ua.Client
                 // ensure the publish request is discarded before the timeout occurs to ensure the channel is dropped.
                 TimeoutHint = timeoutHint,
                 ReturnDiagnostics = (uint)(int)ReturnDiagnostics,
-                RequestHandle = Utils.IncrementIdentifier(ref m_publishCounter)
+                RequestHandle = Utils.IncrementIdentifier(ref m_publishCounter),
             };
 
             var state = new AsyncRequestState
             {
                 RequestTypeId = DataTypes.PublishRequest,
                 RequestId = requestHeader.RequestHandle,
-                TickCount = HiResClock.TickCount
+                TickCount = HiResClock.TickCount,
             };
 
             CoreClientUtils.EventLog.PublishStart((int)requestHeader.RequestHandle);
@@ -4778,7 +5138,8 @@ namespace Opc.Ua.Client
                     requestHeader,
                     acknowledgementsToSend,
                     OnPublishComplete,
-                    new object[] { SessionId, acknowledgementsToSend, requestHeader });
+                    new object[] { SessionId, acknowledgementsToSend, requestHeader }
+                );
 
                 AsyncRequestStarted(result, requestHeader.RequestHandle, DataTypes.PublishRequest);
 
@@ -4849,14 +5210,20 @@ namespace Opc.Ua.Client
                     out moreNotifications,
                     out notificationMessage,
                     out acknowledgeResults,
-                    out acknowledgeDiagnosticInfos);
+                    out acknowledgeDiagnosticInfos
+                );
 
                 LogLevel logLevel = LogLevel.Warning;
                 foreach (StatusCode code in acknowledgeResults)
                 {
                     if (StatusCode.IsBad(code) && code != StatusCodes.BadSequenceNumberUnknown)
                     {
-                        Utils.Log(logLevel, "Publish Ack Response. ResultCode={0}; SubscriptionId={1}", code.ToString(), subscriptionId);
+                        Utils.Log(
+                            logLevel,
+                            "Publish Ack Response. ResultCode={0}; SubscriptionId={1}",
+                            code.ToString(),
+                            subscriptionId
+                        );
                         // only show the first error as warning
                         logLevel = LogLevel.Trace;
                     }
@@ -4865,11 +5232,18 @@ namespace Opc.Ua.Client
                 // nothing more to do if session changed.
                 if (sessionId != SessionId)
                 {
-                    Utils.LogWarning("Publish response discarded because session id changed: Old {0} != New {1}", sessionId, SessionId);
+                    Utils.LogWarning(
+                        "Publish response discarded because session id changed: Old {0} != New {1}",
+                        sessionId,
+                        SessionId
+                    );
                     return;
                 }
 
-                CoreClientUtils.EventLog.NotificationReceived((int)subscriptionId, (int)notificationMessage.SequenceNumber);
+                CoreClientUtils.EventLog.NotificationReceived(
+                    (int)subscriptionId,
+                    (int)notificationMessage.SequenceNumber
+                );
 
                 // process response.
                 ProcessPublishResponse(
@@ -4877,7 +5251,8 @@ namespace Opc.Ua.Client
                     subscriptionId,
                     availableSequenceNumbers,
                     moreNotifications,
-                    notificationMessage);
+                    notificationMessage
+                );
 
                 // nothing more to do if reconnecting.
                 if (reconnecting)
@@ -4891,11 +5266,20 @@ namespace Opc.Ua.Client
                 if (m_subscriptions.Count == 0)
                 {
                     // Publish responses with error should occur after deleting the last subscription.
-                    Utils.LogError("Publish #{0}, Subscription count = 0, Error: {1}", requestHeader.RequestHandle, e.Message);
+                    Utils.LogError(
+                        "Publish #{0}, Subscription count = 0, Error: {1}",
+                        requestHeader.RequestHandle,
+                        e.Message
+                    );
                 }
                 else
                 {
-                    Utils.LogError("Publish #{0}, Reconnecting={1}, Error: {2}", requestHeader.RequestHandle, m_reconnecting, e.Message);
+                    Utils.LogError(
+                        "Publish #{0}, Reconnecting={1}, Error: {2}",
+                        requestHeader.RequestHandle,
+                        m_reconnecting,
+                        e.Message
+                    );
                 }
 
                 // raise an error event.
@@ -4928,7 +5312,11 @@ namespace Opc.Ua.Client
                 // nothing more to do if session changed.
                 if (sessionId != SessionId)
                 {
-                    Utils.LogError("Publish abandoned after error because session id changed: Old {0} != New {1}", sessionId, SessionId);
+                    Utils.LogError(
+                        "Publish abandoned after error because session id changed: Old {0} != New {1}",
+                        sessionId,
+                        SessionId
+                    );
                     return;
                 }
 
@@ -4950,7 +5338,10 @@ namespace Opc.Ua.Client
                         if (BelowPublishRequestLimit(tooManyPublishRequests))
                         {
                             m_tooManyPublishRequests = tooManyPublishRequests;
-                            Utils.LogInfo("PUBLISH - Too many requests, set limit to GoodPublishRequestCount={0}.", m_tooManyPublishRequests);
+                            Utils.LogInfo(
+                                "PUBLISH - Too many requests, set limit to GoodPublishRequestCount={0}.",
+                                m_tooManyPublishRequests
+                            );
                         }
                         return;
 
@@ -4984,9 +5375,13 @@ namespace Opc.Ua.Client
                         break;
 
                     default:
-                        Utils.LogError(e, "PUBLISH #{0} - Unhandled error {1} during Publish.", requestHeader.RequestHandle, error.StatusCode);
+                        Utils.LogError(
+                            e,
+                            "PUBLISH #{0} - Unhandled error {1} during Publish.",
+                            requestHeader.RequestHandle,
+                            error.StatusCode
+                        );
                         goto case StatusCodes.BadServerTooBusy;
-
                 }
             }
 
@@ -5004,7 +5399,7 @@ namespace Opc.Ua.Client
             {
                 TimeoutHint = (uint)OperationTimeout,
                 ReturnDiagnostics = (uint)(int)ReturnDiagnostics,
-                RequestHandle = Utils.IncrementIdentifier(ref m_publishCounter)
+                RequestHandle = Utils.IncrementIdentifier(ref m_publishCounter),
             };
 
             try
@@ -5018,17 +5413,18 @@ namespace Opc.Ua.Client
                     requestHeader,
                     subscriptionId,
                     sequenceNumber,
-                    out notificationMessage);
+                    out notificationMessage
+                );
 
-                Utils.LogInfo("Received Republish for {0}-{1}-{2}", subscriptionId, sequenceNumber, responseHeader.ServiceResult);
+                Utils.LogInfo(
+                    "Received Republish for {0}-{1}-{2}",
+                    subscriptionId,
+                    sequenceNumber,
+                    responseHeader.ServiceResult
+                );
 
                 // process response.
-                ProcessPublishResponse(
-                    responseHeader,
-                    subscriptionId,
-                    null,
-                    false,
-                    notificationMessage);
+                ProcessPublishResponse(responseHeader, subscriptionId, null, false, notificationMessage);
             }
             catch (Exception e)
             {
@@ -5049,11 +5445,7 @@ namespace Opc.Ua.Client
             DiagnosticInfoCollection diagnosticInfos;
             try
             {
-                ResponseHeader responseHeader = Call(
-                    null,
-                    requests,
-                    out results,
-                    out diagnosticInfos);
+                ResponseHeader responseHeader = Call(null, requests, out results, out diagnosticInfos);
 
                 ValidateResponse(results, requests);
                 ValidateDiagnosticInfos(diagnosticInfos, requests);
@@ -5096,7 +5488,13 @@ namespace Opc.Ua.Client
         /// </summary>
         private static void ThrowCouldNotRecreateSessionException(Exception e, string sessionName)
         {
-            throw ServiceResultException.Create(StatusCodes.BadCommunicationError, e, "Could not recreate session {0}:{1}", sessionName, e.Message);
+            throw ServiceResultException.Create(
+                StatusCodes.BadCommunicationError,
+                e,
+                "Could not recreate session {0}:{1}",
+                sessionName,
+                e.Message
+            );
         }
 
         /// <summary>
@@ -5114,7 +5512,11 @@ namespace Opc.Ua.Client
             }
             else
             {
-                Utils.LogDebug("PUBLISH - Did not send another publish request. GoodPublishRequestCount={0}, MinPublishRequestCount={1}", requestCount, minPublishRequestCount);
+                Utils.LogDebug(
+                    "PUBLISH - Did not send another publish request. GoodPublishRequestCount={0}, MinPublishRequestCount={1}",
+                    requestCount,
+                    minPublishRequestCount
+                );
             }
         }
 
@@ -5126,7 +5528,8 @@ namespace Opc.Ua.Client
             out UserIdentityToken identityToken,
             out UserTokenPolicy identityPolicy,
             out string securityPolicyUri,
-            out bool requireEncryption)
+            out bool requireEncryption
+        )
         {
             // check connection state.
             lock (SyncRoot)
@@ -5144,14 +5547,12 @@ namespace Opc.Ua.Client
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
-                    "The chosen security policy is not supported by the client to connect to the server.");
+                    "The chosen security policy is not supported by the client to connect to the server."
+                );
             }
 
             // get the identity token.
-            if (identity == null)
-            {
-                identity = new UserIdentity();
-            }
+            identity ??= new UserIdentity();
 
             // get identity token.
             identityToken = identity.GetIdentityToken();
@@ -5162,13 +5563,18 @@ namespace Opc.Ua.Client
             if (identityPolicy == null)
             {
                 // try looking up by TokenType if the policy id was not found.
-                identityPolicy = m_endpoint.Description.FindUserTokenPolicy(identity.TokenType, identity.IssuedTokenType, securityPolicyUri);
+                identityPolicy = m_endpoint.Description.FindUserTokenPolicy(
+                    identity.TokenType,
+                    identity.IssuedTokenType,
+                    securityPolicyUri
+                );
 
                 if (identityPolicy == null)
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadIdentityTokenRejected,
-                        "Endpoint does not support the user identity type provided.");
+                        "Endpoint does not support the user identity type provided."
+                    );
                 }
 
                 identityToken.PolicyId = identityPolicy.PolicyId;
@@ -5178,15 +5584,16 @@ namespace Opc.Ua.Client
 
             if (!requireEncryption)
             {
-                requireEncryption = identityPolicy.SecurityPolicyUri != SecurityPolicies.None &&
-                    !string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri);
+                requireEncryption =
+                    identityPolicy.SecurityPolicyUri != SecurityPolicies.None
+                    && !string.IsNullOrEmpty(identityPolicy.SecurityPolicyUri);
             }
         }
+
         /// <summary>
         /// Validates the ServerCertificate ApplicationUri to match the ApplicationUri of the Endpoint for an open call (Spec Part 4 5.4.1)
         /// </summary>
-        private void ValidateServerCertificateApplicationUri(
-            X509Certificate2 serverCertificate)
+        private void ValidateServerCertificateApplicationUri(X509Certificate2 serverCertificate)
         {
             string applicationUri = m_endpoint?.Description?.Server?.ApplicationUri;
             //check is only neccessary if the ApplicatioUri is specified for the Endpoint
@@ -5194,14 +5601,16 @@ namespace Opc.Ua.Client
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
-                    "No ApplicationUri is specified for the server in the EndpointDescription.");
+                    "No ApplicationUri is specified for the server in the EndpointDescription."
+                );
             }
             string certificateApplicationUri = X509Utils.GetApplicationUriFromCertificate(serverCertificate);
             if (!string.Equals(certificateApplicationUri, applicationUri, StringComparison.Ordinal))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
-                    "Server did not return a Certificate matching the ApplicationUri specified in the EndpointDescription.");
+                    "Server did not return a Certificate matching the ApplicationUri specified in the EndpointDescription."
+                );
             }
         }
 
@@ -5211,8 +5620,11 @@ namespace Opc.Ua.Client
             clientCertificateData = (m_instanceCertificate?.RawData);
             clientCertificateChainData = null;
 
-            if (m_instanceCertificateChain != null && m_instanceCertificateChain.Count > 0 &&
-                m_configuration.SecurityConfiguration.SendCertificateChain)
+            if (
+                m_instanceCertificateChain != null
+                && m_instanceCertificateChain.Count > 0
+                && m_configuration.SecurityConfiguration.SendCertificateChain
+            )
             {
                 var clientCertificateChain = new List<byte>();
 
@@ -5230,27 +5642,36 @@ namespace Opc.Ua.Client
         /// </summary>
         private void ValidateServerCertificateData(byte[] serverCertificateData)
         {
-            if (serverCertificateData != null &&
-                m_endpoint.Description.ServerCertificate != null &&
-                !Utils.IsEqual(serverCertificateData, m_endpoint.Description.ServerCertificate))
+            if (
+                serverCertificateData != null
+                && m_endpoint.Description.ServerCertificate != null
+                && !Utils.IsEqual(serverCertificateData, m_endpoint.Description.ServerCertificate)
+            )
             {
                 try
                 {
                     // verify for certificate chain in endpoint.
-                    X509Certificate2Collection serverCertificateChain = Utils.ParseCertificateChainBlob(m_endpoint.Description.ServerCertificate);
+                    X509Certificate2Collection serverCertificateChain = Utils.ParseCertificateChainBlob(
+                        m_endpoint.Description.ServerCertificate
+                    );
 
-                    if (serverCertificateChain.Count > 0 && !Utils.IsEqual(serverCertificateData, serverCertificateChain[0].RawData))
+                    if (
+                        serverCertificateChain.Count > 0
+                        && !Utils.IsEqual(serverCertificateData, serverCertificateChain[0].RawData)
+                    )
                     {
                         throw ServiceResultException.Create(
-                                    StatusCodes.BadCertificateInvalid,
-                                    "Server did not return the certificate used to create the secure channel.");
+                            StatusCodes.BadCertificateInvalid,
+                            "Server did not return the certificate used to create the secure channel."
+                        );
                     }
                 }
                 catch (Exception)
                 {
                     throw ServiceResultException.Create(
-                            StatusCodes.BadCertificateInvalid,
-                            "Server did not return the certificate used to create the secure channel.");
+                        StatusCodes.BadCertificateInvalid,
+                        "Server did not return the certificate used to create the secure channel."
+                    );
                 }
             }
         }
@@ -5258,8 +5679,13 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Validates the server signature created with the client nonce.
         /// </summary>
-        private void ValidateServerSignature(X509Certificate2 serverCertificate, SignatureData serverSignature,
-            byte[] clientCertificateData, byte[] clientCertificateChainData, byte[] clientNonce)
+        private void ValidateServerSignature(
+            X509Certificate2 serverCertificate,
+            SignatureData serverSignature,
+            byte[] clientCertificateData,
+            byte[] clientCertificateChainData,
+            byte[] clientNonce
+        )
         {
             if (serverSignature == null || serverSignature.Signature == null)
             {
@@ -5273,25 +5699,41 @@ namespace Opc.Ua.Client
             // validate the server's signature.
             byte[] dataToSign = Utils.Append(clientCertificateData, clientNonce);
 
-            if (!SecurityPolicies.Verify(serverCertificate, m_endpoint.Description.SecurityPolicyUri, dataToSign, serverSignature))
+            if (
+                !SecurityPolicies.Verify(
+                    serverCertificate,
+                    m_endpoint.Description.SecurityPolicyUri,
+                    dataToSign,
+                    serverSignature
+                )
+            )
             {
                 // validate the signature with complete chain if the check with leaf certificate failed.
                 if (clientCertificateChainData != null)
                 {
                     dataToSign = Utils.Append(clientCertificateChainData, clientNonce);
 
-                    if (!SecurityPolicies.Verify(serverCertificate, m_endpoint.Description.SecurityPolicyUri, dataToSign, serverSignature))
+                    if (
+                        !SecurityPolicies.Verify(
+                            serverCertificate,
+                            m_endpoint.Description.SecurityPolicyUri,
+                            dataToSign,
+                            serverSignature
+                        )
+                    )
                     {
                         throw ServiceResultException.Create(
                             StatusCodes.BadApplicationSignatureInvalid,
-                            "Server did not provide a correct signature for the nonce data provided by the client.");
+                            "Server did not provide a correct signature for the nonce data provided by the client."
+                        );
                     }
                 }
                 else
                 {
                     throw ServiceResultException.Create(
-                       StatusCodes.BadApplicationSignatureInvalid,
-                       "Server did not provide a correct signature for the nonce data provided by the client.");
+                        StatusCodes.BadApplicationSignatureInvalid,
+                        "Server did not provide a correct signature for the nonce data provided by the client."
+                    );
                 }
             }
         }
@@ -5305,8 +5747,7 @@ namespace Opc.Ua.Client
             {
                 // Compare EndpointDescriptions returned at GetEndpoints with values returned at CreateSession
                 EndpointDescriptionCollection expectedServerEndpoints;
-                if (serverEndpoints != null &&
-                    m_discoveryProfileUris != null && m_discoveryProfileUris.Count > 0)
+                if (serverEndpoints != null && m_discoveryProfileUris != null && m_discoveryProfileUris.Count > 0)
                 {
                     // Select EndpointDescriptions with a transportProfileUri that matches the
                     // profileUris specified in the original GetEndpoints() request.
@@ -5325,12 +5766,15 @@ namespace Opc.Ua.Client
                     expectedServerEndpoints = serverEndpoints;
                 }
 
-                if (expectedServerEndpoints == null ||
-                    m_discoveryServerEndpoints.Count != expectedServerEndpoints.Count)
+                if (
+                    expectedServerEndpoints == null
+                    || m_discoveryServerEndpoints.Count != expectedServerEndpoints.Count
+                )
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadSecurityChecksFailed,
-                        "Server did not return a number of ServerEndpoints that matches the one from GetEndpoints.");
+                        "Server did not return a number of ServerEndpoints that matches the one from GetEndpoints."
+                    );
                 }
 
                 for (int ii = 0; ii < expectedServerEndpoints.Count; ii++)
@@ -5338,30 +5782,39 @@ namespace Opc.Ua.Client
                     EndpointDescription serverEndpoint = expectedServerEndpoints[ii];
                     EndpointDescription expectedServerEndpoint = m_discoveryServerEndpoints[ii];
 
-                    if (serverEndpoint.SecurityMode != expectedServerEndpoint.SecurityMode ||
-                        serverEndpoint.SecurityPolicyUri != expectedServerEndpoint.SecurityPolicyUri ||
-                        serverEndpoint.TransportProfileUri != expectedServerEndpoint.TransportProfileUri ||
-                        serverEndpoint.SecurityLevel != expectedServerEndpoint.SecurityLevel)
+                    if (
+                        serverEndpoint.SecurityMode != expectedServerEndpoint.SecurityMode
+                        || serverEndpoint.SecurityPolicyUri != expectedServerEndpoint.SecurityPolicyUri
+                        || serverEndpoint.TransportProfileUri != expectedServerEndpoint.TransportProfileUri
+                        || serverEndpoint.SecurityLevel != expectedServerEndpoint.SecurityLevel
+                    )
                     {
                         throw ServiceResultException.Create(
                             StatusCodes.BadSecurityChecksFailed,
-                            "The list of ServerEndpoints returned at CreateSession does not match the list from GetEndpoints.");
+                            "The list of ServerEndpoints returned at CreateSession does not match the list from GetEndpoints."
+                        );
                     }
 
                     if (serverEndpoint.UserIdentityTokens.Count != expectedServerEndpoint.UserIdentityTokens.Count)
                     {
                         throw ServiceResultException.Create(
                             StatusCodes.BadSecurityChecksFailed,
-                            "The list of ServerEndpoints returned at CreateSession does not match the one from GetEndpoints.");
+                            "The list of ServerEndpoints returned at CreateSession does not match the one from GetEndpoints."
+                        );
                     }
 
                     for (int jj = 0; jj < serverEndpoint.UserIdentityTokens.Count; jj++)
                     {
-                        if (!serverEndpoint.UserIdentityTokens[jj].IsEqual(expectedServerEndpoint.UserIdentityTokens[jj]))
+                        if (
+                            !serverEndpoint
+                                .UserIdentityTokens[jj]
+                                .IsEqual(expectedServerEndpoint.UserIdentityTokens[jj])
+                        )
                         {
                             throw ServiceResultException.Create(
-                            StatusCodes.BadSecurityChecksFailed,
-                            "The list of ServerEndpoints returned at CreateSession does not match the one from GetEndpoints.");
+                                StatusCodes.BadSecurityChecksFailed,
+                                "The list of ServerEndpoints returned at CreateSession does not match the one from GetEndpoints."
+                            );
                         }
                     }
                 }
@@ -5370,7 +5823,11 @@ namespace Opc.Ua.Client
             // find the matching description (TBD - check domains against certificate).
             bool found = false;
 
-            EndpointDescription foundDescription = FindMatchingDescription(serverEndpoints, m_endpoint.Description, true);
+            EndpointDescription foundDescription = FindMatchingDescription(
+                serverEndpoints,
+                m_endpoint.Description,
+                true
+            );
             if (foundDescription != null)
             {
                 found = true;
@@ -5393,7 +5850,8 @@ namespace Opc.Ua.Client
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,
-                    "Server did not return an EndpointDescription that matched the one used to create the secure channel.");
+                    "Server did not return an EndpointDescription that matched the one used to create the secure channel."
+                );
             }
         }
 
@@ -5404,9 +5862,11 @@ namespace Opc.Ua.Client
         /// <param name="match">The description to match</param>
         /// <param name="matchPort">Match criteria includes port</param>
         /// <returns>Matching description or null if no description is matching</returns>
-        private EndpointDescription FindMatchingDescription(EndpointDescriptionCollection endpointDescriptions,
+        private EndpointDescription FindMatchingDescription(
+            EndpointDescriptionCollection endpointDescriptions,
             EndpointDescription match,
-            bool matchPort)
+            bool matchPort
+        )
         {
             Uri expectedUrl = Utils.ParseUri(match.EndpointUrl);
             for (int ii = 0; ii < endpointDescriptions.Count; ii++)
@@ -5414,9 +5874,13 @@ namespace Opc.Ua.Client
                 EndpointDescription serverEndpoint = endpointDescriptions[ii];
                 Uri actualUrl = Utils.ParseUri(serverEndpoint.EndpointUrl);
 
-                if (actualUrl != null &&
-                    actualUrl.Scheme == expectedUrl.Scheme &&
-                    (!matchPort || actualUrl.Port == expectedUrl.Port) && serverEndpoint.SecurityPolicyUri == m_endpoint.Description.SecurityPolicyUri && serverEndpoint.SecurityMode == m_endpoint.Description.SecurityMode)
+                if (
+                    actualUrl != null
+                    && actualUrl.Scheme == expectedUrl.Scheme
+                    && (!matchPort || actualUrl.Port == expectedUrl.Port)
+                    && serverEndpoint.SecurityPolicyUri == m_endpoint.Description.SecurityPolicyUri
+                    && serverEndpoint.SecurityMode == m_endpoint.Description.SecurityMode
+                )
                 {
                     return serverEndpoint;
                 }
@@ -5447,20 +5911,25 @@ namespace Opc.Ua.Client
         private IAsyncResult PrepareReconnectBeginActivate(
             ITransportWaitingConnection connection,
             ITransportChannel transportChannel
-            )
+        )
         {
             Utils.LogInfo("Session RECONNECT {0} starting.", SessionId);
 
             // create the client signature.
             byte[] dataToSign = Utils.Append(m_serverCertificate?.RawData, m_serverNonce);
             EndpointDescription endpoint = m_endpoint.Description;
-            SignatureData clientSignature = SecurityPolicies.Sign(m_instanceCertificate, endpoint.SecurityPolicyUri, dataToSign);
+            SignatureData clientSignature = SecurityPolicies.Sign(
+                m_instanceCertificate,
+                endpoint.SecurityPolicyUri,
+                dataToSign
+            );
 
             // check that the user identity is supported by the endpoint.
             UserTokenPolicy identityPolicy = endpoint.FindUserTokenPolicy(
                 m_identity.TokenType,
                 m_identity.IssuedTokenType,
-                endpoint.SecurityPolicyUri);
+                endpoint.SecurityPolicyUri
+            );
 
             if (identityPolicy == null)
             {
@@ -5468,7 +5937,8 @@ namespace Opc.Ua.Client
 
                 throw ServiceResultException.Create(
                     StatusCodes.BadUserAccessDenied,
-                    "Endpoint does not support the user identity type provided.");
+                    "Endpoint does not support the user identity type provided."
+                );
             }
 
             // select the security policy for the user token.
@@ -5492,7 +5962,8 @@ namespace Opc.Ua.Client
                 m_serverNonce,
                 tokenSecurityPolicyUri,
                 m_previousServerNonce,
-                m_endpoint.Description.SecurityMode);
+                m_endpoint.Description.SecurityMode
+            );
 
             // sign data with user token.
             UserIdentityToken identityToken = m_identity.GetIdentityToken();
@@ -5507,7 +5978,8 @@ namespace Opc.Ua.Client
                 m_eccServerEphemeralKey,
                 m_instanceCertificate,
                 m_instanceCertificateChain,
-                m_endpoint.Description.SecurityMode != MessageSecurityMode.None);
+                m_endpoint.Description.SecurityMode != MessageSecurityMode.None
+            );
 
             // send the software certificates assigned to the client.
             SignedSoftwareCertificateCollection clientSoftwareCertificates = GetSoftwareCertificates();
@@ -5533,7 +6005,8 @@ namespace Opc.Ua.Client
                         m_endpoint.Configuration,
                         m_instanceCertificate,
                         m_configuration.SecurityConfiguration.SendCertificateChain ? m_instanceCertificateChain : null,
-                        MessageContext);
+                        MessageContext
+                    );
 
                     // disposes the existing channel.
                     TransportChannel = channel;
@@ -5561,7 +6034,8 @@ namespace Opc.Ua.Client
                         m_endpoint.Configuration,
                         m_instanceCertificate,
                         m_configuration.SecurityConfiguration.SendCertificateChain ? m_instanceCertificateChain : null,
-                        MessageContext);
+                        MessageContext
+                    );
 
                     // disposes the existing channel.
                     TransportChannel = channel;
@@ -5579,7 +6053,8 @@ namespace Opc.Ua.Client
                 new ExtensionObject(identityToken),
                 userTokenSignature,
                 null,
-                null);
+                null
+            );
         }
 
         /// <summary>
@@ -5588,7 +6063,11 @@ namespace Opc.Ua.Client
         /// <param name="e">The exception that occurred during the republish operation.</param>
         /// <param name="subscriptionId">The subscription Id for which the republish was requested. </param>
         /// <param name="sequenceNumber">The sequencenumber for which the republish was requested.</param>
-        private (bool, ServiceResult) ProcessRepublishResponseError(Exception e, uint subscriptionId, uint sequenceNumber)
+        private (bool, ServiceResult) ProcessRepublishResponseError(
+            Exception e,
+            uint subscriptionId,
+            uint sequenceNumber
+        )
         {
             var error = new ServiceResult(e);
 
@@ -5623,10 +6102,7 @@ namespace Opc.Ua.Client
             {
                 try
                 {
-                    var args = new PublishErrorEventArgs(
-                        error,
-                        subscriptionId,
-                        sequenceNumber);
+                    var args = new PublishErrorEventArgs(error, subscriptionId, sequenceNumber);
 
                     callback(this, args);
                 }
@@ -5665,7 +6141,8 @@ namespace Opc.Ua.Client
                 ServiceResult result = SoftwareCertificate.Validate(
                     validator,
                     signedCertificate.CertificateData,
-                    out softwareCertificate);
+                    out softwareCertificate
+                );
 
                 if (ServiceResult.IsBad(result))
                 {
@@ -5687,7 +6164,8 @@ namespace Opc.Ua.Client
             uint subscriptionId,
             UInt32Collection availableSequenceNumbers,
             bool moreNotifications,
-            NotificationMessage notificationMessage)
+            NotificationMessage notificationMessage
+        )
         {
             Subscription subscription = null;
 
@@ -5705,8 +6183,15 @@ namespace Opc.Ua.Client
                 // create an acknowledgement to be sent back to the server.
                 if (notificationMessage.NotificationData.Count > 0)
                 {
-                    AddAcknowledgementToSend(acknowledgementsToSend, subscriptionId, notificationMessage.SequenceNumber);
-                    UpdateLatestSequenceNumberToSend(ref latestSequenceNumberToSend, notificationMessage.SequenceNumber);
+                    AddAcknowledgementToSend(
+                        acknowledgementsToSend,
+                        subscriptionId,
+                        notificationMessage.SequenceNumber
+                    );
+                    UpdateLatestSequenceNumberToSend(
+                        ref latestSequenceNumberToSend,
+                        notificationMessage.SequenceNumber
+                    );
                     _ = availableSequenceNumbers?.Remove(notificationMessage.SequenceNumber);
                 }
 
@@ -5719,21 +6204,34 @@ namespace Opc.Ua.Client
                     {
                         acknowledgementsToSend.Add(acknowledgement);
                     }
-                    else if (availableSequenceNumbers == null ||
-                        availableSequenceNumbers.Remove(acknowledgement.SequenceNumber))
+                    else if (
+                        availableSequenceNumbers == null
+                        || availableSequenceNumbers.Remove(acknowledgement.SequenceNumber)
+                    )
                     {
                         acknowledgementsToSend.Add(acknowledgement);
-                        UpdateLatestSequenceNumberToSend(ref latestSequenceNumberToSend, acknowledgement.SequenceNumber);
+                        UpdateLatestSequenceNumberToSend(
+                            ref latestSequenceNumberToSend,
+                            acknowledgement.SequenceNumber
+                        );
                     }
                     // a publish response may by processed out of order,
                     // allow for a tolerance until the sequence number is removed.
-                    else if (Math.Abs((int)(acknowledgement.SequenceNumber - latestSequenceNumberToSend)) < kPublishRequestSequenceNumberOutOfOrderThreshold)
+                    else if (
+                        Math.Abs((int)(acknowledgement.SequenceNumber - latestSequenceNumberToSend))
+                        < kPublishRequestSequenceNumberOutOfOrderThreshold
+                    )
                     {
                         acknowledgementsToSend.Add(acknowledgement);
                     }
                     else
                     {
-                        Utils.LogWarning("SessionId {0}, SubscriptionId {1}, Sequence number={2} was not received in the available sequence numbers.", SessionId, subscriptionId, acknowledgement.SequenceNumber);
+                        Utils.LogWarning(
+                            "SessionId {0}, SubscriptionId {1}, Sequence number={2} was not received in the available sequence numbers.",
+                            SessionId,
+                            subscriptionId,
+                            acknowledgement.SequenceNumber
+                        );
                     }
                 }
 
@@ -5742,10 +6240,18 @@ namespace Opc.Ua.Client
                 {
                     foreach (uint sequenceNumber in availableSequenceNumbers)
                     {
-                        if ((int)(latestSequenceNumberToSend - sequenceNumber) > kPublishRequestSequenceNumberOutdatedThreshold)
+                        if (
+                            (int)(latestSequenceNumberToSend - sequenceNumber)
+                            > kPublishRequestSequenceNumberOutdatedThreshold
+                        )
                         {
                             AddAcknowledgementToSend(acknowledgementsToSend, subscriptionId, sequenceNumber);
-                            Utils.LogWarning("SessionId {0}, SubscriptionId {1}, Sequence number={2} was outdated, acknowledged.", SessionId, subscriptionId, sequenceNumber);
+                            Utils.LogWarning(
+                                "SessionId {0}, SubscriptionId {1}, Sequence number={2} was outdated, acknowledged.",
+                                SessionId,
+                                subscriptionId,
+                                sequenceNumber
+                            );
                         }
                     }
                 }
@@ -5766,10 +6272,19 @@ namespace Opc.Ua.Client
                             // If the last sent sequence number is uint.Max do not display the warning; the counter rolled over
                             // If the last sent sequence number is greater or equal to the available sequence number (returned by the publish),
                             // a warning must be logged.
-                            if (((lastSentSequenceNumber >= availableSequenceNumber) && (lastSentSequenceNumber != uint.MaxValue)) ||
-                                (lastSentSequenceNumber == availableSequenceNumber) && (lastSentSequenceNumber == uint.MaxValue))
+                            if (
+                                (
+                                    (lastSentSequenceNumber >= availableSequenceNumber)
+                                    && (lastSentSequenceNumber != uint.MaxValue)
+                                )
+                                || (lastSentSequenceNumber == availableSequenceNumber)
+                                    && (lastSentSequenceNumber == uint.MaxValue)
+                            )
                             {
-                                Utils.LogWarning("Received sequence number which was already acknowledged={0}", availableSequenceNumber);
+                                Utils.LogWarning(
+                                    "Received sequence number which was already acknowledged={0}",
+                                    availableSequenceNumber
+                                );
                             }
                         }
                     }
@@ -5782,9 +6297,19 @@ namespace Opc.Ua.Client
                     // If the last sent sequence number is uint.Max do not display the warning; the counter rolled over
                     // If the last sent sequence number is greater or equal to the notificationMessage's sequence number (returned by the publish),
                     // a warning must be logged.
-                    if (((lastSentSequenceNumber >= notificationMessage.SequenceNumber) && (lastSentSequenceNumber != uint.MaxValue)) || (lastSentSequenceNumber == notificationMessage.SequenceNumber) && (lastSentSequenceNumber == uint.MaxValue))
+                    if (
+                        (
+                            (lastSentSequenceNumber >= notificationMessage.SequenceNumber)
+                            && (lastSentSequenceNumber != uint.MaxValue)
+                        )
+                        || (lastSentSequenceNumber == notificationMessage.SequenceNumber)
+                            && (lastSentSequenceNumber == uint.MaxValue)
+                    )
                     {
-                        Utils.LogWarning("Received sequence number which was already acknowledged={0}", notificationMessage.SequenceNumber);
+                        Utils.LogWarning(
+                            "Received sequence number which was already acknowledged={0}",
+                            notificationMessage.SequenceNumber
+                        );
                     }
                 }
 #endif
@@ -5793,7 +6318,11 @@ namespace Opc.Ua.Client
 
                 if (notificationMessage.IsEmpty)
                 {
-                    Utils.LogTrace("Empty notification message received for SessionId {0} with PublishTime {1}", SessionId, notificationMessage.PublishTime.ToLocalTime());
+                    Utils.LogTrace(
+                        "Empty notification message received for SessionId {0} with PublishTime {1}",
+                        SessionId,
+                        notificationMessage.PublishTime.ToLocalTime()
+                    );
                 }
             }
 
@@ -5815,15 +6344,32 @@ namespace Opc.Ua.Client
             {
 #if DEBUG
                 // Validate publish time and reject old values.
-                if (notificationMessage.PublishTime.AddMilliseconds(subscription.CurrentPublishingInterval * subscription.CurrentLifetimeCount) < DateTime.UtcNow)
+                if (
+                    notificationMessage.PublishTime.AddMilliseconds(
+                        subscription.CurrentPublishingInterval * subscription.CurrentLifetimeCount
+                    ) < DateTime.UtcNow
+                )
                 {
-                    Utils.LogTrace("PublishTime {0} in publish response is too old for SubscriptionId {1}.", notificationMessage.PublishTime.ToLocalTime(), subscription.Id);
+                    Utils.LogTrace(
+                        "PublishTime {0} in publish response is too old for SubscriptionId {1}.",
+                        notificationMessage.PublishTime.ToLocalTime(),
+                        subscription.Id
+                    );
                 }
 
                 // Validate publish time and reject old values.
-                if (notificationMessage.PublishTime > DateTime.UtcNow.AddMilliseconds(subscription.CurrentPublishingInterval * subscription.CurrentLifetimeCount))
+                if (
+                    notificationMessage.PublishTime
+                    > DateTime.UtcNow.AddMilliseconds(
+                        subscription.CurrentPublishingInterval * subscription.CurrentLifetimeCount
+                    )
+                )
                 {
-                    Utils.LogTrace("PublishTime {0} in publish response is newer than actual time for SubscriptionId {1}.", notificationMessage.PublishTime.ToLocalTime(), subscription.Id);
+                    Utils.LogTrace(
+                        "PublishTime {0} in publish response is newer than actual time for SubscriptionId {1}.",
+                        notificationMessage.PublishTime.ToLocalTime(),
+                        subscription.Id
+                    );
                 }
 #endif
                 // save the information that more notifications are expected
@@ -5847,7 +6393,10 @@ namespace Opc.Ua.Client
             else if (DeleteSubscriptionsOnClose && !m_reconnecting)
             {
                 // Delete abandoned subscription from server.
-                Utils.LogWarning("Received Publish Response for Unknown SubscriptionId={0}. Deleting abandoned subscription from server.", subscriptionId);
+                Utils.LogWarning(
+                    "Received Publish Response for Unknown SubscriptionId={0}. Deleting abandoned subscription from server.",
+                    subscriptionId
+                );
 
                 Task.Run(() => DeleteSubscription(subscriptionId));
             }
@@ -5877,7 +6426,9 @@ namespace Opc.Ua.Client
                     if (sre.StatusCode == StatusCodes.BadServiceUnsupported)
                     {
                         TransferSubscriptionsOnReconnect = false;
-                        Utils.LogWarning("Transfer subscription unsupported, TransferSubscriptionsOnReconnect set to false.");
+                        Utils.LogWarning(
+                            "Transfer subscription unsupported, TransferSubscriptionsOnReconnect set to false."
+                        );
                     }
                     else
                     {
@@ -5940,7 +6491,8 @@ namespace Opc.Ua.Client
                     null,
                     subscriptionIds,
                     out results,
-                    out diagnosticInfos);
+                    out diagnosticInfos
+                );
 
                 // validate response.
                 ValidateResponse(results, subscriptionIds);
@@ -5953,7 +6505,11 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "Session: Unexpected error while deleting subscription for SubscriptionId={0}.", subscriptionId);
+                Utils.LogError(
+                    e,
+                    "Session: Unexpected error while deleting subscription for SubscriptionId={0}.",
+                    subscriptionId
+                );
             }
         }
 
@@ -5968,12 +6524,17 @@ namespace Opc.Ua.Client
             {
                 if (clientCertificate == null)
                 {
-                    m_instanceCertificate = await LoadCertificateAsync(m_configuration, m_endpoint.Description.SecurityPolicyUri).ConfigureAwait(false);
+                    m_instanceCertificate = await LoadCertificateAsync(
+                            m_configuration,
+                            m_endpoint.Description.SecurityPolicyUri
+                        )
+                        .ConfigureAwait(false);
                     if (m_instanceCertificate == null)
                     {
                         throw new ServiceResultException(
                             StatusCodes.BadConfigurationError,
-                            "The client configuration does not specify an application instance certificate.");
+                            "The client configuration does not specify an application instance certificate."
+                        );
                     }
                 }
                 else
@@ -5989,29 +6550,41 @@ namespace Opc.Ua.Client
                         StatusCodes.BadConfigurationError,
                         "No private key for the application instance certificate. Subject={0}, Thumbprint={1}.",
                         m_instanceCertificate.Subject,
-                        m_instanceCertificate.Thumbprint);
+                        m_instanceCertificate.Thumbprint
+                    );
                 }
 
                 // load certificate chain.
-                m_instanceCertificateChain = await LoadCertificateChainAsync(m_configuration, m_instanceCertificate).ConfigureAwait(false);
+                m_instanceCertificateChain = await LoadCertificateChainAsync(m_configuration, m_instanceCertificate)
+                    .ConfigureAwait(false);
             }
         }
 
         /// <summary>
         /// Load certificate for connection.
         /// </summary>
-        private static async Task<X509Certificate2> LoadCertificateAsync(ApplicationConfiguration configuration, string securityProfile)
+        private static async Task<X509Certificate2> LoadCertificateAsync(
+            ApplicationConfiguration configuration,
+            string securityProfile
+        )
         {
-            return await configuration.SecurityConfiguration.FindApplicationCertificateAsync(securityProfile, true).ConfigureAwait(false)
-                ?? throw ServiceResultException.Create(StatusCodes.BadConfigurationError,
+            return await configuration
+                    .SecurityConfiguration.FindApplicationCertificateAsync(securityProfile, true)
+                    .ConfigureAwait(false)
+                ?? throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
                     "ApplicationCertificate for the security profile {0} cannot be found.",
-                    securityProfile);
+                    securityProfile
+                );
         }
 
         /// <summary>
         /// Load certificate chain for connection.
         /// </summary>
-        private static async Task<X509Certificate2Collection> LoadCertificateChainAsync(ApplicationConfiguration configuration, X509Certificate2 clientCertificate)
+        private static async Task<X509Certificate2Collection> LoadCertificateChainAsync(
+            ApplicationConfiguration configuration,
+            X509Certificate2 clientCertificate
+        )
         {
             X509Certificate2Collection clientCertificateChain = null;
             // load certificate chain.
@@ -6019,7 +6592,9 @@ namespace Opc.Ua.Client
             {
                 clientCertificateChain = new X509Certificate2Collection(clientCertificate);
                 List<CertificateIdentifier> issuers = [];
-                await configuration.CertificateValidator.GetIssuersAsync(clientCertificate, issuers).ConfigureAwait(false);
+                await configuration
+                    .CertificateValidator.GetIssuersAsync(clientCertificate, issuers)
+                    .ConfigureAwait(false);
 
                 for (int i = 0; i < issuers.Count; i++)
                 {
@@ -6029,7 +6604,11 @@ namespace Opc.Ua.Client
             return clientCertificateChain;
         }
 
-        private void AddAcknowledgementToSend(SubscriptionAcknowledgementCollection acknowledgementsToSend, uint subscriptionId, uint sequenceNumber)
+        private void AddAcknowledgementToSend(
+            SubscriptionAcknowledgementCollection acknowledgementsToSend,
+            uint subscriptionId,
+            uint sequenceNumber
+        )
         {
             if (acknowledgementsToSend == null)
             {
@@ -6041,7 +6620,7 @@ namespace Opc.Ua.Client
             var acknowledgement = new SubscriptionAcknowledgement
             {
                 SubscriptionId = subscriptionId,
-                SequenceNumber = sequenceNumber
+                SequenceNumber = sequenceNumber,
             };
 
             acknowledgementsToSend.Add(acknowledgement);
@@ -6055,8 +6634,7 @@ namespace Opc.Ua.Client
         /// <returns>If the publish request limit was reached.</returns>
         private bool BelowPublishRequestLimit(int requestCount)
         {
-            return (m_tooManyPublishRequests == 0) ||
-                (requestCount < m_tooManyPublishRequests);
+            return (m_tooManyPublishRequests == 0) || (requestCount < m_tooManyPublishRequests);
         }
 
         /// <summary>
@@ -6130,21 +6708,21 @@ namespace Opc.Ua.Client
         /// Creates resend data call requests for the subscriptions.
         /// </summary>
         /// <param name="subscriptions">The subscriptions to call resend data.</param>
-        private static CallMethodRequestCollection CreateCallRequestsForResendData(IEnumerable<Subscription> subscriptions)
+        private static CallMethodRequestCollection CreateCallRequestsForResendData(
+            IEnumerable<Subscription> subscriptions
+        )
         {
             var requests = new CallMethodRequestCollection();
 
             foreach (Subscription subscription in subscriptions)
             {
-                var inputArguments = new VariantCollection {
-                    new Variant(subscription.Id)
-                };
+                var inputArguments = new VariantCollection { new Variant(subscription.Id) };
 
                 var request = new CallMethodRequest
                 {
                     ObjectId = ObjectIds.Server,
                     MethodId = MethodIds.Server_ResendData,
-                    InputArguments = inputArguments
+                    InputArguments = inputArguments,
                 };
 
                 requests.Add(request);
@@ -6167,11 +6745,17 @@ namespace Opc.Ua.Client
                 {
                     if (subscription.Created && SessionId.Equals(subscription.Session.SessionId))
                     {
-                        throw new ServiceResultException(StatusCodes.BadInvalidState, Utils.Format("The subscriptionId {0} is already created.", subscription.Id));
+                        throw new ServiceResultException(
+                            StatusCodes.BadInvalidState,
+                            Utils.Format("The subscriptionId {0} is already created.", subscription.Id)
+                        );
                     }
                     if (subscription.TransferId == 0)
                     {
-                        throw new ServiceResultException(StatusCodes.BadInvalidState, Utils.Format("A subscription can not be transferred due to missing transfer Id."));
+                        throw new ServiceResultException(
+                            StatusCodes.BadInvalidState,
+                            Utils.Format("A subscription can not be transferred due to missing transfer Id.")
+                        );
                     }
                     subscriptionIds.Add(subscription.TransferId);
                 }
@@ -6212,7 +6796,10 @@ namespace Opc.Ua.Client
         /// Creates a request header with additional parameters
         /// for the ecc user token security policy, if needed.
         /// </summary>
-        private RequestHeader CreateRequestHeaderPerUserTokenPolicy(string identityTokenSecurityPolicyUri, string endpointSecurityPolicyUri)
+        private RequestHeader CreateRequestHeaderPerUserTokenPolicy(
+            string identityTokenSecurityPolicyUri,
+            string endpointSecurityPolicyUri
+        )
         {
             var requestHeader = new RequestHeader();
             string userTokenSecurityPolicyUri = identityTokenSecurityPolicyUri;
@@ -6225,11 +6812,9 @@ namespace Opc.Ua.Client
             if (EccUtils.IsEccPolicy(userTokenSecurityPolicyUri))
             {
                 var parameters = new AdditionalParametersType();
-                parameters.Parameters.Add(new KeyValuePair()
-                {
-                    Key = "ECDHPolicyUri",
-                    Value = userTokenSecurityPolicyUri
-                });
+                parameters.Parameters.Add(
+                    new KeyValuePair() { Key = "ECDHPolicyUri", Value = userTokenSecurityPolicyUri }
+                );
                 requestHeader.AdditionalHeader = new ExtensionObject(parameters);
             }
 
@@ -6242,7 +6827,10 @@ namespace Opc.Ua.Client
         /// <param name="responseHeader"></param>
         /// <param name="serverCertificate"></param>
         /// <exception cref="ServiceResultException"></exception>
-        protected virtual void ProcessResponseAdditionalHeader(ResponseHeader responseHeader, X509Certificate2 serverCertificate)
+        protected virtual void ProcessResponseAdditionalHeader(
+            ResponseHeader responseHeader,
+            X509Certificate2 serverCertificate
+        )
         {
             if (ExtensionObject.ToEncodeable(responseHeader?.AdditionalHeader) is AdditionalParametersType parameters)
             {
@@ -6255,21 +6843,31 @@ namespace Opc.Ua.Client
                         {
                             throw new ServiceResultException(
                                 (uint)(StatusCode)ii.Value.Value,
-                                "Server could not provide an ECDHKey. User authentication not possible.");
+                                "Server could not provide an ECDHKey. User authentication not possible."
+                            );
                         }
 
                         if (ExtensionObject.ToEncodeable(ii.Value.Value as ExtensionObject) is not EphemeralKeyType key)
                         {
                             throw new ServiceResultException(
                                 StatusCodes.BadDecodingError,
-                                "Server did not provide a valid ECDHKey. User authentication not possible.");
+                                "Server did not provide a valid ECDHKey. User authentication not possible."
+                            );
                         }
 
-                        if (!EccUtils.Verify(new ArraySegment<byte>(key.PublicKey), key.Signature, serverCertificate, m_userTokenSecurityPolicyUri))
+                        if (
+                            !EccUtils.Verify(
+                                new ArraySegment<byte>(key.PublicKey),
+                                key.Signature,
+                                serverCertificate,
+                                m_userTokenSecurityPolicyUri
+                            )
+                        )
                         {
                             throw new ServiceResultException(
                                 StatusCodes.BadDecodingError,
-                                "Could not verify signature on ECDHKey. User authentication not possible.");
+                                "Could not verify signature on ECDHKey. User authentication not possible."
+                            );
                         }
 
                         m_eccServerEphemeralKey = Nonce.CreateNonce(m_userTokenSecurityPolicyUri, key.PublicKey);
@@ -6390,10 +6988,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Creates a new instance.
         /// </summary>
-        public KeepAliveEventArgs(
-            ServiceResult status,
-            ServerState currentState,
-            DateTime currentTime)
+        public KeepAliveEventArgs(ServiceResult status, ServerState currentState, DateTime currentTime)
         {
             Status = status;
             CurrentState = currentState;
@@ -6432,7 +7027,8 @@ namespace Opc.Ua.Client
         public NotificationEventArgs(
             Subscription subscription,
             NotificationMessage notificationMessage,
-            IList<string> stringTable)
+            IList<string> stringTable
+        )
         {
             Subscription = subscription;
             NotificationMessage = notificationMessage;
@@ -6511,7 +7107,8 @@ namespace Opc.Ua.Client
         /// </summary>
         public PublishSequenceNumbersToAcknowledgeEventArgs(
             SubscriptionAcknowledgementCollection acknowledgementsToSend,
-            SubscriptionAcknowledgementCollection deferredAcknowledgementsToSend)
+            SubscriptionAcknowledgementCollection deferredAcknowledgementsToSend
+        )
         {
             AcknowledgementsToSend = acknowledgementsToSend;
             DeferredAcknowledgementsToSend = deferredAcknowledgementsToSend;

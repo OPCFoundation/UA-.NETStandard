@@ -101,9 +101,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             /// </summary>
             /// <param name="generator">The X509SignatureGenerator to sign the digest.</param>
             /// <param name="hashAlgorithm">The hash algorithm to use for the signature.</param>
-            public X509StreamCalculator(
-                X509SignatureGenerator generator,
-                HashAlgorithmName hashAlgorithm)
+            public X509StreamCalculator(X509SignatureGenerator generator, HashAlgorithmName hashAlgorithm)
             {
                 Stream = new MemoryStream();
                 m_generator = generator;

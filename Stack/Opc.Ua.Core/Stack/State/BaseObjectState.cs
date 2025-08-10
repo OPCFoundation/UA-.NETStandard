@@ -22,7 +22,8 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the instance with its default attribute values.
         /// </summary>
-        public BaseObjectState(NodeState parent) : base(NodeClass.Object, parent)
+        public BaseObjectState(NodeState parent)
+            : base(NodeClass.Object, parent)
         {
             m_eventNotifier = EventNotifiers.None;
 
@@ -104,7 +105,6 @@ namespace Opc.Ua
         public byte EventNotifier
         {
             get => m_eventNotifier;
-
             set
             {
                 if (m_eventNotifier != value)
@@ -234,7 +234,8 @@ namespace Opc.Ua
         protected override ServiceResult ReadNonValueAttribute(
             ISystemContext context,
             uint attributeId,
-            ref object value)
+            ref object value
+        )
         {
             ServiceResult result = null;
 
@@ -264,10 +265,7 @@ namespace Opc.Ua
         /// <summary>
         /// Write the value for any non-value attribute.
         /// </summary>
-        protected override ServiceResult WriteNonValueAttribute(
-            ISystemContext context,
-            uint attributeId,
-            object value)
+        protected override ServiceResult WriteNonValueAttribute(ISystemContext context, uint attributeId, object value)
         {
             ServiceResult result = null;
 
@@ -317,9 +315,8 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the instance with its default attribute values.
         /// </summary>
-        public FolderState(NodeState parent) : base(parent)
-        {
-        }
+        public FolderState(NodeState parent)
+            : base(parent) { }
 
         /// <summary>
         /// Initializes the instance with the default values.

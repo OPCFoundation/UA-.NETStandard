@@ -23,10 +23,12 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Queue Factories to run the test with
         /// </summary>
-        public static readonly object[] FixtureArgs = [
-            new object [] { new MonitoredItemQueueFactory()},
-            new object [] { new DurableMonitoredItemQueueFactory() }
+        public static readonly object[] FixtureArgs =
+        [
+            new object[] { new MonitoredItemQueueFactory() },
+            new object[] { new DurableMonitoredItemQueueFactory() },
         ];
+
         public DurableMonitoredItemTests(IMonitoredItemQueueFactory factory)
         {
             m_factory = factory;
@@ -251,6 +253,7 @@ namespace Opc.Ua.Server.Tests
                 queue.Dequeue(out _, out _);
             }
         }
+
         [Benchmark]
         public void QueueDequeueValuesWithOverflow()
         {
@@ -278,16 +281,12 @@ namespace Opc.Ua.Server.Tests
 
             for (int j = 0; j < 10_000; j++)
             {
-                var value = new EventFieldList
-                {
-                    EventFields = [
-                        new Variant(true)
-                    ]
-                };
+                var value = new EventFieldList { EventFields = [new Variant(true)] };
                 queue.Enqueue(value);
                 queue.Dequeue(out _);
             }
         }
+
         [Benchmark]
         public void QueueDequeueEventssWithOverflow()
         {
@@ -298,12 +297,7 @@ namespace Opc.Ua.Server.Tests
             {
                 for (int i = 0; i < 100; i++)
                 {
-                    var value = new EventFieldList
-                    {
-                        EventFields = [
-                        new Variant(true)
-                    ]
-                    };
+                    var value = new EventFieldList { EventFields = [new Variant(true)] };
                     queue.Enqueue(value);
                 }
                 for (int v = 0; v < 90; v++)
@@ -330,23 +324,13 @@ namespace Opc.Ua.Server.Tests
             Assert.That(queue.QueueSize, Is.EqualTo(2));
             Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
 
-            var value = new EventFieldList
-            {
-                EventFields = [
-                        new Variant(true)
-                    ]
-            };
+            var value = new EventFieldList { EventFields = [new Variant(true)] };
 
             queue.Enqueue(value);
 
             Assert.That(queue.ItemsInQueue, Is.EqualTo(1));
 
-            var value2 = new EventFieldList
-            {
-                EventFields = [
-                        new Variant(false)
-                    ]
-            };
+            var value2 = new EventFieldList { EventFields = [new Variant(false)] };
 
             queue.Enqueue(value2);
 
@@ -378,23 +362,13 @@ namespace Opc.Ua.Server.Tests
 
             queue.SetQueueSize(2, false);
 
-            var value = new EventFieldList
-            {
-                EventFields = [
-                        new Variant(true)
-                    ]
-            };
+            var value = new EventFieldList { EventFields = [new Variant(true)] };
 
             queue.Enqueue(value);
 
             Assert.That(queue.ItemsInQueue, Is.EqualTo(1));
 
-            var value2 = new EventFieldList
-            {
-                EventFields = [
-                        new Variant(false)
-                    ]
-            };
+            var value2 = new EventFieldList { EventFields = [new Variant(false)] };
 
             queue.Enqueue(value2);
 
@@ -443,23 +417,13 @@ namespace Opc.Ua.Server.Tests
             Assert.That(queue.QueueSize, Is.EqualTo(1));
             Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
 
-            var value = new EventFieldList
-            {
-                EventFields = [
-                        new Variant(true)
-                    ]
-            };
+            var value = new EventFieldList { EventFields = [new Variant(true)] };
 
             queue.Enqueue(value);
 
             Assert.That(queue.ItemsInQueue, Is.EqualTo(1));
 
-            var value2 = new EventFieldList
-            {
-                EventFields = [
-                        new Variant(false)
-                    ]
-            };
+            var value2 = new EventFieldList { EventFields = [new Variant(false)] };
 
             queue.Enqueue(value2);
 
@@ -490,10 +454,8 @@ namespace Opc.Ua.Server.Tests
 
             var value = new EventFieldList
             {
-                EventFields = [
-                        new Variant(true)
-                    ],
-                Handle = new AuditSessionEventState(null)
+                EventFields = [new Variant(true)],
+                Handle = new AuditSessionEventState(null),
             };
 
             queue.Enqueue(value);
@@ -501,10 +463,8 @@ namespace Opc.Ua.Server.Tests
             Assert.That(queue.ItemsInQueue, Is.EqualTo(1));
             var value2 = new EventFieldList
             {
-                EventFields = [
-                        new Variant(false)
-                    ],
-                Handle = new AuditUrlMismatchEventState(null)
+                EventFields = [new Variant(false)],
+                Handle = new AuditUrlMismatchEventState(null),
             };
 
             bool result = queue.IsEventContainedInQueue((IFilterTarget)value.Handle);
@@ -538,12 +498,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(queue.QueueSize, Is.EqualTo(10));
             Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
 
-            var value = new EventFieldList
-            {
-                EventFields = [
-                        new Variant(true)
-                    ]
-            };
+            var value = new EventFieldList { EventFields = [new Variant(true)] };
 
             for (int i = 0; i < 10; i++)
             {
@@ -579,12 +534,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(queue.QueueSize, Is.EqualTo(10));
             Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
 
-            var value = new EventFieldList
-            {
-                EventFields = [
-                        new Variant(true)
-                    ]
-            };
+            var value = new EventFieldList { EventFields = [new Variant(true)] };
 
             for (int i = 0; i < 10; i++)
             {
@@ -630,24 +580,14 @@ namespace Opc.Ua.Server.Tests
             Assert.That(queue.QueueSize, Is.EqualTo(10));
             Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
 
-            var value = new EventFieldList
-            {
-                EventFields = [
-                        new Variant(true)
-                    ]
-            };
+            var value = new EventFieldList { EventFields = [new Variant(true)] };
 
             for (int i = 0; i < 5; i++)
             {
                 queue.Enqueue(value);
             }
 
-            var value2 = new EventFieldList
-            {
-                EventFields = [
-                        new Variant(false)
-                    ]
-            };
+            var value2 = new EventFieldList { EventFields = [new Variant(false)] };
 
             for (int i = 0; i < 5; i++)
             {
@@ -688,24 +628,14 @@ namespace Opc.Ua.Server.Tests
             Assert.That(queue.QueueSize, Is.EqualTo(10));
             Assert.That(queue.ItemsInQueue, Is.EqualTo(0));
 
-            var value = new EventFieldList
-            {
-                EventFields = [
-                        new Variant(true)
-                    ]
-            };
+            var value = new EventFieldList { EventFields = [new Variant(true)] };
 
             for (int i = 0; i < 5; i++)
             {
                 queue.Enqueue(value);
             }
 
-            var value2 = new EventFieldList
-            {
-                EventFields = [
-                        new Variant(false)
-                    ]
-            };
+            var value2 = new EventFieldList { EventFields = [new Variant(false)] };
 
             for (int i = 0; i < 5; i++)
             {
@@ -743,12 +673,7 @@ namespace Opc.Ua.Server.Tests
 
             queueHandler.SetQueueSize(1, false);
 
-            var value = new EventFieldList
-            {
-                EventFields = [
-                        new Variant(true)
-                    ]
-            };
+            var value = new EventFieldList { EventFields = [new Variant(true)] };
 
             queueHandler.QueueEvent(value);
 
@@ -765,21 +690,11 @@ namespace Opc.Ua.Server.Tests
 
             queueHandler.SetQueueSize(1, true);
 
-            var value = new EventFieldList
-            {
-                EventFields = [
-                        new Variant(true)
-                    ]
-            };
+            var value = new EventFieldList { EventFields = [new Variant(true)] };
 
             queueHandler.QueueEvent(value);
 
-            var value2 = new EventFieldList
-            {
-                EventFields = [
-                        new Variant(true)
-                    ]
-            };
+            var value2 = new EventFieldList { EventFields = [new Variant(true)] };
 
             queueHandler.QueueEvent(value2);
 
@@ -800,21 +715,11 @@ namespace Opc.Ua.Server.Tests
 
             queueHandler.SetQueueSize(2, false);
 
-            var value = new EventFieldList
-            {
-                EventFields = [
-                        new Variant(true)
-                    ]
-            };
+            var value = new EventFieldList { EventFields = [new Variant(true)] };
 
             queueHandler.QueueEvent(value);
 
-            var value2 = new EventFieldList
-            {
-                EventFields = [
-                        new Variant(true)
-                    ]
-            };
+            var value2 = new EventFieldList { EventFields = [new Variant(true)] };
 
             queueHandler.QueueEvent(value2);
 
@@ -846,21 +751,11 @@ namespace Opc.Ua.Server.Tests
 
             queueHandler.SetQueueSize(2, false);
 
-            var value = new EventFieldList
-            {
-                EventFields = [
-                        new Variant(true)
-                    ]
-            };
+            var value = new EventFieldList { EventFields = [new Variant(true)] };
 
             queueHandler.QueueEvent(value);
 
-            var value2 = new EventFieldList
-            {
-                EventFields = [
-                        new Variant(true)
-                    ]
-            };
+            var value2 = new EventFieldList { EventFields = [new Variant(true)] };
 
             queueHandler.QueueEvent(value2);
 
@@ -1330,7 +1225,10 @@ namespace Opc.Ua.Server.Tests
 
             for (uint i = 0; i < 3000; i++)
             {
-                Assert.That(queue.Dequeue(out EventFieldList value), string.Format(CultureInfo.InvariantCulture, "Dequeue operation failed for the {0}st item", i));
+                Assert.That(
+                    queue.Dequeue(out EventFieldList value),
+                    string.Format(CultureInfo.InvariantCulture, "Dequeue operation failed for the {0}st item", i)
+                );
                 Assert.That(i, Is.EqualTo(value.ClientHandle));
 
                 //simulate publishing operation
@@ -1363,7 +1261,10 @@ namespace Opc.Ua.Server.Tests
 
             for (uint i = 0; i < 3000; i++)
             {
-                Assert.That(queue.Dequeue(out DataValue value, out ServiceResult _), string.Format(CultureInfo.InvariantCulture, "Dequeue operation failed for the {0}st item", i));
+                Assert.That(
+                    queue.Dequeue(out DataValue value, out ServiceResult _),
+                    string.Format(CultureInfo.InvariantCulture, "Dequeue operation failed for the {0}st item", i)
+                );
                 Assert.That(i, Is.EqualTo((uint)value.Value));
 
                 //simulate publishing operation
@@ -1404,7 +1305,7 @@ namespace Opc.Ua.Server.Tests
                 false,
                 1000,
                 true
-                );
+            );
         }
     }
 }

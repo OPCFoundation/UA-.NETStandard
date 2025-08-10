@@ -1,12 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>$(AppTargetFramework)</TargetFramework>
     <AssemblyName>Encoders.Fuzz.Tools</AssemblyName>
     <RootNamespace>Encoders.Fuzz.Tools</RootNamespace>
   </PropertyGroup>
-
   <ItemGroup>
     <Compile Include="..\Fuzz\FuzzableCode.cs" Link="FuzzableCode.cs" />
     <Compile Include="..\Fuzz\FuzzableCode.BinaryDecoder.cs" Link="FuzzableCode.BinaryDecoder.cs" />
@@ -18,22 +16,19 @@
     <Compile Include="..\..\common\Fuzz.Tools\Testcases.cs" Link="Testcases.cs" />
     <Compile Include="..\..\common\Fuzz.Tools\Logging.cs" Link="Logging.cs" />
   </ItemGroup>
-
   <ItemGroup>
-    <PackageReference Include="SharpFuzz"/>
-    <PackageReference Include="Mono.Options"/>
-    <PackageReference Include="Microsoft.Extensions.Logging"/>
+    <PackageReference Include="SharpFuzz" />
+    <PackageReference Include="Mono.Options" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
     <PackageReference Include="Serilog" />
-    <PackageReference Include="Serilog.Expressions"/>
-    <PackageReference Include="Serilog.Sinks.Console"/>
-    <PackageReference Include="Serilog.Extensions.Logging"/>
-    <PackageReference Include="Serilog.Sinks.File"/>
-    <PackageReference Include="Serilog.Sinks.Debug"/>
+    <PackageReference Include="Serilog.Expressions" />
+    <PackageReference Include="Serilog.Sinks.Console" />
+    <PackageReference Include="Serilog.Extensions.Logging" />
+    <PackageReference Include="Serilog.Sinks.File" />
+    <PackageReference Include="Serilog.Sinks.Debug" />
   </ItemGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\..\..\Libraries\Opc.Ua.Security.Certificates\Opc.Ua.Security.Certificates.csproj" />
   </ItemGroup>
-
 </Project>

@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-
 using Opc.Ua;
 
 namespace Alarms
@@ -47,8 +46,20 @@ namespace Alarms
             int interval,
             bool optional = true,
             double maxShelveTime = AlarmDefines.NORMAL_MAX_TIME_SHELVED,
-            bool create = true) :
-            base(alarmNodeManager, parent, trigger, name, alarmConditionType, controllerType, interval, optional, maxShelveTime, false)
+            bool create = true
+        )
+            : base(
+                alarmNodeManager,
+                parent,
+                trigger,
+                name,
+                alarmConditionType,
+                controllerType,
+                interval,
+                optional,
+                maxShelveTime,
+                false
+            )
         {
             if (create)
             {
@@ -60,35 +71,21 @@ namespace Alarms
             uint alarmTypeIdentifier,
             string name,
             double maxTimeShelved = AlarmDefines.NORMAL_MAX_TIME_SHELVED,
-            bool isLimit = true)
+            bool isLimit = true
+        )
         {
             // Create an alarm and trigger name - Create a base method for creating the trigger, just provide the name
 
-            if (m_alarm == null)
-            {
-                m_alarm = new LimitAlarmState(m_parent);
-            }
+            m_alarm ??= new LimitAlarmState(m_parent);
 
             m_isLimit = isLimit;
 
             LimitAlarmState alarm = GetAlarm();
 
-            if (alarm.HighLimit == null)
-            {
-                alarm.HighLimit = new PropertyState<double>(alarm);
-            }
-            if (alarm.HighHighLimit == null)
-            {
-                alarm.HighHighLimit = new PropertyState<double>(alarm);
-            }
-            if (alarm.LowLimit == null)
-            {
-                alarm.LowLimit = new PropertyState<double>(alarm);
-            }
-            if (alarm.LowLowLimit == null)
-            {
-                alarm.LowLowLimit = new PropertyState<double>(alarm);
-            }
+            alarm.HighLimit ??= new PropertyState<double>(alarm);
+            alarm.HighHighLimit ??= new PropertyState<double>(alarm);
+            alarm.LowLimit ??= new PropertyState<double>(alarm);
+            alarm.LowLowLimit ??= new PropertyState<double>(alarm);
 
             if (Optional)
             {

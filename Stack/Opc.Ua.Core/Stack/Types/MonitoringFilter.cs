@@ -33,7 +33,8 @@ namespace Opc.Ua
                 return ServiceResult.Create(
                     StatusCodes.BadDeadbandFilterInvalid,
                     "Deadband type '{0}' is not recognized.",
-                    DeadbandType);
+                    DeadbandType
+                );
             }
 
             // check data change trigger enumeration.
@@ -42,7 +43,8 @@ namespace Opc.Ua
                 return ServiceResult.Create(
                     StatusCodes.BadDeadbandFilterInvalid,
                     "Deadband trigger '{0}' is not recognized.",
-                    Trigger);
+                    Trigger
+                );
             }
 
             // deadband value must always be greater than 0.
@@ -51,7 +53,8 @@ namespace Opc.Ua
                 return ServiceResult.Create(
                     StatusCodes.BadDeadbandFilterInvalid,
                     "Deadband value '{0}' cannot be less than zero.",
-                    DeadbandValue);
+                    DeadbandValue
+                );
             }
 
             // deadband percentage must be less than 100.
@@ -60,7 +63,8 @@ namespace Opc.Ua
                 return ServiceResult.Create(
                     StatusCodes.BadDeadbandFilterInvalid,
                     "Percentage deadband value '{0}' cannot be greater than 100.",
-                    DeadbandValue);
+                    DeadbandValue
+                );
             }
 
             // passed initial validation.
@@ -114,11 +118,7 @@ namespace Opc.Ua
         /// </summary>
         public void AddSelectClause(NodeId eventTypeId, QualifiedName propertyName)
         {
-            var clause = new SimpleAttributeOperand
-            {
-                TypeDefinitionId = eventTypeId,
-                AttributeId = Attributes.Value
-            };
+            var clause = new SimpleAttributeOperand { TypeDefinitionId = eventTypeId, AttributeId = Attributes.Value };
 
             clause.BrowsePath.Add(propertyName);
 
@@ -130,11 +130,7 @@ namespace Opc.Ua
         /// </summary>
         public void AddSelectClause(NodeId eventTypeId, string browsePath, uint attributeId)
         {
-            var clause = new SimpleAttributeOperand
-            {
-                TypeDefinitionId = eventTypeId,
-                AttributeId = attributeId
-            };
+            var clause = new SimpleAttributeOperand { TypeDefinitionId = eventTypeId, AttributeId = attributeId };
 
             if (!string.IsNullOrEmpty(browsePath))
             {
@@ -152,19 +148,14 @@ namespace Opc.Ua
             /// <summary>
             /// Initializes the object.
             /// </summary>
-            public Result()
-            {
-            }
+            public Result() { }
 
             /// <summary>
             /// Casts ServiceResult to an ElementResult.
             /// </summary>
             public static implicit operator Result(ServiceResult status)
             {
-                return new Result
-                {
-                    Status = status
-                };
+                return new Result { Status = status };
             }
 
             /// <summary>
@@ -183,28 +174,44 @@ namespace Opc.Ua
                 {
                     if (ServiceResult.IsBad(selectResult))
                     {
-                        buffer.AppendFormat(CultureInfo.InvariantCulture, "Select Clause Error: {0}", selectResult.ToString());
+                        buffer.AppendFormat(
+                            CultureInfo.InvariantCulture,
+                            "Select Clause Error: {0}",
+                            selectResult.ToString()
+                        );
                         buffer.AppendLine();
                     }
                 }
 
                 if (ServiceResult.IsBad(WhereClauseResult.Status))
                 {
-                    buffer.AppendFormat(CultureInfo.InvariantCulture, "Where Clause Error: {0}", WhereClauseResult.Status.ToString());
+                    buffer.AppendFormat(
+                        CultureInfo.InvariantCulture,
+                        "Where Clause Error: {0}",
+                        WhereClauseResult.Status.ToString()
+                    );
                     buffer.AppendLine();
 
                     foreach (ContentFilter.ElementResult elementResult in WhereClauseResult.ElementResults)
                     {
                         if (elementResult != null && ServiceResult.IsBad(elementResult.Status))
                         {
-                            buffer.AppendFormat(CultureInfo.InvariantCulture, "Element Error: {0}", elementResult.Status.ToString());
+                            buffer.AppendFormat(
+                                CultureInfo.InvariantCulture,
+                                "Element Error: {0}",
+                                elementResult.Status.ToString()
+                            );
                             buffer.AppendLine();
 
                             foreach (ServiceResult operandResult in elementResult.OperandResults)
                             {
                                 if (ServiceResult.IsBad(operandResult))
                                 {
-                                    buffer.AppendFormat(CultureInfo.InvariantCulture, "Operand Error: {0}", operandResult.ToString());
+                                    buffer.AppendFormat(
+                                        CultureInfo.InvariantCulture,
+                                        "Operand Error: {0}",
+                                        operandResult.ToString()
+                                    );
                                     buffer.AppendLine();
                                 }
                             }
@@ -239,7 +246,9 @@ namespace Opc.Ua
                         if (ServiceResult.IsBad(clauseResult))
                         {
                             result.SelectClauseResults.Add(clauseResult.StatusCode);
-                            result.SelectClauseDiagnosticInfos.Add(new DiagnosticInfo(clauseResult, diagnosticsMasks, false, stringTable));
+                            result.SelectClauseDiagnosticInfos.Add(
+                                new DiagnosticInfo(clauseResult, diagnosticsMasks, false, stringTable)
+                            );
                         }
                         else
                         {
@@ -272,7 +281,8 @@ namespace Opc.Ua
             {
                 result.Status = ServiceResult.Create(
                     StatusCodes.BadStructureMissing,
-                    "EventFilter does not specify any Select Clauses.");
+                    "EventFilter does not specify any Select Clauses."
+                );
 
                 return result;
             }
@@ -281,7 +291,8 @@ namespace Opc.Ua
             {
                 result.Status = ServiceResult.Create(
                     StatusCodes.BadStructureMissing,
-                    "EventFilter does not specify any Where Clauses.");
+                    "EventFilter does not specify any Where Clauses."
+                );
 
                 return result;
             }
@@ -300,7 +311,8 @@ namespace Opc.Ua
                 {
                     clauseResult = ServiceResult.Create(
                         StatusCodes.BadStructureMissing,
-                        "EventFilterSelectClause cannot be null in EventFilter SelectClause.");
+                        "EventFilterSelectClause cannot be null in EventFilter SelectClause."
+                    );
 
                     result.SelectClauseResults.Add(clauseResult);
                     error = true;
@@ -317,7 +329,7 @@ namespace Opc.Ua
                     continue;
                 }
 
-                // clause ok.                    
+                // clause ok.
                 result.SelectClauseResults.Add(null);
             }
 
@@ -330,7 +342,7 @@ namespace Opc.Ua
                 result.SelectClauseResults.Clear();
             }
 
-            // validate where clause.          
+            // validate where clause.
             result.WhereClauseResult = m_whereClause.Validate(context);
 
             if (ServiceResult.IsBad(result.WhereClauseResult.Status))
@@ -350,9 +362,7 @@ namespace Opc.Ua
         /// <summary>
         /// Creates an operand that references a component/property of a type.
         /// </summary>
-        public SimpleAttributeOperand(
-            NodeId typeId,
-            QualifiedName browsePath)
+        public SimpleAttributeOperand(NodeId typeId, QualifiedName browsePath)
         {
             m_typeDefinitionId = typeId;
             m_browsePath = [];
@@ -365,9 +375,7 @@ namespace Opc.Ua
         /// <summary>
         /// Creates an operand that references a component/property of a type.
         /// </summary>
-        public SimpleAttributeOperand(
-            NodeId typeId,
-            IList<QualifiedName> browsePath)
+        public SimpleAttributeOperand(NodeId typeId, IList<QualifiedName> browsePath)
         {
             m_typeDefinitionId = typeId;
             m_browsePath = [.. browsePath];
@@ -378,10 +386,7 @@ namespace Opc.Ua
         /// <summary>
         /// Creates an operand that references a component/property of a type.
         /// </summary>
-        public SimpleAttributeOperand(
-            FilterContext context,
-            ExpandedNodeId typeId,
-            IList<QualifiedName> browsePath)
+        public SimpleAttributeOperand(FilterContext context, ExpandedNodeId typeId, IList<QualifiedName> browsePath)
         {
             m_typeDefinitionId = ExpandedNodeId.ToNodeId(typeId, context.NamespaceUris);
             m_browsePath = [.. browsePath];
@@ -397,7 +402,8 @@ namespace Opc.Ua
             ExpandedNodeId typeDefinitionId,
             string browsePath,
             uint attributeId,
-            string indexRange)
+            string indexRange
+        )
         {
             m_typeDefinitionId = ExpandedNodeId.ToNodeId(typeDefinitionId, context.NamespaceUris);
             m_browsePath = Parse(browsePath);
@@ -474,7 +480,8 @@ namespace Opc.Ua
                 return ServiceResult.Create(
                     StatusCodes.BadAttributeIdInvalid,
                     "SimpleAttributeOperand does not specify a valid AttributeId ({0}).",
-                    m_attributeId);
+                    m_attributeId
+                );
             }
 
             // initialize as empty.
@@ -493,7 +500,8 @@ namespace Opc.Ua
                         e,
                         StatusCodes.BadIndexRangeInvalid,
                         "SimpleAttributeOperand does not specify a valid BrowsePath ({0}).",
-                        m_indexRange);
+                        m_indexRange
+                    );
                 }
 
                 if (m_attributeId != Attributes.Value)
@@ -501,7 +509,8 @@ namespace Opc.Ua
                     return ServiceResult.Create(
                         StatusCodes.BadIndexRangeInvalid,
                         "SimpleAttributeOperand specifies an IndexRange for an Attribute other than Value ({0}).",
-                        m_attributeId);
+                        m_attributeId
+                    );
                 }
             }
 

@@ -43,8 +43,13 @@ namespace Opc.Ua.Server
         {
             if (createDurable)
             {
-                Utils.LogError("DataChangeMonitoredItemQueue does not support durable queues, please provide full implementation of IDurableMonitoredItemQueue using Server.CreateDurableMonitoredItemQueueFactory to supply own factory");
-                throw new ArgumentException("DataChangeMonitoredItemQueue does not support durable Queues", nameof(createDurable));
+                Utils.LogError(
+                    "DataChangeMonitoredItemQueue does not support durable queues, please provide full implementation of IDurableMonitoredItemQueue using Server.CreateDurableMonitoredItemQueueFactory to supply own factory"
+                );
+                throw new ArgumentException(
+                    "DataChangeMonitoredItemQueue does not support durable Queues",
+                    nameof(createDurable)
+                );
             }
             MonitoredItemId = monitoredItemId;
             m_values = null;
@@ -92,6 +97,7 @@ namespace Opc.Ua.Server
                 return m_values.Length - m_start + m_end;
             }
         }
+
         /// <inheritdoc/>
         public virtual bool IsDurable => false;
 
@@ -254,7 +260,6 @@ namespace Opc.Ua.Server
                 m_start = -1;
                 m_end = 0;
             }
-
             // check for wrap around.
             else if (m_start >= m_values.Length)
             {
@@ -280,14 +285,17 @@ namespace Opc.Ua.Server
         /// the stored data values
         /// </summary>
         protected DataValue[] m_values;
+
         /// <summary>
         /// the stored errors
         /// </summary>
         protected ServiceResult[] m_errors;
+
         /// <summary>
         /// the start of the buffer
         /// </summary>
         protected int m_start;
+
         /// <summary>
         /// the end of the buffer
         /// </summary>

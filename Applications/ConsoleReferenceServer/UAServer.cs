@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -40,7 +40,8 @@ using Opc.Ua.Server;
 
 namespace Quickstarts
 {
-    public class UAServer<T> where T : StandardServer, new()
+    public class UAServer<T>
+        where T : StandardServer, new()
     {
         public ApplicationInstance Application => m_application;
         public ApplicationConfiguration Configuration => m_application.ApplicationConfiguration;
@@ -71,16 +72,16 @@ namespace Quickstarts
 
                 ApplicationInstance.MessageDlg = new ApplicationMessageDlg(m_output);
                 CertificatePasswordProvider PasswordProvider = new CertificatePasswordProvider(Password);
-                m_application = new ApplicationInstance {
+                m_application = new ApplicationInstance
+                {
                     ApplicationName = applicationName,
                     ApplicationType = ApplicationType.Server,
                     ConfigSectionName = configSectionName,
-                    CertificatePasswordProvider = PasswordProvider
+                    CertificatePasswordProvider = PasswordProvider,
                 };
 
                 // load the application configuration.
                 await m_application.LoadApplicationConfiguration(false).ConfigureAwait(false);
-
             }
             catch (Exception ex)
             {
@@ -102,7 +103,9 @@ namespace Quickstarts
                 }
 
                 // check the application certificate.
-                bool haveAppCertificate = await m_application.CheckApplicationInstanceCertificates(false).ConfigureAwait(false);
+                bool haveAppCertificate = await m_application
+                    .CheckApplicationInstanceCertificates(false)
+                    .ConfigureAwait(false);
                 if (!haveAppCertificate)
                 {
                     throw new ErrorExitException("Application instance certificate invalid!");
@@ -110,7 +113,9 @@ namespace Quickstarts
 
                 if (!config.SecurityConfiguration.AutoAcceptUntrustedCertificates)
                 {
-                    config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
+                    config.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(
+                        CertificateValidator_CertificateValidation
+                    );
                 }
             }
             catch (Exception ex)
@@ -159,7 +164,10 @@ namespace Quickstarts
                 ExitCode = ExitCode.ErrorRunning;
 
                 // print endpoint info
-                IEnumerable<string> endpoints = m_application.Server.GetEndpoints().Select(e => e.EndpointUrl).Distinct();
+                IEnumerable<string> endpoints = m_application
+                    .Server.GetEndpoints()
+                    .Select(e => e.EndpointUrl)
+                    .Distinct();
                 foreach (string endpoint in endpoints)
                 {
                     m_output.WriteLine(endpoint);
@@ -211,18 +219,30 @@ namespace Quickstarts
         /// The certificate validator is used
         /// if auto accept is not selected in the configuration.
         /// </summary>
-        private void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
+        private void CertificateValidator_CertificateValidation(
+            CertificateValidator validator,
+            CertificateValidationEventArgs e
+        )
         {
             if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted)
             {
                 if (AutoAccept)
                 {
-                    m_output.WriteLine("Accepted Certificate: [{0}] [{1}]", e.Certificate.Subject, e.Certificate.Thumbprint);
+                    m_output.WriteLine(
+                        "Accepted Certificate: [{0}] [{1}]",
+                        e.Certificate.Subject,
+                        e.Certificate.Thumbprint
+                    );
                     e.Accept = true;
                     return;
                 }
             }
-            m_output.WriteLine("Rejected Certificate: {0} [{1}] [{2}]", e.Error, e.Certificate.Subject, e.Certificate.Thumbprint);
+            m_output.WriteLine(
+                "Rejected Certificate: {0} [{1}] [{2}]",
+                e.Error,
+                e.Certificate.Subject,
+                e.Certificate.Thumbprint
+            );
         }
 
         /// <summary>
@@ -242,10 +262,19 @@ namespace Quickstarts
             StringBuilder item = new StringBuilder();
             lock (session.DiagnosticsLock)
             {
-                item.AppendFormat(CultureInfo.InvariantCulture, "{0,9}:{1,20}:", reason, session.SessionDiagnostics.SessionName);
+                item.AppendFormat(
+                    CultureInfo.InvariantCulture,
+                    "{0,9}:{1,20}:",
+                    reason,
+                    session.SessionDiagnostics.SessionName
+                );
                 if (lastContact)
                 {
-                    item.AppendFormat(CultureInfo.InvariantCulture, "Last Event:{0:HH:mm:ss}", session.SessionDiagnostics.ClientLastContactTime.ToLocalTime());
+                    item.AppendFormat(
+                        CultureInfo.InvariantCulture,
+                        "Last Event:{0:HH:mm:ss}",
+                        session.SessionDiagnostics.ClientLastContactTime.ToLocalTime()
+                    );
                 }
                 else
                 {
@@ -289,4 +318,3 @@ namespace Quickstarts
         #endregion
     }
 }
-

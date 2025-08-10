@@ -30,7 +30,7 @@ namespace Opc.Ua
         {
             m_messageContext = null;
             m_settings = null;
-            m_uaBypassChannel = null;
+            UaBypassChannel = null;
         }
 
         /// <summary>
@@ -119,13 +119,15 @@ namespace Opc.Ua
         {
             get
             {
-                if (m_uaBypassChannel != null)
+                if (UaBypassChannel != null)
                 {
-                    return m_uaBypassChannel.SupportedFeatures;
+                    return UaBypassChannel.SupportedFeatures;
                 }
 
-                return TransportChannelFeatures.Reconnect | TransportChannelFeatures.BeginSendRequest |
-                    TransportChannelFeatures.BeginClose | TransportChannelFeatures.SendRequestAsync;
+                return TransportChannelFeatures.Reconnect
+                    | TransportChannelFeatures.BeginSendRequest
+                    | TransportChannelFeatures.BeginClose
+                    | TransportChannelFeatures.SendRequestAsync;
             }
         }
 
@@ -136,9 +138,9 @@ namespace Opc.Ua
         {
             get
             {
-                if (m_uaBypassChannel != null)
+                if (UaBypassChannel != null)
                 {
-                    return m_uaBypassChannel.EndpointDescription;
+                    return UaBypassChannel.EndpointDescription;
                 }
 
                 if (m_settings != null)
@@ -157,9 +159,9 @@ namespace Opc.Ua
         {
             get
             {
-                if (m_uaBypassChannel != null)
+                if (UaBypassChannel != null)
                 {
-                    return m_uaBypassChannel.EndpointConfiguration;
+                    return UaBypassChannel.EndpointConfiguration;
                 }
 
                 if (m_settings != null)
@@ -178,9 +180,9 @@ namespace Opc.Ua
         {
             get
             {
-                if (m_uaBypassChannel != null)
+                if (UaBypassChannel != null)
                 {
-                    return m_uaBypassChannel.MessageContext;
+                    return UaBypassChannel.MessageContext;
                 }
 
                 return m_messageContext;
@@ -206,19 +208,18 @@ namespace Opc.Ua
         {
             get
             {
-                if (m_uaBypassChannel != null)
+                if (UaBypassChannel != null)
                 {
-                    return m_uaBypassChannel.OperationTimeout;
+                    return UaBypassChannel.OperationTimeout;
                 }
 
                 return m_operationTimeout;
             }
-
             set
             {
-                if (m_uaBypassChannel != null)
+                if (UaBypassChannel != null)
                 {
-                    m_uaBypassChannel.OperationTimeout = value;
+                    UaBypassChannel.OperationTimeout = value;
                     return;
                 }
 
@@ -232,13 +233,11 @@ namespace Opc.Ua
         /// <param name="url">The URL for the endpoint.</param>
         /// <param name="settings">The settings to use when creating the channel.</param>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        public void Initialize(
-            Uri url,
-            TransportChannelSettings settings)
+        public void Initialize(Uri url, TransportChannelSettings settings)
         {
-            if (m_uaBypassChannel != null)
+            if (UaBypassChannel != null)
             {
-                m_uaBypassChannel.Initialize(url, settings);
+                UaBypassChannel.Initialize(url, settings);
                 return;
             }
 
@@ -251,9 +250,7 @@ namespace Opc.Ua
         /// <param name="connection">The connection to use.</param>
         /// <param name="settings">The settings to use when creating the channel.</param>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        public void Initialize(
-            ITransportWaitingConnection connection,
-            TransportChannelSettings settings)
+        public void Initialize(ITransportWaitingConnection connection, TransportChannelSettings settings)
         {
             throw new NotSupportedException("WCF channels must be configured when they are constructed.");
         }
@@ -263,9 +260,9 @@ namespace Opc.Ua
         /// </summary>
         public void Open()
         {
-            if (m_uaBypassChannel != null)
+            if (UaBypassChannel != null)
             {
-                m_uaBypassChannel.Open();
+                UaBypassChannel.Open();
                 return;
             }
         }
@@ -275,9 +272,9 @@ namespace Opc.Ua
         /// </summary>
         public IAsyncResult BeginOpen(AsyncCallback callback, object callbackData)
         {
-            if (m_uaBypassChannel != null)
+            if (UaBypassChannel != null)
             {
-                return m_uaBypassChannel.BeginOpen(callback, callbackData);
+                return UaBypassChannel.BeginOpen(callback, callbackData);
             }
 
             throw new NotSupportedException("WCF channels must be configured when they are constructed.");
@@ -288,9 +285,9 @@ namespace Opc.Ua
         /// </summary>
         public void EndOpen(IAsyncResult result)
         {
-            if (m_uaBypassChannel != null)
+            if (UaBypassChannel != null)
             {
-                m_uaBypassChannel.EndOpen(result);
+                UaBypassChannel.EndOpen(result);
                 return;
             }
 
@@ -321,9 +318,9 @@ namespace Opc.Ua
         /// </summary>
         public IAsyncResult BeginReconnect(AsyncCallback callback, object callbackData)
         {
-            if (m_uaBypassChannel != null)
+            if (UaBypassChannel != null)
             {
-                return m_uaBypassChannel.BeginReconnect(callback, callbackData);
+                return UaBypassChannel.BeginReconnect(callback, callbackData);
             }
 
             throw new NotSupportedException("WCF channels cannot be reconnected.");
@@ -334,9 +331,9 @@ namespace Opc.Ua
         /// </summary>
         public void EndReconnect(IAsyncResult result)
         {
-            if (m_uaBypassChannel != null)
+            if (UaBypassChannel != null)
             {
-                m_uaBypassChannel.EndReconnect(result);
+                UaBypassChannel.EndReconnect(result);
                 return;
             }
 
@@ -348,9 +345,9 @@ namespace Opc.Ua
         /// </summary>
         public void Close()
         {
-            if (m_uaBypassChannel != null)
+            if (UaBypassChannel != null)
             {
-                m_uaBypassChannel.Close();
+                UaBypassChannel.Close();
                 return;
             }
 
@@ -362,9 +359,9 @@ namespace Opc.Ua
         /// </summary>
         public async Task CloseAsync(CancellationToken ct)
         {
-            if (m_uaBypassChannel != null)
+            if (UaBypassChannel != null)
             {
-                await m_uaBypassChannel.CloseAsync(ct).ConfigureAwait(false);
+                await UaBypassChannel.CloseAsync(ct).ConfigureAwait(false);
                 return;
             }
 
@@ -376,9 +373,9 @@ namespace Opc.Ua
         /// </summary>
         public IAsyncResult BeginClose(AsyncCallback callback, object callbackData)
         {
-            if (m_uaBypassChannel != null)
+            if (UaBypassChannel != null)
             {
-                return m_uaBypassChannel.BeginClose(callback, callbackData);
+                return UaBypassChannel.BeginClose(callback, callbackData);
             }
 
             var result = new AsyncResultBase(callback, callbackData, 0);
@@ -391,9 +388,9 @@ namespace Opc.Ua
         /// </summary>
         public void EndClose(IAsyncResult result)
         {
-            if (m_uaBypassChannel != null)
+            if (UaBypassChannel != null)
             {
-                m_uaBypassChannel.EndClose(result);
+                UaBypassChannel.EndClose(result);
                 return;
             }
 
@@ -406,14 +403,15 @@ namespace Opc.Ua
         /// </summary>
         public IServiceResponse SendRequest(IServiceRequest request)
         {
-            if (m_uaBypassChannel != null)
+            if (UaBypassChannel != null)
             {
-                return m_uaBypassChannel.SendRequest(request);
+                return UaBypassChannel.SendRequest(request);
             }
 
             byte[] requestMessage = BinaryEncoder.EncodeMessage(request, m_messageContext);
             InvokeServiceResponseMessage responseMessage = InvokeService(new InvokeServiceMessage(requestMessage));
-            return (IServiceResponse)BinaryDecoder.DecodeMessage(responseMessage.InvokeServiceResponse, null, m_messageContext);
+            return (IServiceResponse)
+                BinaryDecoder.DecodeMessage(responseMessage.InvokeServiceResponse, null, m_messageContext);
         }
 
         /// <summary>
@@ -421,9 +419,9 @@ namespace Opc.Ua
         /// </summary>
         public IAsyncResult BeginSendRequest(IServiceRequest request, AsyncCallback callback, object callbackData)
         {
-            if (m_uaBypassChannel != null)
+            if (UaBypassChannel != null)
             {
-                return m_uaBypassChannel.BeginSendRequest(request, callback, callbackData);
+                return UaBypassChannel.BeginSendRequest(request, callback, callbackData);
             }
 
 #if MANAGE_CHANNEL_THREADS
@@ -441,16 +439,17 @@ namespace Opc.Ua
         /// </summary>
         public IServiceResponse EndSendRequest(IAsyncResult result)
         {
-            if (m_uaBypassChannel != null)
+            if (UaBypassChannel != null)
             {
-                return m_uaBypassChannel.EndSendRequest(result);
+                return UaBypassChannel.EndSendRequest(result);
             }
 
 #if MANAGE_CHANNEL_THREADS
             return SendRequestAsyncResult.WaitForComplete(result);
 #else
             InvokeServiceResponseMessage responseMessage = EndInvokeService(result);
-            return (IServiceResponse)BinaryDecoder.DecodeMessage(responseMessage.InvokeServiceResponse, null, m_messageContext);
+            return (IServiceResponse)
+                BinaryDecoder.DecodeMessage(responseMessage.InvokeServiceResponse, null, m_messageContext);
 #endif
         }
 
@@ -459,9 +458,9 @@ namespace Opc.Ua
         /// </summary>
         public Task<IServiceResponse> EndSendRequestAsync(IAsyncResult result, CancellationToken ct)
         {
-            if (m_uaBypassChannel != null)
+            if (UaBypassChannel != null)
             {
-                return m_uaBypassChannel.EndSendRequestAsync(result, ct);
+                return UaBypassChannel.EndSendRequestAsync(result, ct);
             }
 
             throw new NotImplementedException();
@@ -486,7 +485,11 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the BeginInvokeService service contract.
         /// </summary>
-        public abstract IAsyncResult BeginInvokeService(InvokeServiceMessage request, AsyncCallback callback, object asyncState);
+        public abstract IAsyncResult BeginInvokeService(
+            InvokeServiceMessage request,
+            AsyncCallback callback,
+            object asyncState
+        );
 
         /// <summary>
         /// The client side implementation of the EndInvokeService service contract.
@@ -500,7 +503,6 @@ namespace Opc.Ua
         /// </summary>
         protected class SendRequestAsyncResult : AsyncResultBase, IChannelOutgoingRequest
         {
-
             /// <summary>
             /// Initializes a new instance of the <see cref="SendRequestAsyncResult"/> class.
             /// </summary>
@@ -512,9 +514,9 @@ namespace Opc.Ua
                 IChannelBase channel,
                 AsyncCallback callback,
                 object callbackData,
-                int timeout)
-            :
-                base(callback, callbackData, timeout)
+                int timeout
+            )
+                : base(callback, callbackData, timeout)
             {
                 m_channel = channel;
             }
@@ -577,9 +579,7 @@ namespace Opc.Ua
             /// <param name="handler">The method which sends the request.</param>
             /// <param name="request">The request.</param>
             /// <returns>The result object that is used to call the EndSendRequest method.</returns>
-            public IAsyncResult BeginSendRequest(
-                ChannelSendRequestEventHandler handler,
-                IServiceRequest request)
+            public IAsyncResult BeginSendRequest(ChannelSendRequestEventHandler handler, IServiceRequest request)
             {
                 m_handler = handler;
                 m_request = request;
@@ -674,7 +674,6 @@ namespace Opc.Ua
             private IServiceRequest m_request;
             private IServiceResponse m_response;
             private Exception m_error;
-
         }
 
         /// <summary>
@@ -705,13 +704,18 @@ namespace Opc.Ua
             EndpointConfiguration endpointConfiguration,
             X509Certificate2 clientCertificate,
             X509Certificate2Collection clientCertificateChain,
-            IServiceMessageContext messageContext)
+            IServiceMessageContext messageContext
+        )
         {
             // initialize the channel which will be created with the server.
             string uriScheme = new Uri(description.EndpointUrl).Scheme;
-            ITransportChannel channel = TransportBindings.Channels.GetChannel(uriScheme) ?? throw ServiceResultException.Create(
+            ITransportChannel channel =
+                TransportBindings.Channels.GetChannel(uriScheme)
+                ?? throw ServiceResultException.Create(
                     StatusCodes.BadProtocolVersionUnsupported,
-                    "Unsupported transport profile for scheme {0}.", uriScheme);
+                    "Unsupported transport profile for scheme {0}.",
+                    uriScheme
+                );
 
             // create a UA channel.
             var settings = new TransportChannelSettings
@@ -719,7 +723,7 @@ namespace Opc.Ua
                 Description = description,
                 Configuration = endpointConfiguration,
                 ClientCertificate = clientCertificate,
-                ClientCertificateChain = clientCertificateChain
+                ClientCertificateChain = clientCertificateChain,
             };
 
             if (description.ServerCertificate != null && description.ServerCertificate.Length > 0)
@@ -755,9 +759,17 @@ namespace Opc.Ua
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
             X509Certificate2 clientCertificate,
-            IServiceMessageContext messageContext)
+            IServiceMessageContext messageContext
+        )
         {
-            return CreateUaBinaryChannel(configuration, description, endpointConfiguration, clientCertificate, null, messageContext);
+            return CreateUaBinaryChannel(
+                configuration,
+                description,
+                endpointConfiguration,
+                clientCertificate,
+                null,
+                messageContext
+            );
         }
 
         /// <summary>
@@ -776,7 +788,8 @@ namespace Opc.Ua
             EndpointConfiguration endpointConfiguration,
             X509Certificate2 clientCertificate,
             X509Certificate2Collection clientCertificateChain,
-            IServiceMessageContext messageContext)
+            IServiceMessageContext messageContext
+        )
         {
             string uriScheme = new Uri(description.EndpointUrl).Scheme;
 
@@ -796,9 +809,13 @@ namespace Opc.Ua
             }
 
             // initialize the channel which will be created with the server.
-            ITransportChannel channel = TransportBindings.Channels.GetChannel(uriScheme) ?? throw ServiceResultException.Create(
+            ITransportChannel channel =
+                TransportBindings.Channels.GetChannel(uriScheme)
+                ?? throw ServiceResultException.Create(
                     StatusCodes.BadProtocolVersionUnsupported,
-                    "Unsupported transport profile for scheme {0}.", uriScheme);
+                    "Unsupported transport profile for scheme {0}.",
+                    uriScheme
+                );
 
             // create a UA-TCP channel.
             var settings = new TransportChannelSettings
@@ -806,7 +823,7 @@ namespace Opc.Ua
                 Description = description,
                 Configuration = endpointConfiguration,
                 ClientCertificate = clientCertificate,
-                ClientCertificateChain = clientCertificateChain
+                ClientCertificateChain = clientCertificateChain,
             };
 
             if (description.ServerCertificate != null && description.ServerCertificate.Length > 0)
@@ -828,18 +845,25 @@ namespace Opc.Ua
             return channel;
         }
 
-        internal TransportChannelSettings m_settings;
-        internal IServiceMessageContext m_messageContext;
-        internal ITransportChannel m_uaBypassChannel;
-        internal int m_operationTimeout;
-        internal IChannelBase m_channel;
-        internal string g_ImplementationString = "Opc.Ua.ChannelBase UA Client " + Utils.GetAssemblySoftwareVersion();
+        /// <summary>
+        /// Settings
+        /// </summary>
+        protected TransportChannelSettings m_settings;
+
+        /// <summary>
+        /// Whether to bypass the UA channel and use a transport channel directly.
+        /// </summary>
+        protected internal ITransportChannel UaBypassChannel { get; set; }
+
+        private readonly IServiceMessageContext m_messageContext;
+        private int m_operationTimeout;
     }
 
     /// <summary>
     /// A base class for UA channel objects used access UA interfaces
     /// </summary>
-    public class UaChannelBase<TChannel> : UaChannelBase where TChannel : class, IChannelBase
+    public class UaChannelBase<TChannel> : UaChannelBase
+        where TChannel : class, IChannelBase
     {
         /// <summary>
         /// An overrideable version of the Dispose.
@@ -873,13 +897,21 @@ namespace Opc.Ua
         /// <summary>
         /// The client side implementation of the BeginInvokeService service contract.
         /// </summary>
-        public override IAsyncResult BeginInvokeService(InvokeServiceMessage request, AsyncCallback callback, object asyncState)
+        public override IAsyncResult BeginInvokeService(
+            InvokeServiceMessage request,
+            AsyncCallback callback,
+            object asyncState
+        )
         {
             var asyncResult = new UaChannelAsyncResult(Channel, callback, asyncState);
 
             lock (asyncResult.Lock)
             {
-                asyncResult.InnerResult = asyncResult.Channel.BeginInvokeService(request, asyncResult.OnOperationCompleted, null);
+                asyncResult.InnerResult = asyncResult.Channel.BeginInvokeService(
+                    request,
+                    asyncResult.OnOperationCompleted,
+                    null
+                );
             }
 
             return asyncResult;
@@ -899,9 +931,9 @@ namespace Opc.Ua
         /// </summary>
         public override void Reconnect()
         {
-            if (m_uaBypassChannel != null)
+            if (UaBypassChannel != null)
             {
-                m_uaBypassChannel.Reconnect();
+                UaBypassChannel.Reconnect();
                 return;
             }
 
@@ -925,10 +957,7 @@ namespace Opc.Ua
             /// <param name="channel">The channel.</param>
             /// <param name="callback">The callback.</param>
             /// <param name="callbackData">The callback data.</param>
-            public UaChannelAsyncResult(
-                TChannel channel,
-                AsyncCallback callback,
-                object callbackData)
+            public UaChannelAsyncResult(TChannel channel, AsyncCallback callback, object callbackData)
                 : base(callback, callbackData, 0)
             {
                 Channel = channel;
@@ -951,10 +980,7 @@ namespace Opc.Ua
                     // check if the begin operation has had a chance to complete.
                     lock (Lock)
                     {
-                        if (InnerResult == null)
-                        {
-                            InnerResult = ar;
-                        }
+                        InnerResult ??= ar;
                     }
 
                     // signal that the operation is complete.

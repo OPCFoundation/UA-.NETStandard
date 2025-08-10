@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-
 using Opc.Ua;
 
 #pragma warning disable CS1591
@@ -49,8 +48,9 @@ namespace Alarms
             Type controllerType,
             int interval,
             bool optional = true,
-            bool create = true) :
-            base(alarmNodeManager, parent, trigger, name, alarmConditionType, controllerType, interval, optional)
+            bool create = true
+        )
+            : base(alarmNodeManager, parent, trigger, name, alarmConditionType, controllerType, interval, optional)
         {
             if (create)
             {
@@ -58,16 +58,11 @@ namespace Alarms
             }
         }
 
-        protected new void Initialize(
-            uint alarmTypeIdentifier,
-            string name)
+        protected new void Initialize(uint alarmTypeIdentifier, string name)
         {
             // Create an alarm and trigger name - Create a base method for creating the trigger, just provide the name
 
-            if (m_alarm == null)
-            {
-                m_alarm = new AcknowledgeableConditionState(m_parent);
-            }
+            m_alarm ??= new AcknowledgeableConditionState(m_parent);
 
             AcknowledgeableConditionState alarm = GetAlarm();
             InitializeInternal(alarm);
@@ -88,11 +83,8 @@ namespace Alarms
         {
             alarm.OnAcknowledge = OnAcknowledge;
 
-            // Create any optional 
-            if (alarm.ConfirmedState == null)
-            {
-                alarm.ConfirmedState = new TwoStateVariableState(alarm);
-            }
+            // Create any optional
+            alarm.ConfirmedState ??= new TwoStateVariableState(alarm);
 
             alarm.Confirm = new AddCommentMethodState(alarm);
         }
@@ -138,10 +130,7 @@ namespace Alarms
 
         private AcknowledgeableConditionState GetAlarm(BaseEventState alarm = null)
         {
-            if (alarm == null)
-            {
-                alarm = m_alarm;
-            }
+            alarm ??= m_alarm;
             return (AcknowledgeableConditionState)alarm;
         }
 
@@ -162,7 +151,8 @@ namespace Alarms
             ISystemContext context,
             ConditionState condition,
             byte[] eventId,
-            LocalizedText comment)
+            LocalizedText comment
+        )
         {
             string eventIdString = Utils.ToHexString(eventId);
 
@@ -212,7 +202,8 @@ namespace Alarms
             ISystemContext context,
             ConditionState condition,
             byte[] eventId,
-            LocalizedText comment)
+            LocalizedText comment
+        )
         {
             string eventIdString = Utils.ToHexString(eventId);
 

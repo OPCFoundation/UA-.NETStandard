@@ -40,11 +40,7 @@ namespace Opc.Ua
         /// <param name="password">The password.</param>
         public UserIdentity(string username, string password)
         {
-            var token = new UserNameIdentityToken
-            {
-                UserName = username,
-                DecryptedPassword = password
-            };
+            var token = new UserNameIdentityToken { UserName = username, DecryptedPassword = password };
             Initialize(token);
         }
 
@@ -61,25 +57,31 @@ namespace Opc.Ua
         /// Initializes the object with an X509 certificate identifier
         /// </summary>
         public UserIdentity(CertificateIdentifier certificateId)
-            : this(certificateId, new CertificatePasswordProvider(string.Empty))
-        {
-        }
+            : this(certificateId, new CertificatePasswordProvider(string.Empty)) { }
 
         /// <summary>
         /// Initializes the object with an X509 certificate identifier and a CertificatePasswordProvider
         /// </summary>
-        public UserIdentity(CertificateIdentifier certificateId, CertificatePasswordProvider certificatePasswordProvider)
+        public UserIdentity(
+            CertificateIdentifier certificateId,
+            CertificatePasswordProvider certificatePasswordProvider
+        )
         {
             if (certificateId == null)
             {
                 throw new ArgumentNullException(nameof(certificateId));
             }
 
-            X509Certificate2 certificate = certificateId.LoadPrivateKeyExAsync(certificatePasswordProvider).GetAwaiter().GetResult();
+            X509Certificate2 certificate = certificateId
+                .LoadPrivateKeyExAsync(certificatePasswordProvider)
+                .GetAwaiter()
+                .GetResult();
 
             if (certificate == null || !certificate.HasPrivateKey)
             {
-                throw new ServiceResultException("Cannot create User Identity with CertificateIdentifier that does not contain a private key");
+                throw new ServiceResultException(
+                    "Cannot create User Identity with CertificateIdentifier that does not contain a private key"
+                );
             }
 
             Initialize(certificate);
@@ -97,7 +99,9 @@ namespace Opc.Ua
 
             if (!certificate.HasPrivateKey)
             {
-                throw new ServiceResultException("Cannot create User Identity with Certificate that does not have a private key");
+                throw new ServiceResultException(
+                    "Cannot create User Identity with Certificate that does not have a private key"
+                );
             }
 
             Initialize(certificate);
@@ -121,7 +125,7 @@ namespace Opc.Ua
         /// Hence, the default constructor
         /// is used to initialize the token as anonymous.
         /// </remarks>
-        [OnDeserializing()]
+        [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize(new AnonymousIdentityToken());
@@ -136,7 +140,8 @@ namespace Opc.Ua
         [DataMember(Name = "PolicyId", IsRequired = false, Order = 10)]
         public string PolicyId
         {
-            get => m_token.PolicyId; set => m_token.PolicyId = value;
+            get => m_token.PolicyId;
+            set => m_token.PolicyId = value;
         }
 
         /// <inheritdoc/>
@@ -233,11 +238,7 @@ namespace Opc.Ua
         /// </summary>
         private void Initialize(X509Certificate2 certificate)
         {
-            var token = new X509IdentityToken
-            {
-                CertificateData = certificate.RawData,
-                Certificate = certificate
-            };
+            var token = new X509IdentityToken { CertificateData = certificate.RawData, Certificate = certificate };
             Initialize(token);
         }
 

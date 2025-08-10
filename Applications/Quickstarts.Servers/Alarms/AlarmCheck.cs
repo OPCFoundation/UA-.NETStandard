@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using Opc.Ua;
+
 namespace Alarms
 {
     /// <summary>
@@ -39,14 +40,17 @@ namespace Alarms
         /// Alarm name
         /// </summary>
         public string AlarmName { get; set; }
+
         /// <summary>
         /// MethodName
         /// </summary>
         public string MethodName { get; set; }
+
         /// <summary>
         /// ModellingRule
         /// </summary>
         public NodeId MethodDeclarationId { get; set; }
+
         /// <summary>
         /// ModellingRule Exists
         /// </summary>

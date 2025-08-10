@@ -40,9 +40,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
-        public ContinuationPoint()
-        {
-        }
+        public ContinuationPoint() { }
 
         /// <summary>
         /// Frees any unmanaged resources.
@@ -175,7 +173,15 @@ namespace Opc.Ua.Server
                     return true;
                 }
 
-                return ((int)ResultMask & ((int)BrowseResultMask.NodeClass | (int)BrowseResultMask.BrowseName | (int)BrowseResultMask.DisplayName | (int)BrowseResultMask.TypeDefinition)) != 0;
+                return (
+                        (int)ResultMask
+                        & (
+                            (int)BrowseResultMask.NodeClass
+                            | (int)BrowseResultMask.BrowseName
+                            | (int)BrowseResultMask.DisplayName
+                            | (int)BrowseResultMask.TypeDefinition
+                        )
+                    ) != 0;
             }
         }
     }

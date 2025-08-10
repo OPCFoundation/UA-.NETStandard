@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -215,8 +215,12 @@ namespace Opc.Ua.Server
                     else
                     {
                         // check if channel is not encrypted and skip if so
-                        if (monitoredItem?.Session?.EndpointDescription?.SecurityMode != MessageSecurityMode.SignAndEncrypt &&
-                            monitoredItem?.Session?.EndpointDescription?.TransportProfileUri != Profiles.HttpsBinaryTransport)
+                        if (
+                            monitoredItem?.Session?.EndpointDescription?.SecurityMode
+                                != MessageSecurityMode.SignAndEncrypt
+                            && monitoredItem?.Session?.EndpointDescription?.TransportProfileUri
+                                != Profiles.HttpsBinaryTransport
+                        )
                         {
                             continue;
                         }
@@ -276,7 +280,11 @@ namespace Opc.Ua.Server
                     if (monitoredItem.AttributeId == Attributes.Value && (changes & NodeStateChangeMasks.Value) != 0)
                     {
                         // validate if the monitored item has the required role permissions to read the value
-                        ServiceResult validationResult = NodeManager.ValidateRolePermissions(new OperationContext(monitoredItem), node.NodeId, PermissionType.Read);
+                        ServiceResult validationResult = NodeManager.ValidateRolePermissions(
+                            new OperationContext(monitoredItem),
+                            node.NodeId,
+                            PermissionType.Read
+                        );
 
                         if (ServiceResult.IsBad(validationResult))
                         {
@@ -300,17 +308,14 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Reads the value of an attribute and reports it to the MonitoredItem.
         /// </summary>
-        public void QueueValue(
-            ISystemContext context,
-            NodeState node,
-            IDataChangeMonitoredItem2 monitoredItem)
+        public void QueueValue(ISystemContext context, NodeState node, IDataChangeMonitoredItem2 monitoredItem)
         {
             var value = new DataValue
             {
                 Value = null,
                 ServerTimestamp = DateTime.UtcNow,
                 SourceTimestamp = DateTime.MinValue,
-                StatusCode = StatusCodes.Good
+                StatusCode = StatusCodes.Good,
             };
 
             ISystemContext contextToUse = context;
@@ -325,7 +330,8 @@ namespace Opc.Ua.Server
                 monitoredItem.AttributeId,
                 monitoredItem.IndexRange,
                 monitoredItem.DataEncoding,
-                value);
+                value
+            );
 
             if (ServiceResult.IsBad(error))
             {
@@ -341,18 +347,28 @@ namespace Opc.Ua.Server
         /// <param name="context">The system context.</param>
         /// <param name="monitoredItem">The monitored item.</param>
         /// <returns>The cached or newly created context.</returns>
-        private ServerSystemContext GetOrCreateContext(ServerSystemContext context, IDataChangeMonitoredItem2 monitoredItem)
+        private ServerSystemContext GetOrCreateContext(
+            ServerSystemContext context,
+            IDataChangeMonitoredItem2 monitoredItem
+        )
         {
             uint monitoredItemId = monitoredItem.Id;
             int currentTicks = HiResClock.TickCount;
 
             // Check if the context already exists in the cache
-            if (m_contextCache.TryGetValue(monitoredItemId, out (ServerSystemContext Context, int CreatedAtTicks) cachedEntry))
+            if (
+                m_contextCache.TryGetValue(
+                    monitoredItemId,
+                    out (ServerSystemContext Context, int CreatedAtTicks) cachedEntry
+                )
+            )
             {
                 // Check if the session or user identity has changed or the entry has expired
-                if (cachedEntry.Context.OperationContext.Session != monitoredItem.Session
+                if (
+                    cachedEntry.Context.OperationContext.Session != monitoredItem.Session
                     || cachedEntry.Context.OperationContext.UserIdentity != monitoredItem.EffectiveIdentity
-                    || (currentTicks - cachedEntry.CreatedAtTicks) > m_cacheLifetimeTicks)
+                    || (currentTicks - cachedEntry.CreatedAtTicks) > m_cacheLifetimeTicks
+                )
                 {
                     ServerSystemContext updatedContext = context.Copy(new OperationContext(monitoredItem));
                     m_contextCache[monitoredItemId] = (updatedContext, currentTicks);
@@ -373,7 +389,8 @@ namespace Opc.Ua.Server
             return newContext;
         }
 
-        private readonly ConcurrentDictionary<uint, (ServerSystemContext Context, int CreatedAtTicks)> m_contextCache = new();
+        private readonly ConcurrentDictionary<uint, (ServerSystemContext Context, int CreatedAtTicks)> m_contextCache =
+            new();
         private readonly int m_cacheLifetimeTicks = (int)TimeSpan.FromMinutes(5).TotalMilliseconds;
     }
 }

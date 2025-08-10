@@ -53,11 +53,12 @@ namespace Opc.Ua.Security.Certificates
             {
                 string pemText = Encoding.UTF8.GetString(pemDataBlob);
 
-                string[] valuesToCheck = [
+                string[] valuesToCheck =
+                [
                     "-----BEGIN PRIVATE KEY-----",
                     "-----BEGIN RSA PRIVATE KEY-----",
                     "-----BEGIN ENCRYPTED PRIVATE KEY-----",
-                    "-----BEGIN EC PRIVATE KEY-----"
+                    "-----BEGIN EC PRIVATE KEY-----",
                 ];
 
                 return valuesToCheck.Any(value => pemText.Contains(value, StringComparison.Ordinal));
@@ -67,14 +68,14 @@ namespace Opc.Ua.Security.Certificates
                 return false;
             }
         }
+
         /// <summary>
         /// Import multiple X509 certificates from PEM data.
         /// Supports a maximum of 99 certificates in the PEM data.
         /// </summary>
         /// <param name="pemDataBlob">The PEM datablob as byte array.</param>
         /// <returns>The certificates.</returns>
-        public static X509Certificate2Collection ImportPublicKeysFromPEM(
-            ReadOnlySpan<byte> pemDataBlob)
+        public static X509Certificate2Collection ImportPublicKeysFromPEM(ReadOnlySpan<byte> pemDataBlob)
         {
             var certificates = new X509Certificate2Collection();
             const string label = "CERTIFICATE";
@@ -131,13 +132,9 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="pemDataBlob">The PEM datablob as byte array.</param>
         /// <param name="password">The password to use (optional).</param>
         /// <returns>The RSA private key.</returns>
-        public static RSA ImportRsaPrivateKeyFromPEM(
-            byte[] pemDataBlob,
-            string password = null)
+        public static RSA ImportRsaPrivateKeyFromPEM(byte[] pemDataBlob, string password = null)
         {
-            string[] labels = [
-                "ENCRYPTED PRIVATE KEY", "PRIVATE KEY", "RSA PRIVATE KEY"
-                ];
+            string[] labels = ["ENCRYPTED PRIVATE KEY", "PRIVATE KEY", "RSA PRIVATE KEY"];
             try
             {
                 string pemText = Encoding.UTF8.GetString(pemDataBlob);
@@ -172,7 +169,11 @@ namespace Opc.Ua.Security.Certificates
                                 {
                                     throw new ArgumentException("Need password for encrypted private key.");
                                 }
-                                rsaPrivateKey.ImportEncryptedPkcs8PrivateKey(password.ToCharArray(), pemDecoded, out bytesRead);
+                                rsaPrivateKey.ImportEncryptedPkcs8PrivateKey(
+                                    password.ToCharArray(),
+                                    pemDecoded,
+                                    out bytesRead
+                                );
                                 break;
                             case 2:
                                 rsaPrivateKey.ImportPkcs8PrivateKey(pemDecoded, out bytesRead);
@@ -203,17 +204,10 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="pemDataBlob">The PEM data as byte array.</param>
         /// <param name="password">The password to use if the key is encrypted (optional)</param>
         /// <returns>ECDsa instance containing the private key</returns>
-        public static ECDsa ImportECDsaPrivateKeyFromPEM(
-            byte[] pemDataBlob,
-            string password = null)
+        public static ECDsa ImportECDsaPrivateKeyFromPEM(byte[] pemDataBlob, string password = null)
         {
             // PEM labels for EC keys. Probably need adjustment
-            string[] labels =
-            [
-                "ENCRYPTED PRIVATE KEY",
-                "PRIVATE KEY",
-                "EC PRIVATE KEY"
-            ];
+            string[] labels = ["ENCRYPTED PRIVATE KEY", "PRIVATE KEY", "EC PRIVATE KEY"];
 
             try
             {

@@ -70,7 +70,12 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Build the DataMember attribute for a complex type.
         /// </summary>
-        public static void DataMemberAttribute(this PropertyBuilder typeBuilder, string name, bool isRequired, int order)
+        public static void DataMemberAttribute(
+            this PropertyBuilder typeBuilder,
+            string name,
+            bool isRequired,
+            int order
+        )
         {
             CustomAttributeBuilder attribute = DataMemberAttributeBuilder(name, isRequired, order);
             typeBuilder.SetCustomAttribute(attribute);
@@ -81,26 +86,26 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         public static void StructureDefinitionAttribute(
             this TypeBuilder typeBuilder,
-            StructureDefinition structureDefinition)
+            StructureDefinition structureDefinition
+        )
         {
             Type attributeType = typeof(StructureDefinitionAttribute);
-            StructureBaseDataType baseDataType = ComplexTypes.StructureDefinitionAttribute.FromBaseType(structureDefinition.BaseDataType);
+            StructureBaseDataType baseDataType = ComplexTypes.StructureDefinitionAttribute.FromBaseType(
+                structureDefinition.BaseDataType
+            );
             ConstructorInfo ctorInfo = attributeType.GetConstructor(Type.EmptyTypes);
             var builder = new CustomAttributeBuilder(
                 ctorInfo,
-                [],  // constructor arguments
-                     // properties to assign
+                [], // constructor arguments
+                // properties to assign
                 [
                     attributeType.GetProperty("DefaultEncodingId"),
                     attributeType.GetProperty("BaseDataType"),
-                    attributeType.GetProperty("StructureType")
+                    attributeType.GetProperty("StructureType"),
                 ],
                 // values to assign
-                [
-                    structureDefinition.DefaultEncodingId?.ToString(),
-                    baseDataType,
-                    structureDefinition.StructureType
-                ]);
+                [structureDefinition.DefaultEncodingId?.ToString(), baseDataType, structureDefinition.StructureType]
+            );
             typeBuilder.SetCustomAttribute(builder);
         }
 
@@ -112,48 +117,44 @@ namespace Opc.Ua.Client.ComplexTypes
             ExpandedNodeId complexTypeId,
             ExpandedNodeId binaryEncodingId,
             ExpandedNodeId xmlEncodingId
-            )
+        )
         {
             Type attributeType = typeof(StructureTypeIdAttribute);
             ConstructorInfo ctorInfo = attributeType.GetConstructor(Type.EmptyTypes);
             var builder = new CustomAttributeBuilder(
                 ctorInfo,
-                [],  // constructor arguments
+                [], // constructor arguments
                 // properties to assign
                 [
                     attributeType.GetProperty("ComplexTypeId"),
                     attributeType.GetProperty("BinaryEncodingId"),
-                    attributeType.GetProperty("XmlEncodingId")
+                    attributeType.GetProperty("XmlEncodingId"),
                 ],
                 // values to assign
-                [
-                    complexTypeId?.ToString(),
-                    binaryEncodingId?.ToString(),
-                    xmlEncodingId?.ToString()
-                ]);
+                [complexTypeId?.ToString(), binaryEncodingId?.ToString(), xmlEncodingId?.ToString()]
+            );
             typeBuilder.SetCustomAttribute(builder);
         }
 
         /// <summary>
         /// Build the StructureField attribute for a complex type.
         /// </summary>
-        public static void StructureFieldAttribute(
-            this PropertyBuilder typeBuilder,
-            StructureField structureField)
+        public static void StructureFieldAttribute(this PropertyBuilder typeBuilder, StructureField structureField)
         {
             Type attributeType = typeof(StructureFieldAttribute);
             ConstructorInfo ctorInfo = attributeType.GetConstructor(Type.EmptyTypes);
             var pi = new List<PropertyInfo>()
             {
-                    attributeType.GetProperty("ValueRank"),
-                    attributeType.GetProperty("MaxStringLength"),
-                    attributeType.GetProperty("IsOptional")
+                attributeType.GetProperty("ValueRank"),
+                attributeType.GetProperty("MaxStringLength"),
+                attributeType.GetProperty("IsOptional"),
             };
 
-            var pv = new List<object>() {
-                    structureField.ValueRank,
-                    structureField.MaxStringLength,
-                    structureField.IsOptional,
+            var pv = new List<object>()
+            {
+                structureField.ValueRank,
+                structureField.MaxStringLength,
+                structureField.IsOptional,
             };
 
             // only unambiguous built in types get the info,
@@ -167,9 +168,9 @@ namespace Opc.Ua.Client.ComplexTypes
 
             var builder = new CustomAttributeBuilder(
                 ctorInfo,
-                [],  // constructor arguments
-                pi.ToArray(),           // properties to assign
-                [.. pv]            // values to assign
+                [], // constructor arguments
+                pi.ToArray(), // properties to assign
+                [.. pv] // values to assign
             );
             typeBuilder.SetCustomAttribute(builder);
         }
@@ -183,15 +184,12 @@ namespace Opc.Ua.Client.ComplexTypes
             ConstructorInfo ctorInfo = attributeType.GetConstructor(Type.EmptyTypes);
             var builder = new CustomAttributeBuilder(
                 ctorInfo,
-                [],  // constructor arguments
+                [], // constructor arguments
                 // properties to assign
-                [
-                    attributeType.GetProperty("Value")
-                ],
+                [attributeType.GetProperty("Value")],
                 // values to assign
-                [
-                    name+"_"+value.ToString(CultureInfo.InvariantCulture)
-                ]);
+                [name + "_" + value.ToString(CultureInfo.InvariantCulture)]
+            );
             typeBuilder.SetCustomAttribute(builder);
         }
 
@@ -204,19 +202,16 @@ namespace Opc.Ua.Client.ComplexTypes
             ConstructorInfo ctorInfo = attributeType.GetConstructor(Type.EmptyTypes);
             return new CustomAttributeBuilder(
                 ctorInfo,
-                [],  // constructor arguments
+                [], // constructor arguments
                 // properties to assign
                 [
                     attributeType.GetProperty("Name"),
                     attributeType.GetProperty("IsRequired"),
-                    attributeType.GetProperty("Order")
+                    attributeType.GetProperty("Order"),
                 ],
                 // values to assign
-                [
-                    name,
-                    isRequired,
-                    order
-                ]);
+                [name, isRequired, order]
+            );
         }
 
         /// <summary>
@@ -228,15 +223,12 @@ namespace Opc.Ua.Client.ComplexTypes
             ConstructorInfo ctorInfo = attributeType.GetConstructor(Type.EmptyTypes);
             return new CustomAttributeBuilder(
                 ctorInfo,
-                [],  // constructor arguments
+                [], // constructor arguments
                 // properties to assign
-                [
-                    attributeType.GetProperty("Namespace")
-                ],
+                [attributeType.GetProperty("Namespace")],
                 // values to assign
-                [
-                    @namespace
-                ]);
+                [@namespace]
+            );
         }
 
         /// <summary>
@@ -252,8 +244,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <returns>An <see cref="BuiltInType"/> for  <paramref name="datatypeId"/></returns>
         private static BuiltInType GetBuiltInType(NodeId datatypeId)
         {
-            if (datatypeId.IsNullNodeId || datatypeId.NamespaceIndex != 0 ||
-                datatypeId.IdType != IdType.Numeric)
+            if (datatypeId.IsNullNodeId || datatypeId.NamespaceIndex != 0 || datatypeId.IdType != IdType.Numeric)
             {
                 return BuiltInType.Null;
             }
@@ -280,4 +271,4 @@ namespace Opc.Ua.Client.ComplexTypes
             };
         }
     }
-}//namespace
+} //namespace

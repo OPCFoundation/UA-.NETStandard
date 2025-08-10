@@ -71,7 +71,13 @@ namespace TestData
             AccessLevel = UserAccessLevel = AccessLevels.CurrentReadOrWrite;
 
             // generate structure values here
-            ServiceResult result = WriteValueAttribute(context, NumericRange.Empty, system.ReadValue(this), StatusCodes.Good, DateTime.UtcNow);
+            ServiceResult result = WriteValueAttribute(
+                context,
+                NumericRange.Empty,
+                system.ReadValue(this),
+                StatusCodes.Good,
+                DateTime.UtcNow
+            );
 
             AccessLevel = accessLevel;
             UserAccessLevel = userAccessLevel;

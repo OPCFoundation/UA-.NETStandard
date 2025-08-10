@@ -39,9 +39,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The system context.</param>
         /// <param name="acknowledged">if set to <c>true</c> the condition is acknowledged.</param>
-        public virtual void SetAcknowledgedState(
-            ISystemContext context,
-            bool acknowledged)
+        public virtual void SetAcknowledgedState(ISystemContext context, bool acknowledged)
         {
             if (acknowledged)
             {
@@ -58,9 +56,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context.</param>
         /// <param name="confirmed">if set to <c>true</c> the condition is confirmed.</param>
-        public virtual void SetConfirmedState(
-            ISystemContext context,
-            bool confirmed)
+        public virtual void SetConfirmedState(ISystemContext context, bool confirmed)
         {
             if (confirmed)
             {
@@ -126,7 +122,8 @@ namespace Opc.Ua
             MethodState method,
             NodeId objectId,
             byte[] eventId,
-            LocalizedText comment)
+            LocalizedText comment
+        )
         {
             ServiceResult error = ProcessBeforeAcknowledge(context, eventId, comment);
 
@@ -180,7 +177,8 @@ namespace Opc.Ua
                 var info = new TranslationInfo(
                     "AuditConditionAcknowledge",
                     "en-US",
-                    "The Acknowledge method was called.");
+                    "The Acknowledge method was called."
+                );
 
                 e.Initialize(
                     context,
@@ -188,7 +186,8 @@ namespace Opc.Ua
                     EventSeverity.Low,
                     new LocalizedText(info),
                     ServiceResult.IsGood(error),
-                    DateTime.UtcNow);
+                    DateTime.UtcNow
+                );
 
                 e.SetChildValue(context, BrowseNames.SourceNode, NodeId, false);
                 e.SetChildValue(context, BrowseNames.SourceName, "Method/Acknowledge", false);
@@ -214,7 +213,8 @@ namespace Opc.Ua
         protected virtual ServiceResult ProcessBeforeAcknowledge(
             ISystemContext context,
             byte[] eventId,
-            LocalizedText comment)
+            LocalizedText comment
+        )
         {
             if (eventId == null)
             {
@@ -234,7 +234,11 @@ namespace Opc.Ua
                 }
                 catch (Exception e)
                 {
-                    return ServiceResult.Create(e, StatusCodes.BadUnexpectedError, "Unexpected error acknowledging a Condition.");
+                    return ServiceResult.Create(
+                        e,
+                        StatusCodes.BadUnexpectedError,
+                        "Unexpected error acknowledging a Condition."
+                    );
                 }
             }
 
@@ -247,10 +251,7 @@ namespace Opc.Ua
         /// <param name="context">The system context.</param>
         protected virtual void UpdateStateAfterAcknowledge(ISystemContext context)
         {
-            var state = new TranslationInfo(
-                "ConditionStateAcknowledged",
-                "en-US",
-                ConditionStateNames.Acknowledged);
+            var state = new TranslationInfo("ConditionStateAcknowledged", "en-US", ConditionStateNames.Acknowledged);
 
             AckedState.Value = new LocalizedText(state);
             AckedState.Id.Value = true;
@@ -272,7 +273,8 @@ namespace Opc.Ua
             var state = new TranslationInfo(
                 "ConditionStateUnacknowledged",
                 "en-US",
-                ConditionStateNames.Unacknowledged);
+                ConditionStateNames.Unacknowledged
+            );
 
             AckedState.Value = new LocalizedText(state);
             AckedState.Id.Value = false;
@@ -299,7 +301,8 @@ namespace Opc.Ua
             MethodState method,
             NodeId objectId,
             byte[] eventId,
-            LocalizedText comment)
+            LocalizedText comment
+        )
         {
             ServiceResult error = ProcessBeforeConfirm(context, eventId, comment);
 
@@ -337,10 +340,7 @@ namespace Opc.Ua
                 // raise the audit event.
                 var e = new AuditConditionConfirmEventState(null);
 
-                var info = new TranslationInfo(
-                    "AuditConditionConfirm",
-                    "en-US",
-                    "The Confirm method was called.");
+                var info = new TranslationInfo("AuditConditionConfirm", "en-US", "The Confirm method was called.");
 
                 e.Initialize(
                     context,
@@ -348,7 +348,8 @@ namespace Opc.Ua
                     EventSeverity.Low,
                     new LocalizedText(info),
                     ServiceResult.IsGood(error),
-                    DateTime.UtcNow);
+                    DateTime.UtcNow
+                );
 
                 e.SetChildValue(context, BrowseNames.SourceNode, NodeId, false);
                 e.SetChildValue(context, BrowseNames.SourceName, "Method/Confirm", false);
@@ -374,7 +375,8 @@ namespace Opc.Ua
         protected virtual ServiceResult ProcessBeforeConfirm(
             ISystemContext context,
             byte[] eventId,
-            LocalizedText comment)
+            LocalizedText comment
+        )
         {
             if (eventId == null)
             {
@@ -394,7 +396,11 @@ namespace Opc.Ua
                 }
                 catch (Exception e)
                 {
-                    return ServiceResult.Create(e, StatusCodes.BadUnexpectedError, "Unexpected error confirming a Condition.");
+                    return ServiceResult.Create(
+                        e,
+                        StatusCodes.BadUnexpectedError,
+                        "Unexpected error confirming a Condition."
+                    );
                 }
             }
 
@@ -409,10 +415,7 @@ namespace Opc.Ua
         {
             if (ConfirmedState != null)
             {
-                var state = new TranslationInfo(
-                    "ConditionStateConfirmed",
-                    "en-US",
-                    ConditionStateNames.Confirmed);
+                var state = new TranslationInfo("ConditionStateConfirmed", "en-US", ConditionStateNames.Confirmed);
 
                 ConfirmedState.Value = new LocalizedText(state);
                 ConfirmedState.Id.Value = true;
@@ -434,10 +437,7 @@ namespace Opc.Ua
         {
             if (ConfirmedState != null)
             {
-                var state = new TranslationInfo(
-                    "ConditionStateUnconfirmed",
-                    "en-US",
-                    ConditionStateNames.Unconfirmed);
+                var state = new TranslationInfo("ConditionStateUnconfirmed", "en-US", ConditionStateNames.Unconfirmed);
 
                 ConfirmedState.Value = new LocalizedText(state);
                 ConfirmedState.Id.Value = false;

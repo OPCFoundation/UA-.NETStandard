@@ -103,7 +103,13 @@ namespace Opc.Ua.PubSub.Transport
                 }
                 catch (Exception ex)
                 {
-                    Utils.Trace(Utils.TraceMasks.Information, "UdpClientBroadcast set SetSocketOption {1} to {2} resulted in ex {0}", ex.Message, SocketOptionName.Broadcast, value);
+                    Utils.Trace(
+                        Utils.TraceMasks.Information,
+                        "UdpClientBroadcast set SetSocketOption {1} to {2} resulted in ex {0}",
+                        ex.Message,
+                        SocketOptionName.Broadcast,
+                        value
+                    );
                 }
             }
             SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.Broadcast, true);
@@ -118,7 +124,11 @@ namespace Opc.Ua.PubSub.Transport
                 }
                 catch (Exception ex)
                 {
-                    Utils.Trace(Utils.TraceMasks.Information, "UdpClientBroadcast set ExclusiveAddressUse to false resulted in ex {0}", ex.Message);
+                    Utils.Trace(
+                        Utils.TraceMasks.Information,
+                        "UdpClientBroadcast set ExclusiveAddressUse to false resulted in ex {0}",
+                        ex.Message
+                    );
                 }
             }
         }

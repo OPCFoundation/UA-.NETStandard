@@ -70,9 +70,7 @@ namespace Opc.Ua
 
             if (string.IsNullOrEmpty(location))
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadUnexpectedError,
-                    "Store Location cannot be empty.");
+                throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, "Store Location cannot be empty.");
             }
 
             // extract store name.
@@ -82,7 +80,8 @@ namespace Opc.Ua
                 throw ServiceResultException.Create(
                     StatusCodes.BadUnexpectedError,
                     "Path does not specify a store name. Path={0}",
-                    location);
+                    location
+                );
             }
 
             // extract store location.
@@ -101,8 +100,7 @@ namespace Opc.Ua
                 var message = new StringBuilder();
                 message.AppendLine("Store location specified not available.");
                 message.AppendLine("Store location={0}");
-                throw ServiceResultException.Create(StatusCodes.BadUnexpectedError,
-                    message.ToString(), storeLocation);
+                throw ServiceResultException.Create(StatusCodes.BadUnexpectedError, message.ToString(), storeLocation);
             }
 
             m_storeName = location[(index + 1)..];
@@ -240,14 +238,26 @@ namespace Opc.Ua
         /// <inheritdoc/>
         /// <remarks>The LoadPrivateKey special handling is not necessary in this store.</remarks>
         [Obsolete("Use LoadPrivateKeyAsync instead.")]
-        public Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string applicationUri, NodeId certificateType, string password)
+        public Task<X509Certificate2> LoadPrivateKey(
+            string thumbprint,
+            string subjectName,
+            string applicationUri,
+            NodeId certificateType,
+            string password
+        )
         {
             return Task.FromResult<X509Certificate2>(null);
         }
 
         /// <inheritdoc/>
         /// <remarks>The LoadPrivateKey special handling is not necessary in this store.</remarks>
-        public Task<X509Certificate2> LoadPrivateKeyAsync(string thumbprint, string subjectName, string applicationUri, NodeId certificateType, string password)
+        public Task<X509Certificate2> LoadPrivateKeyAsync(
+            string thumbprint,
+            string subjectName,
+            string applicationUri,
+            NodeId certificateType,
+            string password
+        )
         {
             return Task.FromResult<X509Certificate2>(null);
         }
@@ -305,7 +315,10 @@ namespace Opc.Ua
                     return (StatusCode)StatusCodes.BadCertificateRevoked;
                 }
 
-                if (crl.ThisUpdate <= DateTime.UtcNow && (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= DateTime.UtcNow))
+                if (
+                    crl.ThisUpdate <= DateTime.UtcNow
+                    && (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= DateTime.UtcNow)
+                )
                 {
                     crlExpired = false;
                 }
@@ -391,8 +404,13 @@ namespace Opc.Ua
                     continue;
                 }
 
-                if (!validateUpdateTime ||
-                    (crl.ThisUpdate <= DateTime.UtcNow && (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= DateTime.UtcNow)))
+                if (
+                    !validateUpdateTime
+                    || (
+                        crl.ThisUpdate <= DateTime.UtcNow
+                        && (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= DateTime.UtcNow)
+                    )
+                )
                 {
                     crls.Add(crl);
                 }
@@ -426,7 +444,10 @@ namespace Opc.Ua
             X509Certificate2Collection certificates = await EnumerateAsync().ConfigureAwait(false);
             foreach (X509Certificate2 certificate in certificates)
             {
-                if (X509Utils.CompareDistinguishedName(certificate.SubjectName, crl.IssuerName) && crl.VerifySignature(certificate, false))
+                if (
+                    X509Utils.CompareDistinguishedName(certificate.SubjectName, crl.IssuerName)
+                    && crl.VerifySignature(certificate, false)
+                )
                 {
                     issuer = certificate;
                     break;
@@ -435,7 +456,10 @@ namespace Opc.Ua
 
             if (issuer == null)
             {
-                throw new ServiceResultException(StatusCodes.BadCertificateInvalid, "Could not find issuer of the CRL.");
+                throw new ServiceResultException(
+                    StatusCodes.BadCertificateInvalid,
+                    "Could not find issuer of the CRL."
+                );
             }
             using var store = new X509Store(m_storeName, m_storeLocation);
             store.Open(OpenFlags.ReadWrite);

@@ -1,5 +1,4 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <DefineConstants>$(DefineConstants)</DefineConstants>
     <AssemblyName>Quickstarts.Servers</AssemblyName>
@@ -12,30 +11,23 @@
     <IsPackable>true</IsPackable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
-
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
-
   <ItemGroup>
     <EmbeddedResource Include="Boiler\Generated\Boiler.PredefinedNodes.uanodes" />
     <EmbeddedResource Include="TestData\Generated\TestData.PredefinedNodes.uanodes" />
     <EmbeddedResource Include="MemoryBuffer\Generated\MemoryBuffer.PredefinedNodes.uanodes" />
   </ItemGroup>
-
   <ItemGroup>
     <Compile Remove="Alarms\Alarms.cs" />
   </ItemGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Server\Opc.Ua.Server.csproj" />
   </ItemGroup>
-
   <PropertyGroup Condition="'$(SignAssembly)' == 'true'">
     <DefineConstants>$(DefineConstants);SIGNASSEMBLY</DefineConstants>
   </PropertyGroup>
-
   <Target Name="GetPackagingOutputs" />
-
 </Project>

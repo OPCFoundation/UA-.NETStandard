@@ -48,10 +48,7 @@ namespace Boiler
         }
 
         /// <inheritdoc/>
-        public StringCollection NamespacesUris => [
-                    Namespaces.Boiler,
-                    Namespaces.Boiler + "Instance"
-                ];
+        public StringCollection NamespacesUris => [Namespaces.Boiler, Namespaces.Boiler + "Instance"];
     }
 
     /// <summary>
@@ -62,12 +59,8 @@ namespace Boiler
         /// <summary>
         /// Initializes the node manager.
         /// </summary>
-        public BoilerNodeManager(
-            IServerInternal server,
-            ApplicationConfiguration configuration,
-            string[] namespaceUris)
-        :
-            base(server)
+        public BoilerNodeManager(IServerInternal server, ApplicationConfiguration configuration, string[] namespaceUris)
+            : base(server)
         {
             NamespaceUris = namespaceUris;
 
@@ -120,16 +113,12 @@ namespace Boiler
 
             string name = Utils.Format("Boiler #{0}", unitNumber);
 
-            boiler.Create(
-                context,
-                null,
-                new QualifiedName(name, m_namespaceIndex),
-                null,
-                true);
+            boiler.Create(context, null, new QualifiedName(name, m_namespaceIndex), null, true);
 
             NodeState folder = FindPredefinedNode(
                 ExpandedNodeId.ToNodeId(ObjectIds.Boilers, Server.NamespaceUris),
-                typeof(NodeState));
+                typeof(NodeState)
+            );
 
             folder.AddReference(Opc.Ua.ReferenceTypeIds.Organizes, false, boiler.NodeId);
             boiler.AddReference(Opc.Ua.ReferenceTypeIds.Organizes, true, folder.NodeId);
@@ -186,7 +175,12 @@ namespace Boiler
         protected override NodeStateCollection LoadPredefinedNodes(ISystemContext context)
         {
             var predefinedNodes = new NodeStateCollection();
-            predefinedNodes.LoadFromBinaryResource(context, "Quickstarts.Servers.Boiler.Generated.Boiler.PredefinedNodes.uanodes", GetType().GetTypeInfo().Assembly, true);
+            predefinedNodes.LoadFromBinaryResource(
+                context,
+                "Quickstarts.Servers.Boiler.Generated.Boiler.PredefinedNodes.uanodes",
+                GetType().GetTypeInfo().Assembly,
+                true
+            );
             return predefinedNodes;
         }
 
@@ -241,7 +235,8 @@ namespace Boiler
             ISystemContext systemContext,
             MonitoredItemCreateRequest itemToCreate,
             MonitoredNode monitoredNode,
-            DataChangeMonitoredItem monitoredItem)
+            DataChangeMonitoredItem monitoredItem
+        )
         {
             // TBD
         }
@@ -254,7 +249,8 @@ namespace Boiler
             MonitoredItemModifyRequest itemToModify,
             MonitoredNode monitoredNode,
             DataChangeMonitoredItem monitoredItem,
-            double previousSamplingInterval)
+            double previousSamplingInterval
+        )
         {
             // TBD
         }
@@ -265,7 +261,8 @@ namespace Boiler
         protected override void OnDeleteMonitoredItem(
             ISystemContext systemContext,
             MonitoredNode monitoredNode,
-            DataChangeMonitoredItem monitoredItem)
+            DataChangeMonitoredItem monitoredItem
+        )
         {
             // TBD
         }
@@ -278,7 +275,8 @@ namespace Boiler
             MonitoredNode monitoredNode,
             DataChangeMonitoredItem monitoredItem,
             MonitoringMode previousMode,
-            MonitoringMode currentMode)
+            MonitoringMode currentMode
+        )
         {
             // TBD
         }

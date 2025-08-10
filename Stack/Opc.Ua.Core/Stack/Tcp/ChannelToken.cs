@@ -23,9 +23,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Creates an object with default values.
         /// </summary>
-        public ChannelToken()
-        {
-        }
+        public ChannelToken() { }
 
         /// <summary>
         /// The private version of the Dispose.
@@ -102,54 +100,80 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Whether the token should be activated in case a new one is already created.
         /// </summary>
-        public bool ActivationRequired => (HiResClock.TickCount - CreatedAtTickCount) > (int)Math.Round(Lifetime * TcpMessageLimits.TokenActivationPeriod);
+        public bool ActivationRequired =>
+            (HiResClock.TickCount - CreatedAtTickCount)
+            > (int)Math.Round(Lifetime * TcpMessageLimits.TokenActivationPeriod);
 
         /// <summary>
         /// The nonce provided by the client.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Microsoft.Performance",
+            "CA1819:PropertiesShouldNotReturnArrays"
+        )]
         public byte[] ClientNonce { get; set; }
 
         /// <summary>
         /// The nonce provided by the server.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Microsoft.Performance",
+            "CA1819:PropertiesShouldNotReturnArrays"
+        )]
         public byte[] ServerNonce { get; set; }
 
         /// <summary>
         /// The key used to sign messages sent by the client.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Microsoft.Performance",
+            "CA1819:PropertiesShouldNotReturnArrays"
+        )]
         public byte[] ClientSigningKey { get; set; }
 
         /// <summary>
         /// The key used to encrypt messages sent by the client.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Microsoft.Performance",
+            "CA1819:PropertiesShouldNotReturnArrays"
+        )]
         public byte[] ClientEncryptingKey { get; set; }
 
         /// <summary>
         /// The initialization vector by the client when encrypting a message.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Microsoft.Performance",
+            "CA1819:PropertiesShouldNotReturnArrays"
+        )]
         public byte[] ClientInitializationVector { get; set; }
 
         /// <summary>
         /// The key used to sign messages sent by the server.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Microsoft.Performance",
+            "CA1819:PropertiesShouldNotReturnArrays"
+        )]
         public byte[] ServerSigningKey { get; set; }
 
         /// <summary>
         /// The key used to encrypt messages sent by the server.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Microsoft.Performance",
+            "CA1819:PropertiesShouldNotReturnArrays"
+        )]
         public byte[] ServerEncryptingKey { get; set; }
 
         /// <summary>
         /// The initialization vector by the server when encrypting a message.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Microsoft.Performance",
+            "CA1819:PropertiesShouldNotReturnArrays"
+        )]
         public byte[] ServerInitializationVector { get; set; }
 
         /// <summary>

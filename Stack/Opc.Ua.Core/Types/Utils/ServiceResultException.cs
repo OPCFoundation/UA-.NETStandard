@@ -27,7 +27,8 @@ namespace Opc.Ua
         /// <summary>
         /// The default constructor.
         /// </summary>
-        public ServiceResultException() : base(Strings.DefaultMessage)
+        public ServiceResultException()
+            : base(Strings.DefaultMessage)
         {
             Result = StatusCodes.Bad;
         }
@@ -35,7 +36,8 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the exception with a message.
         /// </summary>
-        public ServiceResultException(string message) : base(message)
+        public ServiceResultException(string message)
+            : base(message)
         {
             Result = StatusCodes.Bad;
         }
@@ -43,7 +45,8 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the exception with a message and an exception.
         /// </summary>
-        public ServiceResultException(Exception e, uint defaultCode) : base(e.Message, e)
+        public ServiceResultException(Exception e, uint defaultCode)
+            : base(e.Message, e)
         {
             Result = ServiceResult.Create(e, defaultCode, string.Empty);
         }
@@ -51,7 +54,8 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the exception with a message and an exception.
         /// </summary>
-        public ServiceResultException(string message, Exception e) : base(message, e)
+        public ServiceResultException(string message, Exception e)
+            : base(message, e)
         {
             Result = StatusCodes.Bad;
         }
@@ -59,7 +63,8 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the exception with a status code.
         /// </summary>
-        public ServiceResultException(uint statusCode) : base(GetMessage(statusCode))
+        public ServiceResultException(uint statusCode)
+            : base(GetMessage(statusCode))
         {
             Result = new ServiceResult(statusCode);
         }
@@ -67,7 +72,8 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the exception with a status code and a message.
         /// </summary>
-        public ServiceResultException(uint statusCode, string message) : base(message)
+        public ServiceResultException(uint statusCode, string message)
+            : base(message)
         {
             Result = new ServiceResult(statusCode, message);
         }
@@ -75,7 +81,8 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the exception with a status code and an inner exception.
         /// </summary>
-        public ServiceResultException(uint statusCode, Exception e) : base(GetMessage(statusCode), e)
+        public ServiceResultException(uint statusCode, Exception e)
+            : base(GetMessage(statusCode), e)
         {
             Result = new ServiceResult(statusCode, e);
         }
@@ -83,7 +90,8 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the exception with a status code, a message and an inner exception.
         /// </summary>
-        public ServiceResultException(uint statusCode, string message, Exception e) : base(message, e)
+        public ServiceResultException(uint statusCode, string message, Exception e)
+            : base(message, e)
         {
             Result = new ServiceResult(statusCode, message, e);
         }
@@ -91,7 +99,8 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the exception with a Result object.
         /// </summary>
-        public ServiceResultException(ServiceResult status) : base(GetMessage(status))
+        public ServiceResultException(ServiceResult status)
+            : base(GetMessage(status))
         {
             Result = status ?? new ServiceResult(StatusCodes.Bad);
         }
@@ -173,7 +182,12 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a new instance of a ServiceResultException
         /// </summary>
-        public static ServiceResultException Create(StatusCode code, int index, DiagnosticInfoCollection diagnosticInfos, IList<string> stringTable)
+        public static ServiceResultException Create(
+            StatusCode code,
+            int index,
+            DiagnosticInfoCollection diagnosticInfos,
+            IList<string> stringTable
+        )
         {
             return new ServiceResultException(new ServiceResult(code, index, diagnosticInfos, stringTable));
         }

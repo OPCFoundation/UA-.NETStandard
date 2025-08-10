@@ -147,7 +147,10 @@ namespace Opc.Ua
 
             if (expectedCount > 0 && expectedCount != operands.Length)
             {
-                throw new ServiceResultException(StatusCodes.BadUnexpectedError, "ContentFilterElement does not have the correct number of operands.");
+                throw new ServiceResultException(
+                    StatusCodes.BadUnexpectedError,
+                    "ContentFilterElement does not have the correct number of operands."
+                );
             }
 
             return operands;
@@ -156,7 +159,11 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the operands necessary for the BitwiseAnd and BitwiseOr operations
         /// </summary>
-        private Tuple<object, object> GetBitwiseOperands(FilterContext context, IFilterTarget target, ContentFilterElement element)
+        private Tuple<object, object> GetBitwiseOperands(
+            FilterContext context,
+            IFilterTarget target,
+            ContentFilterElement element
+        )
         {
             FilterOperand[] operands = GetOperands(element, 2);
 
@@ -168,7 +175,7 @@ namespace Opc.Ua
                 return Tuple.Create<object, object>(null, null);
             }
 
-            if (!isIntegerType(GetBuiltInType(lhs)) || !isIntegerType(GetBuiltInType(rhs)))
+            if (!IsIntegerType(GetBuiltInType(lhs)) || !IsIntegerType(GetBuiltInType(rhs)))
             {
                 return Tuple.Create<object, object>(null, null);
             }
@@ -199,7 +206,8 @@ namespace Opc.Ua
                     simpleAttribute.TypeDefinitionId,
                     simpleAttribute.BrowsePath,
                     simpleAttribute.AttributeId,
-                    simpleAttribute.ParsedIndexRange);
+                    simpleAttribute.ParsedIndexRange
+                );
             }
 
             // must query the filter target for attribute operands.
@@ -218,7 +226,8 @@ namespace Opc.Ua
                     attribute.NodeId,
                     attribute.BrowsePath,
                     attribute.AttributeId,
-                    attribute.ParsedIndexRange);
+                    attribute.ParsedIndexRange
+                );
             }
 
             // recursively evaluate element operands.
@@ -251,59 +260,113 @@ namespace Opc.Ua
             }
 
             if (systemType == typeof(bool))
-            { return BuiltInType.Boolean; }
+            {
+                return BuiltInType.Boolean;
+            }
             if (systemType == typeof(sbyte))
-            { return BuiltInType.SByte; }
+            {
+                return BuiltInType.SByte;
+            }
             if (systemType == typeof(byte))
-            { return BuiltInType.Byte; }
+            {
+                return BuiltInType.Byte;
+            }
             if (systemType == typeof(short))
-            { return BuiltInType.Int16; }
+            {
+                return BuiltInType.Int16;
+            }
             if (systemType == typeof(ushort))
-            { return BuiltInType.UInt16; }
+            {
+                return BuiltInType.UInt16;
+            }
             if (systemType == typeof(int))
-            { return BuiltInType.Int32; }
+            {
+                return BuiltInType.Int32;
+            }
             if (systemType == typeof(uint))
-            { return BuiltInType.UInt32; }
+            {
+                return BuiltInType.UInt32;
+            }
             if (systemType == typeof(long))
-            { return BuiltInType.Int64; }
+            {
+                return BuiltInType.Int64;
+            }
             if (systemType == typeof(ulong))
-            { return BuiltInType.UInt64; }
+            {
+                return BuiltInType.UInt64;
+            }
             if (systemType == typeof(float))
-            { return BuiltInType.Float; }
+            {
+                return BuiltInType.Float;
+            }
             if (systemType == typeof(double))
-            { return BuiltInType.Double; }
+            {
+                return BuiltInType.Double;
+            }
             if (systemType == typeof(string))
-            { return BuiltInType.String; }
+            {
+                return BuiltInType.String;
+            }
             if (systemType == typeof(DateTime))
-            { return BuiltInType.DateTime; }
+            {
+                return BuiltInType.DateTime;
+            }
             if (systemType == typeof(Guid))
-            { return BuiltInType.Guid; }
+            {
+                return BuiltInType.Guid;
+            }
             if (systemType == typeof(Uuid))
-            { return BuiltInType.Guid; }
+            {
+                return BuiltInType.Guid;
+            }
             if (systemType == typeof(byte[]))
-            { return BuiltInType.ByteString; }
+            {
+                return BuiltInType.ByteString;
+            }
             if (systemType == typeof(XmlElement))
-            { return BuiltInType.XmlElement; }
+            {
+                return BuiltInType.XmlElement;
+            }
             if (systemType == typeof(NodeId))
-            { return BuiltInType.NodeId; }
+            {
+                return BuiltInType.NodeId;
+            }
             if (systemType == typeof(ExpandedNodeId))
-            { return BuiltInType.ExpandedNodeId; }
+            {
+                return BuiltInType.ExpandedNodeId;
+            }
             if (systemType == typeof(StatusCode))
-            { return BuiltInType.StatusCode; }
+            {
+                return BuiltInType.StatusCode;
+            }
             if (systemType == typeof(DiagnosticInfo))
-            { return BuiltInType.DiagnosticInfo; }
+            {
+                return BuiltInType.DiagnosticInfo;
+            }
             if (systemType == typeof(QualifiedName))
-            { return BuiltInType.QualifiedName; }
+            {
+                return BuiltInType.QualifiedName;
+            }
             if (systemType == typeof(LocalizedText))
-            { return BuiltInType.LocalizedText; }
+            {
+                return BuiltInType.LocalizedText;
+            }
             if (systemType == typeof(ExtensionObject))
-            { return BuiltInType.ExtensionObject; }
+            {
+                return BuiltInType.ExtensionObject;
+            }
             if (systemType == typeof(DataValue))
-            { return BuiltInType.DataValue; }
+            {
+                return BuiltInType.DataValue;
+            }
             if (systemType == typeof(Variant))
-            { return BuiltInType.Variant; }
+            {
+                return BuiltInType.Variant;
+            }
             if (systemType == typeof(object))
-            { return BuiltInType.Variant; }
+            {
+                return BuiltInType.Variant;
+            }
 
             if (systemType.GetTypeInfo().IsEnum)
             {
@@ -505,12 +568,17 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="aType">The type to check against</param>
         /// <returns>true if the type is Integer, otherwise returns false</returns>
-        private static bool isIntegerType(BuiltInType aType)
+        private static bool IsIntegerType(BuiltInType aType)
         {
-            return aType is BuiltInType.Byte or BuiltInType.SByte or
-            BuiltInType.Int16 or BuiltInType.UInt16 or
-            BuiltInType.Int32 or BuiltInType.UInt32 or
-            BuiltInType.Int64 or BuiltInType.UInt64;
+            return aType
+                is BuiltInType.Byte
+                    or BuiltInType.SByte
+                    or BuiltInType.Int16
+                    or BuiltInType.UInt16
+                    or BuiltInType.Int32
+                    or BuiltInType.UInt32
+                    or BuiltInType.Int64
+                    or BuiltInType.UInt64;
         }
 
         /// <summary>
@@ -1794,10 +1862,10 @@ namespace Opc.Ua
 
             bool? result = null;
 
-            if (lhs is IComparable && min is IComparable)
+            if (lhs is IComparable l1 && min is IComparable m1)
             {
                 // check if never in range no matter what happens with the upper bound.
-                if (((IComparable)lhs).CompareTo(min) < 0)
+                if (l1.CompareTo(m1) < 0)
                 {
                     return false;
                 }
@@ -1808,10 +1876,10 @@ namespace Opc.Ua
             lhs = value;
             DoImplicitConversion(ref lhs, ref max);
 
-            if (lhs is IComparable && max is IComparable)
+            if (lhs is IComparable l2 && max is IComparable m2)
             {
                 // check if never in range no matter what happens with the lower bound.
-                if (((IComparable)lhs).CompareTo(max) > 0)
+                if (l2.CompareTo(m2) > 0)
                 {
                     return false;
                 }
@@ -2000,7 +2068,12 @@ namespace Opc.Ua
         /// <summary>
         /// RelatedTo FilterOperator
         /// </summary>
-        private bool RelatedTo(FilterContext context, IFilterTarget target, ContentFilterElement element, NodeId intermediateNodeId)
+        private bool RelatedTo(
+            FilterContext context,
+            IFilterTarget target,
+            ContentFilterElement element,
+            NodeId intermediateNodeId
+        )
         {
             // RelatedTo only supported in advanced filter targets.
 
@@ -2059,7 +2132,9 @@ namespace Opc.Ua
 
             if (operands[1] is ElementOperand chainedOperand)
             {
-                if (/*chainedOperand.Index < 0 ||*/ chainedOperand.Index >= Elements.Count)
+                if ( /*chainedOperand.Index < 0 ||*/
+                    chainedOperand.Index >= Elements.Count
+                )
                 {
                     return false;
                 }
@@ -2087,7 +2162,8 @@ namespace Opc.Ua
                         referenceTypeId,
                         hops.Value,
                         includeTypeDefinitionSubtypes.Value,
-                        includeReferenceTypeSubtypes.Value);
+                        includeReferenceTypeSubtypes.Value
+                    );
 
                     if (nodeIds == null || nodeIds.Count == 0)
                     {
@@ -2131,7 +2207,8 @@ namespace Opc.Ua
                     referenceTypeId,
                     hops.Value,
                     includeTypeDefinitionSubtypes.Value,
-                    includeReferenceTypeSubtypes.Value);
+                    includeReferenceTypeSubtypes.Value
+                );
             }
             catch
             {
@@ -2246,6 +2323,5 @@ namespace Opc.Ua
         [GeneratedRegex("(?<!\\\\)(\\[!)", RegexOptions.Compiled)]
         private static partial Regex ReplaceBrackets();
 #endif
-
     }
 }

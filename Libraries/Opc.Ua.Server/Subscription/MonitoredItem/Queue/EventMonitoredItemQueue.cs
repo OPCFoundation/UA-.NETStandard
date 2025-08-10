@@ -46,8 +46,13 @@ namespace Opc.Ua.Server
         {
             if (createDurable)
             {
-                Utils.LogError("EventMonitoredItemQueue does not support durable queues, please provide full implementation of IDurableMonitoredItemQueue using Server.CreateDurableMonitoredItemQueueFactory to supply own factory");
-                throw new ArgumentException("DataChangeMonitoredItemQueue does not support durable Queues", nameof(createDurable));
+                Utils.LogError(
+                    "EventMonitoredItemQueue does not support durable queues, please provide full implementation of IDurableMonitoredItemQueue using Server.CreateDurableMonitoredItemQueueFactory to supply own factory"
+                );
+                throw new ArgumentException(
+                    "DataChangeMonitoredItemQueue does not support durable Queues",
+                    nameof(createDurable)
+                );
             }
             m_events = [];
             MonitoredItemId = monitoredItemId;
@@ -89,16 +94,17 @@ namespace Opc.Ua.Server
         /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
-        protected virtual void Dispose(bool disposing)
-        {
-        }
+        protected virtual void Dispose(bool disposing) { }
 
         /// <inheritdoc/>
         public void Enqueue(EventFieldList value)
         {
             if (QueueSize == 0)
             {
-                throw new ServiceResultException(StatusCodes.BadInternalError, "Error queueing Event. Queue size is set to 0");
+                throw new ServiceResultException(
+                    StatusCodes.BadInternalError,
+                    "Error queueing Event. Queue size is set to 0"
+                );
             }
 
             //Discard oldest
@@ -113,7 +119,10 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public bool IsEventContainedInQueue(IFilterTarget instance)
         {
-            int maxCount = m_events.Count > kMaxNoOfEntriesCheckedForDuplicateEvents ? (int)kMaxNoOfEntriesCheckedForDuplicateEvents : m_events.Count;
+            int maxCount =
+                m_events.Count > kMaxNoOfEntriesCheckedForDuplicateEvents
+                    ? (int)kMaxNoOfEntriesCheckedForDuplicateEvents
+                    : m_events.Count;
 
             for (int i = 0; i < maxCount; i++)
             {

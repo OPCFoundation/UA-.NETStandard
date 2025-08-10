@@ -94,12 +94,18 @@ namespace Quickstarts.Servers
             {
                 if (m_dequeueBatch.IsPersisted)
                 {
-                    Opc.Ua.Utils.LogDebug("Dequeue was requeusted but queue was not restored for monitoreditem {0} try to restore for 10 ms.", MonitoredItemId);
+                    Opc.Ua.Utils.LogDebug(
+                        "Dequeue was requeusted but queue was not restored for monitoreditem {0} try to restore for 10 ms.",
+                        MonitoredItemId
+                    );
                     m_batchPersistor.RequestBatchRestore(m_dequeueBatch);
 
                     if (!SpinWait.SpinUntil(() => !m_dequeueBatch.RestoreInProgress, 10))
                     {
-                        Opc.Ua.Utils.LogDebug("Dequeue failed for monitoreditem {0} as queue could not be restored in time.", MonitoredItemId);
+                        Opc.Ua.Utils.LogDebug(
+                            "Dequeue failed for monitoreditem {0} as queue could not be restored in time.",
+                            MonitoredItemId
+                        );
                         // Dequeue failed as queue could not be restored in time
                         return false;
                     }
@@ -119,7 +125,10 @@ namespace Quickstarts.Servers
         {
             if (QueueSize == 0)
             {
-                throw new ServiceResultException(StatusCodes.BadInternalError, "Error queueing Event. Queue size is set to 0");
+                throw new ServiceResultException(
+                    StatusCodes.BadInternalError,
+                    "Error queueing Event. Queue size is set to 0"
+                );
             }
 
             //Discard oldest
@@ -164,6 +173,7 @@ namespace Quickstarts.Servers
                 }
             }
         }
+
         /// <summary>
         /// Restores batches if needed
         /// </summary>
@@ -200,7 +210,10 @@ namespace Quickstarts.Servers
         /// <inheritdoc/>
         public bool IsEventContainedInQueue(IFilterTarget instance)
         {
-            int maxCount = ItemsInQueue > kMaxNoOfEntriesCheckedForDuplicateEvents ? (int)kMaxNoOfEntriesCheckedForDuplicateEvents : ItemsInQueue;
+            int maxCount =
+                ItemsInQueue > kMaxNoOfEntriesCheckedForDuplicateEvents
+                    ? (int)kMaxNoOfEntriesCheckedForDuplicateEvents
+                    : ItemsInQueue;
 
             for (int i = 0; i < maxCount; i++)
             {
@@ -216,7 +229,11 @@ namespace Quickstarts.Servers
                 else if (i >= m_enqueueBatch.Events.Count && m_eventBatches.Count > 0)
                 {
                     int indexInStoredBatch = i - m_enqueueBatch.Events.Count;
-                    if (indexInStoredBatch < m_eventBatches[^1].Events.Count && m_eventBatches[^1].Events[indexInStoredBatch] is EventFieldList storedEvent && ReferenceEquals(instance, storedEvent.Handle))
+                    if (
+                        indexInStoredBatch < m_eventBatches[^1].Events.Count
+                        && m_eventBatches[^1].Events[indexInStoredBatch] is EventFieldList storedEvent
+                        && ReferenceEquals(instance, storedEvent.Handle)
+                    )
                     {
                         return true;
                     }
@@ -372,10 +389,12 @@ namespace Quickstarts.Servers
     /// </summary>
     public class EventBatch : BatchBase
     {
-        public EventBatch(List<EventFieldList> events, uint batchSize, uint monitoredItemId) : base(batchSize, monitoredItemId)
+        public EventBatch(List<EventFieldList> events, uint batchSize, uint monitoredItemId)
+            : base(batchSize, monitoredItemId)
         {
             Events = events;
         }
+
         public List<EventFieldList> Events { get; private set; }
 
         public override void SetPersisted()

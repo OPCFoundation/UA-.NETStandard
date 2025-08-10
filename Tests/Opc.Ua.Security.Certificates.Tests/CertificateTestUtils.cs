@@ -74,8 +74,13 @@ namespace Opc.Ua.Security.Certificates.Tests
     public class KeyHashPairCollection : List<KeyHashPair>
     {
         public KeyHashPairCollection() { }
-        public KeyHashPairCollection(IEnumerable<KeyHashPair> collection) : base(collection) { }
-        public KeyHashPairCollection(int capacity) : base(capacity) { }
+
+        public KeyHashPairCollection(IEnumerable<KeyHashPair> collection)
+            : base(collection) { }
+
+        public KeyHashPairCollection(int capacity)
+            : base(capacity) { }
+
         public static KeyHashPairCollection ToJsonValidationDataCollection(KeyHashPair[] values)
         {
             return values != null ? [.. values] : [];
@@ -134,8 +139,13 @@ namespace Opc.Ua.Security.Certificates.Tests
     public class ECCurveHashPairCollection : List<ECCurveHashPair>
     {
         public ECCurveHashPairCollection() { }
-        public ECCurveHashPairCollection(IEnumerable<ECCurveHashPair> collection) : base(collection) { }
-        public ECCurveHashPairCollection(int capacity) : base(capacity) { }
+
+        public ECCurveHashPairCollection(IEnumerable<ECCurveHashPair> collection)
+            : base(collection) { }
+
+        public ECCurveHashPairCollection(int capacity)
+            : base(capacity) { }
+
         public static ECCurveHashPairCollection ToJsonValidationDataCollection(ECCurveHashPair[] values)
         {
             return values != null ? [.. values] : [];
@@ -146,7 +156,6 @@ namespace Opc.Ua.Security.Certificates.Tests
             Add(new ECCurveHashPair(curve, hashAlgorithmName));
         }
     }
-
 #endif
 
     /// <summary>
@@ -191,8 +200,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             {
                 X509Certificate = X509CertificateLoader.LoadCertificateFromFile(path);
             }
-            catch
-            { }
+            catch { }
         }
 
         public string ToString(string format, IFormatProvider formatProvider)
@@ -216,7 +224,10 @@ namespace Opc.Ua.Security.Certificates.Tests
             stringBuilder.AppendLine("RevokedCertificates:");
             foreach (RevokedCertificate revokedCert in x509Crl.RevokedCertificates)
             {
-                stringBuilder.AppendFormat(CultureInfo.InvariantCulture, "{0:20}, ", revokedCert.SerialNumber).Append(revokedCert.RevocationDate).Append(", ");
+                stringBuilder
+                    .AppendFormat(CultureInfo.InvariantCulture, "{0:20}, ", revokedCert.SerialNumber)
+                    .Append(revokedCert.RevocationDate)
+                    .Append(", ");
                 foreach (X509Extension entryExt in revokedCert.CrlEntryExtensions)
                 {
                     stringBuilder.Append(entryExt.Format(false)).Append(' ');

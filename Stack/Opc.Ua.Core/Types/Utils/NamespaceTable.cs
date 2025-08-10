@@ -89,7 +89,11 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < m_strings.Count; ii++)
                     {
-                        Utils.LogWarning("WARNING: Adding '{0}' to shared StringTable #{1}.", m_strings[ii], InstanceId);
+                        Utils.LogWarning(
+                            "WARNING: Adding '{0}' to shared StringTable #{1}.",
+                            m_strings[ii],
+                            InstanceId
+                        );
                     }
                 }
 #endif
@@ -247,6 +251,7 @@ namespace Opc.Ua
         }
 
         private List<string> m_strings;
+
 #if DEBUG
         /// <summary>
         /// Whether the table is shared.

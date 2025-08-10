@@ -38,7 +38,13 @@ namespace Alarms
 {
     public class AlarmHolder
     {
-        public AlarmHolder(AlarmNodeManager alarmNodeManager, FolderState parent, SourceController trigger, Type controllerType, int interval)
+        public AlarmHolder(
+            AlarmNodeManager alarmNodeManager,
+            FolderState parent,
+            SourceController trigger,
+            Type controllerType,
+            int interval
+        )
         {
             m_alarmNodeManager = alarmNodeManager;
             m_parent = parent;
@@ -107,9 +113,7 @@ namespace Alarms
             }
         }
 
-        protected virtual void CreateBranch()
-        {
-        }
+        protected virtual void CreateBranch() { }
 
         private void InitializeInternal(BaseEventState alarm, NodeId branchId = null)
         {
@@ -123,12 +127,7 @@ namespace Alarms
             var createNodeId = new NodeId(alarmNodeId, NamespaceIndex);
             var createLocalizedText = new LocalizedText(alarmName);
             alarm.ReferenceTypeId = ReferenceTypeIds.HasComponent;
-            alarm.Create(
-                SystemContext,
-                createNodeId,
-                createQualifiedName,
-                createLocalizedText,
-                true);
+            alarm.Create(SystemContext, createNodeId, createQualifiedName, createLocalizedText, true);
 
             if (!isBranch)
             {
@@ -184,7 +183,14 @@ namespace Alarms
 
         protected void LogMessage(LogLevel logLevel, string caller, string message)
         {
-            Utils.Log(logLevel, "{0}: {1} EventId {2} {3}", caller, m_mapName, Utils.ToHexString(m_alarm.EventId.Value), message);
+            Utils.Log(
+                logLevel,
+                "{0}: {1} EventId {2} {3}",
+                caller,
+                m_mapName,
+                Utils.ToHexString(m_alarm.EventId.Value),
+                message
+            );
         }
 
         public virtual void SetValue(string message = "")
@@ -216,9 +222,7 @@ namespace Alarms
             return false;
         }
 
-        protected virtual void SetActive(BaseEventState state, bool activeState)
-        {
-        }
+        protected virtual void SetActive(BaseEventState state, bool activeState) { }
 
         public ServiceResult OnWriteAlarmTrigger(
             ISystemContext context,
@@ -227,7 +231,8 @@ namespace Alarms
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             if (Trigger.Value != value)
             {
@@ -261,9 +266,7 @@ namespace Alarms
 
         public bool SupportsBranching => m_supportsBranching;
 
-        public virtual void SetBranching(bool value)
-        {
-        }
+        public virtual void SetBranching(bool value) { }
 
         public PropertyState<NodeId> GetEventType()
         {

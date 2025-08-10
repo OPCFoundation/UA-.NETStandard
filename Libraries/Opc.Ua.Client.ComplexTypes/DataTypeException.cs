@@ -54,7 +54,8 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Create exception with message.
         /// </summary>
         /// <param name="message"></param>
-        public DataTypeNotFoundException(string message) : base(message)
+        public DataTypeNotFoundException(string message)
+            : base(message)
         {
             NodeIds = [];
         }
@@ -64,7 +65,8 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         /// <param name="message"></param>
         /// <param name="innerException"></param>
-        public DataTypeNotFoundException(string message, Exception innerException) : base(message, innerException)
+        public DataTypeNotFoundException(string message, Exception innerException)
+            : base(message, innerException)
         {
             NodeIds = [];
         }
@@ -130,7 +132,8 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Create exception with message.
         /// </summary>
         /// <param name="message"></param>
-        public DataTypeNotSupportedException(string message) : base(message)
+        public DataTypeNotSupportedException(string message)
+            : base(message)
         {
             NodeId = ExpandedNodeId.Null;
         }
@@ -140,7 +143,8 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         /// <param name="message"></param>
         /// <param name="innerException"></param>
-        public DataTypeNotSupportedException(string message, Exception innerException) : base(message, innerException)
+        public DataTypeNotSupportedException(string message, Exception innerException)
+            : base(message, innerException)
         {
             NodeId = ExpandedNodeId.Null;
         }
@@ -189,4 +193,4 @@ namespace Opc.Ua.Client.ComplexTypes
             NodeId = nodeId;
         }
     }
-}//namespace
+} //namespace

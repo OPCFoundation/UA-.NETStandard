@@ -63,14 +63,16 @@ namespace Opc.Ua.Server.Tests
             bool useSecurity = false,
             UserIdentityToken identityToken = null,
             double sessionTimeout = DefaultSessionTimeout,
-            uint maxResponseMessageSize = DefaultMaxResponseMessageSize)
+            uint maxResponseMessageSize = DefaultMaxResponseMessageSize
+        )
         {
             // Find TCP endpoint
             EndpointDescriptionCollection endpoints = server.GetEndpoints();
-            EndpointDescription endpoint = endpoints.FirstOrDefault(e =>
-                e.TransportProfileUri.Equals(Profiles.UaTcpTransport, StringComparison.Ordinal) ||
-                e.TransportProfileUri.Equals(Profiles.HttpsBinaryTransport, StringComparison.Ordinal))
-                ?? throw new Exception("Unsupported transport profile.");
+            EndpointDescription endpoint =
+                endpoints.FirstOrDefault(e =>
+                    e.TransportProfileUri.Equals(Profiles.UaTcpTransport, StringComparison.Ordinal)
+                    || e.TransportProfileUri.Equals(Profiles.HttpsBinaryTransport, StringComparison.Ordinal)
+                ) ?? throw new Exception("Unsupported transport profile.");
 
             // fake profiles
             if (useSecurity)
@@ -85,29 +87,45 @@ namespace Opc.Ua.Server.Tests
             }
 
             // set security context
-            SecureChannelContext.Current = new SecureChannelContext(
-                sessionName,
-                endpoint,
-                RequestEncoding.Binary);
+            SecureChannelContext.Current = new SecureChannelContext(sessionName, endpoint, RequestEncoding.Binary);
             var requestHeader = new RequestHeader();
 
             // Create session
             ResponseHeader response = server.CreateSession(
                 requestHeader,
-                null, null, null,
+                null,
+                null,
+                null,
                 sessionName,
-                null, null, sessionTimeout, maxResponseMessageSize,
-                out NodeId sessionId, out NodeId authenticationToken, out sessionTimeout,
-                out byte[] serverNonce, out byte[] serverCertificate, out EndpointDescriptionCollection endpointDescriptions,
-                out SignedSoftwareCertificateCollection serverSoftwareCertificates, out SignatureData signatureData, out uint maxRequestMessageSize);
+                null,
+                null,
+                sessionTimeout,
+                maxResponseMessageSize,
+                out NodeId sessionId,
+                out NodeId authenticationToken,
+                out sessionTimeout,
+                out byte[] serverNonce,
+                out byte[] serverCertificate,
+                out EndpointDescriptionCollection endpointDescriptions,
+                out SignedSoftwareCertificateCollection serverSoftwareCertificates,
+                out SignatureData signatureData,
+                out uint maxRequestMessageSize
+            );
             ValidateResponse(response);
 
             // Activate session
             requestHeader.AuthenticationToken = authenticationToken;
-            response = server.ActivateSession(requestHeader, signatureData,
-                [], [],
-                (identityToken != null) ? new ExtensionObject(identityToken) : null, null,
-                out serverNonce, out StatusCodeCollection results, out DiagnosticInfoCollection diagnosticInfos);
+            response = server.ActivateSession(
+                requestHeader,
+                signatureData,
+                [],
+                [],
+                (identityToken != null) ? new ExtensionObject(identityToken) : null,
+                null,
+                out serverNonce,
+                out StatusCodeCollection results,
+                out DiagnosticInfoCollection diagnosticInfos
+            );
             ValidateResponse(response);
 
             return requestHeader;
@@ -138,7 +156,9 @@ namespace Opc.Ua.Server.Tests
 
             if (StatusCode.IsBad(header.ServiceResult))
             {
-                throw new ServiceResultException(new ServiceResult(header.ServiceResult, header.ServiceDiagnostics, header.StringTable));
+                throw new ServiceResultException(
+                    new ServiceResult(header.ServiceResult, header.ServiceDiagnostics, header.StringTable)
+                );
             }
         }
 
@@ -159,12 +179,18 @@ namespace Opc.Ua.Server.Tests
 
             if (response is DiagnosticInfoCollection)
             {
-                throw new ArgumentException("Must call ValidateDiagnosticInfos() for DiagnosticInfoCollections.", nameof(response));
+                throw new ArgumentException(
+                    "Must call ValidateDiagnosticInfos() for DiagnosticInfoCollections.",
+                    nameof(response)
+                );
             }
 
             if (response == null || response.Count != request.Count)
             {
-                throw new ServiceResultException(StatusCodes.BadUnexpectedError, "The server returned a list without the expected number of elements.");
+                throw new ServiceResultException(
+                    StatusCodes.BadUnexpectedError,
+                    "The server returned a list without the expected number of elements."
+                );
             }
         }
 
@@ -173,15 +199,21 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         /// <param name="response">The diagnostic info response.</param>
         /// <param name="request">The request items of the service call.</param>
-        public static void ValidateDiagnosticInfos(DiagnosticInfoCollection response, IList request, StringCollection stringTable)
+        public static void ValidateDiagnosticInfos(
+            DiagnosticInfoCollection response,
+            IList request,
+            StringCollection stringTable
+        )
         {
             // returning an empty list for diagnostic info arrays is allowed.
             if (response != null && response.Count != 0)
             {
                 if (response.Count != request.Count)
                 {
-                    throw new ServiceResultException(StatusCodes.BadUnexpectedError,
-                        "The server forgot to fill in the DiagnosticInfos array correctly when returning an operation level error.");
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        "The server forgot to fill in the DiagnosticInfos array correctly when returning an operation level error."
+                    );
                 }
 
                 // now validate the string table
@@ -191,13 +223,17 @@ namespace Opc.Ua.Server.Tests
                     {
                         if (response[ii] is DiagnosticInfo diagnosticInfo && !diagnosticInfo.IsNullDiagnosticInfo)
                         {
-                            if (diagnosticInfo.NamespaceUri >= stringTable.Count ||
-                                diagnosticInfo.SymbolicId >= stringTable.Count ||
-                                diagnosticInfo.Locale >= stringTable.Count ||
-                                diagnosticInfo.LocalizedText >= stringTable.Count)
+                            if (
+                                diagnosticInfo.NamespaceUri >= stringTable.Count
+                                || diagnosticInfo.SymbolicId >= stringTable.Count
+                                || diagnosticInfo.Locale >= stringTable.Count
+                                || diagnosticInfo.LocalizedText >= stringTable.Count
+                            )
                             {
-                                throw new ServiceResultException(StatusCodes.BadUnexpectedError,
-                                    "The server forgot to fill in string table for the DiagnosticInfos array correctly when returning an operation level error.");
+                                throw new ServiceResultException(
+                                    StatusCodes.BadUnexpectedError,
+                                    "The server forgot to fill in string table for the DiagnosticInfos array correctly when returning an operation level error."
+                                );
                             }
                             var serviceResult = new ServiceResult(StatusCodes.Good, ii, response, stringTable);
                             Utils.LogInfo("DiagnosticInfo: {0}", serviceResult.ToString());
@@ -214,7 +250,8 @@ namespace Opc.Ua.Server.Tests
         /// <param name="template">The template for the browse description for each node id.</param>
         public static BrowseDescriptionCollection CreateBrowseDescriptionCollectionFromNodeId(
             NodeIdCollection nodeIdCollection,
-            BrowseDescription template)
+            BrowseDescription template
+        )
         {
             var browseDescriptionCollection = new BrowseDescriptionCollection();
             foreach (NodeId nodeId in nodeIdCollection)
@@ -249,7 +286,8 @@ namespace Opc.Ua.Server.Tests
         /// A dictionary of all node attributes.
         /// </summary>
         public static readonly ReadOnlyDictionary<uint, DataValue> AttributesIds = new(
-            new SortedDictionary<uint, DataValue> {
+            new SortedDictionary<uint, DataValue>
+            {
                 { Attributes.NodeId, null },
                 { Attributes.NodeClass, null },
                 { Attributes.BrowseName, null },
@@ -275,8 +313,9 @@ namespace Opc.Ua.Server.Tests
                 { Attributes.RolePermissions, null },
                 { Attributes.UserRolePermissions, null },
                 { Attributes.AccessRestrictions, null },
-                { Attributes.AccessLevelEx, null }
-            });
+                { Attributes.AccessLevelEx, null },
+            }
+        );
 
         /// <summary>
         /// Get free IP Port.

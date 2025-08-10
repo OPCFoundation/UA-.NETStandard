@@ -77,7 +77,10 @@ namespace Opc.Ua
         /// The dimensions of the matrix.
         /// </summary>
         /// <value>The dimensions of the array.</value>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Microsoft.Performance",
+            "CA1819:PropertiesShouldNotReturnArrays"
+        )]
         public int[] Dimensions { get; }
 
         /// <summary>
@@ -236,11 +239,14 @@ namespace Opc.Ua
         {
 #if DEBUG
             var sanityCheck = TypeInfo.Construct(elements);
-            Debug.Assert(sanityCheck.BuiltInType == builtInType || builtInType == BuiltInType.Enumeration ||
-                (sanityCheck.BuiltInType == BuiltInType.ExtensionObject && builtInType == BuiltInType.Null) ||
-                (sanityCheck.BuiltInType == BuiltInType.Int32 && builtInType == BuiltInType.Enumeration) ||
-                (sanityCheck.BuiltInType == BuiltInType.ByteString && builtInType == BuiltInType.Byte) ||
-                (builtInType == BuiltInType.Variant));
+            Debug.Assert(
+                sanityCheck.BuiltInType == builtInType
+                    || builtInType == BuiltInType.Enumeration
+                    || (sanityCheck.BuiltInType == BuiltInType.ExtensionObject && builtInType == BuiltInType.Null)
+                    || (sanityCheck.BuiltInType == BuiltInType.Int32 && builtInType == BuiltInType.Enumeration)
+                    || (sanityCheck.BuiltInType == BuiltInType.ByteString && builtInType == BuiltInType.Byte)
+                    || (builtInType == BuiltInType.Variant)
+            );
 #endif
         }
 
@@ -263,7 +269,11 @@ namespace Opc.Ua
         /// <returns>Tuple with validation result and the calculated length of the flattended matrix</returns>
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="ServiceResultException"></exception>
-        public static (bool valid, int flatLength) ValidateDimensions(bool allowZeroDimension, Int32Collection dimensions, int maxArrayLength)
+        public static (bool valid, int flatLength) ValidateDimensions(
+            bool allowZeroDimension,
+            Int32Collection dimensions,
+            int maxArrayLength
+        )
         {
             bool ValidateWithSideEffect(int i, Int32Collection dimCollection)
             {
@@ -272,7 +282,11 @@ namespace Opc.Ua
                 if (zeroCompFails)
                 {
                     /* The number of values is 0 if one or more dimension is less than or equal to 0.*/
-                    Utils.LogTrace("ReadArray read dimensions[{0}] = {1}. Matrix will have 0 elements.", i, dimCollection);
+                    Utils.LogTrace(
+                        "ReadArray read dimensions[{0}] = {1}. Matrix will have 0 elements.",
+                        i,
+                        dimCollection
+                    );
                     dimCollection[i] = 0;
                     return false;
                 }
@@ -283,7 +297,8 @@ namespace Opc.Ua
                         "ArrayDimensions [{0}] = {1} is greater than MaxArrayLength {2}.",
                         i,
                         dimCollection[i],
-                        maxArrayLength);
+                        maxArrayLength
+                    );
                 }
                 return true;
             }
@@ -301,7 +316,11 @@ namespace Opc.Ua
         /// <returns>Tuple with validation result and the calculated length of the flattended matrix</returns>
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="ServiceResultException"></exception>
-        public static (bool valid, int flatLength) ValidateDimensions(Int32Collection dimensions, int flatLength, int maxArrayLength)
+        public static (bool valid, int flatLength) ValidateDimensions(
+            Int32Collection dimensions,
+            int flatLength,
+            int maxArrayLength
+        )
         {
             bool ValidateAgainstExpectedFlatLength(int i, Int32Collection dimCollection)
             {
@@ -309,13 +328,19 @@ namespace Opc.Ua
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadDecodingError,
-                        "ArrayDimensions [{0}] is zero in Variant object.", i);
+                        "ArrayDimensions [{0}] is zero in Variant object.",
+                        i
+                    );
                 }
                 else if (dimCollection[i] > flatLength && flatLength > 0)
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadDecodingError,
-                        "ArrayDimensions [{0}] = {1} is greater than length {2}.", i, dimCollection[i], flatLength);
+                        "ArrayDimensions [{0}] = {1} is greater than length {2}.",
+                        i,
+                        dimCollection[i],
+                        flatLength
+                    );
                 }
                 return true;
             }
@@ -345,8 +370,11 @@ namespace Opc.Ua
         /// <returns>The calculated length of the flattended matrix</returns>
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="ServiceResultException"></exception>
-        private static (bool valid, int flatLength) ValidateDimensions(Int32Collection dimensions, int maxArrayLength,
-            ValidateDimensionsFunction customValidation)
+        private static (bool valid, int flatLength) ValidateDimensions(
+            Int32Collection dimensions,
+            int maxArrayLength,
+            ValidateDimensionsFunction customValidation
+        )
         {
             (bool valid, int flatLength) = (false, 1);
             try
@@ -369,15 +397,19 @@ namespace Opc.Ua
             }
             catch (OverflowException)
             {
-                throw ServiceResultException.Create(StatusCodes.BadEncodingLimitsExceeded,
-                    "The dimensions of the matrix are invalid and overflow when used to calculate the size.");
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "The dimensions of the matrix are invalid and overflow when used to calculate the size."
+                );
             }
             if ((maxArrayLength > 0) && (flatLength > maxArrayLength))
             {
-                throw ServiceResultException.Create(StatusCodes.BadEncodingLimitsExceeded,
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
                     "Maximum array length of {0} was exceeded while summing up to {1} from the array dimensions",
-                    maxArrayLength, flatLength
-                    );
+                    maxArrayLength,
+                    flatLength
+                );
             }
 
             return (valid, flatLength);

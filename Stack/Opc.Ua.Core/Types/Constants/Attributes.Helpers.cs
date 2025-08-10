@@ -33,8 +33,8 @@ namespace Opc.Ua
         }
 
         /// <summary>
-		/// Returns the browse name for the attribute.
-		/// </summary>
+        /// Returns the browse name for the attribute.
+        /// </summary>
         public static string GetBrowseName(uint identifier)
         {
             foreach (FieldInfo field in typeof(Attributes).GetFields(BindingFlags.Public | BindingFlags.Static))
@@ -428,7 +428,15 @@ namespace Opc.Ua
                     return (nodeClass & ((int)Ua.NodeClass.VariableType | (int)Ua.NodeClass.Variable)) != 0;
 
                 case IsAbstract:
-                    return (nodeClass & ((int)Ua.NodeClass.VariableType | (int)Ua.NodeClass.ObjectType | (int)Ua.NodeClass.ReferenceType | (int)Ua.NodeClass.DataType)) != 0;
+                    return (
+                            nodeClass
+                            & (
+                                (int)Ua.NodeClass.VariableType
+                                | (int)Ua.NodeClass.ObjectType
+                                | (int)Ua.NodeClass.ReferenceType
+                                | (int)Ua.NodeClass.DataType
+                            )
+                        ) != 0;
 
                 case Symmetric:
                 case InverseName:

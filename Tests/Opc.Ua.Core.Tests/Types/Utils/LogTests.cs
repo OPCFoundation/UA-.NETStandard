@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -164,7 +164,11 @@ namespace Opc.Ua.Core.Tests.Types.LogTests
                 Assert.IsNull(logger.LastTraceEventArgs);
             }
 
-            Utils.Trace(Utils.TraceMasks.Information, "This is a Information message: {0}", Utils.TraceMasks.Information);
+            Utils.Trace(
+                Utils.TraceMasks.Information,
+                "This is a Information message: {0}",
+                Utils.TraceMasks.Information
+            );
             if (Utils.Logger.IsEnabled(LogLevel.Information))
             {
                 Assert.AreEqual(Utils.TraceMasks.Information, logger.LastTraceEventArgs.TraceMask);
@@ -197,7 +201,11 @@ namespace Opc.Ua.Core.Tests.Types.LogTests
                 Assert.IsNull(logger.LastTraceEventArgs);
             }
 
-            Utils.Trace(Utils.TraceMasks.ServiceDetail, "This is a ServiceDetail message: {0}", Utils.TraceMasks.ServiceDetail);
+            Utils.Trace(
+                Utils.TraceMasks.ServiceDetail,
+                "This is a ServiceDetail message: {0}",
+                Utils.TraceMasks.ServiceDetail
+            );
             if (Utils.Logger.IsEnabled(LogLevel.Trace))
             {
                 Assert.AreEqual(Utils.TraceMasks.ServiceDetail, logger.LastTraceEventArgs.TraceMask);
@@ -219,7 +227,11 @@ namespace Opc.Ua.Core.Tests.Types.LogTests
                 Assert.IsNull(logger.LastTraceEventArgs);
             }
 
-            Utils.Trace(Utils.TraceMasks.OperationDetail, "This is a OperationDetail message: {0}", Utils.TraceMasks.OperationDetail);
+            Utils.Trace(
+                Utils.TraceMasks.OperationDetail,
+                "This is a OperationDetail message: {0}",
+                Utils.TraceMasks.OperationDetail
+            );
             if (Utils.Logger.IsEnabled(LogLevel.Trace))
             {
                 Assert.AreEqual(Utils.TraceMasks.OperationDetail, logger.LastTraceEventArgs.TraceMask);
@@ -241,7 +253,11 @@ namespace Opc.Ua.Core.Tests.Types.LogTests
                 Assert.IsNull(logger.LastTraceEventArgs);
             }
 
-            Utils.Trace(Utils.TraceMasks.ExternalSystem, "This is a ExternalSystem message: {0}", Utils.TraceMasks.ExternalSystem);
+            Utils.Trace(
+                Utils.TraceMasks.ExternalSystem,
+                "This is a ExternalSystem message: {0}",
+                Utils.TraceMasks.ExternalSystem
+            );
             if (Utils.Logger.IsEnabled(LogLevel.Trace))
             {
                 Assert.AreEqual(Utils.TraceMasks.ExternalSystem, logger.LastTraceEventArgs.TraceMask);
@@ -300,15 +316,27 @@ namespace Opc.Ua.Core.Tests.Types.LogTests
                     break;
             }
 #else
-                switch (logLevel)
-                {
-                    case LogLevel.Trace: Assert.AreEqual(18, logger.TraceList.Count); break;
-                    case LogLevel.Debug: Assert.AreEqual(11, logger.TraceList.Count); break;
-                    case LogLevel.Information: Assert.AreEqual(11, logger.TraceList.Count); break;
-                    case LogLevel.Warning: Assert.AreEqual(7, logger.TraceList.Count); break;
-                    case LogLevel.Error: Assert.AreEqual(6, logger.TraceList.Count); break;
-                    case LogLevel.Critical: Assert.AreEqual(1, logger.TraceList.Count); break;
-                }
+            switch (logLevel)
+            {
+                case LogLevel.Trace:
+                    Assert.AreEqual(18, logger.TraceList.Count);
+                    break;
+                case LogLevel.Debug:
+                    Assert.AreEqual(11, logger.TraceList.Count);
+                    break;
+                case LogLevel.Information:
+                    Assert.AreEqual(11, logger.TraceList.Count);
+                    break;
+                case LogLevel.Warning:
+                    Assert.AreEqual(7, logger.TraceList.Count);
+                    break;
+                case LogLevel.Error:
+                    Assert.AreEqual(6, logger.TraceList.Count);
+                    break;
+                case LogLevel.Critical:
+                    Assert.AreEqual(1, logger.TraceList.Count);
+                    break;
+            }
 #endif
         }
     }

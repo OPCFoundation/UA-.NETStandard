@@ -25,16 +25,14 @@ namespace Opc.Ua
         /// <summary>
         /// Private constructor.
         /// </summary>
-        private Tracing()
-        { }
+        private Tracing() { }
 
         /// <summary>
         /// Whether the Trace Event Handler is active.
         /// </summary>
         public static bool IsEnabled()
         {
-            return s_instance != null &&
-                s_instance.TraceEventHandler != null;
+            return s_instance != null && s_instance.TraceEventHandler != null;
         }
 
         /// <summary>
@@ -48,10 +46,7 @@ namespace Opc.Ua
                 {
                     lock (s_syncRoot)
                     {
-                        if (s_instance == null)
-                        {
-                            s_instance = new Tracing();
-                        }
+                        s_instance ??= new Tracing();
                     }
                 }
                 return s_instance;

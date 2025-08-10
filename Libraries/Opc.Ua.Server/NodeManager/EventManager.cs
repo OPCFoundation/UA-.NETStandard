@@ -108,7 +108,8 @@ namespace Opc.Ua.Server
             double publishingInterval,
             MonitoredItemCreateRequest itemToCreate,
             EventFilter filter,
-            bool createDurable)
+            bool createDurable
+        )
         {
             lock (m_lock)
             {
@@ -121,7 +122,10 @@ namespace Opc.Ua.Server
                 }
 
                 // limit the queue size.
-                uint revisedQueueSize = CalculateRevisedQueueSize(createDurable, itemToCreate.RequestedParameters.QueueSize);
+                uint revisedQueueSize = CalculateRevisedQueueSize(
+                    createDurable,
+                    itemToCreate.RequestedParameters.QueueSize
+                );
 
                 // create the monitored item.
                 IEventMonitoredItem monitoredItem = new MonitoredItem(
@@ -142,7 +146,8 @@ namespace Opc.Ua.Server
                     revisedQueueSize,
                     itemToCreate.RequestedParameters.DiscardOldest,
                     MinimumSamplingIntervals.Continuous,
-                    createDurable);
+                    createDurable
+                );
 
                 // save the monitored item.
                 m_monitoredItems.Add(monitoredItemId, monitoredItem);
@@ -150,25 +155,26 @@ namespace Opc.Ua.Server
                 return monitoredItem;
             }
         }
+
         /// <summary>
         /// Restore a MonitoredItem after a restart
         /// </summary>
         public IEventMonitoredItem RestoreMonitoredItem(
             INodeManager nodeManager,
             object handle,
-            IStoredMonitoredItem storedMonitoredItem)
+            IStoredMonitoredItem storedMonitoredItem
+        )
         {
             lock (m_lock)
             {
                 // limit the queue size.
-                storedMonitoredItem.QueueSize = CalculateRevisedQueueSize(storedMonitoredItem.IsDurable, storedMonitoredItem.QueueSize);
+                storedMonitoredItem.QueueSize = CalculateRevisedQueueSize(
+                    storedMonitoredItem.IsDurable,
+                    storedMonitoredItem.QueueSize
+                );
 
                 // create the monitored item.
-                var monitoredItem = new MonitoredItem(
-                    m_server,
-                    nodeManager,
-                    handle,
-                    storedMonitoredItem);
+                var monitoredItem = new MonitoredItem(m_server, nodeManager, handle, storedMonitoredItem);
 
                 // save the monitored item.
                 m_monitoredItems.Add(monitoredItem.Id, monitoredItem);
@@ -206,7 +212,8 @@ namespace Opc.Ua.Server
             IEventMonitoredItem monitoredItem,
             TimestampsToReturn timestampsToReturn,
             MonitoredItemModifyRequest itemToModify,
-            EventFilter filter)
+            EventFilter filter
+        )
         {
             lock (m_lock)
             {
@@ -217,7 +224,10 @@ namespace Opc.Ua.Server
                 }
 
                 // limit the queue size.
-                uint revisedQueueSize = CalculateRevisedQueueSize(monitoredItem.IsDurable, itemToModify.RequestedParameters.QueueSize);
+                uint revisedQueueSize = CalculateRevisedQueueSize(
+                    monitoredItem.IsDurable,
+                    itemToModify.RequestedParameters.QueueSize
+                );
 
                 // modify the attributes.
                 monitoredItem.ModifyAttributes(
@@ -229,7 +239,8 @@ namespace Opc.Ua.Server
                     null,
                     itemToModify.RequestedParameters.SamplingInterval,
                     revisedQueueSize,
-                    itemToModify.RequestedParameters.DiscardOldest);
+                    itemToModify.RequestedParameters.DiscardOldest
+                );
             }
         }
 

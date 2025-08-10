@@ -27,17 +27,12 @@ namespace Opc.Ua
             ISystemContext context,
             NodeState source,
             EventSeverity severity,
-            LocalizedText message)
+            LocalizedText message
+        )
         {
-            m_eventId = new PropertyState<byte[]>(this)
-            {
-                Value = Guid.NewGuid().ToByteArray()
-            };
+            m_eventId = new PropertyState<byte[]>(this) { Value = Guid.NewGuid().ToByteArray() };
 
-            m_eventType = new PropertyState<NodeId>(this)
-            {
-                Value = GetDefaultTypeDefinitionId(context.NamespaceUris)
-            };
+            m_eventType = new PropertyState<NodeId>(this) { Value = GetDefaultTypeDefinitionId(context.NamespaceUris) };
 
             TypeDefinitionId = m_eventType.Value;
 
@@ -50,38 +45,23 @@ namespace Opc.Ua
                         Value = source.NodeId,
                         RolePermissions = source.RolePermissions,
                         UserRolePermissions = source.UserRolePermissions,
-                        NodeId = source.NodeId
+                        NodeId = source.NodeId,
                     };
                 }
 
                 if (!QualifiedName.IsNull(source.BrowseName))
                 {
-                    m_sourceName = new PropertyState<string>(this)
-                    {
-                        Value = source.BrowseName.Name
-                    };
+                    m_sourceName = new PropertyState<string>(this) { Value = source.BrowseName.Name };
                 }
             }
 
-            m_time = new PropertyState<DateTime>(this)
-            {
-                Value = DateTime.UtcNow
-            };
+            m_time = new PropertyState<DateTime>(this) { Value = DateTime.UtcNow };
 
-            m_receiveTime = new PropertyState<DateTime>(this)
-            {
-                Value = DateTime.UtcNow
-            };
+            m_receiveTime = new PropertyState<DateTime>(this) { Value = DateTime.UtcNow };
 
-            m_severity = new PropertyState<ushort>(this)
-            {
-                Value = (ushort)severity
-            };
+            m_severity = new PropertyState<ushort>(this) { Value = (ushort)severity };
 
-            m_message = new PropertyState<LocalizedText>(this)
-            {
-                Value = message
-            };
+            m_message = new PropertyState<LocalizedText>(this) { Value = message };
         }
 
         /// <inheritdoc/>
@@ -140,9 +120,10 @@ namespace Opc.Ua
         /// The event has high severity.
         /// </summary>
         High = 900,
+
         /// <summary>
         /// The highest possible severity.
         /// </summary>
-        Max = 1000
+        Max = 1000,
     }
 }

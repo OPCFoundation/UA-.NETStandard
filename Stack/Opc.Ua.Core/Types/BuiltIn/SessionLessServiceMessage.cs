@@ -95,7 +95,11 @@ namespace Opc.Ua
 
                 if (Message.TypeId == null || Message.TypeId.IdType != IdType.Numeric)
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadEncodingError, "SessionLessServiceMessage message body must have a numeric TypeId defined. ({0})", Message.TypeId);
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingError,
+                        "SessionLessServiceMessage message body must have a numeric TypeId defined. ({0})",
+                        Message.TypeId
+                    );
                 }
 
                 encoder.WriteUInt32("ServiceId", (uint)Message.TypeId.Identifier);
@@ -150,10 +154,16 @@ namespace Opc.Ua
 
             if (typeId > 0)
             {
-                Type systemType = decoder.Context.Factory.GetSystemType(new ExpandedNodeId(typeId, 0)) ?? throw ServiceResultException.Create(StatusCodes.BadDecodingError, "SessionLessServiceMessage message body has an unknown TypeId. {0}", typeId);
+                Type systemType =
+                    decoder.Context.Factory.GetSystemType(new ExpandedNodeId(typeId, 0))
+                    ?? throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "SessionLessServiceMessage message body has an unknown TypeId. {0}",
+                        typeId
+                    );
 
                 Message = decoder.ReadEncodeable("Body", systemType);
             }
         }
     }
-}//namespace
+} //namespace

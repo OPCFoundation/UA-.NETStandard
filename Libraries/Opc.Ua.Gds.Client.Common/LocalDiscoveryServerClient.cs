@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -42,10 +42,7 @@ namespace Opc.Ua.Gds.Client
             // set some defaults for the preferred locales.
             System.Globalization.CultureInfo culture = System.Globalization.CultureInfo.CurrentUICulture;
 
-            var locales = new List<string>
-            {
-                culture.Name
-            };
+            var locales = new List<string> { culture.Name };
 
             culture = System.Globalization.CultureInfo.CurrentCulture;
 
@@ -78,13 +75,19 @@ namespace Opc.Ua.Gds.Client
 
         public List<ApplicationDescription> FindServers(string endpointUrl, string endpointTransportProfileUri)
         {
-            IAsyncResult result = BeginFindServers(endpointUrl, endpointTransportProfileUri, null, null, null, null, null);
+            IAsyncResult result = BeginFindServers(
+                endpointUrl,
+                endpointTransportProfileUri,
+                null,
+                null,
+                null,
+                null,
+                null
+            );
             return EndFindServers(result);
         }
 
-        public IAsyncResult BeginFindServers(
-            AsyncCallback callback,
-            object callbackData)
+        public IAsyncResult BeginFindServers(AsyncCallback callback, object callbackData)
         {
             return BeginFindServers(null, null, null, null, null, callback, callbackData);
         }
@@ -96,13 +99,14 @@ namespace Opc.Ua.Gds.Client
             IList<string> preferredLocales,
             IList<string> serverUris,
             AsyncCallback callback,
-            object callbackData)
+            object callbackData
+        )
         {
             DiscoveryClient client = CreateClient(endpointUrl, endpointTransportProfileUri);
 
             var data = new FindServersData(callback, callbackData, client.OperationTimeout)
             {
-                DiscoveryClient = client
+                DiscoveryClient = client,
             };
 
             data.InnerResult = client.BeginFindServers(
@@ -111,7 +115,8 @@ namespace Opc.Ua.Gds.Client
                 [.. (preferredLocales) ?? PreferredLocales],
                 (serverUris != null) ? [.. serverUris] : null,
                 OnFindServersComplete,
-                data);
+                data
+            );
 
             return data;
         }
@@ -140,14 +145,8 @@ namespace Opc.Ua.Gds.Client
 
         private class FindServersData : AsyncResultBase
         {
-            public FindServersData(
-                AsyncCallback callback,
-                object callbackData,
-                int timeout)
-            :
-                base(callback, callbackData, timeout)
-            {
-            }
+            public FindServersData(AsyncCallback callback, object callbackData, int timeout)
+                : base(callback, callbackData, timeout) { }
 
             public DiscoveryClient DiscoveryClient;
             public List<ApplicationDescription> Servers;
@@ -188,13 +187,14 @@ namespace Opc.Ua.Gds.Client
             string endpointUrl,
             string endpointTransportProfileUri,
             AsyncCallback callback,
-            object callbackData)
+            object callbackData
+        )
         {
             DiscoveryClient client = CreateClient(endpointUrl, endpointTransportProfileUri);
 
             var data = new GetEndpointsData(callback, callbackData, client.OperationTimeout)
             {
-                DiscoveryClient = client
+                DiscoveryClient = client,
             };
 
             data.InnerResult = client.BeginGetEndpoints(
@@ -203,7 +203,8 @@ namespace Opc.Ua.Gds.Client
                 [.. PreferredLocales],
                 null,
                 OnGetEndpointsComplete,
-                data);
+                data
+            );
 
             return data;
         }
@@ -232,14 +233,8 @@ namespace Opc.Ua.Gds.Client
 
         private class GetEndpointsData : AsyncResultBase
         {
-            public GetEndpointsData(
-                AsyncCallback callback,
-                object callbackData,
-                int timeout)
-                :
-                    base(callback, callbackData, timeout)
-            {
-            }
+            public GetEndpointsData(AsyncCallback callback, object callbackData, int timeout)
+                : base(callback, callbackData, timeout) { }
 
             public DiscoveryClient DiscoveryClient;
             public List<EndpointDescription> Endpoints;
@@ -267,9 +262,18 @@ namespace Opc.Ua.Gds.Client
         public List<ServerOnNetwork> FindServersOnNetwork(
             uint startingRecordId,
             uint maxRecordsToReturn,
-            out DateTime lastCounterResetTime)
+            out DateTime lastCounterResetTime
+        )
         {
-            IAsyncResult result = BeginFindServersOnNetwork(null, null, startingRecordId, maxRecordsToReturn, null, null, null);
+            IAsyncResult result = BeginFindServersOnNetwork(
+                null,
+                null,
+                startingRecordId,
+                maxRecordsToReturn,
+                null,
+                null,
+                null
+            );
             return EndFindServersOnNetwork(result, out lastCounterResetTime);
         }
 
@@ -279,9 +283,18 @@ namespace Opc.Ua.Gds.Client
             uint startingRecordId,
             uint maxRecordsToReturn,
             IList<string> serverCapabilityFilters,
-            out DateTime lastCounterResetTime)
+            out DateTime lastCounterResetTime
+        )
         {
-            IAsyncResult result = BeginFindServersOnNetwork(endpointUrl, endpointTransportProfileUri, startingRecordId, maxRecordsToReturn, serverCapabilityFilters, null, null);
+            IAsyncResult result = BeginFindServersOnNetwork(
+                endpointUrl,
+                endpointTransportProfileUri,
+                startingRecordId,
+                maxRecordsToReturn,
+                serverCapabilityFilters,
+                null,
+                null
+            );
             return EndFindServersOnNetwork(result, out lastCounterResetTime);
         }
 
@@ -289,9 +302,18 @@ namespace Opc.Ua.Gds.Client
             uint startingRecordId,
             uint maxRecordsToReturn,
             AsyncCallback callback,
-            object callbackData)
+            object callbackData
+        )
         {
-            return BeginFindServersOnNetwork(null, null, startingRecordId, maxRecordsToReturn, null, callback, callbackData);
+            return BeginFindServersOnNetwork(
+                null,
+                null,
+                startingRecordId,
+                maxRecordsToReturn,
+                null,
+                callback,
+                callbackData
+            );
         }
 
         public IAsyncResult BeginFindServersOnNetwork(
@@ -301,13 +323,14 @@ namespace Opc.Ua.Gds.Client
             uint maxRecordsToReturn,
             IList<string> serverCapabilityFilters,
             AsyncCallback callback,
-            object callbackData)
+            object callbackData
+        )
         {
             DiscoveryClient client = CreateClient(endpointUrl, endpointTransportProfileUri);
 
             var data = new FindServersOnNetworkData(callback, callbackData, client.OperationTimeout)
             {
-                DiscoveryClient = client
+                DiscoveryClient = client,
             };
 
             data.InnerResult = client.BeginFindServersOnNetwork(
@@ -316,7 +339,8 @@ namespace Opc.Ua.Gds.Client
                 maxRecordsToReturn,
                 (serverCapabilityFilters != null) ? [.. serverCapabilityFilters] : [],
                 OnFindServersOnNetworkComplete,
-                data);
+                data
+            );
 
             return data;
         }
@@ -346,14 +370,8 @@ namespace Opc.Ua.Gds.Client
 
         private class FindServersOnNetworkData : AsyncResultBase
         {
-            public FindServersOnNetworkData(
-                AsyncCallback callback,
-                object callbackData,
-                int timeout)
-                :
-                    base(callback, callbackData, timeout)
-            {
-            }
+            public FindServersOnNetworkData(AsyncCallback callback, object callbackData, int timeout)
+                : base(callback, callbackData, timeout) { }
 
             public DiscoveryClient DiscoveryClient;
             public DateTime LastCounterResetTime;
@@ -381,9 +399,7 @@ namespace Opc.Ua.Gds.Client
             }
         }
 
-        protected virtual DiscoveryClient CreateClient(
-            string endpointUrl,
-            string endpointTransportProfileUri)
+        protected virtual DiscoveryClient CreateClient(string endpointUrl, string endpointTransportProfileUri)
         {
             if (string.IsNullOrEmpty(endpointUrl))
             {

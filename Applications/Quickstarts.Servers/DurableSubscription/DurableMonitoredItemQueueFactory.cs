@@ -43,10 +43,11 @@ namespace Quickstarts.Servers
     {
         private readonly BatchPersistor m_batchPersistor = new();
         private static readonly JsonSerializerSettings s_settings = new() { TypeNameHandling = TypeNameHandling.All };
-        private const string s_queueDirectory = "Queues";
-        private const string s_base_filename = "_queue.txt";
+        private const string kQueueDirectory = "Queues";
+        private const string kBase_filename = "_queue.txt";
         private ConcurrentDictionary<uint, DurableDataChangeMonitoredItemQueue> m_dataChangeQueues = new();
         private ConcurrentDictionary<uint, DurableEventMonitoredItemQueue> m_eventQueues = new();
+
         /// <inheritdoc/>
         public bool SupportsDurableQueues => true;
 
@@ -107,7 +108,7 @@ namespace Quickstarts.Servers
         /// <param name="ids">the MonitoredItem ids of the queues to store</param>
         public void PersistQueues(IEnumerable<uint> ids, string baseDirectory)
         {
-            string targetPath = Path.Combine(baseDirectory, s_queueDirectory);
+            string targetPath = Path.Combine(baseDirectory, kQueueDirectory);
             if (!Directory.Exists(targetPath))
             {
                 Directory.CreateDirectory(targetPath);
@@ -120,7 +121,7 @@ namespace Quickstarts.Servers
                     {
                         //store
                         string result = JsonConvert.SerializeObject(queue.ToStorableQueue(), s_settings);
-                        File.WriteAllText(Path.Combine(targetPath, id + s_base_filename), result);
+                        File.WriteAllText(Path.Combine(targetPath, id + kBase_filename), result);
                         continue;
                     }
 
@@ -128,10 +129,13 @@ namespace Quickstarts.Servers
                     {
                         //store
                         string result = JsonConvert.SerializeObject(eventQueue.ToStorableQueue(), s_settings);
-                        File.WriteAllText(Path.Combine(targetPath, id + s_base_filename), result);
+                        File.WriteAllText(Path.Combine(targetPath, id + kBase_filename), result);
                         continue;
                     }
-                    Opc.Ua.Utils.LogWarning("Failed to persist queue for monitored item with id {0} as the queue was not known to the server", id);
+                    Opc.Ua.Utils.LogWarning(
+                        "Failed to persist queue for monitored item with id {0} as the queue was not known to the server",
+                        id
+                    );
                 }
                 catch (Exception ex)
                 {
@@ -149,7 +153,7 @@ namespace Quickstarts.Servers
         {
             try
             {
-                string targetFile = Path.Combine(baseDirectory, s_queueDirectory, id + s_base_filename);
+                string targetFile = Path.Combine(baseDirectory, kQueueDirectory, id + kBase_filename);
                 if (!File.Exists(targetFile))
                 {
                     return null;
@@ -177,14 +181,17 @@ namespace Quickstarts.Servers
         {
             try
             {
-                string targetFile = Path.Combine(baseDirectory, s_queueDirectory, id + s_base_filename);
+                string targetFile = Path.Combine(baseDirectory, kQueueDirectory, id + kBase_filename);
                 if (!File.Exists(targetFile))
                 {
                     return null;
                 }
                 string result = File.ReadAllText(targetFile);
                 File.Delete(targetFile);
-                StorableDataChangeQueue template = JsonConvert.DeserializeObject<StorableDataChangeQueue>(result, s_settings);
+                StorableDataChangeQueue template = JsonConvert.DeserializeObject<StorableDataChangeQueue>(
+                    result,
+                    s_settings
+                );
 
                 var queue = new DurableDataChangeMonitoredItemQueue(template, m_batchPersistor);
                 m_dataChangeQueues.AddOrUpdate(id, queue, (_, _) => queue);
@@ -197,6 +204,7 @@ namespace Quickstarts.Servers
             }
             return null;
         }
+
         /// <summary>
         /// Remove all stored queues and batches that are not in the list
         /// </summary>
@@ -206,7 +214,7 @@ namespace Quickstarts.Servers
         {
             try
             {
-                string targetPath = Path.Combine(baseDirectory, s_queueDirectory);
+                string targetPath = Path.Combine(baseDirectory, kQueueDirectory);
                 if (Directory.Exists(targetPath))
                 {
                     Directory.Delete(targetPath, true);

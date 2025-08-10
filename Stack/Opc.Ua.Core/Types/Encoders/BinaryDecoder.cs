@@ -11,15 +11,15 @@
 */
 
 using System;
-#if NET6_0_OR_GREATER
-using System.Buffers;
-#endif
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Xml;
+#if NET6_0_OR_GREATER
+using System.Buffers;
+#endif
 
 namespace Opc.Ua
 {
@@ -32,17 +32,13 @@ namespace Opc.Ua
         /// Creates a decoder that reads from a memory buffer.
         /// </summary>
         public BinaryDecoder(byte[] buffer, IServiceMessageContext context)
-            : this(buffer, 0, buffer.Length, context)
-        {
-        }
+            : this(buffer, 0, buffer.Length, context) { }
 
         /// <summary>
         /// Creates a decoder that reads from an ArraySegment.
         /// </summary>
         public BinaryDecoder(ArraySegment<byte> buffer, IServiceMessageContext context)
-            : this(buffer.Array, buffer.Offset, buffer.Count, context)
-        {
-        }
+            : this(buffer.Array, buffer.Offset, buffer.Count, context) { }
 
         /// <summary>
         /// Creates a decoder that reads from a memory buffer.
@@ -140,7 +136,10 @@ namespace Opc.Ua
                 long position = stream?.Position ?? 0;
                 if (position is > int.MaxValue or < int.MinValue)
                 {
-                    throw new ServiceResultException(StatusCodes.BadDecodingError, "Stream Position exceeds int.MaxValue or int.MinValue.");
+                    throw new ServiceResultException(
+                        StatusCodes.BadDecodingError,
+                        "Stream Position exceeds int.MaxValue or int.MinValue."
+                    );
                 }
                 return (int)position;
             }
@@ -197,8 +196,11 @@ namespace Opc.Ua
 
             if (actualType == null || actualType != typeof(SessionlessInvokeRequestType))
             {
-                throw ServiceResultException.Create(StatusCodes.BadDecodingError,
-                    "Cannot decode session-less service message with type id: {0}.", absoluteId);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Cannot decode session-less service message with type id: {0}.",
+                    absoluteId
+                );
             }
 
             // decode the actual message.
@@ -244,8 +246,13 @@ namespace Opc.Ua
             var absoluteId = NodeId.ToExpandedNodeId(typeId, Context.NamespaceUris);
 
             // lookup message type.
-            Type actualType = Context.Factory.GetSystemType(absoluteId) ?? throw ServiceResultException.Create(StatusCodes.BadDecodingError,
-                    "Cannot decode message with type id: {0}.", absoluteId);
+            Type actualType =
+                Context.Factory.GetSystemType(absoluteId)
+                ?? throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Cannot decode message with type id: {0}.",
+                    absoluteId
+                );
 
             // read the message.
             IEncodeable message = ReadEncodeable(null, actualType, absoluteId);
@@ -254,8 +261,12 @@ namespace Opc.Ua
             int messageLength = Position - start;
             if (Context.MaxMessageSize > 0 && Context.MaxMessageSize < messageLength)
             {
-                throw ServiceResultException.Create(StatusCodes.BadEncodingLimitsExceeded,
-                    "MaxMessageSize {0} < {1}", Context.MaxMessageSize, messageLength);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxMessageSize {0} < {1}",
+                    Context.MaxMessageSize,
+                    messageLength
+                );
             }
 
             // return the message.
@@ -424,8 +435,12 @@ namespace Opc.Ua
 
             if (maxStringLength > 0 && maxStringLength < length)
             {
-                throw ServiceResultException.Create(StatusCodes.BadEncodingLimitsExceeded,
-                    "MaxStringLength {0} < {1}", maxStringLength, length);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxStringLength {0} < {1}",
+                    maxStringLength,
+                    length
+                );
             }
 
             // length is always >= 1 here
@@ -434,9 +449,10 @@ namespace Opc.Ua
             byte[] buffer = null;
             try
             {
-                Span<byte> bytes = (length <= maxStackAlloc) ?
-                    stackalloc byte[length] :
-                    (buffer = ArrayPool<byte>.Shared.Rent(length)).AsSpan(0, length);
+                Span<byte> bytes =
+                    (length <= maxStackAlloc)
+                        ? stackalloc byte[length]
+                        : (buffer = ArrayPool<byte>.Shared.Rent(length)).AsSpan(0, length);
 
                 // throws decoding error if length is not met
                 int utf8StringLength = SafeReadCharBytes(bytes);
@@ -527,8 +543,12 @@ namespace Opc.Ua
 
             if (maxByteStringLength > 0 && maxByteStringLength < length)
             {
-                throw ServiceResultException.Create(StatusCodes.BadEncodingLimitsExceeded,
-                    "MaxByteStringLength {0} < {1}", maxByteStringLength, length);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxByteStringLength {0} < {1}",
+                    maxByteStringLength,
+                    length
+                );
             }
 
             return SafeReadBytes(length);
@@ -782,8 +802,11 @@ namespace Opc.Ua
 
             if (Activator.CreateInstance(systemType) is not IEncodeable encodeable)
             {
-                throw ServiceResultException.Create(StatusCodes.BadDecodingError,
-                    "Cannot decode type '{0}'.", systemType.FullName);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Cannot decode type '{0}'.",
+                    systemType.FullName
+                );
             }
 
             if (encodeableTypeId != null)
@@ -1422,7 +1445,8 @@ namespace Opc.Ua
             int valueRank,
             BuiltInType builtInType,
             Type systemType = null,
-            ExpandedNodeId encodeableTypeId = null)
+            ExpandedNodeId encodeableTypeId = null
+        )
         {
             if (valueRank == ValueRanks.OneDimension)
             {
@@ -1497,8 +1521,11 @@ namespace Opc.Ua
                         {
                             return ReadEncodeableArray(fieldName, systemType, encodeableTypeId);
                         }
-                        throw ServiceResultException.Create(StatusCodes.BadDecodingError,
-                            "Cannot decode unknown type in Array object with BuiltInType: {0}.", builtInType);
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadDecodingError,
+                            "Cannot decode unknown type in Array object with BuiltInType: {0}.",
+                            builtInType
+                        );
                 }
             }
 
@@ -1524,15 +1551,15 @@ namespace Opc.Ua
                         }
                     }
 
-                    if (elements == null)
-                    {
-                        elements = ReadArrayElements(length, builtInType);
-                    }
+                    elements ??= ReadArrayElements(length, builtInType);
 
                     if (elements == null)
                     {
-                        throw ServiceResultException.Create(StatusCodes.BadDecodingError,
-                            "Unexpected null Array for multidimensional matrix with {0} elements.", length);
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadDecodingError,
+                            "Unexpected null Array for multidimensional matrix with {0} elements.",
+                            length
+                        );
                     }
 
                     if (builtInType == BuiltInType.Enumeration && systemType?.IsEnum == true)
@@ -1548,8 +1575,10 @@ namespace Opc.Ua
 
                     return new Matrix(elements, builtInType, [.. dimensions]).ToArray();
                 }
-                throw ServiceResultException.Create(StatusCodes.BadDecodingError,
-                    "Unexpected null or empty Dimensions for multidimensional matrix.");
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Unexpected null or empty Dimensions for multidimensional matrix."
+                );
             }
             return null;
         }
@@ -1575,8 +1604,10 @@ namespace Opc.Ua
         {
             if (depth >= DiagnosticInfo.MaxInnerDepth)
             {
-                throw ServiceResultException.Create(StatusCodes.BadEncodingLimitsExceeded,
-                    "Maximum nesting level of InnerDiagnosticInfo was exceeded");
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "Maximum nesting level of InnerDiagnosticInfo was exceeded"
+                );
             }
 
             CheckAndIncrementNestingLevel();
@@ -2000,8 +2031,11 @@ namespace Opc.Ua
                 }
 
                 default:
-                    throw ServiceResultException.Create(StatusCodes.BadDecodingError,
-                            "Cannot decode unknown type in Variant object with BuiltInType: {0}.", builtInType);
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Cannot decode unknown type in Variant object with BuiltInType: {0}.",
+                        builtInType
+                    );
             }
 
             return array;
@@ -2021,8 +2055,13 @@ namespace Opc.Ua
 
             if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < length)
             {
-                throw ServiceResultException.Create(StatusCodes.BadEncodingLimitsExceeded,
-                    "MaxArrayLength exceeded in {0}: {1} < {2}", callerMemberName, Context.MaxArrayLength, length);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxArrayLength exceeded in {0}: {1} < {2}",
+                    callerMemberName,
+                    Context.MaxArrayLength,
+                    length
+                );
             }
 
             return length;
@@ -2066,8 +2105,11 @@ namespace Opc.Ua
                     break;
 
                 default:
-                    throw ServiceResultException.Create(StatusCodes.BadDecodingError,
-                            "Invalid encoding byte (0x{0:X2}) for NodeId.", encodingByte);
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Invalid encoding byte (0x{0:X2}) for NodeId.",
+                        encodingByte
+                    );
             }
         }
 
@@ -2088,7 +2130,8 @@ namespace Opc.Ua
             {
                 Utils.LogWarning(
                     "Cannot deserialize extension objects if the NamespaceUri is not in the NamespaceTable: Type = {0}",
-                    typeId);
+                    typeId
+                );
             }
 
             // read encoding.
@@ -2102,8 +2145,11 @@ namespace Opc.Ua
 
             if (encoding is not ((byte)ExtensionObjectEncoding.Binary) and not ((byte)ExtensionObjectEncoding.Xml))
             {
-                throw ServiceResultException.Create(StatusCodes.BadDecodingError,
-                    "Invalid encoding byte (0x{0:X2}) for ExtensionObject.", encoding);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Invalid encoding byte (0x{0:X2}) for ExtensionObject.",
+                    encoding
+                );
             }
 
             // check for known type.
@@ -2132,7 +2178,12 @@ namespace Opc.Ua
                     }
                     catch (Exception e)
                     {
-                        Utils.LogError("Could not decode known type {0} encoded as Xml. Error={1}, Value={2}", systemType.FullName, e.Message, element.OuterXml);
+                        Utils.LogError(
+                            "Could not decode known type {0} encoded as Xml. Error={1}, Value={2}",
+                            systemType.FullName,
+                            e.Message,
+                            element.OuterXml
+                        );
                     }
                 }
 
@@ -2192,8 +2243,8 @@ namespace Opc.Ua
                     errorMessage = "End of stream";
                     exception = eofStream;
                 }
-                catch (ServiceResultException sre) when
-                    (sre.StatusCode is StatusCodes.BadEncodingLimitsExceeded or StatusCodes.BadDecodingError)
+                catch (ServiceResultException sre)
+                    when (sre.StatusCode is StatusCodes.BadEncodingLimitsExceeded or StatusCodes.BadDecodingError)
                 {
                     errorMessage = sre.Message;
                     exception = sre;
@@ -2208,18 +2259,27 @@ namespace Opc.Ua
                     // type was known but decoding failed,
                     // reset stream to return ExtensionObject if configured to do so!
                     // decoding failure of a known type in ns=0 is always a decoding error.
-                    if (typeId.NamespaceIndex == 0 ||
-                        m_encodeablesRecovered >= Context.MaxDecoderRecoveries)
+                    if (typeId.NamespaceIndex == 0 || m_encodeablesRecovered >= Context.MaxDecoderRecoveries)
                     {
-                        throw exception ??
-                            ServiceResultException.Create(StatusCodes.BadDecodingError, "{0}, failed to decode encodeable type '{1}', NodeId='{2}'.",
-                                errorMessage, systemType.Name, extension.TypeId);
+                        throw exception
+                            ?? ServiceResultException.Create(
+                                StatusCodes.BadDecodingError,
+                                "{0}, failed to decode encodeable type '{1}', NodeId='{2}'.",
+                                errorMessage,
+                                systemType.Name,
+                                extension.TypeId
+                            );
                     }
                     else if (m_encodeablesRecovered == 0)
                     {
                         // log the error only once to avoid flooding the log.
-                        Utils.LogWarning(exception, "{0}, failed to decode encodeable type '{1}', NodeId='{2}'. BinaryDecoder recovered.",
-                            errorMessage, systemType.Name, extension.TypeId);
+                        Utils.LogWarning(
+                            exception,
+                            "{0}, failed to decode encodeable type '{1}', NodeId='{2}'. BinaryDecoder recovered.",
+                            errorMessage,
+                            systemType.Name,
+                            extension.TypeId
+                        );
                     }
 
                     // reset the stream to the begin of the ExtensionObject body.
@@ -2237,15 +2297,22 @@ namespace Opc.Ua
                 // figure out how long the object is.
                 if (length < 0)
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadDecodingError,
-                        "Cannot determine length of unknown extension object body with type '{0}'.", extension.TypeId);
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Cannot determine length of unknown extension object body with type '{0}'.",
+                        extension.TypeId
+                    );
                 }
 
                 // check the length.
                 if (Context.MaxByteStringLength > 0 && Context.MaxByteStringLength < length)
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadEncodingLimitsExceeded,
-                        "MaxByteStringLength exceeded in ExtensionObject: {0} < {1}", Context.MaxByteStringLength, length);
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingLimitsExceeded,
+                        "MaxByteStringLength exceeded in ExtensionObject: {0} < {1}",
+                        Context.MaxByteStringLength,
+                        length
+                    );
                 }
 
                 // read the bytes of the body.
@@ -2260,8 +2327,12 @@ namespace Opc.Ua
                 long unused = length - (Position - start);
                 if (unused > 0)
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadDecodingError,
-                        "Cannot skip {0} bytes of unknown extension object body with type '{1}'.", unused, extension.TypeId);
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Cannot skip {0} bytes of unknown extension object body with type '{1}'.",
+                        unused,
+                        extension.TypeId
+                    );
                 }
             }
 
@@ -2278,7 +2349,16 @@ namespace Opc.Ua
         /// <summary>
         /// Reads an Variant from the stream.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1505:AvoidUnmaintainableCode"), System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
+        [
+            System.Diagnostics.CodeAnalysis.SuppressMessage(
+                "Microsoft.Maintainability",
+                "CA1505:AvoidUnmaintainableCode"
+            ),
+            System.Diagnostics.CodeAnalysis.SuppressMessage(
+                "Microsoft.Maintainability",
+                "CA1502:AvoidExcessiveComplexity"
+            )
+        ]
         private Variant ReadVariantValue(string fieldName)
         {
             // read the encoding byte.
@@ -2314,17 +2394,25 @@ namespace Opc.Ua
                         // check if ArrayDimensions are consistent with the ArrayLength.
                         if (dimensions == null || dimensions.Count == 0)
                         {
-                            throw ServiceResultException.Create(StatusCodes.BadDecodingError,
-                                "ArrayDimensions not specified when ArrayDimensions encoding bit was set in Variant object.");
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadDecodingError,
+                                "ArrayDimensions not specified when ArrayDimensions encoding bit was set in Variant object."
+                            );
                         }
 
                         int[] dimensionsArray = [.. dimensions];
-                        (bool valid, int matrixLength) = Matrix.ValidateDimensions(dimensionsArray, length, Context.MaxArrayLength);
+                        (bool valid, int matrixLength) = Matrix.ValidateDimensions(
+                            dimensionsArray,
+                            length,
+                            Context.MaxArrayLength
+                        );
 
                         if (!valid || (matrixLength != length))
                         {
-                            throw ServiceResultException.Create(StatusCodes.BadDecodingError,
-                                "ArrayDimensions length does not match with the ArrayLength in Variant object.");
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadDecodingError,
+                                "ArrayDimensions length does not match with the ArrayLength in Variant object."
+                            );
                         }
 
                         if (dimensions.Count == 1)
@@ -2457,8 +2545,11 @@ namespace Opc.Ua
                         break;
 
                     default:
-                        throw ServiceResultException.Create(StatusCodes.BadDecodingError,
-                                "Cannot decode unknown type in Variant object (0x{0:X2}).", encodingByte);
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadDecodingError,
+                            "Cannot decode unknown type in Variant object (0x{0:X2}).",
+                            encodingByte
+                        );
                 }
             }
 
@@ -2483,8 +2574,13 @@ namespace Opc.Ua
             byte[] bytes = m_reader.ReadBytes(length);
             if (bytes.Length != length)
             {
-                throw ServiceResultException.Create(StatusCodes.BadDecodingError,
-                    "Reading {0} bytes of {1} reached end of stream after {2} bytes.", length, functionName, bytes.Length);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Reading {0} bytes of {1} reached end of stream after {2} bytes.",
+                    length,
+                    functionName,
+                    bytes.Length
+                );
             }
             return bytes;
         }
@@ -2504,8 +2600,13 @@ namespace Opc.Ua
 
             if (bytes.Length != length)
             {
-                throw ServiceResultException.Create(StatusCodes.BadDecodingError,
-                    "Reading {0} bytes of {1} reached end of stream after {2} bytes.", length, functionName, bytes.Length);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Reading {0} bytes of {1} reached end of stream after {2} bytes.",
+                    length,
+                    functionName,
+                    bytes.Length
+                );
             }
 
             return length;
@@ -2707,8 +2808,12 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"> with <see cref="StatusCodes.BadDecodingError"/></exception>
         private static ServiceResultException CreateDecodingError(string dataTypeName, string functionName)
         {
-            return ServiceResultException.Create(StatusCodes.BadDecodingError,
-                "Reading {0} in {1} reached end of stream.", dataTypeName, functionName);
+            return ServiceResultException.Create(
+                StatusCodes.BadDecodingError,
+                "Reading {0} in {1} reached end of stream.",
+                dataTypeName,
+                functionName
+            );
         }
 
         /// <summary>
@@ -2718,8 +2823,11 @@ namespace Opc.Ua
         {
             if (m_nestingLevel > Context.MaxEncodingNestingLevels)
             {
-                throw ServiceResultException.Create(StatusCodes.BadEncodingLimitsExceeded,
-                    "Maximum nesting level of {0} was exceeded", Context.MaxEncodingNestingLevels);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "Maximum nesting level of {0} was exceeded",
+                    Context.MaxEncodingNestingLevels
+                );
             }
             m_nestingLevel++;
         }

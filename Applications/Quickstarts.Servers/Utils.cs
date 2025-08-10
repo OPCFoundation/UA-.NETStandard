@@ -60,15 +60,17 @@ namespace Quickstarts.Servers
                         {
                             MethodId = new NodeId("Alarms.Start", (ushort)index),
                             ObjectId = new NodeId("Alarms", (ushort)index),
-                            InputArguments = [new Variant(uint.MaxValue)]
-                        });
-                    var requestHeader = new RequestHeader()
-                    {
-                        Timestamp = DateTime.UtcNow,
-                        TimeoutHint = 10000
-                    };
+                            InputArguments = [new Variant(uint.MaxValue)],
+                        }
+                    );
+                    var requestHeader = new RequestHeader() { Timestamp = DateTime.UtcNow, TimeoutHint = 10000 };
                     var context = new OperationContext(requestHeader, RequestType.Call);
-                    server.CurrentInstance.NodeManager.Call(context, methodsToCall, out CallMethodResultCollection results, out DiagnosticInfoCollection diagnosticInfos);
+                    server.CurrentInstance.NodeManager.Call(
+                        context,
+                        methodsToCall,
+                        out CallMethodResultCollection results,
+                        out DiagnosticInfoCollection diagnosticInfos
+                    );
                     foreach (CallMethodResult result in results)
                     {
                         if (ServiceResult.IsBad(result.StatusCode))
@@ -113,10 +115,7 @@ namespace Quickstarts.Servers
         {
             get
             {
-                if (s_nodeManagerFactories == null)
-                {
-                    s_nodeManagerFactories = GetNodeManagerFactories();
-                }
+                s_nodeManagerFactories ??= GetNodeManagerFactories();
                 return new ReadOnlyList<INodeManagerFactory>(s_nodeManagerFactories);
             }
         }
@@ -127,8 +126,7 @@ namespace Quickstarts.Servers
         private static INodeManagerFactory IsINodeManagerFactoryType(Type type)
         {
             System.Reflection.TypeInfo nodeManagerTypeInfo = type.GetTypeInfo();
-            if (nodeManagerTypeInfo.IsAbstract ||
-                !typeof(INodeManagerFactory).IsAssignableFrom(type))
+            if (nodeManagerTypeInfo.IsAbstract || !typeof(INodeManagerFactory).IsAssignableFrom(type))
             {
                 return null;
             }
@@ -142,7 +140,10 @@ namespace Quickstarts.Servers
         private static List<INodeManagerFactory> GetNodeManagerFactories()
         {
             Assembly assembly = typeof(Utils).Assembly;
-            IEnumerable<INodeManagerFactory> nodeManagerFactories = assembly.GetExportedTypes().Select(IsINodeManagerFactoryType).Where(type => type != null);
+            IEnumerable<INodeManagerFactory> nodeManagerFactories = assembly
+                .GetExportedTypes()
+                .Select(IsINodeManagerFactoryType)
+                .Where(type => type != null);
             return [.. nodeManagerFactories];
         }
 

@@ -79,16 +79,16 @@ namespace Opc.Ua
         /// </summary>
         private class DisposableAction : IDisposable
         {
-            private readonly Action action;
+            private readonly Action m_action;
 
             public DisposableAction(Action action)
             {
-                this.action = action;
+                this.m_action = action;
             }
 
             public void Dispose()
             {
-                action?.Invoke();
+                m_action?.Invoke();
             }
         }
 

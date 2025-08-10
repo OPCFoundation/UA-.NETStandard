@@ -27,7 +27,7 @@ namespace Opc.Ua
         /// <summary>
         /// The service host is in open state.
         /// </summary>
-        Opened
+        Opened,
     }
 
     /// <summary>
@@ -41,7 +41,7 @@ namespace Opc.Ua
         /// <param name="server">The server.</param>
         /// <param name="endpointType">Type of the endpoint.</param>
         /// <param name="addresses">The addresses.</param>
-		public ServiceHost(ServerBase server, Type endpointType, params Uri[] addresses)
+        public ServiceHost(ServerBase server, Type endpointType, params Uri[] addresses)
         {
             m_server = server;
             m_endpointType = endpointType;
@@ -82,9 +82,7 @@ namespace Opc.Ua
         /// <summary>
         /// Called when the service host is open to abort operation.
         /// </summary>
-        public virtual void Abort()
-        {
-        }
+        public virtual void Abort() { }
 
         /// <summary>
         /// Called when the service host is closed.

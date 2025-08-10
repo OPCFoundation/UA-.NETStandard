@@ -38,6 +38,7 @@ namespace Quickstarts.Servers
     public class DurableDataChangeMonitoredItemQueue : IDataChangeMonitoredItemQueue
     {
         private const uint kBatchSize = 1000;
+
         /// <summary>
         /// Invoked when the queue is disposed
         /// </summary>
@@ -46,7 +47,11 @@ namespace Quickstarts.Servers
         /// <summary>
         /// Creates an empty queue.
         /// </summary>
-        public DurableDataChangeMonitoredItemQueue(bool createDurable, uint monitoredItemId, IBatchPersistor batchPersistor)
+        public DurableDataChangeMonitoredItemQueue(
+            bool createDurable,
+            uint monitoredItemId,
+            IBatchPersistor batchPersistor
+        )
         {
             IsDurable = createDurable;
             MonitoredItemId = monitoredItemId;
@@ -56,6 +61,7 @@ namespace Quickstarts.Servers
             QueueSize = 0;
             ItemsInQueue = 0;
         }
+
         /// <summary>
         /// Creates a queue from a template
         /// </summary>
@@ -83,6 +89,7 @@ namespace Quickstarts.Servers
         /// Gets number of elements actually contained in value queue.
         /// </summary>
         public int ItemsInQueue { get; private set; }
+
         /// <summary>
         /// Brings the queue with content into a storable format
         /// </summary>
@@ -157,6 +164,7 @@ namespace Quickstarts.Servers
                 }
             }
         }
+
         /// <inheritdoc/>
         public void OverwriteLastValue(DataValue value, ServiceResult error)
         {
@@ -233,12 +241,18 @@ namespace Quickstarts.Servers
 
             if (m_dequeueBatch.IsPersisted)
             {
-                Opc.Ua.Utils.LogDebug("Dequeue was requeusted but queue was not restored for monitoreditem {0} try to restore for 10 ms.", MonitoredItemId);
+                Opc.Ua.Utils.LogDebug(
+                    "Dequeue was requeusted but queue was not restored for monitoreditem {0} try to restore for 10 ms.",
+                    MonitoredItemId
+                );
                 m_batchPersistor.RequestBatchRestore(m_dequeueBatch);
 
                 if (!SpinWait.SpinUntil(() => !m_dequeueBatch.RestoreInProgress, 10))
                 {
-                    Opc.Ua.Utils.LogDebug("Dequeue failed for monitoreditem {0} as queue could not be restored in time.", MonitoredItemId);
+                    Opc.Ua.Utils.LogDebug(
+                        "Dequeue failed for monitoreditem {0} as queue could not be restored in time.",
+                        MonitoredItemId
+                    );
                     // Dequeue failed as queue could not be restored in time
                     return false;
                 }
@@ -320,15 +334,18 @@ namespace Quickstarts.Servers
         private bool m_queueErrors;
         private readonly IBatchPersistor m_batchPersistor;
     }
+
     /// <summary>
     /// Batch of Datachanges and corresponding errors
     /// </summary>
     public class DataChangeBatch : BatchBase
     {
-        public DataChangeBatch(List<(DataValue, ServiceResult)> values, uint batchSize, uint monitoredItemId) : base(batchSize, monitoredItemId)
+        public DataChangeBatch(List<(DataValue, ServiceResult)> values, uint batchSize, uint monitoredItemId)
+            : base(batchSize, monitoredItemId)
         {
             Values = values;
         }
+
         public List<(DataValue, ServiceResult)> Values { get; set; }
 
         public override void SetPersisted()

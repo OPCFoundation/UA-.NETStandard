@@ -60,7 +60,8 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <param name="ct"></param>
         Task<IReadOnlyDictionary<NodeId, DataDictionary>> LoadDataTypeSystem(
             NodeId dataTypeSystem = null,
-            CancellationToken ct = default);
+            CancellationToken ct = default
+        );
 
         /// <summary>
         /// Browse for the type and encoding id for a dictionary component.
@@ -78,9 +79,11 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <param name="nodeId"></param>
         /// <param name="ct"></param>
         /// <returns>type id, encoding id and data type node if successful, null otherwise</returns>
-        Task<(ExpandedNodeId typeId, ExpandedNodeId encodingId, DataTypeNode dataTypeNode)> BrowseTypeIdsForDictionaryComponentAsync(
-            ExpandedNodeId nodeId,
-            CancellationToken ct = default);
+        Task<(
+            ExpandedNodeId typeId,
+            ExpandedNodeId encodingId,
+            DataTypeNode dataTypeNode
+        )> BrowseTypeIdsForDictionaryComponentAsync(ExpandedNodeId nodeId, CancellationToken ct = default);
 
         /// <summary>
         /// Browse for the encodings of a datatype list.
@@ -91,7 +94,8 @@ namespace Opc.Ua.Client.ComplexTypes
         Task<IList<NodeId>> BrowseForEncodingsAsync(
             IList<ExpandedNodeId> nodeIds,
             string[] supportedEncodings,
-            CancellationToken ct = default);
+            CancellationToken ct = default
+        );
 
         /// <summary>
         /// Browse for the encodings of a type.
@@ -99,10 +103,11 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <remarks>
         /// Browse for binary encoding of a structure datatype.
         /// </remarks>
-        Task<(IList<NodeId> encodings, ExpandedNodeId binaryEncodingId, ExpandedNodeId xmlEncodingId)> BrowseForEncodingsAsync(
-            ExpandedNodeId nodeId,
-            string[] supportedEncodings,
-            CancellationToken ct = default);
+        Task<(
+            IList<NodeId> encodings,
+            ExpandedNodeId binaryEncodingId,
+            ExpandedNodeId xmlEncodingId
+        )> BrowseForEncodingsAsync(ExpandedNodeId nodeId, string[] supportedEncodings, CancellationToken ct = default);
 
         /// <summary>
         /// Load all subTypes and optionally nested subtypes of a type definition.
@@ -113,7 +118,8 @@ namespace Opc.Ua.Client.ComplexTypes
             bool nestedSubTypes = false,
             bool addRootNode = false,
             bool filterUATypes = true,
-            CancellationToken ct = default);
+            CancellationToken ct = default
+        );
 
         /// <summary>
         /// Finds a node in the node set.
@@ -121,9 +127,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <param name="nodeId">The node identifier.</param>
         /// <param name="ct"></param>
         /// <returns>Returns null if the node does not exist.</returns>
-        Task<INode> FindAsync(
-            ExpandedNodeId nodeId,
-            CancellationToken ct = default);
+        Task<INode> FindAsync(ExpandedNodeId nodeId, CancellationToken ct = default);
 
         /// <summary>
         /// Reads the enum type array of a enum type definition node.
@@ -149,4 +153,4 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <returns>The immediate supertype identifier for <paramref name="typeId"/></returns>
         Task<NodeId> FindSuperTypeAsync(NodeId typeId, CancellationToken ct = default);
     }
-}//namespace
+} //namespace

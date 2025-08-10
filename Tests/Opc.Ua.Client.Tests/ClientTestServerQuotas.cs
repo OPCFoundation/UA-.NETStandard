@@ -41,14 +41,12 @@ namespace Opc.Ua.Client.Tests
     public class ClientTestServerQuotas : ClientTestFramework
     {
         internal const int MaxByteStringLengthForTest = 4096;
-        public ClientTestServerQuotas() : base(Utils.UriSchemeOpcTcp)
-        {
-        }
 
-        public ClientTestServerQuotas(string uriScheme = Utils.UriSchemeOpcTcp) :
-            base(uriScheme)
-        {
-        }
+        public ClientTestServerQuotas()
+            : base(Utils.UriSchemeOpcTcp) { }
+
+        public ClientTestServerQuotas(string uriScheme = Utils.UriSchemeOpcTcp)
+            : base(uriScheme) { }
 
         /// <summary>
         /// Set up a Server and a Client instance.
@@ -78,7 +76,12 @@ namespace Opc.Ua.Client.Tests
             return base.SetUp();
         }
 
-        public override async Task CreateReferenceServerFixture(bool enableTracing, bool disableActivityLogging, bool securityNone, TextWriter writer)
+        public override async Task CreateReferenceServerFixture(
+            bool enableTracing,
+            bool disableActivityLogging,
+            bool securityNone,
+            TextWriter writer
+        )
         {
             // start Ref server
             ServerFixture = new ServerFixture<ReferenceServer>(enableTracing, disableActivityLogging)
@@ -87,7 +90,7 @@ namespace Opc.Ua.Client.Tests
                 SecurityNone = securityNone,
                 AutoAccept = true,
                 AllNodeManagers = true,
-                OperationLimits = true
+                OperationLimits = true,
             };
             if (writer != null)
             {
@@ -99,9 +102,12 @@ namespace Opc.Ua.Client.Tests
             ServerFixture.Config.TransportQuotas.MaxByteStringLength = MaxByteStringLengthForTest;
             ServerFixture.Config.TransportQuotas.MaxStringLength = TransportQuotaMaxStringLength;
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.UserName));
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(new UserTokenPolicy(UserTokenType.Certificate));
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
-                new UserTokenPolicy(UserTokenType.IssuedToken) { IssuedTokenType = Profiles.JwtUserToken });
+                new UserTokenPolicy(UserTokenType.Certificate)
+            );
+            ServerFixture.Config.ServerConfiguration.UserTokenPolicies.Add(
+                new UserTokenPolicy(UserTokenType.IssuedToken) { IssuedTokenType = Profiles.JwtUserToken }
+            );
 
             ReferenceServer = await ServerFixture.StartAsync(writer ?? TestContext.Out).ConfigureAwait(false);
             ReferenceServer.TokenValidator = TokenValidator;
@@ -140,7 +146,9 @@ namespace Opc.Ua.Client.Tests
         {
             var theSession = (Session)((TraceableSession)Session).Session;
 
-            int NamespaceIndex = theSession.NamespaceUris.GetIndex("http://opcfoundation.org/Quickstarts/ReferenceServer");
+            int NamespaceIndex = theSession.NamespaceUris.GetIndex(
+                "http://opcfoundation.org/Quickstarts/ReferenceServer"
+            );
             var NodeId = new NodeId($"ns={NamespaceIndex};s=Scalar_Static_ByteString");
 
             var random = new Random();
@@ -153,12 +161,15 @@ namespace Opc.Ua.Client.Tests
                 NodeId = NodeId,
                 AttributeId = Attributes.Value,
                 Value = new DataValue() { WrappedValue = new Variant(chunk) },
-                IndexRange = null
+                IndexRange = null,
             };
-            var writeValues = new WriteValueCollection {
-                WriteValue
-            };
-            theSession.Write(null, writeValues, out StatusCodeCollection results, out DiagnosticInfoCollection diagnosticInfos);
+            var writeValues = new WriteValueCollection { WriteValue };
+            theSession.Write(
+                null,
+                writeValues,
+                out StatusCodeCollection results,
+                out DiagnosticInfoCollection diagnosticInfos
+            );
 
             if (results[0] != StatusCodes.Good)
             {
@@ -175,7 +186,9 @@ namespace Opc.Ua.Client.Tests
         {
             var theSession = (Session)((TraceableSession)Session).Session;
 
-            int NamespaceIndex = theSession.NamespaceUris.GetIndex("http://opcfoundation.org/Quickstarts/ReferenceServer");
+            int NamespaceIndex = theSession.NamespaceUris.GetIndex(
+                "http://opcfoundation.org/Quickstarts/ReferenceServer"
+            );
             var NodeId = new NodeId($"ns={NamespaceIndex};s=Scalar_Static_ByteString");
 
             var random = new Random();
@@ -188,11 +201,9 @@ namespace Opc.Ua.Client.Tests
                 NodeId = NodeId,
                 AttributeId = Attributes.Value,
                 Value = new DataValue() { WrappedValue = new Variant(chunk) },
-                IndexRange = null
+                IndexRange = null,
             };
-            var writeValues = new WriteValueCollection {
-                WriteValue
-            };
+            var writeValues = new WriteValueCollection { WriteValue };
 
             WriteResponse result = await theSession.WriteAsync(null, writeValues, default).ConfigureAwait(false);
             StatusCodeCollection results = result.Results;

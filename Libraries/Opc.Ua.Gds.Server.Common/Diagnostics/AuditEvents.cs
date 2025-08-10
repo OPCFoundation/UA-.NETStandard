@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -47,24 +47,20 @@ namespace Opc.Ua.Gds.Server.Diagnostics
             ISystemContext systemContext,
             NodeId objectId,
             MethodState method,
-            object[] inputArguments)
+            object[] inputArguments
+        )
         {
             try
             {
                 var e = new CertificateDeliveredAuditEventState(null);
 
                 var message = new TranslationInfo(
-                       "CertificateUpdateRequestedAuditEvent",
-                       "en-US",
-                       "CertificateUpdateRequestedAuditEvent.");
+                    "CertificateUpdateRequestedAuditEvent",
+                    "en-US",
+                    "CertificateUpdateRequestedAuditEvent."
+                );
 
-                e.Initialize(
-                   systemContext,
-                   null,
-                   EventSeverity.Min,
-                   new LocalizedText(message),
-                   true,
-                   DateTime.UtcNow);  // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
+                e.Initialize(systemContext, null, EventSeverity.Min, new LocalizedText(message), true, DateTime.UtcNow); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
 
                 e.SetChildValue(systemContext, Ua.BrowseNames.SourceNode, objectId, false);
                 e.SetChildValue(systemContext, Ua.BrowseNames.SourceName, "Method/UpdateCertificate", false);
@@ -100,7 +96,8 @@ namespace Opc.Ua.Gds.Server.Diagnostics
             object[] inputArguments,
             NodeId certificateGroupId,
             NodeId certificateTypeId,
-            Exception exception = null)
+            Exception exception = null
+        )
         {
             try
             {
@@ -110,25 +107,28 @@ namespace Opc.Ua.Gds.Server.Diagnostics
                 if (exception == null)
                 {
                     message = new TranslationInfo(
-                       "CertificateRequestedAuditEvent",
-                       "en-US",
-                       "CertificateRequestedAuditEvent.");
+                        "CertificateRequestedAuditEvent",
+                        "en-US",
+                        "CertificateRequestedAuditEvent."
+                    );
                 }
                 else
                 {
                     message = new TranslationInfo(
-                      "CertificateRequestedAuditEvent",
-                      "en-US",
-                      $"CertificateRequestedAuditEvent - Exception: {exception.Message}.");
+                        "CertificateRequestedAuditEvent",
+                        "en-US",
+                        $"CertificateRequestedAuditEvent - Exception: {exception.Message}."
+                    );
                 }
 
                 e.Initialize(
-                  systemContext,
-                  null,
-                  EventSeverity.Min,
-                  new LocalizedText(message),
-                  exception == null,
-                  DateTime.UtcNow);  // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
+                    systemContext,
+                    null,
+                    EventSeverity.Min,
+                    new LocalizedText(message),
+                    exception == null,
+                    DateTime.UtcNow
+                ); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
 
                 e.SetChildValue(systemContext, Ua.BrowseNames.SourceNode, objectId, false);
                 e.SetChildValue(systemContext, Ua.BrowseNames.SourceName, "Method/UpdateCertificate", false);
@@ -161,24 +161,20 @@ namespace Opc.Ua.Gds.Server.Diagnostics
             ISystemContext systemContext,
             NodeId objectId,
             MethodState method,
-            object[] inputArguments)
+            object[] inputArguments
+        )
         {
             try
             {
                 var e = new ApplicationRegistrationChangedAuditEventState(null);
 
                 var message = new TranslationInfo(
-                       "ApplicationRegistrationChangedAuditEvent",
-                       "en-US",
-                       "ApplicationRegistrationChangedAuditEvent.");
+                    "ApplicationRegistrationChangedAuditEvent",
+                    "en-US",
+                    "ApplicationRegistrationChangedAuditEvent."
+                );
 
-                e.Initialize(
-                   systemContext,
-                   null,
-                   EventSeverity.Min,
-                   new LocalizedText(message),
-                   true,
-                   DateTime.UtcNow);  // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
+                e.Initialize(systemContext, null, EventSeverity.Min, new LocalizedText(message), true, DateTime.UtcNow); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
 
                 e.SetChildValue(systemContext, Ua.BrowseNames.SourceNode, objectId, false);
                 e.SetChildValue(systemContext, Ua.BrowseNames.SourceName, "Method/UpdateCertificate", false);

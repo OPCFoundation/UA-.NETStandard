@@ -22,9 +22,8 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the instance with its default attribute values.
         /// </summary>
-        public DataTypeState() : base(NodeClass.DataType)
-        {
-        }
+        public DataTypeState()
+            : base(NodeClass.DataType) { }
 
         /// <summary>
         /// Constructs an instance of a node.
@@ -60,7 +59,6 @@ namespace Opc.Ua
         public ExtensionObject DataTypeDefinition
         {
             get => m_dataTypeDefinition;
-
             set
             {
                 if (m_dataTypeDefinition != value)
@@ -180,7 +178,8 @@ namespace Opc.Ua
         protected override ServiceResult ReadNonValueAttribute(
             ISystemContext context,
             uint attributeId,
-            ref object value)
+            ref object value
+        )
         {
             ServiceResult result = null;
 
@@ -198,9 +197,10 @@ namespace Opc.Ua
 
                     if (ServiceResult.IsGood(result))
                     {
-                        if (dataTypeDefinition?.Body is StructureDefinition structureType &&
-                            (structureType.DefaultEncodingId == null ||
-                             structureType.DefaultEncodingId.IsNullNodeId))
+                        if (
+                            dataTypeDefinition?.Body is StructureDefinition structureType
+                            && (structureType.DefaultEncodingId == null || structureType.DefaultEncodingId.IsNullNodeId)
+                        )
                         {
                             // one time set the id for binary encoding, currently the only supported encoding
                             structureType.SetDefaultEncodingId(context, NodeId, null);
@@ -222,10 +222,7 @@ namespace Opc.Ua
         /// <summary>
         /// Write the value for DataTypeDefinition attribute.
         /// </summary>
-        protected override ServiceResult WriteNonValueAttribute(
-            ISystemContext context,
-            uint attributeId,
-            object value)
+        protected override ServiceResult WriteNonValueAttribute(ISystemContext context, uint attributeId, object value)
         {
             ServiceResult result = null;
 

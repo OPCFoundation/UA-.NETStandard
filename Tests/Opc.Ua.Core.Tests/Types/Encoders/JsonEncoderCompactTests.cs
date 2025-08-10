@@ -62,7 +62,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         internal const uint NumericId3 = 9876;
         internal static readonly uint[] NumericIds = [NumericId1, NumericId2, NumericId3];
 
-        internal const string StringId1 = /*lang=json,strict*/ @"{""World"": ""Pandora""}";
+        internal const string StringId1 = /*lang=json,strict*/
+            @"{""World"": ""Pandora""}";
         internal const string StringId2 = "<World>Pandora</World>";
         internal const string StringId3 = "http://world.org/Pandora/?alien=blue";
         internal static readonly string[] StringIds = [StringId1, StringId2, StringId3];
@@ -73,7 +74,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         internal static readonly Guid[] GuidIds = [GuidId1, GuidId2, GuidId3];
 
         internal static readonly byte[] OpaqueId1 = Utils.FromHexString("138DAA907373409AB6A4A36322063745");
-        internal static readonly byte[] OpaqueId2 = Utils.FromHexString("E41047609A9248318EB907991A66B7BEE6B60CB5114828");
+        internal static readonly byte[] OpaqueId2 = Utils.FromHexString(
+            "E41047609A9248318EB907991A66B7BEE6B60CB5114828"
+        );
         internal static readonly byte[] OpaqueId3 = Utils.FromHexString("FBD8F0DE652A479B");
         internal static readonly byte[][] OpaqueIds = [OpaqueId1, OpaqueId2, OpaqueId3];
         internal static readonly string[] Body = ["opc.tcp://localhost/"];
@@ -81,7 +84,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         private static string Escape(string input)
         {
-            return input.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal);
+            return input
+                .Replace("\\", "\\\\", StringComparison.Ordinal)
+                .Replace("\"", "\\\"", StringComparison.Ordinal);
         }
 
         private static string ToString(Array input, int index)
@@ -343,10 +348,22 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             using var encoder = new JsonEncoder(context, jsonEncoding);
             encoder.WriteNodeId("D0", new NodeId(2263));
-            encoder.WriteNodeId("D1", new NodeId(Get(NumericIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index))));
-            encoder.WriteNodeId("D2", new NodeId(Get(StringIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))));
-            encoder.WriteNodeId("D3", new NodeId(Get(GuidIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))));
-            encoder.WriteNodeId("D4", new NodeId(Get(OpaqueIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))));
+            encoder.WriteNodeId(
+                "D1",
+                new NodeId(Get(NumericIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index)))
+            );
+            encoder.WriteNodeId(
+                "D2",
+                new NodeId(Get(StringIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1)))
+            );
+            encoder.WriteNodeId(
+                "D3",
+                new NodeId(Get(GuidIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2)))
+            );
+            encoder.WriteNodeId(
+                "D4",
+                new NodeId(Get(OpaqueIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3)))
+            );
 
             string actual = encoder.CloseAndReturnText();
             EncoderCommon.PrettifyAndValidateJson(actual, true);
@@ -368,9 +385,18 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     "D3": "nsu={{ToString(NamespaceUris, index + 2)}};g={{ToString(GuidIds, index)}}",
                     "D4": "nsu={{ToString(NamespaceUris, index + 3)}};b={{ToString(OpaqueIds, index)}}",
                     "D5": "svu={{ToString(ServerUris, index)}};nsu={{ToString(NamespaceUris, index)}};i={{ToString(NumericIds, index)}}",
-                    "D6": "svu={{ToString(ServerUris, index + 1)}};nsu={{ToString(NamespaceUris, index + 1)}};s={{ToString(StringIds, index)}}",
-                    "D7": "svu={{ToString(ServerUris, index + 2)}};nsu={{ToString(NamespaceUris, index + 2)}};g={{ToString(GuidIds, index)}}",
-                    "D8": "svu={{ToString(ServerUris, index + 3)}};nsu={{ToString(NamespaceUris, index + 3)}};b={{ToString(OpaqueIds, index)}}"
+                    "D6": "svu={{ToString(ServerUris, index + 1)}};nsu={{ToString(NamespaceUris, index + 1)}};s={{ToString(
+                    StringIds,
+                    index
+                )}}",
+                    "D7": "svu={{ToString(ServerUris, index + 2)}};nsu={{ToString(NamespaceUris, index + 2)}};g={{ToString(
+                    GuidIds,
+                    index
+                )}}",
+                    "D8": "svu={{ToString(ServerUris, index + 3)}};nsu={{ToString(NamespaceUris, index + 3)}};b={{ToString(
+                    OpaqueIds,
+                    index
+                )}}"
                 }
 
 """;
@@ -389,7 +415,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [TestCase(0, JsonEncodingType.Compact)]
         [TestCase(1, JsonEncodingType.Compact)]
         [TestCase(2, JsonEncodingType.Compact)]
-
         public void EncodeCompactOrVerboseExpandedNodeId(int index, JsonEncodingType jsonEncoding)
         {
             string data = $$"""
@@ -401,9 +426,18 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     "D3": "nsu={{ToString(NamespaceUris, index + 2)}};g={{ToString(GuidIds, index)}}",
                     "D4": "nsu={{ToString(NamespaceUris, index + 3)}};b={{ToString(OpaqueIds, index)}}",
                     "D5": "svu={{ToString(ServerUris, index)}};nsu={{ToString(NamespaceUris, index)}};i={{ToString(NumericIds, index)}}",
-                    "D6": "svu={{ToString(ServerUris, index + 1)}};nsu={{ToString(NamespaceUris, index + 1)}};s={{ToString(StringIds, index)}}",
-                    "D7": "svu={{ToString(ServerUris, index + 2)}};nsu={{ToString(NamespaceUris, index + 2)}};g={{ToString(GuidIds, index)}}",
-                    "D8": "svu={{ToString(ServerUris, index + 3)}};nsu={{ToString(NamespaceUris, index + 3)}};b={{ToString(OpaqueIds, index)}}"
+                    "D6": "svu={{ToString(ServerUris, index + 1)}};nsu={{ToString(NamespaceUris, index + 1)}};s={{ToString(
+                    StringIds,
+                    index
+                )}}",
+                    "D7": "svu={{ToString(ServerUris, index + 2)}};nsu={{ToString(NamespaceUris, index + 2)}};g={{ToString(
+                    GuidIds,
+                    index
+                )}}",
+                    "D8": "svu={{ToString(ServerUris, index + 3)}};nsu={{ToString(NamespaceUris, index + 3)}};b={{ToString(
+                    OpaqueIds,
+                    index
+                )}}"
                 }
 
 """;
@@ -419,14 +453,70 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             using var encoder = new JsonEncoder(context, jsonEncoding);
             encoder.WriteExpandedNodeId("D0", new ExpandedNodeId(2263));
-            encoder.WriteExpandedNodeId("D1", new ExpandedNodeId(Get(NumericIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index))));
-            encoder.WriteExpandedNodeId("D2", new ExpandedNodeId(Get(StringIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))));
-            encoder.WriteExpandedNodeId("D3", new ExpandedNodeId(Get(GuidIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))));
-            encoder.WriteExpandedNodeId("D4", new ExpandedNodeId(Get(OpaqueIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))));
-            encoder.WriteExpandedNodeId("D5", new ExpandedNodeId(Get(NumericIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index)), null, (uint)context.ServerUris.GetIndex(Get(ServerUris, index))));
-            encoder.WriteExpandedNodeId("D6", new ExpandedNodeId(Get(StringIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1)), null, (uint)context.ServerUris.GetIndex(Get(ServerUris, index + 1))));
-            encoder.WriteExpandedNodeId("D7", new ExpandedNodeId(Get(GuidIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2)), null, (uint)context.ServerUris.GetIndex(Get(ServerUris, index + 2))));
-            encoder.WriteExpandedNodeId("D8", new ExpandedNodeId(Get(OpaqueIds, index), (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3)), null, (uint)context.ServerUris.GetIndex(Get(ServerUris, index + 3))));
+            encoder.WriteExpandedNodeId(
+                "D1",
+                new ExpandedNodeId(
+                    Get(NumericIds, index),
+                    (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index))
+                )
+            );
+            encoder.WriteExpandedNodeId(
+                "D2",
+                new ExpandedNodeId(
+                    Get(StringIds, index),
+                    (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))
+                )
+            );
+            encoder.WriteExpandedNodeId(
+                "D3",
+                new ExpandedNodeId(
+                    Get(GuidIds, index),
+                    (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))
+                )
+            );
+            encoder.WriteExpandedNodeId(
+                "D4",
+                new ExpandedNodeId(
+                    Get(OpaqueIds, index),
+                    (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))
+                )
+            );
+            encoder.WriteExpandedNodeId(
+                "D5",
+                new ExpandedNodeId(
+                    Get(NumericIds, index),
+                    (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index)),
+                    null,
+                    (uint)context.ServerUris.GetIndex(Get(ServerUris, index))
+                )
+            );
+            encoder.WriteExpandedNodeId(
+                "D6",
+                new ExpandedNodeId(
+                    Get(StringIds, index),
+                    (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1)),
+                    null,
+                    (uint)context.ServerUris.GetIndex(Get(ServerUris, index + 1))
+                )
+            );
+            encoder.WriteExpandedNodeId(
+                "D7",
+                new ExpandedNodeId(
+                    Get(GuidIds, index),
+                    (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2)),
+                    null,
+                    (uint)context.ServerUris.GetIndex(Get(ServerUris, index + 2))
+                )
+            );
+            encoder.WriteExpandedNodeId(
+                "D8",
+                new ExpandedNodeId(
+                    Get(OpaqueIds, index),
+                    (ushort)context.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3)),
+                    null,
+                    (uint)context.ServerUris.GetIndex(Get(ServerUris, index + 3))
+                )
+            );
 
             string actual = encoder.CloseAndReturnText();
             EncoderCommon.PrettifyAndValidateJson(actual, true);
@@ -449,9 +539,15 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 {
                     "D0": { "Id": 2263 },
                     "D1": { "Id": {{ToString(NumericIds, index)}}, "Namespace":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index))}} },
-                    "D2": { "IdType": 1, "Id": "{{ToString(StringIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))}} },
-                    "D3": { "IdType": 2, "Id": "{{ToString(GuidIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))}} },
-                    "D4": { "IdType": 3, "Id": "{{ToString(OpaqueIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))}} }
+                    "D2": { "IdType": 1, "Id": "{{ToString(StringIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(
+                    Get(NamespaceUris, index + 1)
+                )}} },
+                    "D3": { "IdType": 2, "Id": "{{ToString(GuidIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(
+                    Get(NamespaceUris, index + 2)
+                )}} },
+                    "D4": { "IdType": 3, "Id": "{{ToString(OpaqueIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(
+                    Get(NamespaceUris, index + 3)
+                )}} }
                 }
 
 """;
@@ -483,9 +579,15 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 {
                     "D0": { "Id": 2263 },
                     "D1": { "Id": {{ToString(NumericIds, index)}}, "Namespace":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index))}} },
-                    "D2": { "IdType": 1, "Id": "{{ToString(StringIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))}} },
-                    "D3": { "IdType": 2, "Id": "{{ToString(GuidIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))}} },
-                    "D4": { "IdType": 3, "Id": "{{ToString(OpaqueIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))}} }
+                    "D2": { "IdType": 1, "Id": "{{ToString(StringIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(
+                    Get(NamespaceUris, index + 1)
+                )}} },
+                    "D3": { "IdType": 2, "Id": "{{ToString(GuidIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(
+                    Get(NamespaceUris, index + 2)
+                )}} },
+                    "D4": { "IdType": 3, "Id": "{{ToString(OpaqueIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(
+                    Get(NamespaceUris, index + 3)
+                )}} }
                 }
 
 """;
@@ -503,10 +605,28 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             encoder.SetMappingTables(context1.NamespaceUris, context1.ServerUris);
 
             encoder.WriteNodeId("D0", new NodeId(2263));
-            encoder.WriteNodeId("D1", new NodeId(Get(NumericIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index))));
-            encoder.WriteNodeId("D2", new NodeId(Get(StringIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))));
-            encoder.WriteNodeId("D3", new NodeId(Get(GuidIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))));
-            encoder.WriteNodeId("D4", new NodeId(Get(OpaqueIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))));
+            encoder.WriteNodeId(
+                "D1",
+                new NodeId(Get(NumericIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index)))
+            );
+            encoder.WriteNodeId(
+                "D2",
+                new NodeId(
+                    Get(StringIds, index),
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))
+                )
+            );
+            encoder.WriteNodeId(
+                "D3",
+                new NodeId(Get(GuidIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2)))
+            );
+            encoder.WriteNodeId(
+                "D4",
+                new NodeId(
+                    Get(OpaqueIds, index),
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))
+                )
+            );
 
             string actual = encoder.CloseAndReturnText();
             EncoderCommon.PrettifyAndValidateJson(actual, true);
@@ -533,13 +653,27 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 {
                     "D0": { "Id": 2263 },
                     "D1": { "Id": {{ToString(NumericIds, index)}}, "Namespace":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index))}} },
-                    "D2": { "IdType": 1, "Id": "{{ToString(StringIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))}} },
-                    "D3": { "IdType": 2, "Id": "{{ToString(GuidIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))}} },
-                    "D4": { "IdType": 3, "Id": "{{ToString(OpaqueIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))}} },
-                    "D5": { "Id": {{ToString(NumericIds, index)}}, "ServerUri": {{context1.ServerUris.GetIndex(Get(ServerUris, index))}}, "Namespace":"{{Get(NamespaceUris, index)}}" },
-                    "D6": { "IdType": 1, "Id": "{{ToString(StringIds, index)}}", "ServerUri": {{context1.ServerUris.GetIndex(Get(ServerUris, index + 1))}}, "Namespace":"{{Get(NamespaceUris, index + 1)}}" },
-                    "D7": { "IdType": 2, "Id": "{{ToString(GuidIds, index)}}", "ServerUri": {{context1.ServerUris.GetIndex(Get(ServerUris, index + 2))}}, "Namespace":"{{Get(NamespaceUris, index + 2)}}" },
-                    "D8": { "IdType": 3, "Id": "{{ToString(OpaqueIds, index)}}", "ServerUri": {{context1.ServerUris.GetIndex(Get(ServerUris, index + 3))}}, "Namespace":"{{Get(NamespaceUris, index + 3)}}" }
+                    "D2": { "IdType": 1, "Id": "{{ToString(StringIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(
+                    Get(NamespaceUris, index + 1)
+                )}} },
+                    "D3": { "IdType": 2, "Id": "{{ToString(GuidIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(
+                    Get(NamespaceUris, index + 2)
+                )}} },
+                    "D4": { "IdType": 3, "Id": "{{ToString(OpaqueIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(
+                    Get(NamespaceUris, index + 3)
+                )}} },
+                    "D5": { "Id": {{ToString(NumericIds, index)}}, "ServerUri": {{context1.ServerUris.GetIndex(
+                    Get(ServerUris, index)
+                )}}, "Namespace":"{{Get(NamespaceUris, index)}}" },
+                    "D6": { "IdType": 1, "Id": "{{ToString(StringIds, index)}}", "ServerUri": {{context1.ServerUris.GetIndex(
+                    Get(ServerUris, index + 1)
+                )}}, "Namespace":"{{Get(NamespaceUris, index + 1)}}" },
+                    "D7": { "IdType": 2, "Id": "{{ToString(GuidIds, index)}}", "ServerUri": {{context1.ServerUris.GetIndex(
+                    Get(ServerUris, index + 2)
+                )}}, "Namespace":"{{Get(NamespaceUris, index + 2)}}" },
+                    "D8": { "IdType": 3, "Id": "{{ToString(OpaqueIds, index)}}", "ServerUri": {{context1.ServerUris.GetIndex(
+                    Get(ServerUris, index + 3)
+                )}}, "Namespace":"{{Get(NamespaceUris, index + 3)}}" }
                 }
 
 """;
@@ -579,13 +713,27 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 {
                     "D0": { "Id": 2263 },
                     "D1": { "Id": {{ToString(NumericIds, index)}}, "Namespace":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index))}} },
-                    "D2": { "IdType": 1, "Id": "{{ToString(StringIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))}} },
-                    "D3": { "IdType": 2, "Id": "{{ToString(GuidIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))}} },
-                    "D4": { "IdType": 3, "Id": "{{ToString(OpaqueIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))}} },
-                    "D5": { "Id": {{ToString(NumericIds, index)}}, "Namespace":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index))}}, "ServerUri": {{context1.ServerUris.GetIndex(Get(ServerUris, index))}} },
-                    "D6": { "IdType": 1, "Id": "{{ToString(StringIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))}}, "ServerUri": {{context1.ServerUris.GetIndex(Get(ServerUris, index + 1))}} },
-                    "D7": { "IdType": 2, "Id": "{{ToString(GuidIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))}}, "ServerUri": {{context1.ServerUris.GetIndex(Get(ServerUris, index + 2))}} },
-                    "D8": { "IdType": 3, "Id": "{{ToString(OpaqueIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))}}, "ServerUri": {{context1.ServerUris.GetIndex(Get(ServerUris, index + 3))}} }
+                    "D2": { "IdType": 1, "Id": "{{ToString(StringIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(
+                    Get(NamespaceUris, index + 1)
+                )}} },
+                    "D3": { "IdType": 2, "Id": "{{ToString(GuidIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(
+                    Get(NamespaceUris, index + 2)
+                )}} },
+                    "D4": { "IdType": 3, "Id": "{{ToString(OpaqueIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(
+                    Get(NamespaceUris, index + 3)
+                )}} },
+                    "D5": { "Id": {{ToString(NumericIds, index)}}, "Namespace":{{context1.NamespaceUris.GetIndex(
+                    Get(NamespaceUris, index)
+                )}}, "ServerUri": {{context1.ServerUris.GetIndex(Get(ServerUris, index))}} },
+                    "D6": { "IdType": 1, "Id": "{{ToString(StringIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(
+                    Get(NamespaceUris, index + 1)
+                )}}, "ServerUri": {{context1.ServerUris.GetIndex(Get(ServerUris, index + 1))}} },
+                    "D7": { "IdType": 2, "Id": "{{ToString(GuidIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(
+                    Get(NamespaceUris, index + 2)
+                )}}, "ServerUri": {{context1.ServerUris.GetIndex(Get(ServerUris, index + 2))}} },
+                    "D8": { "IdType": 3, "Id": "{{ToString(OpaqueIds, index)}}", "Namespace":{{context1.NamespaceUris.GetIndex(
+                    Get(NamespaceUris, index + 3)
+                )}}, "ServerUri": {{context1.ServerUris.GetIndex(Get(ServerUris, index + 3))}} }
                 }
 
 """;
@@ -607,14 +755,70 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             encoder.SetMappingTables(context1.NamespaceUris, context1.ServerUris);
 
             encoder.WriteExpandedNodeId("D0", new ExpandedNodeId(2263));
-            encoder.WriteExpandedNodeId("D1", new ExpandedNodeId(Get(NumericIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index))));
-            encoder.WriteExpandedNodeId("D2", new ExpandedNodeId(Get(StringIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))));
-            encoder.WriteExpandedNodeId("D3", new ExpandedNodeId(Get(GuidIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))));
-            encoder.WriteExpandedNodeId("D4", new ExpandedNodeId(Get(OpaqueIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))));
-            encoder.WriteExpandedNodeId("D5", new ExpandedNodeId(Get(NumericIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index)), null, (uint)context2.ServerUris.GetIndex(Get(ServerUris, index))));
-            encoder.WriteExpandedNodeId("D6", new ExpandedNodeId(Get(StringIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1)), null, (uint)context2.ServerUris.GetIndex(Get(ServerUris, index + 1))));
-            encoder.WriteExpandedNodeId("D7", new ExpandedNodeId(Get(GuidIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2)), null, (uint)context2.ServerUris.GetIndex(Get(ServerUris, index + 2))));
-            encoder.WriteExpandedNodeId("D8", new ExpandedNodeId(Get(OpaqueIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3)), null, (uint)context2.ServerUris.GetIndex(Get(ServerUris, index + 3))));
+            encoder.WriteExpandedNodeId(
+                "D1",
+                new ExpandedNodeId(
+                    Get(NumericIds, index),
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index))
+                )
+            );
+            encoder.WriteExpandedNodeId(
+                "D2",
+                new ExpandedNodeId(
+                    Get(StringIds, index),
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))
+                )
+            );
+            encoder.WriteExpandedNodeId(
+                "D3",
+                new ExpandedNodeId(
+                    Get(GuidIds, index),
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))
+                )
+            );
+            encoder.WriteExpandedNodeId(
+                "D4",
+                new ExpandedNodeId(
+                    Get(OpaqueIds, index),
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))
+                )
+            );
+            encoder.WriteExpandedNodeId(
+                "D5",
+                new ExpandedNodeId(
+                    Get(NumericIds, index),
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index)),
+                    null,
+                    (uint)context2.ServerUris.GetIndex(Get(ServerUris, index))
+                )
+            );
+            encoder.WriteExpandedNodeId(
+                "D6",
+                new ExpandedNodeId(
+                    Get(StringIds, index),
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1)),
+                    null,
+                    (uint)context2.ServerUris.GetIndex(Get(ServerUris, index + 1))
+                )
+            );
+            encoder.WriteExpandedNodeId(
+                "D7",
+                new ExpandedNodeId(
+                    Get(GuidIds, index),
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2)),
+                    null,
+                    (uint)context2.ServerUris.GetIndex(Get(ServerUris, index + 2))
+                )
+            );
+            encoder.WriteExpandedNodeId(
+                "D8",
+                new ExpandedNodeId(
+                    Get(OpaqueIds, index),
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3)),
+                    null,
+                    (uint)context2.ServerUris.GetIndex(Get(ServerUris, index + 3))
+                )
+            );
 
             string actual = encoder.CloseAndReturnText();
             EncoderCommon.PrettifyAndValidateJson(actual, true);
@@ -632,9 +836,18 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 {
                     "D0": { "Id": 2263 },
                     "D1": { "Id": {{ToString(NumericIds, index)}}, "Namespace":"{{Get(NamespaceUris, index)}}" },
-                    "D2": { "IdType": 1, "Id": "{{ToString(StringIds, index)}}", "Namespace":"{{Get(NamespaceUris, index + 1)}}" },
-                    "D3": { "IdType": 2, "Id": "{{ToString(GuidIds, index)}}", "Namespace":"{{Get(NamespaceUris, index + 2)}}" },
-                    "D4": { "IdType": 3, "Id": "{{ToString(OpaqueIds, index)}}", "Namespace":"{{Get(NamespaceUris, index + 3)}}" }
+                    "D2": { "IdType": 1, "Id": "{{ToString(StringIds, index)}}", "Namespace":"{{Get(
+                    NamespaceUris,
+                    index + 1
+                )}}" },
+                    "D3": { "IdType": 2, "Id": "{{ToString(GuidIds, index)}}", "Namespace":"{{Get(
+                    NamespaceUris,
+                    index + 2
+                )}}" },
+                    "D4": { "IdType": 3, "Id": "{{ToString(OpaqueIds, index)}}", "Namespace":"{{Get(
+                    NamespaceUris,
+                    index + 3
+                )}}" }
                 }
 
 """;
@@ -662,9 +875,18 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 {
                     "D0": { "Id": 2263 },
                     "D1": { "Id": {{ToString(NumericIds, index)}}, "Namespace":"{{Get(NamespaceUris, index)}}" },
-                    "D2": { "IdType": 1, "Id": "{{ToString(StringIds, index)}}", "Namespace":"{{Get(NamespaceUris, index + 1)}}" },
-                    "D3": { "IdType": 2, "Id": "{{ToString(GuidIds, index)}}", "Namespace":"{{Get(NamespaceUris, index + 2)}}" },
-                    "D4": { "IdType": 3, "Id": "{{ToString(OpaqueIds, index)}}", "Namespace":"{{Get(NamespaceUris, index + 3)}}" }
+                    "D2": { "IdType": 1, "Id": "{{ToString(StringIds, index)}}", "Namespace":"{{Get(
+                    NamespaceUris,
+                    index + 1
+                )}}" },
+                    "D3": { "IdType": 2, "Id": "{{ToString(GuidIds, index)}}", "Namespace":"{{Get(
+                    NamespaceUris,
+                    index + 2
+                )}}" },
+                    "D4": { "IdType": 3, "Id": "{{ToString(OpaqueIds, index)}}", "Namespace":"{{Get(
+                    NamespaceUris,
+                    index + 3
+                )}}" }
                 }
 
 """;
@@ -684,10 +906,28 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             encoder.SetMappingTables(context1.NamespaceUris, context1.ServerUris);
 
             encoder.WriteNodeId("D0", new NodeId(2263));
-            encoder.WriteNodeId("D1", new NodeId(Get(NumericIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index))));
-            encoder.WriteNodeId("D2", new NodeId(Get(StringIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))));
-            encoder.WriteNodeId("D3", new NodeId(Get(GuidIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))));
-            encoder.WriteNodeId("D4", new NodeId(Get(OpaqueIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))));
+            encoder.WriteNodeId(
+                "D1",
+                new NodeId(Get(NumericIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index)))
+            );
+            encoder.WriteNodeId(
+                "D2",
+                new NodeId(
+                    Get(StringIds, index),
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))
+                )
+            );
+            encoder.WriteNodeId(
+                "D3",
+                new NodeId(Get(GuidIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2)))
+            );
+            encoder.WriteNodeId(
+                "D4",
+                new NodeId(
+                    Get(OpaqueIds, index),
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))
+                )
+            );
 
             string actual = encoder.CloseAndReturnText();
             EncoderCommon.PrettifyAndValidateJson(actual, true);
@@ -717,10 +957,22 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     "D2": { "IdType": 1, "Id": "{{ToString(StringIds, index)}}", "Namespace":"{{Get(NamespaceUris, index + 1)}}" },
                     "D3": { "IdType": 2, "Id": "{{ToString(GuidIds, index)}}", "Namespace":"{{Get(NamespaceUris, index + 2)}}" },
                     "D4": { "IdType": 3, "Id": "{{ToString(OpaqueIds, index)}}", "Namespace":"{{Get(NamespaceUris, index + 3)}}" },
-                    "D5": { "Id": {{ToString(NumericIds, index)}}, "ServerUri": "{{Get(ServerUris, index)}}", "Namespace":"{{Get(NamespaceUris, index)}}" },
-                    "D6": { "IdType": 1, "Id": "{{ToString(StringIds, index)}}", "ServerUri": "{{Get(ServerUris, index + 1)}}", "Namespace":"{{Get(NamespaceUris, index + 1)}}" },
-                    "D7": { "IdType": 2, "Id": "{{ToString(GuidIds, index)}}", "ServerUri": "{{Get(ServerUris, index + 2)}}", "Namespace":"{{Get(NamespaceUris, index + 2)}}" },
-                    "D8": { "IdType": 3, "Id": "{{ToString(OpaqueIds, index)}}", "ServerUri": "{{Get(ServerUris, index + 3)}}", "Namespace":"{{Get(NamespaceUris, index + 3)}}" }
+                    "D5": { "Id": {{ToString(NumericIds, index)}}, "ServerUri": "{{Get(ServerUris, index)}}", "Namespace":"{{Get(
+                    NamespaceUris,
+                    index
+                )}}" },
+                    "D6": { "IdType": 1, "Id": "{{ToString(StringIds, index)}}", "ServerUri": "{{Get(ServerUris, index + 1)}}", "Namespace":"{{Get(
+                    NamespaceUris,
+                    index + 1
+                )}}" },
+                    "D7": { "IdType": 2, "Id": "{{ToString(GuidIds, index)}}", "ServerUri": "{{Get(ServerUris, index + 2)}}", "Namespace":"{{Get(
+                    NamespaceUris,
+                    index + 2
+                )}}" },
+                    "D8": { "IdType": 3, "Id": "{{ToString(OpaqueIds, index)}}", "ServerUri": "{{Get(ServerUris, index + 3)}}", "Namespace":"{{Get(
+                    NamespaceUris,
+                    index + 3
+                )}}" }
                 }
 
 """;
@@ -756,10 +1008,22 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     "D2": { "IdType": 1, "Id": "{{ToString(StringIds, index)}}", "Namespace":"{{Get(NamespaceUris, index + 1)}}" },
                     "D3": { "IdType": 2, "Id": "{{ToString(GuidIds, index)}}", "Namespace":"{{Get(NamespaceUris, index + 2)}}" },
                     "D4": { "IdType": 3, "Id": "{{ToString(OpaqueIds, index)}}", "Namespace":"{{Get(NamespaceUris, index + 3)}}" },
-                    "D5": { "Id": {{ToString(NumericIds, index)}}, "Namespace":"{{Get(NamespaceUris, index)}}", "ServerUri": "{{Get(ServerUris, index)}}" },
-                    "D6": { "IdType": 1, "Id": "{{ToString(StringIds, index)}}", "Namespace":"{{Get(NamespaceUris, index + 1)}}", "ServerUri": "{{Get(ServerUris, index + 1)}}" },
-                    "D7": { "IdType": 2, "Id": "{{ToString(GuidIds, index)}}", "Namespace":"{{Get(NamespaceUris, index + 2)}}", "ServerUri": "{{Get(ServerUris, index + 2)}}" },
-                    "D8": { "IdType": 3, "Id": "{{ToString(OpaqueIds, index)}}", "Namespace":"{{Get(NamespaceUris, index + 3)}}", "ServerUri": "{{Get(ServerUris, index + 3)}}" }
+                    "D5": { "Id": {{ToString(NumericIds, index)}}, "Namespace":"{{Get(NamespaceUris, index)}}", "ServerUri": "{{Get(
+                    ServerUris,
+                    index
+                )}}" },
+                    "D6": { "IdType": 1, "Id": "{{ToString(StringIds, index)}}", "Namespace":"{{Get(NamespaceUris, index + 1)}}", "ServerUri": "{{Get(
+                    ServerUris,
+                    index + 1
+                )}}" },
+                    "D7": { "IdType": 2, "Id": "{{ToString(GuidIds, index)}}", "Namespace":"{{Get(NamespaceUris, index + 2)}}", "ServerUri": "{{Get(
+                    ServerUris,
+                    index + 2
+                )}}" },
+                    "D8": { "IdType": 3, "Id": "{{ToString(OpaqueIds, index)}}", "Namespace":"{{Get(NamespaceUris, index + 3)}}", "ServerUri": "{{Get(
+                    ServerUris,
+                    index + 3
+                )}}" }
                 }
 
 """;
@@ -784,14 +1048,70 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             encoder.SetMappingTables(context1.NamespaceUris, context1.ServerUris);
 
             encoder.WriteExpandedNodeId("D0", new ExpandedNodeId(2263));
-            encoder.WriteExpandedNodeId("D1", new ExpandedNodeId(Get(NumericIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index))));
-            encoder.WriteExpandedNodeId("D2", new ExpandedNodeId(Get(StringIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))));
-            encoder.WriteExpandedNodeId("D3", new ExpandedNodeId(Get(GuidIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))));
-            encoder.WriteExpandedNodeId("D4", new ExpandedNodeId(Get(OpaqueIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))));
-            encoder.WriteExpandedNodeId("D5", new ExpandedNodeId(Get(NumericIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index)), null, (uint)context2.ServerUris.GetIndex(Get(ServerUris, index))));
-            encoder.WriteExpandedNodeId("D6", new ExpandedNodeId(Get(StringIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1)), null, (uint)context2.ServerUris.GetIndex(Get(ServerUris, index + 1))));
-            encoder.WriteExpandedNodeId("D7", new ExpandedNodeId(Get(GuidIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2)), null, (uint)context2.ServerUris.GetIndex(Get(ServerUris, index + 2))));
-            encoder.WriteExpandedNodeId("D8", new ExpandedNodeId(Get(OpaqueIds, index), (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3)), null, (uint)context2.ServerUris.GetIndex(Get(ServerUris, index + 3))));
+            encoder.WriteExpandedNodeId(
+                "D1",
+                new ExpandedNodeId(
+                    Get(NumericIds, index),
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index))
+                )
+            );
+            encoder.WriteExpandedNodeId(
+                "D2",
+                new ExpandedNodeId(
+                    Get(StringIds, index),
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1))
+                )
+            );
+            encoder.WriteExpandedNodeId(
+                "D3",
+                new ExpandedNodeId(
+                    Get(GuidIds, index),
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2))
+                )
+            );
+            encoder.WriteExpandedNodeId(
+                "D4",
+                new ExpandedNodeId(
+                    Get(OpaqueIds, index),
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3))
+                )
+            );
+            encoder.WriteExpandedNodeId(
+                "D5",
+                new ExpandedNodeId(
+                    Get(NumericIds, index),
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index)),
+                    null,
+                    (uint)context2.ServerUris.GetIndex(Get(ServerUris, index))
+                )
+            );
+            encoder.WriteExpandedNodeId(
+                "D6",
+                new ExpandedNodeId(
+                    Get(StringIds, index),
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 1)),
+                    null,
+                    (uint)context2.ServerUris.GetIndex(Get(ServerUris, index + 1))
+                )
+            );
+            encoder.WriteExpandedNodeId(
+                "D7",
+                new ExpandedNodeId(
+                    Get(GuidIds, index),
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 2)),
+                    null,
+                    (uint)context2.ServerUris.GetIndex(Get(ServerUris, index + 2))
+                )
+            );
+            encoder.WriteExpandedNodeId(
+                "D8",
+                new ExpandedNodeId(
+                    Get(OpaqueIds, index),
+                    (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, index + 3)),
+                    null,
+                    (uint)context2.ServerUris.GetIndex(Get(ServerUris, index + 3))
+                )
+            );
 
             string actual = encoder.CloseAndReturnText();
             EncoderCommon.PrettifyAndValidateJson(actual, true);
@@ -855,10 +1175,22 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             encoder.SetMappingTables(context1.NamespaceUris, context1.ServerUris);
 
             encoder.WriteQualifiedName("D0", new QualifiedName("ServerStatus"));
-            encoder.WriteQualifiedName("D1", new QualifiedName("N1", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 0))));
-            encoder.WriteQualifiedName("D2", new QualifiedName("N2", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 1))));
-            encoder.WriteQualifiedName("D3", new QualifiedName("N3", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 2))));
-            encoder.WriteQualifiedName("D4", new QualifiedName("N4", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 3))));
+            encoder.WriteQualifiedName(
+                "D1",
+                new QualifiedName("N1", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 0)))
+            );
+            encoder.WriteQualifiedName(
+                "D2",
+                new QualifiedName("N2", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 1)))
+            );
+            encoder.WriteQualifiedName(
+                "D3",
+                new QualifiedName("N3", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 2)))
+            );
+            encoder.WriteQualifiedName(
+                "D4",
+                new QualifiedName("N4", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 3)))
+            );
 
             string actual = encoder.CloseAndReturnText();
             EncoderCommon.PrettifyAndValidateJson(actual, true);
@@ -929,10 +1261,22 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             encoder.SetMappingTables(context1.NamespaceUris, context1.ServerUris);
 
             encoder.WriteQualifiedName("D0", new QualifiedName("ServerStatus"));
-            encoder.WriteQualifiedName("D1", new QualifiedName("N1", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 0))));
-            encoder.WriteQualifiedName("D2", new QualifiedName("N2", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 1))));
-            encoder.WriteQualifiedName("D3", new QualifiedName("N3", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 2))));
-            encoder.WriteQualifiedName("D4", new QualifiedName("N4", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 3))));
+            encoder.WriteQualifiedName(
+                "D1",
+                new QualifiedName("N1", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 0)))
+            );
+            encoder.WriteQualifiedName(
+                "D2",
+                new QualifiedName("N2", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 1)))
+            );
+            encoder.WriteQualifiedName(
+                "D3",
+                new QualifiedName("N3", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 2)))
+            );
+            encoder.WriteQualifiedName(
+                "D4",
+                new QualifiedName("N4", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 3)))
+            );
 
             string actual = encoder.CloseAndReturnText();
             EncoderCommon.PrettifyAndValidateJson(actual, true);
@@ -1006,10 +1350,22 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             encoder.SetMappingTables(context1.NamespaceUris, context1.ServerUris);
 
             encoder.WriteQualifiedName("D0", new QualifiedName("ServerStatus"));
-            encoder.WriteQualifiedName("D1", new QualifiedName("N1", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 0))));
-            encoder.WriteQualifiedName("D2", new QualifiedName("N2", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 1))));
-            encoder.WriteQualifiedName("D3", new QualifiedName("N3", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 2))));
-            encoder.WriteQualifiedName("D4", new QualifiedName("N4", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 3))));
+            encoder.WriteQualifiedName(
+                "D1",
+                new QualifiedName("N1", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 0)))
+            );
+            encoder.WriteQualifiedName(
+                "D2",
+                new QualifiedName("N2", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 1)))
+            );
+            encoder.WriteQualifiedName(
+                "D3",
+                new QualifiedName("N3", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 2)))
+            );
+            encoder.WriteQualifiedName(
+                "D4",
+                new QualifiedName("N4", (ushort)context2.NamespaceUris.GetIndex(Get(NamespaceUris, 3)))
+            );
 
             string actual = encoder.CloseAndReturnText();
             EncoderCommon.PrettifyAndValidateJson(actual, true);
@@ -1019,7 +1375,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void DecodeCompactAndVerboseMatrix()
         {
-            const string data = /*lang=json,strict*/ """
+            const string data = /*lang=json,strict*/
+                """
 
                 {
                     "D0": { "Dimensions": [ 2, 3 ], "Array": [ 1, 2, 3, 4, 5, 6 ] },
@@ -1050,7 +1407,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [TestCase(JsonEncodingType.Verbose)]
         public void EncodeCompactAndVerboseMatrix(JsonEncodingType jsonEncoding)
         {
-            const string data = /*lang=json,strict*/ """
+            const string data = /*lang=json,strict*/
+                """
 
                 {
                     "D0": { "Dimensions": [ 2, 3 ], "Array": [ 1, 2, 3, 4, 5, 6 ] },
@@ -1066,8 +1424,28 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             var context = new ServiceMessageContext();
 
             using var encoder = new JsonEncoder(context, jsonEncoding);
-            encoder.WriteArray("D0", new int[,] { { 1, 2, 3 }, { 4, 5, 6 } }, 2, BuiltInType.Int32);
-            encoder.WriteArray("D1", new int[,,] { { { 1, 2, 3 }, { 4, 5, 6 } } }, 3, BuiltInType.Int32);
+            encoder.WriteArray(
+                "D0",
+                new int[,]
+                {
+                    { 1, 2, 3 },
+                    { 4, 5, 6 },
+                },
+                2,
+                BuiltInType.Int32
+            );
+            encoder.WriteArray(
+                "D1",
+                new int[,,]
+                {
+                    {
+                        { 1, 2, 3 },
+                        { 4, 5, 6 },
+                    },
+                },
+                3,
+                BuiltInType.Int32
+            );
 
             string actual = encoder.CloseAndReturnText();
             EncoderCommon.PrettifyAndValidateJson(actual, true);
@@ -1077,7 +1455,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void DecodeReversibleMatrix()
         {
-            const string data = /*lang=json,strict*/ """
+            const string data = /*lang=json,strict*/
+                """
 
                 {
                     "D0": [[1, 2, 3], [4, 5, 6]],
@@ -1108,7 +1487,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [TestCase(JsonEncodingType.NonReversible)]
         public void EncodeReversibleAndNonReversibleMatrix(JsonEncodingType jsonEncoding)
         {
-            const string data = /*lang=json,strict*/ """
+            const string data = /*lang=json,strict*/
+                """
 
                 {
                     "D0": [[1, 2, 3], [4, 5, 6]],
@@ -1124,8 +1504,28 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             var context = new ServiceMessageContext();
 
             using var encoder = new JsonEncoder(context, jsonEncoding);
-            encoder.WriteArray("D0", new int[,] { { 1, 2, 3 }, { 4, 5, 6 } }, 2, BuiltInType.Int32);
-            encoder.WriteArray("D1", new int[,,] { { { 1, 2, 3 }, { 4, 5, 6 } } }, 3, BuiltInType.Int32);
+            encoder.WriteArray(
+                "D0",
+                new int[,]
+                {
+                    { 1, 2, 3 },
+                    { 4, 5, 6 },
+                },
+                2,
+                BuiltInType.Int32
+            );
+            encoder.WriteArray(
+                "D1",
+                new int[,,]
+                {
+                    {
+                        { 1, 2, 3 },
+                        { 4, 5, 6 },
+                    },
+                },
+                3,
+                BuiltInType.Int32
+            );
 
             string actual = encoder.CloseAndReturnText();
             EncoderCommon.PrettifyAndValidateJson(actual, true);
@@ -1135,7 +1535,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void DecodeCompactExtensionObject()
         {
-            const string data = /*lang=json,strict*/ """
+            const string data = /*lang=json,strict*/
+                """
 
                 {
                     "D0": {
@@ -1186,7 +1587,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void EncodeCompactExtensionObject()
         {
-            const string data = /*lang=json,strict*/ """
+            const string data = /*lang=json,strict*/
+                """
 
                 {
                     "D0": {
@@ -1221,23 +1623,24 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using var encoder = new JsonEncoder(context, JsonEncodingType.Compact);
             encoder.WriteExtensionObject(
                 "D0",
-                new ExtensionObject(
-                    DataTypeIds.Range,
-                    new Range() { High = 9876.5432 })
+                new ExtensionObject(DataTypeIds.Range, new Range() { High = 9876.5432 })
             );
 
             encoder.WriteVariant(
                 "D1",
-                new Variant(new ExtensionObject(
-                    Gds.DataTypeIds.ApplicationRecordDataType,
-                    new Gds.ApplicationRecordDataType()
-                    {
-                        ApplicationId = new NodeId("urn:123456789", 1),
-                        ApplicationUri = "urn:localhost:test.org:client",
-                        ApplicationNames = new LocalizedText[] { new("en", "Test Client") },
-                        ProductUri = "http://test.org/client",
-                        DiscoveryUrls = Body,
-                    }))
+                new Variant(
+                    new ExtensionObject(
+                        Gds.DataTypeIds.ApplicationRecordDataType,
+                        new Gds.ApplicationRecordDataType()
+                        {
+                            ApplicationId = new NodeId("urn:123456789", 1),
+                            ApplicationUri = "urn:localhost:test.org:client",
+                            ApplicationNames = new LocalizedText[] { new("en", "Test Client") },
+                            ProductUri = "http://test.org/client",
+                            DiscoveryUrls = Body,
+                        }
+                    )
+                )
             );
 
             string actual = encoder.CloseAndReturnText();
@@ -1248,7 +1651,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void DecodeVerboseExtensionObject()
         {
-            const string data = /*lang=json,strict*/ """
+            const string data = /*lang=json,strict*/
+                """
 
                 {
                     "D0": {
@@ -1302,7 +1706,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void EncodeVerboseExtensionObject()
         {
-            const string data = /*lang=json,strict*/ """
+            const string data = /*lang=json,strict*/
+                """
 
                 {
                     "D0": {
@@ -1338,24 +1743,25 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using var encoder = new JsonEncoder(context, JsonEncodingType.Verbose);
             encoder.WriteExtensionObject(
                 "D0",
-                new ExtensionObject(
-                    DataTypeIds.Range,
-                    new Range() { Low = 0, High = 9876.5432 })
+                new ExtensionObject(DataTypeIds.Range, new Range() { Low = 0, High = 9876.5432 })
             );
 
             encoder.WriteVariant(
                 "D1",
-                new Variant(new ExtensionObject(
-                    Gds.DataTypeIds.ApplicationRecordDataType,
-                    new Gds.ApplicationRecordDataType()
-                    {
-                        ApplicationId = new NodeId("urn:123456789", 1),
-                        ApplicationUri = "urn:localhost:test.org:client",
-                        ApplicationType = ApplicationType.Client,
-                        ApplicationNames = new LocalizedText[] { new("en", "Test Client") },
-                        ProductUri = "http://test.org/client",
-                        DiscoveryUrls = Body,
-                    }))
+                new Variant(
+                    new ExtensionObject(
+                        Gds.DataTypeIds.ApplicationRecordDataType,
+                        new Gds.ApplicationRecordDataType()
+                        {
+                            ApplicationId = new NodeId("urn:123456789", 1),
+                            ApplicationUri = "urn:localhost:test.org:client",
+                            ApplicationType = ApplicationType.Client,
+                            ApplicationNames = new LocalizedText[] { new("en", "Test Client") },
+                            ProductUri = "http://test.org/client",
+                            DiscoveryUrls = Body,
+                        }
+                    )
+                )
             );
 
             string actual = encoder.CloseAndReturnText();
@@ -1366,7 +1772,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void DecodeReversibleExtensionObject()
         {
-            const string data = /*lang=json,strict*/ """
+            const string data = /*lang=json,strict*/
+                """
 
                 {
                     "D0": {
@@ -1419,7 +1826,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void EncodeReversibleExtensionObject()
         {
-            const string data = /*lang=json,strict*/ """
+            const string data = /*lang=json,strict*/
+                """
 
                 {
                     "D0": {
@@ -1456,24 +1864,25 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using var encoder = new JsonEncoder(context, JsonEncodingType.Reversible);
             encoder.WriteExtensionObject(
                 "D0",
-                new ExtensionObject(
-                    DataTypeIds.Range,
-                    new Range() { High = 9876.5432 })
+                new ExtensionObject(DataTypeIds.Range, new Range() { High = 9876.5432 })
             );
 
             encoder.WriteVariant(
                 "D1",
-                new Variant(new ExtensionObject(
-                    Gds.DataTypeIds.ApplicationRecordDataType,
-                    new Gds.ApplicationRecordDataType()
-                    {
-                        ApplicationId = new NodeId("urn:123456789", 1),
-                        ApplicationUri = "urn:localhost:test.org:client",
-                        ApplicationType = ApplicationType.Client,
-                        ApplicationNames = new LocalizedText[] { new("en", "Test Client") },
-                        ProductUri = "http://test.org/client",
-                        DiscoveryUrls = BodyArray,
-                    }))
+                new Variant(
+                    new ExtensionObject(
+                        Gds.DataTypeIds.ApplicationRecordDataType,
+                        new Gds.ApplicationRecordDataType()
+                        {
+                            ApplicationId = new NodeId("urn:123456789", 1),
+                            ApplicationUri = "urn:localhost:test.org:client",
+                            ApplicationType = ApplicationType.Client,
+                            ApplicationNames = new LocalizedText[] { new("en", "Test Client") },
+                            ProductUri = "http://test.org/client",
+                            DiscoveryUrls = BodyArray,
+                        }
+                    )
+                )
             );
 
             string actual = encoder.CloseAndReturnText();
@@ -1484,7 +1893,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void DecodeNonReversibleExtensionObject()
         {
-            const string data = /*lang=json,strict*/ """
+            const string data = /*lang=json,strict*/
+                """
 
                 {
                     "D0": { "Low": 0, "High": 9876.5432 },
@@ -1511,7 +1921,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.AreEqual(0, range.Low);
             Assert.AreEqual(9876.5432, range.High);
 
-            var record = decoder.ReadEncodeable("D1", typeof(Gds.ApplicationRecordDataType)) as Gds.ApplicationRecordDataType;
+            var record =
+                decoder.ReadEncodeable("D1", typeof(Gds.ApplicationRecordDataType)) as Gds.ApplicationRecordDataType;
             Assert.IsNotNull(record);
             Assert.AreEqual(ApplicationType.Client, record.ApplicationType);
             Assert.AreEqual("Test Client", record.ApplicationNames[0].Text);
@@ -1520,7 +1931,8 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         [Test]
         public void EncodeNonReversibleExtensionObject()
         {
-            const string data = /*lang=json,strict*/ """
+            const string data = /*lang=json,strict*/
+                """
 
                 {
                     "D0": { "Low": 0, "High": 9876.5432 },
@@ -1547,24 +1959,25 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             using var encoder = new JsonEncoder(context, JsonEncodingType.NonReversible);
             encoder.WriteExtensionObject(
                 "D0",
-                new ExtensionObject(
-                    DataTypeIds.Range,
-                    new Range() { Low = 0, High = 9876.5432 })
+                new ExtensionObject(DataTypeIds.Range, new Range() { Low = 0, High = 9876.5432 })
             );
 
             encoder.WriteVariant(
                 "D1",
-                new Variant(new ExtensionObject(
-                    Gds.DataTypeIds.ApplicationRecordDataType,
-                    new Gds.ApplicationRecordDataType()
-                    {
-                        ApplicationId = new NodeId("urn:123456789", 1),
-                        ApplicationUri = "urn:localhost:test.org:client",
-                        ApplicationType = ApplicationType.Client,
-                        ApplicationNames = new LocalizedText[] { new("en", "Test Client") },
-                        ProductUri = "http://test.org/client",
-                        DiscoveryUrls = BodyArray,
-                    }))
+                new Variant(
+                    new ExtensionObject(
+                        Gds.DataTypeIds.ApplicationRecordDataType,
+                        new Gds.ApplicationRecordDataType()
+                        {
+                            ApplicationId = new NodeId("urn:123456789", 1),
+                            ApplicationUri = "urn:localhost:test.org:client",
+                            ApplicationType = ApplicationType.Client,
+                            ApplicationNames = new LocalizedText[] { new("en", "Test Client") },
+                            ProductUri = "http://test.org/client",
+                            DiscoveryUrls = BodyArray,
+                        }
+                    )
+                )
             );
 
             string actual = encoder.CloseAndReturnText();

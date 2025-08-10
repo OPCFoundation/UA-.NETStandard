@@ -113,10 +113,7 @@ namespace Opc.Ua.Bindings
         /// Creates an unconnected socket.
         /// </summary>
         /// <returns>the message socket</returns>
-        IMessageSocket Create(
-            IMessageSink sink,
-            BufferManager bufferManager,
-            int receiveBufferSize);
+        IMessageSocket Create(IMessageSink sink, BufferManager bufferManager, int receiveBufferSize);
 
         /// <summary>
         /// Gets the implementation description.
@@ -162,10 +159,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Connects to an endpoint.
         /// </summary>
-        bool BeginConnect(
-            Uri endpointUrl,
-            EventHandler<IMessageSocketAsyncEventArgs> callback,
-            object state);
+        bool BeginConnect(Uri endpointUrl, EventHandler<IMessageSocketAsyncEventArgs> callback, object state);
 
         /// <summary>
         /// Forcefully closes the socket.

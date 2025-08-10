@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -59,7 +59,8 @@ namespace Opc.Ua.Client
             uint sessionTimeout,
             IUserIdentity identity,
             IList<string> preferredLocales,
-            CancellationToken ct = default);
+            CancellationToken ct = default
+        );
 
         /// <summary>
         /// Creates a new communication session with a server by invoking the CreateSession service
@@ -83,7 +84,8 @@ namespace Opc.Ua.Client
             uint sessionTimeout,
             IUserIdentity identity,
             IList<string> preferredLocales,
-            CancellationToken ct = default);
+            CancellationToken ct = default
+        );
 
         /// <summary>
         /// Creates a new session with a server using the specified channel by invoking the CreateSession service.
@@ -95,12 +97,13 @@ namespace Opc.Ua.Client
         /// <param name="availableEndpoints">The list of available endpoints returned by server in GetEndpoints() response.</param>
         /// <param name="discoveryProfileUris">The value of profileUris used in GetEndpoints() request.</param>
         ISession Create(
-           ApplicationConfiguration configuration,
-           ITransportChannel channel,
-           ConfiguredEndpoint endpoint,
-           X509Certificate2 clientCertificate,
-           EndpointDescriptionCollection availableEndpoints = null,
-           StringCollection discoveryProfileUris = null);
+            ApplicationConfiguration configuration,
+            ITransportChannel channel,
+            ConfiguredEndpoint endpoint,
+            X509Certificate2 clientCertificate,
+            EndpointDescriptionCollection availableEndpoints = null,
+            StringCollection discoveryProfileUris = null
+        );
 
         /// <summary>
         /// Creates a secure channel to the specified endpoint.
@@ -118,7 +121,8 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
             bool checkDomain,
-            CancellationToken ct = default);
+            CancellationToken ct = default
+        );
 
         /// <summary>
         /// Creates a new communication session with a server using a reverse connection.
@@ -144,7 +148,8 @@ namespace Opc.Ua.Client
             uint sessionTimeout,
             IUserIdentity identity,
             IList<string> preferredLocales,
-            CancellationToken ct = default);
+            CancellationToken ct = default
+        );
 
         /// <summary>
         /// Creates a new communication session with a server using a reverse connect manager.
@@ -170,7 +175,8 @@ namespace Opc.Ua.Client
             uint sessionTimeout,
             IUserIdentity userIdentity,
             IList<string> preferredLocales,
-            CancellationToken ct = default);
+            CancellationToken ct = default
+        );
 
         /// <summary>
         /// Recreates a session based on a specified template.
@@ -187,7 +193,11 @@ namespace Opc.Ua.Client
         /// <param name="connection">The waiting reverse connection.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The new session object.</returns>
-        Task<ISession> RecreateAsync(ISession sessionTemplate, ITransportWaitingConnection connection, CancellationToken ct = default);
+        Task<ISession> RecreateAsync(
+            ISession sessionTemplate,
+            ITransportWaitingConnection connection,
+            CancellationToken ct = default
+        );
 
         /// <summary>
         /// Recreates a session based on a specified template using the provided channel.
@@ -196,6 +206,10 @@ namespace Opc.Ua.Client
         /// <param name="transportChannel">The channel to use to recreate the session.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The new session object.</returns>
-        Task<ISession> RecreateAsync(ISession sessionTemplate, ITransportChannel transportChannel, CancellationToken ct = default);
+        Task<ISession> RecreateAsync(
+            ISession sessionTemplate,
+            ITransportChannel transportChannel,
+            CancellationToken ct = default
+        );
     }
 }

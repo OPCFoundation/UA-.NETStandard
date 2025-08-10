@@ -24,7 +24,8 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the instance with its default attribute values.
         /// </summary>
-        protected BaseInstanceState(NodeClass nodeClass, NodeState parent) : base(nodeClass)
+        protected BaseInstanceState(NodeClass nodeClass, NodeState parent)
+            : base(nodeClass)
         {
             Parent = parent;
         }
@@ -192,7 +193,6 @@ namespace Opc.Ua
         public NodeId ReferenceTypeId
         {
             get => m_referenceTypeId;
-
             set
             {
                 if (!ReferenceEquals(m_referenceTypeId, value))
@@ -210,7 +210,6 @@ namespace Opc.Ua
         public NodeId TypeDefinitionId
         {
             get => m_typeDefinitionId;
-
             set
             {
                 if (!ReferenceEquals(m_typeDefinitionId, value))
@@ -228,7 +227,6 @@ namespace Opc.Ua
         public NodeId ModellingRuleId
         {
             get => m_modellingRuleId;
-
             set
             {
                 if (!ReferenceEquals(m_modellingRuleId, value))
@@ -263,10 +261,7 @@ namespace Opc.Ua
         /// This method creates components based on the browse paths in the event field and sets
         /// the NodeId or Value based on values in the event notification.
         /// </remarks>
-        public void Update(
-            ISystemContext context,
-            SimpleAttributeOperandCollection fields,
-            EventFieldList e)
+        public void Update(ISystemContext context, SimpleAttributeOperandCollection fields, EventFieldList e)
         {
             for (int ii = 0; ii < fields.Count; ii++)
             {
@@ -287,7 +282,11 @@ namespace Opc.Ua
                 }
 
                 // extract the type definition for the event.
-                if (field.BrowsePath.Count == 1 && field.AttributeId == Attributes.Value && field.BrowsePath[0] == BrowseNames.EventType)
+                if (
+                    field.BrowsePath.Count == 1
+                    && field.AttributeId == Attributes.Value
+                    && field.BrowsePath[0] == BrowseNames.EventType
+                )
                 {
                     m_typeDefinitionId = value as NodeId;
                     continue;
@@ -399,10 +398,15 @@ namespace Opc.Ua
             NodeId typeDefinitionId,
             IList<QualifiedName> relativePath,
             uint attributeId,
-            NumericRange indexRange)
+            NumericRange indexRange
+        )
         {
             // check the type definition.
-            if (!NodeId.IsNull(typeDefinitionId) && typeDefinitionId != ObjectTypes.BaseEventType && !context.TypeTree.IsTypeOf(TypeDefinitionId, typeDefinitionId))
+            if (
+                !NodeId.IsNull(typeDefinitionId)
+                && typeDefinitionId != ObjectTypes.BaseEventType
+                && !context.TypeTree.IsTypeOf(TypeDefinitionId, typeDefinitionId)
+            )
             {
                 return null;
             }
@@ -410,12 +414,7 @@ namespace Opc.Ua
             // read the child attribute.
             var dataValue = new DataValue();
 
-            ServiceResult result = ReadChildAttribute(
-                null,
-                relativePath,
-                0,
-                attributeId,
-                dataValue);
+            ServiceResult result = ReadChildAttribute(null, relativePath, 0, attributeId, dataValue);
 
             if (ServiceResult.IsBad(result))
             {
@@ -644,7 +643,11 @@ namespace Opc.Ua
 
             NodeId typeDefinitionId = m_typeDefinitionId;
 
-            if (!NodeId.IsNull(typeDefinitionId) && IsObjectOrVariable && browser.IsRequired(ReferenceTypeIds.HasTypeDefinition, false))
+            if (
+                !NodeId.IsNull(typeDefinitionId)
+                && IsObjectOrVariable
+                && browser.IsRequired(ReferenceTypeIds.HasTypeDefinition, false)
+            )
             {
                 browser.Add(ReferenceTypeIds.HasTypeDefinition, false, typeDefinitionId);
             }

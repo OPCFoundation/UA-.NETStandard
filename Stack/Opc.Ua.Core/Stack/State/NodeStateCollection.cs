@@ -28,17 +28,14 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes a new instance of the <see cref="NodeStateCollection"/> class.
         /// </summary>
-        public NodeStateCollection()
-        {
-        }
+        public NodeStateCollection() { }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="NodeStateCollection"/> class.
         /// </summary>
         /// <param name="capacity">The initial capacity.</param>
-        public NodeStateCollection(int capacity) : base(capacity)
-        {
-        }
+        public NodeStateCollection(int capacity)
+            : base(capacity) { }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="NodeStateCollection"/> class.
@@ -47,9 +44,8 @@ namespace Opc.Ua
         /// <exception cref="T:System.ArgumentNullException">
         /// 	<paramref name="collection"/> is null.
         /// </exception>
-        public NodeStateCollection(IEnumerable<NodeState> collection) : base(collection)
-        {
-        }
+        public NodeStateCollection(IEnumerable<NodeState> collection)
+            : base(collection) { }
 
         /// <summary>
         /// Writes the collection to a stream using the NodeSet schema.
@@ -95,7 +91,7 @@ namespace Opc.Ua
         /// <summary>
         /// The list of aliases to use.
         /// </summary>
-        private static readonly AliasToUse[] s_AliasesToUse =
+        private static readonly AliasToUse[] s_aliasesToUse =
         [
             new(BrowseNames.Boolean, DataTypeIds.Boolean),
             new(BrowseNames.SByte, DataTypeIds.SByte),
@@ -148,7 +144,7 @@ namespace Opc.Ua
             new(BrowseNames.HasOrderedComponent, ReferenceTypeIds.HasOrderedComponent),
             new(BrowseNames.HasAlarmSuppressionGroup, ReferenceTypeIds.HasAlarmSuppressionGroup),
             new(BrowseNames.AlarmGroupMember, ReferenceTypeIds.AlarmGroupMember),
-            new(BrowseNames.AlarmSuppressionGroupMember, ReferenceTypeIds.AlarmSuppressionGroupMember)
+            new(BrowseNames.AlarmSuppressionGroupMember, ReferenceTypeIds.AlarmSuppressionGroupMember),
         ];
 
         /// <summary>
@@ -164,15 +160,11 @@ namespace Opc.Ua
         /// </summary>
         public void SaveAsNodeSet2(ISystemContext context, Stream ostrm, string version)
         {
-            var nodeSet = new Export.UANodeSet
-            {
-                LastModified = DateTime.UtcNow,
-                LastModifiedSpecified = true
-            };
+            var nodeSet = new Export.UANodeSet { LastModified = DateTime.UtcNow, LastModifiedSpecified = true };
 
-            for (int ii = 0; ii < s_AliasesToUse.Length; ii++)
+            for (int ii = 0; ii < s_aliasesToUse.Length; ii++)
             {
-                nodeSet.AddAlias(context, s_AliasesToUse[ii].Alias, s_AliasesToUse[ii].NodeId);
+                nodeSet.AddAlias(context, s_aliasesToUse[ii].Alias, s_aliasesToUse[ii].NodeId);
             }
 
             for (int ii = 0; ii < Count; ii++)
@@ -203,7 +195,7 @@ namespace Opc.Ua
             {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
-                Factory = context.EncodeableFactory
+                Factory = context.EncodeableFactory,
             };
 
             using var writer = XmlWriter.Create(ostrm, settings);
@@ -231,7 +223,7 @@ namespace Opc.Ua
             {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
-                Factory = context.EncodeableFactory
+                Factory = context.EncodeableFactory,
             };
 
             using var encoder = new BinaryEncoder(ostrm, messageContext, true);
@@ -258,7 +250,7 @@ namespace Opc.Ua
             {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
-                Factory = context.EncodeableFactory
+                Factory = context.EncodeableFactory,
             };
 
             using var decoder = new BinaryDecoder(istrm, messageContext);
@@ -328,7 +320,7 @@ namespace Opc.Ua
             {
                 NamespaceUris = context.NamespaceUris,
                 ServerUris = context.ServerUris,
-                Factory = context.EncodeableFactory
+                Factory = context.EncodeableFactory,
             };
 
             using var reader = XmlReader.Create(istrm, Utils.DefaultXmlReaderSettings());
@@ -415,7 +407,11 @@ namespace Opc.Ua
                 istrm = file.OpenRead();
                 if (istrm == null)
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadDecodingError, "Could not load nodes from resource: {0}", resourcePath);
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Could not load nodes from resource: {0}",
+                        resourcePath
+                    );
                 }
             }
 
@@ -429,7 +425,12 @@ namespace Opc.Ua
         /// <param name="resourcePath">The resource path.</param>
         /// <param name="assembly">The assembly containing the resource.</param>
         /// <param name="updateTables">if set to <c>true</c> the namespace and server tables are updated with any new URIs.</param>
-        public void LoadFromBinaryResource(ISystemContext context, string resourcePath, Assembly assembly, bool updateTables)
+        public void LoadFromBinaryResource(
+            ISystemContext context,
+            string resourcePath,
+            Assembly assembly,
+            bool updateTables
+        )
         {
             if (resourcePath == null)
             {
@@ -449,7 +450,11 @@ namespace Opc.Ua
                 istrm = file.OpenRead();
                 if (istrm == null)
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadDecodingError, "Could not load nodes from resource: {0}", resourcePath);
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Could not load nodes from resource: {0}",
+                        resourcePath
+                    );
                 }
             }
 
@@ -478,7 +483,8 @@ namespace Opc.Ua
             NodeClass nodeClass,
             QualifiedName browseName,
             NodeId referenceTypeId,
-            NodeId typeDefinitionId)
+            NodeId typeDefinitionId
+        )
         {
             if (m_types != null && !NodeId.IsNull(typeDefinitionId))
             {
@@ -493,7 +499,10 @@ namespace Opc.Ua
             switch (nodeClass)
             {
                 case NodeClass.Variable:
-                    if (context.TypeTable != null && context.TypeTable.IsTypeOf(referenceTypeId, ReferenceTypeIds.HasProperty))
+                    if (
+                        context.TypeTable != null
+                        && context.TypeTable.IsTypeOf(referenceTypeId, ReferenceTypeIds.HasProperty)
+                    )
                     {
                         child = new PropertyState(parent);
                         break;
@@ -550,10 +559,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(typeDefinitionId));
             }
 
-            if (m_types == null)
-            {
-                m_types = [];
-            }
+            m_types ??= [];
 
             m_types[typeDefinitionId] = type ?? throw new ArgumentNullException(nameof(type));
         }

@@ -350,7 +350,8 @@ namespace Opc.Ua
             int valueRank,
             BuiltInType builtInType,
             Type systemType = null,
-            ExpandedNodeId encodeableTypeId = null);
+            ExpandedNodeId encodeableTypeId = null
+        );
 
         /// <summary>
         /// Decode the switch field for a union.

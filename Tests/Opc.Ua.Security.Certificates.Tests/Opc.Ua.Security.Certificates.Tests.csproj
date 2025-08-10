@@ -5,17 +5,14 @@
     <RootNamespace>Opc.Ua.Security.Certificates.Tests</RootNamespace>
     <GenerateProgramFile>false</GenerateProgramFile>
   </PropertyGroup>
-
   <Choose>
-    <When Condition="'$(TargetFramework)' == 'net462'">
-    </When>
+    <When Condition="'$(TargetFramework)' == 'net462'"></When>
     <Otherwise>
       <PropertyGroup Condition="'$(DisableECCTests)' != 'true'">
         <DefineConstants>$(DefineConstants);ECC_SUPPORT</DefineConstants>
       </PropertyGroup>
     </Otherwise>
   </Choose>
-
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="Newtonsoft.Json" />
@@ -31,16 +28,13 @@
     </PackageReference>
     <PackageReference Include="BenchmarkDotNet" />
   </ItemGroup>
-
   <ItemGroup>
     <Compile Include="..\Common\Main.cs" />
   </ItemGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\..\Stack\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\..\Libraries\Opc.Ua.Security.Certificates\Opc.Ua.Security.Certificates.csproj" />
   </ItemGroup>
-
   <ItemGroup>
     <Content Include="Assets\*.*">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>

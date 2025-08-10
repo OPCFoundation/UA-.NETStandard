@@ -42,7 +42,8 @@ namespace Opc.Ua.Client.ComplexTypes
         public abstract IComplexTypeBuilder Create(
             string targetNamespace,
             int targetNamespaceIndex,
-            string moduleName = null);
+            string moduleName = null
+        );
 
         /// <summary>
         /// Types defined in the factory.
@@ -76,9 +77,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Create a complex type from a StructureDefinition.
         /// Available since OPC UA V1.04 in the DataTypeDefinition attribute.
         /// </summary>
-        IComplexTypeFieldBuilder AddStructuredType(
-            QualifiedName name,
-            StructureDefinition structureDefinition);
+        IComplexTypeFieldBuilder AddStructuredType(QualifiedName name, StructureDefinition structureDefinition);
     }
 
     /// <summary>
@@ -93,7 +92,7 @@ namespace Opc.Ua.Client.ComplexTypes
             ExpandedNodeId complexTypeId,
             ExpandedNodeId binaryEncodingId,
             ExpandedNodeId xmlEncodingId
-            );
+        );
 
         /// <summary>
         /// Create a property field of a class with get and set.
@@ -110,4 +109,4 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         Type CreateType();
     }
-}//namespace
+} //namespace

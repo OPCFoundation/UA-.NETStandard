@@ -51,17 +51,17 @@ namespace Opc.Ua.Security
                 return new SecurityConfigurationManager();
             }
 
-            Type type = Type.GetType(typeName) ?? throw ServiceResultException.Create(
-                    StatusCodes.BadNotSupported,
-                    "Cannot load type: {0}",
-                    typeName);
+            Type type =
+                Type.GetType(typeName)
+                ?? throw ServiceResultException.Create(StatusCodes.BadNotSupported, "Cannot load type: {0}", typeName);
 
             if (Activator.CreateInstance(type) is not ISecurityConfigurationManager configuration)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadNotSupported,
                     "Type does not support the ISecurityConfigurationManager interface: {0}",
-                    typeName);
+                    typeName
+                );
             }
 
             return configuration;

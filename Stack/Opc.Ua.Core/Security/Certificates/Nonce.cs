@@ -13,7 +13,6 @@
 using System;
 using System.Runtime.Serialization;
 using System.Security.Cryptography;
-
 #if CURVE25519
 using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.X509;
@@ -200,10 +199,7 @@ namespace Opc.Ua
 #endif
                 default:
                     uint rsaNonceLength = GetNonceLength(securityPolicyUri);
-                    return new Nonce()
-                    {
-                        Data = CreateRandomNonceData(rsaNonceLength)
-                    };
+                    return new Nonce() { Data = CreateRandomNonceData(rsaNonceLength) };
             }
         }
 
@@ -225,10 +221,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(nonceData));
             }
 
-            var nonce = new Nonce()
-            {
-                Data = nonceData
-            };
+            var nonce = new Nonce() { Data = nonceData };
 
             switch (securityPolicyUri)
             {
@@ -383,10 +376,7 @@ namespace Opc.Ua
         /// <returns>A new Nonce object.</returns>
         private static Nonce CreateNonceForCurve25519(byte[] nonceData)
         {
-            return new Nonce()
-            {
-                Data = nonceData,
-            };
+            return new Nonce() { Data = nonceData };
         }
 
         /// <summary>
@@ -396,11 +386,9 @@ namespace Opc.Ua
         /// <returns>A new Nonce instance.</returns>
         private static Nonce CreateNonceForCurve448(byte[] nonceData)
         {
-            return new Nonce()
-            {
-                Data = nonceData,
-            };
+            return new Nonce() { Data = nonceData };
         }
+
 #if ECC_SUPPORT
         /// <summary>
         /// Creates a new Nonce instance with the specified ECC curve and nonce data.
@@ -410,10 +398,7 @@ namespace Opc.Ua
         /// <returns>A new Nonce instance with the specified curve and nonce data.</returns>
         private static Nonce CreateNonce(ECCurve curve, byte[] nonceData)
         {
-            var nonce = new Nonce()
-            {
-                Data = nonceData
-            };
+            var nonce = new Nonce() { Data = nonceData };
 
             int keyLength = nonceData.Length;
 
@@ -422,11 +407,7 @@ namespace Opc.Ua
             Buffer.BlockCopy(nonceData, 0, qx, 0, keyLength / 2);
             Buffer.BlockCopy(nonceData, keyLength / 2, qy, 0, keyLength / 2);
 
-            var ecdhParameters = new ECParameters
-            {
-                Curve = curve,
-                Q = { X = qx, Y = qy }
-            };
+            var ecdhParameters = new ECParameters { Curve = curve, Q = { X = qx, Y = qy } };
             //validate curve parameters as ECDiffieHellman.Create expects already validated curve parameters
             try
             {
@@ -462,11 +443,7 @@ namespace Opc.Ua
             Array.Copy(ecdhParameters.Q.X, senderNonce, xLen);
             Array.Copy(ecdhParameters.Q.Y, 0, senderNonce, xLen, yLen);
 
-            return new Nonce()
-            {
-                Data = senderNonce,
-                m_ecdh = ecdh
-            };
+            return new Nonce() { Data = senderNonce, m_ecdh = ecdh };
         }
 #endif
 
@@ -486,10 +463,7 @@ namespace Opc.Ua
             byte[] senderNonce = new byte[X25519PublicKeyParameters.KeySize];
             ((X25519PublicKeyParameters)(keyPair.Public)).Encode(senderNonce, 0);
 
-            var nonce = new Nonce() {
-                Data = senderNonce,
-                m_bcKeyPair = keyPair
-            };
+            var nonce = new Nonce() { Data = senderNonce, m_bcKeyPair = keyPair };
 
             return nonce;
         }
@@ -509,10 +483,7 @@ namespace Opc.Ua
             byte[] senderNonce = new byte[X448PublicKeyParameters.KeySize];
             ((X448PublicKeyParameters)(keyPair.Public)).Encode(senderNonce, 0);
 
-            var nonce = new Nonce() {
-                Data = senderNonce,
-                m_bcKeyPair = keyPair
-            };
+            var nonce = new Nonce() { Data = senderNonce, m_bcKeyPair = keyPair };
 
             return nonce;
         }
@@ -537,7 +508,7 @@ namespace Opc.Ua
                     {
                         X = (byte[])info.GetValue("QX", typeof(byte[])),
                         Y = (byte[])info.GetValue("QY", typeof(byte[])),
-                    }
+                    },
                 };
                 m_ecdh = ECDiffieHellman.Create(ecParams);
             }

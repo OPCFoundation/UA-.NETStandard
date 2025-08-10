@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -93,7 +93,7 @@ namespace TestData
                 {
                     RawData = [],
                     Historizing = true,
-                    DataType = dataType
+                    DataType = dataType,
                 };
 
                 DateTime now = DateTime.UtcNow;
@@ -102,10 +102,7 @@ namespace TestData
                 {
                     var entry = new HistoryEntry
                     {
-                        Value = new DataValue
-                        {
-                            ServerTimestamp = now.AddSeconds(-(ii * 10))
-                        }
+                        Value = new DataValue { ServerTimestamp = now.AddSeconds(-(ii * 10)) },
                     };
                     entry.Value.SourceTimestamp = entry.Value.ServerTimestamp.AddMilliseconds(1234);
                     entry.IsModified = false;
@@ -120,17 +117,11 @@ namespace TestData
                     record.RawData.Add(entry);
                 }
 
-                if (m_records == null)
-                {
-                    m_records = [];
-                }
+                m_records ??= [];
 
                 m_records[nodeId] = record;
 
-                if (m_updateTimer == null)
-                {
-                    m_updateTimer = new Timer(OnUpdate, null, 10000, 10000);
-                }
+                m_updateTimer ??= new Timer(OnUpdate, null, 10000, 10000);
             }
         }
 
@@ -152,13 +143,7 @@ namespace TestData
                             continue;
                         }
 
-                        var entry = new HistoryEntry
-                        {
-                            Value = new DataValue
-                            {
-                                ServerTimestamp = now
-                            }
-                        };
+                        var entry = new HistoryEntry { Value = new DataValue { ServerTimestamp = now } };
                         entry.Value.SourceTimestamp = entry.Value.ServerTimestamp.AddMilliseconds(-4567);
                         entry.IsModified = false;
 

@@ -64,12 +64,9 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         [Test]
-        public async Task CertificateStoreTypeNoConfigTest()
+        public async Task CertificateStoreTypeNoConfigTestAsync()
         {
-            var application = new ApplicationInstance()
-            {
-                ApplicationName = "Application",
-            };
+            var application = new ApplicationInstance() { ApplicationName = "Application" };
 
             string appStorePath = m_tempPath + Path.DirectorySeparatorChar + "own";
             string trustedStorePath = m_tempPath + Path.DirectorySeparatorChar + "trusted";
@@ -77,16 +74,18 @@ namespace Opc.Ua.Configuration.Tests
             string trustedUserStorePath = m_tempPath + Path.DirectorySeparatorChar + "trustedUser";
             string issuerUserStorePath = m_tempPath + Path.DirectorySeparatorChar + "userIssuer";
 
-            IApplicationConfigurationBuilderSecurityOptionStores appConfigBuilder = application.Build(
-                applicationUri: "urn:localhost:CertStoreTypeTest",
-                productUri: "uri:opcfoundation.org:Tests:CertStoreTypeTest")
+            IApplicationConfigurationBuilderSecurityOptionStores appConfigBuilder = application
+                .Build(
+                    applicationUri: "urn:localhost:CertStoreTypeTest",
+                    productUri: "uri:opcfoundation.org:Tests:CertStoreTypeTest"
+                )
                 .AsClient()
                 .AddSecurityConfigurationStores(
                     subjectName: "CN=CertStoreTypeTest, O=OPC Foundation",
                     appRoot: TestCertStore.StoreTypePrefix + appStorePath,
                     trustedRoot: TestCertStore.StoreTypePrefix + trustedStorePath,
                     issuerRoot: TestCertStore.StoreTypePrefix + issuerStorePath
-                    )
+                )
                 .AddSecurityConfigurationUserStore(
                     trustedRoot: TestCertStore.StoreTypePrefix + trustedUserStorePath,
                     issuerRoot: TestCertStore.StoreTypePrefix + issuerUserStorePath
@@ -108,7 +107,9 @@ namespace Opc.Ua.Configuration.Tests
 
             int instancesCreatedWhileOpeningAuthRootStore = TestCertStore.InstancesCreated;
             Assert.IsTrue(instancesCreatedWhileLoadingConfig < instancesCreatedWhileOpeningAuthRootStore);
-            var certificateStoreIdentifier = new CertificateStoreIdentifier(TestCertStore.StoreTypePrefix + trustedUserStorePath);
+            var certificateStoreIdentifier = new CertificateStoreIdentifier(
+                TestCertStore.StoreTypePrefix + trustedUserStorePath
+            );
             using ICertificateStore store = certificateStoreIdentifier.OpenStore();
             Assert.IsTrue(instancesCreatedWhileOpeningAuthRootStore < TestCertStore.InstancesCreated);
         }
@@ -233,8 +234,7 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         /// <inheritdoc/>
-        public bool SupportsCRLs
-            => m_innerStore.SupportsCRLs;
+        public bool SupportsCRLs => m_innerStore.SupportsCRLs;
 
         /// <inheritdoc/>
         public Task AddCRL(X509CRL crl)
@@ -305,13 +305,25 @@ namespace Opc.Ua.Configuration.Tests
 
         /// <inheritdoc/>
         [Obsolete("Use LoadPrivateKeyAsync instead.")]
-        public Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string applicationUri, NodeId certificateType, string password)
+        public Task<X509Certificate2> LoadPrivateKey(
+            string thumbprint,
+            string subjectName,
+            string applicationUri,
+            NodeId certificateType,
+            string password
+        )
         {
             return LoadPrivateKeyAsync(thumbprint, subjectName, applicationUri, certificateType, password);
         }
 
         /// <inheritdoc/>
-        public Task<X509Certificate2> LoadPrivateKeyAsync(string thumbprint, string subjectName, string applicationUri, NodeId certificateType, string password)
+        public Task<X509Certificate2> LoadPrivateKeyAsync(
+            string thumbprint,
+            string subjectName,
+            string applicationUri,
+            NodeId certificateType,
+            string password
+        )
         {
             return m_innerStore.LoadPrivateKeyAsync(thumbprint, subjectName, applicationUri, certificateType, password);
         }

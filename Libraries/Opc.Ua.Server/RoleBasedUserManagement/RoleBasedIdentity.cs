@@ -42,43 +42,51 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The Role is allowed to browse and read non-security related Nodes only in the Server Object and all type Nodes.
         /// </summary>
-        public static Role Anonymous { get; } = new Role(ObjectIds.WellKnownRole_Anonymous, BrowseNames.WellKnownRole_Anonymous);
+        public static Role Anonymous { get; } =
+            new Role(ObjectIds.WellKnownRole_Anonymous, BrowseNames.WellKnownRole_Anonymous);
 
         /// <summary>
         /// The Role is allowed to browse and read non-security related Nodes.
         /// </summary>
-        public static Role AuthenticatedUser { get; } = new Role(ObjectIds.WellKnownRole_AuthenticatedUser, BrowseNames.WellKnownRole_AuthenticatedUser);
+        public static Role AuthenticatedUser { get; } =
+            new Role(ObjectIds.WellKnownRole_AuthenticatedUser, BrowseNames.WellKnownRole_AuthenticatedUser);
 
         /// <summary>
         /// The Role is allowed to browse, read live data, read historical data/events or subscribe to data/events.
         /// </summary>
-        public static Role Observer { get; } = new Role(ObjectIds.WellKnownRole_Observer, BrowseNames.WellKnownRole_Observer);
+        public static Role Observer { get; } =
+            new Role(ObjectIds.WellKnownRole_Observer, BrowseNames.WellKnownRole_Observer);
 
         /// <summary>
         /// The Role is allowed to browse, read live data, read historical data/events or subscribe to data/events.
         /// In addition, the Session is allowed to write some live data and call some Methods.
         /// </summary>
-        public static Role Operator { get; } = new Role(ObjectIds.WellKnownRole_Operator, BrowseNames.WellKnownRole_Operator);
+        public static Role Operator { get; } =
+            new Role(ObjectIds.WellKnownRole_Operator, BrowseNames.WellKnownRole_Operator);
 
         /// <summary>
         /// The Role is allowed to browse, read/write configuration data, read historical data/events, call Methods or subscribe to data/events.
         /// </summary>
-        public static Role Engineer { get; } = new Role(ObjectIds.WellKnownRole_Engineer, BrowseNames.WellKnownRole_Engineer);
+        public static Role Engineer { get; } =
+            new Role(ObjectIds.WellKnownRole_Engineer, BrowseNames.WellKnownRole_Engineer);
 
         /// <summary>
         /// The Role is allowed to browse, read live data, read historical data/events, call Methods or subscribe to data/events.
         /// </summary>
-        public static Role Supervisor { get; } = new Role(ObjectIds.WellKnownRole_Supervisor, BrowseNames.WellKnownRole_Supervisor);
+        public static Role Supervisor { get; } =
+            new Role(ObjectIds.WellKnownRole_Supervisor, BrowseNames.WellKnownRole_Supervisor);
 
         /// <summary>
         /// The Role is allowed to change the non-security related configuration settings.
         /// </summary>
-        public static Role ConfigureAdmin { get; } = new Role(ObjectIds.WellKnownRole_ConfigureAdmin, BrowseNames.WellKnownRole_ConfigureAdmin);
+        public static Role ConfigureAdmin { get; } =
+            new Role(ObjectIds.WellKnownRole_ConfigureAdmin, BrowseNames.WellKnownRole_ConfigureAdmin);
 
         /// <summary>
         /// The Role is allowed to change security related settings.
         /// </summary>
-        public static Role SecurityAdmin { get; } = new Role(ObjectIds.WellKnownRole_SecurityAdmin, BrowseNames.WellKnownRole_SecurityAdmin);
+        public static Role SecurityAdmin { get; } =
+            new Role(ObjectIds.WellKnownRole_SecurityAdmin, BrowseNames.WellKnownRole_SecurityAdmin);
 
         /// <summary>
         /// Constructor for new Role
@@ -90,6 +98,7 @@ namespace Opc.Ua.Server
             RoleId = roleId;
             Name = name;
         }
+
         /// <summary>
         /// the NodeId of the role
         /// </summary>
@@ -117,16 +126,19 @@ namespace Opc.Ua.Server
             }
             return (Name == other.Name) && (RoleId == other.RoleId);
         }
+
         /// <inheritdoc/>
         public override bool Equals(object obj)
         {
             return Equals(obj as Role);
         }
+
         /// <inheritdoc/>
         public override int GetHashCode()
         {
             return HashCode.Combine(Name, RoleId);
         }
+
         /// <inheritdoc/>
         public static bool operator ==(Role lhs, Role rhs)
         {
@@ -143,6 +155,7 @@ namespace Opc.Ua.Server
             // Equals handles case of null on right side.
             return lhs.Equals(rhs);
         }
+
         /// <inheritdoc/>
         public static bool operator !=(Role lhs, Role rhs)
         {

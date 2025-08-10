@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -110,7 +110,8 @@ namespace Opc.Ua.Server
             out NodeId sessionId,
             out NodeId authenticationToken,
             out byte[] serverNonce,
-            out double revisedSessionTimeout);
+            out double revisedSessionTimeout
+        );
 
         /// <summary>
         /// Activates an existing session
@@ -123,7 +124,8 @@ namespace Opc.Ua.Server
             ExtensionObject userIdentityToken,
             SignatureData userTokenSignature,
             StringCollection localeIds,
-            out byte[] serverNonce);
+            out byte[] serverNonce
+        );
 
         /// <summary>
         /// Closes the specified session.
@@ -143,6 +145,7 @@ namespace Opc.Ua.Server
         /// </remarks>
         OperationContext ValidateRequest(RequestHeader requestHeader, RequestType requestType);
     }
+
     /// <summary>
     /// The possible reasons for a session related event.
     /// </summary>
@@ -172,7 +175,7 @@ namespace Opc.Ua.Server
         /// A keep alive to signal a channel that the session is still active.
         /// Triggered by the session manager based on <see cref="ServerConfiguration.MinSessionTimeout"/>.
         /// </summary>
-        ChannelKeepAlive
+        ChannelKeepAlive,
     }
 
     /// <summary>
@@ -188,7 +191,11 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates a new instance.
         /// </summary>
-        public ImpersonateEventArgs(UserIdentityToken newIdentity, UserTokenPolicy userTokenPolicy, EndpointDescription endpointDescription = null)
+        public ImpersonateEventArgs(
+            UserIdentityToken newIdentity,
+            UserTokenPolicy userTokenPolicy,
+            EndpointDescription endpointDescription = null
+        )
         {
             NewIdentity = newIdentity;
             UserTokenPolicy = userTokenPolicy;

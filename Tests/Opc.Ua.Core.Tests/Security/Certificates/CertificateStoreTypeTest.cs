@@ -22,10 +22,19 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         [Test]
-        public async Task CertificateStoreTypeConfigTest()
+        public async Task CertificateStoreTypeConfigTestAsync()
         {
-            var fileInfo = new FileInfo(Path.Combine(TestContext.CurrentContext.TestDirectory, "Security", "Certificates", "CertificateStoreTypeTestConfig.xml"));
-            ApplicationConfiguration appConfig = await ApplicationConfiguration.LoadAsync(fileInfo, ApplicationType.Client, null).ConfigureAwait(false);
+            var fileInfo = new FileInfo(
+                Path.Combine(
+                    TestContext.CurrentContext.TestDirectory,
+                    "Security",
+                    "Certificates",
+                    "CertificateStoreTypeTestConfig.xml"
+                )
+            );
+            ApplicationConfiguration appConfig = await ApplicationConfiguration
+                .LoadAsync(fileInfo, ApplicationType.Client, null)
+                .ConfigureAwait(false);
             int instancesCreatedWhileLoadingConfig = TestCertStore.InstancesCreated;
             Assert.IsTrue(instancesCreatedWhileLoadingConfig > 0);
             CertificateTrustList trustedIssuers = appConfig.SecurityConfiguration.TrustedIssuerCertificates;
@@ -34,7 +43,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             int instancesCreatedWhileOpeningAuthRootStore = TestCertStore.InstancesCreated;
             Assert.IsTrue(instancesCreatedWhileLoadingConfig < instancesCreatedWhileOpeningAuthRootStore);
 
-            var certificateStoreIdentifier = new CertificateStoreIdentifier(TestCertStore.StoreTypePrefix + @"CurrentUser\Disallowed");
+            var certificateStoreIdentifier = new CertificateStoreIdentifier(
+                TestCertStore.StoreTypePrefix + @"CurrentUser\Disallowed"
+            );
             using ICertificateStore store = certificateStoreIdentifier.OpenStore();
             Assert.IsTrue(instancesCreatedWhileOpeningAuthRootStore < TestCertStore.InstancesCreated);
         }
@@ -147,8 +158,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         /// <inheritdoc/>
-        public bool SupportsCRLs
-            => m_innerStore.SupportsCRLs;
+        public bool SupportsCRLs => m_innerStore.SupportsCRLs;
 
         /// <inheritdoc/>
         [Obsolete("Use AddCRLAsync instead.")]
@@ -220,12 +230,25 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
         /// <inheritdoc/>
         [Obsolete("Use LoadPrivateKeyAsync instead.")]
-        public Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string applicationUri, NodeId certificateType, string password)
+        public Task<X509Certificate2> LoadPrivateKey(
+            string thumbprint,
+            string subjectName,
+            string applicationUri,
+            NodeId certificateType,
+            string password
+        )
         {
             return LoadPrivateKeyAsync(thumbprint, subjectName, applicationUri, certificateType, password);
         }
+
         /// <inheritdoc/>
-        public Task<X509Certificate2> LoadPrivateKeyAsync(string thumbprint, string subjectName, string applicationUri, NodeId certificateType, string password)
+        public Task<X509Certificate2> LoadPrivateKeyAsync(
+            string thumbprint,
+            string subjectName,
+            string applicationUri,
+            NodeId certificateType,
+            string password
+        )
         {
             return m_innerStore.LoadPrivateKeyAsync(thumbprint, subjectName, applicationUri, certificateType, password);
         }

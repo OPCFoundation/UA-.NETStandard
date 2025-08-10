@@ -74,9 +74,7 @@ namespace Opc.Ua
         /// <summary>
         /// Creates an empty object.
         /// </summary>
-        public TranslationInfo()
-        {
-        }
+        public TranslationInfo() { }
 
         /// <summary>
         /// Creates an object from a key and a LocalizedText.
@@ -142,7 +140,10 @@ namespace Opc.Ua
         /// <summary>
         /// The arguments that are used when formatting the text after translation.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1819:PropertiesShouldNotReturnArrays")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Microsoft.Performance",
+            "CA1819:PropertiesShouldNotReturnArrays"
+        )]
         public object[] Args { get; set; }
     }
 }

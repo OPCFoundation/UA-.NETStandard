@@ -87,7 +87,7 @@ namespace Opc.Ua
             UriSchemeOpcTcp,
             UriSchemeOpcHttps,
             UriSchemeHttps,
-            UriSchemeOpcWss
+            UriSchemeOpcWss,
         ];
 
         /// <summary>
@@ -113,7 +113,7 @@ namespace Opc.Ua
             "opc.tcp://{0}:4840",
             "https://{0}:4843",
             "http://{0}:52601/UADiscovery",
-            "http://{0}/UADiscovery/Default.svc"
+            "http://{0}/UADiscovery/Default.svc",
         ];
 
         /// <summary>
@@ -125,9 +125,19 @@ namespace Opc.Ua
         /// The path to the default certificate store.
         /// </summary>
 #if NETFRAMEWORK
-        public static readonly string DefaultStorePath = Path.Combine("%CommonApplicationData%", "OPC Foundation", "pki", "own");
+        public static readonly string DefaultStorePath = Path.Combine(
+            "%CommonApplicationData%",
+            "OPC Foundation",
+            "pki",
+            "own"
+        );
 #else
-        public static readonly string DefaultStorePath = Path.Combine("%LocalApplicationData%", "OPC Foundation", "pki", "own");
+        public static readonly string DefaultStorePath = Path.Combine(
+            "%LocalApplicationData%",
+            "OPC Foundation",
+            "pki",
+            "own"
+        );
 #endif
 
         /// <summary>
@@ -149,10 +159,12 @@ namespace Opc.Ua
         /// List of known default bindings hosted in other assemblies.
         /// </summary>
         public static readonly ReadOnlyDictionary<string, string> DefaultBindings = new(
-            new Dictionary<string, string>() {
-                { UriSchemeHttps, "Opc.Ua.Bindings.Https"},
-                { UriSchemeOpcHttps, "Opc.Ua.Bindings.Https"}
-            });
+            new Dictionary<string, string>()
+            {
+                { UriSchemeHttps, "Opc.Ua.Bindings.Https" },
+                { UriSchemeOpcHttps, "Opc.Ua.Bindings.Https" },
+            }
+        );
 
         /// <summary>
         /// Returns <c>true</c> if the url starts with opc.https or https.
@@ -160,8 +172,8 @@ namespace Opc.Ua
         /// <param name="url">The url</param>
         public static bool IsUriHttpsScheme(string url)
         {
-            return url.StartsWith(UriSchemeHttps, StringComparison.Ordinal) ||
-                url.StartsWith(UriSchemeOpcHttps, StringComparison.Ordinal);
+            return url.StartsWith(UriSchemeHttps, StringComparison.Ordinal)
+                || url.StartsWith(UriSchemeOpcHttps, StringComparison.Ordinal);
         }
 
         /// <summary>
@@ -170,8 +182,7 @@ namespace Opc.Ua
         /// <param name="url">The url</param>
         public static bool IsUriHttpRelatedScheme(string url)
         {
-            return url.StartsWith(UriSchemeHttps, StringComparison.Ordinal) ||
-                 IsUriHttpsScheme(url);
+            return url.StartsWith(UriSchemeHttps, StringComparison.Ordinal) || IsUriHttpsScheme(url);
         }
 
 #if DEBUG
@@ -202,7 +213,7 @@ namespace Opc.Ua
             /// <summary>
             /// Write to debug trace listeners and a file (if specified). Default for Debug mode.
             /// </summary>
-            DebugAndFile = 2
+            DebugAndFile = 2,
         }
 
         /// <summary>
@@ -360,7 +371,9 @@ namespace Opc.Ua
                             truncated = true;
                         }
 
-                        using var writer = new StreamWriter(File.Open(file.FullName, FileMode.Append, FileAccess.Write, FileShare.Read));
+                        using var writer = new StreamWriter(
+                            File.Open(file.FullName, FileMode.Append, FileAccess.Write, FileShare.Read)
+                        );
                         if (truncated)
                         {
                             writer.WriteLine("WARNING - LOG FILE TRUNCATED.");
@@ -411,10 +424,7 @@ namespace Opc.Ua
 
                     // write initial log message.
                     TraceWriteLine(string.Empty);
-                    TraceWriteLine(
-                        "{1} Logging started at {0}",
-                        DateTime.Now,
-                        new string('*', 25));
+                    TraceWriteLine("{1} Logging started at {0}", DateTime.Now, new string('*', 25));
                 }
                 catch (Exception e)
                 {
@@ -494,7 +504,12 @@ namespace Opc.Ua
             {
                 if (e is ServiceResultException sre)
                 {
-                    message.AppendFormat(CultureInfo.InvariantCulture, " {0} '{1}'", StatusCodes.GetBrowseName(sre.StatusCode), sre.Message);
+                    message.AppendFormat(
+                        CultureInfo.InvariantCulture,
+                        " {0} '{1}'",
+                        StatusCodes.GetBrowseName(sre.StatusCode),
+                        sre.Message
+                    );
                 }
                 else
                 {
@@ -533,13 +548,13 @@ namespace Opc.Ua
         /// </summary>
         public static void Trace(int traceMask, string format, params object[] args)
         {
-            const int InformationMask = TraceMasks.Information | TraceMasks.StartStop | TraceMasks.Security;
-            const int ErrorMask = TraceMasks.Error | TraceMasks.StackTrace;
-            if ((traceMask & ErrorMask) != 0)
+            const int informationMask = TraceMasks.Information | TraceMasks.StartStop | TraceMasks.Security;
+            const int errorMask = TraceMasks.Error | TraceMasks.StackTrace;
+            if ((traceMask & errorMask) != 0)
             {
                 LogError(traceMask, format, args);
             }
-            else if ((traceMask & InformationMask) != 0)
+            else if ((traceMask & informationMask) != 0)
             {
                 LogInfo(traceMask, format, args);
             }
@@ -560,7 +575,12 @@ namespace Opc.Ua
         /// <summary>
         /// Writes a message to the trace log.
         /// </summary>
-        public static void Trace<TState>(TState state, Exception exception, int traceMask, Func<TState, Exception, string> formatter)
+        public static void Trace<TState>(
+            TState state,
+            Exception exception,
+            int traceMask,
+            Func<TState, Exception, string> formatter
+        )
         {
             // do nothing if mask not enabled.
             bool tracingEnabled = Tracing.IsEnabled();
@@ -574,7 +594,11 @@ namespace Opc.Ua
             try
             {
                 // append process and timestamp.
-                message.AppendFormat(CultureInfo.InvariantCulture, "{0:d} {0:HH:mm:ss.fff} ", DateTime.UtcNow.ToLocalTime());
+                message.AppendFormat(
+                    CultureInfo.InvariantCulture,
+                    "{0:d} {0:HH:mm:ss.fff} ",
+                    DateTime.UtcNow.ToLocalTime()
+                );
                 message.Append(formatter(state, exception));
                 if (exception != null)
                 {
@@ -616,7 +640,11 @@ namespace Opc.Ua
             var message = new StringBuilder();
 
             // append process and timestamp.
-            message.AppendFormat(CultureInfo.InvariantCulture, "{0:d} {0:HH:mm:ss.fff} ", DateTime.UtcNow.ToLocalTime());
+            message.AppendFormat(
+                CultureInfo.InvariantCulture,
+                "{0:d} {0:HH:mm:ss.fff} ",
+                DateTime.UtcNow.ToLocalTime()
+            );
 
             // format message.
             if (args != null && args.Length > 0)
@@ -779,7 +807,13 @@ namespace Opc.Ua
         /// <summary>
         /// Checks if the file path is a relative path and returns an absolute path relative to the EXE location.
         /// </summary>
-        public static string GetAbsoluteFilePath(string filePath, bool checkCurrentDirectory, bool throwOnError, bool createAlways, bool writable = false)
+        public static string GetAbsoluteFilePath(
+            string filePath,
+            bool checkCurrentDirectory,
+            bool throwOnError,
+            bool createAlways,
+            bool writable = false
+        )
         {
             filePath = ReplaceSpecialFolderNames(filePath);
 
@@ -812,13 +846,25 @@ namespace Opc.Ua
                         FileInfo localFile = null;
                         if (!writable)
                         {
-                            localFile = new FileInfo(Format("{0}{1}{2}", Directory.GetCurrentDirectory(), Path.DirectorySeparatorChar, filePath));
+                            localFile = new FileInfo(
+                                Format(
+                                    "{0}{1}{2}",
+                                    Directory.GetCurrentDirectory(),
+                                    Path.DirectorySeparatorChar,
+                                    filePath
+                                )
+                            );
 #if NETFRAMEWORK
                             if (!localFile.Exists)
                             {
-                                var localFile2 = new FileInfo(Format("{0}{1}{2}",
-                                    Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
-                                    Path.DirectorySeparatorChar, filePath));
+                                var localFile2 = new FileInfo(
+                                    Format(
+                                        "{0}{1}{2}",
+                                        Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
+                                        Path.DirectorySeparatorChar,
+                                        filePath
+                                    )
+                                );
                                 if (localFile2.Exists)
                                 {
                                     localFile = localFile2;
@@ -828,7 +874,9 @@ namespace Opc.Ua
                         }
                         else
                         {
-                            localFile = new FileInfo(Format("{0}{1}{2}", Path.GetTempPath(), Path.DirectorySeparatorChar, filePath));
+                            localFile = new FileInfo(
+                                Format("{0}{1}{2}", Path.GetTempPath(), Path.DirectorySeparatorChar, filePath)
+                            );
                         }
 
                         if (localFile.Exists)
@@ -859,7 +907,8 @@ namespace Opc.Ua
                     StatusCodes.BadConfigurationError,
                     message.ToString(),
                     filePath,
-                    Directory.GetCurrentDirectory());
+                    Directory.GetCurrentDirectory()
+                );
             }
 
             return null;
@@ -906,7 +955,12 @@ namespace Opc.Ua
         /// <summary>
         /// Checks if the file path is a relative path and returns an absolute path relative to the EXE location.
         /// </summary>
-        public static string GetAbsoluteDirectoryPath(string dirPath, bool checkCurrentDirectory, bool throwOnError, bool createAlways)
+        public static string GetAbsoluteDirectoryPath(
+            string dirPath,
+            bool checkCurrentDirectory,
+            bool throwOnError,
+            bool createAlways
+        )
         {
             string originalPath = dirPath;
             dirPath = ReplaceSpecialFolderNames(dirPath);
@@ -939,13 +993,25 @@ namespace Opc.Ua
                     {
                         if (!directory.Exists)
                         {
-                            directory = new DirectoryInfo(Format("{0}{1}{2}", Directory.GetCurrentDirectory(), Path.DirectorySeparatorChar, dirPath));
+                            directory = new DirectoryInfo(
+                                Format(
+                                    "{0}{1}{2}",
+                                    Directory.GetCurrentDirectory(),
+                                    Path.DirectorySeparatorChar,
+                                    dirPath
+                                )
+                            );
 #if NETFRAMEWORK
                             if (!directory.Exists)
                             {
-                                var directory2 = new DirectoryInfo(Format("{0}{1}{2}",
-                                    Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
-                                    Path.DirectorySeparatorChar, dirPath));
+                                var directory2 = new DirectoryInfo(
+                                    Format(
+                                        "{0}{1}{2}",
+                                        Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
+                                        Path.DirectorySeparatorChar,
+                                        dirPath
+                                    )
+                                );
                                 if (directory2.Exists)
                                 {
                                     directory = directory2;
@@ -977,7 +1043,8 @@ namespace Opc.Ua
                     StatusCodes.BadConfigurationError,
                     "Directory does not exist: {0}\r\nCurrent directory is: {1}",
                     originalPath,
-                    Directory.GetCurrentDirectory());
+                    Directory.GetCurrentDirectory()
+                );
             }
 
             return null;
@@ -1050,7 +1117,10 @@ namespace Opc.Ua
                 LogError(e, "Error disposing object: {0}", disposable.GetType().Name);
             }
 #else
-            catch (Exception) {;}
+            catch (Exception)
+            {
+                ;
+            }
 #endif
         }
 
@@ -1141,9 +1211,7 @@ namespace Opc.Ua
             {
                 domainName = Dns.GetHostEntry("localhost").HostName;
             }
-            catch
-            {
-            }
+            catch { }
             if (string.IsNullOrEmpty(domainName))
             {
                 return Dns.GetHostName();
@@ -1196,13 +1264,12 @@ namespace Opc.Ua
             // construct new uri.
             var buffer = new StringBuilder();
 #if NET5_0_OR_GREATER || NETSTANDARD2_1
-            buffer.Append(uri.AsSpan(0, index))
+            buffer
+                .Append(uri.AsSpan(0, index))
                 .Append(hostname ?? GetHostName())
                 .Append(uri.AsSpan(index + localhost.Length));
 #else
-            buffer.Append(uri[..index])
-                .Append(hostname ?? GetHostName())
-                .Append(uri[(index + localhost.Length)..]);
+            buffer.Append(uri[..index]).Append(hostname ?? GetHostName()).Append(uri[(index + localhost.Length)..]);
 #endif
             return buffer.ToString();
         }
@@ -1236,11 +1303,13 @@ namespace Opc.Ua
             // construct new uri.
             var buffer = new StringBuilder();
 #if NET5_0_OR_GREATER || NETSTANDARD2_1
-            buffer.Append(subjectName.AsSpan(0, index + 3))
+            buffer
+                .Append(subjectName.AsSpan(0, index + 3))
                 .Append(hostname ?? GetHostName())
                 .Append(subjectName.AsSpan(index + dclocalhost.Length));
 #else
-            buffer.Append(subjectName[..(index + 3)])
+            buffer
+                .Append(subjectName[..(index + 3)])
                 .Append(hostname ?? GetHostName())
                 .Append(subjectName[(index + dclocalhost.Length)..]);
 #endif
@@ -1392,7 +1461,7 @@ namespace Opc.Ua
                     Scheme = UriSchemeHttps,
                     Host = GetHostName(),
                     Port = -1,
-                    Path = Guid.NewGuid().ToString()
+                    Path = Guid.NewGuid().ToString(),
                 };
 
                 return builder.Uri.ToString();
@@ -1406,7 +1475,7 @@ namespace Opc.Ua
                     Scheme = UriSchemeHttps,
                     Host = GetHostName(),
                     Port = -1,
-                    Path = Uri.EscapeDataString(instanceUri)
+                    Path = Uri.EscapeDataString(instanceUri),
                 };
 
                 return builder.Uri.ToString();
@@ -1417,10 +1486,7 @@ namespace Opc.Ua
 
             if (parsedUri != null && parsedUri.DnsSafeHost == "localhost")
             {
-                var builder = new UriBuilder(parsedUri)
-                {
-                    Host = GetHostName()
-                };
+                var builder = new UriBuilder(parsedUri) { Host = GetHostName() };
                 return builder.Uri.ToString();
             }
 
@@ -1725,7 +1791,11 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the localized text from a list of available text
         /// </summary>
-        public static LocalizedText SelectLocalizedText(IList<string> localeIds, IList<LocalizedText> names, LocalizedText defaultName)
+        public static LocalizedText SelectLocalizedText(
+            IList<string> localeIds,
+            IList<LocalizedText> names,
+            LocalizedText defaultName
+        )
         {
             // check if no locales requested.
             if (localeIds == null || localeIds.Count == 0)
@@ -1784,7 +1854,8 @@ namespace Opc.Ua
         /// <summary>
         /// Returns a deep copy of the value.
         /// </summary>
-        public static T Clone<T>(T value) where T : class
+        public static T Clone<T>(T value)
+            where T : class
         {
             return (T)Clone((object)value);
         }
@@ -1881,7 +1952,10 @@ namespace Opc.Ua
             }
 
             //try to find the MemberwiseClone method by reflection.
-            MethodInfo memberwiseCloneMethod = type.GetMethod("MemberwiseClone", BindingFlags.Public | BindingFlags.Instance);
+            MethodInfo memberwiseCloneMethod = type.GetMethod(
+                "MemberwiseClone",
+                BindingFlags.Public | BindingFlags.Instance
+            );
             if (memberwiseCloneMethod != null)
             {
                 object clone = memberwiseCloneMethod.Invoke(value, null);
@@ -1924,26 +1998,22 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (identity1 is AnonymousIdentityToken &&
-                identity2 is AnonymousIdentityToken)
+            if (identity1 is AnonymousIdentityToken && identity2 is AnonymousIdentityToken)
             {
                 return true;
             }
 
-            if (identity1 is UserNameIdentityToken userName1 &&
-                identity2 is UserNameIdentityToken userName2)
+            if (identity1 is UserNameIdentityToken userName1 && identity2 is UserNameIdentityToken userName2)
             {
                 return string.Equals(userName1.UserName, userName2.UserName, StringComparison.Ordinal);
             }
 
-            if (identity1 is X509IdentityToken x509Token1 &&
-                identity2 is X509IdentityToken x509Token2)
+            if (identity1 is X509IdentityToken x509Token1 && identity2 is X509IdentityToken x509Token2)
             {
                 return IsEqual(x509Token1.CertificateData, x509Token2.CertificateData);
             }
 
-            if (identity1 is IssuedIdentityToken issuedToken1 &&
-                identity2 is IssuedIdentityToken issuedToken2)
+            if (identity1 is IssuedIdentityToken issuedToken1 && identity2 is IssuedIdentityToken issuedToken2)
             {
                 return IsEqual(issuedToken1.DecryptedTokenData, issuedToken2.DecryptedTokenData);
             }
@@ -1976,7 +2046,8 @@ namespace Opc.Ua
         /// <summary>
         /// Checks if two T values are equal based on IEquatable compare.
         /// </summary>
-        public static bool IsEqual<T>(T value1, T value2) where T : IEquatable<T>
+        public static bool IsEqual<T>(T value1, T value2)
+            where T : IEquatable<T>
         {
             // check for reference equality.
             if (ReferenceEquals(value1, value2))
@@ -2001,7 +2072,8 @@ namespace Opc.Ua
         /// <summary>
         /// Checks if two IEnumerable T values are equal.
         /// </summary>
-        public static bool IsEqual<T>(IEnumerable<T> value1, IEnumerable<T> value2) where T : IEquatable<T>
+        public static bool IsEqual<T>(IEnumerable<T> value1, IEnumerable<T> value2)
+            where T : IEquatable<T>
         {
             // check for reference equality.
             if (ReferenceEquals(value1, value2))
@@ -2020,7 +2092,8 @@ namespace Opc.Ua
         /// <summary>
         /// Checks if two T[] values are equal.
         /// </summary>
-        public static bool IsEqual<T>(T[] value1, T[] value2) where T : unmanaged, IEquatable<T>
+        public static bool IsEqual<T>(T[] value1, T[] value2)
+            where T : unmanaged, IEquatable<T>
         {
             // check for reference equality.
             if (ReferenceEquals(value1, value2))
@@ -2154,8 +2227,10 @@ namespace Opc.Ua
                 // compare each rank.
                 for (int ii = 0; ii < array1.Rank; ii++)
                 {
-                    if (array1.GetLowerBound(ii) != array2.GetLowerBound(ii) ||
-                        array1.GetUpperBound(ii) != array2.GetUpperBound(ii))
+                    if (
+                        array1.GetLowerBound(ii) != array2.GetLowerBound(ii)
+                        || array1.GetUpperBound(ii) != array2.GetUpperBound(ii)
+                    )
                     {
                         return false;
                     }
@@ -2238,7 +2313,10 @@ namespace Opc.Ua
         /// <summary>
         /// Tests if the specified string matches the specified pattern.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Microsoft.Maintainability",
+            "CA1502:AvoidExcessiveComplexity"
+        )]
         public static bool Match(string target, string pattern, bool caseSensitive)
         {
             // an empty pattern always matches.
@@ -2365,7 +2443,6 @@ namespace Opc.Ua
                                 p = ConvertCase(pattern[pIndex++], caseSensitive);
                             }
                         }
-
                         // match if char is in set []
                         else
                         {
@@ -2471,7 +2548,7 @@ namespace Opc.Ua
             return new TimeZoneDataType
             {
                 Offset = (short)TimeZoneInfo.Local.GetUtcOffset(DateTime.Now).TotalMinutes,
-                DaylightSavingInOffset = true
+                DaylightSavingInOffset = true,
             };
         }
 
@@ -2498,7 +2575,8 @@ namespace Opc.Ua
                 // get qualified name from the data contract attribute.
                 XmlQualifiedName qname = EncodeableFactory.GetXmlName(typeof(T));
 
-                elementName = qname ?? throw new ArgumentException("Type does not seem to support DataContract serialization");
+                elementName =
+                    qname ?? throw new ArgumentException("Type does not seem to support DataContract serialization");
             }
 
             // find the element.
@@ -2545,7 +2623,11 @@ namespace Opc.Ua
         /// Deletes the extension if the value is null.
         /// The containing element must use the name and namespace uri specified by the DataContractAttribute for the type.
         /// </remarks>
-        public static void UpdateExtension<T>(ref XmlElementCollection extensions, XmlQualifiedName elementName, object value)
+        public static void UpdateExtension<T>(
+            ref XmlElementCollection extensions,
+            XmlQualifiedName elementName,
+            object value
+        )
         {
             var document = new XmlDocument();
 
@@ -2575,7 +2657,8 @@ namespace Opc.Ua
                 // get qualified name from the data contract attribute.
                 XmlQualifiedName qname = EncodeableFactory.GetXmlName(typeof(T));
 
-                elementName = qname ?? throw new ArgumentException("Type does not seem to support DataContract serialization");
+                elementName =
+                    qname ?? throw new ArgumentException("Type does not seem to support DataContract serialization");
             }
 
             // replace existing element.
@@ -2583,7 +2666,11 @@ namespace Opc.Ua
             {
                 for (int ii = 0; ii < extensions.Count; ii++)
                 {
-                    if (extensions[ii] != null && extensions[ii].LocalName == elementName.Name && extensions[ii].NamespaceURI == elementName.Namespace)
+                    if (
+                        extensions[ii] != null
+                        && extensions[ii].LocalName == elementName.Name
+                        && extensions[ii].NamespaceURI == elementName.Namespace
+                    )
                     {
                         // remove the existing value if the value is null.
                         if (value == null)
@@ -2666,7 +2753,7 @@ namespace Opc.Ua
             return 0;
         }
 
-        private static readonly DateTime kBaseDateTime = new(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        private static readonly DateTime s_baseDateTime = new(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
         /// <summary>
         /// Return the current time in milliseconds since 1/1/2000.
@@ -2674,7 +2761,7 @@ namespace Opc.Ua
         /// <returns>The current time in milliseconds since 1/1/2000.</returns>
         public static uint GetVersionTime()
         {
-            double ticks = (DateTime.UtcNow - kBaseDateTime).TotalMilliseconds;
+            double ticks = (DateTime.UtcNow - s_baseDateTime).TotalMilliseconds;
             return (uint)ticks;
         }
 
@@ -2689,8 +2776,7 @@ namespace Opc.Ua
                 return File.GetLastWriteTimeUtc(typeof(Utils).GetTypeInfo().Assembly.Location);
 #endif
             }
-            catch
-            { }
+            catch { }
             return new DateTime(1970, 1, 1, 0, 0, 0);
         }
 
@@ -2699,7 +2785,10 @@ namespace Opc.Ua
         /// </summary>
         public static string GetAssemblySoftwareVersion()
         {
-            return typeof(Utils).GetTypeInfo().Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
+            return typeof(Utils)
+                .GetTypeInfo()
+                .Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+                .InformationalVersion;
         }
 
         /// <summary>
@@ -2721,7 +2810,7 @@ namespace Opc.Ua
             {
                 DtdProcessing = DtdProcessing.Prohibit,
                 XmlResolver = null,
-                ConformanceLevel = ConformanceLevel.Document
+                ConformanceLevel = ConformanceLevel.Document,
             };
         }
 
@@ -2792,7 +2881,10 @@ namespace Opc.Ua
         /// <summary>
         /// Creates a X509 certificate object from the DER encoded bytes.
         /// </summary>
-        public static X509Certificate2 ParseCertificateBlob(ReadOnlyMemory<byte> certificateData, bool useAsnParser = false)
+        public static X509Certificate2 ParseCertificateBlob(
+            ReadOnlyMemory<byte> certificateData,
+            bool useAsnParser = false
+        )
         {
             // macOS X509Certificate2 constructor throws exception if a certchain is encoded
             // use AsnParser on macOS to parse for byteblobs,
@@ -2818,7 +2910,8 @@ namespace Opc.Ua
                 throw new ServiceResultException(
                     StatusCodes.BadCertificateInvalid,
                     "Could not parse DER encoded form of a X509 certificate.",
-                    e);
+                    e
+                );
             }
         }
 
@@ -2828,7 +2921,10 @@ namespace Opc.Ua
         /// <param name="certificateData">The certificate data.</param>
         /// <param name="useAsnParser">Whether the ASN.1 library should be used to decode certificate blobs.</param>
         /// <returns></returns>
-        public static X509Certificate2Collection ParseCertificateChainBlob(ReadOnlyMemory<byte> certificateData, bool useAsnParser = false)
+        public static X509Certificate2Collection ParseCertificateChainBlob(
+            ReadOnlyMemory<byte> certificateData,
+            bool useAsnParser = false
+        )
         {
             var certificateChain = new X509Certificate2Collection();
 
@@ -2861,7 +2957,8 @@ namespace Opc.Ua
                     throw new ServiceResultException(
                         StatusCodes.BadCertificateInvalid,
                         "Could not parse DER encoded form of a X509 certificate.",
-                        e);
+                        e
+                    );
                 }
 
                 certificateChain.Add(certificate);
@@ -2908,8 +3005,10 @@ namespace Opc.Ua
         /// Generates a Pseudo random sequence of bits using the P_SHA1 alhorithm.
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Security", "CA5350:Do Not Use Weak Cryptographic Algorithms",
-            Justification = "SHA1 is needed for deprecated security profiles.")]
+            "Security",
+            "CA5350:Do Not Use Weak Cryptographic Algorithms",
+            Justification = "SHA1 is needed for deprecated security profiles."
+        )]
         public static byte[] PSHA1(byte[] secret, string label, byte[] data, int offset, int length)
         {
             if (secret == null)
@@ -2939,8 +3038,10 @@ namespace Opc.Ua
         /// Generates a Pseudo random sequence of bits using the P_SHA1 alhorithm.
         /// </summary>
         [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Security", "CA5350:Do Not Use Weak Cryptographic Algorithms",
-            Justification = "SHA1 is needed for deprecated security profiles.")]
+            "Security",
+            "CA5350:Do Not Use Weak Cryptographic Algorithms",
+            Justification = "SHA1 is needed for deprecated security profiles."
+        )]
         public static byte[] PSHA1(HMACSHA1 hmac, string label, byte[] data, int offset, int length)
         {
             return PSHA(hmac, label, data, offset, length);
@@ -3001,7 +3102,10 @@ namespace Opc.Ua
             // check for a valid seed.
             if (seed == null)
             {
-                throw new ServiceResultException(StatusCodes.BadUnexpectedError, "The HMAC algorithm requires a non-null seed.");
+                throw new ServiceResultException(
+                    StatusCodes.BadUnexpectedError,
+                    "The HMAC algorithm requires a non-null seed."
+                );
             }
 
             byte[] keySeed = hmac.ComputeHash(seed);
@@ -3036,8 +3140,7 @@ namespace Opc.Ua
 
                 keySeed = hmac.ComputeHash(keySeed);
                 Array.Copy(keySeed, prfSeed, keySeed.Length);
-            }
-            while (position < length);
+            } while (position < length);
 
             // return random data.
             return output;
@@ -3046,8 +3149,11 @@ namespace Opc.Ua
         /// <summary>
         /// Creates an HMAC.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Security",
-            "CA5350:Do Not Use Weak Cryptographic Algorithms", Justification = "<Pending>")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Security",
+            "CA5350:Do Not Use Weak Cryptographic Algorithms",
+            Justification = "<Pending>"
+        )]
         public static HMAC CreateHMAC(HashAlgorithmName algorithmName, byte[] secret)
         {
             if (algorithmName == HashAlgorithmName.SHA256)
@@ -3123,6 +3229,7 @@ namespace Opc.Ua
             }
             return false;
         }
+
 #if ECC_SUPPORT
         /// <summary>
         /// Check if known curve is supported by platform
@@ -3137,10 +3244,8 @@ namespace Opc.Ua
                 ECParameters parameters = eCDsa.ExportParameters(false);
                 return parameters.Q.X != null && parameters.Q.Y != null;
             }
-            catch (Exception ex) when (
-                ex is PlatformNotSupportedException or
-                ArgumentException or
-                CryptographicException)
+            catch (Exception ex)
+                when (ex is PlatformNotSupportedException or ArgumentException or CryptographicException)
             {
                 return false;
             }
@@ -3149,11 +3254,24 @@ namespace Opc.Ua
         /// <summary>
         /// Lazy helper for checking ECC eliptic curve support for running OS
         /// </summary>
-        private static readonly Dictionary<string, Lazy<bool>> s_eccCurveSupportCache = new() {
-            { ECCurve.NamedCurves.nistP256.Oid.FriendlyName, new Lazy<bool>(() => IsCurveSupported(ECCurve.NamedCurves.nistP256)) },
-            { ECCurve.NamedCurves.nistP384.Oid.FriendlyName, new Lazy<bool>(() => IsCurveSupported(ECCurve.NamedCurves.nistP384)) },
-            { ECCurve.NamedCurves.brainpoolP256r1.Oid.FriendlyName, new Lazy<bool>(() => IsCurveSupported(ECCurve.NamedCurves.brainpoolP256r1)) },
-            { ECCurve.NamedCurves.brainpoolP384r1.Oid.FriendlyName, new Lazy<bool>(() => IsCurveSupported(ECCurve.NamedCurves.brainpoolP384r1)) },
+        private static readonly Dictionary<string, Lazy<bool>> s_eccCurveSupportCache = new()
+        {
+            {
+                ECCurve.NamedCurves.nistP256.Oid.FriendlyName,
+                new Lazy<bool>(() => IsCurveSupported(ECCurve.NamedCurves.nistP256))
+            },
+            {
+                ECCurve.NamedCurves.nistP384.Oid.FriendlyName,
+                new Lazy<bool>(() => IsCurveSupported(ECCurve.NamedCurves.nistP384))
+            },
+            {
+                ECCurve.NamedCurves.brainpoolP256r1.Oid.FriendlyName,
+                new Lazy<bool>(() => IsCurveSupported(ECCurve.NamedCurves.brainpoolP256r1))
+            },
+            {
+                ECCurve.NamedCurves.brainpoolP384r1.Oid.FriendlyName,
+                new Lazy<bool>(() => IsCurveSupported(ECCurve.NamedCurves.brainpoolP384r1))
+            },
         };
 #endif
 

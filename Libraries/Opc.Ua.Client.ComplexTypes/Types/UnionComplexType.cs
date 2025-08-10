@@ -40,7 +40,8 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
-        public UnionComplexType() : base()
+        public UnionComplexType()
+            : base()
         {
             m_switchField = 0;
         }
@@ -49,7 +50,8 @@ namespace Opc.Ua.Client.ComplexTypes
         /// Initializes the object with a <paramref name="typeId"/>.
         /// </summary>
         /// <param name="typeId">The type to copy and create an instance from</param>
-        public UnionComplexType(ExpandedNodeId typeId) : base(typeId)
+        public UnionComplexType(ExpandedNodeId typeId)
+            : base(typeId)
         {
             m_switchField = 0;
         }
@@ -153,9 +155,11 @@ namespace Opc.Ua.Client.ComplexTypes
                     {
                         string fieldName = property.Name;
 
-                        if (isJsonDecoder &&
-                            decoder is IJsonDecoder jsonDecoder &&
-                            jsonDecoder.ReadField("Value", out _))
+                        if (
+                            isJsonDecoder
+                            && decoder is IJsonDecoder jsonDecoder
+                            && jsonDecoder.ReadField("Value", out _)
+                        )
                         {
                             DecodeProperty(jsonDecoder, "Value", property);
                         }
@@ -270,8 +274,7 @@ namespace Opc.Ua.Client.ComplexTypes
                 {
                     return m_propertyList[index].GetValue(this);
                 }
-                if (index < 0 &&
-                    m_switchField > 0)
+                if (index < 0 && m_switchField > 0)
                 {
                     return m_propertyList[(int)m_switchField - 1].GetValue(this);
                 }
@@ -354,4 +357,4 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         protected uint m_switchField;
     }
-}//namespace
+} //namespace

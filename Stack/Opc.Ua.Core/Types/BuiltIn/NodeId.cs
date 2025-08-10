@@ -275,7 +275,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object during deserialization.
         /// </summary>
-        [OnDeserializing()]
+        [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             Initialize();
@@ -315,15 +315,26 @@ namespace Opc.Ua
 
                 if (index < 0)
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, "Invalid NodeId ({0}).", originalText);
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadNodeIdInvalid,
+                        "Invalid NodeId ({0}).",
+                        originalText
+                    );
                 }
 
                 string namespaceUri = Utils.UnescapeUri(text.AsSpan()[4..index]);
-                namespaceIndex = (options?.UpdateTables == true) ? context.NamespaceUris.GetIndexOrAppend(namespaceUri) : context.NamespaceUris.GetIndex(namespaceUri);
+                namespaceIndex =
+                    (options?.UpdateTables == true)
+                        ? context.NamespaceUris.GetIndexOrAppend(namespaceUri)
+                        : context.NamespaceUris.GetIndex(namespaceUri);
 
                 if (namespaceIndex < 0)
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, "No mapping to NamespaceIndex for NamespaceUri ({0}).", namespaceUri);
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadNodeIdInvalid,
+                        "No mapping to NamespaceIndex for NamespaceUri ({0}).",
+                        namespaceUri
+                    );
                 }
 
                 text = text[(index + 1)..];
@@ -335,7 +346,11 @@ namespace Opc.Ua
 
                 if (index < 0)
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, "Invalid ExpandedNodeId ({0}).", originalText);
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadNodeIdInvalid,
+                        "Invalid ExpandedNodeId ({0}).",
+                        originalText
+                    );
                 }
 
                 if (ushort.TryParse(text[3..index], out ushort ns))
@@ -397,7 +412,11 @@ namespace Opc.Ua
                 }
             }
 
-            throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, "Invalid NodeId Identifier ({0}).", originalText);
+            throw ServiceResultException.Create(
+                StatusCodes.BadNodeIdInvalid,
+                "Invalid NodeId Identifier ({0}).",
+                originalText
+            );
         }
 
         /// <summary>
@@ -488,7 +507,11 @@ namespace Opc.Ua
 
             if (index < 0)
             {
-                throw ServiceResultException.Create(StatusCodes.BadNodeIdInvalid, "NamespaceUri ({0}) is not in the namespace table.", namespaceUri);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNodeIdInvalid,
+                    "NamespaceUri ({0}) is not in the namespace table.",
+                    namespaceUri
+                );
             }
 
             return new NodeId(identifier, (ushort)index);
@@ -843,7 +866,8 @@ namespace Opc.Ua
                 throw new ServiceResultException(
                     StatusCodes.BadNodeIdInvalid,
                     Utils.Format("Cannot parse node id text: '{0}'", text),
-                    e);
+                    e
+                );
             }
 
             throw argumentException;
@@ -901,7 +925,13 @@ namespace Opc.Ua
         /// <summary>
         /// Formats the NodeId as a string and appends it to the buffer.
         /// </summary>
-        public static void Format(IFormatProvider formatProvider, StringBuilder buffer, object identifier, IdType identifierType, ushort namespaceIndex)
+        public static void Format(
+            IFormatProvider formatProvider,
+            StringBuilder buffer,
+            object identifier,
+            IdType identifierType,
+            ushort namespaceIndex
+        )
         {
             if (namespaceIndex != 0)
             {
@@ -1027,7 +1057,10 @@ namespace Opc.Ua
         /// <remarks>
         /// Enables this object type to be compared to other types of object.
         /// </remarks>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Microsoft.Maintainability",
+            "CA1502:AvoidExcessiveComplexity"
+        )]
         public int CompareTo(object obj)
         {
             // check for null.
@@ -1570,7 +1603,10 @@ namespace Opc.Ua
         /// <summary>
         /// Compares two node identifiers.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Microsoft.Maintainability",
+            "CA1502:AvoidExcessiveComplexity"
+        )]
         private static int CompareIdentifiers(IdType idType1, object id1, IdType idType2, object id2)
         {
             if (id1 == null && id2 == null)
@@ -1753,7 +1789,12 @@ namespace Opc.Ua
         /// <summary>
         /// Formats a node id as a string.
         /// </summary>
-        private static void FormatIdentifier(IFormatProvider formatProvider, StringBuilder buffer, object identifier, IdType identifierType)
+        private static void FormatIdentifier(
+            IFormatProvider formatProvider,
+            StringBuilder buffer,
+            object identifier,
+            IdType identifierType
+        )
         {
             switch (identifierType)
             {
@@ -1815,11 +1856,8 @@ namespace Opc.Ua
     /// </summary>
     internal class ImmutableNodeId : NodeId
     {
-        internal ImmutableNodeId()
-        {
-        }
+        internal ImmutableNodeId() { }
     }
-
 #endif
 
     /// <summary>
@@ -1846,7 +1884,8 @@ namespace Opc.Ua
         /// Creates a new collection based on the referenced collection.
         /// </remarks>
         /// <param name="collection">The existing collection to use as the basis of creating this collection</param>
-        public NodeIdCollection(IEnumerable<NodeId> collection) : base(collection) { }
+        public NodeIdCollection(IEnumerable<NodeId> collection)
+            : base(collection) { }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
@@ -1855,7 +1894,8 @@ namespace Opc.Ua
         /// Creates a new collection while specifying the max size of the collection.
         /// </remarks>
         /// <param name="capacity">The max. capacity of the collection</param>
-        public NodeIdCollection(int capacity) : base(capacity) { }
+        public NodeIdCollection(int capacity)
+            : base(capacity) { }
 
         /// <summary>
         /// Converts an array to a collection.
@@ -1911,7 +1951,7 @@ namespace Opc.Ua
 
             return clone;
         }
-    }//class
+    } //class
 
     /// <summary>
     /// Options that affect how a NodeId string is parsed.

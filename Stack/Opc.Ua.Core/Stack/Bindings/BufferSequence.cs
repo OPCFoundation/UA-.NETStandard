@@ -40,7 +40,12 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The constructor to create the sequence of buffers.
         /// </summary>
-        public BufferSequence(BufferManager bufferManager, string owner, BufferSegment firstSegment, ReadOnlySequence<byte> sequence)
+        public BufferSequence(
+            BufferManager bufferManager,
+            string owner,
+            BufferSegment firstSegment,
+            ReadOnlySequence<byte> sequence
+        )
         {
             m_bufferManager = bufferManager;
             m_owner = owner;

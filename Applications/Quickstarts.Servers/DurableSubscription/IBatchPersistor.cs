@@ -41,11 +41,13 @@ namespace Quickstarts.Servers
         /// </summary>
         /// <param name="batch"></param>
         void RequestBatchPersist(BatchBase batch);
+
         /// <summary>
         /// Persist a batch in the main thread
         /// </summary>
         /// <param name="batch"></param>
         void PersistSynchronously(BatchBase batch);
+
         /// <summary>
         /// Request that a batch shall be restored in a background thread
         /// </summary>
@@ -57,6 +59,7 @@ namespace Quickstarts.Servers
         /// </summary>
         /// <param name="batch"></param>
         void RestoreSynchronously(BatchBase batch);
+
         /// <summary>
         /// Delete all batches from disk for a monitored item
         /// </summary>

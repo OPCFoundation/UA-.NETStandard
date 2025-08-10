@@ -106,7 +106,9 @@ namespace System.Threading
         /// </remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
 #if !NET5_0_OR_GREATER
-        [Obsolete("This method is a best-effort at hardening against thread aborts, but can theoretically retain lock on pre-.NET 5.0. Use with caution.")]
+        [Obsolete(
+            "This method is a best-effort at hardening against thread aborts, but can theoretically retain lock on pre-.NET 5.0. Use with caution."
+        )]
         public Scope EnterScope()
         {
             bool lockTaken = false;

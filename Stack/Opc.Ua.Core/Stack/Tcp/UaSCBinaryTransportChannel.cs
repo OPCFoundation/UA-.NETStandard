@@ -73,9 +73,11 @@ namespace Opc.Ua.Bindings
         /// A masking indicating which features are implemented.
         /// </summary>
         public TransportChannelFeatures SupportedFeatures =>
-            TransportChannelFeatures.Open | TransportChannelFeatures.BeginOpen |
-            TransportChannelFeatures.BeginSendRequest | TransportChannelFeatures.SendRequestAsync |
-            (Socket?.MessageSocketFeatures ?? 0);
+            TransportChannelFeatures.Open
+            | TransportChannelFeatures.BeginOpen
+            | TransportChannelFeatures.BeginSendRequest
+            | TransportChannelFeatures.SendRequestAsync
+            | (Socket?.MessageSocketFeatures ?? 0);
 
         /// <summary>
         /// Gets the description for the endpoint used by the channel.
@@ -108,9 +110,7 @@ namespace Opc.Ua.Bindings
         /// <param name="url">The URL for the endpoint.</param>
         /// <param name="settings">The settings to use when creating the channel.</param>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        public void Initialize(
-            Uri url,
-            TransportChannelSettings settings)
+        public void Initialize(Uri url, TransportChannelSettings settings)
         {
             SaveSettings(url, settings);
             Interlocked.Exchange(ref m_channel, CreateChannel());
@@ -122,9 +122,7 @@ namespace Opc.Ua.Bindings
         /// <param name="connection">The connection to use.</param>
         /// <param name="settings">The settings to use when creating the channel.</param>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        public void Initialize(
-            ITransportWaitingConnection connection,
-            TransportChannelSettings settings)
+        public void Initialize(ITransportWaitingConnection connection, TransportChannelSettings settings)
         {
             SaveSettings(connection.EndpointUrl, settings);
             Interlocked.Exchange(ref m_channel, CreateChannel(connection));
@@ -374,7 +372,9 @@ namespace Opc.Ua.Bindings
         /// <seealso cref="SendRequest"/>
         public IServiceResponse EndSendRequest(IAsyncResult result)
         {
-            UaSCUaBinaryClientChannel channel = m_channel ?? throw ServiceResultException.Create(StatusCodes.BadSecureChannelClosed, "Channel has been closed.");
+            UaSCUaBinaryClientChannel channel =
+                m_channel
+                ?? throw ServiceResultException.Create(StatusCodes.BadSecureChannelClosed, "Channel has been closed.");
 
             return channel.EndSendRequest(result);
         }
@@ -389,7 +389,9 @@ namespace Opc.Ua.Bindings
         /// <seealso cref="SendRequest"/>
         public Task<IServiceResponse> EndSendRequestAsync(IAsyncResult result, CancellationToken ct)
         {
-            UaSCUaBinaryClientChannel channel = m_channel ?? throw ServiceResultException.Create(StatusCodes.BadSecureChannelClosed, "Channel has been closed.");
+            UaSCUaBinaryClientChannel channel =
+                m_channel
+                ?? throw ServiceResultException.Create(StatusCodes.BadSecureChannelClosed, "Channel has been closed.");
 
             return channel.EndSendRequestAsync(result, ct);
         }
@@ -424,10 +426,10 @@ namespace Opc.Ua.Bindings
                     MaxDecoderRecoveries = configuration.MaxDecoderRecoveries,
                     NamespaceUris = m_settings.NamespaceUris,
                     ServerUris = new StringTable(),
-                    Factory = m_settings.Factory
+                    Factory = m_settings.Factory,
                 },
 
-                CertificateValidator = settings.CertificateValidator
+                CertificateValidator = settings.CertificateValidator,
             };
 
             // create the buffer manager.
@@ -459,7 +461,8 @@ namespace Opc.Ua.Bindings
                 m_settings.ClientCertificate,
                 m_settings.ClientCertificateChain,
                 m_settings.ServerCertificate,
-                m_settings.Description);
+                m_settings.Description
+            );
 
             // use socket for reverse connections, ignore otherwise
             if (socket != null)
@@ -470,8 +473,7 @@ namespace Opc.Ua.Bindings
             }
 
             // Register the token changed event handler with the internal channel
-            channel.OnTokenActivated =
-                (current, previous) => m_OnTokenActivated?.Invoke(this, current, previous);
+            channel.OnTokenActivated = (current, previous) => m_OnTokenActivated?.Invoke(this, current, previous);
             return channel;
         }
 

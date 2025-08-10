@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -42,33 +42,27 @@ public static class Logging
     /// <summary>
     /// Configure the serilog logging provider.
     /// </summary>
-    public static void Configure(
-        string context,
-        string outputFilePath,
-        bool logConsole,
-        LogLevel consoleLogLevel)
+    public static void Configure(string context, string outputFilePath, bool logConsole, LogLevel consoleLogLevel)
     {
         AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
         TaskScheduler.UnobservedTaskException += Unobserved_TaskException;
 
-        var loggerConfiguration = new LoggerConfiguration()
-                .Enrich.FromLogContext();
+        var loggerConfiguration = new LoggerConfiguration().Enrich.FromLogContext();
 
         if (logConsole)
         {
             loggerConfiguration.WriteTo.Console(
                 restrictedToMinimumLevel: (LogEventLevel)consoleLogLevel,
                 formatProvider: CultureInfo.InvariantCulture
-                );
+            );
         }
 #if DEBUG
         else
         {
-            loggerConfiguration
-                .WriteTo.Debug(
-                    restrictedToMinimumLevel: (LogEventLevel)consoleLogLevel,
-                    formatProvider: CultureInfo.InvariantCulture
-                    );
+            loggerConfiguration.WriteTo.Debug(
+                restrictedToMinimumLevel: (LogEventLevel)consoleLogLevel,
+                formatProvider: CultureInfo.InvariantCulture
+            );
         }
 #endif
         LogLevel fileLevel = LogLevel.Information;
@@ -80,7 +74,8 @@ public static class Logging
                 new ExpressionTemplate("{UtcDateTime(@t):yyyy-MM-dd HH:mm:ss.fff} [{@l:u3}] {@m}\n{@x}"),
                 ReplaceSpecialFolderNames(outputFilePath),
                 restrictedToMinimumLevel: (LogEventLevel)fileLevel,
-                rollOnFileSizeLimit: true);
+                rollOnFileSizeLimit: true
+            );
         }
 
         // adjust minimum level
@@ -90,11 +85,11 @@ public static class Logging
         }
 
         // create the serilog logger
-        var serilogger = loggerConfiguration
-            .CreateLogger();
+        var serilogger = loggerConfiguration.CreateLogger();
 
         // create the ILogger for Opc.Ua.Core
-        var logger = LoggerFactory.Create(builder => builder.SetMinimumLevel(LogLevel.Trace))
+        var logger = LoggerFactory
+            .Create(builder => builder.SetMinimumLevel(LogLevel.Trace))
             .AddSerilog(serilogger)
             .CreateLogger(context);
 

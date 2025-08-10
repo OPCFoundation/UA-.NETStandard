@@ -69,9 +69,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                     return db;
                 }
             }
-            catch
-            {
-            }
+            catch { }
             return new JsonApplicationsDatabase(fileName);
         }
 

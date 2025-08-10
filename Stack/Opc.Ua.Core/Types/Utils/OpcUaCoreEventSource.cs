@@ -45,7 +45,8 @@ namespace Opc.Ua
         /// </summary>
         internal const string ServiceCallStartMessage = "{0} Called. RequestHandle={1}, PendingRequestCount={2}";
         internal const string ServiceCallStopMessage = "{0} Completed. RequestHandle={1}, PendingRequestCount={2}";
-        internal const string ServiceCallBadStopMessage = "{0} Completed. RequestHandle={1}, PendingRequestCount={2}, StatusCode={3}";
+        internal const string ServiceCallBadStopMessage =
+            "{0} Completed. RequestHandle={1}, PendingRequestCount={2}, StatusCode={3}";
         internal const string SendResponseMessage = "ChannelId {0}: SendResponse {1}";
         internal const string ServiceFaultMessage = "Service Fault Occured. Reason={0}";
 
@@ -78,6 +79,7 @@ namespace Opc.Ua
             /// Turns on the 'FormatMessage' event when ILogger.Log() is called.  It gives the formatted string version of the information.
             /// </summary>
             public const EventKeywords FormattedMessage = (EventKeywords)1;
+
             /// <summary>
             /// Services events.
             /// </summary>
@@ -129,7 +131,13 @@ namespace Opc.Ua
         }
 
         [NonEvent]
-        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception exception,
+            Func<TState, Exception, string> formatter
+        )
         {
             if (!IsEnabled())
             {
@@ -181,16 +189,16 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="id"></param>
         /// <param name="eventId"></param>
-        /// <param name="EventName"></param>
-        /// <param name="FormattedMessage"></param>
+        /// <param name="eventName"></param>
+        /// <param name="formattedMessage"></param>
         [NonEvent]
-        internal void WriteFormattedMessage(int id, int eventId, string EventName, string FormattedMessage)
+        internal void WriteFormattedMessage(int id, int eventId, string eventName, string formattedMessage)
         {
             if (IsEnabled())
             {
-                EventName ??= string.Empty;
-                FormattedMessage ??= string.Empty;
-                WriteEvent(id, eventId, EventName, FormattedMessage);
+                eventName ??= string.Empty;
+                formattedMessage ??= string.Empty;
+                WriteEvent(id, eventId, eventName, formattedMessage);
             }
         }
 
@@ -225,7 +233,13 @@ namespace Opc.Ua
         /// <summary>
         /// A server service call message.
         /// </summary>
-        [Event(ServiceCallStartId, Keywords = Keywords.Services, Message = ServiceCallStartMessage, Level = EventLevel.Verbose, Task = Tasks.ServiceCallTask)]
+        [Event(
+            ServiceCallStartId,
+            Keywords = Keywords.Services,
+            Message = ServiceCallStartMessage,
+            Level = EventLevel.Verbose,
+            Task = Tasks.ServiceCallTask
+        )]
         public void ServiceCallStart(string serviceName, int requestHandle, int pendingRequestCount)
         {
             if (IsEnabled())
@@ -234,14 +248,27 @@ namespace Opc.Ua
             }
             else if (Logger.IsEnabled(LogLevel.Trace))
             {
-                Utils.Log(LogLevel.Trace, ServiceCallStartEventId, ServiceCallStartMessage, serviceName, requestHandle, pendingRequestCount);
+                Utils.Log(
+                    LogLevel.Trace,
+                    ServiceCallStartEventId,
+                    ServiceCallStartMessage,
+                    serviceName,
+                    requestHandle,
+                    pendingRequestCount
+                );
             }
         }
 
         /// <summary>
         /// The server service completed message.
         /// </summary>
-        [Event(ServiceCallStopId, Keywords = Keywords.Services, Message = ServiceCallStopMessage, Level = EventLevel.Verbose, Task = Tasks.ServiceCallTask)]
+        [Event(
+            ServiceCallStopId,
+            Keywords = Keywords.Services,
+            Message = ServiceCallStopMessage,
+            Level = EventLevel.Verbose,
+            Task = Tasks.ServiceCallTask
+        )]
         public void ServiceCallStop(string serviceName, int requestHandle, int pendingRequestCount)
         {
             if (IsEnabled())
@@ -250,14 +277,27 @@ namespace Opc.Ua
             }
             else if (Logger.IsEnabled(LogLevel.Trace))
             {
-                Utils.Log(LogLevel.Trace, ServiceCallStopEventId, ServiceCallStopMessage, serviceName, requestHandle, pendingRequestCount);
+                Utils.Log(
+                    LogLevel.Trace,
+                    ServiceCallStopEventId,
+                    ServiceCallStopMessage,
+                    serviceName,
+                    requestHandle,
+                    pendingRequestCount
+                );
             }
         }
 
         /// <summary>
         /// A service message completed with a bad status code.
         /// </summary>
-        [Event(ServiceCallBadStopId, Keywords = Keywords.Services, Message = ServiceCallBadStopMessage, Level = EventLevel.Warning, Task = Tasks.ServiceCallTask)]
+        [Event(
+            ServiceCallBadStopId,
+            Keywords = Keywords.Services,
+            Message = ServiceCallBadStopMessage,
+            Level = EventLevel.Warning,
+            Task = Tasks.ServiceCallTask
+        )]
         public void ServiceCallBadStop(string serviceName, int requestHandle, int statusCode, int pendingRequestCount)
         {
             if (IsEnabled())
@@ -266,7 +306,15 @@ namespace Opc.Ua
             }
             else if (Logger.IsEnabled(LogLevel.Trace))
             {
-                Utils.Log(LogLevel.Trace, ServiceCallBadStopEventId, ServiceCallBadStopMessage, serviceName, requestHandle, pendingRequestCount, statusCode);
+                Utils.Log(
+                    LogLevel.Trace,
+                    ServiceCallBadStopEventId,
+                    ServiceCallBadStopMessage,
+                    serviceName,
+                    requestHandle,
+                    pendingRequestCount,
+                    statusCode
+                );
             }
         }
 

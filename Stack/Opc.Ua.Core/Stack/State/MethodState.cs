@@ -23,7 +23,8 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the instance with its default attribute values.
         /// </summary>
-        public MethodState(NodeState parent) : base(NodeClass.Method, parent)
+        public MethodState(NodeState parent)
+            : base(NodeClass.Method, parent)
         {
             m_executable = true;
             m_userExecutable = true;
@@ -88,7 +89,6 @@ namespace Opc.Ua
         public NodeId MethodDeclarationId
         {
             get => TypeDefinitionId;
-
             set => TypeDefinitionId = value;
         }
 
@@ -98,7 +98,6 @@ namespace Opc.Ua
         public bool Executable
         {
             get => m_executable;
-
             set
             {
                 if (m_executable != value)
@@ -116,7 +115,6 @@ namespace Opc.Ua
         public bool UserExecutable
         {
             get => m_userExecutable;
-
             set
             {
                 if (m_userExecutable != value)
@@ -292,7 +290,8 @@ namespace Opc.Ua
         protected override ServiceResult ReadNonValueAttribute(
             ISystemContext context,
             uint attributeId,
-            ref object value)
+            ref object value
+        )
         {
             ServiceResult result = null;
 
@@ -339,10 +338,7 @@ namespace Opc.Ua
         /// <summary>
         /// Write the value for any non-value attribute.
         /// </summary>
-        protected override ServiceResult WriteNonValueAttribute(
-            ISystemContext context,
-            uint attributeId,
-            object value)
+        protected override ServiceResult WriteNonValueAttribute(ISystemContext context, uint attributeId, object value)
         {
             ServiceResult result = null;
 
@@ -416,7 +412,6 @@ namespace Opc.Ua
         public PropertyState<Argument[]> InputArguments
         {
             get => m_inputArguments;
-
             set
             {
                 if (!ReferenceEquals(m_inputArguments, value))
@@ -434,7 +429,6 @@ namespace Opc.Ua
         public PropertyState<Argument[]> OutputArguments
         {
             get => m_outputArguments;
-
             set
             {
                 if (!ReferenceEquals(m_outputArguments, value))
@@ -451,9 +445,7 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context for the system being accessed.</param>
         /// <param name="children">The list of children to populate.</param>
-        public override void GetChildren(
-            ISystemContext context,
-            IList<BaseInstanceState> children)
+        public override void GetChildren(ISystemContext context, IList<BaseInstanceState> children)
         {
             PropertyState<Argument[]> inputArguments = m_inputArguments;
 
@@ -479,7 +471,8 @@ namespace Opc.Ua
             ISystemContext context,
             QualifiedName browseName,
             bool createOrReplace,
-            BaseInstanceState replacement)
+            BaseInstanceState replacement
+        )
         {
             if (QualifiedName.IsNull(browseName))
             {
@@ -540,7 +533,8 @@ namespace Opc.Ua
             NodeId objectId,
             IList<Variant> inputArguments,
             IList<ServiceResult> argumentErrors,
-            IList<Variant> outputArguments)
+            IList<Variant> outputArguments
+        )
         {
             // check if executable.
             object executable = null;
@@ -652,7 +646,8 @@ namespace Opc.Ua
         protected virtual ServiceResult Call(
             ISystemContext context,
             IList<object> inputArguments,
-            IList<object> outputArguments)
+            IList<object> outputArguments
+        )
         {
             return Call(context, null, inputArguments, outputArguments);
         }
@@ -669,7 +664,8 @@ namespace Opc.Ua
             ISystemContext context,
             NodeId objectId,
             IList<object> inputArguments,
-            IList<object> outputArguments)
+            IList<object> outputArguments
+        )
         {
             GenericMethodCalledEventHandler2 onCallMethod2 = OnCallMethod2;
 
@@ -700,10 +696,7 @@ namespace Opc.Ua
         /// <param name="inputArgument">The input argument.</param>
         /// <param name="index">The index in the list of input argument.</param>
         /// <returns>Any error.</returns>
-        protected ServiceResult ValidateInputArgument(
-            ISystemContext context,
-            Variant inputArgument,
-            int index)
+        protected ServiceResult ValidateInputArgument(ISystemContext context, Variant inputArgument, int index)
         {
             PropertyState<Argument[]> inputArguments = InputArguments;
 
@@ -726,7 +719,8 @@ namespace Opc.Ua
                 expectedArgument.DataType,
                 expectedArgument.ValueRank,
                 context.NamespaceUris,
-                context.TypeTable);
+                context.TypeTable
+            );
 
             if (typeInfo == null)
             {
@@ -742,9 +736,7 @@ namespace Opc.Ua
         /// <param name="context">The context to use.</param>
         /// <param name="outputArgument">The output argument description.</param>
         /// <returns>The default value.</returns>
-        protected object GetArgumentDefaultValue(
-            ISystemContext context,
-            Argument outputArgument)
+        protected object GetArgumentDefaultValue(ISystemContext context, Argument outputArgument)
         {
             return TypeInfo.GetDefaultValue(outputArgument.DataType, outputArgument.ValueRank, context.TypeTable);
         }
@@ -762,7 +754,8 @@ namespace Opc.Ua
         ISystemContext context,
         MethodState method,
         IList<object> inputArguments,
-        IList<object> outputArguments);
+        IList<object> outputArguments
+    );
 
     /// <summary>
     /// Used to process a method call.
@@ -772,5 +765,6 @@ namespace Opc.Ua
         MethodState method,
         NodeId objectId,
         IList<object> inputArguments,
-        IList<object> outputArguments);
+        IList<object> outputArguments
+    );
 }

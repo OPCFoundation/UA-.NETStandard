@@ -39,7 +39,6 @@ using Microsoft.IO;
 using Newtonsoft.Json;
 using NUnit.Framework;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
-
 #if NET6_0_OR_GREATER
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -55,6 +54,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     public class JsonEncoderEscapeStringBenchmarks
     {
         public const int InnerLoops = 100;
+
         [DatapointSource]
         [Params(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)]
         public int StringVariantIndex { get; set; } = 1;
@@ -64,25 +64,25 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         public static readonly string[] EscapeTestStrings =
         [
             // The use case without escape characters, plain text
-                "The quick brown fox jumps over the lazy dog.",
+            "The quick brown fox jumps over the lazy dog.",
             // The use case with many control characters escaped, 1 char spaces
-                "\" \n \r \t \b \f \\ ",
+            "\" \n \r \t \b \f \\ ",
             // The use case with many control characters escaped, 2 char spaces
-                "  \"  \n  \r  \t  \b  \f  \\  ",
+            "  \"  \n  \r  \t  \b  \f  \\  ",
             // The use case with many control characters escaped, 3 char spaces
-                "   \"   \n   \r   \t   \b   \f   \\   ",
+            "   \"   \n   \r   \t   \b   \f   \\   ",
             // The use case with many control characters escaped, 5 char spaces
-                "     \"     \n     \r     \t     \b     \f     \\     ",
+            "     \"     \n     \r     \t     \b     \f     \\     ",
             // The use case with many binary characters escaped, 1 char spaces
-                "\0 \x01 \x02 \x03 \x04 ",
+            "\0 \x01 \x02 \x03 \x04 ",
             // The use case with many binary characters escaped, 2 char spaces
-                "  \0  \x01  \x02  \x03  \x04  ",
+            "  \0  \x01  \x02  \x03  \x04  ",
             // The use case with many binary characters escaped, 3 char spaces
-                "   \0   \x01   \x02   \x03   \x04   ",
+            "   \0   \x01   \x02   \x03   \x04   ",
             // The use case with many binary characters escaped, 5 char spaces
-                "     \0     \x01     \x02     \x03     \x04     ",
+            "     \0     \x01     \x02     \x03     \x04     ",
             // The use case with all escape characters and a long string
-                "Ascii characters, special characters \n \b & control characters \0 \x04 ␀ ␁ ␂ ␃ ␄. This is a test.",
+            "Ascii characters, special characters \n \b & control characters \0 \x04 ␀ ␁ ␂ ␃ ␄. This is a test.",
         ];
 
         /// <summary>
@@ -95,7 +95,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             int repeats = InnerLoops;
             while (repeats-- > 0)
             {
-                EscapedStringLegacy(m_testString);
+                EscapedStringLegacy(s_testString);
             }
             m_streamWriter.Flush();
         }
@@ -110,7 +110,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             int repeats = InnerLoops;
             while (repeats-- > 0)
             {
-                EscapedStringLegacyPlus(m_testString);
+                EscapedStringLegacyPlus(s_testString);
             }
             m_streamWriter.Flush();
         }
@@ -125,7 +125,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             int repeats = InnerLoops;
             while (repeats-- > 0)
             {
-                EscapeString(m_testString);
+                EscapeString(s_testString);
             }
             m_streamWriter.Flush();
         }
@@ -140,7 +140,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             int repeats = InnerLoops;
             while (repeats-- > 0)
             {
-                EscapeStringSpan(m_testString);
+                EscapeStringSpan(s_testString);
             }
             m_streamWriter.Flush();
         }
@@ -155,7 +155,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             int repeats = InnerLoops;
             while (repeats-- > 0)
             {
-                EscapeStringSpanChars(m_testString);
+                EscapeStringSpanChars(s_testString);
             }
             m_streamWriter.Flush();
         }
@@ -170,7 +170,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             int repeats = InnerLoops;
             while (repeats-- > 0)
             {
-                EscapeStringSpanCharsInline(m_testString);
+                EscapeStringSpanCharsInline(s_testString);
             }
             m_streamWriter.Flush();
         }
@@ -185,7 +185,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             int repeats = InnerLoops;
             while (repeats-- > 0)
             {
-                EscapeStringSpanCharsInlineConst(m_testString);
+                EscapeStringSpanCharsInlineConst(s_testString);
             }
             m_streamWriter.Flush();
         }
@@ -200,7 +200,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             int repeats = InnerLoops;
             while (repeats-- > 0)
             {
-                EscapeStringSpanIndex(m_testString);
+                EscapeStringSpanIndex(s_testString);
             }
             m_streamWriter.Flush();
         }
@@ -215,7 +215,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             int repeats = InnerLoops;
             while (repeats-- > 0)
             {
-                EscapeStringSpanDict(m_testString);
+                EscapeStringSpanDict(s_testString);
             }
             m_streamWriter.Flush();
         }
@@ -230,7 +230,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             int repeats = InnerLoops;
             while (repeats-- > 0)
             {
-                EscapeStringNewtonSoft(m_testString);
+                EscapeStringNewtonSoft(s_testString);
             }
             m_streamWriter.Flush();
         }
@@ -246,7 +246,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             int repeats = InnerLoops;
             while (repeats-- > 0)
             {
-                EscapeStringSystemTextJson(m_testString);
+                EscapeStringSystemTextJson(s_testString);
             }
             m_streamWriter.Flush();
         }
@@ -269,74 +269,74 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             m_memoryStream = new RecyclableMemoryStream(m_memoryManager);
             m_streamWriter = new StreamWriter(m_memoryStream, new UTF8Encoding(false), m_streamSize, false);
 
-            m_testString = EscapeTestStrings[index];
-            TestContext.Out.WriteLine(m_testString);
-            char[] testArray = m_testString.ToCharArray();
+            s_testString = EscapeTestStrings[index];
+            TestContext.Out.WriteLine(s_testString);
+            char[] testArray = s_testString.ToCharArray();
 
             m_memoryStream.Position = 0;
-            EscapedStringLegacy(m_testString);
+            EscapedStringLegacy(s_testString);
             m_streamWriter.Flush();
             byte[] resultLegacy = m_memoryStream.ToArray();
             TestContext.Out.WriteLine(Encoding.UTF8.GetString(resultLegacy));
 
             m_memoryStream.Position = 0;
-            EscapedStringLegacyPlus(m_testString);
+            EscapedStringLegacyPlus(s_testString);
             m_streamWriter.Flush();
             byte[] resultLegacyPlus = m_memoryStream.ToArray();
             TestContext.Out.WriteLine(Encoding.UTF8.GetString(resultLegacyPlus));
 
             m_memoryStream.Position = 0;
-            EscapeString(m_testString);
+            EscapeString(s_testString);
             m_streamWriter.Flush();
             byte[] result = m_memoryStream.ToArray();
             TestContext.Out.WriteLine(Encoding.UTF8.GetString(result));
 
             m_memoryStream.Position = 0;
-            EscapeStringSpan(m_testString);
+            EscapeStringSpan(s_testString);
             m_streamWriter.Flush();
             byte[] resultSpan = m_memoryStream.ToArray();
             TestContext.Out.WriteLine(Encoding.UTF8.GetString(resultSpan));
 
             m_memoryStream.Position = 0;
-            EscapeStringSpanChars(m_testString);
+            EscapeStringSpanChars(s_testString);
             m_streamWriter.Flush();
             byte[] resultSpanChars = m_memoryStream.ToArray();
             TestContext.Out.WriteLine(Encoding.UTF8.GetString(resultSpanChars));
 
             m_memoryStream.Position = 0;
-            EscapeStringSpanCharsInline(m_testString);
+            EscapeStringSpanCharsInline(s_testString);
             m_streamWriter.Flush();
             byte[] resultSpanCharsInline = m_memoryStream.ToArray();
             TestContext.Out.WriteLine(Encoding.UTF8.GetString(resultSpanCharsInline));
 
             m_memoryStream.Position = 0;
-            EscapeStringSpanCharsInlineConst(m_testString);
+            EscapeStringSpanCharsInlineConst(s_testString);
             m_streamWriter.Flush();
             byte[] resultSpanCharsInlineConst = m_memoryStream.ToArray();
             TestContext.Out.WriteLine(Encoding.UTF8.GetString(resultSpanCharsInlineConst));
 
             m_memoryStream.Position = 0;
-            EscapeStringSpanIndex(m_testString);
+            EscapeStringSpanIndex(s_testString);
             m_streamWriter.Flush();
             byte[] resultSpanIndex = m_memoryStream.ToArray();
             TestContext.Out.WriteLine(Encoding.UTF8.GetString(resultSpanIndex));
 
             m_memoryStream.Position = 0;
-            EscapeStringSpanDict(m_testString);
+            EscapeStringSpanDict(s_testString);
             m_streamWriter.Flush();
             byte[] resultSpanDict = m_memoryStream.ToArray();
             TestContext.Out.WriteLine(Encoding.UTF8.GetString(resultSpanDict));
 
             m_memoryStream = new RecyclableMemoryStream(m_memoryManager);
             m_streamWriter = new StreamWriter(m_memoryStream, new UTF8Encoding(false), m_streamSize, false);
-            EscapeStringNewtonSoft(m_testString);
+            EscapeStringNewtonSoft(s_testString);
             m_streamWriter.Flush();
             byte[] resultNewtonSoft = m_memoryStream.ToArray();
             TestContext.Out.WriteLine(Encoding.UTF8.GetString(resultNewtonSoft));
 
 #if NET6_0_OR_GREATER
             m_memoryStream = new RecyclableMemoryStream(m_memoryManager);
-            EscapeStringSystemTextJson(m_testString);
+            EscapeStringSystemTextJson(s_testString);
             byte[] resultSystemTextJson = m_memoryStream.ToArray();
             TestContext.Out.WriteLine(Encoding.UTF8.GetString(resultSystemTextJson));
             Assert.IsTrue(Utils.IsEqual(resultLegacy, resultSystemTextJson));
@@ -380,7 +380,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             m_memoryManager = new RecyclableMemoryStreamManager();
             m_memoryStream = new RecyclableMemoryStream(m_memoryManager);
             m_streamWriter = new StreamWriter(m_memoryStream, Encoding.UTF8, m_streamSize, false);
-            m_testString = EscapeTestStrings[StringVariantIndex - 1];
+            s_testString = EscapeTestStrings[StringVariantIndex - 1];
         }
 
         [GlobalCleanup]
@@ -402,12 +402,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 bool found = false;
 
-                for (int ii = 0; ii < m_specialChars.Length; ii++)
+                for (int ii = 0; ii < s_specialChars.Length; ii++)
                 {
-                    if (m_specialChars[ii] == ch)
+                    if (s_specialChars[ii] == ch)
                     {
                         m_streamWriter.Write('\\');
-                        m_streamWriter.Write(m_substitution[ii]);
+                        m_streamWriter.Write(s_substitution[ii]);
                         found = true;
                         break;
                     }
@@ -439,12 +439,12 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 bool found = false;
 
-                for (int ii = 0; ii < m_specialChars.Length; ii++)
+                for (int ii = 0; ii < s_specialChars.Length; ii++)
                 {
-                    if (m_specialChars[ii] == ch)
+                    if (s_specialChars[ii] == ch)
                     {
                         m_streamWriter.Write('\\');
-                        m_streamWriter.Write(m_substitution[ii]);
+                        m_streamWriter.Write(s_substitution[ii]);
                         found = true;
                         break;
                     }
@@ -478,16 +478,16 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 bool found = false;
                 char ch = charSpan[i];
 
-                for (int ii = 0; ii < m_specialChars.Length; ii++)
+                for (int ii = 0; ii < s_specialChars.Length; ii++)
                 {
-                    if (m_specialChars[ii] == ch)
+                    if (s_specialChars[ii] == ch)
                     {
                         if (lastOffset < i)
                         {
                             m_streamWriter.Write(charSpan[lastOffset..i]);
                         }
                         lastOffset = i + 1;
-                        m_streamWriter.Write(m_substitutionStrings[ii]);
+                        m_streamWriter.Write(s_substitutionStrings[ii]);
                         found = true;
                         break;
                     }
@@ -528,9 +528,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 bool found = false;
                 char ch = charSpan[i];
 
-                for (int ii = 0; ii < m_specialChars.Length; ii++)
+                for (int ii = 0; ii < s_specialChars.Length; ii++)
                 {
-                    if (m_specialChars[ii] == ch)
+                    if (s_specialChars[ii] == ch)
                     {
                         if (lastOffset < i)
                         {
@@ -538,7 +538,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                         }
                         lastOffset = i + 1;
                         m_streamWriter.Write('\\');
-                        m_streamWriter.Write(m_substitution[ii]);
+                        m_streamWriter.Write(s_substitution[ii]);
                         found = true;
                         break;
                     }
@@ -605,13 +605,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 bool found = false;
                 char ch = charSpan[i];
 
-                for (int ii = 0; ii < m_specialChars.Length; ii++)
+                for (int ii = 0; ii < s_specialChars.Length; ii++)
                 {
-                    if (m_specialChars[ii] == ch)
+                    if (s_specialChars[ii] == ch)
                     {
                         WriteSpan(ref lastOffset, charSpan, i);
                         m_streamWriter.Write('\\');
-                        m_streamWriter.Write(m_substitution[ii]);
+                        m_streamWriter.Write(s_substitution[ii]);
                         found = true;
                         break;
                     }
@@ -650,13 +650,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 bool found = false;
                 char ch = charSpan[i];
 
-                for (int ii = 0; ii < m_specialCharsConst.Length; ii++)
+                for (int ii = 0; ii < s_specialCharsConst.Length; ii++)
                 {
-                    if (m_specialCharsConst[ii] == ch)
+                    if (s_specialCharsConst[ii] == ch)
                     {
                         WriteSpan(ref lastOffset, charSpan, i);
                         m_streamWriter.Write('\\');
-                        m_streamWriter.Write(m_substitutionConst[ii]);
+                        m_streamWriter.Write(s_substitutionConst[ii]);
                         found = true;
                         break;
                     }
@@ -690,7 +690,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 char ch = charSpan[i];
 
-                int index = m_specialString.IndexOf(ch, StringComparison.Ordinal);
+                int index = kSpecialString.IndexOf(ch, StringComparison.Ordinal);
                 if (index >= 0)
                 {
                     if (lastOffset < i)
@@ -698,7 +698,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                         m_streamWriter.Write(charSpan[lastOffset..i]);
                     }
                     lastOffset = i + 1;
-                    m_streamWriter.Write(m_substitutionStrings[index]);
+                    m_streamWriter.Write(s_substitutionStrings[index]);
                     continue;
                 }
 
@@ -733,7 +733,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 char ch = charSpan[i];
 
-                if (m_replace.TryGetValue(ch, out string escapeSequence))
+                if (s_replace.TryGetValue(ch, out string escapeSequence))
                 {
                     if (lastOffset < i)
                     {
@@ -776,7 +776,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 #if NET6_0_OR_GREATER
         private void EscapeStringSystemTextJson(string value)
         {
-            var jsonEncodedText = JsonEncodedText.Encode(m_testString, JavaScriptEncoder.UnsafeRelaxedJsonEscaping);
+            var jsonEncodedText = JsonEncodedText.Encode(s_testString, JavaScriptEncoder.UnsafeRelaxedJsonEscaping);
             m_memoryStream.Write(jsonEncodedText.EncodedUtf8Bytes);
         }
 #endif
@@ -787,7 +787,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
             foreach (char ch in value)
             {
-                if (m_replace.TryGetValue(ch, out string escapeSequence))
+                if (s_replace.TryGetValue(ch, out string escapeSequence))
                 {
                     stringBuilder.Append(escapeSequence);
                 }
@@ -804,72 +804,109 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             m_streamWriter.Write(stringBuilder);
         }
 
-        private static string m_testString;
+        private static string s_testString;
         private RecyclableMemoryStreamManager m_memoryManager;
         private RecyclableMemoryStream m_memoryStream;
         private StreamWriter m_streamWriter;
         private readonly int m_streamSize = 1024;
-        private const string m_specialString = "\"\\\n\r\t\b\f";
+        private const string kSpecialString = "\"\\\n\r\t\b\f";
 
         /// <summary>
         /// Declare static readonly characters for the special characters
         /// </summary>
-        private const char sro_quotation = '\"';
-        private const char sro_backslash = '\\';
-        private const char sro_newline = '\n';
-        private const char sro_return = '\r';
-        private const char sro_tab = '\t';
-        private const char sro_backspace = '\b';
-        private const char sro_formfeed = '\f';
-        private static readonly char[] m_specialChars = [sro_quotation, sro_backslash, sro_newline, sro_return, sro_tab, sro_backspace, sro_formfeed];
+        private const char kSroQuotation = '\"';
+        private const char kSroBackslash = '\\';
+        private const char kSroNewline = '\n';
+        private const char kSroReturn = '\r';
+        private const char kSroTab = '\t';
+        private const char kSroBackspace = '\b';
+        private const char kSroFormfeed = '\f';
+        private static readonly char[] s_specialChars =
+        [
+            kSroQuotation,
+            kSroBackslash,
+            kSroNewline,
+            kSroReturn,
+            kSroTab,
+            kSroBackspace,
+            kSroFormfeed,
+        ];
 
         /// <summary>
         /// Declare static readonly characters for the substitution characters
         /// </summary>
-        private const char sro_quotationSub = '\"';
-        private const char sro_backslashSub = '\\';
-        private const char sro_newlineSub = 'n';
-        private const char sro_returnSub = 'r';
-        private const char sro_tabSub = 't';
-        private const char sro_backspaceSub = 'b';
-        private const char sro_formfeedSub = 'f';
-        private static readonly char[] m_substitution = [sro_quotationSub, sro_backslashSub, sro_newlineSub, sro_returnSub, sro_tabSub, sro_backspaceSub, sro_formfeedSub];
+        private const char kSro_quotationSub = '\"';
+        private const char kSro_backslashSub = '\\';
+        private const char kSro_newlineSub = 'n';
+        private const char kSro_returnSub = 'r';
+        private const char kSro_tabSub = 't';
+        private const char kSro_backspaceSub = 'b';
+        private const char kSro_formfeedSub = 'f';
+        private static readonly char[] s_substitution =
+        [
+            kSro_quotationSub,
+            kSro_backslashSub,
+            kSro_newlineSub,
+            kSro_returnSub,
+            kSro_tabSub,
+            kSro_backspaceSub,
+            kSro_formfeedSub,
+        ];
 
         /// <summary>
         /// Special characters as const
         /// </summary>
-        private const char s_quotation = '\"';
-        private const char s_backslash = '\\';
-        private const char s_newline = '\n';
-        private const char s_return = '\r';
-        private const char s_tab = '\t';
-        private const char s_backspace = '\b';
-        private const char s_formfeed = '\f';
+        private const char kQuotation = '\"';
+        private const char kBackslash = '\\';
+        private const char kNewline = '\n';
+        private const char kReturn = '\r';
+        private const char kTab = '\t';
+        private const char kBackspace = '\b';
+        private const char kFormfeed = '\f';
 
-        private static readonly char[] m_specialCharsConst = [s_quotation, s_backslash, s_newline, s_return, s_tab, s_backspace, s_formfeed];
+        private static readonly char[] s_specialCharsConst =
+        [
+            kQuotation,
+            kBackslash,
+            kNewline,
+            kReturn,
+            kTab,
+            kBackspace,
+            kFormfeed,
+        ];
 
         /// <summary>
         /// Substitution as const
         /// </summary>
-        private const char s_quotationSub = '\"';
-        private const char s_backslashSub = '\\';
-        private const char s_newlineSub = 'n';
-        private const char s_returnSub = 'r';
-        private const char s_tabSub = 't';
-        private const char s_backspaceSub = 'b';
-        private const char s_formfeedSub = 'f';
+        private const char kQuotationSub = '\"';
+        private const char kBackslashSub = '\\';
+        private const char kNewlineSub = 'n';
+        private const char kReturnSub = 'r';
+        private const char kTabSub = 't';
+        private const char kBackspaceSub = 'b';
+        private const char kFormfeedSub = 'f';
 
-        private static readonly char[] m_substitutionConst = [s_quotationSub, s_backslashSub, s_newlineSub, s_returnSub, s_tabSub, s_backspaceSub, s_formfeedSub];
+        private static readonly char[] s_substitutionConst =
+        [
+            kQuotationSub,
+            kBackslashSub,
+            kNewlineSub,
+            kReturnSub,
+            kTabSub,
+            kBackspaceSub,
+            kFormfeedSub,
+        ];
 
-        private static readonly string[] m_substitutionStrings = ["\\\"", "\\\\", "\\n", "\\r", "\\t", "\\b", "\\f"];
-        private static readonly Dictionary<char, string> m_replace = new() {
-            {  '\"', "\\\"" },
-            {  '\\', "\\\\" },
+        private static readonly string[] s_substitutionStrings = ["\\\"", "\\\\", "\\n", "\\r", "\\t", "\\b", "\\f"];
+        private static readonly Dictionary<char, string> s_replace = new()
+        {
+            { '\"', "\\\"" },
+            { '\\', "\\\\" },
             { '\n', "\\n" },
             { '\r', "\\r" },
             { '\t', "\\t" },
             { '\b', "\\b" },
-            { '\f', "\\f" }
+            { '\f', "\\f" },
         };
     }
 }

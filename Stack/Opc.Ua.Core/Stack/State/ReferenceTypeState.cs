@@ -22,7 +22,8 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the instance with its default attribute values.
         /// </summary>
-        public ReferenceTypeState() : base(NodeClass.ReferenceType)
+        public ReferenceTypeState()
+            : base(NodeClass.ReferenceType)
         {
             m_inverseName = null;
             m_symmetric = false;
@@ -87,7 +88,6 @@ namespace Opc.Ua
         public LocalizedText InverseName
         {
             get => m_inverseName;
-
             set
             {
                 if (!ReferenceEquals(m_inverseName, value))
@@ -105,7 +105,6 @@ namespace Opc.Ua
         public bool Symmetric
         {
             get => m_symmetric;
-
             set
             {
                 if (m_symmetric != value)
@@ -271,7 +270,8 @@ namespace Opc.Ua
         protected override ServiceResult ReadNonValueAttribute(
             ISystemContext context,
             uint attributeId,
-            ref object value)
+            ref object value
+        )
         {
             ServiceResult result = null;
 
@@ -325,10 +325,7 @@ namespace Opc.Ua
         /// <summary>
         /// Write the value for any non-value attribute.
         /// </summary>
-        protected override ServiceResult WriteNonValueAttribute(
-            ISystemContext context,
-            uint attributeId,
-            object value)
+        protected override ServiceResult WriteNonValueAttribute(ISystemContext context, uint attributeId, object value)
         {
             ServiceResult result = null;
 

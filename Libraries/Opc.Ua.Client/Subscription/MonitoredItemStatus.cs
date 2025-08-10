@@ -141,9 +141,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Updates the object with the results of a translate browse paths request.
         /// </summary>
-        internal void SetResolvePathResult(
-            BrowsePathResult result,
-            ServiceResult error)
+        internal void SetResolvePathResult(BrowsePathResult result, ServiceResult error)
         {
             Error = error;
         }
@@ -154,7 +152,8 @@ namespace Opc.Ua.Client
         internal void SetCreateResult(
             MonitoredItemCreateRequest request,
             MonitoredItemCreateResult result,
-            ServiceResult error)
+            ServiceResult error
+        )
         {
             if (request == null)
             {
@@ -231,7 +230,8 @@ namespace Opc.Ua.Client
         internal void SetModifyResult(
             MonitoredItemModifyRequest request,
             MonitoredItemModifyResult result,
-            ServiceResult error)
+            ServiceResult error
+        )
         {
             if (request == null)
             {

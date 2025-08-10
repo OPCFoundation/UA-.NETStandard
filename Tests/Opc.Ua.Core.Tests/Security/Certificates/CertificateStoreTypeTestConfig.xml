@@ -8,30 +8,22 @@
   <ApplicationUri>urn:localhost:CertStoreTypeTest</ApplicationUri>
   <ProductUri>uri:opcfoundation.org:Tests:CertStoreTypeTest</ProductUri>
   <ApplicationType>Client_1</ApplicationType>
-
   <SecurityConfiguration>
-
     <!-- Where the application instance certificate is stored (MachineDefault) -->
     <ApplicationCertificate>
       <StoreType>testStoreType</StoreType>
       <StorePath>testStoreType:CurrentUser\My</StorePath>
       <SubjectName>CN=CertStoreTypeTest, C=US, S=Arizona, O=OPC Foundation, DC=localhost</SubjectName>
     </ApplicationCertificate>
-  
     <!-- Where the issuer certificate are stored (certificate authorities) -->
     <TrustedIssuerCertificates>
       <StoreType>testStoreType</StoreType>
       <StorePath>testStoreType:CurrentUser\AuthRoot</StorePath>
     </TrustedIssuerCertificates>
-
     <TrustedPeerCertificates>
       <StoreType>testStoreType</StoreType>
       <StorePath>testStoreType:CurrentUser\Trusted</StorePath>
     </TrustedPeerCertificates>
-
   </SecurityConfiguration>
-
-  <ClientConfiguration>
-  </ClientConfiguration>
-
+  <ClientConfiguration></ClientConfiguration>
 </ApplicationConfiguration>

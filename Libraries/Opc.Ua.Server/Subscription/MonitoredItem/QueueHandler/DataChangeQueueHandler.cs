@@ -50,10 +50,12 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="samplingInterval">the sampling interval</param>
         void SetSamplingInterval(double samplingInterval);
+
         /// <summary>
         /// Number of DataValues in the queue
         /// </summary>
         int ItemsInQueue { get; }
+
         /// <summary>
         /// Queues a value
         /// </summary>
@@ -67,6 +69,7 @@ namespace Opc.Ua.Server
         /// <returns>true if an item was dequeued</returns>
         bool PublishSingleValue(out DataValue value, out ServiceResult error, bool noEventLog = false);
     }
+
     /// <summary>
     /// Mangages a data value queue for a data change monitoredItem
     /// </summary>
@@ -79,7 +82,12 @@ namespace Opc.Ua.Server
         /// <param name="createDurable">true if a durable queue shall be created</param>
         /// <param name="queueFactory">the factory for <see cref="IDataChangeMonitoredItemQueue"/></param>
         /// <param name="discardedValueHandler"></param>
-        public DataChangeQueueHandler(uint monitoredItemId, bool createDurable, IMonitoredItemQueueFactory queueFactory, Action discardedValueHandler = null)
+        public DataChangeQueueHandler(
+            uint monitoredItemId,
+            bool createDurable,
+            IMonitoredItemQueueFactory queueFactory,
+            Action discardedValueHandler = null
+        )
         {
             m_dataValueQueue = queueFactory.CreateDataChangeQueue(createDurable, monitoredItemId);
 
@@ -99,7 +107,8 @@ namespace Opc.Ua.Server
             IDataChangeMonitoredItemQueue dataValueQueue,
             bool discardOldest,
             double samplingInterval,
-            Action discardedValueHandler = null)
+            Action discardedValueHandler = null
+        )
         {
             m_dataValueQueue = dataValueQueue;
             m_monitoredItemId = dataValueQueue.QueueSize;
@@ -151,6 +160,7 @@ namespace Opc.Ua.Server
                 }
             }
         }
+
         /// <summary>
         /// Set the sampling interval of the queue
         /// </summary>
@@ -175,10 +185,12 @@ namespace Opc.Ua.Server
                 m_nextSampleTime = 0;
             }
         }
+
         /// <summary>
         /// Number of DataValues in the queue
         /// </summary>
         public int ItemsInQueue => m_dataValueQueue.ItemsInQueue;
+
         /// <summary>
         /// Queues a value
         /// </summary>
@@ -219,6 +231,7 @@ namespace Opc.Ua.Server
             // queue next value.
             Enqueue(value, error);
         }
+
         /// <summary>
         /// Deques the last item
         /// </summary>
@@ -287,7 +300,10 @@ namespace Opc.Ua.Server
                 }
                 else
                 {
-                    throw new ServiceResultException(StatusCodes.BadInternalError, "Error queueing DataValue. DataValueQueue was full but it was not possible to discard the oldest value.");
+                    throw new ServiceResultException(
+                        StatusCodes.BadInternalError,
+                        "Error queueing DataValue. DataValueQueue was full but it was not possible to discard the oldest value."
+                    );
                 }
                 //set overflow bit in oldest value
                 m_overflow = m_dataValueQueue.PeekOldestValue();
@@ -326,9 +342,11 @@ namespace Opc.Ua.Server
                     error.NamespaceUri,
                     error.LocalizedText,
                     error.AdditionalInfo,
-                    error.InnerResult);
+                    error.InnerResult
+                );
             }
         }
+
         /// <inheritdoc/>
         public void Dispose()
         {

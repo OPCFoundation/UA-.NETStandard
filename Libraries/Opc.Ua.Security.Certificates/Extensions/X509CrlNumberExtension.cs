@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -48,32 +48,25 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Creates an empty extension.
         /// </summary>
-        protected X509CrlNumberExtension()
-        {
-        }
+        protected X509CrlNumberExtension() { }
 
         /// <summary>
         /// Creates an extension from ASN.1 encoded data.
         /// </summary>
         public X509CrlNumberExtension(AsnEncodedData encodedExtension, bool critical)
-            : this(encodedExtension.Oid, encodedExtension.RawData, critical)
-        {
-        }
+            : this(encodedExtension.Oid, encodedExtension.RawData, critical) { }
 
         /// <summary>
         /// Creates an extension from an Oid and ASN.1 encoded raw data.
         /// </summary>
         public X509CrlNumberExtension(string oid, byte[] rawData, bool critical)
-            : this(new Oid(oid, kFriendlyName), rawData, critical)
-        {
-        }
+            : this(new Oid(oid, kFriendlyName), rawData, critical) { }
 
         /// <summary>
         /// Creates an extension from ASN.1 encoded data.
         /// </summary>
         public X509CrlNumberExtension(Oid oid, byte[] rawData, bool critical)
-        :
-            base(oid, rawData, critical)
+            : base(oid, rawData, critical)
         {
             Decode(rawData);
         }

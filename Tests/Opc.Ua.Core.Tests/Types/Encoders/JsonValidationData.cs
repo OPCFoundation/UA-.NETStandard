@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2018 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -85,8 +85,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     public class JsonValidationDataCollection : List<JsonValidationData>
     {
         public JsonValidationDataCollection() { }
-        public JsonValidationDataCollection(IEnumerable<JsonValidationData> collection) : base(collection) { }
-        public JsonValidationDataCollection(int capacity) : base(capacity) { }
+
+        public JsonValidationDataCollection(IEnumerable<JsonValidationData> collection)
+            : base(collection) { }
+
+        public JsonValidationDataCollection(int capacity)
+            : base(capacity) { }
+
         public static JsonValidationDataCollection ToJsonValidationDataCollection(JsonValidationData[] values)
         {
             return values != null ? [.. values] : [];
@@ -96,17 +101,20 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             BuiltInType builtInType,
             object instance,
             string expectedReversible,
-            string expectedNonReversible)
+            string expectedNonReversible
+        )
         {
-            Add(new JsonValidationData()
-            {
-                BuiltInType = builtInType,
-                Instance = instance,
-                ExpectedReversible = expectedReversible,
-                ExpectedNonReversible = expectedNonReversible,
-                ExpectedCompact = expectedReversible,
-                ExpectedVerbose = expectedNonReversible
-            });
+            Add(
+                new JsonValidationData()
+                {
+                    BuiltInType = builtInType,
+                    Instance = instance,
+                    ExpectedReversible = expectedReversible,
+                    ExpectedNonReversible = expectedNonReversible,
+                    ExpectedCompact = expectedReversible,
+                    ExpectedVerbose = expectedNonReversible,
+                }
+            );
         }
 
         public void Add(
@@ -116,17 +124,19 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string expectedNonReversible,
             string expectedCompact,
             string expectedVerbose
-            )
+        )
         {
-            Add(new JsonValidationData()
-            {
-                BuiltInType = builtInType,
-                Instance = instance,
-                ExpectedReversible = expectedReversible,
-                ExpectedNonReversible = expectedNonReversible,
-                ExpectedCompact = expectedCompact,
-                ExpectedVerbose = expectedVerbose
-            });
+            Add(
+                new JsonValidationData()
+                {
+                    BuiltInType = builtInType,
+                    Instance = instance,
+                    ExpectedReversible = expectedReversible,
+                    ExpectedNonReversible = expectedNonReversible,
+                    ExpectedCompact = expectedCompact,
+                    ExpectedVerbose = expectedVerbose,
+                }
+            );
         }
 
         public void Add(
@@ -134,18 +144,21 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             object instance,
             string expectedReversible,
             string expectedNonReversible,
-            bool includeDefaultValue)
+            bool includeDefaultValue
+        )
         {
-            Add(new JsonValidationData()
-            {
-                BuiltInType = builtInType,
-                Instance = instance,
-                ExpectedReversible = expectedReversible,
-                ExpectedNonReversible = expectedNonReversible,
-                ExpectedCompact = expectedReversible,
-                ExpectedVerbose = expectedNonReversible,
-                IncludeDefaultValue = includeDefaultValue
-            });
+            Add(
+                new JsonValidationData()
+                {
+                    BuiltInType = builtInType,
+                    Instance = instance,
+                    ExpectedReversible = expectedReversible,
+                    ExpectedNonReversible = expectedNonReversible,
+                    ExpectedCompact = expectedReversible,
+                    ExpectedVerbose = expectedNonReversible,
+                    IncludeDefaultValue = includeDefaultValue,
+                }
+            );
         }
 
         public void Add(
@@ -155,18 +168,21 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             string expectedNonReversible,
             string expectedCompact,
             string expectedVerbose,
-            bool includeDefaultValue)
+            bool includeDefaultValue
+        )
         {
-            Add(new JsonValidationData()
-            {
-                BuiltInType = builtInType,
-                Instance = instance,
-                ExpectedReversible = expectedReversible,
-                ExpectedNonReversible = expectedNonReversible,
-                ExpectedCompact = expectedCompact,
-                ExpectedVerbose = expectedVerbose,
-                IncludeDefaultValue = includeDefaultValue
-            });
+            Add(
+                new JsonValidationData()
+                {
+                    BuiltInType = builtInType,
+                    Instance = instance,
+                    ExpectedReversible = expectedReversible,
+                    ExpectedNonReversible = expectedNonReversible,
+                    ExpectedCompact = expectedCompact,
+                    ExpectedVerbose = expectedVerbose,
+                    IncludeDefaultValue = includeDefaultValue,
+                }
+            );
         }
     }
 

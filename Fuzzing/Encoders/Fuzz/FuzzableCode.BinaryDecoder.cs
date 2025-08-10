@@ -182,7 +182,6 @@ namespace Opc.Ua.Fuzzing
 
                     default:
                         break;
-
                 }
 
                 throw;

@@ -30,9 +30,7 @@ namespace Opc.Ua
         /// <returns>
         /// True if the object is an instance of the specified type.
         /// </returns>
-        bool IsTypeOf(
-            FilterContext context,
-            NodeId typeDefinitionId);
+        bool IsTypeOf(FilterContext context, NodeId typeDefinitionId);
 
         /// <summary>
         /// Returns the value of an attribute identified by the operand.
@@ -50,7 +48,8 @@ namespace Opc.Ua
             NodeId typeDefinitionId,
             IList<QualifiedName> relativePath,
             uint attributeId,
-            NumericRange indexRange);
+            NumericRange indexRange
+        );
     }
 
     /// <summary>
@@ -66,9 +65,7 @@ namespace Opc.Ua
         /// <param name="context">The context to use when checking the biew.</param>
         /// <param name="viewId">The identifier for the view.</param>
         /// <returns>True if the instance is in the view.</returns>
-        bool IsInView(
-            FilterContext context,
-            NodeId viewId);
+        bool IsInView(FilterContext context, NodeId viewId);
 
         /// <summary>
         /// Returns TRUE if the node is related to the current target.
@@ -81,7 +78,8 @@ namespace Opc.Ua
             NodeId referenceTypeId,
             int hops,
             bool includeTypeDefintionSubtypes,
-            bool includeReferenceSubtypes);
+            bool includeReferenceSubtypes
+        );
 
         /// <summary>
         /// Returns the list of nodes related to the current target.
@@ -94,7 +92,8 @@ namespace Opc.Ua
             NodeId referenceTypeId,
             int hops,
             bool includeTypeDefintionSubtypes,
-            bool includeReferenceSubtypes);
+            bool includeReferenceSubtypes
+        );
 
         /// <summary>
         /// Returns the value of attributes for nodes which are related to the current node.
@@ -112,7 +111,8 @@ namespace Opc.Ua
             NodeId typeDefinitionId,
             RelativePath relativePath,
             uint attributeId,
-            NumericRange indexRange);
+            NumericRange indexRange
+        );
     }
 
     /// <summary>
@@ -139,10 +139,7 @@ namespace Opc.Ua
         /// <param name="namespaceUris">The namespace URIs.</param>
         /// <param name="typeTree">The type tree.</param>
         public FilterContext(NamespaceTable namespaceUris, ITypeTable typeTree)
-        :
-            this(namespaceUris, typeTree, (IList<string>)null)
-        {
-        }
+            : this(namespaceUris, typeTree, (IList<string>)null) { }
 
         /// <summary>
         /// Initializes the context.

@@ -29,7 +29,10 @@ namespace Opc.Ua
 
             var parsedUrl = new UriBuilder(url);
 
-            if (Utils.IsUriHttpRelatedScheme(parsedUrl.Scheme) && !parsedUrl.Path.EndsWith(ConfiguredEndpoint.DiscoverySuffix, StringComparison.OrdinalIgnoreCase))
+            if (
+                Utils.IsUriHttpRelatedScheme(parsedUrl.Scheme)
+                && !parsedUrl.Path.EndsWith(ConfiguredEndpoint.DiscoverySuffix, StringComparison.OrdinalIgnoreCase)
+            )
             {
                 parsedUrl.Path += ConfiguredEndpoint.DiscoverySuffix;
             }
@@ -89,15 +92,19 @@ namespace Opc.Ua
                         return policy;
                     }
                     else if (
-                        (policy.SecurityPolicyUri != null && tokenSecurityPolicyUri != null &&
-                        EccUtils.IsEccPolicy(policy.SecurityPolicyUri) && EccUtils.IsEccPolicy(tokenSecurityPolicyUri)) ||
-                        (!EccUtils.IsEccPolicy(policy.SecurityPolicyUri) && !EccUtils.IsEccPolicy(tokenSecurityPolicyUri))
+                        (
+                            policy.SecurityPolicyUri != null
+                            && tokenSecurityPolicyUri != null
+                            && EccUtils.IsEccPolicy(policy.SecurityPolicyUri)
+                            && EccUtils.IsEccPolicy(tokenSecurityPolicyUri)
                         )
+                        || (
+                            !EccUtils.IsEccPolicy(policy.SecurityPolicyUri)
+                            && !EccUtils.IsEccPolicy(tokenSecurityPolicyUri)
+                        )
+                    )
                     {
-                        if (sameEncryptionAlgorithm == null)
-                        {
-                            sameEncryptionAlgorithm = policy;
-                        }
+                        sameEncryptionAlgorithm ??= policy;
                     }
                     else if (policy.SecurityPolicyUri == null)
                     {
@@ -117,9 +124,11 @@ namespace Opc.Ua
         /// <summary>
         /// Finds a token policy that matches the user identity specified.
         /// </summary>
-        public UserTokenPolicy FindUserTokenPolicy(UserTokenType tokenType,
+        public UserTokenPolicy FindUserTokenPolicy(
+            UserTokenType tokenType,
             XmlQualifiedName issuedTokenType,
-            string tokenSecurityPolicyUri)
+            string tokenSecurityPolicyUri
+        )
         {
             if (issuedTokenType == null)
             {
@@ -132,9 +141,11 @@ namespace Opc.Ua
         /// <summary>
         /// Finds a token policy that matches the user identity specified.
         /// </summary>
-        public UserTokenPolicy FindUserTokenPolicy(UserTokenType tokenType,
+        public UserTokenPolicy FindUserTokenPolicy(
+            UserTokenType tokenType,
             string issuedTokenType,
-            string tokenSecurityPolicyUri)
+            string tokenSecurityPolicyUri
+        )
         {
             // construct issuer type.
             string issuedTokenTypeText = issuedTokenType;
@@ -151,15 +162,19 @@ namespace Opc.Ua
                         return policy;
                     }
                     else if (
-                        (policy.SecurityPolicyUri != null && tokenSecurityPolicyUri != null &&
-                        EccUtils.IsEccPolicy(policy.SecurityPolicyUri) && EccUtils.IsEccPolicy(tokenSecurityPolicyUri)) ||
-                        (!EccUtils.IsEccPolicy(policy.SecurityPolicyUri) && !EccUtils.IsEccPolicy(tokenSecurityPolicyUri))
+                        (
+                            policy.SecurityPolicyUri != null
+                            && tokenSecurityPolicyUri != null
+                            && EccUtils.IsEccPolicy(policy.SecurityPolicyUri)
+                            && EccUtils.IsEccPolicy(tokenSecurityPolicyUri)
                         )
+                        || (
+                            !EccUtils.IsEccPolicy(policy.SecurityPolicyUri)
+                            && !EccUtils.IsEccPolicy(tokenSecurityPolicyUri)
+                        )
+                    )
                     {
-                        if (sameEncryptionAlgorithm == null)
-                        {
-                            sameEncryptionAlgorithm = policy;
-                        }
+                        sameEncryptionAlgorithm ??= policy;
                     }
                     else if (policy.SecurityPolicyUri == null)
                     {

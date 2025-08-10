@@ -49,10 +49,7 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Returns a byte array containing the private key in PEM format.
         /// </summary>
-        public static byte[] ExportPrivateKeyAsPEM(
-            X509Certificate2 certificate,
-            string password = null
-            )
+        public static byte[] ExportPrivateKeyAsPEM(X509Certificate2 certificate, string password = null)
         {
             bool isECDsaSignature = X509PfxUtils.IsECDsaSignature(certificate);
             // check if certificate is valid for use as app/sw or user cert
@@ -60,7 +57,10 @@ namespace Opc.Ua.Security.Certificates
             {
                 if (!string.IsNullOrEmpty(password))
                 {
-                    throw new ArgumentException("Export with password not supported on this platform.", nameof(password));
+                    throw new ArgumentException(
+                        "Export with password not supported on this platform.",
+                        nameof(password)
+                    );
                 }
 
                 RsaPrivateCrtKeyParameters privateKeyParameter = X509Utils.GetRsaPrivateKeyParameter(certificate);
@@ -74,10 +74,15 @@ namespace Opc.Ua.Security.Certificates
             {
                 if (!string.IsNullOrEmpty(password))
                 {
-                    throw new ArgumentException("Export with password not supported on this platform.", nameof(password));
+                    throw new ArgumentException(
+                        "Export with password not supported on this platform.",
+                        nameof(password)
+                    );
                 }
 
-                ECPrivateKeyParameters privateKeyParameter = X509Utils.GetECDsaPrivateKeyParameter(certificate.GetECDsaPrivateKey());
+                ECPrivateKeyParameters privateKeyParameter = X509Utils.GetECDsaPrivateKeyParameter(
+                    certificate.GetECDsaPrivateKey()
+                );
                 // write private key as PKCS#8
                 PrivateKeyInfo privateKeyInfo = PrivateKeyInfoFactory.CreatePrivateKeyInfo(privateKeyParameter);
                 byte[] serializedPrivateBytes = privateKeyInfo.ToAsn1Object().GetDerEncoded();
@@ -95,7 +100,7 @@ namespace Opc.Ua.Security.Certificates
             string thumbprint,
             byte[] pemDataBlob,
             out byte[] modifiedPemDataBlob
-            )
+        )
         {
             modifiedPemDataBlob = null;
             const string label = "CERTIFICATE";
@@ -122,12 +127,21 @@ namespace Opc.Ua.Security.Certificates
                         return false;
                     }
                     string pemCertificateContent = pemText[beginIndex..endIndex];
-                    byte[] pemCertificateDecoded = Convert.FromBase64CharArray(pemCertificateContent.ToCharArray(), 0, pemCertificateContent.Length);
+                    byte[] pemCertificateDecoded = Convert.FromBase64CharArray(
+                        pemCertificateContent.ToCharArray(),
+                        0,
+                        pemCertificateContent.Length
+                    );
 
                     X509Certificate2 certificate = X509CertificateLoader.LoadCertificate(pemCertificateDecoded);
                     if (thumbprint.Equals(certificate.Thumbprint, StringComparison.OrdinalIgnoreCase))
                     {
-                        modifiedPemDataBlob = Encoding.ASCII.GetBytes(pemText.Replace(pemText.Substring(beginIndex -= beginlabel.Length, endIndex + endlabel.Length), string.Empty));
+                        modifiedPemDataBlob = Encoding.ASCII.GetBytes(
+                            pemText.Replace(
+                                pemText.Substring(beginIndex -= beginlabel.Length, endIndex + endlabel.Length),
+                                string.Empty
+                            )
+                        );
                         return true;
                     }
 

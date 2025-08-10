@@ -21,7 +21,13 @@ namespace Opc.Ua
     /// <summary>
     /// A set of nodes in an address space.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1710:IdentifiersShouldHaveCorrectSuffix"), DataContract(Namespace = Namespaces.OpcUaXsd)]
+    [
+        System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Microsoft.Naming",
+            "CA1710:IdentifiersShouldHaveCorrectSuffix"
+        ),
+        DataContract(Namespace = Namespaces.OpcUaXsd)
+    ]
     [KnownType(typeof(ObjectNode))]
     [KnownType(typeof(ObjectTypeNode))]
     [KnownType(typeof(VariableNode))]
@@ -130,7 +136,12 @@ namespace Opc.Ua
         /// <param name="elementType">Type of the element.</param>
         /// <param name="namespaceUris">The namespace URIs.</param>
         /// <param name="serverUris">The server URIs.</param>
-        private void TranslateArrayValue(Array array, BuiltInType elementType, NamespaceTable namespaceUris, StringTable serverUris)
+        private void TranslateArrayValue(
+            Array array,
+            BuiltInType elementType,
+            NamespaceTable namespaceUris,
+            StringTable serverUris
+        )
         {
             if (array == null)
             {
@@ -269,7 +280,13 @@ namespace Opc.Ua
                 {
                     ReferenceTypeId = Translate(referenceToExport.ReferenceTypeId, m_namespaceUris, namespaceUris),
                     IsInverse = referenceToExport.IsInverse,
-                    TargetId = Translate(referenceToExport.TargetId, m_namespaceUris, m_serverUris, namespaceUris, serverUris)
+                    TargetId = Translate(
+                        referenceToExport.TargetId,
+                        m_namespaceUris,
+                        m_serverUris,
+                        namespaceUris,
+                        serverUris
+                    ),
                 };
 
                 node.References.Add(reference);
@@ -287,13 +304,24 @@ namespace Opc.Ua
         /// <param name="referenceToExport">The reference to export.</param>
         /// <param name="namespaceUris">The namespace URIs.</param>
         /// <param name="serverUris">The server URIs.</param>
-        public void AddReference(Node node, ReferenceNode referenceToExport, NamespaceTable namespaceUris, StringTable serverUris)
+        public void AddReference(
+            Node node,
+            ReferenceNode referenceToExport,
+            NamespaceTable namespaceUris,
+            StringTable serverUris
+        )
         {
             var reference = new ReferenceNode
             {
                 ReferenceTypeId = Translate(referenceToExport.ReferenceTypeId, m_namespaceUris, namespaceUris),
                 IsInverse = referenceToExport.IsInverse,
-                TargetId = Translate(referenceToExport.TargetId, m_namespaceUris, m_serverUris, namespaceUris, serverUris)
+                TargetId = Translate(
+                    referenceToExport.TargetId,
+                    m_namespaceUris,
+                    m_serverUris,
+                    namespaceUris,
+                    serverUris
+                ),
             };
 
             node.References.Add(reference);
@@ -433,7 +461,9 @@ namespace Opc.Ua
 
                 if (variableTypeToImport.Value.Value != null)
                 {
-                    variableType.Value = new Variant(ImportValue(variableTypeToImport.Value.Value, namespaceUris, serverUris));
+                    variableType.Value = new Variant(
+                        ImportValue(variableTypeToImport.Value.Value, namespaceUris, serverUris)
+                    );
                 }
             }
 
@@ -443,7 +473,13 @@ namespace Opc.Ua
                 {
                     ReferenceTypeId = Translate(referenceToImport.ReferenceTypeId, namespaceUris, m_namespaceUris),
                     IsInverse = referenceToImport.IsInverse,
-                    TargetId = Translate(referenceToImport.TargetId, namespaceUris, serverUris, m_namespaceUris, m_serverUris)
+                    TargetId = Translate(
+                        referenceToImport.TargetId,
+                        namespaceUris,
+                        serverUris,
+                        m_namespaceUris,
+                        m_serverUris
+                    ),
                 };
 
                 node.References.Add(reference);
@@ -465,7 +501,12 @@ namespace Opc.Ua
             {
                 Type elementType = array.GetType().GetElementType();
 
-                if (elementType != typeof(NodeId) && elementType != typeof(ExpandedNodeId) && elementType != typeof(object) && elementType != typeof(ExtensionObject))
+                if (
+                    elementType != typeof(NodeId)
+                    && elementType != typeof(ExpandedNodeId)
+                    && elementType != typeof(object)
+                    && elementType != typeof(ExtensionObject)
+                )
                 {
                     return array;
                 }
@@ -555,7 +596,6 @@ namespace Opc.Ua
         internal StringCollection NamespaceUris
         {
             get => [.. m_namespaceUris.ToArray()];
-
             set
             {
                 if (value == null)
@@ -576,7 +616,6 @@ namespace Opc.Ua
         internal StringCollection ServerUris
         {
             get => [.. m_serverUris.ToArray()];
-
             set
             {
                 if (value == null)
@@ -597,7 +636,6 @@ namespace Opc.Ua
         internal NodeCollection Nodes
         {
             get => [.. m_nodes.Values];
-
             set
             {
                 m_nodes = [];
@@ -622,7 +660,8 @@ namespace Opc.Ua
         private static NodeId Translate(
             NodeId nodeId,
             NamespaceTable targetNamespaceUris,
-            NamespaceTable sourceNamespaceUris)
+            NamespaceTable sourceNamespaceUris
+        )
         {
             if (targetNamespaceUris == null)
             {
@@ -668,7 +707,8 @@ namespace Opc.Ua
         private static QualifiedName Translate(
             QualifiedName qname,
             NamespaceTable targetNamespaceUris,
-            NamespaceTable sourceNamespaceUris)
+            NamespaceTable sourceNamespaceUris
+        )
         {
             if (targetNamespaceUris == null)
             {
@@ -723,7 +763,8 @@ namespace Opc.Ua
             NamespaceTable targetNamespaceUris,
             StringTable targetServerUris,
             NamespaceTable sourceNamespaceUris,
-            StringTable sourceServerUris)
+            StringTable sourceServerUris
+        )
         {
             if (targetNamespaceUris == null)
             {

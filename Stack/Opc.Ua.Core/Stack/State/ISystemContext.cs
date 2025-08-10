@@ -145,7 +145,6 @@ namespace Opc.Ua
 
                 return m_sessionId;
             }
-
             set => m_sessionId = value;
         }
 
@@ -164,7 +163,6 @@ namespace Opc.Ua
 
                 return m_userIdentity;
             }
-
             set => m_userIdentity = value;
         }
 
@@ -183,7 +181,6 @@ namespace Opc.Ua
 
                 return m_preferredLocales;
             }
-
             set => m_preferredLocales = value;
         }
 
@@ -202,7 +199,6 @@ namespace Opc.Ua
 
                 return m_auditEntryId;
             }
-
             set => m_auditEntryId = value;
         }
 

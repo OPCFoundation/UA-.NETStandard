@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -37,6 +37,7 @@ namespace Opc.Ua.X509StoreExtensions
     internal static class PlatformHelper
     {
         private static bool? s_isWindowsWithCrlSupport;
+
         /// <summary>
         /// True if OS Windows and Version >= Windows XP
         /// </summary>
@@ -48,11 +49,9 @@ namespace Opc.Ua.X509StoreExtensions
                 return s_isWindowsWithCrlSupport.Value;
             }
             OperatingSystem version = Environment.OSVersion;
-            s_isWindowsWithCrlSupport = version.Platform == PlatformID.Win32NT
-                && (
-                       (version.Version.Major > 5)
-                        || (version.Version.Major == 5 && version.Version.Minor >= 1)
-                    );
+            s_isWindowsWithCrlSupport =
+                version.Platform == PlatformID.Win32NT
+                && ((version.Version.Major > 5) || (version.Version.Major == 5 && version.Version.Minor >= 1));
             return s_isWindowsWithCrlSupport.Value;
         }
     }

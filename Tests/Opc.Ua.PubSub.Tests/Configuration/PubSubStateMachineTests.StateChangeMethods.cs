@@ -81,7 +81,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         {
             var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
-            NUnit.Framework.Assert.Throws<ArgumentException>(() => configurator.Enable(null), "The Enable method does not throw exception when called with null parameter.");
+            NUnit.Framework.Assert.Throws<ArgumentException>(
+                () => configurator.Enable(null),
+                "The Enable method does not throw exception when called with null parameter."
+            );
         }
 
         [Test(Description = "Validate Call Disable on null object")]
@@ -89,7 +92,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         {
             var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
-            NUnit.Framework.Assert.Throws<ArgumentException>(() => configurator.Disable(null), "The Disable method does not throw exception when called with null parameter.");
+            NUnit.Framework.Assert.Throws<ArgumentException>(
+                () => configurator.Disable(null),
+                "The Disable method does not throw exception when called with null parameter."
+            );
         }
 
         [Test(Description = "Validate Call Enable on non existing object")]
@@ -98,7 +104,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
             var nonExisting = new PubSubConfigurationDataType();
-            NUnit.Framework.Assert.Throws<ArgumentException>(() => configurator.Enable(nonExisting), "The Enable method does not throw exception when called with non existing parameter.");
+            NUnit.Framework.Assert.Throws<ArgumentException>(
+                () => configurator.Enable(nonExisting),
+                "The Enable method does not throw exception when called with non existing parameter."
+            );
         }
 
         [Test(Description = "Validate Call Disable on non existing object")]
@@ -107,7 +116,10 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var uaPubSubApplication = UaPubSubApplication.Create(m_publisherConfigurationFile);
             UaPubSubConfigurator configurator = uaPubSubApplication.UaPubSubConfigurator;
             var nonExisting = new PubSubConfigurationDataType();
-            NUnit.Framework.Assert.Throws<ArgumentException>(() => configurator.Disable(nonExisting), "The Disable method does not throw exception when called with non existing parameter.");
+            NUnit.Framework.Assert.Throws<ArgumentException>(
+                () => configurator.Disable(nonExisting),
+                "The Disable method does not throw exception when called with non existing parameter."
+            );
         }
     }
 }

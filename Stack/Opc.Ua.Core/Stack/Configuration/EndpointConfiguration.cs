@@ -65,7 +65,7 @@ namespace Opc.Ua
                 MaxEncodingNestingLevels = applicationConfiguration.TransportQuotas.MaxEncodingNestingLevels,
                 MaxDecoderRecoveries = applicationConfiguration.TransportQuotas.MaxDecoderRecoveries,
                 ChannelLifetime = applicationConfiguration.TransportQuotas.ChannelLifetime,
-                SecurityTokenLifetime = applicationConfiguration.TransportQuotas.SecurityTokenLifetime
+                SecurityTokenLifetime = applicationConfiguration.TransportQuotas.SecurityTokenLifetime,
             };
         }
 
@@ -74,8 +74,10 @@ namespace Opc.Ua
         /// </summary>
         public int MaxEncodingNestingLevels
         {
-            get => m_maxEncodingNestingLevels <= 0 ? DefaultEncodingLimits.MaxEncodingNestingLevels : m_maxEncodingNestingLevels;
-
+            get =>
+                m_maxEncodingNestingLevels <= 0
+                    ? DefaultEncodingLimits.MaxEncodingNestingLevels
+                    : m_maxEncodingNestingLevels;
             set => m_maxEncodingNestingLevels = value;
         }
 

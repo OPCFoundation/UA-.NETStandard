@@ -62,7 +62,8 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             string friendlyName,
             AsymmetricKeyParameter privateKey,
             string passcode,
-            SecureRandom random)
+            SecureRandom random
+        )
         {
             // create pkcs12 store for cert and private key
             using var pfxData = new MemoryStream();
@@ -122,7 +123,8 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             return new RsaKeyParameters(
                 false,
                 new BigInteger(1, rsaParams.Modulus),
-                new BigInteger(1, rsaParams.Exponent));
+                new BigInteger(1, rsaParams.Exponent)
+            );
         }
 
         /// <summary>
@@ -155,7 +157,8 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
                 new BigInteger(1, rsaParams.Q),
                 new BigInteger(1, rsaParams.DP),
                 new BigInteger(1, rsaParams.DQ),
-                new BigInteger(1, rsaParams.InverseQ));
+                new BigInteger(1, rsaParams.InverseQ)
+            );
         }
 
 #if NET472_OR_GREATER
@@ -186,7 +189,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             X9ECParameters curve = GetX9ECParameters(ecParams);
 
             string friendlyName = ecParams.Curve.Oid.FriendlyName;
-            if (!FriendlyNameToOidMap.TryGetValue(friendlyName, out string oidValue))
+            if (!s_friendlyNameToOidMap.TryGetValue(friendlyName, out string oidValue))
             {
                 throw new NotSupportedException($"Unknown friendly name: {friendlyName}");
             }
@@ -243,14 +246,13 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             throw new ArgumentException("EccCurveByCoefficients cannot be identified");
         }
 
-        private static readonly Dictionary<string, string> FriendlyNameToOidMap
-            = new(StringComparer.OrdinalIgnoreCase)
-            {
-                { "nistP256", "1.2.840.10045.3.1.7"},
-                { "nistP384", "1.3.132.0.34" },
-                { "brainpoolP256r1", "1.3.36.3.3.2.8.1.1.7"},
-                { "brainpoolP384r1", "1.3.36.3.3.2.8.1.1.11"}
-            };
+        private static readonly Dictionary<string, string> s_friendlyNameToOidMap = new(StringComparer.OrdinalIgnoreCase)
+        {
+            { "nistP256", "1.2.840.10045.3.1.7" },
+            { "nistP384", "1.3.132.0.34" },
+            { "brainpoolP256r1", "1.3.36.3.3.2.8.1.1.7" },
+            { "brainpoolP384r1", "1.3.36.3.3.2.8.1.1.11" },
+        };
 
         /// <summary>
         /// Return Bouncy Castle X9ECParameters value equivalent of System.Security.Cryptography.ECparameters
@@ -275,12 +277,16 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
                 if (msFriendlyName.StartsWith(nistCurveName))
                 {
                     const string patternMatch = @"(.*?)(\d+)$"; // divide string in two capture groups (string & numeric)
-                    bcFriendlyName = Regex.Replace(msFriendlyName, patternMatch, m =>
-                    {
-                        string lastChar = m.Groups[1].Value.Length > 0 ? m.Groups[1].Value[^1].ToString() : "";
-                        string number = m.Groups[2].Value;
-                        return lastChar + "-" + number;
-                    });
+                    bcFriendlyName = Regex.Replace(
+                        msFriendlyName,
+                        patternMatch,
+                        m =>
+                        {
+                            string lastChar = m.Groups[1].Value.Length > 0 ? m.Groups[1].Value[^1].ToString() : "";
+                            string number = m.Groups[2].Value;
+                            return lastChar + "-" + number;
+                        }
+                    );
                 }
                 return ECNamedCurveTable.GetByName(bcFriendlyName);
             }
@@ -295,11 +301,14 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         {
             ECParameters ecParams = ec.ExportParameters(false);
 
-            X9ECParameters curve = GetX9ECParameters(ecParams) ?? throw new ArgumentException("Curve OID is not recognized ", ecParams.Curve.Oid.ToString());
+            X9ECParameters curve =
+                GetX9ECParameters(ecParams)
+                ?? throw new ArgumentException("Curve OID is not recognized ", ecParams.Curve.Oid.ToString());
 
             Org.BouncyCastle.Math.EC.ECPoint q = curve.Curve.CreatePoint(
                 new BigInteger(1, ecParams.Q.X),
-                new BigInteger(1, ecParams.Q.Y));
+                new BigInteger(1, ecParams.Q.Y)
+            );
 
             var domainParameters = new ECDomainParameters(curve.Curve, curve.G, curve.N, curve.H, curve.GetSeed());
 
@@ -351,7 +360,7 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             var parameters = new RSAParameters
             {
                 Exponent = rsaKeyParameters.Exponent.ToByteArrayUnsigned(),
-                Modulus = rsaKeyParameters.Modulus.ToByteArrayUnsigned()
+                Modulus = rsaKeyParameters.Modulus.ToByteArrayUnsigned(),
             };
             var rsaPublicKey = RSA.Create();
             rsaPublicKey.ImportParameters(parameters);

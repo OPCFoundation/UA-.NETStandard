@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -52,7 +52,7 @@ namespace Opc.Ua.Gds.Server
         /// <summary>
         /// The certificate request is Accepted.
         /// </summary>
-        Accepted
+        Accepted,
     }
 
     /// <summary>
@@ -84,7 +84,8 @@ namespace Opc.Ua.Gds.Server
             string certificateGroupId,
             string certificateTypeId,
             byte[] certificateRequest,
-            string authorityId);
+            string authorityId
+        );
 
         /// <summary>
         /// Start a request for a new key pair.
@@ -106,25 +107,22 @@ namespace Opc.Ua.Gds.Server
             string[] domainNames,
             string privateKeyFormat,
             string privateKeyPassword,
-            string authorityId);
+            string authorityId
+        );
 
         /// <summary>
         /// Approve or reject a request.
         /// </summary>
         /// <param name="requestId">The id of the request.</param>
         /// <param name="isRejected">Whether the request is rejected.</param>
-        void ApproveRequest(
-            NodeId requestId,
-            bool isRejected);
+        void ApproveRequest(NodeId requestId, bool isRejected);
 
         /// <summary>
         /// Accept the request.
         /// </summary>
         /// <param name="requestId">The request id.</param>
         /// <param name="certificate">The accepted certificate.</param>
-        void AcceptRequest(
-            NodeId requestId,
-            byte[] certificate);
+        void AcceptRequest(NodeId requestId, byte[] certificate);
 
         /// <summary>
         /// Finish the request.
@@ -142,7 +140,7 @@ namespace Opc.Ua.Gds.Server
             out string certificateTypeId,
             out byte[] signedCertificate,
             out byte[] privateKey
-            );
+        );
 
         /// <summary>
         /// Read a certificate request.
@@ -165,6 +163,7 @@ namespace Opc.Ua.Gds.Server
             out string subjectName,
             out string[] domainNames,
             out string privateKeyFormat,
-            out string privateKeyPassword);
+            out string privateKeyPassword
+        );
     }
 }

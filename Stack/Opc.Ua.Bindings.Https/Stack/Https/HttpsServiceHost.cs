@@ -47,7 +47,7 @@ namespace Opc.Ua.Bindings
             ApplicationDescription serverDescription,
             List<ServerSecurityPolicy> securityPolicies,
             CertificateTypesProvider certificateTypesProvider
-            )
+        )
         {
             // generate a unique host name.
             string hostName = hostName = "/Https";
@@ -101,7 +101,7 @@ namespace Opc.Ua.Bindings
                     bestPolicy = new ServerSecurityPolicy()
                     {
                         SecurityMode = MessageSecurityMode.None,
-                        SecurityPolicyUri = SecurityPolicies.None
+                        SecurityPolicyUri = SecurityPolicies.None,
                     };
                 }
                 else
@@ -120,48 +120,56 @@ namespace Opc.Ua.Bindings
                     }
 
                     // Pick the first policy from the list if no policies with sign and encrypt defined
-                    if (bestPolicy == null)
-                    {
-                        bestPolicy = securityPolicies[0];
-                    }
+                    bestPolicy ??= securityPolicies[0];
                 }
 
-                var description = new EndpointDescription
-                {
-                    EndpointUrl = uri.ToString(),
-                    Server = serverDescription
-                };
+                var description = new EndpointDescription { EndpointUrl = uri.ToString(), Server = serverDescription };
 
                 if (certificateTypesProvider != null)
                 {
-                    X509Certificate2 instanceCertificate = certificateTypesProvider.GetInstanceCertificate(bestPolicy.SecurityPolicyUri);
+                    X509Certificate2 instanceCertificate = certificateTypesProvider.GetInstanceCertificate(
+                        bestPolicy.SecurityPolicyUri
+                    );
                     description.ServerCertificate = instanceCertificate.RawData;
 
                     // check if complete chain should be sent.
                     if (certificateTypesProvider.SendCertificateChain)
                     {
-                        description.ServerCertificate = certificateTypesProvider.LoadCertificateChainRaw(instanceCertificate);
+                        description.ServerCertificate = certificateTypesProvider.LoadCertificateChainRaw(
+                            instanceCertificate
+                        );
                     }
                 }
 
                 description.SecurityMode = bestPolicy.SecurityMode;
                 description.SecurityPolicyUri = bestPolicy.SecurityPolicyUri;
-                description.SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(bestPolicy.SecurityMode, bestPolicy.SecurityPolicyUri);
+                description.SecurityLevel = ServerSecurityPolicy.CalculateSecurityLevel(
+                    bestPolicy.SecurityMode,
+                    bestPolicy.SecurityPolicyUri
+                );
                 description.UserIdentityTokens = serverBase.GetUserTokenPolicies(configuration, description);
                 description.TransportProfileUri = Profiles.HttpsBinaryTransport;
 
                 // if no mutual TLS authentication is used, anonymous user tokens are not allowed
                 if (!httpsMutualTls)
                 {
-                    description.UserIdentityTokens = [.. description.UserIdentityTokens.Where(token => token.TokenType != UserTokenType.Anonymous)];
+                    description.UserIdentityTokens =
+                    [
+                        .. description.UserIdentityTokens.Where(token => token.TokenType != UserTokenType.Anonymous),
+                    ];
                 }
 
                 ITransportListener listener = Create();
                 if (listener != null)
                 {
                     endpoints.Add(description);
-                    serverBase.CreateServiceHostEndpoint(uri.Uri, endpoints, endpointConfiguration, listener,
-                        configuration.CertificateValidator.GetChannelValidator());
+                    serverBase.CreateServiceHostEndpoint(
+                        uri.Uri,
+                        endpoints,
+                        endpointConfiguration,
+                        listener,
+                        configuration.CertificateValidator.GetChannelValidator()
+                    );
                 }
                 else
                 {

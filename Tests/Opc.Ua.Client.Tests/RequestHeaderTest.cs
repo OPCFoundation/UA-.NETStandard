@@ -49,7 +49,12 @@ namespace Opc.Ua.Client.Tests
         [OneTimeSetUp]
         public Task OneTimeSetUpAsync()
         {
-            return OneTimeSetUpAsync(writer: null, securityNone: false, enableClientSideTracing: false, enableServerSideTracing: false);
+            return OneTimeSetUpAsync(
+                writer: null,
+                securityNone: false,
+                enableClientSideTracing: false,
+                enableServerSideTracing: false
+            );
         }
 
         /// <summary>
@@ -87,7 +92,14 @@ namespace Opc.Ua.Client.Tests
         public new void GlobalSetup()
         {
             Console.WriteLine("GlobalSetup: Start Server");
-            OneTimeSetUpAsync(Console.Out, enableClientSideTracing: false, enableServerSideTracing: false, disableActivityLogging: false).GetAwaiter().GetResult();
+            OneTimeSetUpAsync(
+                    Console.Out,
+                    enableClientSideTracing: false,
+                    enableServerSideTracing: false,
+                    disableActivityLogging: false
+                )
+                .GetAwaiter()
+                .GetResult();
             Console.WriteLine("GlobalSetup: Connecting");
             InitializeSession(ClientFixture.ConnectAsync(ServerUrl, SecurityPolicy).GetAwaiter().GetResult());
             Console.WriteLine("GlobalSetup: Ready");

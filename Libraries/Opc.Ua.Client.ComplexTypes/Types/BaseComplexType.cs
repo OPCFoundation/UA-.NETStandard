@@ -41,10 +41,7 @@ namespace Opc.Ua.Client.ComplexTypes
     /// <summary>
     /// The base class for all complex types.
     /// </summary>
-    public class BaseComplexType :
-        IEncodeable, IFormattable, ICloneable,
-        IComplexTypeProperties,
-        IStructureTypeInfo
+    public class BaseComplexType : IEncodeable, IFormattable, ICloneable, IComplexTypeProperties, IStructureTypeInfo
     {
         /// <summary>
         /// Initializes the object with default values.
@@ -67,7 +64,7 @@ namespace Opc.Ua.Client.ComplexTypes
             TypeId = typeId;
         }
 
-        [OnSerializing()]
+        [OnSerializing]
         private void UpdateContext(StreamingContext context)
         {
             m_context = MessageContextExtension.CurrentContext;
@@ -76,7 +73,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Initializes the object during deserialization.
         /// </summary>
-        [OnDeserializing()]
+        [OnDeserializing]
         private void Initialize(StreamingContext context)
         {
             TypeId = ExpandedNodeId.Null;
@@ -281,7 +278,8 @@ namespace Opc.Ua.Client.ComplexTypes
             IFormatProvider formatProvider,
             StringBuilder body,
             object value,
-            int valueRank)
+            int valueRank
+        )
         {
             _ = AddSeparator(body);
             if (valueRank >= 0 && value is Array array)
@@ -360,10 +358,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Append a property to the value string.
         /// </summary>
-        private static void AppendPropertyValue(
-            IFormatProvider formatProvider,
-            StringBuilder body,
-            object value)
+        private static void AppendPropertyValue(IFormatProvider formatProvider, StringBuilder body, object value)
         {
             if (value is byte[] x)
             {
@@ -383,11 +378,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Encode a property based on the property type and value rank.
         /// </summary>
-        protected void EncodeProperty(
-            IEncoder encoder,
-            string name,
-            ComplexTypePropertyInfo property
-            )
+        protected void EncodeProperty(IEncoder encoder, string name, ComplexTypePropertyInfo property)
         {
             int valueRank = property.ValueRank;
             BuiltInType builtInType = property.BuiltInType;
@@ -401,17 +392,18 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             else
             {
-                throw ServiceResultException.Create(StatusCodes.BadEncodingError,
-                    "Cannot encode a property with unsupported ValueRank {0}.", valueRank);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingError,
+                    "Cannot encode a property with unsupported ValueRank {0}.",
+                    valueRank
+                );
             }
         }
 
         /// <summary>
         /// Encode a property based on the property type and value rank.
         /// </summary>
-        protected void EncodeProperty(
-            IEncoder encoder,
-            ComplexTypePropertyInfo property)
+        protected void EncodeProperty(IEncoder encoder, ComplexTypePropertyInfo property)
         {
             EncodeProperty(encoder, property.Name, property);
         }
@@ -520,15 +512,24 @@ namespace Opc.Ua.Client.ComplexTypes
                         encoder.WriteEncodeable(name, (IEncodeable)property.GetValue(this), propertyType);
                         break;
                     }
-                    throw ServiceResultException.Create(StatusCodes.BadEncodingError,
-                        "Cannot encode unknown type {0}.", propertyType.Name);
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingError,
+                        "Cannot encode unknown type {0}.",
+                        propertyType.Name
+                    );
             }
         }
 
         /// <summary>
         /// Encode an array property based on the base property type.
         /// </summary>
-        private void EncodePropertyArray(IEncoder encoder, string name, PropertyInfo property, BuiltInType builtInType, int valueRank)
+        private void EncodePropertyArray(
+            IEncoder encoder,
+            string name,
+            PropertyInfo property,
+            BuiltInType builtInType,
+            int valueRank
+        )
         {
             Type elementType = property.PropertyType.GetElementType() ?? property.PropertyType.GetItemType();
             if (elementType.IsEnum)
@@ -541,9 +542,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Decode a property based on the property type and value rank.
         /// </summary>
-        protected void DecodeProperty(
-            IDecoder decoder,
-            ComplexTypePropertyInfo property)
+        protected void DecodeProperty(IDecoder decoder, ComplexTypePropertyInfo property)
         {
             DecodeProperty(decoder, property.Name, property);
         }
@@ -551,10 +550,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// <summary>
         /// Decode a property based on the property type and value rank.
         /// </summary>
-        protected void DecodeProperty(
-            IDecoder decoder,
-            string name,
-            ComplexTypePropertyInfo property)
+        protected void DecodeProperty(IDecoder decoder, string name, ComplexTypePropertyInfo property)
         {
             int valueRank = property.ValueRank;
             if (valueRank == ValueRanks.Scalar)
@@ -567,8 +563,11 @@ namespace Opc.Ua.Client.ComplexTypes
             }
             else
             {
-                throw ServiceResultException.Create(StatusCodes.BadDecodingError,
-                    "Cannot decode a property with unsupported ValueRank {0}.", valueRank);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Cannot decode a property with unsupported ValueRank {0}.",
+                    valueRank
+                );
             }
         }
 
@@ -681,15 +680,24 @@ namespace Opc.Ua.Client.ComplexTypes
                         property.SetValue(this, decoder.ReadEncodeable(name, propertyType));
                         break;
                     }
-                    throw ServiceResultException.Create(StatusCodes.BadDecodingError,
-                        "Cannot decode unknown type {0}.", propertyType.Name);
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Cannot decode unknown type {0}.",
+                        propertyType.Name
+                    );
             }
         }
 
         /// <summary>
         /// Decode an array property based on the base property type.
         /// </summary>
-        private void DecodePropertyArray(IDecoder decoder, string name, PropertyInfo property, BuiltInType builtInType, int valueRank)
+        private void DecodePropertyArray(
+            IDecoder decoder,
+            string name,
+            PropertyInfo property,
+            BuiltInType builtInType,
+            int valueRank
+        )
         {
             Type elementType = property.PropertyType.GetElementType() ?? property.PropertyType.GetItemType();
             if (elementType.IsEnum)
@@ -705,7 +713,8 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         protected virtual void InitializePropertyAttributes()
         {
-            StructureDefinitionAttribute definitionAttribute = GetType().GetCustomAttribute<StructureDefinitionAttribute>();
+            StructureDefinitionAttribute definitionAttribute = GetType()
+                .GetCustomAttribute<StructureDefinitionAttribute>();
             if (definitionAttribute != null)
             {
                 m_structureBaseType = definitionAttribute.BaseDataType;
@@ -769,4 +778,4 @@ namespace Opc.Ua.Client.ComplexTypes
         private StructureBaseDataType m_structureBaseType;
         private XmlQualifiedName m_xmlName;
     }
-}//namespace
+} //namespace

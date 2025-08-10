@@ -120,7 +120,8 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Get the list of SupportedTransportProfiles
         /// </summary>
-        public static string[] SupportedTransportProfiles => [Profiles.PubSubUdpUadpTransport, Profiles.PubSubMqttJsonTransport, Profiles.PubSubMqttUadpTransport];
+        public static string[] SupportedTransportProfiles =>
+            [Profiles.PubSubUdpUadpTransport, Profiles.PubSubMqttJsonTransport, Profiles.PubSubMqttUadpTransport];
 
         /// <summary>
         /// Get reference to the associated <see cref="UaPubSubConfigurator"/> instance.
@@ -169,7 +170,9 @@ namespace Opc.Ua.PubSub
             {
                 throw new ArgumentException("The specified file {0} does not exist", configFilePath);
             }
-            PubSubConfigurationDataType pubSubConfiguration = UaPubSubConfigurationHelper.LoadConfiguration(configFilePath);
+            PubSubConfigurationDataType pubSubConfiguration = UaPubSubConfigurationHelper.LoadConfiguration(
+                configFilePath
+            );
 
             return Create(pubSubConfiguration, dataStore);
         }
@@ -181,14 +184,13 @@ namespace Opc.Ua.PubSub
         /// <param name="pubSubConfiguration">The configuration object.</param>
         /// <param name="dataStore"> The current implementation of <see cref="IUaPubSubDataStore"/> used by this instance of pub sub application</param>
         /// <returns>New instance of <see cref="UaPubSubApplication"/></returns>
-        public static UaPubSubApplication Create(PubSubConfigurationDataType pubSubConfiguration = null,
-            IUaPubSubDataStore dataStore = null)
+        public static UaPubSubApplication Create(
+            PubSubConfigurationDataType pubSubConfiguration = null,
+            IUaPubSubDataStore dataStore = null
+        )
         {
             // if no argument received, start with empty configuration
-            if (pubSubConfiguration == null)
-            {
-                pubSubConfiguration = new PubSubConfigurationDataType();
-            }
+            pubSubConfiguration ??= new PubSubConfigurationDataType();
 
             var uaPubSubApplication = new UaPubSubApplication(dataStore);
             uaPubSubApplication.UaPubSubConfigurator.LoadConfiguration(pubSubConfiguration);
@@ -268,6 +270,7 @@ namespace Opc.Ua.PubSub
                 Utils.Trace(ex, "UaPubSubApplication.RaiseMetaDataReceivedEvent");
             }
         }
+
         /// <summary>
         /// Raise DatasetWriterConfigurationReceived event
         /// </summary>

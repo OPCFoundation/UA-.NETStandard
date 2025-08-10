@@ -51,7 +51,8 @@ namespace Opc.Ua.Security.Certificates
                 // This is due to one version of the ASN.1 not including OPTIONAL, and that was
                 // the version that got predominately implemented for RSA. Now it's convention.
                 new AsnEncodedData(oid, [0x05, 0x00]),
-                new AsnEncodedData(oid, ExportRSAPublicKey(rsa)));
+                new AsnEncodedData(oid, ExportRSAPublicKey(rsa))
+            );
         }
 
         public override byte[] GetSignatureAlgorithmIdentifier(HashAlgorithmName hashAlgorithm)
@@ -75,7 +76,8 @@ namespace Opc.Ua.Security.Certificates
                 throw new ArgumentOutOfRangeException(
                     nameof(hashAlgorithm),
                     hashAlgorithm,
-                    $"'{hashAlgorithm.Name}' is not a known hash algorithm.");
+                    $"'{hashAlgorithm.Name}' is not a known hash algorithm."
+                );
             }
 
             var writer = new AsnWriter(AsnEncodingRules.DER);

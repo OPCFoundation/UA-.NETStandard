@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -60,7 +60,10 @@ namespace Opc.Ua.PubSub
         /// </summary>
         /// <param name="writerGroupConfiguration">The <see cref="WriterGroupDataType"/> configuration object that produced this message.</param>
         /// <param name="uaDataSetMessages">The containing data set messages.</param>
-        protected UaNetworkMessage(WriterGroupDataType writerGroupConfiguration, List<UaDataSetMessage> uaDataSetMessages)
+        protected UaNetworkMessage(
+            WriterGroupDataType writerGroupConfiguration,
+            List<UaDataSetMessage> uaDataSetMessages
+        )
         {
             WriterGroupConfiguration = writerGroupConfiguration;
             m_uaDataSetMessages = uaDataSetMessages;
@@ -101,7 +104,6 @@ namespace Opc.Ua.PubSub
 
                 return (m_dataSetWriterId != 0) ? m_dataSetWriterId : null;
             }
-
             set => m_dataSetWriterId = value ?? 0;
         }
 
@@ -144,7 +146,11 @@ namespace Opc.Ua.PubSub
         /// <param name="messageContext"></param>
         /// <param name="message"></param>
         /// <param name="dataSetReaders"></param>
-        public abstract void Decode(IServiceMessageContext messageContext, byte[] message, IList<DataSetReaderDataType> dataSetReaders);
+        public abstract void Decode(
+            IServiceMessageContext messageContext,
+            byte[] message,
+            IList<DataSetReaderDataType> dataSetReaders
+        );
 
         /// <summary>
         /// The DataSetDecodeErrorOccurred event handler

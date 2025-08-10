@@ -60,7 +60,8 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The client messages.
         /// </summary>
-        internal const string SubscriptionStateMessage = "Subscription {0}, Id={1}, LastNotificationTime={2:HH:mm:ss}, GoodPublishRequestCount={3}, PublishingInterval={4}, KeepAliveCount={5}, PublishingEnabled={6}, MonitoredItemCount={7}";
+        internal const string SubscriptionStateMessage =
+            "Subscription {0}, Id={1}, LastNotificationTime={2:HH:mm:ss}, GoodPublishRequestCount={3}, PublishingInterval={4}, KeepAliveCount={5}, PublishingEnabled={6}, MonitoredItemCount={7}";
         internal const string NotificationMessage = "Notification: ClientHandle={0}, Value={1}";
         internal const string NotificationReceivedMessage = "NOTIFICATION RECEIVED: SubId={0}, SeqNo={1}";
         internal const string PublishStartMessage = "PUBLISH #{0} SENT";
@@ -69,7 +70,10 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The Client Event Ids used for event messages, when calling ILogger.
         /// </summary>
-        internal readonly EventId SubscriptionStateMessageEventId = new(TraceMasks.Operation, nameof(SubscriptionState));
+        internal readonly EventId SubscriptionStateMessageEventId = new(
+            TraceMasks.Operation,
+            nameof(SubscriptionState)
+        );
         internal readonly EventId NotificationEventId = new(TraceMasks.Operation, nameof(Notification));
         internal readonly EventId NotificationReceivedEventId = new(TraceMasks.Operation, nameof(NotificationReceived));
         internal readonly EventId PublishStartEventId = new(TraceMasks.ServiceDetail, nameof(PublishStart));
@@ -79,19 +83,45 @@ namespace Opc.Ua.Client
         /// The state of the client subscription.
         /// </summary>
         [Event(SubscriptionStateId, Message = SubscriptionStateMessage, Level = EventLevel.Verbose)]
-        public void SubscriptionState(string context, uint id, DateTime lastNotificationTime, int goodPublishRequestCount,
-            double currentPublishingInterval, uint currentKeepAliveCount, bool currentPublishingEnabled, uint monitoredItemCount)
+        public void SubscriptionState(
+            string context,
+            uint id,
+            DateTime lastNotificationTime,
+            int goodPublishRequestCount,
+            double currentPublishingInterval,
+            uint currentKeepAliveCount,
+            bool currentPublishingEnabled,
+            uint monitoredItemCount
+        )
         {
             if (IsEnabled())
             {
-                WriteEvent(SubscriptionStateId, context, id, lastNotificationTime, goodPublishRequestCount,
-                    currentPublishingInterval, currentKeepAliveCount, currentPublishingEnabled, monitoredItemCount);
+                WriteEvent(
+                    SubscriptionStateId,
+                    context,
+                    id,
+                    lastNotificationTime,
+                    goodPublishRequestCount,
+                    currentPublishingInterval,
+                    currentKeepAliveCount,
+                    currentPublishingEnabled,
+                    monitoredItemCount
+                );
             }
             else if (Logger.IsEnabled(LogLevel.Information))
             {
-                LogInfo(SubscriptionStateMessageEventId, SubscriptionStateMessage,
-                    context, id, lastNotificationTime, goodPublishRequestCount,
-                    currentPublishingInterval, currentKeepAliveCount, currentPublishingEnabled, monitoredItemCount);
+                LogInfo(
+                    SubscriptionStateMessageEventId,
+                    SubscriptionStateMessage,
+                    context,
+                    id,
+                    lastNotificationTime,
+                    goodPublishRequestCount,
+                    currentPublishingInterval,
+                    currentKeepAliveCount,
+                    currentPublishingEnabled,
+                    monitoredItemCount
+                );
             }
         }
 
@@ -116,8 +146,7 @@ namespace Opc.Ua.Client
             }
             else if (Logger.IsEnabled(LogLevel.Trace))
             {
-                LogTrace(NotificationReceivedEventId, NotificationReceivedMessage,
-                    subscriptionId, sequenceNumber);
+                LogTrace(NotificationReceivedEventId, NotificationReceivedMessage, subscriptionId, sequenceNumber);
             }
         }
 
@@ -168,8 +197,7 @@ namespace Opc.Ua.Client
                 }
                 else if (Logger.IsEnabled(LogLevel.Trace))
                 {
-                    LogTrace(NotificationEventId, NotificationMessage,
-                        clientHandle, wrappedValue);
+                    LogTrace(NotificationEventId, NotificationMessage, clientHandle, wrappedValue);
                 }
             }
         }

@@ -114,14 +114,17 @@ namespace Opc.Ua.Core.Tests
         /// The certificate validator for the stores.
         /// </summary>
         public ICertificateValidator CertificateValidator => m_certificateValidator;
+
         /// <summary>
         /// The issuer store, contains certs used for chain validation.
         /// </summary>
         public ICertificateStore IssuerStore => m_issuerStore;
+
         /// <summary>
         /// The trusted store, used for trusted CA, Sub CA and leaf certificates.
         /// </summary>
         public ICertificateStore TrustedStore => m_trustedStore;
+
         /// <summary>
         /// The rejected store, used for rejected certificates.
         /// </summary>
@@ -136,12 +139,12 @@ namespace Opc.Ua.Core.Tests
             var issuerTrustList = new CertificateTrustList
             {
                 StoreType = CertificateStoreType.Directory,
-                StorePath = m_issuerStore.Directory.FullName
+                StorePath = m_issuerStore.Directory.FullName,
             };
             var trustedTrustList = new CertificateTrustList
             {
                 StoreType = CertificateStoreType.Directory,
-                StorePath = m_trustedStore.Directory.FullName
+                StorePath = m_trustedStore.Directory.FullName,
             };
             CertificateStoreIdentifier rejectedList = null;
             if (m_rejectedStore != null)
@@ -149,7 +152,7 @@ namespace Opc.Ua.Core.Tests
                 rejectedList = new CertificateStoreIdentifier
                 {
                     StoreType = CertificateStoreType.Directory,
-                    StorePath = m_rejectedStore.Directory.FullName
+                    StorePath = m_rejectedStore.Directory.FullName,
                 };
             }
             certValidator.Update(issuerTrustList, trustedTrustList, rejectedList);

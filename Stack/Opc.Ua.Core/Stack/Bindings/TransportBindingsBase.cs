@@ -20,8 +20,8 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// The bindings for the transport listeners.
     /// </summary>
-    public class TransportBindingsBase<T> :
-        ITransportBindings<T> where T : class, ITransportBindingScheme
+    public class TransportBindingsBase<T> : ITransportBindings<T>
+        where T : class, ITransportBindingScheme
     {
         /// <summary>
         /// Implement the default constructor.
@@ -110,8 +110,7 @@ namespace Opc.Ua.Bindings
             }
 
             System.Reflection.TypeInfo bindingTypeInfo = bindingType.GetTypeInfo();
-            if (bindingTypeInfo.IsAbstract ||
-                !typeof(T).GetTypeInfo().IsAssignableFrom(bindingTypeInfo))
+            if (bindingTypeInfo.IsAbstract || !typeof(T).GetTypeInfo().IsAssignableFrom(bindingTypeInfo))
             {
                 return false;
             }
@@ -134,16 +133,18 @@ namespace Opc.Ua.Bindings
             if (Utils.DefaultBindings.TryGetValue(scheme, out assemblyName))
             {
                 Assembly assembly = null;
-                string fullName = Utils.DefaultOpcUaCoreAssemblyFullName.Replace(Utils.DefaultOpcUaCoreAssemblyName, assemblyName, StringComparison.Ordinal);
+                string fullName = Utils.DefaultOpcUaCoreAssemblyFullName.Replace(
+                    Utils.DefaultOpcUaCoreAssemblyName,
+                    assemblyName,
+                    StringComparison.Ordinal
+                );
                 try
                 {
                     assembly = Assembly.Load(fullName);
                 }
                 catch
                 {
-                    Utils.LogError("Failed to load the assembly {0} for transport binding {1}.",
-                        fullName, scheme
-                        );
+                    Utils.LogError("Failed to load the assembly {0} for transport binding {1}.", fullName, scheme);
                 }
 
                 if (assembly != null)

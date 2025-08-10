@@ -29,7 +29,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                     UriVersion = uriVersion,
                     NamespaceUris = context.NamespaceUris,
                     ServerUris = context.ServerUris,
-                    Message = null
+                    Message = null,
                 };
 
                 //act and validate it does not throw

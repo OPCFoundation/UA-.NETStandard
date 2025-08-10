@@ -11,9 +11,6 @@
 */
 
 using System;
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
-using System.Buffers;
-#endif
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -21,6 +18,9 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Xml;
 using Newtonsoft.Json.Linq;
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+using System.Buffers;
+#endif
 
 namespace Opc.Ua
 {
@@ -72,12 +72,15 @@ namespace Opc.Ua
         /// Initializes the object with default values.
         /// Selects the reversible or non reversible encoding.
         /// </summary>
-        public JsonEncoder(
-            IServiceMessageContext context,
-            bool useReversibleEncoding) :
-            this(context, useReversibleEncoding ? JsonEncodingType.Reversible : JsonEncodingType.NonReversible, false, null, false)
-        {
-        }
+        public JsonEncoder(IServiceMessageContext context, bool useReversibleEncoding)
+            : this(
+                context,
+                useReversibleEncoding ? JsonEncodingType.Reversible : JsonEncodingType.NonReversible,
+                false,
+                null,
+                false
+            )
+        { }
 
         /// <summary>
         /// Initializes the object with default values.
@@ -89,10 +92,17 @@ namespace Opc.Ua
             bool topLevelIsArray = false,
             Stream stream = null,
             bool leaveOpen = false,
-            int streamSize = kStreamWriterBufferSize) :
-            this(context, useReversibleEncoding ? JsonEncodingType.Reversible : JsonEncodingType.NonReversible, topLevelIsArray, stream, leaveOpen, streamSize)
-        {
-        }
+            int streamSize = kStreamWriterBufferSize
+        )
+            : this(
+                context,
+                useReversibleEncoding ? JsonEncodingType.Reversible : JsonEncodingType.NonReversible,
+                topLevelIsArray,
+                stream,
+                leaveOpen,
+                streamSize
+            )
+        { }
 
         /// <summary>
         /// Initializes the object with default values.
@@ -102,10 +112,15 @@ namespace Opc.Ua
             IServiceMessageContext context,
             bool useReversibleEncoding,
             StreamWriter streamWriter,
-            bool topLevelIsArray = false) :
-            this(context, useReversibleEncoding ? JsonEncodingType.Reversible : JsonEncodingType.NonReversible, streamWriter, topLevelIsArray)
-        {
-        }
+            bool topLevelIsArray = false
+        )
+            : this(
+                context,
+                useReversibleEncoding ? JsonEncodingType.Reversible : JsonEncodingType.NonReversible,
+                streamWriter,
+                topLevelIsArray
+            )
+        { }
 
         /// <summary>
         /// Initializes the object with default values.
@@ -116,7 +131,8 @@ namespace Opc.Ua
             bool topLevelIsArray = false,
             Stream stream = null,
             bool leaveOpen = false,
-            int streamSize = kStreamWriterBufferSize)
+            int streamSize = kStreamWriterBufferSize
+        )
         {
             Initialize(encoding);
 
@@ -146,7 +162,8 @@ namespace Opc.Ua
             IServiceMessageContext context,
             JsonEncodingType encoding,
             StreamWriter writer,
-            bool topLevelIsArray = false)
+            bool topLevelIsArray = false
+        )
         {
             Initialize(encoding);
 
@@ -185,8 +202,9 @@ namespace Opc.Ua
                 // -- do not include default values for reversible encoding
                 // -- include default values for non reversible encoding
                 m_forceNamespaceUri =
-                m_forceNamespaceUriForIndex1 =
-                m_includeDefaultValues = encoding == JsonEncodingType.NonReversible;
+                    m_forceNamespaceUriForIndex1 =
+                    m_includeDefaultValues =
+                        encoding == JsonEncodingType.NonReversible;
                 m_includeDefaultNumberValues = true;
                 m_encodeNodeIdAsString = false;
             }
@@ -220,7 +238,12 @@ namespace Opc.Ua
         /// <summary>
         /// Encodes a session-less message to a buffer.
         /// </summary>
-        public static void EncodeSessionLessMessage(IEncodeable message, Stream stream, IServiceMessageContext context, bool leaveOpen)
+        public static void EncodeSessionLessMessage(
+            IEncodeable message,
+            Stream stream,
+            IServiceMessageContext context,
+            bool leaveOpen
+        )
         {
             if (message == null)
             {
@@ -243,7 +266,7 @@ namespace Opc.Ua
                 {
                     NamespaceUris = context.NamespaceUris,
                     ServerUris = context.ServerUris,
-                    Message = message
+                    Message = message,
                 };
 
                 envelope.Encode(encoder);
@@ -255,7 +278,8 @@ namespace Opc.Ua
                         StatusCodes.BadEncodingLimitsExceeded,
                         "MaxMessageSize {0} < {1}",
                         context.MaxMessageSize,
-                        (int)(stream.Position - start));
+                        (int)(stream.Position - start)
+                    );
                 }
 
                 encoder.Close();
@@ -273,7 +297,11 @@ namespace Opc.Ua
         /// <summary>
         /// Encodes a message in a stream.
         /// </summary>
-        public static ArraySegment<byte> EncodeMessage(IEncodeable message, byte[] buffer, IServiceMessageContext context)
+        public static ArraySegment<byte> EncodeMessage(
+            IEncodeable message,
+            byte[] buffer,
+            IServiceMessageContext context
+        )
         {
             if (message == null)
             {
@@ -355,7 +383,9 @@ namespace Opc.Ua
                     {
                         return Encoding.UTF8.GetString(memoryStream.ToArray());
                     }
-                    throw new NotSupportedException("Cannot get text from external stream. Use Close or MemoryStream instead.");
+                    throw new NotSupportedException(
+                        "Cannot get text from external stream. Use Close or MemoryStream instead."
+                    );
                 }
                 return Encoding.UTF8.GetString(m_memoryStream.ToArray());
             }
@@ -472,8 +502,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void PopStructure()
         {
-            if (m_nestingLevel > 1 || m_topLevelIsArray ||
-               (m_nestingLevel == 1 && !m_levelOneSkipped))
+            if (m_nestingLevel > 1 || m_topLevelIsArray || (m_nestingLevel == 1 && !m_levelOneSkipped))
             {
                 m_writer.Write(kRightCurlyBrace);
                 m_commaRequired = true;
@@ -485,8 +514,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void PopArray()
         {
-            if (m_nestingLevel > 1 || m_topLevelIsArray ||
-               (m_nestingLevel == 1 && !m_levelOneSkipped))
+            if (m_nestingLevel > 1 || m_topLevelIsArray || (m_nestingLevel == 1 && !m_levelOneSkipped))
             {
                 m_writer.Write(kRightSquareBracket);
                 m_commaRequired = true;
@@ -496,8 +524,15 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        [Obsolete("Non/Reversible encoding is deprecated. Use UsingAlternateEncoding instead to support new encoding types.")]
-        public void UsingReversibleEncoding<T>(Action<string, T> action, string fieldName, T value, bool useReversibleEncoding)
+        [Obsolete(
+            "Non/Reversible encoding is deprecated. Use UsingAlternateEncoding instead to support new encoding types."
+        )]
+        public void UsingReversibleEncoding<T>(
+            Action<string, T> action,
+            string fieldName,
+            T value,
+            bool useReversibleEncoding
+        )
         {
             JsonEncodingType currentValue = EncodingToUse;
             try
@@ -512,7 +547,12 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public void UsingAlternateEncoding<T>(Action<string, T> action, string fieldName, T value, JsonEncodingType useEncoding)
+        public void UsingAlternateEncoding<T>(
+            Action<string, T> action,
+            string fieldName,
+            T value,
+            JsonEncodingType useEncoding
+        )
         {
             JsonEncodingType currentValue = EncodingToUse;
             try
@@ -554,7 +594,10 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void WriteEncodingMask(uint encodingMask)
         {
-            if ((!SuppressArtifacts && EncodingToUse == JsonEncodingType.Compact) || EncodingToUse == JsonEncodingType.Reversible)
+            if (
+                (!SuppressArtifacts && EncodingToUse == JsonEncodingType.Compact)
+                || EncodingToUse == JsonEncodingType.Reversible
+            )
             {
                 WriteUInt32("EncodingMask", encodingMask);
             }
@@ -634,7 +677,7 @@ namespace Opc.Ua
             m_namespaces.Pop();
         }
 
-        private static readonly char[] s_specialChars = [kQuotation, kBackslash, '\n', '\r', '\t', '\b', '\f',];
+        private static readonly char[] s_specialChars = [kQuotation, kBackslash, '\n', '\r', '\t', '\b', '\f'];
         private static readonly char[] s_substitution = [kQuotation, kBackslash, 'n', 'r', 't', 'b', 'f'];
 
 #if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
@@ -1029,7 +1072,12 @@ namespace Opc.Ua
         /// </summary>
         public void WriteDouble(string fieldName, double value)
         {
-            if (fieldName != null && !IncludeDefaultNumberValues && (value > -double.Epsilon) && (value < double.Epsilon))
+            if (
+                fieldName != null
+                && !IncludeDefaultNumberValues
+                && (value > -double.Epsilon)
+                && (value < double.Epsilon)
+            )
             {
                 return;
             }
@@ -1135,7 +1183,11 @@ namespace Opc.Ua
                 return;
             }
 
-            WriteSimpleField(fieldName, Convert.ToBase64String(value, index, count), EscapeOptions.Quotes | EscapeOptions.NoValueEscape);
+            WriteSimpleField(
+                fieldName,
+                Convert.ToBase64String(value, index, count),
+                EscapeOptions.Quotes | EscapeOptions.NoValueEscape
+            );
         }
 
 #if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
@@ -1170,19 +1222,32 @@ namespace Opc.Ua
                 const int maxStackLimit = 1024;
                 int length = (value.Length + 2) / 3 * 4;
                 char[] arrayPool = null;
-                Span<char> chars = length <= maxStackLimit ?
-                    stackalloc char[length] :
-                    (arrayPool = ArrayPool<char>.Shared.Rent(length)).AsSpan(0, length);
+                Span<char> chars =
+                    length <= maxStackLimit
+                        ? stackalloc char[length]
+                        : (arrayPool = ArrayPool<char>.Shared.Rent(length)).AsSpan(0, length);
                 try
                 {
-                    bool success = Convert.TryToBase64Chars(value, chars, out int charsWritten, Base64FormattingOptions.None);
+                    bool success = Convert.TryToBase64Chars(
+                        value,
+                        chars,
+                        out int charsWritten,
+                        Base64FormattingOptions.None
+                    );
                     if (success)
                     {
-                        WriteSimpleFieldAsSpan(fieldName, chars[..charsWritten], EscapeOptions.Quotes | EscapeOptions.NoValueEscape);
+                        WriteSimpleFieldAsSpan(
+                            fieldName,
+                            chars[..charsWritten],
+                            EscapeOptions.Quotes | EscapeOptions.NoValueEscape
+                        );
                         return;
                     }
 
-                    throw new ServiceResultException(StatusCodes.BadEncodingError, "Failed to convert ByteString to Base64");
+                    throw new ServiceResultException(
+                        StatusCodes.BadEncodingError,
+                        "Failed to convert ByteString to Base64"
+                    );
                 }
                 finally
                 {
@@ -1223,7 +1288,8 @@ namespace Opc.Ua
                     StatusCodes.BadEncodingLimitsExceeded,
                     "MaxStringLength {0} < {1}",
                     Context.MaxStringLength,
-                    count);
+                    count
+                );
             }
 
             WriteSimpleField(fieldName, xml, EscapeOptions.Quotes);
@@ -1287,7 +1353,8 @@ namespace Opc.Ua
                     {
                         throw new ServiceResultException(
                             StatusCodes.BadEncodingError,
-                            "Invalid Identifier type to encode as Guid NodeId.");
+                            "Invalid Identifier type to encode as Guid NodeId."
+                        );
                     }
                     break;
 
@@ -1320,7 +1387,11 @@ namespace Opc.Ua
 
             if (m_encodeNodeIdAsString)
             {
-                WriteSimpleField(fieldName, isNull ? "" : value.Format(Context, ForceNamespaceUri), EscapeOptions.Quotes);
+                WriteSimpleField(
+                    fieldName,
+                    isNull ? "" : value.Format(Context, ForceNamespaceUri),
+                    EscapeOptions.Quotes
+                );
                 return;
             }
 
@@ -1357,7 +1428,11 @@ namespace Opc.Ua
 
             if (m_encodeNodeIdAsString)
             {
-                WriteSimpleField(fieldName, isNull ? "" : value.Format(Context, ForceNamespaceUri), EscapeOptions.Quotes);
+                WriteSimpleField(
+                    fieldName,
+                    isNull ? "" : value.Format(Context, ForceNamespaceUri),
+                    EscapeOptions.Quotes
+                );
                 return;
             }
 
@@ -1435,7 +1510,11 @@ namespace Opc.Ua
 
             if (m_encodeNodeIdAsString)
             {
-                WriteSimpleField(fieldName, isNull ? "" : value.Format(Context, ForceNamespaceUri), EscapeOptions.Quotes);
+                WriteSimpleField(
+                    fieldName,
+                    isNull ? "" : value.Format(Context, ForceNamespaceUri),
+                    EscapeOptions.Quotes
+                );
                 return;
             }
 
@@ -1488,7 +1567,8 @@ namespace Opc.Ua
         /// </summary>
         public void WriteVariant(string fieldName, Variant value)
         {
-            bool isNull = value.TypeInfo == null || value.TypeInfo.BuiltInType == BuiltInType.Null || value.Value == null;
+            bool isNull =
+                value.TypeInfo == null || value.TypeInfo.BuiltInType == BuiltInType.Null || value.Value == null;
 
             if (EncodingToUse is JsonEncodingType.Compact or JsonEncodingType.Verbose)
             {
@@ -1577,7 +1657,8 @@ namespace Opc.Ua
             {
                 CheckAndIncrementNestingLevel();
 
-                bool isNull = value.TypeInfo == null || value.TypeInfo.BuiltInType == BuiltInType.Null || value.Value == null;
+                bool isNull =
+                    value.TypeInfo == null || value.TypeInfo.BuiltInType == BuiltInType.Null || value.Value == null;
 
                 if (!isNull)
                 {
@@ -1695,7 +1776,10 @@ namespace Opc.Ua
             if (encodeable != null && EncodingToUse == JsonEncodingType.NonReversible)
             {
                 // non reversible encoding, only the content of the Body field is encoded.
-                if (value.Body is IStructureTypeInfo structureType && structureType.StructureType == StructureType.Union)
+                if (
+                    value.Body is IStructureTypeInfo structureType
+                    && structureType.StructureType == StructureType.Union
+                )
                 {
                     if (m_commaRequired)
                     {
@@ -1833,11 +1917,16 @@ namespace Opc.Ua
                 return;
             }
 
-            if (m_nestingLevel == 0 && (m_commaRequired || m_topLevelIsArray) && (string.IsNullOrWhiteSpace(fieldName) ^ m_topLevelIsArray))
+            if (
+                m_nestingLevel == 0
+                && (m_commaRequired || m_topLevelIsArray)
+                && (string.IsNullOrWhiteSpace(fieldName) ^ m_topLevelIsArray)
+            )
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingError,
-                    "With Array as top level, encodeables with fieldname will create invalid json");
+                    "With Array as top level, encodeables with fieldname will create invalid json"
+                );
             }
 
             if (m_nestingLevel == 0 && !m_commaRequired && string.IsNullOrWhiteSpace(fieldName) && !m_topLevelIsArray)
@@ -2424,8 +2513,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                if (!UseReversibleEncoding &&
-                    values[ii] == StatusCodes.Good)
+                if (!UseReversibleEncoding && values[ii] == StatusCodes.Good)
                 {
                     WriteSimpleFieldNull(null);
                 }
@@ -2634,7 +2722,8 @@ namespace Opc.Ua
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingError,
-                    "With Array as top level, encodeables array with fieldname will create invalid json");
+                    "With Array as top level, encodeables array with fieldname will create invalid json"
+                );
             }
             else
             {
@@ -2689,7 +2778,8 @@ namespace Opc.Ua
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadEncodingError,
-                        Utils.Format("Type '{0}' is not allowed in an Enumeration.", arrayType.FullName));
+                        Utils.Format("Type '{0}' is not allowed in an Enumeration.", arrayType.FullName)
+                    );
                 }
                 foreach (int value in values)
                 {
@@ -2811,7 +2901,8 @@ namespace Opc.Ua
                         {
                             throw ServiceResultException.Create(
                                 StatusCodes.BadEncodingError,
-                                "Unexpected non Array type encountered while encoding an array of enumeration.");
+                                "Unexpected non Array type encountered while encoding an array of enumeration."
+                            );
                         }
                         WriteEnumeratedArray(fieldName, enumArray, enumArray.GetType().GetElementType());
                         return;
@@ -2840,7 +2931,8 @@ namespace Opc.Ua
                         throw ServiceResultException.Create(
                             StatusCodes.BadEncodingError,
                             "Unexpected type encountered while encoding an array of Variants: {0}",
-                            array.GetType());
+                            array.GetType()
+                        );
                     }
                     default:
                     {
@@ -2858,11 +2950,11 @@ namespace Opc.Ua
                         throw ServiceResultException.Create(
                             StatusCodes.BadEncodingError,
                             "Unexpected BuiltInType encountered while encoding an array: {0}",
-                            builtInType);
+                            builtInType
+                        );
                     }
                 }
             }
-
             // write matrix.
             else if (valueRank > ValueRanks.OneDimension)
             {
@@ -2877,7 +2969,8 @@ namespace Opc.Ua
                         throw ServiceResultException.Create(
                             StatusCodes.BadEncodingError,
                             "Unexpected array type encountered while encoding array: {0}",
-                            array.GetType().Name);
+                            array.GetType().Name
+                        );
                     }
                 }
 
@@ -2941,7 +3034,10 @@ namespace Opc.Ua
                         WriteStatusCode(nameof(dv.StatusCode), dv.StatusCode);
                     }
 
-                    if ((mask & DataSetFieldContentMask.SourceTimestamp) != 0 && dv.SourceTimestamp != DateTime.MinValue)
+                    if (
+                        (mask & DataSetFieldContentMask.SourceTimestamp) != 0
+                        && dv.SourceTimestamp != DateTime.MinValue
+                    )
                     {
                         WriteDateTime(nameof(dv.SourceTimestamp), dv.SourceTimestamp);
 
@@ -2951,7 +3047,10 @@ namespace Opc.Ua
                         }
                     }
 
-                    if ((mask & DataSetFieldContentMask.ServerTimestamp) != 0 && dv.ServerTimestamp != DateTime.MinValue)
+                    if (
+                        (mask & DataSetFieldContentMask.ServerTimestamp) != 0
+                        && dv.ServerTimestamp != DateTime.MinValue
+                    )
                     {
                         WriteDateTime(nameof(dv.ServerTimestamp), dv.ServerTimestamp);
 
@@ -3537,27 +3636,47 @@ namespace Opc.Ua
 
                 if (value.SymbolicId >= 0)
                 {
-                    WriteSimpleField("SymbolicId", value.SymbolicId.ToString(CultureInfo.InvariantCulture), EscapeOptions.NoFieldNameEscape);
+                    WriteSimpleField(
+                        "SymbolicId",
+                        value.SymbolicId.ToString(CultureInfo.InvariantCulture),
+                        EscapeOptions.NoFieldNameEscape
+                    );
                 }
 
                 if (value.NamespaceUri >= 0)
                 {
-                    WriteSimpleField("NamespaceUri", value.NamespaceUri.ToString(CultureInfo.InvariantCulture), EscapeOptions.NoFieldNameEscape);
+                    WriteSimpleField(
+                        "NamespaceUri",
+                        value.NamespaceUri.ToString(CultureInfo.InvariantCulture),
+                        EscapeOptions.NoFieldNameEscape
+                    );
                 }
 
                 if (value.Locale >= 0)
                 {
-                    WriteSimpleField("Locale", value.Locale.ToString(CultureInfo.InvariantCulture), EscapeOptions.NoFieldNameEscape);
+                    WriteSimpleField(
+                        "Locale",
+                        value.Locale.ToString(CultureInfo.InvariantCulture),
+                        EscapeOptions.NoFieldNameEscape
+                    );
                 }
 
                 if (value.LocalizedText >= 0)
                 {
-                    WriteSimpleField("LocalizedText", value.LocalizedText.ToString(CultureInfo.InvariantCulture), EscapeOptions.NoFieldNameEscape);
+                    WriteSimpleField(
+                        "LocalizedText",
+                        value.LocalizedText.ToString(CultureInfo.InvariantCulture),
+                        EscapeOptions.NoFieldNameEscape
+                    );
                 }
 
                 if (value.AdditionalInfo != null)
                 {
-                    WriteSimpleField("AdditionalInfo", value.AdditionalInfo, EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape);
+                    WriteSimpleField(
+                        "AdditionalInfo",
+                        value.AdditionalInfo,
+                        EscapeOptions.Quotes | EscapeOptions.NoFieldNameEscape
+                    );
                 }
 
                 if (value.InnerStatusCode != StatusCodes.Good)
@@ -3573,8 +3692,10 @@ namespace Opc.Ua
                     }
                     else
                     {
-                        Utils.LogWarning("InnerDiagnosticInfo dropped because nesting exceeds maximum of {0}.",
-                            DiagnosticInfo.MaxInnerDepth);
+                        Utils.LogWarning(
+                            "InnerDiagnosticInfo dropped because nesting exceeds maximum of {0}.",
+                            DiagnosticInfo.MaxInnerDepth
+                        );
                     }
                 }
 
@@ -3594,12 +3715,18 @@ namespace Opc.Ua
         private void WriteArrayDimensionMatrix(string fieldName, BuiltInType builtInType, Matrix matrix)
         {
             // check if matrix is well formed
-            (bool valid, int sizeFromDimensions) = Matrix.ValidateDimensions(true, matrix.Dimensions, Context.MaxArrayLength);
+            (bool valid, int sizeFromDimensions) = Matrix.ValidateDimensions(
+                true,
+                matrix.Dimensions,
+                Context.MaxArrayLength
+            );
 
             if (!valid || (sizeFromDimensions != matrix.Elements.Length))
             {
-                throw ServiceResultException.Create(StatusCodes.BadEncodingError,
-                    "The number of elements in the matrix does not match the dimensions.");
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingError,
+                    "The number of elements in the matrix does not match the dimensions."
+                );
             }
 
             PushStructure(fieldName);
@@ -3611,20 +3738,21 @@ namespace Opc.Ua
         /// <summary>
         /// Write multi dimensional array in structure.
         /// </summary>
-        private void WriteStructureMatrix(
-            string fieldName,
-            Matrix matrix,
-            int dim,
-            ref int index,
-            TypeInfo typeInfo)
+        private void WriteStructureMatrix(string fieldName, Matrix matrix, int dim, ref int index, TypeInfo typeInfo)
         {
             // check if matrix is well formed
-            (bool valid, int sizeFromDimensions) = Matrix.ValidateDimensions(true, matrix.Dimensions, Context.MaxArrayLength);
+            (bool valid, int sizeFromDimensions) = Matrix.ValidateDimensions(
+                true,
+                matrix.Dimensions,
+                Context.MaxArrayLength
+            );
 
             if (!valid || (sizeFromDimensions != matrix.Elements.Length))
             {
-                throw ServiceResultException.Create(StatusCodes.BadEncodingError,
-                    "The number of elements in the matrix does not match the dimensions.");
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingError,
+                    "The number of elements in the matrix does not match the dimensions."
+                );
             }
 
             CheckAndIncrementNestingLevel();
@@ -3635,8 +3763,7 @@ namespace Opc.Ua
                 if (dim == matrix.Dimensions.Length - 1)
                 {
                     // Create a slice of values for the top dimension
-                    var copy = Array.CreateInstance(
-                        matrix.Elements.GetType().GetElementType(), arrayLen);
+                    var copy = Array.CreateInstance(matrix.Elements.GetType().GetElementType(), arrayLen);
                     Array.Copy(matrix.Elements, index, copy, 0, arrayLen);
                     // Write slice as value rank
                     if (m_commaRequired)
@@ -3673,7 +3800,8 @@ namespace Opc.Ua
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,
                     "Maximum nesting level of {0} was exceeded",
-                    Context.MaxEncodingNestingLevels);
+                    Context.MaxEncodingNestingLevels
+                );
             }
             m_nestingLevel++;
         }
@@ -3682,10 +3810,12 @@ namespace Opc.Ua
         /// The length of the DateTime string encoded by "o"
         /// </summary>
         internal const int DateTimeRoundTripKindLength = 28;
+
         /// <summary>
         /// the index of the last digit which can be omitted if 0
         /// </summary>
         internal const int DateTimeRoundTripKindLastDigit = DateTimeRoundTripKindLength - 2;
+
         /// <summary>
         /// the index of the first digit which can be omitted (7 digits total)
         /// </summary>
@@ -3766,6 +3896,5 @@ namespace Opc.Ua
             return valueString;
         }
 #endif
-
     }
 }

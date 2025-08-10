@@ -53,10 +53,7 @@ namespace Opc.Ua
         /// <param name="referenceTypeId">The reference type identifier.</param>
         /// <param name="isInverse">if set to <c>true</c> this is inverse reference.</param>
         /// <param name="targetId">The target identifier.</param>
-        void Add(
-            NodeId referenceTypeId,
-            bool isInverse,
-            ExpandedNodeId targetId);
+        void Add(NodeId referenceTypeId, bool isInverse, ExpandedNodeId targetId);
 
         /// <summary>
         /// Removes the reference from the node.
@@ -65,10 +62,7 @@ namespace Opc.Ua
         /// <param name="isInverse">if set to <c>true</c> this is inverse reference.</param>
         /// <param name="targetId">The target identifier.</param>
         /// <returns>The result of removal.</returns>
-        bool Remove(
-            NodeId referenceTypeId,
-            bool isInverse,
-            ExpandedNodeId targetId);
+        bool Remove(NodeId referenceTypeId, bool isInverse, ExpandedNodeId targetId);
 
         /// <summary>
         /// Removes all of the specified references.
@@ -76,9 +70,7 @@ namespace Opc.Ua
         /// <param name="referenceTypeId">The reference type identifier.</param>
         /// <param name="isInverse">if set to <c>true</c> this is inverse reference.</param>
         /// <returns>The result of removal.</returns>
-        bool RemoveAll(
-            NodeId referenceTypeId,
-            bool isInverse);
+        bool RemoveAll(NodeId referenceTypeId, bool isInverse);
 
         /// <summary>
         /// Checks whether any references which meet the specified critia exist.
@@ -94,7 +86,8 @@ namespace Opc.Ua
             bool isInverse,
             ExpandedNodeId targetId,
             bool includeSubtypes,
-            ITypeTable typeTree);
+            ITypeTable typeTree
+        );
 
         /// <summary>
         /// Returns a list of references which match the specified criteria.
@@ -104,11 +97,7 @@ namespace Opc.Ua
         /// <param name="includeSubtypes">if set to <c>true</c> subtypes are included.</param>
         /// <param name="typeTree">The type tree.</param>
         /// <returns>A list of references which match the specified criteria.</returns>
-        IList<IReference> Find(
-            NodeId referenceTypeId,
-            bool isInverse,
-            bool includeSubtypes,
-            ITypeTable typeTree);
+        IList<IReference> Find(NodeId referenceTypeId, bool isInverse, bool includeSubtypes, ITypeTable typeTree);
 
         /// <summary>
         /// Returns a single target that meets the specified criteria.
@@ -124,7 +113,8 @@ namespace Opc.Ua
             bool isInverse,
             bool includeSubtypes,
             ITypeTable typeTree,
-            int index);
+            int index
+        );
 
         /// <summary>
         /// Returns a list of references to the specified target.
@@ -228,7 +218,8 @@ namespace Opc.Ua
             bool isInverse,
             ExpandedNodeId targetId,
             bool includeSubtypes,
-            ITypeTable typeTree)
+            ITypeTable typeTree
+        )
         {
             var reference = new ReferenceNode(referenceTypeId, isInverse, targetId);
 
@@ -256,11 +247,7 @@ namespace Opc.Ua
         /// <param name="includeSubtypes">if set to <c>true</c> subtypes are included.</param>
         /// <param name="typeTree">The type tree.</param>
         /// <returns>A list of references which match the specified criteria.</returns>
-        public IList<IReference> Find(
-            NodeId referenceTypeId,
-            bool isInverse,
-            bool includeSubtypes,
-            ITypeTable typeTree)
+        public IList<IReference> Find(NodeId referenceTypeId, bool isInverse, bool includeSubtypes, ITypeTable typeTree)
         {
             // can't search subtypes without a type tree.
             if (!includeSubtypes || typeTree == null)
@@ -286,7 +273,8 @@ namespace Opc.Ua
             bool isInverse,
             bool includeSubtypes,
             ITypeTable typeTree,
-            int index)
+            int index
+        )
         {
             // get the list of matching references.
             IList<IReference> references;
@@ -359,7 +347,10 @@ namespace Opc.Ua
 
             if (arrayIndex < 0 || arrayIndex >= array.Length)
             {
-                throw new ArgumentOutOfRangeException(nameof(arrayIndex), "arrayIndex < 0 || arrayIndex >= array.Length");
+                throw new ArgumentOutOfRangeException(
+                    nameof(arrayIndex),
+                    "arrayIndex < 0 || arrayIndex >= array.Length"
+                );
             }
 
             var elements = new KeyValuePair<IReference, object>[array.Length - arrayIndex];
@@ -409,9 +400,7 @@ namespace Opc.Ua
         /// <returns>
         /// 	<c>true</c> if the dictionary contains key; otherwise, <c>false</c>.
         /// </returns>
-        public bool ContainsKey(
-            IReference reference,
-            ITypeTable typeTree)
+        public bool ContainsKey(IReference reference, ITypeTable typeTree)
         {
             if (typeTree == null)
             {
@@ -440,9 +429,7 @@ namespace Opc.Ua
         /// <param name="referenceTypeId">The reference type identifier.</param>
         /// <param name="isInverse">if set to <c>true</c> this is inverse reference.</param>
         /// <returns>A list of references that match the direction and reference type.</returns>
-        public IList<IReference> Find(
-            NodeId referenceTypeId,
-            bool isInverse)
+        public IList<IReference> Find(NodeId referenceTypeId, bool isInverse)
         {
             var hits = new List<IReference>();
 
@@ -472,10 +459,7 @@ namespace Opc.Ua
         /// <param name="isInverse">if set to <c>true</c> this is inverse reference.</param>
         /// <param name="typeTree">The type tree.</param>
         /// <returns>A list of references that match the direction and are subtypes of the reference type.</returns>
-        public IList<IReference> Find(
-            NodeId referenceTypeId,
-            bool isInverse,
-            ITypeTable typeTree)
+        public IList<IReference> Find(NodeId referenceTypeId, bool isInverse, ITypeTable typeTree)
         {
             if (typeTree == null)
             {
@@ -691,7 +675,6 @@ namespace Opc.Ua
                 m_list.Remove(node);
                 targets.Remove(key.TargetId);
             }
-
             // handle reference to internal target.
             else
             {
@@ -766,7 +749,10 @@ namespace Opc.Ua
         /// Gets or sets the value with the specified NodeId.
         /// </summary>
         /// <value>The value with the specified NodeId.</value>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1065:DoNotRaiseExceptionsInUnexpectedLocations")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Microsoft.Design",
+            "CA1065:DoNotRaiseExceptionsInUnexpectedLocations"
+        )]
         public T this[IReference key]
         {
             get
@@ -782,7 +768,6 @@ namespace Opc.Ua
 
                 return target.Value;
             }
-
             set => Add(key, value, true);
         }
 
@@ -976,7 +961,6 @@ namespace Opc.Ua
                     return true;
                 }
             }
-
             // handle reference to internal target.
             else
             {
@@ -1034,19 +1018,13 @@ namespace Opc.Ua
                 Dictionary<ExpandedNodeId, LinkedListNode<KeyValuePair<IReference, T>>> targets;
                 if (key.IsInverse)
                 {
-                    if (entry.InverseExternalTargets == null)
-                    {
-                        entry.InverseExternalTargets = [];
-                    }
+                    entry.InverseExternalTargets ??= [];
 
                     targets = entry.InverseExternalTargets;
                 }
                 else
                 {
-                    if (entry.ForwardExternalTargets == null)
-                    {
-                        entry.ForwardExternalTargets = [];
-                    }
+                    entry.ForwardExternalTargets ??= [];
 
                     targets = entry.ForwardExternalTargets;
                 }
@@ -1060,7 +1038,6 @@ namespace Opc.Ua
                 {
                     m_list.AddLast(node);
                 }
-
                 // need to replace reference in linked linked as well as the target list.
                 else
                 {
@@ -1075,26 +1052,19 @@ namespace Opc.Ua
 
                 targets[key.TargetId] = node;
             }
-
             // handle reference to internal target.
             else
             {
                 NodeIdDictionary<LinkedListNode<KeyValuePair<IReference, T>>> targets;
                 if (key.IsInverse)
                 {
-                    if (entry.InverseTargets == null)
-                    {
-                        entry.InverseTargets = [];
-                    }
+                    entry.InverseTargets ??= [];
 
                     targets = entry.InverseTargets;
                 }
                 else
                 {
-                    if (entry.ForwardTargets == null)
-                    {
-                        entry.ForwardTargets = [];
-                    }
+                    entry.ForwardTargets ??= [];
 
                     targets = entry.ForwardTargets;
                 }
@@ -1110,7 +1080,6 @@ namespace Opc.Ua
                 {
                     m_list.AddLast(node);
                 }
-
                 // need to replace reference in linked linked as well as the target list.
                 else
                 {
@@ -1157,7 +1126,6 @@ namespace Opc.Ua
 
                 return targets.ContainsKey(reference.TargetId);
             }
-
             // handle reference to internal target.
             else
             {
@@ -1186,10 +1154,7 @@ namespace Opc.Ua
         /// <param name="entry">The entry.</param>
         /// <param name="isInverse">if set to <c>true</c> this is inverse reference.</param>
         /// <param name="hits">The hits.</param>
-        private static void Find(
-            ReferenceTypeEntry entry,
-            bool isInverse,
-            List<IReference> hits)
+        private static void Find(ReferenceTypeEntry entry, bool isInverse, List<IReference> hits)
         {
             if (isInverse)
             {

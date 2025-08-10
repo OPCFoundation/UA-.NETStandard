@@ -51,14 +51,18 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         public void ValidateUaPublisherPublishIntervalDeviation(
             [Values(100, 1000, 2000)] double publishingInterval,
             [Values(30, 40)] double maxDeviation,
-            [Values(10)] int publishTimeInSeconds)
+            [Values(10)] int publishTimeInSeconds
+        )
         {
             //Arrange
             s_publishTicks.Clear();
             var mockConnection = new Mock<IUaPubSubConnection>();
             mockConnection.Setup(x => x.CanPublish(It.IsAny<WriterGroupDataType>())).Returns(true);
 
-            mockConnection.Setup(x => x.CreateNetworkMessages(It.IsAny<WriterGroupDataType>(), It.IsAny<WriterGroupPublishState>()))
+            mockConnection
+                .Setup(x =>
+                    x.CreateNetworkMessages(It.IsAny<WriterGroupDataType>(), It.IsAny<WriterGroupPublishState>())
+                )
                 .Callback(() =>
                 {
                     lock (s_lock)
@@ -67,10 +71,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                     }
                 });
 
-            var writerGroupDataType = new WriterGroupDataType
-            {
-                PublishingInterval = publishingInterval
-            };
+            var writerGroupDataType = new WriterGroupDataType { PublishingInterval = publishingInterval };
 
             //Act
             var publisher = new UaPublisher(mockConnection.Object, writerGroupDataType);
@@ -83,9 +84,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             int faultIndex = -1;
             double faultDeviation = 0;
 
-            s_publishTicks = [.. from t in s_publishTicks
-                              orderby t
-                              select t];
+            s_publishTicks = [.. from t in s_publishTicks orderby t select t];
 
             //Assert
             for (int i = 1; i < s_publishTicks.Count; i++)
@@ -105,12 +104,15 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                     }
                 }
             }
-            Assert.IsTrue(faultIndex < 0, "publishingInterval={0}, maxDeviation={1}, publishTimeInSecods={2}, deviation[{3}] = {4} as max deviation",
+            Assert.IsTrue(
+                faultIndex < 0,
+                "publishingInterval={0}, maxDeviation={1}, publishTimeInSecods={2}, deviation[{3}] = {4} as max deviation",
                 publishingInterval,
                 maxDeviation,
                 publishTimeInSeconds,
                 faultIndex,
-                faultDeviation);
+                faultDeviation
+            );
         }
     }
 }

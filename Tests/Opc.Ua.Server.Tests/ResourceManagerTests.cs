@@ -17,7 +17,10 @@ namespace Opc.Ua.Server.Tests
         public void TranslateSingleLanguageExactMatch()
         {
             // Arrange
-            var resourceManager = new ResourceManager(new Mock<IServerInternal>().Object, new Mock<ApplicationConfiguration>().Object);
+            var resourceManager = new ResourceManager(
+                new Mock<IServerInternal>().Object,
+                new Mock<ApplicationConfiguration>().Object
+            );
             var defaultText = new LocalizedText("en-US", "Hello");
 
             //Act
@@ -26,11 +29,15 @@ namespace Opc.Ua.Server.Tests
             // Assert
             Assert.AreEqual(defaultText, resultText);
         }
+
         [Test]
         public void TranslateSingleLanguageWithInfoExactMatch()
         {
             // Arrange
-            var resourceManager = new ResourceManager(new Mock<IServerInternal>().Object, new Mock<ApplicationConfiguration>().Object);
+            var resourceManager = new ResourceManager(
+                new Mock<IServerInternal>().Object,
+                new Mock<ApplicationConfiguration>().Object
+            );
             var defaultText = new LocalizedText("greeting", "en-US", "Hello");
 
             //Act
@@ -44,7 +51,10 @@ namespace Opc.Ua.Server.Tests
         public void TranslateSingleLanguageWithArguments()
         {
             // Arrange
-            var resourceManager = new ResourceManager(new Mock<IServerInternal>().Object, new Mock<ApplicationConfiguration>().Object);
+            var resourceManager = new ResourceManager(
+                new Mock<IServerInternal>().Object,
+                new Mock<ApplicationConfiguration>().Object
+            );
             resourceManager.Add("greeting", "en-US", "Hello {0}");
 
             //Act
@@ -59,12 +69,11 @@ namespace Opc.Ua.Server.Tests
         public void TranslateMultiLanguageExactMatchMulRequested()
         {
             // Arrange
-            var resourceManager = new ResourceManager(new Mock<IServerInternal>().Object, new Mock<ApplicationConfiguration>().Object);
-            var translations = new Dictionary<string, string>
-           {
-                { "en-US", "Hello" },
-                { "de-DE", "Hallo" }
-            };
+            var resourceManager = new ResourceManager(
+                new Mock<IServerInternal>().Object,
+                new Mock<ApplicationConfiguration>().Object
+            );
+            var translations = new Dictionary<string, string> { { "en-US", "Hello" }, { "de-DE", "Hallo" } };
             var defaultText = new LocalizedText("greeting", translations);
 
             //Act
@@ -78,12 +87,15 @@ namespace Opc.Ua.Server.Tests
         public void TranslateMultiLanguageMulRequested()
         {
             // Arrange
-            var resourceManager = new ResourceManager(new Mock<IServerInternal>().Object, new Mock<ApplicationConfiguration>().Object);
+            var resourceManager = new ResourceManager(
+                new Mock<IServerInternal>().Object,
+                new Mock<ApplicationConfiguration>().Object
+            );
             var translations = new Dictionary<string, string>
-           {
+            {
                 { "en-US", "Hello" },
                 { "de-DE", "Hallo" },
-                { "fr-FR", "Bonjour" }
+                { "fr-FR", "Bonjour" },
             };
             var defaultText = new LocalizedText("greeting", translations);
 
@@ -91,7 +103,10 @@ namespace Opc.Ua.Server.Tests
             LocalizedText resultText = resourceManager.Translate(["mul", "de-DE", "en-US"], defaultText);
 
             // Assert
-            Assert.AreEqual(/*lang=json,strict*/ "{\"t\":[[\"en-US\",\"Hello\"],[\"de-DE\",\"Hallo\"]]}", resultText.Text);
+            Assert.AreEqual( /*lang=json,strict*/
+                "{\"t\":[[\"en-US\",\"Hello\"],[\"de-DE\",\"Hallo\"]]}",
+                resultText.Text
+            );
             Assert.AreEqual("mul", resultText.Locale);
         }
 
@@ -99,7 +114,10 @@ namespace Opc.Ua.Server.Tests
         public void TranslateSingleLanguageMulRequested()
         {
             // Arrange
-            var resourceManager = new ResourceManager(new Mock<IServerInternal>().Object, new Mock<ApplicationConfiguration>().Object);
+            var resourceManager = new ResourceManager(
+                new Mock<IServerInternal>().Object,
+                new Mock<ApplicationConfiguration>().Object
+            );
             var defaultText = new LocalizedText("greeting", "en-US", "Hello");
 
             //Act
@@ -113,7 +131,10 @@ namespace Opc.Ua.Server.Tests
         public void TranslateNoLocalesRequestedDefaultTextReturned()
         {
             // Arrange
-            var resourceManager = new ResourceManager(new Mock<IServerInternal>().Object, new Mock<ApplicationConfiguration>().Object);
+            var resourceManager = new ResourceManager(
+                new Mock<IServerInternal>().Object,
+                new Mock<ApplicationConfiguration>().Object
+            );
             var defaultText = new LocalizedText("greeting", "en-US", "Hello");
 
             //Act
@@ -127,7 +148,10 @@ namespace Opc.Ua.Server.Tests
         public void TranslateSingleLanguageMulRequestedWithTranslation()
         {
             // Arrange
-            var resourceManager = new ResourceManager(new Mock<IServerInternal>().Object, new Mock<ApplicationConfiguration>().Object);
+            var resourceManager = new ResourceManager(
+                new Mock<IServerInternal>().Object,
+                new Mock<ApplicationConfiguration>().Object
+            );
             var defaultText = new LocalizedText("greeting", "en-US", "Hello");
             resourceManager.Add("greeting", "de-DE", "Hallo");
             resourceManager.Add("greeting", "fr-FR", "Bonjour");
@@ -136,7 +160,10 @@ namespace Opc.Ua.Server.Tests
             LocalizedText resultText = resourceManager.Translate(["mul", "de-DE", "en-US"], defaultText);
 
             // Assert
-            Assert.AreEqual(/*lang=json,strict*/ "{\"t\":[[\"en-US\",\"Hello\"],[\"de-DE\",\"Hallo\"]]}", resultText.Text);
+            Assert.AreEqual( /*lang=json,strict*/
+                "{\"t\":[[\"en-US\",\"Hello\"],[\"de-DE\",\"Hallo\"]]}",
+                resultText.Text
+            );
             Assert.AreEqual("mul", resultText.Locale);
         }
 
@@ -144,7 +171,10 @@ namespace Opc.Ua.Server.Tests
         public void TranslateKeyMulRequestedWithTranslation()
         {
             // Arrange
-            var resourceManager = new ResourceManager(new Mock<IServerInternal>().Object, new Mock<ApplicationConfiguration>().Object);
+            var resourceManager = new ResourceManager(
+                new Mock<IServerInternal>().Object,
+                new Mock<ApplicationConfiguration>().Object
+            );
             resourceManager.Add("greeting", "de-DE", "Hallo");
             resourceManager.Add("greeting", "en-US", "Hello");
 
@@ -152,7 +182,10 @@ namespace Opc.Ua.Server.Tests
             LocalizedText resultText = resourceManager.Translate(["mul", "de-DE", "en-US"], "greeting", null);
 
             // Assert
-            Assert.AreEqual(/*lang=json,strict*/ "{\"t\":[[\"de-DE\",\"Hallo\"],[\"en-US\",\"Hello\"]]}", resultText.Text);
+            Assert.AreEqual( /*lang=json,strict*/
+                "{\"t\":[[\"de-DE\",\"Hallo\"],[\"en-US\",\"Hello\"]]}",
+                resultText.Text
+            );
             Assert.AreEqual("mul", resultText.Locale);
         }
 
@@ -160,7 +193,10 @@ namespace Opc.Ua.Server.Tests
         public void TranslateKeyMulRequestedAllLanguagesWithTranslation()
         {
             // Arrange
-            var resourceManager = new ResourceManager(new Mock<IServerInternal>().Object, new Mock<ApplicationConfiguration>().Object);
+            var resourceManager = new ResourceManager(
+                new Mock<IServerInternal>().Object,
+                new Mock<ApplicationConfiguration>().Object
+            );
             resourceManager.Add("greeting", "de-DE", "Hallo");
             resourceManager.Add("greeting", "en-US", "Hello");
 
@@ -168,7 +204,10 @@ namespace Opc.Ua.Server.Tests
             LocalizedText resultText = resourceManager.Translate(["mul"], "greeting", null);
 
             // Assert
-            Assert.AreEqual(/*lang=json,strict*/ "{\"t\":[[\"de-DE\",\"Hallo\"],[\"en-US\",\"Hello\"]]}", resultText.Text);
+            Assert.AreEqual( /*lang=json,strict*/
+                "{\"t\":[[\"de-DE\",\"Hallo\"],[\"en-US\",\"Hello\"]]}",
+                resultText.Text
+            );
             Assert.AreEqual("mul", resultText.Locale);
         }
 
@@ -176,7 +215,10 @@ namespace Opc.Ua.Server.Tests
         public void TranslateKeyMulRequestedTranslationWithParameters()
         {
             // Arrange
-            var resourceManager = new ResourceManager(new Mock<IServerInternal>().Object, new Mock<ApplicationConfiguration>().Object);
+            var resourceManager = new ResourceManager(
+                new Mock<IServerInternal>().Object,
+                new Mock<ApplicationConfiguration>().Object
+            );
             resourceManager.Add("greeting", "de-DE", "Hallo {0}");
             resourceManager.Add("greeting", "en-US", "Hello {0}");
 
@@ -184,7 +226,10 @@ namespace Opc.Ua.Server.Tests
             LocalizedText resultText = resourceManager.Translate(["mul"], "greeting", null, "User");
 
             // Assert
-            Assert.AreEqual(/*lang=json,strict*/ "{\"t\":[[\"de-DE\",\"Hallo User\"],[\"en-US\",\"Hello User\"]]}", resultText.Text);
+            Assert.AreEqual( /*lang=json,strict*/
+                "{\"t\":[[\"de-DE\",\"Hallo User\"],[\"en-US\",\"Hello User\"]]}",
+                resultText.Text
+            );
             Assert.AreEqual("mul", resultText.Locale);
         }
     }

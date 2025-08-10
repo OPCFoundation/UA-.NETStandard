@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2018 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -36,7 +36,13 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
 {
     public class TestFilterTarget : IFilterTarget
     {
-        public object GetAttributeValue(FilterContext context, NodeId typeDefinitionId, IList<QualifiedName> relativePath, uint attributeId, Ua.NumericRange indexRange)
+        public object GetAttributeValue(
+            FilterContext context,
+            NodeId typeDefinitionId,
+            IList<QualifiedName> relativePath,
+            uint attributeId,
+            Ua.NumericRange indexRange
+        )
         {
             throw new NotImplementedException();
         }
@@ -67,33 +73,22 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             FilterContext = new FilterContext(namespaceTable, typeTable);
 
             // event filter must be specified.
-            Filter = new EventFilter
-            {
-                WhereClause = new Ua.ContentFilter()
-            };
+            Filter = new EventFilter { WhereClause = new Ua.ContentFilter() };
 
             TestFilterTarget = new TestFilterTarget();
         }
 
         [OneTimeSetUp]
-        protected void OneTimeSetUp()
-        {
-        }
+        protected void OneTimeSetUp() { }
 
         [OneTimeTearDown]
-        protected void OneTimeTearDown()
-        {
-        }
+        protected void OneTimeTearDown() { }
 
         [SetUp]
-        protected void SetUp()
-        {
-        }
+        protected void SetUp() { }
 
         [TearDown]
-        protected void TearDown()
-        {
-        }
+        protected void TearDown() { }
 
         [Test]
         [TestCase(5, 3, 7, true)]
@@ -109,10 +104,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             loperand2.Value = new Variant(operandFirst2);
             loperand3.Value = new Variant(operandFirst3);
 
-            var filterElement = new ContentFilterElement
-            {
-                FilterOperator = FilterOperator.Between
-            };
+            var filterElement = new ContentFilterElement { FilterOperator = FilterOperator.Between };
             filterElement.SetOperands(new List<LiteralOperand>() { loperand1, loperand2, loperand3 });
             Filter.WhereClause.Elements = new[] { filterElement };
 
@@ -125,7 +117,13 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [TestCase(3, 3, 5, 7, true)]
         [TestCase(3, 1, 5, 7, false)]
         [Category("ContentFilter")]
-        public void InList(object operandFirst1, object operandFirst2, object operandFirst3, object operandFirst4, object expectedResult)
+        public void InList(
+            object operandFirst1,
+            object operandFirst2,
+            object operandFirst3,
+            object operandFirst4,
+            object expectedResult
+        )
         {
             var loperand1 = new LiteralOperand();
             var loperand2 = new LiteralOperand();
@@ -137,10 +135,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             loperand3.Value = new Variant(operandFirst3);
             loperand4.Value = new Variant(operandFirst4);
 
-            var filterElement = new ContentFilterElement
-            {
-                FilterOperator = FilterOperator.InList
-            };
+            var filterElement = new ContentFilterElement { FilterOperator = FilterOperator.InList };
             filterElement.SetOperands(new List<LiteralOperand>() { loperand1, loperand2, loperand3, loperand4 });
             Filter.WhereClause.Elements = new[] { filterElement };
 
@@ -154,18 +149,11 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [TestCase(1, FilterOperator.IsNull, false)]
         [TestCase(false, FilterOperator.Not, true)]
         [TestCase(true, FilterOperator.Not, false)]
-
         public void UnaryFilterOperators(object operandFirst1, FilterOperator filterOp, object expectedResult)
         {
-            var loperand1 = new LiteralOperand
-            {
-                Value = new Variant(operandFirst1)
-            };
+            var loperand1 = new LiteralOperand { Value = new Variant(operandFirst1) };
 
-            var filterElement = new ContentFilterElement
-            {
-                FilterOperator = filterOp
-            };
+            var filterElement = new ContentFilterElement { FilterOperator = filterOp };
             filterElement.SetOperands(new List<LiteralOperand>() { loperand1 });
             Filter.WhereClause.Elements = new[] { filterElement };
 
@@ -193,8 +181,12 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [TestCase(false, false, FilterOperator.Or, false)]
         [TestCase(true, true, FilterOperator.And, true)]
         [TestCase(true, false, FilterOperator.And, false)]
-
-        public void BinaryFilterOperators(object operandFirst1, object operandFirst2, FilterOperator filterOp, object expectedResult)
+        public void BinaryFilterOperators(
+            object operandFirst1,
+            object operandFirst2,
+            FilterOperator filterOp,
+            object expectedResult
+        )
         {
             var loperand1 = new LiteralOperand();
             var loperand2 = new LiteralOperand();
@@ -210,10 +202,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
                 loperand2.Value = new Variant(operandFirst2);
             }
 
-            var filterElement = new ContentFilterElement
-            {
-                FilterOperator = filterOp
-            };
+            var filterElement = new ContentFilterElement { FilterOperator = filterOp };
             filterElement.SetOperands(new List<LiteralOperand>() { loperand1, loperand2 });
             Filter.WhereClause.Elements = new[] { filterElement };
 
@@ -227,7 +216,13 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [TestCase((byte)2, (byte)3, FilterOperator.BitwiseAnd, FilterOperator.IsNull, false)]
         [TestCase((ushort)5, (uint)BuiltInType.String, FilterOperator.Cast, FilterOperator.IsNull, false)]
         [TestCase((ushort)5, (uint)BuiltInType.Null, FilterOperator.Cast, FilterOperator.IsNull, true)]
-        public void NonBoolWithUnary(object operandFirst1, object operandFirst2, FilterOperator filterOp1, FilterOperator filterOp2, object expectedResult)
+        public void NonBoolWithUnary(
+            object operandFirst1,
+            object operandFirst2,
+            FilterOperator filterOp1,
+            FilterOperator filterOp2,
+            object expectedResult
+        )
         {
             // Setup the First ContentfilterElement (the BitwiseOr or BitwiseAnd filter operation)
             var loperand1 = new LiteralOperand();
@@ -243,22 +238,16 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
                 loperand2.Value = new Variant(operandFirst2);
             }
 
-            var filterElement1 = new ContentFilterElement
-            {
-                FilterOperator = filterOp1
-            };
+            var filterElement1 = new ContentFilterElement { FilterOperator = filterOp1 };
             filterElement1.SetOperands([loperand1, loperand2]);
 
             // Setup the Second ContentfilterElement
             var elementOperand = new ElementOperand
             {
-                Index = 1 // link to filterElement1
+                Index = 1, // link to filterElement1
             };
 
-            var filterElement2 = new ContentFilterElement
-            {
-                FilterOperator = filterOp2
-            };
+            var filterElement2 = new ContentFilterElement { FilterOperator = filterOp2 };
             filterElement2.SetOperands([elementOperand]);
 
             Filter.WhereClause.Elements = new[] { filterElement2, filterElement1 };
@@ -280,7 +269,14 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [TestCase((ushort)5, (uint)BuiltInType.Null, FilterOperator.Cast, null, FilterOperator.Equals, true)]
         [TestCase((ushort)5, (uint)BuiltInType.Null, FilterOperator.Cast, "5", FilterOperator.Equals, false)]
         [Category("ContentFilter")]
-        public void NonBoolWithBinary(object operandFirst1, object operandFirst2, FilterOperator filterOp1, object operandSecondFilter, FilterOperator filterOp2, object expectedResult)
+        public void NonBoolWithBinary(
+            object operandFirst1,
+            object operandFirst2,
+            FilterOperator filterOp1,
+            object operandSecondFilter,
+            FilterOperator filterOp2,
+            object expectedResult
+        )
         {
             // Setup the First ContentfilterElement (the BitwiseOr or BitwiseAnd filter operation)
             var loperand1 = new LiteralOperand();
@@ -296,26 +292,17 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
                 loperand2.Value = new Variant(operandFirst2);
             }
 
-            var filterElement1 = new ContentFilterElement
-            {
-                FilterOperator = filterOp1
-            };
+            var filterElement1 = new ContentFilterElement { FilterOperator = filterOp1 };
             filterElement1.SetOperands([loperand1, loperand2]);
 
             // Setup the Second ContentfilterElement
-            var lFirstOperand = new LiteralOperand
-            {
-                Value = new Variant(operandSecondFilter)
-            };
+            var lFirstOperand = new LiteralOperand { Value = new Variant(operandSecondFilter) };
             var elementOperand = new ElementOperand
             {
-                Index = 1 // link to filterElement1
+                Index = 1, // link to filterElement1
             };
 
-            var filterElement2 = new ContentFilterElement
-            {
-                FilterOperator = filterOp2
-            };
+            var filterElement2 = new ContentFilterElement { FilterOperator = filterOp2 };
             filterElement2.SetOperands([lFirstOperand, elementOperand]);
 
             Filter.WhereClause.Elements = new[] { filterElement2, filterElement1 };
@@ -332,16 +319,18 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
         [TestCase("mainstation", "Mainstation", StringComparison.InvariantCultureIgnoreCase, true)]
         [TestCase("mainstation", "Mainstation", StringComparison.InvariantCulture, false)]
         [TestCase("mainstation", "mainstation", StringComparison.InvariantCulture, true)]
-        public void EqualsStringComparsion(string operandFirst1, string operandFirst2, StringComparison stringComparison, object expectedResult)
+        public void EqualsStringComparsion(
+            string operandFirst1,
+            string operandFirst2,
+            StringComparison stringComparison,
+            object expectedResult
+        )
         {
             Ua.ContentFilter.EqualsOperatorDefaultStringComparison = stringComparison;
             var loperand1 = new LiteralOperand { Value = new Variant(operandFirst1) };
             var loperand2 = new LiteralOperand { Value = new Variant(operandFirst2) };
 
-            var filterElement = new ContentFilterElement
-            {
-                FilterOperator = FilterOperator.Equals
-            };
+            var filterElement = new ContentFilterElement { FilterOperator = FilterOperator.Equals };
             filterElement.SetOperands(new List<LiteralOperand>() { loperand1, loperand2 });
             Filter.WhereClause.Elements = new[] { filterElement };
 

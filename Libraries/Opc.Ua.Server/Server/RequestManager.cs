@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -61,7 +61,11 @@ namespace Opc.Ua.Server
         /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2213:DisposableFieldsShouldBeDisposed", MessageId = "m_requestTimer")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Microsoft.Usage",
+            "CA2213:DisposableFieldsShouldBeDisposed",
+            MessageId = "m_requestTimer"
+        )]
         protected virtual void Dispose(bool disposing)
         {
             if (disposing)
@@ -96,7 +100,6 @@ namespace Opc.Ua.Server
                     m_RequestCancelled += value;
                 }
             }
-
             remove
             {
                 lock (m_lock)
@@ -246,6 +249,7 @@ namespace Opc.Ua.Server
         }
 
         private readonly object m_lock = new();
+
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
         private readonly IServerInternal m_server;
         private readonly Dictionary<uint, OperationContext> m_requests;
@@ -257,8 +261,5 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Called when a request is cancelled.
     /// </summary>
-    public delegate void RequestCancelledEventHandler(
-        RequestManager source,
-        uint requestId,
-        StatusCode statusCode);
+    public delegate void RequestCancelledEventHandler(RequestManager source, uint requestId, StatusCode statusCode);
 }

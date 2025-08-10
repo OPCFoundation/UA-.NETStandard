@@ -22,7 +22,8 @@ namespace Opc.Ua
         /// </summary>
         public NotificationMessage Message
         {
-            get => Handle as NotificationMessage; set => Handle = value;
+            get => Handle as NotificationMessage;
+            set => Handle = value;
         }
 
         /// <summary>

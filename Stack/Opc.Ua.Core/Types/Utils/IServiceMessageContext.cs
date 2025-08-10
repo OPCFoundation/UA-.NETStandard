@@ -13,9 +13,9 @@
 namespace Opc.Ua
 {
     /// <summary>
-	/// Stores context information for message encoding and decoding.
-	/// </summary>
-	public interface IServiceMessageContext
+    /// Stores context information for message encoding and decoding.
+    /// </summary>
+    public interface IServiceMessageContext
     {
         /// <summary>
         /// The maximum length for any string, byte string or xml element.

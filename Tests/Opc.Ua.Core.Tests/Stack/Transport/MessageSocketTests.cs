@@ -15,24 +15,16 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
     public class MessageSocketTests
     {
         [OneTimeSetUp]
-        protected void OneTimeSetUp()
-        {
-        }
+        protected void OneTimeSetUp() { }
 
         [OneTimeTearDown]
-        protected void OneTimeTearDown()
-        {
-        }
+        protected void OneTimeTearDown() { }
 
         [SetUp]
-        protected void SetUp()
-        {
-        }
+        protected void SetUp() { }
 
         [TearDown]
-        protected void TearDown()
-        {
-        }
+        protected void TearDown() { }
 
         [Test]
         public void IMessageSocketIPEndpointReturned()

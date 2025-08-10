@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2024 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -81,7 +81,8 @@ namespace Opc.Ua.Buffers.Tests
         public void ArrayPoolBufferWriterChunking(
             [Values(0, 1, 16, 128, 333, 1024, 7777)] int chunkSize,
             [Values(16, 333, 1024, 4096)] int defaultChunkSize,
-            [Values(0, 1024, 4096, 65536)] int maxChunkSize)
+            [Values(0, 1024, 4096, 65536)] int maxChunkSize
+        )
         {
             var random = new Random(42);
             int length;
@@ -112,8 +113,7 @@ namespace Opc.Ua.Buffers.Tests
                     }
 
                     Assert.That(span.Length, Is.GreaterThanOrEqualTo(chunkSize));
-                }
-                while (repeats-- > 0);
+                } while (repeats-- > 0);
 
                 // fill chunk with a byte
                 for (int v = 0; v < chunkSize; v++)

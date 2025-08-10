@@ -44,26 +44,32 @@ namespace Quickstarts.Servers
             IsPersisted = false;
             MonitoredItemId = monitoredItemId;
         }
+
         /// <summary>
         /// The unique Id of the batch
         /// </summary>
         public Guid Id { get; }
+
         /// <summary>
         /// The number of values in the batch
         /// </summary>
         public uint BatchSize { get; }
+
         /// <summary>
         /// The Id of the Monitored Item owning the batch
         /// </summary>
         public uint MonitoredItemId { get; }
+
         /// <summary>
         /// The batch has been persisted to disk
         /// </summary>
         public bool IsPersisted { get; protected set; }
+
         /// <summary>
         /// Restore is currently in progress in a background thread
         /// </summary>
         public bool RestoreInProgress { get; set; }
+
         /// <summary>
         /// Peristing is currently in progress in a background thread
         /// </summary>
@@ -73,6 +79,7 @@ namespace Quickstarts.Servers
         /// Marks the batch as persisted and removes the data from memory
         /// </summary>
         public abstract void SetPersisted();
+
         /// <summary>
         /// Cancel this token to stop the persisting of the batch
         /// </summary>

@@ -44,24 +44,19 @@ namespace Opc.Ua.Bindings
             uint channelId,
             X509Certificate2 clientCertificate,
             ChannelToken token,
-            OpenSecureChannelRequest request);
+            OpenSecureChannelRequest request
+        );
 
         /// <summary>
         /// Used to transfer a reverse connection socket to the client.
         /// </summary>
         [Obsolete("Use TransferListenerChannelAsync instead.")]
-        Task<bool> TransferListenerChannel(
-            uint channelId,
-            string serverUri,
-            Uri endpointUrl);
+        Task<bool> TransferListenerChannel(uint channelId, string serverUri, Uri endpointUrl);
 
         /// <summary>
         /// Used to transfer a reverse connection socket to the client.
         /// </summary>
-        Task<bool> TransferListenerChannelAsync(
-            uint channelId,
-            string serverUri,
-            Uri endpointUrl);
+        Task<bool> TransferListenerChannelAsync(uint channelId, string serverUri, Uri endpointUrl);
 
         /// <summary>
         /// Called when a channel closes.

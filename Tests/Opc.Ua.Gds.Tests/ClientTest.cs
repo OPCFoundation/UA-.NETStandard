@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -70,9 +70,10 @@ namespace Opc.Ua.Gds.Tests
         /// <summary>
         /// store types to run the tests with
         /// </summary>
-        public static readonly object[] FixtureArgs = [
-            new object [] { CertificateStoreType.Directory},
-            new object [] { CertificateStoreType.X509Store}
+        public static readonly object[] FixtureArgs =
+        [
+            new object[] { CertificateStoreType.Directory },
+            new object[] { CertificateStoreType.X509Store },
         ];
 
         public ClientTest(string storeType = CertificateStoreType.Directory)
@@ -100,7 +101,10 @@ namespace Opc.Ua.Gds.Tests
             // good applications test set
             m_appTestDataGenerator = new ApplicationTestDataGenerator(1);
             m_goodApplicationTestSet = m_appTestDataGenerator.ApplicationTestSet(kGoodApplicationsTestCount, false);
-            m_invalidApplicationTestSet = m_appTestDataGenerator.ApplicationTestSet(kInvalidApplicationsTestCount, true);
+            m_invalidApplicationTestSet = m_appTestDataGenerator.ApplicationTestSet(
+                kInvalidApplicationsTestCount,
+                true
+            );
 
             m_goodRegistrationOk = false;
             m_invalidRegistrationOk = false;
@@ -108,11 +112,15 @@ namespace Opc.Ua.Gds.Tests
             m_gdsRegisteredTestClient = false;
 
             //get supported CertificateTypes from GDS
-            m_supportedCertificateTypes = [.. m_server.Config.ParseExtension<GlobalDiscoveryServerConfiguration>().CertificateGroups
-                .Where(cg => cg.Id == "Default")
-                .SelectMany(cg => cg.CertificateTypes)
-                .Select(s => typeof(Ua.ObjectTypeIds).GetField(s).GetValue(null) as NodeId)
-                .Where(n => n != null && Utils.IsSupportedCertificateType(n))];
+            m_supportedCertificateTypes =
+            [
+                .. m_server
+                    .Config.ParseExtension<GlobalDiscoveryServerConfiguration>()
+                    .CertificateGroups.Where(cg => cg.Id == "Default")
+                    .SelectMany(cg => cg.CertificateTypes)
+                    .Select(s => typeof(Ua.ObjectTypeIds).GetField(s).GetValue(null) as NodeId)
+                    .Where(n => n != null && Utils.IsSupportedCertificateType(n)),
+            ];
         }
 
         /// <summary>
@@ -154,7 +162,9 @@ namespace Opc.Ua.Gds.Tests
             ConnectGDS(true);
             foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                ApplicationRecordDataType[] applicationDataRecords = m_gdsClient.GDSClient.FindApplication(application.ApplicationRecord.ApplicationUri);
+                ApplicationRecordDataType[] applicationDataRecords = m_gdsClient.GDSClient.FindApplication(
+                    application.ApplicationRecord.ApplicationUri
+                );
                 if (applicationDataRecords != null)
                 {
                     foreach (ApplicationRecordDataType applicationDataRecord in applicationDataRecords)
@@ -197,7 +207,9 @@ namespace Opc.Ua.Gds.Tests
                 Assert.IsFalse(id.IsNullNodeId);
                 NUnit.Framework.Assert.That(id.IdType == IdType.Guid || id.IdType == IdType.String);
                 newRecord.ApplicationId = id;
-                ApplicationRecordDataType[] applicationDataRecords = m_gdsClient.GDSClient.FindApplication(newRecord.ApplicationUri);
+                ApplicationRecordDataType[] applicationDataRecords = m_gdsClient.GDSClient.FindApplication(
+                    newRecord.ApplicationUri
+                );
                 Assert.NotNull(applicationDataRecords);
                 bool newIdFound = false;
                 bool registeredIdFound = false;
@@ -224,7 +236,10 @@ namespace Opc.Ua.Gds.Tests
             ConnectGDS(true);
             foreach (ApplicationTestData application in m_invalidApplicationTestSet)
             {
-                NUnit.Framework.Assert.That(() => _ = m_gdsClient.GDSClient.RegisterApplication(application.ApplicationRecord), Throws.Exception);
+                NUnit.Framework.Assert.That(
+                    () => _ = m_gdsClient.GDSClient.RegisterApplication(application.ApplicationRecord),
+                    Throws.Exception
+                );
             }
             m_invalidRegistrationOk = true;
         }
@@ -236,7 +251,10 @@ namespace Opc.Ua.Gds.Tests
             ConnectGDS(false);
             foreach (ApplicationTestData application in m_invalidApplicationTestSet)
             {
-                NUnit.Framework.Assert.That(() => _ = m_gdsClient.GDSClient.RegisterApplication(application.ApplicationRecord), Throws.Exception);
+                NUnit.Framework.Assert.That(
+                    () => _ = m_gdsClient.GDSClient.RegisterApplication(application.ApplicationRecord),
+                    Throws.Exception
+                );
             }
         }
 
@@ -247,10 +265,13 @@ namespace Opc.Ua.Gds.Tests
             ConnectGDS(true);
             foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                var updatedApplicationRecord = (ApplicationRecordDataType)application.ApplicationRecord.MemberwiseClone();
+                var updatedApplicationRecord = (ApplicationRecordDataType)
+                    application.ApplicationRecord.MemberwiseClone();
                 updatedApplicationRecord.ApplicationUri += "update";
                 m_gdsClient.GDSClient.UpdateApplication(updatedApplicationRecord);
-                ApplicationRecordDataType[] result = m_gdsClient.GDSClient.FindApplication(updatedApplicationRecord.ApplicationUri);
+                ApplicationRecordDataType[] result = m_gdsClient.GDSClient.FindApplication(
+                    updatedApplicationRecord.ApplicationUri
+                );
                 m_gdsClient.GDSClient.UpdateApplication(application.ApplicationRecord);
                 Assert.NotNull(result);
                 Assert.GreaterOrEqual(1, result.Length, "Couldn't find updated application record");
@@ -266,7 +287,10 @@ namespace Opc.Ua.Gds.Tests
             {
                 var testApplicationRecord = (ApplicationRecordDataType)application.ApplicationRecord.MemberwiseClone();
                 testApplicationRecord.ApplicationId = new NodeId(Guid.NewGuid());
-                NUnit.Framework.Assert.That(() => m_gdsClient.GDSClient.UpdateApplication(testApplicationRecord), Throws.Exception);
+                NUnit.Framework.Assert.That(
+                    () => m_gdsClient.GDSClient.UpdateApplication(testApplicationRecord),
+                    Throws.Exception
+                );
             }
         }
 
@@ -278,8 +302,13 @@ namespace Opc.Ua.Gds.Tests
             foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
                 var testApplicationRecord = (ApplicationRecordDataType)application.ApplicationRecord.MemberwiseClone();
-                testApplicationRecord.ApplicationId = new NodeId("s=" + m_appTestDataGenerator.DataGenerator.GetRandomString("en"));
-                NUnit.Framework.Assert.That(() => m_gdsClient.GDSClient.UpdateApplication(testApplicationRecord), Throws.Exception);
+                testApplicationRecord.ApplicationId = new NodeId(
+                    "s=" + m_appTestDataGenerator.DataGenerator.GetRandomString("en")
+                );
+                NUnit.Framework.Assert.That(
+                    () => m_gdsClient.GDSClient.UpdateApplication(testApplicationRecord),
+                    Throws.Exception
+                );
             }
         }
 
@@ -290,7 +319,10 @@ namespace Opc.Ua.Gds.Tests
             ConnectGDS(true);
             foreach (ApplicationTestData application in m_invalidApplicationTestSet)
             {
-                NUnit.Framework.Assert.That(() => m_gdsClient.GDSClient.UpdateApplication(application.ApplicationRecord), Throws.Exception);
+                NUnit.Framework.Assert.That(
+                    () => m_gdsClient.GDSClient.UpdateApplication(application.ApplicationRecord),
+                    Throws.Exception
+                );
             }
         }
 
@@ -301,7 +333,9 @@ namespace Opc.Ua.Gds.Tests
             ConnectGDS(false);
             foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                ApplicationRecordDataType[] result = m_gdsClient.GDSClient.FindApplication(application.ApplicationRecord.ApplicationUri);
+                ApplicationRecordDataType[] result = m_gdsClient.GDSClient.FindApplication(
+                    application.ApplicationRecord.ApplicationUri
+                );
                 Assert.NotNull(result);
                 Assert.GreaterOrEqual(result.Length, 1, "Couldn't find good application");
             }
@@ -314,7 +348,9 @@ namespace Opc.Ua.Gds.Tests
             ConnectGDS(true);
             foreach (ApplicationTestData application in m_invalidApplicationTestSet)
             {
-                ApplicationRecordDataType[] result = m_gdsClient.GDSClient.FindApplication(application.ApplicationRecord.ApplicationUri);
+                ApplicationRecordDataType[] result = m_gdsClient.GDSClient.FindApplication(
+                    application.ApplicationRecord.ApplicationUri
+                );
                 if (result != null)
                 {
                     Assert.NotNull(result);
@@ -330,7 +366,9 @@ namespace Opc.Ua.Gds.Tests
             ConnectGDS(false);
             foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                ApplicationRecordDataType result = m_gdsClient.GDSClient.GetApplication(application.ApplicationRecord.ApplicationId);
+                ApplicationRecordDataType result = m_gdsClient.GDSClient.GetApplication(
+                    application.ApplicationRecord.ApplicationId
+                );
                 Assert.NotNull(result);
                 result.ServerCapabilities.Sort();
                 application.ApplicationRecord.ServerCapabilities.Sort();
@@ -345,7 +383,9 @@ namespace Opc.Ua.Gds.Tests
             ConnectGDS(false);
             foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                ApplicationRecordDataType result = m_gdsClient.GDSClient.GetApplication(application.ApplicationRecord.ApplicationId);
+                ApplicationRecordDataType result = m_gdsClient.GDSClient.GetApplication(
+                    application.ApplicationRecord.ApplicationId
+                );
                 Assert.NotNull(result);
                 Assert.IsTrue(Utils.IsEqual(application.ApplicationRecord.ApplicationId, result.ApplicationId));
             }
@@ -358,7 +398,9 @@ namespace Opc.Ua.Gds.Tests
             ConnectGDS(false);
             foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                ApplicationRecordDataType result = m_gdsClient.GDSClient.GetApplication(application.ApplicationRecord.ApplicationId);
+                ApplicationRecordDataType result = m_gdsClient.GDSClient.GetApplication(
+                    application.ApplicationRecord.ApplicationId
+                );
                 Assert.NotNull(result);
                 Assert.IsTrue(Utils.IsEqual(application.ApplicationRecord.ApplicationNames, result.ApplicationNames));
             }
@@ -371,7 +413,9 @@ namespace Opc.Ua.Gds.Tests
             ConnectGDS(false);
             foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                ApplicationRecordDataType result = m_gdsClient.GDSClient.GetApplication(application.ApplicationRecord.ApplicationId);
+                ApplicationRecordDataType result = m_gdsClient.GDSClient.GetApplication(
+                    application.ApplicationRecord.ApplicationId
+                );
                 Assert.NotNull(result);
                 Assert.IsTrue(Utils.IsEqual(application.ApplicationRecord.ApplicationType, result.ApplicationType));
             }
@@ -384,7 +428,9 @@ namespace Opc.Ua.Gds.Tests
             ConnectGDS(false);
             foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                ApplicationRecordDataType result = m_gdsClient.GDSClient.GetApplication(application.ApplicationRecord.ApplicationId);
+                ApplicationRecordDataType result = m_gdsClient.GDSClient.GetApplication(
+                    application.ApplicationRecord.ApplicationId
+                );
                 Assert.NotNull(result);
                 Assert.IsTrue(Utils.IsEqual(application.ApplicationRecord.ApplicationUri, result.ApplicationUri));
             }
@@ -397,7 +443,9 @@ namespace Opc.Ua.Gds.Tests
             ConnectGDS(false);
             foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                ApplicationRecordDataType result = m_gdsClient.GDSClient.GetApplication(application.ApplicationRecord.ApplicationId);
+                ApplicationRecordDataType result = m_gdsClient.GDSClient.GetApplication(
+                    application.ApplicationRecord.ApplicationId
+                );
                 Assert.NotNull(result);
                 Assert.IsTrue(Utils.IsEqual(application.ApplicationRecord.DiscoveryUrls, result.DiscoveryUrls));
             }
@@ -410,7 +458,9 @@ namespace Opc.Ua.Gds.Tests
             ConnectGDS(false);
             foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                ApplicationRecordDataType result = m_gdsClient.GDSClient.GetApplication(application.ApplicationRecord.ApplicationId);
+                ApplicationRecordDataType result = m_gdsClient.GDSClient.GetApplication(
+                    application.ApplicationRecord.ApplicationId
+                );
                 Assert.NotNull(result);
                 Assert.IsTrue(Utils.IsEqual(application.ApplicationRecord.ProductUri, result.ProductUri));
             }
@@ -423,11 +473,15 @@ namespace Opc.Ua.Gds.Tests
             ConnectGDS(false);
             foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                ApplicationRecordDataType result = m_gdsClient.GDSClient.GetApplication(application.ApplicationRecord.ApplicationId);
+                ApplicationRecordDataType result = m_gdsClient.GDSClient.GetApplication(
+                    application.ApplicationRecord.ApplicationId
+                );
                 Assert.NotNull(result);
                 result.ServerCapabilities.Sort();
                 application.ApplicationRecord.ServerCapabilities.Sort();
-                Assert.IsTrue(Utils.IsEqual(application.ApplicationRecord.ServerCapabilities, result.ServerCapabilities));
+                Assert.IsTrue(
+                    Utils.IsEqual(application.ApplicationRecord.ServerCapabilities, result.ServerCapabilities)
+                );
             }
         }
 
@@ -438,7 +492,15 @@ namespace Opc.Ua.Gds.Tests
             ConnectGDS(true);
             foreach (ApplicationTestData application in m_invalidApplicationTestSet)
             {
-                NUnit.Framework.Assert.That(() => { ApplicationRecordDataType result = m_gdsClient.GDSClient.GetApplication(application.ApplicationRecord.ApplicationId); }, Throws.Exception);
+                NUnit.Framework.Assert.That(
+                    () =>
+                    {
+                        ApplicationRecordDataType result = m_gdsClient.GDSClient.GetApplication(
+                            application.ApplicationRecord.ApplicationId
+                        );
+                    },
+                    Throws.Exception
+                );
             }
         }
 
@@ -450,11 +512,19 @@ namespace Opc.Ua.Gds.Tests
             // get all servers
             IList<ServerOnNetwork> allServers = m_gdsClient.GDSClient.QueryServers(0, "", "", "", []);
             int totalCount = 0;
-            uint firstID = uint.MaxValue, lastID = 0;
+            uint firstID = uint.MaxValue,
+                lastID = 0;
             Assert.IsNotNull(allServers);
             foreach (ServerOnNetwork server in allServers)
             {
-                IList<ServerOnNetwork> oneServers = m_gdsClient.GDSClient.QueryServers(server.RecordId, 1, "", "", "", []);
+                IList<ServerOnNetwork> oneServers = m_gdsClient.GDSClient.QueryServers(
+                    server.RecordId,
+                    1,
+                    "",
+                    "",
+                    "",
+                    []
+                );
                 Assert.IsNotNull(oneServers);
                 Assert.GreaterOrEqual(oneServers.Count, 1);
                 foreach (ServerOnNetwork oneServer in oneServers)
@@ -480,11 +550,19 @@ namespace Opc.Ua.Gds.Tests
             // get all servers
             IList<ServerOnNetwork> allServers = m_gdsClient.GDSClient.QueryServers(0, null, null, null, null);
             int totalCount = 0;
-            uint firstID = uint.MaxValue, lastID = 0;
+            uint firstID = uint.MaxValue,
+                lastID = 0;
             Assert.IsNotNull(allServers);
             foreach (ServerOnNetwork server in allServers)
             {
-                IList<ServerOnNetwork> oneServers = m_gdsClient.GDSClient.QueryServers(server.RecordId, 1, null, null, null, null);
+                IList<ServerOnNetwork> oneServers = m_gdsClient.GDSClient.QueryServers(
+                    server.RecordId,
+                    1,
+                    null,
+                    null,
+                    null,
+                    null
+                );
                 Assert.IsNotNull(oneServers);
                 Assert.GreaterOrEqual(oneServers.Count, 1);
                 foreach (ServerOnNetwork oneServer in oneServers)
@@ -512,7 +590,14 @@ namespace Opc.Ua.Gds.Tests
             int goodServersOnNetwork = GoodServersOnNetworkCount();
             while (true)
             {
-                IList<ServerOnNetwork> iterServers = m_gdsClient.GDSClient.QueryServers(nextID, iterationCount, "", "", "", null);
+                IList<ServerOnNetwork> iterServers = m_gdsClient.GDSClient.QueryServers(
+                    nextID,
+                    iterationCount,
+                    "",
+                    "",
+                    "",
+                    null
+                );
                 Assert.IsNotNull(iterServers);
                 serversOnNetwork += iterServers.Count;
                 if (iterServers.Count == 0)
@@ -533,7 +618,13 @@ namespace Opc.Ua.Gds.Tests
             const int searchPatternLength = 5;
             foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                IList<ServerOnNetwork> atLeastOneServer = m_gdsClient.GDSClient.QueryServers(1, application.ApplicationRecord.ApplicationNames[0].Text, "", "", null);
+                IList<ServerOnNetwork> atLeastOneServer = m_gdsClient.GDSClient.QueryServers(
+                    1,
+                    application.ApplicationRecord.ApplicationNames[0].Text,
+                    "",
+                    "",
+                    null
+                );
                 Assert.IsNotNull(atLeastOneServer);
                 if (application.ApplicationRecord.ApplicationType != ApplicationType.Client)
                 {
@@ -565,7 +656,13 @@ namespace Opc.Ua.Gds.Tests
             const int searchPatternLength = 5;
             foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                IList<ServerOnNetwork> atLeastOneServer = m_gdsClient.GDSClient.QueryServers(1, null, application.ApplicationRecord.ApplicationUri, null, null);
+                IList<ServerOnNetwork> atLeastOneServer = m_gdsClient.GDSClient.QueryServers(
+                    1,
+                    null,
+                    application.ApplicationRecord.ApplicationUri,
+                    null,
+                    null
+                );
                 Assert.IsNotNull(atLeastOneServer);
                 if (application.ApplicationRecord.ApplicationType != ApplicationType.Client)
                 {
@@ -597,7 +694,13 @@ namespace Opc.Ua.Gds.Tests
             const int searchPatternLength = 5;
             foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                IList<ServerOnNetwork> atLeastOneServer = m_gdsClient.GDSClient.QueryServers(1, null, null, application.ApplicationRecord.ProductUri, null);
+                IList<ServerOnNetwork> atLeastOneServer = m_gdsClient.GDSClient.QueryServers(
+                    1,
+                    null,
+                    null,
+                    application.ApplicationRecord.ProductUri,
+                    null
+                );
                 Assert.IsNotNull(atLeastOneServer);
                 if (application.ApplicationRecord.ApplicationType != ApplicationType.Client)
                 {
@@ -630,13 +733,33 @@ namespace Opc.Ua.Gds.Tests
             // get all applications
             DateTime lastResetCounterTime;
             uint nextRecordId;
-            IList<ApplicationDescription> allApplications = m_gdsClient.GDSClient.QueryApplications(0, 0, "", "", 0, "", [], out lastResetCounterTime, out nextRecordId);
+            IList<ApplicationDescription> allApplications = m_gdsClient.GDSClient.QueryApplications(
+                0,
+                0,
+                "",
+                "",
+                0,
+                "",
+                [],
+                out lastResetCounterTime,
+                out nextRecordId
+            );
             int totalCount = 0;
             Assert.IsNotNull(allApplications);
             nextRecordId = 0;
             foreach (ApplicationDescription application in allApplications)
             {
-                IList<ApplicationDescription> oneApplication = m_gdsClient.GDSClient.QueryApplications(nextRecordId, 1, "", "", 0, "", [], out lastResetCounterTime, out nextRecordId);
+                IList<ApplicationDescription> oneApplication = m_gdsClient.GDSClient.QueryApplications(
+                    nextRecordId,
+                    1,
+                    "",
+                    "",
+                    0,
+                    "",
+                    [],
+                    out lastResetCounterTime,
+                    out nextRecordId
+                );
                 Assert.IsNotNull(oneApplication);
                 Assert.GreaterOrEqual(oneApplication.Count, 1);
                 foreach (ApplicationDescription oneApp in oneApplication)
@@ -668,7 +791,8 @@ namespace Opc.Ua.Gds.Tests
                     application.Subject,
                     application.DomainNames,
                     application.PrivateKeyFormat,
-                    application.PrivateKeyPassword);
+                    application.PrivateKeyPassword
+                );
                 Assert.NotNull(requestId);
                 application.CertificateRequestId = requestId;
             }
@@ -683,17 +807,21 @@ namespace Opc.Ua.Gds.Tests
             foreach (ApplicationTestData application in m_invalidApplicationTestSet)
             {
                 Assert.Null(application.CertificateRequestId);
-                NUnit.Framework.Assert.That(() =>
-                {
-                    _ = m_gdsClient.GDSClient.StartNewKeyPairRequest(
-                        application.ApplicationRecord.ApplicationId,
-                        application.CertificateGroupId,
-                        application.CertificateTypeId,
-                        application.Subject,
-                        application.DomainNames,
-                        application.PrivateKeyFormat,
-                        application.PrivateKeyPassword);
-                }, Throws.Exception);
+                NUnit.Framework.Assert.That(
+                    () =>
+                    {
+                        _ = m_gdsClient.GDSClient.StartNewKeyPairRequest(
+                            application.ApplicationRecord.ApplicationId,
+                            application.CertificateGroupId,
+                            application.CertificateTypeId,
+                            application.Subject,
+                            application.DomainNames,
+                            application.PrivateKeyFormat,
+                            application.PrivateKeyPassword
+                        );
+                    },
+                    Throws.Exception
+                );
             }
         }
 
@@ -719,7 +847,7 @@ namespace Opc.Ua.Gds.Tests
                                 application.CertificateRequestId,
                                 out byte[] privateKey,
                                 out byte[][] issuerCertificates
-                                );
+                            );
 
                             if (certificate != null)
                             {
@@ -732,7 +860,13 @@ namespace Opc.Ua.Gds.Tests
                                 application.PrivateKey = privateKey;
                                 application.IssuerCertificates = issuerCertificates;
                                 X509TestUtils.VerifySignedApplicationCert(application, certificate, issuerCertificates);
-                                X509TestUtils.VerifyApplicationCertIntegrity(certificate, privateKey, application.PrivateKeyPassword, application.PrivateKeyFormat, issuerCertificates);
+                                X509TestUtils.VerifyApplicationCertIntegrity(
+                                    certificate,
+                                    privateKey,
+                                    application.PrivateKeyPassword,
+                                    application.PrivateKeyFormat,
+                                    issuerCertificates
+                                );
                             }
                             else
                             {
@@ -741,8 +875,7 @@ namespace Opc.Ua.Gds.Tests
                         }
                         catch (ServiceResultException sre)
                         {
-                            if (sre.StatusCode == StatusCodes.BadNothingToDo &&
-                                now.AddMinutes(5) > DateTime.UtcNow)
+                            if (sre.StatusCode == StatusCodes.BadNothingToDo && now.AddMinutes(5) > DateTime.UtcNow)
                             {
                                 requestBusy = true;
                                 Thread.Sleep(1000);
@@ -770,15 +903,18 @@ namespace Opc.Ua.Gds.Tests
             ConnectGDS(true);
             foreach (ApplicationTestData application in m_invalidApplicationTestSet)
             {
-                NUnit.Framework.Assert.That(() =>
-                {
-                    _ = m_gdsClient.GDSClient.FinishRequest(
-                        application.ApplicationRecord.ApplicationId,
-                        new NodeId(Guid.NewGuid()),
-                        out byte[] privateKey,
-                        out byte[][] issuerCertificates
-                    );
-                }, Throws.Exception);
+                NUnit.Framework.Assert.That(
+                    () =>
+                    {
+                        _ = m_gdsClient.GDSClient.FinishRequest(
+                            application.ApplicationRecord.ApplicationId,
+                            new NodeId(Guid.NewGuid()),
+                            out byte[] privateKey,
+                            out byte[][] issuerCertificates
+                        );
+                    },
+                    Throws.Exception
+                );
             }
         }
 
@@ -794,19 +930,30 @@ namespace Opc.Ua.Gds.Tests
                 X509Certificate2 csrCertificate;
                 if (application.PrivateKeyFormat == "PFX")
                 {
-                    csrCertificate = X509Utils.CreateCertificateFromPKCS12(application.PrivateKey, application.PrivateKeyPassword);
+                    csrCertificate = X509Utils.CreateCertificateFromPKCS12(
+                        application.PrivateKey,
+                        application.PrivateKeyPassword
+                    );
                 }
                 else
                 {
-                    csrCertificate = CertificateFactory.CreateCertificateWithPEMPrivateKey(X509CertificateLoader.LoadCertificate(application.Certificate), application.PrivateKey, application.PrivateKeyPassword);
+                    csrCertificate = CertificateFactory.CreateCertificateWithPEMPrivateKey(
+                        X509CertificateLoader.LoadCertificate(application.Certificate),
+                        application.PrivateKey,
+                        application.PrivateKeyPassword
+                    );
                 }
-                byte[] certificateRequest = CertificateFactory.CreateSigningRequest(csrCertificate, application.DomainNames);
+                byte[] certificateRequest = CertificateFactory.CreateSigningRequest(
+                    csrCertificate,
+                    application.DomainNames
+                );
                 csrCertificate.Dispose();
                 NodeId requestId = m_gdsClient.GDSClient.StartSigningRequest(
                     application.ApplicationRecord.ApplicationId,
                     application.CertificateGroupId,
                     application.CertificateTypeId,
-                    certificateRequest);
+                    certificateRequest
+                );
                 Assert.NotNull(requestId);
                 application.CertificateRequestId = requestId;
             }
@@ -835,7 +982,7 @@ namespace Opc.Ua.Gds.Tests
                                 application.CertificateRequestId,
                                 out byte[] privateKey,
                                 out byte[][] issuerCertificates
-                                );
+                            );
 
                             if (certificate != null)
                             {
@@ -846,7 +993,13 @@ namespace Opc.Ua.Gds.Tests
                                 application.Certificate = certificate;
                                 application.IssuerCertificates = issuerCertificates;
                                 X509TestUtils.VerifySignedApplicationCert(application, certificate, issuerCertificates);
-                                X509TestUtils.VerifyApplicationCertIntegrity(certificate, application.PrivateKey, application.PrivateKeyPassword, application.PrivateKeyFormat, issuerCertificates);
+                                X509TestUtils.VerifyApplicationCertIntegrity(
+                                    certificate,
+                                    application.PrivateKey,
+                                    application.PrivateKeyPassword,
+                                    application.PrivateKeyFormat,
+                                    issuerCertificates
+                                );
                             }
                             else
                             {
@@ -855,8 +1008,7 @@ namespace Opc.Ua.Gds.Tests
                         }
                         catch (ServiceResultException sre)
                         {
-                            if (sre.StatusCode == StatusCodes.BadNothingToDo &&
-                                now.AddMinutes(5) > DateTime.UtcNow)
+                            if (sre.StatusCode == StatusCodes.BadNothingToDo && now.AddMinutes(5) > DateTime.UtcNow)
                             {
                                 requestBusy = true;
                                 Thread.Sleep(1000);
@@ -884,15 +1036,28 @@ namespace Opc.Ua.Gds.Tests
             AssertIgnoreTestWithoutGoodNewKeyPairRequest();
             ConnectGDS(true);
 
-            NUnit.Framework.Assert.That(() => m_gdsClient.GDSClient.GetCertificates(null, null, out NodeId[] _, out byte[][] _), Throws.Exception);
+            NUnit.Framework.Assert.That(
+                () => m_gdsClient.GDSClient.GetCertificates(null, null, out NodeId[] _, out byte[][] _),
+                Throws.Exception
+            );
 
             foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                m_gdsClient.GDSClient.GetCertificates(application.ApplicationRecord.ApplicationId, null, out NodeId[] certificateTypeIds, out byte[][] certificates);
+                m_gdsClient.GDSClient.GetCertificates(
+                    application.ApplicationRecord.ApplicationId,
+                    null,
+                    out NodeId[] certificateTypeIds,
+                    out byte[][] certificates
+                );
                 NUnit.Framework.Assert.That(certificateTypeIds.Length == 1);
                 Assert.NotNull(certificates[0]);
                 Assert.AreEqual(certificates[0], application.Certificate);
-                m_gdsClient.GDSClient.GetCertificates(application.ApplicationRecord.ApplicationId, application.CertificateGroupId, out NodeId[] certificateTypeIds2, out byte[][] certificates2);
+                m_gdsClient.GDSClient.GetCertificates(
+                    application.ApplicationRecord.ApplicationId,
+                    application.CertificateGroupId,
+                    out NodeId[] certificateTypeIds2,
+                    out byte[][] certificates2
+                );
                 NUnit.Framework.Assert.That(certificateTypeIds2.Length == 1);
                 Assert.NotNull(certificates2[0]);
                 Assert.AreEqual(certificates2[0], application.Certificate);
@@ -910,14 +1075,18 @@ namespace Opc.Ua.Gds.Tests
             // load csr with invalid app URI
             string testCSR = Utils.GetAbsoluteFilePath("test.csr", true, true, false);
             byte[] certificateRequest = File.ReadAllBytes(testCSR);
-            NUnit.Framework.Assert.That(() =>
-            {
-                _ = m_gdsClient.GDSClient.StartSigningRequest(
-                application.ApplicationRecord.ApplicationId,
-                application.CertificateGroupId,
-                application.CertificateTypeId,
-                certificateRequest);
-            }, Throws.Exception);
+            NUnit.Framework.Assert.That(
+                () =>
+                {
+                    _ = m_gdsClient.GDSClient.StartSigningRequest(
+                        application.ApplicationRecord.ApplicationId,
+                        application.CertificateGroupId,
+                        application.CertificateTypeId,
+                        certificateRequest
+                    );
+                },
+                Throws.Exception
+            );
         }
 
         [Test, Order(600)]
@@ -930,12 +1099,22 @@ namespace Opc.Ua.Gds.Tests
 
             foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                NodeId trustListId = m_gdsClient.GDSClient.GetTrustList(application.ApplicationRecord.ApplicationId, null);
+                NodeId trustListId = m_gdsClient.GDSClient.GetTrustList(
+                    application.ApplicationRecord.ApplicationId,
+                    null
+                );
                 TrustListDataType trustList = m_gdsClient.GDSClient.ReadTrustList(trustListId);
                 NUnit.Framework.Assert.That(() => m_gdsClient.GDSClient.ReadTrustList(null), Throws.Exception);
-                foreach (NodeId certificateGroup in m_gdsClient.GDSClient.GetCertificateGroups(application.ApplicationRecord.ApplicationId))
+                foreach (
+                    NodeId certificateGroup in m_gdsClient.GDSClient.GetCertificateGroups(
+                        application.ApplicationRecord.ApplicationId
+                    )
+                )
                 {
-                    NUnit.Framework.Assert.That(() => m_gdsClient.GDSClient.GetTrustList(null, certificateGroup), Throws.Exception);
+                    NUnit.Framework.Assert.That(
+                        () => m_gdsClient.GDSClient.GetTrustList(null, certificateGroup),
+                        Throws.Exception
+                    );
                 }
             }
         }
@@ -946,13 +1125,29 @@ namespace Opc.Ua.Gds.Tests
             AssertIgnoreTestWithoutInvalidRegistration();
             ConnectGDS(true);
             NUnit.Framework.Assert.That(() => m_gdsClient.GDSClient.GetCertificateGroups(null), Throws.Exception);
-            NUnit.Framework.Assert.That(() => m_gdsClient.GDSClient.GetCertificateGroups(new NodeId(Guid.NewGuid())), Throws.Exception);
+            NUnit.Framework.Assert.That(
+                () => m_gdsClient.GDSClient.GetCertificateGroups(new NodeId(Guid.NewGuid())),
+                Throws.Exception
+            );
 
             foreach (ApplicationTestData application in m_invalidApplicationTestSet)
             {
-                NUnit.Framework.Assert.That(() => _ = m_gdsClient.GDSClient.GetTrustList(application.ApplicationRecord.ApplicationId, null), Throws.Exception);
-                NUnit.Framework.Assert.That(() => _ = m_gdsClient.GDSClient.GetTrustList(application.ApplicationRecord.ApplicationId, new NodeId(Guid.NewGuid())), Throws.Exception);
-                NUnit.Framework.Assert.That(() => _ = m_gdsClient.GDSClient.GetCertificateGroups(application.ApplicationRecord.ApplicationId), Throws.Exception);
+                NUnit.Framework.Assert.That(
+                    () => _ = m_gdsClient.GDSClient.GetTrustList(application.ApplicationRecord.ApplicationId, null),
+                    Throws.Exception
+                );
+                NUnit.Framework.Assert.That(
+                    () =>
+                        _ = m_gdsClient.GDSClient.GetTrustList(
+                            application.ApplicationRecord.ApplicationId,
+                            new NodeId(Guid.NewGuid())
+                        ),
+                    Throws.Exception
+                );
+                NUnit.Framework.Assert.That(
+                    () => _ = m_gdsClient.GDSClient.GetCertificateGroups(application.ApplicationRecord.ApplicationId),
+                    Throws.Exception
+                );
             }
         }
 
@@ -964,9 +1159,16 @@ namespace Opc.Ua.Gds.Tests
 
             foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                foreach (NodeId certificateGroup in m_gdsClient.GDSClient.GetCertificateGroups(application.ApplicationRecord.ApplicationId))
+                foreach (
+                    NodeId certificateGroup in m_gdsClient.GDSClient.GetCertificateGroups(
+                        application.ApplicationRecord.ApplicationId
+                    )
+                )
                 {
-                    NodeId trustListId = m_gdsClient.GDSClient.GetTrustList(application.ApplicationRecord.ApplicationId, certificateGroup);
+                    NodeId trustListId = m_gdsClient.GDSClient.GetTrustList(
+                        application.ApplicationRecord.ApplicationId,
+                        certificateGroup
+                    );
 
                     Assert.NotNull(trustListId);
 
@@ -989,9 +1191,15 @@ namespace Opc.Ua.Gds.Tests
             {
                 if (application.Certificate != null)
                 {
-                    ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() => m_gdsClient.GDSClient.GetCertificateGroups(application.ApplicationRecord.ApplicationId));
+                    ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
+                        m_gdsClient.GDSClient.GetCertificateGroups(application.ApplicationRecord.ApplicationId)
+                    );
                     Assert.NotNull(sre);
-                    Assert.AreEqual((StatusCode)StatusCodes.BadUserAccessDenied, (StatusCode)sre.StatusCode, sre.Result.ToString());
+                    Assert.AreEqual(
+                        (StatusCode)StatusCodes.BadUserAccessDenied,
+                        (StatusCode)sre.StatusCode,
+                        sre.Result.ToString()
+                    );
                 }
             }
         }
@@ -1026,18 +1234,29 @@ namespace Opc.Ua.Gds.Tests
                 {
                     ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
                         m_gdsClient.GDSClient.GetCertificateGroups(testApplication.ApplicationRecord.ApplicationId)
-                        );
+                    );
                     Assert.NotNull(sre);
-                    Assert.AreEqual((StatusCode)StatusCodes.BadUserAccessDenied, (StatusCode)sre.StatusCode, sre.Result.ToString());
+                    Assert.AreEqual(
+                        (StatusCode)StatusCodes.BadUserAccessDenied,
+                        (StatusCode)sre.StatusCode,
+                        sre.Result.ToString()
+                    );
                 }
             }
 
             ApplicationTestData application = m_gdsClient.OwnApplicationTestData;
 
             // use self registered application and get the group / trust lists
-            foreach (NodeId certificateGroup in m_gdsClient.GDSClient.GetCertificateGroups(application.ApplicationRecord.ApplicationId))
+            foreach (
+                NodeId certificateGroup in m_gdsClient.GDSClient.GetCertificateGroups(
+                    application.ApplicationRecord.ApplicationId
+                )
+            )
             {
-                NodeId trustListId = m_gdsClient.GDSClient.GetTrustList(application.ApplicationRecord.ApplicationId, certificateGroup);
+                NodeId trustListId = m_gdsClient.GDSClient.GetTrustList(
+                    application.ApplicationRecord.ApplicationId,
+                    certificateGroup
+                );
                 // Opc.Ua.TrustListDataType
                 TrustListDataType trustList = m_gdsClient.GDSClient.ReadTrustList(trustListId); //ToDo make it possible to read the trust List with SelfAdminPrivilege
                 Assert.NotNull(trustListId);
@@ -1062,13 +1281,23 @@ namespace Opc.Ua.Gds.Tests
             X509Certificate2 csrCertificate;
             if (application.PrivateKeyFormat == "PFX")
             {
-                csrCertificate = X509Utils.CreateCertificateFromPKCS12(application.PrivateKey, application.PrivateKeyPassword);
+                csrCertificate = X509Utils.CreateCertificateFromPKCS12(
+                    application.PrivateKey,
+                    application.PrivateKeyPassword
+                );
             }
             else
             {
-                csrCertificate = CertificateFactory.CreateCertificateWithPEMPrivateKey(X509CertificateLoader.LoadCertificate(application.Certificate), application.PrivateKey, application.PrivateKeyPassword);
+                csrCertificate = CertificateFactory.CreateCertificateWithPEMPrivateKey(
+                    X509CertificateLoader.LoadCertificate(application.Certificate),
+                    application.PrivateKey,
+                    application.PrivateKeyPassword
+                );
             }
-            byte[] certificateRequest = CertificateFactory.CreateSigningRequest(csrCertificate, application.DomainNames);
+            byte[] certificateRequest = CertificateFactory.CreateSigningRequest(
+                csrCertificate,
+                application.DomainNames
+            );
             csrCertificate.Dispose();
 
             // ensure access to other applications is denied
@@ -1081,10 +1310,15 @@ namespace Opc.Ua.Gds.Tests
                             testApplication.ApplicationRecord.ApplicationId,
                             testApplication.CertificateGroupId,
                             testApplication.CertificateTypeId,
-                            certificateRequest)
-                        );
+                            certificateRequest
+                        )
+                    );
                     Assert.NotNull(sre);
-                    Assert.AreEqual((StatusCode)StatusCodes.BadUserAccessDenied, (StatusCode)sre.StatusCode, sre.Result.ToString());
+                    Assert.AreEqual(
+                        (StatusCode)StatusCodes.BadUserAccessDenied,
+                        (StatusCode)sre.StatusCode,
+                        sre.Result.ToString()
+                    );
                 }
             }
 
@@ -1093,7 +1327,8 @@ namespace Opc.Ua.Gds.Tests
                 application.ApplicationRecord.ApplicationId,
                 application.CertificateGroupId,
                 application.CertificateTypeId,
-                certificateRequest);
+                certificateRequest
+            );
             Assert.NotNull(requestId);
             application.CertificateRequestId = requestId;
             bool requestBusy;
@@ -1111,7 +1346,7 @@ namespace Opc.Ua.Gds.Tests
                             application.CertificateRequestId,
                             out byte[] privateKey,
                             out byte[][] issuerCertificates
-                            );
+                        );
 
                         if (certificate != null)
                         {
@@ -1122,7 +1357,13 @@ namespace Opc.Ua.Gds.Tests
                             application.Certificate = certificate;
                             application.IssuerCertificates = issuerCertificates;
                             X509TestUtils.VerifySignedApplicationCert(application, certificate, issuerCertificates);
-                            X509TestUtils.VerifyApplicationCertIntegrity(certificate, application.PrivateKey, application.PrivateKeyPassword, application.PrivateKeyFormat, issuerCertificates);
+                            X509TestUtils.VerifyApplicationCertIntegrity(
+                                certificate,
+                                application.PrivateKey,
+                                application.PrivateKeyPassword,
+                                application.PrivateKeyFormat,
+                                issuerCertificates
+                            );
                         }
                         else
                         {
@@ -1131,8 +1372,7 @@ namespace Opc.Ua.Gds.Tests
                     }
                     catch (ServiceResultException sre)
                     {
-                        if (sre.StatusCode == StatusCodes.BadNothingToDo &&
-                            now.AddMinutes(5) > DateTime.UtcNow)
+                        if (sre.StatusCode == StatusCodes.BadNothingToDo && now.AddMinutes(5) > DateTime.UtcNow)
                         {
                             requestBusy = true;
                             Thread.Sleep(1000);
@@ -1181,10 +1421,15 @@ namespace Opc.Ua.Gds.Tests
                             testApplication.Subject,
                             testApplication.DomainNames,
                             testApplication.PrivateKeyFormat,
-                            testApplication.PrivateKeyPassword)
-                        );
+                            testApplication.PrivateKeyPassword
+                        )
+                    );
                     Assert.NotNull(sre);
-                    Assert.AreEqual((StatusCode)StatusCodes.BadUserAccessDenied, (StatusCode)sre.StatusCode, sre.Result.ToString());
+                    Assert.AreEqual(
+                        (StatusCode)StatusCodes.BadUserAccessDenied,
+                        (StatusCode)sre.StatusCode,
+                        sre.Result.ToString()
+                    );
                 }
             }
 
@@ -1197,7 +1442,8 @@ namespace Opc.Ua.Gds.Tests
                 application.Subject,
                 application.DomainNames,
                 application.PrivateKeyFormat,
-                application.PrivateKeyPassword);
+                application.PrivateKeyPassword
+            );
 
             Assert.NotNull(requestId);
             application.CertificateRequestId = requestId;
@@ -1217,7 +1463,7 @@ namespace Opc.Ua.Gds.Tests
                             application.CertificateRequestId,
                             out byte[] privateKey,
                             out byte[][] issuerCertificates
-                            );
+                        );
 
                         if (certificate != null)
                         {
@@ -1227,7 +1473,13 @@ namespace Opc.Ua.Gds.Tests
                             Assert.NotNull(privateKey);
                             Assert.NotNull(issuerCertificates);
                             X509TestUtils.VerifySignedApplicationCert(application, certificate, issuerCertificates);
-                            X509TestUtils.VerifyApplicationCertIntegrity(certificate, privateKey, application.PrivateKeyPassword, application.PrivateKeyFormat, issuerCertificates);
+                            X509TestUtils.VerifyApplicationCertIntegrity(
+                                certificate,
+                                privateKey,
+                                application.PrivateKeyPassword,
+                                application.PrivateKeyFormat,
+                                issuerCertificates
+                            );
                         }
                         else
                         {
@@ -1236,8 +1488,7 @@ namespace Opc.Ua.Gds.Tests
                     }
                     catch (ServiceResultException sre)
                     {
-                        if (sre.StatusCode == StatusCodes.BadNothingToDo &&
-                            now.AddMinutes(5) > DateTime.UtcNow)
+                        if (sre.StatusCode == StatusCodes.BadNothingToDo && now.AddMinutes(5) > DateTime.UtcNow)
                         {
                             requestBusy = true;
                             Thread.Sleep(1000);
@@ -1285,9 +1536,13 @@ namespace Opc.Ua.Gds.Tests
             ConnectGDS(false, true);
             ServiceResultException sre = NUnit.Framework.Assert.Throws<ServiceResultException>(() =>
                 m_gdsClient.GDSClient.GetCertificateGroups(application.ApplicationRecord.ApplicationId)
-                );
+            );
             Assert.NotNull(sre);
-            Assert.AreEqual((StatusCode)StatusCodes.BadUserAccessDenied, (StatusCode)sre.StatusCode, sre.Result.ToString());
+            Assert.AreEqual(
+                (StatusCode)StatusCodes.BadUserAccessDenied,
+                (StatusCode)sre.StatusCode,
+                sre.Result.ToString()
+            );
         }
 
         [Test, Order(690)]
@@ -1297,7 +1552,11 @@ namespace Opc.Ua.Gds.Tests
             ConnectGDS(true);
             foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                bool certificateStatus = m_gdsClient.GDSClient.GetCertificateStatus(application.ApplicationRecord.ApplicationId, null, null);
+                bool certificateStatus = m_gdsClient.GDSClient.GetCertificateStatus(
+                    application.ApplicationRecord.ApplicationId,
+                    null,
+                    null
+                );
                 Assert.False(certificateStatus);
             }
         }
@@ -1309,7 +1568,15 @@ namespace Opc.Ua.Gds.Tests
             ConnectGDS(true);
             foreach (ApplicationTestData application in m_invalidApplicationTestSet)
             {
-                NUnit.Framework.Assert.That(() => _ = m_gdsClient.GDSClient.GetCertificateStatus(application.ApplicationRecord.ApplicationId, null, null), Throws.Exception);
+                NUnit.Framework.Assert.That(
+                    () =>
+                        _ = m_gdsClient.GDSClient.GetCertificateStatus(
+                            application.ApplicationRecord.ApplicationId,
+                            null,
+                            null
+                        ),
+                    Throws.Exception
+                );
             }
         }
 
@@ -1320,7 +1587,11 @@ namespace Opc.Ua.Gds.Tests
             ConnectGDS(false);
             foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                m_gdsClient.GDSClient.CheckRevocationStatus(application.Certificate, out StatusCode certificateStatus, out DateTime validityTime);
+                m_gdsClient.GDSClient.CheckRevocationStatus(
+                    application.Certificate,
+                    out StatusCode certificateStatus,
+                    out DateTime validityTime
+                );
                 //Status code needs to be Bad as the method builds a custom chain that does not know about the custom cert stores.
                 Assert.True(StatusCode.IsBad(certificateStatus.Code));
                 Assert.NotNull(validityTime);
@@ -1335,11 +1606,21 @@ namespace Opc.Ua.Gds.Tests
             ConnectGDS(true);
             foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                m_gdsClient.GDSClient.RevokeCertificate(application.ApplicationRecord.ApplicationId, application.Certificate);
+                m_gdsClient.GDSClient.RevokeCertificate(
+                    application.ApplicationRecord.ApplicationId,
+                    application.Certificate
+                );
             }
             foreach (ApplicationTestData application in m_invalidApplicationTestSet)
             {
-                NUnit.Framework.Assert.That(() => m_gdsClient.GDSClient.RevokeCertificate(application.ApplicationRecord.ApplicationId, application.Certificate), Throws.Exception);
+                NUnit.Framework.Assert.That(
+                    () =>
+                        m_gdsClient.GDSClient.RevokeCertificate(
+                            application.ApplicationRecord.ApplicationId,
+                            application.Certificate
+                        ),
+                    Throws.Exception
+                );
             }
         }
 
@@ -1361,7 +1642,11 @@ namespace Opc.Ua.Gds.Tests
             ConnectGDS(false);
             foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                m_gdsClient.GDSClient.CheckRevocationStatus(application.Certificate, out StatusCode certificateStatus, out DateTime validityTime);
+                m_gdsClient.GDSClient.CheckRevocationStatus(
+                    application.Certificate,
+                    out StatusCode certificateStatus,
+                    out DateTime validityTime
+                );
                 Assert.IsTrue(((StatusCode)certificateStatus.Code).ToString().StartsWith("BadCertificate"));
                 Assert.NotNull(validityTime);
             }
@@ -1373,7 +1658,10 @@ namespace Opc.Ua.Gds.Tests
             ConnectGDS(true);
             foreach (ApplicationTestData application in m_invalidApplicationTestSet)
             {
-                NUnit.Framework.Assert.That(() => m_gdsClient.GDSClient.UnregisterApplication(application.ApplicationRecord.ApplicationId), Throws.Exception);
+                NUnit.Framework.Assert.That(
+                    () => m_gdsClient.GDSClient.UnregisterApplication(application.ApplicationRecord.ApplicationId),
+                    Throws.Exception
+                );
             }
         }
 
@@ -1384,7 +1672,9 @@ namespace Opc.Ua.Gds.Tests
             ConnectGDS(true);
             foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                ApplicationRecordDataType[] result = m_gdsClient.GDSClient.FindApplication(application.ApplicationRecord.ApplicationUri);
+                ApplicationRecordDataType[] result = m_gdsClient.GDSClient.FindApplication(
+                    application.ApplicationRecord.ApplicationUri
+                );
                 if (result != null)
                 {
                     Assert.NotNull(result);
@@ -1400,7 +1690,10 @@ namespace Opc.Ua.Gds.Tests
             ConnectGDS(true);
             foreach (ApplicationTestData application in m_goodApplicationTestSet)
             {
-                NUnit.Framework.Assert.That(() => m_gdsClient.GDSClient.UnregisterApplication(application.ApplicationRecord.ApplicationId), Throws.Exception);
+                NUnit.Framework.Assert.That(
+                    () => m_gdsClient.GDSClient.UnregisterApplication(application.ApplicationRecord.ApplicationId),
+                    Throws.Exception
+                );
             }
         }
 
@@ -1420,9 +1713,11 @@ namespace Opc.Ua.Gds.Tests
         }
 #endif
 
-        private void ConnectGDS(bool admin, bool anonymous = false,
+        private void ConnectGDS(
+            bool admin,
+            bool anonymous = false,
             [System.Runtime.CompilerServices.CallerMemberName] string memberName = ""
-            )
+        )
         {
             if (anonymous)
             {
@@ -1436,9 +1731,7 @@ namespace Opc.Ua.Gds.Tests
             TestContext.Progress.WriteLine($"GDS Client({admin}) connected -- {memberName}");
         }
 
-        private void DisconnectGDS(
-            [System.Runtime.CompilerServices.CallerMemberName] string memberName = ""
-            )
+        private void DisconnectGDS([System.Runtime.CompilerServices.CallerMemberName] string memberName = "")
         {
             m_gdsClient.GDSClient.Disconnect();
             TestContext.Progress.WriteLine($"GDS Client disconnected -- {memberName}");
@@ -1456,7 +1749,9 @@ namespace Opc.Ua.Gds.Tests
         {
             if (!m_gdsRegisteredTestClient)
             {
-                NUnit.Framework.Assert.Ignore("Test requires the test client to be registered at the GDS and use a GDS signed Certificate.");
+                NUnit.Framework.Assert.Ignore(
+                    "Test requires the test client to be registered at the GDS and use a GDS signed Certificate."
+                );
             }
         }
 

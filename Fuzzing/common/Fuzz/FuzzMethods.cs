@@ -47,10 +47,11 @@ namespace Opc.Ua.Fuzzing
 
         public static readonly Type[] Delegates = [typeof(AflFuzzStream), typeof(AflFuzzString), typeof(LibFuzzSpan)];
 
-        public static readonly Dictionary<Type, Type> FuzzMethodsToParameterType = new() {
+        public static readonly Dictionary<Type, Type> FuzzMethodsToParameterType = new()
+        {
             { typeof(AflFuzzStream), typeof(Stream) },
             { typeof(AflFuzzString), typeof(string) },
-            { typeof(LibFuzzSpan), typeof(ReadOnlySpan<byte>) }
+            { typeof(LibFuzzSpan), typeof(ReadOnlySpan<byte>) },
         };
 
         /// <summary>
@@ -63,7 +64,11 @@ namespace Opc.Ua.Fuzzing
             Type type = typeof(FuzzableCode);
             if (FuzzMethodsToParameterType.TryGetValue(delegateType, out delegateParameterType))
             {
-                foreach (MethodInfo method in type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static))
+                foreach (
+                    MethodInfo method in type.GetMethods(
+                        BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static
+                    )
+                )
                 {
                     // Determine the target signature
                     ParameterInfo[] parameters = method.GetParameters();
@@ -83,7 +88,10 @@ namespace Opc.Ua.Fuzzing
         {
             // find the function to fuzz based on the first argument using reflection
             Type type = typeof(FuzzableCode);
-            MethodInfo method = type.GetMethod(fuzzingFunction, BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static);
+            MethodInfo method = type.GetMethod(
+                fuzzingFunction,
+                BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static
+            );
             if (method != null)
             {
                 // Determine the target signature
@@ -122,7 +130,11 @@ namespace Opc.Ua.Fuzzing
 #endif
                 }
 
-                errorOutput.WriteLine("The fuzzing function {0} does not have the correct signature {1}.", fuzzingFunction, parameters[0].ParameterType);
+                errorOutput.WriteLine(
+                    "The fuzzing function {0} does not have the correct signature {1}.",
+                    fuzzingFunction,
+                    parameters[0].ParameterType
+                );
             }
             else
             {

@@ -22,9 +22,9 @@ using System.Xml;
 namespace Opc.Ua
 {
     /// <summary>
-	/// Loads the configuration section for an application.
-	/// </summary>
-	public class ApplicationConfigurationSection
+    /// Loads the configuration section for an application.
+    /// </summary>
+    public class ApplicationConfigurationSection
     {
         /// <summary>
         /// Creates the configuration object from the configuration section.
@@ -205,7 +205,11 @@ namespace Opc.Ua
         /// <param name="systemType">A user type of the configuration instance.</param>
         /// <returns>Application configuration</returns>
         [Obsolete("Use LoadAsync instead.")]
-        public static Task<ApplicationConfiguration> Load(string sectionName, ApplicationType applicationType, Type systemType)
+        public static Task<ApplicationConfiguration> Load(
+            string sectionName,
+            ApplicationType applicationType,
+            Type systemType
+        )
         {
             return LoadAsync(sectionName, applicationType, systemType);
         }
@@ -217,7 +221,11 @@ namespace Opc.Ua
         /// <param name="applicationType">A description for the ApplicationType DataType.</param>
         /// <param name="systemType">A user type of the configuration instance.</param>
         /// <returns>Application configuration</returns>
-        public static Task<ApplicationConfiguration> LoadAsync(string sectionName, ApplicationType applicationType, Type systemType)
+        public static Task<ApplicationConfiguration> LoadAsync(
+            string sectionName,
+            ApplicationType applicationType,
+            Type systemType
+        )
         {
             string filePath = GetFilePathFromAppConfig(sectionName);
 
@@ -228,9 +236,12 @@ namespace Opc.Ua
                 var message = new StringBuilder();
                 message.AppendFormat(CultureInfo.InvariantCulture, "Configuration file does not exist: {0}", filePath);
                 message.AppendLine();
-                message.AppendFormat(CultureInfo.InvariantCulture, "Current directory is: {0}", Directory.GetCurrentDirectory());
-                throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError, message.ToString());
+                message.AppendFormat(
+                    CultureInfo.InvariantCulture,
+                    "Current directory is: {0}",
+                    Directory.GetCurrentDirectory()
+                );
+                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, message.ToString());
             }
 
             return LoadAsync(file, applicationType, systemType);
@@ -262,11 +273,14 @@ namespace Opc.Ua
             catch (Exception e)
             {
                 var message = new StringBuilder();
-                message.AppendFormat(CultureInfo.InvariantCulture, "Configuration file could not be loaded: {0}", file.FullName);
+                message.AppendFormat(
+                    CultureInfo.InvariantCulture,
+                    "Configuration file could not be loaded: {0}",
+                    file.FullName
+                );
                 message.AppendLine();
                 message.AppendFormat(CultureInfo.InvariantCulture, "Error is: {0}", e.Message);
-                throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError, e, message.ToString());
+                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, e, message.ToString());
             }
         }
 
@@ -278,7 +292,11 @@ namespace Opc.Ua
         /// <param name="systemType">Type of the system.</param>
         /// <returns>Application configuration</returns>
         [Obsolete("Use LoadAsync instead.")]
-        public static Task<ApplicationConfiguration> Load(FileInfo file, ApplicationType applicationType, Type systemType)
+        public static Task<ApplicationConfiguration> Load(
+            FileInfo file,
+            ApplicationType applicationType,
+            Type systemType
+        )
         {
             return LoadAsync(file, applicationType, systemType);
         }
@@ -290,7 +308,11 @@ namespace Opc.Ua
         /// <param name="applicationType">Type of the application.</param>
         /// <param name="systemType">Type of the system.</param>
         /// <returns>Application configuration</returns>
-        public static Task<ApplicationConfiguration> LoadAsync(FileInfo file, ApplicationType applicationType, Type systemType)
+        public static Task<ApplicationConfiguration> LoadAsync(
+            FileInfo file,
+            ApplicationType applicationType,
+            Type systemType
+        )
         {
             return LoadAsync(file, applicationType, systemType, true);
         }
@@ -310,7 +332,8 @@ namespace Opc.Ua
             ApplicationType applicationType,
             Type systemType,
             bool applyTraceSettings,
-            ICertificatePasswordProvider certificatePasswordProvider = null)
+            ICertificatePasswordProvider certificatePasswordProvider = null
+        )
         {
             return LoadAsync(file, applicationType, systemType, applyTraceSettings, certificatePasswordProvider);
         }
@@ -329,23 +352,34 @@ namespace Opc.Ua
             ApplicationType applicationType,
             Type systemType,
             bool applyTraceSettings,
-            ICertificatePasswordProvider certificatePasswordProvider = null)
+            ICertificatePasswordProvider certificatePasswordProvider = null
+        )
         {
             ApplicationConfiguration configuration = null;
 
             try
             {
                 using var stream = new FileStream(file.FullName, FileMode.Open, FileAccess.Read);
-                configuration = await LoadAsync(stream, applicationType, systemType, applyTraceSettings, certificatePasswordProvider).ConfigureAwait(false);
+                configuration = await LoadAsync(
+                        stream,
+                        applicationType,
+                        systemType,
+                        applyTraceSettings,
+                        certificatePasswordProvider
+                    )
+                    .ConfigureAwait(false);
             }
             catch (Exception e)
             {
                 var message = new StringBuilder();
-                message.AppendFormat(CultureInfo.InvariantCulture, "Configuration file could not be loaded: {0}", file.FullName);
+                message.AppendFormat(
+                    CultureInfo.InvariantCulture,
+                    "Configuration file could not be loaded: {0}",
+                    file.FullName
+                );
                 message.AppendLine();
                 message.Append(e.Message);
-                throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError, e, message.ToString());
+                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, e, message.ToString());
             }
 
             if (configuration != null)
@@ -371,7 +405,8 @@ namespace Opc.Ua
             ApplicationType applicationType,
             Type systemType,
             bool applyTraceSettings,
-            ICertificatePasswordProvider certificatePasswordProvider = null)
+            ICertificatePasswordProvider certificatePasswordProvider = null
+        )
         {
             return LoadAsync(stream, applicationType, systemType, applyTraceSettings, certificatePasswordProvider);
         }
@@ -390,7 +425,8 @@ namespace Opc.Ua
             ApplicationType applicationType,
             Type systemType,
             bool applyTraceSettings,
-            ICertificatePasswordProvider certificatePasswordProvider = null)
+            ICertificatePasswordProvider certificatePasswordProvider = null
+        )
         {
             systemType ??= typeof(ApplicationConfiguration);
 
@@ -406,8 +442,7 @@ namespace Opc.Ua
                 message.AppendFormat(CultureInfo.InvariantCulture, "Configuration could not be loaded.");
                 message.AppendLine();
                 message.AppendFormat(CultureInfo.InvariantCulture, "Error is: {0}", e.Message);
-                throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError, e, message.ToString());
+                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, e, message.ToString());
             }
 
             if (configuration != null)
@@ -429,8 +464,8 @@ namespace Opc.Ua
         /// <summary>
         /// Reads the file path from the application configuration file.
         /// </summary>
-	    /// <param name="sectionName">Name of configuration section for the current application's default configuration containing <see cref="ConfigurationLocation"/>.
-	    /// </param>
+        /// <param name="sectionName">Name of configuration section for the current application's default configuration containing <see cref="ConfigurationLocation"/>.
+        /// </param>
         /// <returns>File path from the application configuration file.</returns>
         public static string GetFilePathFromAppConfig(string sectionName)
         {
@@ -473,12 +508,18 @@ namespace Opc.Ua
         {
             if (string.IsNullOrEmpty(ApplicationName))
             {
-                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "ApplicationName must be specified.");
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    "ApplicationName must be specified."
+                );
             }
 
             if (SecurityConfiguration == null)
             {
-                throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "SecurityConfiguration must be specified.");
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    "SecurityConfiguration must be specified."
+                );
             }
 
             SecurityConfiguration.Validate();
@@ -486,7 +527,9 @@ namespace Opc.Ua
             // load private keys
             foreach (CertificateIdentifier applicationCertificate in SecurityConfiguration.ApplicationCertificates)
             {
-                await applicationCertificate.LoadPrivateKeyExAsync(SecurityConfiguration.CertificatePasswordProvider, ApplicationUri).ConfigureAwait(false);
+                await applicationCertificate
+                    .LoadPrivateKeyExAsync(SecurityConfiguration.CertificatePasswordProvider, ApplicationUri)
+                    .ConfigureAwait(false);
             }
 
             string GenerateDefaultUri()
@@ -508,7 +551,10 @@ namespace Opc.Ua
             {
                 if (ClientConfiguration == null)
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "ClientConfiguration must be specified.");
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadConfigurationError,
+                        "ClientConfiguration must be specified."
+                    );
                 }
 
                 ClientConfiguration.Validate();
@@ -518,7 +564,10 @@ namespace Opc.Ua
             {
                 if (ServerConfiguration == null)
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "ServerConfiguration must be specified.");
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadConfigurationError,
+                        "ServerConfiguration must be specified."
+                    );
                 }
 
                 ServerConfiguration.Validate();
@@ -528,7 +577,10 @@ namespace Opc.Ua
             {
                 if (DiscoveryServerConfiguration == null)
                 {
-                    throw ServiceResultException.Create(StatusCodes.BadConfigurationError, "DiscoveryServerConfiguration must be specified.");
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadConfigurationError,
+                        "DiscoveryServerConfiguration must be specified."
+                    );
                 }
 
                 DiscoveryServerConfiguration.Validate();
@@ -572,7 +624,13 @@ namespace Opc.Ua
                 throw new InvalidOperationException("Only valid for client configurations.");
             }
 
-            string filePath = Utils.GetAbsoluteFilePath(ClientConfiguration.EndpointCacheFilePath, true, false, false, false);
+            string filePath = Utils.GetAbsoluteFilePath(
+                ClientConfiguration.EndpointCacheFilePath,
+                true,
+                false,
+                false,
+                false
+            );
 
             if (filePath == null)
             {
@@ -581,7 +639,12 @@ namespace Opc.Ua
                 if (!Utils.IsPathRooted(filePath))
                 {
                     var sourceFile = new FileInfo(SourceFilePath);
-                    filePath = Utils.Format("{0}{1}{2}", sourceFile.DirectoryName, Path.DirectorySeparatorChar, filePath);
+                    filePath = Utils.Format(
+                        "{0}{1}{2}",
+                        sourceFile.DirectoryName,
+                        Path.DirectorySeparatorChar,
+                        filePath
+                    );
                 }
             }
 
@@ -601,7 +664,13 @@ namespace Opc.Ua
             }
             finally
             {
-                string localFilePath = Utils.GetAbsoluteFilePath(ClientConfiguration.EndpointCacheFilePath, true, false, true, true);
+                string localFilePath = Utils.GetAbsoluteFilePath(
+                    ClientConfiguration.EndpointCacheFilePath,
+                    true,
+                    false,
+                    true,
+                    true
+                );
                 if (localFilePath != filePath)
                 {
                     endpoints.Save(localFilePath);

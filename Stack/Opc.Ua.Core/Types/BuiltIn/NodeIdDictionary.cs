@@ -35,16 +35,14 @@ namespace Opc.Ua
         /// <summary>
         /// Creates an empty dictionary.
         /// </summary>
-        public NodeIdDictionary() : base(s_comparer)
-        {
-        }
+        public NodeIdDictionary()
+            : base(s_comparer) { }
 
         /// <summary>
         /// Creates an empty dictionary with capacity.
         /// </summary>
-        public NodeIdDictionary(int capacity) : base(Environment.ProcessorCount, capacity, s_comparer)
-        {
-        }
+        public NodeIdDictionary(int capacity)
+            : base(Environment.ProcessorCount, capacity, s_comparer) { }
 
         // helpers for the legacy implementation
 
@@ -72,8 +70,7 @@ namespace Opc.Ua
         /// <returns>true if removed, false if not removed</returns>
         public bool TryRemove(NodeId key, T value)
         {
-            return ((ICollection<KeyValuePair<NodeId, T>>)this).Remove(
-                new KeyValuePair<NodeId, T>(key, value));
+            return ((ICollection<KeyValuePair<NodeId, T>>)this).Remove(new KeyValuePair<NodeId, T>(key, value));
         }
     }
 
@@ -84,7 +81,6 @@ namespace Opc.Ua
     /// </summary>
     public class NodeIdDictionary<T> : IDictionary<NodeId, T>
     {
-
         /// <summary>
         /// Creates an empty dictionary.
         /// </summary>
@@ -414,7 +410,10 @@ namespace Opc.Ua
         /// <summary>
         /// Gets or sets the value with the specified NodeId.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1065:DoNotRaiseExceptionsInUnexpectedLocations")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Microsoft.Design",
+            "CA1065:DoNotRaiseExceptionsInUnexpectedLocations"
+        )]
         public T this[NodeId key]
         {
             get
@@ -472,7 +471,6 @@ namespace Opc.Ua
 
                 throw new KeyNotFoundException();
             }
-
             set
             {
                 if (key == null)
@@ -555,7 +553,10 @@ namespace Opc.Ua
 
             if (arrayIndex < 0 || array.Length <= arrayIndex)
             {
-                throw new ArgumentOutOfRangeException(nameof(arrayIndex), "arrayIndex < 0 || array.Length <= arrayIndex");
+                throw new ArgumentOutOfRangeException(
+                    nameof(arrayIndex),
+                    "arrayIndex < 0 || array.Length <= arrayIndex"
+                );
             }
 
             foreach (KeyValuePair<ulong, T> entry in m_numericIds)
@@ -564,7 +565,8 @@ namespace Opc.Ua
 
                 array[arrayIndex++] = new KeyValuePair<NodeId, T>(
                     new NodeId((uint)(entry.Key & 0xFFFFFFFF), (ushort)((entry.Key >> 32) & 0xFFFF)),
-                    entry.Value);
+                    entry.Value
+                );
             }
 
             if (m_dictionarySets == null)
@@ -586,7 +588,10 @@ namespace Opc.Ua
                     foreach (KeyValuePair<string, T> entry in dictionarySet.String)
                     {
                         CheckCopyTo(array, arrayIndex);
-                        array[arrayIndex++] = new KeyValuePair<NodeId, T>(new NodeId(entry.Key, (ushort)ii), entry.Value);
+                        array[arrayIndex++] = new KeyValuePair<NodeId, T>(
+                            new NodeId(entry.Key, (ushort)ii),
+                            entry.Value
+                        );
                     }
                 }
 
@@ -595,7 +600,10 @@ namespace Opc.Ua
                     foreach (KeyValuePair<Guid, T> entry in dictionarySet.Guid)
                     {
                         CheckCopyTo(array, arrayIndex);
-                        array[arrayIndex++] = new KeyValuePair<NodeId, T>(new NodeId(entry.Key, (ushort)ii), entry.Value);
+                        array[arrayIndex++] = new KeyValuePair<NodeId, T>(
+                            new NodeId(entry.Key, (ushort)ii),
+                            entry.Value
+                        );
                     }
                 }
 
@@ -604,7 +612,10 @@ namespace Opc.Ua
                     foreach (KeyValuePair<ByteKey, T> entry in dictionarySet.Opaque)
                     {
                         CheckCopyTo(array, arrayIndex);
-                        array[arrayIndex++] = new KeyValuePair<NodeId, T>(new NodeId(entry.Key.Bytes, (ushort)ii), entry.Value);
+                        array[arrayIndex++] = new KeyValuePair<NodeId, T>(
+                            new NodeId(entry.Key.Bytes, (ushort)ii),
+                            entry.Value
+                        );
                     }
                 }
             }
@@ -816,7 +827,6 @@ namespace Opc.Ua
         /// </summary>
         private struct ByteKey : IEquatable<ByteKey>, IComparable<ByteKey>
         {
-
             /// <summary>
             /// Initializes the key with an array of bytes.
             /// </summary>
@@ -877,7 +887,6 @@ namespace Opc.Ua
 
                 return 0;
             }
-
         }
 
         /// <summary>
@@ -885,7 +894,6 @@ namespace Opc.Ua
         /// </summary>
         private class Enumerator : IEnumerator<KeyValuePair<NodeId, T>>
         {
-
             /// <summary>
             /// Constructs the enumerator for the specified dictionary.
             /// </summary>
@@ -906,7 +914,9 @@ namespace Opc.Ua
 
                     if (m_enumerator == null)
                     {
-                        throw new InvalidOperationException("The enumerator is positioned before the first element of the collection or after the last element.");
+                        throw new InvalidOperationException(
+                            "The enumerator is positioned before the first element of the collection or after the last element."
+                        );
                     }
 
                     NodeId id = null;
@@ -1080,7 +1090,9 @@ namespace Opc.Ua
             {
                 if (m_version != m_dictionary.m_version)
                 {
-                    throw new InvalidOperationException("The dictionary was modified after the enumerator was created.");
+                    throw new InvalidOperationException(
+                        "The dictionary was modified after the enumerator was created."
+                    );
                 }
             }
 
@@ -1089,13 +1101,11 @@ namespace Opc.Ua
             private IdType m_idType;
             private IDictionaryEnumerator m_enumerator;
             private ulong m_version;
-
         }
 
         private DictionarySet[] m_dictionarySets;
         private SortedDictionary<ulong, T> m_numericIds;
         private ulong m_version;
-
     }
 #endif
 }

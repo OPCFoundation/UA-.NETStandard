@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -39,7 +39,7 @@ namespace Opc.Ua.PubSub.Configuration
         /// <summary>
         /// The epoch date is midnight UTC (00:00) on January 1, 2000.
         /// </summary>
-        private static readonly DateTime kEpochDate = new(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        private static readonly DateTime s_epochDate = new(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
         /// <summary>
         /// Analyze and decide the right ConfigurationVersion for new MetaData
@@ -47,7 +47,10 @@ namespace Opc.Ua.PubSub.Configuration
         /// <param name="oldMetaData">The historical MetaData to be compared against the new MetaData</param>
         /// <param name="newMetaData">The new MetaData </param>
         /// <returns></returns>
-        public static ConfigurationVersionDataType CalculateConfigurationVersion(DataSetMetaDataType oldMetaData, DataSetMetaDataType newMetaData)
+        public static ConfigurationVersionDataType CalculateConfigurationVersion(
+            DataSetMetaDataType oldMetaData,
+            DataSetMetaDataType newMetaData
+        )
         {
             if (newMetaData == null)
             {
@@ -66,7 +69,7 @@ namespace Opc.Ua.PubSub.Configuration
             {
                 /*Removing fields from the DataSet content, reordering fields, adding fields in between other fields or a
                  * DataType change in fields shall result in an update of the MajorVersion.  */
-                // check if any field was deleted 
+                // check if any field was deleted
                 if (oldMetaData.Fields.Count > newMetaData.Fields.Count)
                 {
                     hasMajorVersionChange = true;
@@ -100,7 +103,7 @@ namespace Opc.Ua.PubSub.Configuration
                     return new ConfigurationVersionDataType()
                     {
                         MinorVersion = versionTime,
-                        MajorVersion = versionTime
+                        MajorVersion = versionTime,
                     };
                 }
                 else
@@ -109,16 +112,16 @@ namespace Opc.Ua.PubSub.Configuration
                     return new ConfigurationVersionDataType()
                     {
                         MinorVersion = versionTime,
-                        MajorVersion = newMetaData.ConfigurationVersion.MajorVersion
+                        MajorVersion = newMetaData.ConfigurationVersion.MajorVersion,
                     };
                 }
             }
 
-            // there is no change 
+            // there is no change
             return new ConfigurationVersionDataType()
             {
                 MinorVersion = newMetaData.ConfigurationVersion.MinorVersion,
-                MajorVersion = newMetaData.ConfigurationVersion.MajorVersion
+                MajorVersion = newMetaData.ConfigurationVersion.MajorVersion,
             };
         }
 
@@ -134,7 +137,7 @@ namespace Opc.Ua.PubSub.Configuration
             It is used as version number based on the last change time. If the version is updated, the new value shall be greater than the previous value.
             If a Variable is initialized with a VersionTime value, the value must be either loaded from persisted configuration or time synchronization must be available to ensure a unique version is applied.
             The value 0 is used to indicate that no version information is available.*/
-            return (uint)timeOfConfiguration.Subtract(kEpochDate).TotalSeconds;
+            return (uint)timeOfConfiguration.Subtract(s_epochDate).TotalSeconds;
         }
 
         /// <summary>

@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -38,27 +38,32 @@ namespace Opc.Ua.PubSub.Tests.Configuration
     [TestFixture(Description = "Tests for UaPubSubApplication class")]
     public class UaPubSubApplicationTests
     {
-        private readonly string ConfigurationFileName = Path.Combine("Configuration", "PublisherConfiguration.xml");
-
+        private readonly string m_configurationFileName = Path.Combine("Configuration", "PublisherConfiguration.xml");
         private PubSubConfigurationDataType m_pubSubConfiguration;
 
-        [OneTimeSetUp()]
+        [OneTimeSetUp]
         public void MyTestInitialize()
         {
-            string configurationFile = Utils.GetAbsoluteFilePath(ConfigurationFileName, true, true, false);
+            string configurationFile = Utils.GetAbsoluteFilePath(m_configurationFileName, true, true, false);
             m_pubSubConfiguration = UaPubSubConfigurationHelper.LoadConfiguration(configurationFile);
         }
 
         [Test(Description = "Validate Create call with null path")]
         public void ValidateUaPubSubApplicationCreateNullFilePath()
         {
-            NUnit.Framework.Assert.Throws<ArgumentNullException>(() => UaPubSubApplication.Create((string)null), "Calling Create with null parameter shall throw error");
+            NUnit.Framework.Assert.Throws<ArgumentNullException>(
+                () => UaPubSubApplication.Create((string)null),
+                "Calling Create with null parameter shall throw error"
+            );
         }
 
         [Test(Description = "Validate Create call with null PubSubConfigurationDataType")]
         public void ValidateUaPubSubApplicationCreateNullPubSubConfigurationDataType()
         {
-            NUnit.Framework.Assert.DoesNotThrow(() => UaPubSubApplication.Create((PubSubConfigurationDataType)null), "Calling Create with null parameter shall not throw error");
+            NUnit.Framework.Assert.DoesNotThrow(
+                () => UaPubSubApplication.Create((PubSubConfigurationDataType)null),
+                "Calling Create with null parameter shall not throw error"
+            );
         }
 
         [Test(Description = "Validate Create call")]
@@ -68,8 +73,15 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var uaPubSubApplication = UaPubSubApplication.Create(m_pubSubConfiguration);
 
             // Assert
-            Assert.IsTrue(uaPubSubApplication.PubSubConnections != null, "uaPubSubApplication.PubSubConnections collection is null");
-            Assert.AreEqual(3, uaPubSubApplication.PubSubConnections.Count, "uaPubSubApplication.PubSubConnections count");
+            Assert.IsTrue(
+                uaPubSubApplication.PubSubConnections != null,
+                "uaPubSubApplication.PubSubConnections collection is null"
+            );
+            Assert.AreEqual(
+                3,
+                uaPubSubApplication.PubSubConnections.Count,
+                "uaPubSubApplication.PubSubConnections count"
+            );
             var connection = uaPubSubApplication.PubSubConnections[0] as UaPubSubConnection;
             Assert.IsTrue(connection.Publishers != null, "connection.Publishers is null");
             Assert.IsTrue(connection.Publishers.Count == 1, "connection.Publishers count is not 2");
@@ -77,8 +89,17 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             foreach (IUaPublisher publisher in connection.Publishers)
             {
                 Assert.IsTrue(publisher != null, "connection.Publishers[{0}] is null", index);
-                Assert.IsTrue(publisher.PubSubConnection == connection, "connection.Publishers[{0}].PubSubConnection is not set correctly", index);
-                Assert.IsTrue(publisher.WriterGroupConfiguration.WriterGroupId == m_pubSubConfiguration.Connections[0].WriterGroups[index].WriterGroupId, "connection.Publishers[{0}].WriterGroupConfiguration is not set correctly", index);
+                Assert.IsTrue(
+                    publisher.PubSubConnection == connection,
+                    "connection.Publishers[{0}].PubSubConnection is not set correctly",
+                    index
+                );
+                Assert.IsTrue(
+                    publisher.WriterGroupConfiguration.WriterGroupId
+                        == m_pubSubConfiguration.Connections[0].WriterGroups[index].WriterGroupId,
+                    "connection.Publishers[{0}].WriterGroupConfiguration is not set correctly",
+                    index
+                );
                 index++;
             }
         }

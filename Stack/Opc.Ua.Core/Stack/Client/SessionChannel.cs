@@ -33,7 +33,8 @@ namespace Opc.Ua
             EndpointDescription description,
             EndpointConfiguration endpointConfiguration,
             X509Certificate2 clientCertificate,
-            IServiceMessageContext messageContext)
+            IServiceMessageContext messageContext
+        )
         {
             return Create(configuration, description, endpointConfiguration, clientCertificate, null, messageContext);
         }
@@ -54,7 +55,8 @@ namespace Opc.Ua
             EndpointConfiguration endpointConfiguration,
             X509Certificate2 clientCertificate,
             X509Certificate2Collection clientCertificateChain,
-            IServiceMessageContext messageContext)
+            IServiceMessageContext messageContext
+        )
         {
             // create a UA binary channel.
             return CreateUaBinaryChannel(
@@ -63,7 +65,8 @@ namespace Opc.Ua
                 endpointConfiguration,
                 clientCertificate,
                 clientCertificateChain,
-                messageContext);
+                messageContext
+            );
         }
 
         /// <summary>
@@ -84,7 +87,8 @@ namespace Opc.Ua
             EndpointConfiguration endpointConfiguration,
             X509Certificate2 clientCertificate,
             X509Certificate2Collection clientCertificateChain,
-            IServiceMessageContext messageContext)
+            IServiceMessageContext messageContext
+        )
         {
             // create a UA binary channel.
             return CreateUaBinaryChannel(
@@ -94,7 +98,8 @@ namespace Opc.Ua
                 endpointConfiguration,
                 clientCertificate,
                 clientCertificateChain,
-                messageContext);
+                messageContext
+            );
         }
     }
 }

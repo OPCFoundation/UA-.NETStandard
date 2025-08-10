@@ -34,7 +34,8 @@ namespace Opc.Ua
         /// </summary>
         public NumericRange ParsedIndexRange
         {
-            get => m_parsedIndexRange; set => m_parsedIndexRange = value;
+            get => m_parsedIndexRange;
+            set => m_parsedIndexRange = value;
         }
 
         /// <summary>

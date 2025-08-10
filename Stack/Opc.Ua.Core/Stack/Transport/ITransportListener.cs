@@ -44,11 +44,7 @@ namespace Opc.Ua
         /// <param name="callback">The callback to use when requests arrive via the channel.</param>
         /// <exception cref="ArgumentNullException">Thrown if any parameter is null.</exception>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        void Open(
-            Uri baseAddress,
-            TransportListenerSettings settings,
-            ITransportListenerCallback callback
-            );
+        void Open(Uri baseAddress, TransportListenerSettings settings, ITransportListenerCallback callback);
 
         /// <summary>
         /// Closes the listener and stops accepting connection.
@@ -59,9 +55,7 @@ namespace Opc.Ua
         /// <summary>
         /// Updates the application certificate for a listener.
         /// </summary>
-        void CertificateUpdate(
-            ICertificateValidator validator,
-            CertificateTypesProvider serverCertificateTypes);
+        void CertificateUpdate(ICertificateValidator validator, CertificateTypesProvider serverCertificateTypes);
 
         /// <summary>
         /// Raised when a new connection is waiting for a client.

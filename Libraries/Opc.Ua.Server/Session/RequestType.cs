@@ -37,12 +37,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The request type is not known.
         /// </summary>
-		Unknown,
+        Unknown,
 
         /// <summary>
         /// <see cref="IDiscoveryServer.FindServers" />
         /// </summary>
-		FindServers,
+        FindServers,
 
         /// <summary>
         /// <see cref="IDiscoveryServer.GetEndpoints" />
@@ -207,6 +207,6 @@ namespace Opc.Ua.Server
         /// <summary>
         /// <see cref="ISessionServer.UnregisterNodes" />
         /// </summary>
-        UnregisterNodes
+        UnregisterNodes,
     }
 }

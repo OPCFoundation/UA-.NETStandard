@@ -45,7 +45,8 @@ namespace Opc.Ua.Server
             INodeManager nodeManager,
             uint maxQueueSize,
             uint maxDurableQueueSize,
-            IEnumerable<SamplingRateGroup> samplingRates)
+            IEnumerable<SamplingRateGroup> samplingRates
+        )
         {
             m_server = server ?? throw new ArgumentNullException(nameof(server));
             m_nodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
@@ -60,14 +61,11 @@ namespace Opc.Ua.Server
 
                 if (m_samplingRates.Count == 0)
                 {
-                    m_samplingRates = [.. s_DefaultSamplingRates];
+                    m_samplingRates = [.. s_defaultSamplingRates];
                 }
             }
 
-            if (m_samplingRates == null)
-            {
-                m_samplingRates = [.. s_DefaultSamplingRates];
-            }
+            m_samplingRates ??= [.. s_defaultSamplingRates];
         }
 
         /// <summary>
@@ -142,7 +140,8 @@ namespace Opc.Ua.Server
             MonitoredItemCreateRequest itemToCreate,
             Range range,
             double minimumSamplingInterval,
-            bool createDurable)
+            bool createDurable
+        )
         {
             // use publishing interval as sampling interval.
             double samplingInterval = itemToCreate.RequestedParameters.SamplingInterval;
@@ -159,7 +158,12 @@ namespace Opc.Ua.Server
             }
 
             // calculate queue size.
-            uint revisedQueueSize = SubscriptionManager.CalculateRevisedQueueSize(createDurable, itemToCreate.RequestedParameters.QueueSize, m_maxQueueSize, m_maxDurableQueueSize);
+            uint revisedQueueSize = SubscriptionManager.CalculateRevisedQueueSize(
+                createDurable,
+                itemToCreate.RequestedParameters.QueueSize,
+                m_maxQueueSize,
+                m_maxDurableQueueSize
+            );
 
             // get filter.
             MonitoringFilter filter = null;
@@ -206,7 +210,8 @@ namespace Opc.Ua.Server
                 revisedQueueSize,
                 itemToCreate.RequestedParameters.DiscardOldest,
                 samplingInterval,
-                createDurable);
+                createDurable
+            );
 
             // start sampling.
             StartMonitoring(context, monitoredItem);
@@ -257,7 +262,8 @@ namespace Opc.Ua.Server
             uint queueSize,
             bool discardOldest,
             double minimumSamplingInterval,
-            bool createDurable)
+            bool createDurable
+        )
         {
             return new MonitoredItem(
                 server,
@@ -277,7 +283,8 @@ namespace Opc.Ua.Server
                 queueSize,
                 discardOldest,
                 minimumSamplingInterval,
-                createDurable);
+                createDurable
+            );
         }
 
         /// <summary>
@@ -286,10 +293,16 @@ namespace Opc.Ua.Server
         public virtual ISampledDataChangeMonitoredItem RestoreMonitoredItem(
             object managerHandle,
             IStoredMonitoredItem storedMonitoredItem,
-            IUserIdentity savedOwnerIdentity)
+            IUserIdentity savedOwnerIdentity
+        )
         {
             // create monitored item.
-            ISampledDataChangeMonitoredItem monitoredItem = new MonitoredItem(m_server, m_nodeManager, managerHandle, storedMonitoredItem);
+            ISampledDataChangeMonitoredItem monitoredItem = new MonitoredItem(
+                m_server,
+                m_nodeManager,
+                managerHandle,
+                storedMonitoredItem
+            );
 
             // start sampling.
             StartMonitoring(new OperationContext(monitoredItem), monitoredItem, savedOwnerIdentity);
@@ -306,7 +319,8 @@ namespace Opc.Ua.Server
             TimestampsToReturn timestampsToReturn,
             ISampledDataChangeMonitoredItem monitoredItem,
             MonitoredItemModifyRequest itemToModify,
-            Range range)
+            Range range
+        )
         {
             // use existing interval as sampling interval.
             double samplingInterval = itemToModify.RequestedParameters.SamplingInterval;
@@ -325,7 +339,12 @@ namespace Opc.Ua.Server
             }
 
             // calculate queue size.
-            uint revisedQueueSize = SubscriptionManager.CalculateRevisedQueueSize(monitoredItem.IsDurable, itemToModify.RequestedParameters.QueueSize, m_maxQueueSize, m_maxDurableQueueSize);
+            uint revisedQueueSize = SubscriptionManager.CalculateRevisedQueueSize(
+                monitoredItem.IsDurable,
+                itemToModify.RequestedParameters.QueueSize,
+                m_maxQueueSize,
+                m_maxDurableQueueSize
+            );
 
             if (revisedQueueSize == 0)
             {
@@ -356,7 +375,8 @@ namespace Opc.Ua.Server
                 range,
                 samplingInterval,
                 revisedQueueSize,
-                itemToModify.RequestedParameters.DiscardOldest);
+                itemToModify.RequestedParameters.DiscardOldest
+            );
 
             // state of item did not change if an error returned here.
             if (ServiceResult.IsBad(error))
@@ -378,12 +398,19 @@ namespace Opc.Ua.Server
         /// It will use the external source for monitoring if the source accepts the item.
         /// The changes will not take affect until the ApplyChanges() method is called.
         /// </remarks>
-        public virtual void StartMonitoring(OperationContext context, ISampledDataChangeMonitoredItem monitoredItem, IUserIdentity savedOwnerIdentity = null)
+        public virtual void StartMonitoring(
+            OperationContext context,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            IUserIdentity savedOwnerIdentity = null
+        )
         {
             lock (m_lock)
             {
                 // do nothing for disabled or exception based items.
-                if (monitoredItem.MonitoringMode == MonitoringMode.Disabled || monitoredItem.MinimumSamplingInterval == 0)
+                if (
+                    monitoredItem.MonitoringMode == MonitoringMode.Disabled
+                    || monitoredItem.MinimumSamplingInterval == 0
+                )
                 {
                     m_sampledItems.Add(monitoredItem, null);
                     return;
@@ -406,7 +433,8 @@ namespace Opc.Ua.Server
                     m_samplingRates,
                     context,
                     monitoredItem.SamplingInterval,
-                    savedOwnerIdentity);
+                    savedOwnerIdentity
+                );
 
                 samplingGroup2.StartMonitoring(context, monitoredItem, savedOwnerIdentity);
 
@@ -508,7 +536,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The default sampling rates.
         /// </summary>
-        private static readonly SamplingRateGroup[] s_DefaultSamplingRates =
+        private static readonly SamplingRateGroup[] s_defaultSamplingRates =
         [
             new SamplingRateGroup(100, 100, 4),
             new SamplingRateGroup(500, 250, 2),
@@ -518,7 +546,7 @@ namespace Opc.Ua.Server
             new SamplingRateGroup(60000, 30000, 10),
             new SamplingRateGroup(300000, 60000, 15),
             new SamplingRateGroup(900000, 300000, 9),
-            new SamplingRateGroup(3600000, 900000, 0)
+            new SamplingRateGroup(3600000, 900000, 0),
         ];
     }
 }

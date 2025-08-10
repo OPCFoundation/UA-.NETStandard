@@ -66,7 +66,7 @@ namespace Opc.Ua.Client
             New = 0,
             Stopped = 1,
             Started = 2,
-            Errored = 3
+            Errored = 3,
         }
 
         /// <summary>
@@ -77,7 +77,7 @@ namespace Opc.Ua.Client
             New = 0,
             Closed = 1,
             Open = 2,
-            Errored = 3
+            Errored = 3,
         }
 
         /// <summary>
@@ -116,7 +116,7 @@ namespace Opc.Ua.Client
             /// Respond to any incoming reverse connection,
             /// always callback.
             /// </summary>
-            AnyAlways = Any | Always
+            AnyAlways = Any | Always,
         }
 
         /// <summary>
@@ -130,6 +130,7 @@ namespace Opc.Ua.Client
                 State = ReverseConnectHostState.New;
                 ConfigEntry = configEntry;
             }
+
             public ReverseConnectHost ReverseConnectHost;
             public ReverseConnectHostState State;
             public bool ConfigEntry;
@@ -144,8 +145,9 @@ namespace Opc.Ua.Client
             public Registration(
                 string serverUri,
                 Uri endpointUrl,
-                EventHandler<ConnectionWaitingEventArgs> onConnectionWaiting) :
-                this(endpointUrl, onConnectionWaiting)
+                EventHandler<ConnectionWaitingEventArgs> onConnectionWaiting
+            )
+                : this(endpointUrl, onConnectionWaiting)
             {
                 ServerUri = Utils.ReplaceLocalhost(serverUri);
             }
@@ -159,15 +161,14 @@ namespace Opc.Ua.Client
             public Registration(
                 X509Certificate2 serverCertificate,
                 Uri endpointUrl,
-                EventHandler<ConnectionWaitingEventArgs> onConnectionWaiting) :
-                this(endpointUrl, onConnectionWaiting)
+                EventHandler<ConnectionWaitingEventArgs> onConnectionWaiting
+            )
+                : this(endpointUrl, onConnectionWaiting)
             {
                 ServerUri = X509Utils.GetApplicationUriFromCertificate(serverCertificate);
             }
 
-            private Registration(
-                Uri endpointUrl,
-                EventHandler<ConnectionWaitingEventArgs> onConnectionWaiting)
+            private Registration(Uri endpointUrl, EventHandler<ConnectionWaitingEventArgs> onConnectionWaiting)
             {
                 EndpointUrl = new Uri(Utils.ReplaceLocalhost(endpointUrl.ToString()));
                 OnConnectionWaiting = onConnectionWaiting;
@@ -226,14 +227,13 @@ namespace Opc.Ua.Client
         /// <param name="sender">The sender.</param>
         /// <param name="args">The <see cref="ConfigurationWatcherEventArgs"/> instance containing the event data.</param>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2109:ReviewVisibleEventHandlers")]
-        protected virtual async void OnConfigurationChanged(object sender, ConfigurationWatcherEventArgs args)
+        protected virtual async void OnConfigurationChangedAsync(object sender, ConfigurationWatcherEventArgs args)
         {
             try
             {
-                ApplicationConfiguration configuration = await ApplicationConfiguration.LoadAsync(
-                    new FileInfo(args.FilePath),
-                    m_applicationType,
-                    m_configType).ConfigureAwait(false);
+                ApplicationConfiguration configuration = await ApplicationConfiguration
+                    .LoadAsync(new FileInfo(args.FilePath), m_applicationType, m_configType)
+                    .ConfigureAwait(false);
 
                 OnUpdateConfiguration(configuration);
             }
@@ -415,14 +415,18 @@ namespace Opc.Ua.Client
                     if (!string.IsNullOrEmpty(configuration.SourceFilePath))
                     {
                         m_configurationWatcher = new ConfigurationWatcher(configuration);
-                        m_configurationWatcher.Changed += OnConfigurationChanged;
+                        m_configurationWatcher.Changed += OnConfigurationChangedAsync;
                     }
                 }
                 catch (Exception e)
                 {
                     Utils.LogError(e, "Unexpected error starting reverse connect manager.");
                     m_state = ReverseConnectManagerState.Errored;
-                    var error = ServiceResult.Create(e, StatusCodes.BadInternalError, "Unexpected error starting application");
+                    var error = ServiceResult.Create(
+                        e,
+                        StatusCodes.BadInternalError,
+                        "Unexpected error starting application"
+                    );
                     throw new ServiceResultException(error);
                 }
             }
@@ -457,7 +461,11 @@ namespace Opc.Ua.Client
                 {
                     Utils.LogError(e, "Unexpected error starting reverse connect manager.");
                     m_state = ReverseConnectManagerState.Errored;
-                    var error = ServiceResult.Create(e, StatusCodes.BadInternalError, "Unexpected error starting reverse connect manager");
+                    var error = ServiceResult.Create(
+                        e,
+                        StatusCodes.BadInternalError,
+                        "Unexpected error starting reverse connect manager"
+                    );
                     throw new ServiceResultException(error);
                 }
             }
@@ -485,7 +493,8 @@ namespace Opc.Ua.Client
         public Task<ITransportWaitingConnection> WaitForConnection(
             Uri endpointUrl,
             string serverUri,
-            CancellationToken ct = default)
+            CancellationToken ct = default
+        )
         {
             return WaitForConnectionAsync(endpointUrl, serverUri, ct);
         }
@@ -499,18 +508,23 @@ namespace Opc.Ua.Client
         public async Task<ITransportWaitingConnection> WaitForConnectionAsync(
             Uri endpointUrl,
             string serverUri,
-            CancellationToken ct = default)
+            CancellationToken ct = default
+        )
         {
             var tcs = new TaskCompletionSource<ITransportWaitingConnection>();
-            int hashCode = RegisterWaitingConnection(endpointUrl, serverUri,
+            int hashCode = RegisterWaitingConnection(
+                endpointUrl,
+                serverUri,
                 (sender, e) => tcs.TrySetResult(e),
-                ReverseConnectStrategy.Once);
+                ReverseConnectStrategy.Once
+            );
 
             async Task ListenForCancelAsync(CancellationToken ct)
             {
                 if (ct == default)
                 {
-                    int waitTimeout = m_configuration.WaitTimeout > 0 ? m_configuration.WaitTimeout : DefaultWaitTimeout;
+                    int waitTimeout =
+                        m_configuration.WaitTimeout > 0 ? m_configuration.WaitTimeout : DefaultWaitTimeout;
                     await Task.Delay(waitTimeout, ct).ConfigureAwait(false);
                 }
                 else
@@ -525,7 +539,10 @@ namespace Opc.Ua.Client
             if (!tcs.Task.IsCompleted || tcs.Task.IsCanceled)
             {
                 UnregisterWaitingConnection(hashCode);
-                throw new ServiceResultException(StatusCodes.BadTimeout, "Waiting for the reverse connection timed out.");
+                throw new ServiceResultException(
+                    StatusCodes.BadTimeout,
+                    "Waiting for the reverse connection timed out."
+                );
             }
 
             return await tcs.Task.ConfigureAwait(false);
@@ -543,7 +560,7 @@ namespace Opc.Ua.Client
             string serverUri,
             EventHandler<ConnectionWaitingEventArgs> onConnectionWaiting,
             ReverseConnectStrategy reverseConnectStrategy
-            )
+        )
         {
             if (endpointUrl == null)
             {
@@ -552,7 +569,7 @@ namespace Opc.Ua.Client
 
             var registration = new Registration(serverUri, endpointUrl, onConnectionWaiting)
             {
-                ReverseConnectStrategy = reverseConnectStrategy
+                ReverseConnectStrategy = reverseConnectStrategy,
             };
             lock (m_registrationsLock)
             {
@@ -643,7 +660,8 @@ namespace Opc.Ua.Client
                 reverseConnectHost.CreateListener(
                     endpointUrl,
                     new ConnectionWaitingHandlerAsync(OnConnectionWaitingAsync),
-                    new EventHandler<ConnectionStatusEventArgs>(OnConnectionStatusChanged));
+                    new EventHandler<ConnectionStatusEventArgs>(OnConnectionStatusChanged)
+                );
             }
             catch (ArgumentException ae)
             {
@@ -673,27 +691,35 @@ namespace Opc.Ua.Client
                 int delay = endTime - HiResClock.TickCount;
                 if (delay > 0)
                 {
-                    await Task.Delay(delay, ct).ContinueWith(tsk =>
-                    {
-                        if (tsk.IsCanceled)
+                    await Task.Delay(delay, ct)
+                        .ContinueWith(tsk =>
                         {
-                            matched = MatchRegistration(sender, e);
-                            if (matched)
+                            if (tsk.IsCanceled)
                             {
-                                Utils.LogInfo("Matched reverse connection {0} {1} after {2}ms",
-                                     e.ServerUri, e.EndpointUrl,
-                                     HiResClock.TickCount - startTime);
+                                matched = MatchRegistration(sender, e);
+                                if (matched)
+                                {
+                                    Utils.LogInfo(
+                                        "Matched reverse connection {0} {1} after {2}ms",
+                                        e.ServerUri,
+                                        e.EndpointUrl,
+                                        HiResClock.TickCount - startTime
+                                    );
+                                }
                             }
-                        }
-                    }
-                    ).ConfigureAwait(false);
+                        })
+                        .ConfigureAwait(false);
                 }
                 break;
             }
 
-            Utils.LogInfo("{0} reverse connection: {1} {2} after {3}ms",
+            Utils.LogInfo(
+                "{0} reverse connection: {1} {2} after {3}ms",
                 e.Accepted ? "Accepted" : "Rejected",
-                e.ServerUri, e.EndpointUrl, HiResClock.TickCount - startTime);
+                e.ServerUri,
+                e.EndpointUrl,
+                HiResClock.TickCount - startTime
+            );
         }
 
         /// <summary>
@@ -708,11 +734,22 @@ namespace Opc.Ua.Client
             lock (m_registrationsLock)
             {
                 // first try to match single registrations
-                foreach (Registration registration in m_registrations.Where(r => (r.ReverseConnectStrategy & ReverseConnectStrategy.Any) == 0))
+                foreach (
+                    Registration registration in m_registrations.Where(r =>
+                        (r.ReverseConnectStrategy & ReverseConnectStrategy.Any) == 0
+                    )
+                )
                 {
-                    if (registration.EndpointUrl.Scheme.Equals(e.EndpointUrl.Scheme, StringComparison.Ordinal) &&
-                           (registration.ServerUri?.Equals(e.ServerUri, StringComparison.Ordinal) == true ||
-                            registration.EndpointUrl.Authority.Equals(e.EndpointUrl.Authority, StringComparison.OrdinalIgnoreCase)))
+                    if (
+                        registration.EndpointUrl.Scheme.Equals(e.EndpointUrl.Scheme, StringComparison.Ordinal)
+                        && (
+                            registration.ServerUri?.Equals(e.ServerUri, StringComparison.Ordinal) == true
+                            || registration.EndpointUrl.Authority.Equals(
+                                e.EndpointUrl.Authority,
+                                StringComparison.OrdinalIgnoreCase
+                            )
+                        )
+                    )
                     {
                         callbackRegistration = registration;
                         e.Accepted = true;
@@ -725,20 +762,31 @@ namespace Opc.Ua.Client
                 // now try any registrations.
                 if (callbackRegistration == null)
                 {
-                    foreach (Registration registration in m_registrations.Where(r => (r.ReverseConnectStrategy & ReverseConnectStrategy.Any) != 0))
+                    foreach (
+                        Registration registration in m_registrations.Where(r =>
+                            (r.ReverseConnectStrategy & ReverseConnectStrategy.Any) != 0
+                        )
+                    )
                     {
                         if (registration.EndpointUrl.Scheme.Equals(e.EndpointUrl.Scheme, StringComparison.Ordinal))
                         {
                             callbackRegistration = registration;
                             e.Accepted = true;
                             found = true;
-                            Utils.LogInfo("Accept any reverse connection for approval: {0} {1}", e.ServerUri, e.EndpointUrl);
+                            Utils.LogInfo(
+                                "Accept any reverse connection for approval: {0} {1}",
+                                e.ServerUri,
+                                e.EndpointUrl
+                            );
                             break;
                         }
                     }
                 }
 
-                if (callbackRegistration != null && (callbackRegistration.ReverseConnectStrategy & ReverseConnectStrategy.Once) != 0)
+                if (
+                    callbackRegistration != null
+                    && (callbackRegistration.ReverseConnectStrategy & ReverseConnectStrategy.Once) != 0
+                )
                 {
                     m_registrations.Remove(callbackRegistration);
                 }

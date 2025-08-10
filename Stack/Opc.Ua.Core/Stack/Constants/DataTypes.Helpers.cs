@@ -21,8 +21,8 @@ namespace Opc.Ua
     public static partial class DataTypes
     {
         /// <summary>
-		/// Returns the browse name for the attribute.
-		/// </summary>
+        /// Returns the browse name for the attribute.
+        /// </summary>
         public static string GetBrowseName(int identifier)
         {
             foreach (FieldInfo field in typeof(DataTypes).GetFields(BindingFlags.Public | BindingFlags.Static))

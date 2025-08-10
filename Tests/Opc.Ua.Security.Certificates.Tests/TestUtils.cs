@@ -46,11 +46,17 @@ namespace Opc.Ua.Tests
     /// <summary>
     /// Create a collection of test assets.
     /// </summary>
-    public class AssetCollection<T> : List<T> where T : IAsset, new()
+    public class AssetCollection<T> : List<T>
+        where T : IAsset, new()
     {
         public AssetCollection() { }
-        public AssetCollection(IEnumerable<T> collection) : base(collection) { }
-        public AssetCollection(int capacity) : base(capacity) { }
+
+        public AssetCollection(IEnumerable<T> collection)
+            : base(collection) { }
+
+        public AssetCollection(int capacity)
+            : base(capacity) { }
+
         public static AssetCollection<T> ToAssetCollection(T[] values)
         {
             return values != null ? [.. values] : [];
@@ -92,7 +98,8 @@ namespace Opc.Ua.Tests
 
         public static void ValidateSelSignedBasicConstraints(X509Certificate2 certificate)
         {
-            X509BasicConstraintsExtension basicConstraintsExtension = certificate.Extensions.FindExtension<X509BasicConstraintsExtension>();
+            X509BasicConstraintsExtension basicConstraintsExtension =
+                certificate.Extensions.FindExtension<X509BasicConstraintsExtension>();
             Assert.NotNull(basicConstraintsExtension);
             Assert.False(basicConstraintsExtension.CertificateAuthority);
             Assert.True(basicConstraintsExtension.Critical);

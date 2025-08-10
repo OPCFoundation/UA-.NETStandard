@@ -26,7 +26,8 @@ namespace Opc.Ua
     public delegate void ChannelTokenActivatedEventHandler(
         ITransportChannel channel,
         ChannelToken currentToken,
-        ChannelToken previousToken);
+        ChannelToken previousToken
+    );
 
     /// <summary>
     /// This is an interface to a channel which supports
@@ -74,16 +75,12 @@ namespace Opc.Ua
         /// <param name="url">The URL for the endpoint.</param>
         /// <param name="settings">The settings to use when creating the channel.</param>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        void Initialize(
-            Uri url,
-            TransportChannelSettings settings);
+        void Initialize(Uri url, TransportChannelSettings settings);
 
         /// <summary>
         /// Initializes a secure channel with the endpoint identified by the URL.
         /// </summary>
-        void Initialize(
-            ITransportWaitingConnection connection,
-            TransportChannelSettings settings);
+        void Initialize(ITransportWaitingConnection connection, TransportChannelSettings settings);
 
         /// <summary>
         /// Opens a secure channel with the endpoint identified by the URL.
@@ -99,9 +96,7 @@ namespace Opc.Ua
         /// <returns>The result which must be passed to the EndOpen method.</returns>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
         /// <seealso cref="Open"/>
-        IAsyncResult BeginOpen(
-            AsyncCallback callback,
-            object callbackData);
+        IAsyncResult BeginOpen(AsyncCallback callback, object callbackData);
 
         /// <summary>
         /// Completes an asynchronous operation to open a secure channel.

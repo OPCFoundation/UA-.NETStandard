@@ -54,9 +54,8 @@ namespace Opc.Ua
         /// </remarks>
         /// <param name="value">The value to copy</param>
         /// <exception cref="ArgumentNullException">Thrown when the value is null</exception>
-        public DiagnosticInfo(DiagnosticInfo value) : this(value, 0)
-        {
-        }
+        public DiagnosticInfo(DiagnosticInfo value)
+            : this(value, 0) { }
 
         /// <summary>
         /// Creates a deep copy of the value, but limits the recursion depth.
@@ -89,12 +88,7 @@ namespace Opc.Ua
         /// <param name="locale">The locale for the localized text value</param>
         /// <param name="localizedText">The localized text value</param>
         /// <param name="additionalInfo">Additional, textual information</param>
-        public DiagnosticInfo(
-            int symbolicId,
-            int namespaceUri,
-            int locale,
-            int localizedText,
-            string additionalInfo)
+        public DiagnosticInfo(int symbolicId, int namespaceUri, int locale, int localizedText, string additionalInfo)
         {
             SymbolicId = symbolicId;
             NamespaceUri = namespaceUri;
@@ -114,10 +108,9 @@ namespace Opc.Ua
             ServiceResult result,
             DiagnosticsMasks diagnosticsMask,
             bool serviceLevel,
-            StringTable stringTable)
-            : this(result, diagnosticsMask, serviceLevel, stringTable, 0)
-        {
-        }
+            StringTable stringTable
+        )
+            : this(result, diagnosticsMask, serviceLevel, stringTable, 0) { }
 
         /// <summary>
         /// Initializes the object with a ServiceResult.
@@ -133,7 +126,8 @@ namespace Opc.Ua
             DiagnosticsMasks diagnosticsMask,
             bool serviceLevel,
             StringTable stringTable,
-            int depth)
+            int depth
+        )
         {
             uint mask = (uint)diagnosticsMask;
 
@@ -158,7 +152,8 @@ namespace Opc.Ua
             Exception exception,
             DiagnosticsMasks diagnosticsMask,
             bool serviceLevel,
-            StringTable stringTable)
+            StringTable stringTable
+        )
         {
             uint mask = (uint)diagnosticsMask;
 
@@ -176,8 +171,12 @@ namespace Opc.Ua
         /// Initializes the object during deserialization.
         /// </summary>
         /// <param name="context">The context information of an underlying data-stream</param>
-        [OnDeserializing()]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA1801:ReviewUnusedParameters", MessageId = "context")]
+        [OnDeserializing]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Microsoft.Usage",
+            "CA1801:ReviewUnusedParameters",
+            MessageId = "context"
+        )]
         private void Initialize(StreamingContext context)
         {
             Initialize();
@@ -211,7 +210,8 @@ namespace Opc.Ua
             ServiceResult result,
             DiagnosticsMasks diagnosticsMask,
             StringTable stringTable,
-            int depth)
+            int depth
+        )
         {
             if (stringTable == null)
             {
@@ -248,7 +248,10 @@ namespace Opc.Ua
                 }
             }
 
-            if ((DiagnosticsMasks.ServiceLocalizedText & diagnosticsMask) != 0 && !Ua.LocalizedText.IsNullOrEmpty(result.LocalizedText))
+            if (
+                (DiagnosticsMasks.ServiceLocalizedText & diagnosticsMask) != 0
+                && !Ua.LocalizedText.IsNullOrEmpty(result.LocalizedText)
+            )
             {
                 if (!string.IsNullOrEmpty(result.LocalizedText.Locale))
                 {
@@ -270,8 +273,10 @@ namespace Opc.Ua
                 }
             }
 
-            if ((DiagnosticsMasks.ServiceAdditionalInfo & diagnosticsMask) != 0 &&
-                (DiagnosticsMasks.UserPermissionAdditionalInfo & diagnosticsMask) != 0)
+            if (
+                (DiagnosticsMasks.ServiceAdditionalInfo & diagnosticsMask) != 0
+                && (DiagnosticsMasks.UserPermissionAdditionalInfo & diagnosticsMask) != 0
+            )
             {
                 AdditionalInfo = result.AdditionalInfo;
             }
@@ -293,13 +298,12 @@ namespace Opc.Ua
                             diagnosticsMask,
                             true,
                             stringTable,
-                            depth + 1);
+                            depth + 1
+                        );
                     }
                     else
                     {
-                        Utils.LogWarning(
-                            "Inner diagnostics truncated. Max depth of {0} exceeded.",
-                            MaxInnerDepth);
+                        Utils.LogWarning("Inner diagnostics truncated. Max depth of {0} exceeded.", MaxInnerDepth);
                     }
                 }
             }
@@ -350,13 +354,14 @@ namespace Opc.Ua
         /// <summary>
         /// Whether the object represents a Null DiagnosticInfo.
         /// </summary>
-        public bool IsNullDiagnosticInfo => SymbolicId == -1 &&
-                    Locale == -1 &&
-                    LocalizedText == -1 &&
-                    NamespaceUri == -1 &&
-                    AdditionalInfo == null &&
-                    InnerDiagnosticInfo == null &&
-                    InnerStatusCode == StatusCodes.Good;
+        public bool IsNullDiagnosticInfo =>
+            SymbolicId == -1
+            && Locale == -1
+            && LocalizedText == -1
+            && NamespaceUri == -1
+            && AdditionalInfo == null
+            && InnerDiagnosticInfo == null
+            && InnerStatusCode == StatusCodes.Good;
 
         /// <summary>
         /// Determines if the specified object is equal to the object.
@@ -518,7 +523,11 @@ namespace Opc.Ua
     /// <remarks>
     /// A strongly-typed collection of DiagnosticInfo objects.
     /// </remarks>
-    [CollectionDataContract(Name = "ListOfDiagnosticInfo", Namespace = Namespaces.OpcUaXsd, ItemName = "DiagnosticInfo")]
+    [CollectionDataContract(
+        Name = "ListOfDiagnosticInfo",
+        Namespace = Namespaces.OpcUaXsd,
+        ItemName = "DiagnosticInfo"
+    )]
     public class DiagnosticInfoCollection : List<DiagnosticInfo>, ICloneable
     {
         /// <summary>
@@ -536,7 +545,8 @@ namespace Opc.Ua
         /// Initializes the collection from another collection.
         /// </remarks>
         /// <param name="collection">The collection to copy the contents from</param>
-        public DiagnosticInfoCollection(IEnumerable<DiagnosticInfo> collection) : base(collection) { }
+        public DiagnosticInfoCollection(IEnumerable<DiagnosticInfo> collection)
+            : base(collection) { }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
@@ -545,7 +555,8 @@ namespace Opc.Ua
         /// Initializes the collection with the specified capacity.
         /// </remarks>
         /// <param name="capacity">The max capacity of the collection</param>
-        public DiagnosticInfoCollection(int capacity) : base(capacity) { }
+        public DiagnosticInfoCollection(int capacity)
+            : base(capacity) { }
 
         /// <summary>
         /// Converts an array to a collection.
@@ -599,5 +610,5 @@ namespace Opc.Ua
 
             return clone;
         }
-    }//class
-}//namespace
+    } //class
+} //namespace

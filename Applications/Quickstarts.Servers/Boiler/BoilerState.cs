@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -68,7 +68,8 @@ namespace Boiler
             uint transitionId,
             uint causeId,
             IList<object> inputArguments,
-            IList<object> outputArguments)
+            IList<object> outputArguments
+        )
         {
             switch (causeId)
             {
@@ -229,18 +230,27 @@ namespace Boiler
                     m_drum.LevelIndicator.Output.Value,
                     m_levelController.SetPoint.Value,
                     0.1,
-                    m_drum.LevelIndicator.Output.EURange.Value);
+                    m_drum.LevelIndicator.Output.EURange.Value
+                );
 
-                // calculate inputs for custom controller. 
+                // calculate inputs for custom controller.
                 m_customController.Input1.Value = m_levelController.UpdateMeasurement(m_drum.LevelIndicator.Output);
                 m_customController.Input2.Value = GetPercentage(m_inputPipe.FlowTransmitter1.Output);
                 m_customController.Input3.Value = GetPercentage(m_outputPipe.FlowTransmitter2.Output);
 
-                // calculate output for custom controller. 
-                m_customController.ControlOut.Value = (m_customController.Input1.Value + m_customController.Input3.Value - m_customController.Input2.Value) / 2;
+                // calculate output for custom controller.
+                m_customController.ControlOut.Value =
+                    (
+                        m_customController.Input1.Value
+                        + m_customController.Input3.Value
+                        - m_customController.Input2.Value
+                    ) / 2;
 
                 // update flow controller set point.
-                m_flowController.SetPoint.Value = GetValue((m_customController.ControlOut.Value + 1) / 2, m_inputPipe.FlowTransmitter1.Output.EURange.Value);
+                m_flowController.SetPoint.Value = GetValue(
+                    (m_customController.ControlOut.Value + 1) / 2,
+                    m_inputPipe.FlowTransmitter1.Output.EURange.Value
+                );
 
                 double error = m_flowController.UpdateMeasurement(m_inputPipe.FlowTransmitter1.Output);
 
@@ -252,12 +262,19 @@ namespace Boiler
                     m_inputPipe.FlowTransmitter1.Output.Value,
                     m_flowController.SetPoint.Value,
                     0.6,
-                    m_inputPipe.FlowTransmitter1.Output.EURange.Value);
+                    m_inputPipe.FlowTransmitter1.Output.EURange.Value
+                );
 
                 // add pertubations.
                 m_drum.LevelIndicator.Output.Value = RoundAndPerturb(m_drum.LevelIndicator.Output.Value, 3);
-                m_inputPipe.FlowTransmitter1.Output.Value = RoundAndPerturb(m_inputPipe.FlowTransmitter1.Output.Value, 3);
-                m_outputPipe.FlowTransmitter2.Output.Value = RoundAndPerturb(m_outputPipe.FlowTransmitter2.Output.Value, 3);
+                m_inputPipe.FlowTransmitter1.Output.Value = RoundAndPerturb(
+                    m_inputPipe.FlowTransmitter1.Output.Value,
+                    3
+                );
+                m_outputPipe.FlowTransmitter2.Output.Value = RoundAndPerturb(
+                    m_outputPipe.FlowTransmitter2.Output.Value,
+                    3
+                );
 
                 ClearChangeMasks(m_simulationContext, true);
             }

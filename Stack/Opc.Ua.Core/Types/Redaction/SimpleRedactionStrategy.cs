@@ -48,8 +48,8 @@ namespace Opc.Ua.Types.Redaction
         /// <summary>
         /// Creates a new instance of the <see cref="SimpleRedactionStrategy"/> with default lengths.
         /// </summary>
-        public SimpleRedactionStrategy() : this(kDefaultMinLength, kDefaultMaxLength)
-        { }
+        public SimpleRedactionStrategy()
+            : this(kDefaultMinLength, kDefaultMaxLength) { }
 
         /// <summary>
         /// Creates a new instance of the <see cref="SimpleRedactionStrategy"/> with default lengths.
@@ -110,7 +110,9 @@ namespace Opc.Ua.Types.Redaction
 
         private static string RedactException(Exception exception)
         {
-            return "An exception of type " + exception.GetType() + " was redacted because it may contain sensitive information.";
+            return "An exception of type "
+                + exception.GetType()
+                + " was redacted because it may contain sensitive information.";
         }
 
         private string RedactUri(Uri uri)
@@ -122,10 +124,7 @@ namespace Opc.Ua.Types.Redaction
 
             string redactedHost = Redact(uri.Host);
 
-            StringBuilder sb = new StringBuilder()
-                .Append(uri.Scheme)
-                .Append(Uri.SchemeDelimiter)
-                .Append(redactedHost);
+            StringBuilder sb = new StringBuilder().Append(uri.Scheme).Append(Uri.SchemeDelimiter).Append(redactedHost);
 
             if (!uri.IsDefaultPort)
             {

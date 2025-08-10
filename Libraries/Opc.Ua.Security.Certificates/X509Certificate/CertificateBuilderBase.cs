@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -37,22 +37,23 @@ namespace Opc.Ua.Security.Certificates
     /// Builds a Certificate.
     /// </summary>
     public abstract class CertificateBuilderBase
-        : IX509Certificate
-        , ICertificateBuilder
-        , ICertificateBuilderConfig
-        , ICertificateBuilderSetIssuer
-        , ICertificateBuilderParameter
-        , ICertificateBuilderIssuer
-        , ICertificateBuilderRSAParameter
-        , ICertificateBuilderPublicKey
-        , ICertificateBuilderRSAPublicKey
-        , ICertificateBuilderCreateForRSA
-        , ICertificateBuilderCreateForRSAAny
+        : IX509Certificate,
+            ICertificateBuilder,
+            ICertificateBuilderConfig,
+            ICertificateBuilderSetIssuer,
+            ICertificateBuilderParameter,
+            ICertificateBuilderIssuer,
+            ICertificateBuilderRSAParameter,
+            ICertificateBuilderPublicKey,
+            ICertificateBuilderRSAPublicKey,
+            ICertificateBuilderCreateForRSA,
+            ICertificateBuilderCreateForRSAAny
 #if ECC_SUPPORT
-        , ICertificateBuilderCreateForECDsa
-        , ICertificateBuilderECDsaPublicKey
-        , ICertificateBuilderECCParameter
-        , ICertificateBuilderCreateForECDsaAny
+            ,
+            ICertificateBuilderCreateForECDsa,
+            ICertificateBuilderECDsaPublicKey,
+            ICertificateBuilderECCParameter,
+            ICertificateBuilderCreateForECDsaAny
 #endif
     {
         /// <summary>
@@ -101,7 +102,10 @@ namespace Opc.Ua.Security.Certificates
         public string SerialNumber => m_serialNumber.ToHexString(true);
 
         /// <inheritdoc/>
-        public byte[] GetSerialNumber() { return m_serialNumber; }
+        public byte[] GetSerialNumber()
+        {
+            return m_serialNumber;
+        }
 
         /// <inheritdoc/>
         public HashAlgorithmName HashAlgorithmName { get; private set; }
@@ -122,6 +126,7 @@ namespace Opc.Ua.Security.Certificates
         /// <inheritdoc/>
         public abstract X509Certificate2 CreateForECDsa(X509SignatureGenerator generator);
 #endif
+
         /// <inheritdoc/>
         public ICertificateBuilder SetSerialNumberLength(int length)
         {
@@ -137,10 +142,12 @@ namespace Opc.Ua.Security.Certificates
         /// <inheritdoc/>
         public ICertificateBuilder SetSerialNumber(byte[] serialNumber)
         {
-            if (serialNumber.Length > X509Defaults.SerialNumberLengthMax ||
-                serialNumber.Length == 0)
+            if (serialNumber.Length > X509Defaults.SerialNumberLengthMax || serialNumber.Length == 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(serialNumber), "SerialNumber array exceeds supported length.");
+                throw new ArgumentOutOfRangeException(
+                    nameof(serialNumber),
+                    "SerialNumber array exceeds supported length."
+                );
             }
             m_serialNumberLength = serialNumber.Length;
             m_serialNumber = new byte[serialNumber.Length];
@@ -212,7 +219,10 @@ namespace Opc.Ua.Security.Certificates
 
             if (keySize % 1024 != 0 || keySize < X509Defaults.RSAKeySizeMin || keySize > X509Defaults.RSAKeySizeMax)
             {
-                throw new ArgumentException("KeySize must be a multiple of 1024 or is not in the allowed range.", nameof(keySize));
+                throw new ArgumentException(
+                    "KeySize must be a multiple of 1024 or is not in the allowed range.",
+                    nameof(keySize)
+                );
             }
 
             m_keySize = keySize;
@@ -282,20 +292,24 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="curve"></param>
         private void SetHashAlgorithmSize(ECCurve curve)
         {
-            if (curve.Oid.FriendlyName.CompareTo(ECCurve.NamedCurves.nistP384.Oid.FriendlyName) == 0 ||
-                curve.Oid.FriendlyName.CompareTo(ECCurve.NamedCurves.brainpoolP384r1.Oid.FriendlyName) == 0 ||
+            if (
+                curve.Oid.FriendlyName.CompareTo(ECCurve.NamedCurves.nistP384.Oid.FriendlyName) == 0
+                || curve.Oid.FriendlyName.CompareTo(ECCurve.NamedCurves.brainpoolP384r1.Oid.FriendlyName) == 0
+                ||
                 // special case for linux where friendly name could be ECDSA_P384 instead of nistP384
-                (curve.Oid?.Value != null && curve.Oid.Value.CompareTo(ECCurve.NamedCurves.nistP384.Oid.Value) == 0))
+                (curve.Oid?.Value != null && curve.Oid.Value.CompareTo(ECCurve.NamedCurves.nistP384.Oid.Value) == 0)
+            )
             {
                 SetHashAlgorithm(HashAlgorithmName.SHA384);
             }
-            if (curve.Oid.FriendlyName.CompareTo(ECCurve.NamedCurves.nistP521.Oid.FriendlyName) == 0 ||
-               (curve.Oid.FriendlyName.CompareTo(ECCurve.NamedCurves.brainpoolP512r1.Oid.FriendlyName) == 0))
+            if (
+                curve.Oid.FriendlyName.CompareTo(ECCurve.NamedCurves.nistP521.Oid.FriendlyName) == 0
+                || (curve.Oid.FriendlyName.CompareTo(ECCurve.NamedCurves.brainpoolP512r1.Oid.FriendlyName) == 0)
+            )
             {
                 SetHashAlgorithm(HashAlgorithmName.SHA512);
             }
         }
-
 #endif
 
         /// <summary>
@@ -341,44 +355,52 @@ namespace Opc.Ua.Security.Certificates
         /// If the certificate is a CA.
         /// </summary>
         private protected bool m_isCA;
+
         /// <summary>
         /// The path length constraint to sue for a CA.
         /// </summary>
         private protected int m_pathLengthConstraint;
+
         /// <summary>
         /// The serial number length in octets.
         /// </summary>
         private protected int m_serialNumberLength;
+
         /// <summary>
         /// If the serial number is preset by the user.
         /// </summary>
         private protected bool m_presetSerial;
+
         /// <summary>
         /// The serial number as a little endian byte array.
         /// </summary>
         private protected byte[] m_serialNumber;
+
         /// <summary>
         /// The collection of X509Extension to add to the certificate.
         /// </summary>
         private protected X509ExtensionCollection m_extensions;
+
         /// <summary>
         /// The RSA public to use when if a certificate is signed.
         /// </summary>
         private protected RSA m_rsaPublicKey;
+
         /// <summary>
         /// The size of a RSA key pair to create.
         /// </summary>
         private protected int m_keySize;
+
 #if ECC_SUPPORT
         /// <summary>
         /// The ECDsa public to use when if a certificate is signed.
         /// </summary>
         private protected ECDsa m_ecdsaPublicKey;
+
         /// <summary>
         /// The ECCurve to use.
         /// </summary>
         private protected ECCurve? m_curve;
 #endif
-
     }
 }

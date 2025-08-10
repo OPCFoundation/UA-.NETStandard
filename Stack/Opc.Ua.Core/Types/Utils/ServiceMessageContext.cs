@@ -13,9 +13,9 @@
 namespace Opc.Ua
 {
     /// <summary>
-	/// Stores context information associated with a session is used during message processing.
-	/// </summary>
-	public class ServiceMessageContext : IServiceMessageContext
+    /// Stores context information associated with a session is used during message processing.
+    /// </summary>
+    public class ServiceMessageContext : IServiceMessageContext
     {
         /// <summary>
         /// Initializes the object with default values.
@@ -25,7 +25,8 @@ namespace Opc.Ua
             Initialize(false);
         }
 
-        private ServiceMessageContext(bool shared) : this()
+        private ServiceMessageContext(bool shared)
+            : this()
         {
             Initialize(shared);
         }
@@ -54,10 +55,7 @@ namespace Opc.Ua
         public static ServiceMessageContext ThreadContext
         {
             get => GlobalContext;
-
-            set
-            {
-            }
+            set { }
         }
 
         /// <inheritdoc/>
@@ -82,7 +80,6 @@ namespace Opc.Ua
         public NamespaceTable NamespaceUris
         {
             get => m_namespaceUris;
-
             set
             {
                 if (value == null)
@@ -98,7 +95,6 @@ namespace Opc.Ua
         public StringTable ServerUris
         {
             get => m_serverUris;
-
             set
             {
                 if (value == null)
@@ -115,7 +111,6 @@ namespace Opc.Ua
         public IEncodeableFactory Factory
         {
             get => m_factory;
-
             set
             {
                 if (value == null)

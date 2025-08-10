@@ -24,10 +24,8 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Create a Tcp transport channel.
         /// </summary>
-        public TcpTransportChannel() :
-            base(new TcpMessageSocketFactory())
-        {
-        }
+        public TcpTransportChannel()
+            : base(new TcpMessageSocketFactory()) { }
     }
 
     /// <summary>
@@ -60,10 +58,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public TcpMessageSocketAsyncEventArgs()
         {
-            Args = new SocketAsyncEventArgs
-            {
-                UserToken = this
-            };
+            Args = new SocketAsyncEventArgs { UserToken = this };
         }
 
         /// <inheritdoc/>
@@ -134,7 +129,8 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public BufferCollection BufferList
         {
-            get => Args.BufferList as BufferCollection; set => Args.BufferList = value;
+            get => Args.BufferList as BufferCollection;
+            set => Args.BufferList = value;
         }
 
         /// <summary>
@@ -159,9 +155,7 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
-        public void Dispose()
-        {
-        }
+        public void Dispose() { }
 
         /// <inheritdoc/>
         public object UserToken { get; set; }
@@ -183,7 +177,8 @@ namespace Opc.Ua.Bindings
         /// <remarks>Not implemented here.</remarks>
         public event EventHandler<IMessageSocketAsyncEventArgs> Completed
         {
-            add => throw new NotImplementedException(); remove => throw new NotImplementedException();
+            add => throw new NotImplementedException();
+            remove => throw new NotImplementedException();
         }
 
         /// <inheritdoc/>
@@ -197,7 +192,8 @@ namespace Opc.Ua.Bindings
         /// <remarks>Not implememnted here.</remarks>
         public BufferCollection BufferList
         {
-            get => null; set => throw new NotImplementedException();
+            get => null;
+            set => throw new NotImplementedException();
         }
 
         private readonly SocketError m_socketError;
@@ -212,11 +208,7 @@ namespace Opc.Ua.Bindings
         /// The method creates a new instance of a UA-TCP message socket
         /// </summary>
         /// <returns> the message socket</returns>
-        public IMessageSocket Create(
-                IMessageSink sink,
-                BufferManager bufferManager,
-                int receiveBufferSize
-            )
+        public IMessageSocket Create(IMessageSink sink, BufferManager bufferManager, int receiveBufferSize)
         {
             return new TcpMessageSocket(sink, bufferManager, receiveBufferSize);
         }
@@ -236,10 +228,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Creates an unconnected socket.
         /// </summary>
-        public TcpMessageSocket(
-            IMessageSink sink,
-            BufferManager bufferManager,
-            int receiveBufferSize)
+        public TcpMessageSocket(IMessageSink sink, BufferManager bufferManager, int receiveBufferSize)
         {
             m_sink = sink;
             m_socket = null;
@@ -253,11 +242,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Attaches the object to an existing socket.
         /// </summary>
-        public TcpMessageSocket(
-            IMessageSink sink,
-            Socket socket,
-            BufferManager bufferManager,
-            int receiveBufferSize)
+        public TcpMessageSocket(IMessageSink sink, Socket socket, BufferManager bufferManager, int receiveBufferSize)
         {
             m_sink = sink;
             m_socket = socket ?? throw new ArgumentNullException(nameof(socket));
@@ -315,15 +300,13 @@ namespace Opc.Ua.Bindings
         /// Gets the transport channel features implemented by this message socket.
         /// </summary>
         /// <value>The transport channel feature.</value>
-        public TransportChannelFeatures MessageSocketFeatures => TransportChannelFeatures.ReverseConnect | TransportChannelFeatures.Reconnect;
+        public TransportChannelFeatures MessageSocketFeatures =>
+            TransportChannelFeatures.ReverseConnect | TransportChannelFeatures.Reconnect;
 
         /// <summary>
         /// Connects to an endpoint.
         /// </summary>
-        public bool BeginConnect(
-            Uri endpointUrl,
-            EventHandler<IMessageSocketAsyncEventArgs> callback,
-            object state)
+        public bool BeginConnect(Uri endpointUrl, EventHandler<IMessageSocketAsyncEventArgs> callback, object state)
         {
             if (endpointUrl == null)
             {
@@ -395,10 +378,7 @@ namespace Opc.Ua.Bindings
                 do
                 {
                     // allocate a buffer large enough to a message chunk.
-                    if (m_receiveBuffer == null)
-                    {
-                        m_receiveBuffer = m_bufferManager.TakeBuffer(m_receiveBufferSize, "ReadNextMessage");
-                    }
+                    m_receiveBuffer ??= m_bufferManager.TakeBuffer(m_receiveBufferSize, "ReadNextMessage");
 
                     // read the first 8 bytes of the message which contains the message size.
                     m_bytesReceived = 0;
@@ -456,8 +436,7 @@ namespace Opc.Ua.Bindings
                     e?.Dispose();
                 }
 
-                if (m_readState == ReadState.NotConnected &&
-                    ServiceResult.IsGood(error))
+                if (m_readState == ReadState.NotConnected && ServiceResult.IsGood(error))
                 {
                     error = ServiceResult.Create(StatusCodes.BadConnectionClosed, "Remote side closed connection.");
                 }
@@ -524,7 +503,8 @@ namespace Opc.Ua.Bindings
                     return ServiceResult.Create(
                         StatusCodes.BadTcpMessageTypeInvalid,
                         "Message type {0:X8} is invalid.",
-                        messageType);
+                        messageType
+                    );
                 }
 
                 m_incomingMessageSize = BitConverter.ToInt32(m_receiveBuffer, 4);
@@ -536,7 +516,8 @@ namespace Opc.Ua.Bindings
                         StatusCodes.BadTcpMessageTooLarge,
                         "Messages size {0} bytes is too large for buffer of size {1}.",
                         m_incomingMessageSize,
-                        m_receiveBufferSize);
+                        m_receiveBufferSize
+                    );
                 }
 
                 // set up buffer for reading the message body.
@@ -612,7 +593,10 @@ namespace Opc.Ua.Bindings
                     // I/O completed synchronously
                     if (args.SocketError != SocketError.Success)
                     {
-                        throw ServiceResultException.Create(StatusCodes.BadTcpInternalError, args.SocketError.ToString());
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadTcpInternalError,
+                            args.SocketError.ToString()
+                        );
                     }
                     // set state to inner complete
                     m_readState = ReadState.ReadComplete;
@@ -677,11 +661,7 @@ namespace Opc.Ua.Bindings
                 LingerState = new LingerOption(true, 5),
             };
 
-            var args = new SocketAsyncEventArgs()
-            {
-                UserToken = callback,
-                RemoteEndPoint = endpoint,
-            };
+            var args = new SocketAsyncEventArgs() { UserToken = callback, RemoteEndPoint = endpoint };
             args.Completed += OnSocketConnected;
             if (!socket.ConnectAsync(args))
             {
@@ -779,8 +759,9 @@ namespace Opc.Ua.Bindings
             Receive = 3,
             ReadComplete = 4,
             NotConnected = 5,
-            Error = 0xff
+            Error = 0xff,
         }
+
         private readonly object m_readLock = new();
         private byte[] m_receiveBuffer;
         private int m_bytesReceived;

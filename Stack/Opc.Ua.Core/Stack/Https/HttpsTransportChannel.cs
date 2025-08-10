@@ -17,12 +17,12 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Security;
 using System.Reflection;
-#if NETCOREAPP3_1_OR_GREATER || NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
-using System.Security.Cryptography;
-#endif
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+#if NETCOREAPP3_1_OR_GREATER || NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
+using System.Security.Cryptography;
+#endif
 
 namespace Opc.Ua.Bindings
 {
@@ -96,19 +96,17 @@ namespace Opc.Ua.Bindings
         /// Override this method if you need to release resources.
         /// </summary>
         /// <param name="disposing"></param>
-        protected virtual void Dispose(bool disposing)
-        {
-        }
+        protected virtual void Dispose(bool disposing) { }
 
         /// <inheritdoc/>
         public string UriScheme { get; }
 
         /// <inheritdoc/>
         public TransportChannelFeatures SupportedFeatures =>
-            TransportChannelFeatures.Open |
-            TransportChannelFeatures.Reconnect |
-            TransportChannelFeatures.BeginSendRequest |
-            TransportChannelFeatures.SendRequestAsync;
+            TransportChannelFeatures.Open
+            | TransportChannelFeatures.Reconnect
+            | TransportChannelFeatures.BeginSendRequest
+            | TransportChannelFeatures.SendRequestAsync;
 
         /// <inheritdoc/>
         public EndpointDescription EndpointDescription => m_settings.Description;
@@ -133,9 +131,7 @@ namespace Opc.Ua.Bindings
         public int OperationTimeout { get; set; }
 
         /// <inheritdoc/>
-        public void Initialize(
-            Uri url,
-            TransportChannelSettings settings)
+        public void Initialize(Uri url, TransportChannelSettings settings)
         {
             SaveSettings(url, settings);
         }
@@ -146,9 +142,7 @@ namespace Opc.Ua.Bindings
         /// <param name="connection">The connection to use.</param>
         /// <param name="settings">The settings to use when creating the channel.</param>
         /// <exception cref="ServiceResultException">Thrown if any communication error occurs.</exception>
-        public void Initialize(
-            ITransportWaitingConnection connection,
-            TransportChannelSettings settings)
+        public void Initialize(ITransportWaitingConnection connection, TransportChannelSettings settings)
         {
             SaveSettings(connection.EndpointUrl, settings);
         }
@@ -203,44 +197,66 @@ namespace Opc.Ua.Bindings
                 PropertyInfo propertyInfo = handler.GetType().GetProperty("ServerCertificateCustomValidationCallback");
                 if (propertyInfo != null)
                 {
-                    Func<HttpRequestMessage, X509Certificate2, X509Chain, SslPolicyErrors, bool>
-                        serverCertificateCustomValidationCallback;
+                    Func<
+                        HttpRequestMessage,
+                        X509Certificate2,
+                        X509Chain,
+                        SslPolicyErrors,
+                        bool
+                    > serverCertificateCustomValidationCallback;
 
                     try
                     {
-                        serverCertificateCustomValidationCallback =
-                            (httpRequestMessage, cert, chain, policyErrors) =>
+                        serverCertificateCustomValidationCallback = (httpRequestMessage, cert, chain, policyErrors) =>
+                        {
+                            try
                             {
-                                try
+                                var validationChain = new X509Certificate2Collection();
+                                if (chain != null && chain.ChainElements != null)
                                 {
-                                    var validationChain = new X509Certificate2Collection();
-                                    if (chain != null && chain.ChainElements != null)
+                                    int i = 0;
+                                    Utils.LogInfo(
+                                        Utils.TraceMasks.Security,
+                                        "{0} Validate server chain:",
+                                        nameof(HttpsTransportChannel)
+                                    );
+                                    foreach (X509ChainElement element in chain.ChainElements)
                                     {
-                                        int i = 0;
-                                        Utils.LogInfo(Utils.TraceMasks.Security, "{0} Validate server chain:", nameof(HttpsTransportChannel));
-                                        foreach (X509ChainElement element in chain.ChainElements)
-                                        {
-                                            Utils.LogCertificate(Utils.TraceMasks.Security, "{0}: ", element.Certificate, i);
-                                            validationChain.Add(element.Certificate);
-                                            i++;
-                                        }
+                                        Utils.LogCertificate(
+                                            Utils.TraceMasks.Security,
+                                            "{0}: ",
+                                            element.Certificate,
+                                            i
+                                        );
+                                        validationChain.Add(element.Certificate);
+                                        i++;
                                     }
-                                    else
-                                    {
-                                        Utils.LogCertificate(Utils.TraceMasks.Security, "{0} Validate Server Certificate: ", cert, nameof(HttpsTransportChannel));
-                                        validationChain.Add(cert);
-                                    }
-
-                                    m_quotas.CertificateValidator?.Validate(validationChain);
-
-                                    return true;
                                 }
-                                catch (Exception ex)
+                                else
                                 {
-                                    Utils.LogError(ex, "{0} Failed to validate certificate.", nameof(HttpsTransportChannel));
+                                    Utils.LogCertificate(
+                                        Utils.TraceMasks.Security,
+                                        "{0} Validate Server Certificate: ",
+                                        cert,
+                                        nameof(HttpsTransportChannel)
+                                    );
+                                    validationChain.Add(cert);
                                 }
-                                return false;
-                            };
+
+                                m_quotas.CertificateValidator?.Validate(validationChain);
+
+                                return true;
+                            }
+                            catch (Exception ex)
+                            {
+                                Utils.LogError(
+                                    ex,
+                                    "{0} Failed to validate certificate.",
+                                    nameof(HttpsTransportChannel)
+                                );
+                            }
+                            return false;
+                        };
                         propertyInfo.SetValue(handler, serverCertificateCustomValidationCallback);
 
                         Utils.LogInfo("{0} ServerCertificate callback enabled.", nameof(HttpsTransportChannel));
@@ -288,9 +304,9 @@ namespace Opc.Ua.Bindings
                 object callbackData,
                 int timeout,
                 IServiceRequest request,
-                HttpResponseMessage response)
-            :
-                base(callback, callbackData, timeout)
+                HttpResponseMessage response
+            )
+                : base(callback, callbackData, timeout)
             {
                 Request = request;
                 Response = response;
@@ -306,8 +322,14 @@ namespace Opc.Ua.Bindings
             {
                 var content = new ByteArrayContent(BinaryEncoder.EncodeMessage(request, m_quotas.MessageContext));
                 content.Headers.ContentType = s_mediaTypeHeaderValue;
-                if (EndpointDescription?.SecurityPolicyUri != null &&
-                    !string.Equals(EndpointDescription.SecurityPolicyUri, SecurityPolicies.None, StringComparison.Ordinal))
+                if (
+                    EndpointDescription?.SecurityPolicyUri != null
+                    && !string.Equals(
+                        EndpointDescription.SecurityPolicyUri,
+                        SecurityPolicies.None,
+                        StringComparison.Ordinal
+                    )
+                )
                 {
                     content.Headers.Add(Profiles.HttpsSecurityPolicyHeader, EndpointDescription.SecurityPolicyUri);
                 }
@@ -339,7 +361,7 @@ namespace Opc.Ua.Bindings
                 Utils.LogError(ex, "Exception sending HTTPS request.");
                 var result = new HttpsAsyncResult(callback, callbackData, OperationTimeout, request, response)
                 {
-                    Exception = ex
+                    Exception = ex,
                 };
                 result.OperationCompleted();
                 return result;
@@ -364,7 +386,8 @@ namespace Opc.Ua.Bindings
 #else
                     Stream responseContent = result2.Response.Content.ReadAsStreamAsync().GetAwaiter().GetResult();
 #endif
-                    return BinaryDecoder.DecodeMessage(responseContent, null, m_quotas.MessageContext) as IServiceResponse;
+                    return BinaryDecoder.DecodeMessage(responseContent, null, m_quotas.MessageContext)
+                        as IServiceResponse;
                 }
             }
             catch (Exception ex)
@@ -451,8 +474,14 @@ namespace Opc.Ua.Bindings
             {
                 var content = new ByteArrayContent(BinaryEncoder.EncodeMessage(request, m_quotas.MessageContext));
                 content.Headers.ContentType = s_mediaTypeHeaderValue;
-                if (EndpointDescription?.SecurityPolicyUri != null &&
-                    !string.Equals(EndpointDescription.SecurityPolicyUri, SecurityPolicies.None, StringComparison.Ordinal))
+                if (
+                    EndpointDescription?.SecurityPolicyUri != null
+                    && !string.Equals(
+                        EndpointDescription.SecurityPolicyUri,
+                        SecurityPolicies.None,
+                        StringComparison.Ordinal
+                    )
+                )
                 {
                     content.Headers.Add(Profiles.HttpsSecurityPolicyHeader, EndpointDescription.SecurityPolicyUri);
                 }
@@ -539,12 +568,13 @@ namespace Opc.Ua.Bindings
                     MaxDecoderRecoveries = m_settings.Configuration.MaxDecoderRecoveries,
                     NamespaceUris = m_settings.NamespaceUris,
                     ServerUris = new StringTable(),
-                    Factory = m_settings.Factory
+                    Factory = m_settings.Factory,
                 },
 
-                CertificateValidator = settings.CertificateValidator
+                CertificateValidator = settings.CertificateValidator,
             };
         }
+
         private Uri m_url;
         private TransportChannelSettings m_settings;
         private ChannelQuotas m_quotas;

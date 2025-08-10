@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -38,16 +38,16 @@ namespace Opc.Ua.PubSub.Tests.Configuration
     public class UaPubSubDataStoreTests
     {
         [Test(Description = "Validate WritePublishedDataItem call with different values")]
-
         public void ValidateWritePublishedDataItem(
-            [Values(true, (byte)1, (ushort)2, (short)3, (uint)4, 5, (ulong)6, (long)7,
-            (double)8, (float)9, "10")] object value)
+            [Values(true, (byte)1, (ushort)2, (short)3, (uint)4, 5, (ulong)6, (long)7, (double)8, (float)9, "10")]
+                object value
+        )
         {
             //Arrange
             var dataStore = new UaPubSubDataStore();
             var nodeId = new NodeId("ns=1;i=1");
 
-            //Act     
+            //Act
             dataStore.WritePublishedDataItem(nodeId, Attributes.Value, new DataValue(new Variant(value)));
             DataValue readDataValue = dataStore.ReadPublishedDataItem(nodeId, Attributes.Value);
 
@@ -73,7 +73,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var dataStore = new UaPubSubDataStore();
 
             //Assert
-            NUnit.Framework.Assert.Throws<ArgumentException>(() => dataStore.WritePublishedDataItem(new NodeId("ns=0;i=2253"), Attributes.AccessLevelEx + 1));
+            NUnit.Framework.Assert.Throws<ArgumentException>(() =>
+                dataStore.WritePublishedDataItem(new NodeId("ns=0;i=2253"), Attributes.AccessLevelEx + 1)
+            );
         }
 
         [Test(Description = "Validate ReadPublishedDataItem call for non existing node id")]
@@ -83,7 +85,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             var dataStore = new UaPubSubDataStore();
             var nodeId = new NodeId("ns=1;i=1");
 
-            //Act     
+            //Act
             DataValue readDataValue = dataStore.ReadPublishedDataItem(nodeId, Attributes.Value);
 
             //Assert
@@ -106,7 +108,9 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             //Arrange
             var dataStore = new UaPubSubDataStore();
             //Assert
-            NUnit.Framework.Assert.Throws<ArgumentException>(() => dataStore.ReadPublishedDataItem(new NodeId("ns=0;i=2253"), Attributes.AccessLevelEx + 1));
+            NUnit.Framework.Assert.Throws<ArgumentException>(() =>
+                dataStore.ReadPublishedDataItem(new NodeId("ns=0;i=2253"), Attributes.AccessLevelEx + 1)
+            );
         }
     }
 }

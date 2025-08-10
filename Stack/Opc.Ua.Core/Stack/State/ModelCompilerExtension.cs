@@ -60,7 +60,8 @@ namespace Opc.Ua
             Stream ostrm,
             Export.ModelTableEntry model,
             DateTime lastModified,
-            bool outputRedundantNames)
+            bool outputRedundantNames
+        )
         {
             var nodeSet = new Export.UANodeSet();
 
@@ -88,9 +89,9 @@ namespace Opc.Ua
                 nodeSet.Models = [model];
             }
 
-            for (int ii = 0; ii < s_AliasesToUse.Length; ii++)
+            for (int ii = 0; ii < s_aliasesToUse.Length; ii++)
             {
-                nodeSet.AddAlias(context, s_AliasesToUse[ii].Alias, s_AliasesToUse[ii].NodeId);
+                nodeSet.AddAlias(context, s_aliasesToUse[ii].Alias, s_aliasesToUse[ii].NodeId);
             }
 
             for (int ii = 0; ii < Count; ii++)

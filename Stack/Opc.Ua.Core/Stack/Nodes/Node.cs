@@ -208,7 +208,8 @@ namespace Opc.Ua
         /// <value>The write mask.</value>
         AttributeWriteMask ILocalNode.WriteMask
         {
-            get => (AttributeWriteMask)m_writeMask; set => m_writeMask = (uint)value;
+            get => (AttributeWriteMask)m_writeMask;
+            set => m_writeMask = (uint)value;
         }
 
         /// <summary>
@@ -217,14 +218,16 @@ namespace Opc.Ua
         /// <value>The user write mask.</value>
         AttributeWriteMask ILocalNode.UserWriteMask
         {
-            get => (AttributeWriteMask)m_userWriteMask; set => m_userWriteMask = (uint)value;
+            get => (AttributeWriteMask)m_userWriteMask;
+            set => m_userWriteMask = (uint)value;
         }
 
         /// <summary>
         /// The identifier for the ModellingRule node.
         /// </summary>
         /// <value>The modelling rule.</value>
-        public NodeId ModellingRule => (NodeId)ReferenceTable.FindTarget(ReferenceTypeIds.HasModellingRule, false, false, null, 0);
+        public NodeId ModellingRule =>
+            (NodeId)ReferenceTable.FindTarget(ReferenceTypeIds.HasModellingRule, false, false, null, 0);
 
         /// <summary>
         /// The collection of references for the node.
@@ -316,7 +319,10 @@ namespace Opc.Ua
             }
 
             // check data type.
-            if (attributeId != Attributes.Value && Attributes.GetDataTypeId(attributeId) != TypeInfo.GetDataTypeId(value))
+            if (
+                attributeId != Attributes.Value
+                && Attributes.GetDataTypeId(attributeId) != TypeInfo.GetDataTypeId(value)
+            )
             {
                 return StatusCodes.BadTypeMismatch;
             }
@@ -337,10 +343,7 @@ namespace Opc.Ua
         /// <param name="isInverse">if set to <c>true</c> [is inverse].</param>
         /// <param name="targetId">The target id.</param>
         /// <returns>True if the reference exist.</returns>
-        public bool ReferenceExists(
-            NodeId referenceTypeId,
-            bool isInverse,
-            ExpandedNodeId targetId)
+        public bool ReferenceExists(NodeId referenceTypeId, bool isInverse, ExpandedNodeId targetId)
         {
             return ReferenceTable.Exists(referenceTypeId, isInverse, targetId, false, null);
         }
@@ -351,9 +354,7 @@ namespace Opc.Ua
         /// <param name="referenceTypeId">The reference type id.</param>
         /// <param name="isInverse">if set to <c>true</c> [is inverse].</param>
         /// <returns>All targets of the specified reference type.</returns>
-        public IList<IReference> Find(
-            NodeId referenceTypeId,
-            bool isInverse)
+        public IList<IReference> Find(NodeId referenceTypeId, bool isInverse)
         {
             return ReferenceTable.Find(referenceTypeId, isInverse, false, null);
         }
@@ -365,10 +366,7 @@ namespace Opc.Ua
         /// <param name="isInverse">if set to <c>true</c> [is inverse].</param>
         /// <param name="index">The index.</param>
         /// <returns>A target of the specified reference type.</returns>
-        public ExpandedNodeId FindTarget(
-            NodeId referenceTypeId,
-            bool isInverse,
-            int index)
+        public ExpandedNodeId FindTarget(NodeId referenceTypeId, bool isInverse, int index)
         {
             return ReferenceTable.FindTarget(referenceTypeId, isInverse, false, null, index);
         }
@@ -531,15 +529,16 @@ namespace Opc.Ua
 
             string referenceType = null;
 
-            if (m_referenceTypeId != null && m_referenceTypeId.IdType == IdType.Numeric && m_referenceTypeId.NamespaceIndex == 0)
+            if (
+                m_referenceTypeId != null
+                && m_referenceTypeId.IdType == IdType.Numeric
+                && m_referenceTypeId.NamespaceIndex == 0
+            )
             {
                 referenceType = ReferenceTypes.GetBrowseName((uint)m_referenceTypeId.Identifier);
             }
 
-            if (referenceType == null)
-            {
-                referenceType = Utils.Format("{0}", m_referenceTypeId);
-            }
+            referenceType ??= Utils.Format("{0}", m_referenceTypeId);
 
             if (m_isInverse)
             {
@@ -587,7 +586,7 @@ namespace Opc.Ua
         /// <param name="a">ReferenceNode A.</param>
         /// <param name="b">The ReferenceNode B.</param>
         /// <returns>The result of the operator.Returns true if the objects are equal.</returns>
-		public static bool operator ==(ReferenceNode a, object b)
+        public static bool operator ==(ReferenceNode a, object b)
         {
             if (a is null)
             {
@@ -603,7 +602,7 @@ namespace Opc.Ua
         /// <param name="a">ReferenceNode A.</param>
         /// <param name="b">The ReferenceNode B.</param>
         /// <returns>The result of the operator.Returns true if the objects are not equal.</returns>
-		public static bool operator !=(ReferenceNode a, object b)
+        public static bool operator !=(ReferenceNode a, object b)
         {
             if (a is null)
             {
@@ -683,9 +682,8 @@ namespace Opc.Ua
         /// Creates a node from another node (copies attributes - not references).
         /// </summary>
         /// <param name="source">The source.</param>
-        public InstanceNode(ILocalNode source) : base(source)
-        {
-        }
+        public InstanceNode(ILocalNode source)
+            : base(source) { }
     }
 
     /// <summary>
@@ -697,9 +695,8 @@ namespace Opc.Ua
         /// Creates a node from another node (copies attributes - not references).
         /// </summary>
         /// <param name="source">The source.</param>
-        public TypeNode(ILocalNode source) : base(source)
-        {
-        }
+        public TypeNode(ILocalNode source)
+            : base(source) { }
     }
 
     /// <summary>
@@ -711,7 +708,8 @@ namespace Opc.Ua
         /// Creates a node from another node (copies attributes - not references).
         /// </summary>
         /// <param name="source">The source.</param>
-        public VariableNode(ILocalNode source) : base(source)
+        public VariableNode(ILocalNode source)
+            : base(source)
         {
             NodeClass = NodeClass.Variable;
 
@@ -742,7 +740,6 @@ namespace Opc.Ua
         object IVariableBase.Value
         {
             get => m_value.Value;
-
             set => m_value = new Variant(value);
         }
 
@@ -753,7 +750,6 @@ namespace Opc.Ua
         IList<uint> IVariableBase.ArrayDimensions
         {
             get => m_arrayDimensions;
-
             set
             {
                 if (value == null)
@@ -919,7 +915,8 @@ namespace Opc.Ua
         /// Creates a node from another node (copies attributes - not references).
         /// </summary>
         /// <param name="source">The source.</param>
-        public ObjectNode(ILocalNode source) : base(source)
+        public ObjectNode(ILocalNode source)
+            : base(source)
         {
             NodeClass = NodeClass.Object;
 
@@ -989,7 +986,8 @@ namespace Opc.Ua
         /// Creates a node from another node (copies attributes - not references).
         /// </summary>
         /// <param name="source">The source.</param>
-        public ObjectTypeNode(ILocalNode source) : base(source)
+        public ObjectTypeNode(ILocalNode source)
+            : base(source)
         {
             NodeClass = NodeClass.ObjectType;
 
@@ -1059,7 +1057,8 @@ namespace Opc.Ua
         /// Creates a node from another node (copies attributes - not references).
         /// </summary>
         /// <param name="source">The source.</param>
-        public VariableTypeNode(ILocalNode source) : base(source)
+        public VariableTypeNode(ILocalNode source)
+            : base(source)
         {
             NodeClass = NodeClass.VariableType;
 
@@ -1084,7 +1083,6 @@ namespace Opc.Ua
         object IVariableBase.Value
         {
             get => m_value.Value;
-
             set => m_value = new Variant(value);
         }
 
@@ -1095,7 +1093,6 @@ namespace Opc.Ua
         IList<uint> IVariableBase.ArrayDimensions
         {
             get => m_arrayDimensions;
-
             set
             {
                 if (value == null)
@@ -1228,7 +1225,8 @@ namespace Opc.Ua
         /// Creates a node from another node (copies attributes - not references).
         /// </summary>
         /// <param name="source">The source.</param>
-        public ReferenceTypeNode(ILocalNode source) : base(source)
+        public ReferenceTypeNode(ILocalNode source)
+            : base(source)
         {
             NodeClass = NodeClass.ReferenceType;
 
@@ -1314,7 +1312,8 @@ namespace Opc.Ua
         /// Creates a node from another node (copies attributes - not references).
         /// </summary>
         /// <param name="source">The source.</param>
-        public MethodNode(ILocalNode source) : base(source)
+        public MethodNode(ILocalNode source)
+            : base(source)
         {
             NodeClass = NodeClass.Method;
 
@@ -1392,7 +1391,8 @@ namespace Opc.Ua
         /// Creates a node from another node (copies attributes - not references).
         /// </summary>
         /// <param name="source">The source.</param>
-        public ViewNode(ILocalNode source) : base(source)
+        public ViewNode(ILocalNode source)
+            : base(source)
         {
             NodeClass = NodeClass.View;
 
@@ -1470,7 +1470,8 @@ namespace Opc.Ua
         /// Creates a node from another node (copies attributes - not references).
         /// </summary>
         /// <param name="source">The source.</param>
-        public DataTypeNode(ILocalNode source) : base(source)
+        public DataTypeNode(ILocalNode source)
+            : base(source)
         {
             NodeClass = NodeClass.DataType;
 

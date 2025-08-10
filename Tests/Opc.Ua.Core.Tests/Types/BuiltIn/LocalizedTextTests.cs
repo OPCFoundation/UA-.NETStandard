@@ -16,11 +16,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         public void MultiLanguageDictionaryCreatesCorretMulLocale()
         {
             // Arrange
-            var translations = new Dictionary<string, string>
-            {
-                { "en-US", "Hello" },
-                { "de-DE", "Hallo" }
-            };
+            var translations = new Dictionary<string, string> { { "en-US", "Hello" }, { "de-DE", "Hallo" } };
 
             // Act
             var localizedText = new LocalizedText(translations);
@@ -33,7 +29,8 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.AreEqual("Hello", localizedText.Translations["en-US"]);
             Assert.AreEqual("Hallo", localizedText.Translations["de-DE"]);
 
-            const string expectedJson = /*lang=json,strict*/ "{\"t\":[[\"en-US\",\"Hello\"],[\"de-DE\",\"Hallo\"]]}";
+            const string expectedJson = /*lang=json,strict*/
+                "{\"t\":[[\"en-US\",\"Hello\"],[\"de-DE\",\"Hallo\"]]}";
             Assert.AreEqual(expectedJson, localizedText.Text);
         }
 
@@ -57,10 +54,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         public void SingleLocaleDictionaryCreatesLocaleAndTextDirectly()
         {
             // Arrange
-            var translations = new Dictionary<string, string>
-            {
-                { "fr-FR", "Bonjour" }
-            };
+            var translations = new Dictionary<string, string> { { "fr-FR", "Bonjour" } };
 
             // Act
             var localizedText = new LocalizedText(translations);
@@ -78,7 +72,8 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         {
             // Arrange
             const string mulLocale = "mul";
-            const string jsonText = /*lang=json,strict*/ "{\"t\":[[\"en-US\",\"Hello\"],[\"de-DE\",\"Hallo\"],[\"fr-FR\",\"Bonjour\"]]}";
+            const string jsonText = /*lang=json,strict*/
+                "{\"t\":[[\"en-US\",\"Hello\"],[\"de-DE\",\"Hallo\"],[\"fr-FR\",\"Bonjour\"]]}";
 
             // Act
             var localizedText = new LocalizedText(mulLocale, jsonText);
@@ -107,7 +102,8 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         {
             // Arrange
             const string mulLocale = "mul";
-            const string jsonText = /*lang=json,strict*/ "{\"t\":[[\"en-US\",\"Hello\"],[\"de-DE\",\"Hallo\"],[\"fr-FR\",\"Bonjour\"]]}";
+            const string jsonText = /*lang=json,strict*/
+                "{\"t\":[[\"en-US\",\"Hello\"],[\"de-DE\",\"Hallo\"],[\"fr-FR\",\"Bonjour\"]]}";
 
             // Act
             var localizedText = new LocalizedText(mulLocale, jsonText);
@@ -179,7 +175,8 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         {
             // Arrange
             const string mulLocale = "mul";
-            const string jsonText = /*lang=json,strict*/ "{\"t\":[[\"en-US\"],[\"de-DE\",\"Hallo\", \"fr-FR\"],[]]}";
+            const string jsonText = /*lang=json,strict*/
+                "{\"t\":[[\"en-US\"],[\"de-DE\",\"Hallo\", \"fr-FR\"],[]]}";
 
             // Act
             var localizedText = new LocalizedText(mulLocale, jsonText);
@@ -195,7 +192,8 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         {
             // Arrange
             const string mulLocale = "mul";
-            const string jsonText = /*lang=json,strict*/ "{\"t\":[[\"en-US\",\"Hello\"],[\"de-DE\",\"Hallo\"],[\"fr-FR\",\"Bonjour\"]]}";
+            const string jsonText = /*lang=json,strict*/
+                "{\"t\":[[\"en-US\",\"Hello\"],[\"de-DE\",\"Hallo\"],[\"fr-FR\",\"Bonjour\"]]}";
 
             // Act
             var localizedText = new LocalizedText(mulLocale, jsonText);
@@ -206,10 +204,26 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.IsTrue(deepCopy.IsMultiLanguage, "Should be mul locale");
             Assert.AreEqual(localizedText.Locale, deepCopy.Locale, "Locale should be the same");
             Assert.AreEqual(localizedText.Text, deepCopy.Text, "Text should be the same");
-            Assert.AreEqual(localizedText.Translations.Count, deepCopy.Translations.Count, "Translations count should be the same");
-            Assert.AreEqual(localizedText.Translations["en-US"], deepCopy.Translations["en-US"], "English translation should be the same");
-            Assert.AreEqual(localizedText.Translations["de-DE"], deepCopy.Translations["de-DE"], "German translation should be the same");
-            Assert.AreEqual(localizedText.Translations["fr-FR"], deepCopy.Translations["fr-FR"], "French translation should be the same");
+            Assert.AreEqual(
+                localizedText.Translations.Count,
+                deepCopy.Translations.Count,
+                "Translations count should be the same"
+            );
+            Assert.AreEqual(
+                localizedText.Translations["en-US"],
+                deepCopy.Translations["en-US"],
+                "English translation should be the same"
+            );
+            Assert.AreEqual(
+                localizedText.Translations["de-DE"],
+                deepCopy.Translations["de-DE"],
+                "German translation should be the same"
+            );
+            Assert.AreEqual(
+                localizedText.Translations["fr-FR"],
+                deepCopy.Translations["fr-FR"],
+                "French translation should be the same"
+            );
         }
     }
 }

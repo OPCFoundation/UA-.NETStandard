@@ -23,7 +23,8 @@ namespace Opc.Ua.Bindings
         protected BaseBinding(
             NamespaceTable namespaceUris,
             IEncodeableFactory factory,
-            EndpointConfiguration configuration)
+            EndpointConfiguration configuration
+        )
         {
             MessageContext = new ServiceMessageContext
             {
@@ -34,7 +35,7 @@ namespace Opc.Ua.Bindings
                 MaxEncodingNestingLevels = configuration.MaxEncodingNestingLevels,
                 MaxDecoderRecoveries = configuration.MaxDecoderRecoveries,
                 Factory = factory,
-                NamespaceUris = namespaceUris
+                NamespaceUris = namespaceUris,
             };
         }
 

@@ -49,11 +49,11 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-#if (!NET_STANDARD)
+    #if (!NET_STANDARD)
     public partial class SessionChannel : WcfChannelBase<ISessionChannel>, ISessionChannel
-#else
+    #else
     public partial class SessionChannel : UaChannelBase<ISessionChannel>, ISessionChannel
-#endif
+    #endif
     {
         /// <summary>
         /// Initializes the object with the endpoint address.
@@ -62,8 +62,8 @@ namespace Opc.Ua
         {
         }
 
-#if (!OPCUA_EXCLUDE_CreateSession)
-#if (!NET_STANDARD)
+        #if (!OPCUA_EXCLUDE_CreateSession)
+        #if (!NET_STANDARD)
         /// <summary>
         /// The client side implementation of the CreateSession service contract.
         /// </summary>
@@ -116,7 +116,7 @@ namespace Opc.Ua
                 throw HandleSoapFault(e);
             }
         }
-#else  // NET_STANDARD
+        #else  // NET_STANDARD
         /// <summary>
         /// The client side implementation of the CreateSession service contract.
         /// </summary>
@@ -155,9 +155,9 @@ namespace Opc.Ua
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndCreateSession(asyncResult.InnerResult);
         }
-#endif
+        #endif
 
-#if (NET_STANDARD_ASYNC)
+        #if (NET_STANDARD_ASYNC)
         /// <summary>
         /// The async client side implementation of the CreateSession service contract.
         /// </summary>
@@ -165,11 +165,11 @@ namespace Opc.Ua
         {
             return this.Channel.CreateSessionAsync(request);
         }
-#endif
-#endif
+        #endif
+        #endif
 
-#if (!OPCUA_EXCLUDE_ActivateSession)
-#if (!NET_STANDARD)
+        #if (!OPCUA_EXCLUDE_ActivateSession)
+        #if (!NET_STANDARD)
         /// <summary>
         /// The client side implementation of the ActivateSession service contract.
         /// </summary>
@@ -222,7 +222,7 @@ namespace Opc.Ua
                 throw HandleSoapFault(e);
             }
         }
-#else  // NET_STANDARD
+        #else  // NET_STANDARD
         /// <summary>
         /// The client side implementation of the ActivateSession service contract.
         /// </summary>
@@ -261,9 +261,9 @@ namespace Opc.Ua
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndActivateSession(asyncResult.InnerResult);
         }
-#endif
+        #endif
 
-#if (NET_STANDARD_ASYNC)
+        #if (NET_STANDARD_ASYNC)
         /// <summary>
         /// The async client side implementation of the ActivateSession service contract.
         /// </summary>
@@ -271,11 +271,11 @@ namespace Opc.Ua
         {
             return this.Channel.ActivateSessionAsync(request);
         }
-#endif
-#endif
+        #endif
+        #endif
 
-#if (!OPCUA_EXCLUDE_CloseSession)
-#if (!NET_STANDARD)
+        #if (!OPCUA_EXCLUDE_CloseSession)
+        #if (!NET_STANDARD)
         /// <summary>
         /// The client side implementation of the CloseSession service contract.
         /// </summary>
@@ -328,7 +328,7 @@ namespace Opc.Ua
                 throw HandleSoapFault(e);
             }
         }
-#else  // NET_STANDARD
+        #else  // NET_STANDARD
         /// <summary>
         /// The client side implementation of the CloseSession service contract.
         /// </summary>
@@ -367,9 +367,9 @@ namespace Opc.Ua
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndCloseSession(asyncResult.InnerResult);
         }
-#endif
+        #endif
 
-#if (NET_STANDARD_ASYNC)
+        #if (NET_STANDARD_ASYNC)
         /// <summary>
         /// The async client side implementation of the CloseSession service contract.
         /// </summary>
@@ -377,11 +377,11 @@ namespace Opc.Ua
         {
             return this.Channel.CloseSessionAsync(request);
         }
-#endif
-#endif
+        #endif
+        #endif
 
-#if (!OPCUA_EXCLUDE_Cancel)
-#if (!NET_STANDARD)
+        #if (!OPCUA_EXCLUDE_Cancel)
+        #if (!NET_STANDARD)
         /// <summary>
         /// The client side implementation of the Cancel service contract.
         /// </summary>
@@ -434,7 +434,7 @@ namespace Opc.Ua
                 throw HandleSoapFault(e);
             }
         }
-#else  // NET_STANDARD
+        #else  // NET_STANDARD
         /// <summary>
         /// The client side implementation of the Cancel service contract.
         /// </summary>
@@ -473,9 +473,9 @@ namespace Opc.Ua
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndCancel(asyncResult.InnerResult);
         }
-#endif
+        #endif
 
-#if (NET_STANDARD_ASYNC)
+        #if (NET_STANDARD_ASYNC)
         /// <summary>
         /// The async client side implementation of the Cancel service contract.
         /// </summary>
@@ -483,11 +483,11 @@ namespace Opc.Ua
         {
             return this.Channel.CancelAsync(request);
         }
-#endif
-#endif
+        #endif
+        #endif
 
-#if (!OPCUA_EXCLUDE_AddNodes)
-#if (!NET_STANDARD)
+        #if (!OPCUA_EXCLUDE_AddNodes)
+        #if (!NET_STANDARD)
         /// <summary>
         /// The client side implementation of the AddNodes service contract.
         /// </summary>
@@ -540,7 +540,7 @@ namespace Opc.Ua
                 throw HandleSoapFault(e);
             }
         }
-#else  // NET_STANDARD
+        #else  // NET_STANDARD
         /// <summary>
         /// The client side implementation of the AddNodes service contract.
         /// </summary>
@@ -579,9 +579,9 @@ namespace Opc.Ua
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndAddNodes(asyncResult.InnerResult);
         }
-#endif
+        #endif
 
-#if (NET_STANDARD_ASYNC)
+        #if (NET_STANDARD_ASYNC)
         /// <summary>
         /// The async client side implementation of the AddNodes service contract.
         /// </summary>
@@ -589,11 +589,11 @@ namespace Opc.Ua
         {
             return this.Channel.AddNodesAsync(request);
         }
-#endif
-#endif
+        #endif
+        #endif
 
-#if (!OPCUA_EXCLUDE_AddReferences)
-#if (!NET_STANDARD)
+        #if (!OPCUA_EXCLUDE_AddReferences)
+        #if (!NET_STANDARD)
         /// <summary>
         /// The client side implementation of the AddReferences service contract.
         /// </summary>
@@ -646,7 +646,7 @@ namespace Opc.Ua
                 throw HandleSoapFault(e);
             }
         }
-#else  // NET_STANDARD
+        #else  // NET_STANDARD
         /// <summary>
         /// The client side implementation of the AddReferences service contract.
         /// </summary>
@@ -685,9 +685,9 @@ namespace Opc.Ua
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndAddReferences(asyncResult.InnerResult);
         }
-#endif
+        #endif
 
-#if (NET_STANDARD_ASYNC)
+        #if (NET_STANDARD_ASYNC)
         /// <summary>
         /// The async client side implementation of the AddReferences service contract.
         /// </summary>
@@ -695,11 +695,11 @@ namespace Opc.Ua
         {
             return this.Channel.AddReferencesAsync(request);
         }
-#endif
-#endif
+        #endif
+        #endif
 
-#if (!OPCUA_EXCLUDE_DeleteNodes)
-#if (!NET_STANDARD)
+        #if (!OPCUA_EXCLUDE_DeleteNodes)
+        #if (!NET_STANDARD)
         /// <summary>
         /// The client side implementation of the DeleteNodes service contract.
         /// </summary>
@@ -752,7 +752,7 @@ namespace Opc.Ua
                 throw HandleSoapFault(e);
             }
         }
-#else  // NET_STANDARD
+        #else  // NET_STANDARD
         /// <summary>
         /// The client side implementation of the DeleteNodes service contract.
         /// </summary>
@@ -791,9 +791,9 @@ namespace Opc.Ua
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndDeleteNodes(asyncResult.InnerResult);
         }
-#endif
+        #endif
 
-#if (NET_STANDARD_ASYNC)
+        #if (NET_STANDARD_ASYNC)
         /// <summary>
         /// The async client side implementation of the DeleteNodes service contract.
         /// </summary>
@@ -801,11 +801,11 @@ namespace Opc.Ua
         {
             return this.Channel.DeleteNodesAsync(request);
         }
-#endif
-#endif
+        #endif
+        #endif
 
-#if (!OPCUA_EXCLUDE_DeleteReferences)
-#if (!NET_STANDARD)
+        #if (!OPCUA_EXCLUDE_DeleteReferences)
+        #if (!NET_STANDARD)
         /// <summary>
         /// The client side implementation of the DeleteReferences service contract.
         /// </summary>
@@ -858,7 +858,7 @@ namespace Opc.Ua
                 throw HandleSoapFault(e);
             }
         }
-#else  // NET_STANDARD
+        #else  // NET_STANDARD
         /// <summary>
         /// The client side implementation of the DeleteReferences service contract.
         /// </summary>
@@ -897,9 +897,9 @@ namespace Opc.Ua
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndDeleteReferences(asyncResult.InnerResult);
         }
-#endif
+        #endif
 
-#if (NET_STANDARD_ASYNC)
+        #if (NET_STANDARD_ASYNC)
         /// <summary>
         /// The async client side implementation of the DeleteReferences service contract.
         /// </summary>
@@ -907,11 +907,11 @@ namespace Opc.Ua
         {
             return this.Channel.DeleteReferencesAsync(request);
         }
-#endif
-#endif
+        #endif
+        #endif
 
-#if (!OPCUA_EXCLUDE_Browse)
-#if (!NET_STANDARD)
+        #if (!OPCUA_EXCLUDE_Browse)
+        #if (!NET_STANDARD)
         /// <summary>
         /// The client side implementation of the Browse service contract.
         /// </summary>
@@ -964,7 +964,7 @@ namespace Opc.Ua
                 throw HandleSoapFault(e);
             }
         }
-#else  // NET_STANDARD
+        #else  // NET_STANDARD
         /// <summary>
         /// The client side implementation of the Browse service contract.
         /// </summary>
@@ -1003,9 +1003,9 @@ namespace Opc.Ua
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndBrowse(asyncResult.InnerResult);
         }
-#endif
+        #endif
 
-#if (NET_STANDARD_ASYNC)
+        #if (NET_STANDARD_ASYNC)
         /// <summary>
         /// The async client side implementation of the Browse service contract.
         /// </summary>
@@ -1013,11 +1013,11 @@ namespace Opc.Ua
         {
             return this.Channel.BrowseAsync(request);
         }
-#endif
-#endif
+        #endif
+        #endif
 
-#if (!OPCUA_EXCLUDE_BrowseNext)
-#if (!NET_STANDARD)
+        #if (!OPCUA_EXCLUDE_BrowseNext)
+        #if (!NET_STANDARD)
         /// <summary>
         /// The client side implementation of the BrowseNext service contract.
         /// </summary>
@@ -1070,7 +1070,7 @@ namespace Opc.Ua
                 throw HandleSoapFault(e);
             }
         }
-#else  // NET_STANDARD
+        #else  // NET_STANDARD
         /// <summary>
         /// The client side implementation of the BrowseNext service contract.
         /// </summary>
@@ -1109,9 +1109,9 @@ namespace Opc.Ua
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndBrowseNext(asyncResult.InnerResult);
         }
-#endif
+        #endif
 
-#if (NET_STANDARD_ASYNC)
+        #if (NET_STANDARD_ASYNC)
         /// <summary>
         /// The async client side implementation of the BrowseNext service contract.
         /// </summary>
@@ -1119,11 +1119,11 @@ namespace Opc.Ua
         {
             return this.Channel.BrowseNextAsync(request);
         }
-#endif
-#endif
+        #endif
+        #endif
 
-#if (!OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIds)
-#if (!NET_STANDARD)
+        #if (!OPCUA_EXCLUDE_TranslateBrowsePathsToNodeIds)
+        #if (!NET_STANDARD)
         /// <summary>
         /// The client side implementation of the TranslateBrowsePathsToNodeIds service contract.
         /// </summary>
@@ -1176,7 +1176,7 @@ namespace Opc.Ua
                 throw HandleSoapFault(e);
             }
         }
-#else  // NET_STANDARD
+        #else  // NET_STANDARD
         /// <summary>
         /// The client side implementation of the TranslateBrowsePathsToNodeIds service contract.
         /// </summary>
@@ -1215,9 +1215,9 @@ namespace Opc.Ua
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndTranslateBrowsePathsToNodeIds(asyncResult.InnerResult);
         }
-#endif
+        #endif
 
-#if (NET_STANDARD_ASYNC)
+        #if (NET_STANDARD_ASYNC)
         /// <summary>
         /// The async client side implementation of the TranslateBrowsePathsToNodeIds service contract.
         /// </summary>
@@ -1225,11 +1225,11 @@ namespace Opc.Ua
         {
             return this.Channel.TranslateBrowsePathsToNodeIdsAsync(request);
         }
-#endif
-#endif
+        #endif
+        #endif
 
-#if (!OPCUA_EXCLUDE_RegisterNodes)
-#if (!NET_STANDARD)
+        #if (!OPCUA_EXCLUDE_RegisterNodes)
+        #if (!NET_STANDARD)
         /// <summary>
         /// The client side implementation of the RegisterNodes service contract.
         /// </summary>
@@ -1282,7 +1282,7 @@ namespace Opc.Ua
                 throw HandleSoapFault(e);
             }
         }
-#else  // NET_STANDARD
+        #else  // NET_STANDARD
         /// <summary>
         /// The client side implementation of the RegisterNodes service contract.
         /// </summary>
@@ -1321,9 +1321,9 @@ namespace Opc.Ua
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndRegisterNodes(asyncResult.InnerResult);
         }
-#endif
+        #endif
 
-#if (NET_STANDARD_ASYNC)
+        #if (NET_STANDARD_ASYNC)
         /// <summary>
         /// The async client side implementation of the RegisterNodes service contract.
         /// </summary>
@@ -1331,11 +1331,11 @@ namespace Opc.Ua
         {
             return this.Channel.RegisterNodesAsync(request);
         }
-#endif
-#endif
+        #endif
+        #endif
 
-#if (!OPCUA_EXCLUDE_UnregisterNodes)
-#if (!NET_STANDARD)
+        #if (!OPCUA_EXCLUDE_UnregisterNodes)
+        #if (!NET_STANDARD)
         /// <summary>
         /// The client side implementation of the UnregisterNodes service contract.
         /// </summary>
@@ -1388,7 +1388,7 @@ namespace Opc.Ua
                 throw HandleSoapFault(e);
             }
         }
-#else  // NET_STANDARD
+        #else  // NET_STANDARD
         /// <summary>
         /// The client side implementation of the UnregisterNodes service contract.
         /// </summary>
@@ -1427,9 +1427,9 @@ namespace Opc.Ua
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndUnregisterNodes(asyncResult.InnerResult);
         }
-#endif
+        #endif
 
-#if (NET_STANDARD_ASYNC)
+        #if (NET_STANDARD_ASYNC)
         /// <summary>
         /// The async client side implementation of the UnregisterNodes service contract.
         /// </summary>
@@ -1437,11 +1437,11 @@ namespace Opc.Ua
         {
             return this.Channel.UnregisterNodesAsync(request);
         }
-#endif
-#endif
+        #endif
+        #endif
 
-#if (!OPCUA_EXCLUDE_QueryFirst)
-#if (!NET_STANDARD)
+        #if (!OPCUA_EXCLUDE_QueryFirst)
+        #if (!NET_STANDARD)
         /// <summary>
         /// The client side implementation of the QueryFirst service contract.
         /// </summary>
@@ -1494,7 +1494,7 @@ namespace Opc.Ua
                 throw HandleSoapFault(e);
             }
         }
-#else  // NET_STANDARD
+        #else  // NET_STANDARD
         /// <summary>
         /// The client side implementation of the QueryFirst service contract.
         /// </summary>
@@ -1533,9 +1533,9 @@ namespace Opc.Ua
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndQueryFirst(asyncResult.InnerResult);
         }
-#endif
+        #endif
 
-#if (NET_STANDARD_ASYNC)
+        #if (NET_STANDARD_ASYNC)
         /// <summary>
         /// The async client side implementation of the QueryFirst service contract.
         /// </summary>
@@ -1543,11 +1543,11 @@ namespace Opc.Ua
         {
             return this.Channel.QueryFirstAsync(request);
         }
-#endif
-#endif
+        #endif
+        #endif
 
-#if (!OPCUA_EXCLUDE_QueryNext)
-#if (!NET_STANDARD)
+        #if (!OPCUA_EXCLUDE_QueryNext)
+        #if (!NET_STANDARD)
         /// <summary>
         /// The client side implementation of the QueryNext service contract.
         /// </summary>
@@ -1600,7 +1600,7 @@ namespace Opc.Ua
                 throw HandleSoapFault(e);
             }
         }
-#else  // NET_STANDARD
+        #else  // NET_STANDARD
         /// <summary>
         /// The client side implementation of the QueryNext service contract.
         /// </summary>
@@ -1639,9 +1639,9 @@ namespace Opc.Ua
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndQueryNext(asyncResult.InnerResult);
         }
-#endif
+        #endif
 
-#if (NET_STANDARD_ASYNC)
+        #if (NET_STANDARD_ASYNC)
         /// <summary>
         /// The async client side implementation of the QueryNext service contract.
         /// </summary>
@@ -1649,11 +1649,11 @@ namespace Opc.Ua
         {
             return this.Channel.QueryNextAsync(request);
         }
-#endif
-#endif
+        #endif
+        #endif
 
-#if (!OPCUA_EXCLUDE_Read)
-#if (!NET_STANDARD)
+        #if (!OPCUA_EXCLUDE_Read)
+        #if (!NET_STANDARD)
         /// <summary>
         /// The client side implementation of the Read service contract.
         /// </summary>
@@ -1706,7 +1706,7 @@ namespace Opc.Ua
                 throw HandleSoapFault(e);
             }
         }
-#else  // NET_STANDARD
+        #else  // NET_STANDARD
         /// <summary>
         /// The client side implementation of the Read service contract.
         /// </summary>
@@ -1745,9 +1745,9 @@ namespace Opc.Ua
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndRead(asyncResult.InnerResult);
         }
-#endif
+        #endif
 
-#if (NET_STANDARD_ASYNC)
+        #if (NET_STANDARD_ASYNC)
         /// <summary>
         /// The async client side implementation of the Read service contract.
         /// </summary>
@@ -1755,11 +1755,11 @@ namespace Opc.Ua
         {
             return this.Channel.ReadAsync(request);
         }
-#endif
-#endif
+        #endif
+        #endif
 
-#if (!OPCUA_EXCLUDE_HistoryRead)
-#if (!NET_STANDARD)
+        #if (!OPCUA_EXCLUDE_HistoryRead)
+        #if (!NET_STANDARD)
         /// <summary>
         /// The client side implementation of the HistoryRead service contract.
         /// </summary>
@@ -1812,7 +1812,7 @@ namespace Opc.Ua
                 throw HandleSoapFault(e);
             }
         }
-#else  // NET_STANDARD
+        #else  // NET_STANDARD
         /// <summary>
         /// The client side implementation of the HistoryRead service contract.
         /// </summary>
@@ -1851,9 +1851,9 @@ namespace Opc.Ua
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndHistoryRead(asyncResult.InnerResult);
         }
-#endif
+        #endif
 
-#if (NET_STANDARD_ASYNC)
+        #if (NET_STANDARD_ASYNC)
         /// <summary>
         /// The async client side implementation of the HistoryRead service contract.
         /// </summary>
@@ -1861,11 +1861,11 @@ namespace Opc.Ua
         {
             return this.Channel.HistoryReadAsync(request);
         }
-#endif
-#endif
+        #endif
+        #endif
 
-#if (!OPCUA_EXCLUDE_Write)
-#if (!NET_STANDARD)
+        #if (!OPCUA_EXCLUDE_Write)
+        #if (!NET_STANDARD)
         /// <summary>
         /// The client side implementation of the Write service contract.
         /// </summary>
@@ -1918,7 +1918,7 @@ namespace Opc.Ua
                 throw HandleSoapFault(e);
             }
         }
-#else  // NET_STANDARD
+        #else  // NET_STANDARD
         /// <summary>
         /// The client side implementation of the Write service contract.
         /// </summary>
@@ -1957,9 +1957,9 @@ namespace Opc.Ua
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndWrite(asyncResult.InnerResult);
         }
-#endif
+        #endif
 
-#if (NET_STANDARD_ASYNC)
+        #if (NET_STANDARD_ASYNC)
         /// <summary>
         /// The async client side implementation of the Write service contract.
         /// </summary>
@@ -1967,11 +1967,11 @@ namespace Opc.Ua
         {
             return this.Channel.WriteAsync(request);
         }
-#endif
-#endif
+        #endif
+        #endif
 
-#if (!OPCUA_EXCLUDE_HistoryUpdate)
-#if (!NET_STANDARD)
+        #if (!OPCUA_EXCLUDE_HistoryUpdate)
+        #if (!NET_STANDARD)
         /// <summary>
         /// The client side implementation of the HistoryUpdate service contract.
         /// </summary>
@@ -2024,7 +2024,7 @@ namespace Opc.Ua
                 throw HandleSoapFault(e);
             }
         }
-#else  // NET_STANDARD
+        #else  // NET_STANDARD
         /// <summary>
         /// The client side implementation of the HistoryUpdate service contract.
         /// </summary>
@@ -2063,9 +2063,9 @@ namespace Opc.Ua
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndHistoryUpdate(asyncResult.InnerResult);
         }
-#endif
+        #endif
 
-#if (NET_STANDARD_ASYNC)
+        #if (NET_STANDARD_ASYNC)
         /// <summary>
         /// The async client side implementation of the HistoryUpdate service contract.
         /// </summary>
@@ -2073,11 +2073,11 @@ namespace Opc.Ua
         {
             return this.Channel.HistoryUpdateAsync(request);
         }
-#endif
-#endif
+        #endif
+        #endif
 
-#if (!OPCUA_EXCLUDE_Call)
-#if (!NET_STANDARD)
+        #if (!OPCUA_EXCLUDE_Call)
+        #if (!NET_STANDARD)
         /// <summary>
         /// The client side implementation of the Call service contract.
         /// </summary>
@@ -2130,7 +2130,7 @@ namespace Opc.Ua
                 throw HandleSoapFault(e);
             }
         }
-#else  // NET_STANDARD
+        #else  // NET_STANDARD
         /// <summary>
         /// The client side implementation of the Call service contract.
         /// </summary>
@@ -2169,9 +2169,9 @@ namespace Opc.Ua
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndCall(asyncResult.InnerResult);
         }
-#endif
+        #endif
 
-#if (NET_STANDARD_ASYNC)
+        #if (NET_STANDARD_ASYNC)
         /// <summary>
         /// The async client side implementation of the Call service contract.
         /// </summary>
@@ -2179,11 +2179,11 @@ namespace Opc.Ua
         {
             return this.Channel.CallAsync(request);
         }
-#endif
-#endif
+        #endif
+        #endif
 
-#if (!OPCUA_EXCLUDE_CreateMonitoredItems)
-#if (!NET_STANDARD)
+        #if (!OPCUA_EXCLUDE_CreateMonitoredItems)
+        #if (!NET_STANDARD)
         /// <summary>
         /// The client side implementation of the CreateMonitoredItems service contract.
         /// </summary>
@@ -2236,7 +2236,7 @@ namespace Opc.Ua
                 throw HandleSoapFault(e);
             }
         }
-#else  // NET_STANDARD
+        #else  // NET_STANDARD
         /// <summary>
         /// The client side implementation of the CreateMonitoredItems service contract.
         /// </summary>
@@ -2275,9 +2275,9 @@ namespace Opc.Ua
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndCreateMonitoredItems(asyncResult.InnerResult);
         }
-#endif
+        #endif
 
-#if (NET_STANDARD_ASYNC)
+        #if (NET_STANDARD_ASYNC)
         /// <summary>
         /// The async client side implementation of the CreateMonitoredItems service contract.
         /// </summary>
@@ -2285,11 +2285,11 @@ namespace Opc.Ua
         {
             return this.Channel.CreateMonitoredItemsAsync(request);
         }
-#endif
-#endif
+        #endif
+        #endif
 
-#if (!OPCUA_EXCLUDE_ModifyMonitoredItems)
-#if (!NET_STANDARD)
+        #if (!OPCUA_EXCLUDE_ModifyMonitoredItems)
+        #if (!NET_STANDARD)
         /// <summary>
         /// The client side implementation of the ModifyMonitoredItems service contract.
         /// </summary>
@@ -2342,7 +2342,7 @@ namespace Opc.Ua
                 throw HandleSoapFault(e);
             }
         }
-#else  // NET_STANDARD
+        #else  // NET_STANDARD
         /// <summary>
         /// The client side implementation of the ModifyMonitoredItems service contract.
         /// </summary>
@@ -2381,9 +2381,9 @@ namespace Opc.Ua
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndModifyMonitoredItems(asyncResult.InnerResult);
         }
-#endif
+        #endif
 
-#if (NET_STANDARD_ASYNC)
+        #if (NET_STANDARD_ASYNC)
         /// <summary>
         /// The async client side implementation of the ModifyMonitoredItems service contract.
         /// </summary>
@@ -2391,11 +2391,11 @@ namespace Opc.Ua
         {
             return this.Channel.ModifyMonitoredItemsAsync(request);
         }
-#endif
-#endif
+        #endif
+        #endif
 
-#if (!OPCUA_EXCLUDE_SetMonitoringMode)
-#if (!NET_STANDARD)
+        #if (!OPCUA_EXCLUDE_SetMonitoringMode)
+        #if (!NET_STANDARD)
         /// <summary>
         /// The client side implementation of the SetMonitoringMode service contract.
         /// </summary>
@@ -2448,7 +2448,7 @@ namespace Opc.Ua
                 throw HandleSoapFault(e);
             }
         }
-#else  // NET_STANDARD
+        #else  // NET_STANDARD
         /// <summary>
         /// The client side implementation of the SetMonitoringMode service contract.
         /// </summary>
@@ -2487,9 +2487,9 @@ namespace Opc.Ua
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndSetMonitoringMode(asyncResult.InnerResult);
         }
-#endif
+        #endif
 
-#if (NET_STANDARD_ASYNC)
+        #if (NET_STANDARD_ASYNC)
         /// <summary>
         /// The async client side implementation of the SetMonitoringMode service contract.
         /// </summary>
@@ -2497,11 +2497,11 @@ namespace Opc.Ua
         {
             return this.Channel.SetMonitoringModeAsync(request);
         }
-#endif
-#endif
+        #endif
+        #endif
 
-#if (!OPCUA_EXCLUDE_SetTriggering)
-#if (!NET_STANDARD)
+        #if (!OPCUA_EXCLUDE_SetTriggering)
+        #if (!NET_STANDARD)
         /// <summary>
         /// The client side implementation of the SetTriggering service contract.
         /// </summary>
@@ -2554,7 +2554,7 @@ namespace Opc.Ua
                 throw HandleSoapFault(e);
             }
         }
-#else  // NET_STANDARD
+        #else  // NET_STANDARD
         /// <summary>
         /// The client side implementation of the SetTriggering service contract.
         /// </summary>
@@ -2593,9 +2593,9 @@ namespace Opc.Ua
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndSetTriggering(asyncResult.InnerResult);
         }
-#endif
+        #endif
 
-#if (NET_STANDARD_ASYNC)
+        #if (NET_STANDARD_ASYNC)
         /// <summary>
         /// The async client side implementation of the SetTriggering service contract.
         /// </summary>
@@ -2603,11 +2603,11 @@ namespace Opc.Ua
         {
             return this.Channel.SetTriggeringAsync(request);
         }
-#endif
-#endif
+        #endif
+        #endif
 
-#if (!OPCUA_EXCLUDE_DeleteMonitoredItems)
-#if (!NET_STANDARD)
+        #if (!OPCUA_EXCLUDE_DeleteMonitoredItems)
+        #if (!NET_STANDARD)
         /// <summary>
         /// The client side implementation of the DeleteMonitoredItems service contract.
         /// </summary>
@@ -2660,7 +2660,7 @@ namespace Opc.Ua
                 throw HandleSoapFault(e);
             }
         }
-#else  // NET_STANDARD
+        #else  // NET_STANDARD
         /// <summary>
         /// The client side implementation of the DeleteMonitoredItems service contract.
         /// </summary>
@@ -2699,9 +2699,9 @@ namespace Opc.Ua
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndDeleteMonitoredItems(asyncResult.InnerResult);
         }
-#endif
+        #endif
 
-#if (NET_STANDARD_ASYNC)
+        #if (NET_STANDARD_ASYNC)
         /// <summary>
         /// The async client side implementation of the DeleteMonitoredItems service contract.
         /// </summary>
@@ -2709,11 +2709,11 @@ namespace Opc.Ua
         {
             return this.Channel.DeleteMonitoredItemsAsync(request);
         }
-#endif
-#endif
+        #endif
+        #endif
 
-#if (!OPCUA_EXCLUDE_CreateSubscription)
-#if (!NET_STANDARD)
+        #if (!OPCUA_EXCLUDE_CreateSubscription)
+        #if (!NET_STANDARD)
         /// <summary>
         /// The client side implementation of the CreateSubscription service contract.
         /// </summary>
@@ -2766,7 +2766,7 @@ namespace Opc.Ua
                 throw HandleSoapFault(e);
             }
         }
-#else  // NET_STANDARD
+        #else  // NET_STANDARD
         /// <summary>
         /// The client side implementation of the CreateSubscription service contract.
         /// </summary>
@@ -2805,9 +2805,9 @@ namespace Opc.Ua
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndCreateSubscription(asyncResult.InnerResult);
         }
-#endif
+        #endif
 
-#if (NET_STANDARD_ASYNC)
+        #if (NET_STANDARD_ASYNC)
         /// <summary>
         /// The async client side implementation of the CreateSubscription service contract.
         /// </summary>
@@ -2815,11 +2815,11 @@ namespace Opc.Ua
         {
             return this.Channel.CreateSubscriptionAsync(request);
         }
-#endif
-#endif
+        #endif
+        #endif
 
-#if (!OPCUA_EXCLUDE_ModifySubscription)
-#if (!NET_STANDARD)
+        #if (!OPCUA_EXCLUDE_ModifySubscription)
+        #if (!NET_STANDARD)
         /// <summary>
         /// The client side implementation of the ModifySubscription service contract.
         /// </summary>
@@ -2872,7 +2872,7 @@ namespace Opc.Ua
                 throw HandleSoapFault(e);
             }
         }
-#else  // NET_STANDARD
+        #else  // NET_STANDARD
         /// <summary>
         /// The client side implementation of the ModifySubscription service contract.
         /// </summary>
@@ -2911,9 +2911,9 @@ namespace Opc.Ua
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndModifySubscription(asyncResult.InnerResult);
         }
-#endif
+        #endif
 
-#if (NET_STANDARD_ASYNC)
+        #if (NET_STANDARD_ASYNC)
         /// <summary>
         /// The async client side implementation of the ModifySubscription service contract.
         /// </summary>
@@ -2921,11 +2921,11 @@ namespace Opc.Ua
         {
             return this.Channel.ModifySubscriptionAsync(request);
         }
-#endif
-#endif
+        #endif
+        #endif
 
-#if (!OPCUA_EXCLUDE_SetPublishingMode)
-#if (!NET_STANDARD)
+        #if (!OPCUA_EXCLUDE_SetPublishingMode)
+        #if (!NET_STANDARD)
         /// <summary>
         /// The client side implementation of the SetPublishingMode service contract.
         /// </summary>
@@ -2978,7 +2978,7 @@ namespace Opc.Ua
                 throw HandleSoapFault(e);
             }
         }
-#else  // NET_STANDARD
+        #else  // NET_STANDARD
         /// <summary>
         /// The client side implementation of the SetPublishingMode service contract.
         /// </summary>
@@ -3017,9 +3017,9 @@ namespace Opc.Ua
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndSetPublishingMode(asyncResult.InnerResult);
         }
-#endif
+        #endif
 
-#if (NET_STANDARD_ASYNC)
+        #if (NET_STANDARD_ASYNC)
         /// <summary>
         /// The async client side implementation of the SetPublishingMode service contract.
         /// </summary>
@@ -3027,11 +3027,11 @@ namespace Opc.Ua
         {
             return this.Channel.SetPublishingModeAsync(request);
         }
-#endif
-#endif
+        #endif
+        #endif
 
-#if (!OPCUA_EXCLUDE_Publish)
-#if (!NET_STANDARD)
+        #if (!OPCUA_EXCLUDE_Publish)
+        #if (!NET_STANDARD)
         /// <summary>
         /// The client side implementation of the Publish service contract.
         /// </summary>
@@ -3084,7 +3084,7 @@ namespace Opc.Ua
                 throw HandleSoapFault(e);
             }
         }
-#else  // NET_STANDARD
+        #else  // NET_STANDARD
         /// <summary>
         /// The client side implementation of the Publish service contract.
         /// </summary>
@@ -3123,9 +3123,9 @@ namespace Opc.Ua
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndPublish(asyncResult.InnerResult);
         }
-#endif
+        #endif
 
-#if (NET_STANDARD_ASYNC)
+        #if (NET_STANDARD_ASYNC)
         /// <summary>
         /// The async client side implementation of the Publish service contract.
         /// </summary>
@@ -3133,11 +3133,11 @@ namespace Opc.Ua
         {
             return this.Channel.PublishAsync(request);
         }
-#endif
-#endif
+        #endif
+        #endif
 
-#if (!OPCUA_EXCLUDE_Republish)
-#if (!NET_STANDARD)
+        #if (!OPCUA_EXCLUDE_Republish)
+        #if (!NET_STANDARD)
         /// <summary>
         /// The client side implementation of the Republish service contract.
         /// </summary>
@@ -3190,7 +3190,7 @@ namespace Opc.Ua
                 throw HandleSoapFault(e);
             }
         }
-#else  // NET_STANDARD
+        #else  // NET_STANDARD
         /// <summary>
         /// The client side implementation of the Republish service contract.
         /// </summary>
@@ -3229,9 +3229,9 @@ namespace Opc.Ua
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndRepublish(asyncResult.InnerResult);
         }
-#endif
+        #endif
 
-#if (NET_STANDARD_ASYNC)
+        #if (NET_STANDARD_ASYNC)
         /// <summary>
         /// The async client side implementation of the Republish service contract.
         /// </summary>
@@ -3239,11 +3239,11 @@ namespace Opc.Ua
         {
             return this.Channel.RepublishAsync(request);
         }
-#endif
-#endif
+        #endif
+        #endif
 
-#if (!OPCUA_EXCLUDE_TransferSubscriptions)
-#if (!NET_STANDARD)
+        #if (!OPCUA_EXCLUDE_TransferSubscriptions)
+        #if (!NET_STANDARD)
         /// <summary>
         /// The client side implementation of the TransferSubscriptions service contract.
         /// </summary>
@@ -3296,7 +3296,7 @@ namespace Opc.Ua
                 throw HandleSoapFault(e);
             }
         }
-#else  // NET_STANDARD
+        #else  // NET_STANDARD
         /// <summary>
         /// The client side implementation of the TransferSubscriptions service contract.
         /// </summary>
@@ -3335,9 +3335,9 @@ namespace Opc.Ua
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndTransferSubscriptions(asyncResult.InnerResult);
         }
-#endif
+        #endif
 
-#if (NET_STANDARD_ASYNC)
+        #if (NET_STANDARD_ASYNC)
         /// <summary>
         /// The async client side implementation of the TransferSubscriptions service contract.
         /// </summary>
@@ -3345,11 +3345,11 @@ namespace Opc.Ua
         {
             return this.Channel.TransferSubscriptionsAsync(request);
         }
-#endif
-#endif
+        #endif
+        #endif
 
-#if (!OPCUA_EXCLUDE_DeleteSubscriptions)
-#if (!NET_STANDARD)
+        #if (!OPCUA_EXCLUDE_DeleteSubscriptions)
+        #if (!NET_STANDARD)
         /// <summary>
         /// The client side implementation of the DeleteSubscriptions service contract.
         /// </summary>
@@ -3402,7 +3402,7 @@ namespace Opc.Ua
                 throw HandleSoapFault(e);
             }
         }
-#else  // NET_STANDARD
+        #else  // NET_STANDARD
         /// <summary>
         /// The client side implementation of the DeleteSubscriptions service contract.
         /// </summary>
@@ -3441,9 +3441,9 @@ namespace Opc.Ua
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndDeleteSubscriptions(asyncResult.InnerResult);
         }
-#endif
+        #endif
 
-#if (NET_STANDARD_ASYNC)
+        #if (NET_STANDARD_ASYNC)
         /// <summary>
         /// The async client side implementation of the DeleteSubscriptions service contract.
         /// </summary>
@@ -3451,8 +3451,8 @@ namespace Opc.Ua
         {
             return this.Channel.DeleteSubscriptionsAsync(request);
         }
-#endif
-#endif
+        #endif
+        #endif
     }
     #endregion
 
@@ -3462,11 +3462,11 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-#if (!NET_STANDARD)
+    #if (!NET_STANDARD)
     public partial class DiscoveryChannel : WcfChannelBase<IDiscoveryChannel>, IDiscoveryChannel
-#else
+    #else
     public partial class DiscoveryChannel : UaChannelBase<IDiscoveryChannel>, IDiscoveryChannel
-#endif
+    #endif
     {
         /// <summary>
         /// Initializes the object with the endpoint address.
@@ -3475,8 +3475,8 @@ namespace Opc.Ua
         {
         }
 
-#if (!OPCUA_EXCLUDE_FindServers)
-#if (!NET_STANDARD)
+        #if (!OPCUA_EXCLUDE_FindServers)
+        #if (!NET_STANDARD)
         /// <summary>
         /// The client side implementation of the FindServers service contract.
         /// </summary>
@@ -3529,7 +3529,7 @@ namespace Opc.Ua
                 throw HandleSoapFault(e);
             }
         }
-#else  // NET_STANDARD
+        #else  // NET_STANDARD
         /// <summary>
         /// The client side implementation of the FindServers service contract.
         /// </summary>
@@ -3568,9 +3568,9 @@ namespace Opc.Ua
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndFindServers(asyncResult.InnerResult);
         }
-#endif
+        #endif
 
-#if (NET_STANDARD_ASYNC)
+        #if (NET_STANDARD_ASYNC)
         /// <summary>
         /// The async client side implementation of the FindServers service contract.
         /// </summary>
@@ -3578,11 +3578,11 @@ namespace Opc.Ua
         {
             return this.Channel.FindServersAsync(request);
         }
-#endif
-#endif
+        #endif
+        #endif
 
-#if (!OPCUA_EXCLUDE_FindServersOnNetwork)
-#if (!NET_STANDARD)
+        #if (!OPCUA_EXCLUDE_FindServersOnNetwork)
+        #if (!NET_STANDARD)
         /// <summary>
         /// The client side implementation of the FindServersOnNetwork service contract.
         /// </summary>
@@ -3635,7 +3635,7 @@ namespace Opc.Ua
                 throw HandleSoapFault(e);
             }
         }
-#else  // NET_STANDARD
+        #else  // NET_STANDARD
         /// <summary>
         /// The client side implementation of the FindServersOnNetwork service contract.
         /// </summary>
@@ -3674,9 +3674,9 @@ namespace Opc.Ua
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndFindServersOnNetwork(asyncResult.InnerResult);
         }
-#endif
+        #endif
 
-#if (NET_STANDARD_ASYNC)
+        #if (NET_STANDARD_ASYNC)
         /// <summary>
         /// The async client side implementation of the FindServersOnNetwork service contract.
         /// </summary>
@@ -3684,11 +3684,11 @@ namespace Opc.Ua
         {
             return this.Channel.FindServersOnNetworkAsync(request);
         }
-#endif
-#endif
+        #endif
+        #endif
 
-#if (!OPCUA_EXCLUDE_GetEndpoints)
-#if (!NET_STANDARD)
+        #if (!OPCUA_EXCLUDE_GetEndpoints)
+        #if (!NET_STANDARD)
         /// <summary>
         /// The client side implementation of the GetEndpoints service contract.
         /// </summary>
@@ -3741,7 +3741,7 @@ namespace Opc.Ua
                 throw HandleSoapFault(e);
             }
         }
-#else  // NET_STANDARD
+        #else  // NET_STANDARD
         /// <summary>
         /// The client side implementation of the GetEndpoints service contract.
         /// </summary>
@@ -3780,9 +3780,9 @@ namespace Opc.Ua
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndGetEndpoints(asyncResult.InnerResult);
         }
-#endif
+        #endif
 
-#if (NET_STANDARD_ASYNC)
+        #if (NET_STANDARD_ASYNC)
         /// <summary>
         /// The async client side implementation of the GetEndpoints service contract.
         /// </summary>
@@ -3790,8 +3790,8 @@ namespace Opc.Ua
         {
             return this.Channel.GetEndpointsAsync(request);
         }
-#endif
-#endif
+        #endif
+        #endif
     }
     #endregion
 
@@ -3801,11 +3801,11 @@ namespace Opc.Ua
     /// </summary>
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
-#if (!NET_STANDARD)
+    #if (!NET_STANDARD)
     public partial class RegistrationChannel : WcfChannelBase<IRegistrationChannel>, IRegistrationChannel
-#else
+    #else
     public partial class RegistrationChannel : UaChannelBase<IRegistrationChannel>, IRegistrationChannel
-#endif
+    #endif
     {
         /// <summary>
         /// Initializes the object with the endpoint address.
@@ -3814,8 +3814,8 @@ namespace Opc.Ua
         {
         }
 
-#if (!OPCUA_EXCLUDE_RegisterServer)
-#if (!NET_STANDARD)
+        #if (!OPCUA_EXCLUDE_RegisterServer)
+        #if (!NET_STANDARD)
         /// <summary>
         /// The client side implementation of the RegisterServer service contract.
         /// </summary>
@@ -3868,7 +3868,7 @@ namespace Opc.Ua
                 throw HandleSoapFault(e);
             }
         }
-#else  // NET_STANDARD
+        #else  // NET_STANDARD
         /// <summary>
         /// The client side implementation of the RegisterServer service contract.
         /// </summary>
@@ -3907,9 +3907,9 @@ namespace Opc.Ua
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndRegisterServer(asyncResult.InnerResult);
         }
-#endif
+        #endif
 
-#if (NET_STANDARD_ASYNC)
+        #if (NET_STANDARD_ASYNC)
         /// <summary>
         /// The async client side implementation of the RegisterServer service contract.
         /// </summary>
@@ -3917,11 +3917,11 @@ namespace Opc.Ua
         {
             return this.Channel.RegisterServerAsync(request);
         }
-#endif
-#endif
+        #endif
+        #endif
 
-#if (!OPCUA_EXCLUDE_RegisterServer2)
-#if (!NET_STANDARD)
+        #if (!OPCUA_EXCLUDE_RegisterServer2)
+        #if (!NET_STANDARD)
         /// <summary>
         /// The client side implementation of the RegisterServer2 service contract.
         /// </summary>
@@ -3974,7 +3974,7 @@ namespace Opc.Ua
                 throw HandleSoapFault(e);
             }
         }
-#else  // NET_STANDARD
+        #else  // NET_STANDARD
         /// <summary>
         /// The client side implementation of the RegisterServer2 service contract.
         /// </summary>
@@ -4013,9 +4013,9 @@ namespace Opc.Ua
             UaChannelAsyncResult asyncResult = UaChannelAsyncResult.WaitForComplete(result);
             return asyncResult.Channel.EndRegisterServer2(asyncResult.InnerResult);
         }
-#endif
+        #endif
 
-#if (NET_STANDARD_ASYNC)
+        #if (NET_STANDARD_ASYNC)
         /// <summary>
         /// The async client side implementation of the RegisterServer2 service contract.
         /// </summary>
@@ -4023,8 +4023,8 @@ namespace Opc.Ua
         {
             return this.Channel.RegisterServer2Async(request);
         }
-#endif
-#endif
+        #endif
+        #endif
     }
     #endregion
 }

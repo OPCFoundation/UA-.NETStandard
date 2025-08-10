@@ -15,8 +15,8 @@ using System;
 namespace Opc.Ua
 {
     /// <summary>
-	/// The base interface for client proxies.
-	/// </summary>
+    /// The base interface for client proxies.
+    /// </summary>
     public interface IChannelBase
     {
         /// <summary>

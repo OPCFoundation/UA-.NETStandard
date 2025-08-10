@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -42,24 +42,16 @@ namespace Opc.Ua.Core.Tests.Stack.Client
     public class ClientTests
     {
         [OneTimeSetUp]
-        protected void OneTimeSetUp()
-        {
-        }
+        protected void OneTimeSetUp() { }
 
         [OneTimeTearDown]
-        protected void OneTimeTearDown()
-        {
-        }
+        protected void OneTimeTearDown() { }
 
         [SetUp]
-        protected void SetUp()
-        {
-        }
+        protected void SetUp() { }
 
         [TearDown]
-        protected void TearDown()
-        {
-        }
+        protected void TearDown() { }
 
         /// <summary>
         /// Ensure that use of OriginalString preserves a scope id of a IPv6 address.
@@ -80,7 +72,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 Scheme = uri.Scheme,
                 Host = uri.DnsSafeHost,
                 Port = uri.Port,
-                Path = uri.AbsolutePath
+                Path = uri.AbsolutePath,
             };
 
             Assert.AreEqual(uri.OriginalString, uriBuilder.Uri.OriginalString);
@@ -98,9 +90,11 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                     ApplicationCertificate = new CertificateIdentifier(),
                     TrustedPeerCertificates = new CertificateTrustList { StorePath = "Test" },
                     TrustedIssuerCertificates = new CertificateTrustList { StorePath = "Test" },
-                }
+                },
             };
-            NUnit.Framework.Assert.DoesNotThrow(() => appConfig.ValidateAsync(ApplicationType.Client).GetAwaiter().GetResult());
+            NUnit.Framework.Assert.DoesNotThrow(() =>
+                appConfig.ValidateAsync(ApplicationType.Client).GetAwaiter().GetResult()
+            );
         }
     }
 }

@@ -116,8 +116,7 @@ namespace Opc.Ua.Client
                 }
 
                 // do not return temporary nodes created after a Browse().
-                if (node != null &&
-                    node?.GetType() != typeof(Node))
+                if (node != null && node?.GetType() != typeof(Node))
                 {
                     nodes.Add(node);
                 }
@@ -225,7 +224,9 @@ namespace Opc.Ua.Client
             try
             {
                 // fetch references from server.
-                ReferenceDescriptionCollection references = await m_session.FetchReferencesAsync(localId, ct).ConfigureAwait(false);
+                ReferenceDescriptionCollection references = await m_session
+                    .FetchReferencesAsync(localId, ct)
+                    .ConfigureAwait(false);
 
                 m_cacheLock.EnterUpgradeableReadLock();
                 try
@@ -257,7 +258,11 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                Utils.LogError("Could not fetch references for valid node with NodeId = {0}. Error = {1}", nodeId, Redact.Create(e));
+                Utils.LogError(
+                    "Could not fetch references for valid node with NodeId = {0}. Error = {1}",
+                    nodeId,
+                    Redact.Create(e)
+                );
             }
 
             InternalWriteLockedAttach(source);
@@ -275,11 +280,15 @@ namespace Opc.Ua.Client
             }
 
             var localIds = new NodeIdCollection(
-                nodeIds.Select(nodeId => ExpandedNodeId.ToNodeId(nodeId, m_session.NamespaceUris)));
+                nodeIds.Select(nodeId => ExpandedNodeId.ToNodeId(nodeId, m_session.NamespaceUris))
+            );
 
             // fetch nodes and references from server.
-            (IList<Node> sourceNodes, IList<ServiceResult> readErrors) = await m_session.ReadNodesAsync(localIds, NodeClass.Unspecified, ct: ct).ConfigureAwait(false);
-            (IList<ReferenceDescriptionCollection> referenceCollectionList, IList<ServiceResult> fetchErrors) = await m_session.FetchReferencesAsync(localIds, ct).ConfigureAwait(false);
+            (IList<Node> sourceNodes, IList<ServiceResult> readErrors) = await m_session
+                .ReadNodesAsync(localIds, NodeClass.Unspecified, ct: ct)
+                .ConfigureAwait(false);
+            (IList<ReferenceDescriptionCollection> referenceCollectionList, IList<ServiceResult> fetchErrors) =
+                await m_session.FetchReferencesAsync(localIds, ct).ConfigureAwait(false);
 
             int ii = 0;
             for (ii = 0; ii < count; ii++)
@@ -317,7 +326,8 @@ namespace Opc.Ua.Client
                         }
 
                         // add the reference.
-                        sourceNodes[ii].ReferenceTable.Add(reference.ReferenceTypeId, !reference.IsForward, reference.NodeId);
+                        sourceNodes[ii]
+                            .ReferenceTable.Add(reference.ReferenceTypeId, !reference.IsForward, reference.NodeId);
                     }
                 }
 
@@ -333,7 +343,8 @@ namespace Opc.Ua.Client
             NodeId referenceTypeId,
             bool isInverse,
             bool includeSubtypes,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             IList<INode> targets = [];
 
@@ -354,8 +365,7 @@ namespace Opc.Ua.Client
                 m_cacheLock.ExitReadLock();
             }
 
-            var targetIds = new ExpandedNodeIdCollection(
-                references.Select(reference => reference.TargetId));
+            var targetIds = new ExpandedNodeIdCollection(references.Select(reference => reference.TargetId));
 
             IList<INode> result = await FindAsync(targetIds, ct).ConfigureAwait(false);
 
@@ -375,7 +385,8 @@ namespace Opc.Ua.Client
             IList<NodeId> referenceTypeIds,
             bool isInverse,
             bool includeSubtypes,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             IList<INode> targets = [];
             if (nodeIds.Count == 0 || referenceTypeIds.Count == 0)
@@ -405,8 +416,7 @@ namespace Opc.Ua.Client
                         m_cacheLock.ExitReadLock();
                     }
 
-                    targetIds.AddRange(
-                        references.Select(reference => reference.TargetId));
+                    targetIds.AddRange(references.Select(reference => reference.TargetId));
                 }
             }
 

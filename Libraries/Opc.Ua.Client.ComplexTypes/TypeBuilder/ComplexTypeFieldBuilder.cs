@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -43,9 +43,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         /// <param name="structureBuilder">The type builder to use.</param>
         /// <param name="structureType">The structure type.</param>
-        public ComplexTypeFieldBuilder(
-            TypeBuilder structureBuilder,
-            StructureType structureType)
+        public ComplexTypeFieldBuilder(TypeBuilder structureBuilder, StructureType structureType)
         {
             m_structureBuilder = structureBuilder;
             m_structureType = structureType;
@@ -56,49 +54,59 @@ namespace Opc.Ua.Client.ComplexTypes
             ExpandedNodeId complexTypeId,
             ExpandedNodeId binaryEncodingId,
             ExpandedNodeId xmlEncodingId
-            )
+        )
         {
-            m_structureBuilder.StructureTypeIdAttribute(
-                complexTypeId,
-                binaryEncodingId,
-                xmlEncodingId
-                );
+            m_structureBuilder.StructureTypeIdAttribute(complexTypeId, binaryEncodingId, xmlEncodingId);
         }
 
         /// <inheritdoc/>
         public void AddField(StructureField field, Type fieldType, int order)
         {
-            FieldBuilder fieldBuilder = m_structureBuilder.DefineField("_" + field.Name, fieldType, FieldAttributes.Private);
+            FieldBuilder fieldBuilder = m_structureBuilder.DefineField(
+                "_" + field.Name,
+                fieldType,
+                FieldAttributes.Private
+            );
             PropertyBuilder propertyBuilder = m_structureBuilder.DefineProperty(
                 field.Name,
                 PropertyAttributes.None,
                 fieldType,
-                null);
+                null
+            );
             const System.Reflection.MethodAttributes methodAttributes =
-                System.Reflection.MethodAttributes.Public |
-                System.Reflection.MethodAttributes.HideBySig |
-                System.Reflection.MethodAttributes.Virtual;
+                System.Reflection.MethodAttributes.Public
+                | System.Reflection.MethodAttributes.HideBySig
+                | System.Reflection.MethodAttributes.Virtual;
 
-            MethodBuilder setBuilder = m_structureBuilder.DefineMethod("set_" + field.Name, methodAttributes, null, [fieldType]);
+            MethodBuilder setBuilder = m_structureBuilder.DefineMethod(
+                "set_" + field.Name,
+                methodAttributes,
+                null,
+                [fieldType]
+            );
             ILGenerator setIl = setBuilder.GetILGenerator();
             setIl.Emit(OpCodes.Ldarg_0);
             setIl.Emit(OpCodes.Ldarg_1);
             setIl.Emit(OpCodes.Stfld, fieldBuilder);
-            if (m_structureType is StructureType.Union or
-                StructureType.UnionWithSubtypedValues)
+            if (m_structureType is StructureType.Union or StructureType.UnionWithSubtypedValues)
             {
                 // set the union selector to the new field index
                 FieldInfo unionField = typeof(UnionComplexType).GetField(
                     "m_switchField",
-                    BindingFlags.NonPublic |
-                    BindingFlags.Instance);
+                    BindingFlags.NonPublic | BindingFlags.Instance
+                );
                 setIl.Emit(OpCodes.Ldarg_0);
                 setIl.Emit(OpCodes.Ldc_I4, order);
                 setIl.Emit(OpCodes.Stfld, unionField);
             }
             setIl.Emit(OpCodes.Ret);
 
-            MethodBuilder getBuilder = m_structureBuilder.DefineMethod("get_" + field.Name, methodAttributes, fieldType, Type.EmptyTypes);
+            MethodBuilder getBuilder = m_structureBuilder.DefineMethod(
+                "get_" + field.Name,
+                methodAttributes,
+                fieldType,
+                Type.EmptyTypes
+            );
             ILGenerator getIl = getBuilder.GetILGenerator();
             getIl.Emit(OpCodes.Ldarg_0);
             getIl.Emit(OpCodes.Ldfld, fieldBuilder);
@@ -139,4 +147,4 @@ namespace Opc.Ua.Client.ComplexTypes
         private TypeBuilder m_structureBuilder;
         private readonly StructureType m_structureType;
     }
-}//namespace
+} //namespace

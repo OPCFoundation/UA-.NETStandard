@@ -50,10 +50,8 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
         /// ASN.1 encoded distinguished name.
         /// </summary>
         /// <param name="distinguishedName">The distinguished name.</param>
-        public CertificateFactoryX509Name(X500DistinguishedName distinguishedName) :
-            base((Asn1Sequence)Asn1Object.FromByteArray(distinguishedName.RawData))
-        {
-        }
+        public CertificateFactoryX509Name(X500DistinguishedName distinguishedName)
+            : base((Asn1Sequence)Asn1Object.FromByteArray(distinguishedName.RawData)) { }
     }
 }
 #endif

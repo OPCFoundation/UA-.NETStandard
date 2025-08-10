@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -49,30 +49,31 @@ namespace Opc.Ua.Security.Certificates.Tests
         public const string Subject = "CN=Test Cert Subject, C=US, S=Arizona, O=OPC Foundation";
 
         [DatapointSource]
-        public static readonly CertificateAsset[] CertificateTestCases = [.. AssetCollection<CertificateAsset>.CreateFromFiles(TestUtils.EnumerateTestAssets("*.?er"))];
+        public static readonly CertificateAsset[] CertificateTestCases =
+        [
+            .. AssetCollection<CertificateAsset>.CreateFromFiles(TestUtils.EnumerateTestAssets("*.?er")),
+        ];
 
         [DatapointSource]
-        public static readonly KeyHashPair[] KeyHashPairs = new KeyHashPairCollection {
+        public static readonly KeyHashPair[] KeyHashPairs = new KeyHashPairCollection
+        {
             { 2048, HashAlgorithmName.SHA256 },
             { 3072, HashAlgorithmName.SHA384 },
-            { 4096, HashAlgorithmName.SHA512 } }.ToArray();
-        private static readonly string[] domainNames = ["mypc", "mypc.opcfoundation.org", "192.168.1.100"];
+            { 4096, HashAlgorithmName.SHA512 },
+        }.ToArray();
+        private static readonly string[] s_domainNames = ["mypc", "mypc.opcfoundation.org", "192.168.1.100"];
 
         /// <summary>
         /// Set up a Global Discovery Server and Client instance and connect the session
         /// </summary>
         [OneTimeSetUp]
-        protected void OneTimeSetUp()
-        {
-        }
+        protected void OneTimeSetUp() { }
 
         /// <summary>
         /// Clean up the Test PKI folder
         /// </summary>
         [OneTimeTearDown]
-        protected void OneTimeTearDown()
-        {
-        }
+        protected void OneTimeTearDown() { }
 
         /// <summary>
         /// Verify self signed app certs. Use one builder to create multiple certs.
@@ -80,11 +81,11 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Test]
         public void VerifyOneSelfSignedAppCertForAll()
         {
-            ICertificateBuilder builder = CertificateBuilder.Create(Subject)
-                            .SetNotBefore(DateTime.Today.AddYears(-1))
-                            .SetNotAfter(DateTime.Today.AddYears(25))
-                            .AddExtension(new X509SubjectAltNameExtension("urn:opcfoundation.org:mypc",
-                                domainNames));
+            ICertificateBuilder builder = CertificateBuilder
+                .Create(Subject)
+                .SetNotBefore(DateTime.Today.AddYears(-1))
+                .SetNotAfter(DateTime.Today.AddYears(25))
+                .AddExtension(new X509SubjectAltNameExtension("urn:opcfoundation.org:mypc", s_domainNames));
             byte[] previousSerialNumber = null;
             foreach (KeyHashPair keyHash in KeyHashPairs)
             {
@@ -93,7 +94,10 @@ namespace Opc.Ua.Security.Certificates.Tests
                     .SetRSAKeySize(keyHash.KeySize)
                     .CreateForRSA();
                 Assert.NotNull(cert);
-                WriteCertificate(cert, $"Default cert with RSA {keyHash.KeySize} {keyHash.HashAlgorithmName} signature.");
+                WriteCertificate(
+                    cert,
+                    $"Default cert with RSA {keyHash.KeySize} {keyHash.HashAlgorithmName} signature."
+                );
                 Assert.AreEqual(keyHash.HashAlgorithmName, Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
                 // ensure serial numbers are different
                 Assert.AreNotEqual(previousSerialNumber, cert.GetSerialNumber());
@@ -138,10 +142,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         }
 
         [Theory]
-        public void CreateSelfSignedForRSADefaultHashCustomKey(
-            KeyHashPair keyHashPair,
-            bool signOnly
-            )
+        public void CreateSelfSignedForRSADefaultHashCustomKey(KeyHashPair keyHashPair, bool signOnly)
         {
             // default cert with custom key
             ICertificateBuilder builder = CertificateBuilder.Create(Subject);
@@ -149,7 +150,10 @@ namespace Opc.Ua.Security.Certificates.Tests
             if (signOnly)
             {
                 // Key usage for sign only
-                const X509KeyUsageFlags keyUsageFlags = X509KeyUsageFlags.KeyEncipherment | X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.NonRepudiation;
+                const X509KeyUsageFlags keyUsageFlags =
+                    X509KeyUsageFlags.KeyEncipherment
+                    | X509KeyUsageFlags.DigitalSignature
+                    | X509KeyUsageFlags.NonRepudiation;
                 builder.AddExtension(new X509KeyUsageExtension(keyUsageFlags, true));
             }
 
@@ -167,12 +171,11 @@ namespace Opc.Ua.Security.Certificates.Tests
         }
 
         [Theory]
-        public void CreateSelfSignedForRSACustomHashDefaultKey(
-            KeyHashPair keyHashPair
-            )
+        public void CreateSelfSignedForRSACustomHashDefaultKey(KeyHashPair keyHashPair)
         {
             // default cert with custom HashAlgorithm
-            X509Certificate2 cert = CertificateBuilder.Create(Subject)
+            X509Certificate2 cert = CertificateBuilder
+                .Create(Subject)
                 .SetHashAlgorithm(keyHashPair.HashAlgorithmName)
                 .CreateForRSA();
             Assert.NotNull(cert);
@@ -186,14 +189,13 @@ namespace Opc.Ua.Security.Certificates.Tests
         }
 
         [Theory]
-        public void CreateSelfSignedForRSAAllFields(
-            KeyHashPair keyHashPair
-            )
+        public void CreateSelfSignedForRSAAllFields(KeyHashPair keyHashPair)
         {
             // set dates and extension
             const string applicationUri = "urn:opcfoundation.org:mypc";
             string[] domains = ["mypc", "mypc.opcfoundation.org", "192.168.1.100"];
-            X509Certificate2 cert = CertificateBuilder.Create(Subject)
+            X509Certificate2 cert = CertificateBuilder
+                .Create(Subject)
                 .SetNotBefore(DateTime.Today.AddYears(-1))
                 .SetNotAfter(DateTime.Today.AddYears(25))
                 .AddExtension(new X509SubjectAltNameExtension(applicationUri, domains))
@@ -201,7 +203,10 @@ namespace Opc.Ua.Security.Certificates.Tests
                 .SetRSAKeySize(keyHashPair.KeySize)
                 .CreateForRSA();
             Assert.NotNull(cert);
-            WriteCertificate(cert, $"Default cert RSA {keyHashPair.KeySize} with modified lifetime and alt name extension");
+            WriteCertificate(
+                cert,
+                $"Default cert RSA {keyHashPair.KeySize} with modified lifetime and alt name extension"
+            );
             Assert.AreEqual(Subject, cert.Subject);
             using (RSA privateKey = cert.GetRSAPrivateKey())
             {
@@ -223,22 +228,25 @@ namespace Opc.Ua.Security.Certificates.Tests
         }
 
         [Theory]
-        public void CreateCACertForRSA(
-            KeyHashPair keyHashPair
-            )
+        public void CreateCACertForRSA(KeyHashPair keyHashPair)
         {
             // create a CA cert
-            using X509Certificate2 cert = CertificateBuilder.Create(Subject)
+            using X509Certificate2 cert = CertificateBuilder
+                .Create(Subject)
                 .SetCAConstraint(-1)
                 .SetHashAlgorithm(keyHashPair.HashAlgorithmName)
                 .AddExtension(X509Extensions.BuildX509CRLDistributionPoints("http://myca/mycert.crl"))
                 .SetRSAKeySize(keyHashPair.KeySize)
                 .CreateForRSA();
             Assert.NotNull(cert);
-            WriteCertificate(cert, "Default cert with RSA {keyHashPair.KeySize} {keyHashPair.HashAlgorithmName} and CRL distribution points");
+            WriteCertificate(
+                cert,
+                "Default cert with RSA {keyHashPair.KeySize} {keyHashPair.HashAlgorithmName} and CRL distribution points"
+            );
             Assert.AreEqual(keyHashPair.KeySize, cert.GetRSAPublicKey().KeySize);
             Assert.AreEqual(keyHashPair.HashAlgorithmName, Oids.GetHashAlgorithmName(cert.SignatureAlgorithm.Value));
-            X509BasicConstraintsExtension basicConstraintsExtension = cert.Extensions.FindExtension<X509BasicConstraintsExtension>();
+            X509BasicConstraintsExtension basicConstraintsExtension =
+                cert.Extensions.FindExtension<X509BasicConstraintsExtension>();
             Assert.NotNull(basicConstraintsExtension);
             Assert.True(basicConstraintsExtension.CertificateAuthority);
             Assert.False(basicConstraintsExtension.HasPathLengthConstraint);
@@ -252,22 +260,16 @@ namespace Opc.Ua.Security.Certificates.Tests
         {
             // default cert
             NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(
-                () =>
-                {
-                    CertificateBuilder.Create(Subject)
-                    .SetSerialNumberLength(0)
-                    .CreateForRSA();
-                }
-            );
-            NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(
-                () =>
-                {
-                    CertificateBuilder.Create(Subject)
+                () => CertificateBuilder.Create(Subject).SetSerialNumberLength(0).CreateForRSA());
+            NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(() =>
+            {
+                CertificateBuilder
+                    .Create(Subject)
                     .SetSerialNumberLength(X509Defaults.SerialNumberLengthMax + 1)
                     .CreateForRSA();
-                }
-            );
-            ICertificateBuilder builder = CertificateBuilder.Create(Subject)
+            });
+            ICertificateBuilder builder = CertificateBuilder
+                .Create(Subject)
                 .SetSerialNumberLength(X509Defaults.SerialNumberLengthMax);
 
             // ensure every cert has a different serial number
@@ -285,21 +287,14 @@ namespace Opc.Ua.Security.Certificates.Tests
         {
             // default cert
             NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(
-                () =>
-                {
-                    CertificateBuilder.Create(Subject)
-                    .SetSerialNumber([])
-                    .CreateForRSA();
-                }
-            );
-            NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(
-                () =>
-                {
-                    CertificateBuilder.Create(Subject)
+                () => CertificateBuilder.Create(Subject).SetSerialNumber([]).CreateForRSA());
+            NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(() =>
+            {
+                CertificateBuilder
+                    .Create(Subject)
                     .SetSerialNumber(new byte[X509Defaults.SerialNumberLengthMax + 1])
                     .CreateForRSA();
-                }
-            );
+            });
             byte[] serial = new byte[X509Defaults.SerialNumberLengthMax];
             for (int i = 0; i < serial.Length; i++)
             {
@@ -307,8 +302,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             }
 
             // test if sign bit is cleared
-            ICertificateBuilder builder = CertificateBuilder.Create(Subject)
-                .SetSerialNumber(serial);
+            ICertificateBuilder builder = CertificateBuilder.Create(Subject).SetSerialNumber(serial);
             serial[^1] &= 0x7f;
             Assert.AreEqual(serial, builder.GetSerialNumber());
             X509Certificate2 cert1 = builder.CreateForRSA();
@@ -334,10 +328,13 @@ namespace Opc.Ua.Security.Certificates.Tests
             using var rsaKeyPair = RSA.Create();
             // create cert with supplied keys
             var generator = X509SignatureGenerator.CreateForRSA(rsaKeyPair, RSASignaturePadding.Pkcs1);
-            using (X509Certificate2 cert = CertificateBuilder.Create("CN=Root Cert")
-                .SetCAConstraint(-1)
-                .SetRSAPublicKey(rsaKeyPair)
-                .CreateForRSA(generator))
+            using (
+                X509Certificate2 cert = CertificateBuilder
+                    .Create("CN=Root Cert")
+                    .SetCAConstraint(-1)
+                    .SetRSAPublicKey(rsaKeyPair)
+                    .CreateForRSA(generator)
+            )
             {
                 Assert.NotNull(cert);
                 issuer = X509CertificateLoader.LoadCertificate(cert.RawData);
@@ -346,7 +343,8 @@ namespace Opc.Ua.Security.Certificates.Tests
             }
 
             // now sign a cert with supplied private key
-            using X509Certificate2 appCert = CertificateBuilder.Create("CN=App Cert")
+            using X509Certificate2 appCert = CertificateBuilder
+                .Create("CN=App Cert")
                 .SetIssuer(issuer)
                 .CreateForRSA(generator);
             Assert.NotNull(appCert);
@@ -356,7 +354,11 @@ namespace Opc.Ua.Security.Certificates.Tests
 
 #if NETFRAMEWORK || NETCOREAPP3_1_OR_GREATER
         [Test]
-        [SuppressMessage("Interoperability", "CA1416: Validate platform compatibility", Justification = "Test is ignored.")]
+        [SuppressMessage(
+            "Interoperability",
+            "CA1416: Validate platform compatibility",
+            Justification = "Test is ignored."
+        )]
         public void CreateIssuerRSACngWithSuppliedKeyPair()
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -368,10 +370,13 @@ namespace Opc.Ua.Security.Certificates.Tests
             using RSA rsaKeyPair = new RSACng(cngKey);
             // create cert with supplied keys
             var generator = X509SignatureGenerator.CreateForRSA(rsaKeyPair, RSASignaturePadding.Pkcs1);
-            using (X509Certificate2 cert = CertificateBuilder.Create("CN=Root Cert")
-                .SetCAConstraint(-1)
-                .SetRSAPublicKey(rsaKeyPair)
-                .CreateForRSA(generator))
+            using (
+                X509Certificate2 cert = CertificateBuilder
+                    .Create("CN=Root Cert")
+                    .SetCAConstraint(-1)
+                    .SetRSAPublicKey(rsaKeyPair)
+                    .CreateForRSA(generator)
+            )
             {
                 Assert.NotNull(cert);
                 issuer = X509CertificateLoader.LoadCertificate(cert.RawData);
@@ -380,7 +385,8 @@ namespace Opc.Ua.Security.Certificates.Tests
             }
 
             // now sign a cert with supplied private key
-            using X509Certificate2 appCert = CertificateBuilder.Create("CN=App Cert")
+            using X509Certificate2 appCert = CertificateBuilder
+                .Create("CN=App Cert")
                 .SetIssuer(issuer)
                 .CreateForRSA(generator);
             Assert.NotNull(appCert);
@@ -392,12 +398,11 @@ namespace Opc.Ua.Security.Certificates.Tests
 #endif
 
         [Theory]
-        public void CreateForRSAWithGeneratorTest(
-            KeyHashPair keyHashPair
-            )
+        public void CreateForRSAWithGeneratorTest(KeyHashPair keyHashPair)
         {
             // default signing cert with custom key
-            using X509Certificate2 signingCert = CertificateBuilder.Create(Subject)
+            using X509Certificate2 signingCert = CertificateBuilder
+                .Create(Subject)
                 .SetCAConstraint()
                 .SetHashAlgorithm(HashAlgorithmName.SHA512)
                 .SetRSAKeySize(2048)
@@ -408,7 +413,8 @@ namespace Opc.Ua.Security.Certificates.Tests
             {
                 var generator = X509SignatureGenerator.CreateForRSA(rsaPrivateKey, RSASignaturePadding.Pkcs1);
                 using X509Certificate2 issuer = X509CertificateLoader.LoadCertificate(signingCert.RawData);
-                using X509Certificate2 cert = CertificateBuilder.Create("CN=App Cert")
+                using X509Certificate2 cert = CertificateBuilder
+                    .Create("CN=App Cert")
                     .SetIssuer(issuer)
                     .CreateForRSA(generator);
                 Assert.NotNull(cert);
@@ -423,7 +429,8 @@ namespace Opc.Ua.Security.Certificates.Tests
             {
                 var generator = X509SignatureGenerator.CreateForRSA(rsaPrivateKey, RSASignaturePadding.Pkcs1);
                 using X509Certificate2 issuer = X509CertificateLoader.LoadCertificate(signingCert.RawData);
-                using X509Certificate2 cert = CertificateBuilder.Create("CN=App Cert")
+                using X509Certificate2 cert = CertificateBuilder
+                    .Create("CN=App Cert")
                     .SetHashAlgorithm(keyHashPair.HashAlgorithmName)
                     .SetIssuer(issuer)
                     .SetRSAPublicKey(rsaPublicKey)
@@ -439,7 +446,8 @@ namespace Opc.Ua.Security.Certificates.Tests
             {
                 var generator = X509SignatureGenerator.CreateForRSA(rsaPrivateKey, RSASignaturePadding.Pkcs1);
                 using X509Certificate2 issuer = X509CertificateLoader.LoadCertificate(signingCert.RawData);
-                using X509Certificate2 cert = CertificateBuilder.Create("CN=App Cert")
+                using X509Certificate2 cert = CertificateBuilder
+                    .Create("CN=App Cert")
                     .SetHashAlgorithm(keyHashPair.HashAlgorithmName)
                     .SetIssuer(issuer)
                     .SetRSAKeySize(keyHashPair.KeySize)
@@ -456,7 +464,8 @@ namespace Opc.Ua.Security.Certificates.Tests
             {
                 using RSA rsaPrivateKey = signingCert.GetRSAPrivateKey();
                 var generator = X509SignatureGenerator.CreateForRSA(rsaPrivateKey, RSASignaturePadding.Pkcs1);
-                _ = CertificateBuilder.Create("CN=App Cert")
+                _ = CertificateBuilder
+                    .Create("CN=App Cert")
                     .SetHashAlgorithm(keyHashPair.HashAlgorithmName)
                     .SetRSAKeySize(keyHashPair.KeySize)
                     .CreateForRSA(generator);

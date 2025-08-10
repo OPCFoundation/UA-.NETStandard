@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -46,7 +46,8 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Loads a CRL from a file.
         /// </summary>
-        public X509CRL(string filePath) : this()
+        public X509CRL(string filePath)
+            : this()
         {
             RawData = File.ReadAllBytes(filePath);
             EnsureDecoded();
@@ -55,7 +56,8 @@ namespace Opc.Ua.Security.Certificates
         /// <summary>
         /// Loads a CRL from a memory buffer.
         /// </summary>
-        public X509CRL(byte[] crl) : this()
+        public X509CRL(byte[] crl)
+            : this()
         {
             RawData = crl;
             EnsureDecoded();
@@ -226,10 +228,9 @@ namespace Opc.Ua.Security.Certificates
                                 System.Numerics.BigInteger serial = crlEntry.ReadInteger();
                                 var revokedCertificate = new RevokedCertificate(serial.ToByteArray())
                                 {
-                                    RevocationDate = ReadTime(crlEntry, optional: false)
+                                    RevocationDate = ReadTime(crlEntry, optional: false),
                                 };
-                                if (version == 1 &&
-                                    crlEntry.HasData)
+                                if (version == 1 && crlEntry.HasData)
                                 {
                                     // CRL entry extensions
                                     AsnReader crlEntryExtensions = crlEntry.ReadSequence();
@@ -248,8 +249,7 @@ namespace Opc.Ua.Security.Certificates
                         }
 
                         // CRL extensions OPTIONAL
-                        if (version == 1 &&
-                            seqReader.HasData)
+                        if (version == 1 && seqReader.HasData)
                         {
                             var extTag = new Asn1Tag(TagClass.ContextSpecific, 0);
                             AsnReader optReader = seqReader.ReadSequence(extTag);
@@ -332,15 +332,14 @@ namespace Opc.Ua.Security.Certificates
         /// <exception cref="ArgumentNullException"></exception>
         public new X509CRL this[int index]
         {
-            get => base[index]; set => base[index] = value ?? throw new ArgumentNullException(nameof(value));
+            get => base[index];
+            set => base[index] = value ?? throw new ArgumentNullException(nameof(value));
         }
 
         /// <summary>
         /// Create an empty X509CRL collection.
         /// </summary>
-        public X509CRLCollection()
-        {
-        }
+        public X509CRLCollection() { }
 
         /// <summary>
         /// Create a crl collection from a single CRL.

@@ -60,9 +60,8 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Initializes the subscription from a template.
         /// </summary>
-        public Subscription(Subscription template) : this(template, false)
-        {
-        }
+        public Subscription(Subscription template)
+            : this(template, false) { }
 
         /// <summary>
         /// Initializes the subscription from a template.
@@ -95,7 +94,7 @@ namespace Opc.Ua.Client
                 if (copyEventHandlers)
                 {
                     m_StateChanged = template.m_StateChanged;
-                    m_publishStatusChanged = template.m_publishStatusChanged;
+                    m_PublishStatusChanged = template.m_PublishStatusChanged;
                     FastDataChangeCallback = template.FastDataChangeCallback;
                     FastEventCallback = template.FastEventCallback;
                     FastKeepAliveCallback = template.FastKeepAliveCallback;
@@ -134,10 +133,12 @@ namespace Opc.Ua.Client
             lock (m_cache)
             {
                 // Called under the m_cache lock
-                if (m_publishTimer == null &&
-                    m_messageWorkerCts == null &&
-                    m_messageWorkerTask == null &&
-                    m_messageWorkerEvent == null)
+                if (
+                    m_publishTimer == null
+                    && m_messageWorkerCts == null
+                    && m_messageWorkerTask == null
+                    && m_messageWorkerEvent == null
+                )
                 {
                     return;
                 }
@@ -217,7 +218,7 @@ namespace Opc.Ua.Client
                 SamplingInterval = -1,
                 MonitoringMode = MonitoringMode.Reporting,
                 QueueSize = 0,
-                DiscardOldest = true
+                DiscardOldest = true,
             };
         }
 
@@ -269,7 +270,8 @@ namespace Opc.Ua.Client
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1009:DeclareEventHandlersCorrectly")]
         public event SubscriptionStateChangedEventHandler StateChanged
         {
-            add => m_StateChanged += value; remove => m_StateChanged -= value;
+            add => m_StateChanged += value;
+            remove => m_StateChanged -= value;
         }
 
         /// <summary>
@@ -277,9 +279,8 @@ namespace Opc.Ua.Client
         /// </summary>
         public event PublishStateChangedEventHandler PublishStatusChanged
         {
-            add => m_publishStatusChanged += value;
-
-            remove => m_publishStatusChanged -= value;
+            add => m_PublishStatusChanged += value;
+            remove => m_PublishStatusChanged -= value;
         }
 
         /// <summary>
@@ -339,7 +340,6 @@ namespace Opc.Ua.Client
         public int MaxMessageCount
         {
             get => m_maxMessageCount;
-
             set
             {
                 // lock needed to synchronize with message list processing
@@ -472,12 +472,13 @@ namespace Opc.Ua.Client
                     return [.. m_monitoredItems.Values];
                 }
             }
-
             set
             {
                 if (Created)
                 {
-                    throw new InvalidOperationException("Cannot update a subscription that has been created on the server.");
+                    throw new InvalidOperationException(
+                        "Cannot update a subscription that has been created on the server."
+                    );
                 }
 
                 lock (m_cache)
@@ -694,9 +695,7 @@ namespace Opc.Ua.Client
             {
                 lock (m_cache)
                 {
-                    return m_availableSequenceNumbers != null ?
-                        new ReadOnlyList<uint>(m_availableSequenceNumbers) :
-                        [];
+                    return m_availableSequenceNumbers != null ? new ReadOnlyList<uint>(m_availableSequenceNumbers) : [];
                 }
             }
         }
@@ -712,7 +711,11 @@ namespace Opc.Ua.Client
             }
             catch (Exception ex)
             {
-                Utils.LogError(ex, "Subscription state change callback exception with change mask 0x{0:X2}", m_changeMask);
+                Utils.LogError(
+                    ex,
+                    "Subscription state change callback exception with change mask 0x{0:X2}",
+                    m_changeMask
+                );
             }
             m_changeMask = SubscriptionChangeMask.None;
         }
@@ -755,9 +758,15 @@ namespace Opc.Ua.Client
                 out subscriptionId,
                 out revisedPublishingInterval,
                 out revisedLifetimeCounter,
-                out revisedKeepAliveCount);
+                out revisedKeepAliveCount
+            );
 
-            CreateSubscription(subscriptionId, revisedPublishingInterval, revisedKeepAliveCount, revisedLifetimeCounter);
+            CreateSubscription(
+                subscriptionId,
+                revisedPublishingInterval,
+                revisedKeepAliveCount,
+                revisedLifetimeCounter
+            );
 
             CreateItems();
 
@@ -791,7 +800,11 @@ namespace Opc.Ua.Client
                 // remove the subscription from disconnected session
                 if (Session?.RemoveTransferredSubscription(this) != true)
                 {
-                    Utils.LogError("SubscriptionId {0}: Failed to remove transferred subscription from owner SessionId={1}.", Id, Session?.SessionId);
+                    Utils.LogError(
+                        "SubscriptionId {0}: Failed to remove transferred subscription from owner SessionId={1}.",
+                        Id,
+                        Session?.SessionId
+                    );
                     return false;
                 }
 
@@ -802,7 +815,11 @@ namespace Opc.Ua.Client
                 // add transferred subscription to session
                 if (!session.AddSubscription(this))
                 {
-                    Utils.LogError("SubscriptionId {0}: Failed to add transferred subscription to SessionId={1}.", Id, session.SessionId);
+                    Utils.LogError(
+                        "SubscriptionId {0}: Failed to add transferred subscription to SessionId={1}.",
+                        Id,
+                        session.SessionId
+                    );
                     return false;
                 }
             }
@@ -811,17 +828,23 @@ namespace Opc.Ua.Client
                 // handle the case when the client restarts and loads the saved subscriptions from storage
                 if (!GetMonitoredItems(out UInt32Collection serverHandles, out UInt32Collection clientHandles))
                 {
-                    Utils.LogError("SubscriptionId {0}: The server failed to respond to GetMonitoredItems after transfer.", Id);
+                    Utils.LogError(
+                        "SubscriptionId {0}: The server failed to respond to GetMonitoredItems after transfer.",
+                        Id
+                    );
                     return false;
                 }
 
                 int monitoredItemsCount = m_monitoredItems.Count;
-                if (serverHandles.Count != monitoredItemsCount ||
-                    clientHandles.Count != monitoredItemsCount)
+                if (serverHandles.Count != monitoredItemsCount || clientHandles.Count != monitoredItemsCount)
                 {
                     // invalid state
-                    Utils.LogError("SubscriptionId {0}: Number of Monitored Items on client and server do not match after transfer {1}!={2}",
-                        Id, serverHandles.Count, monitoredItemsCount);
+                    Utils.LogError(
+                        "SubscriptionId {0}: Number of Monitored Items on client and server do not match after transfer {1}!={2}",
+                        Id,
+                        serverHandles.Count,
+                        monitoredItemsCount
+                    );
                     return false;
                 }
 
@@ -853,7 +876,12 @@ namespace Opc.Ua.Client
         /// <param name="id">Id of the transferred subscription.</param>
         /// <param name="availableSequenceNumbers">The available sequence numbers on the server.</param>
         /// <param name="ct">The cancellation token.</param>
-        public async Task<bool> TransferAsync(ISession session, uint id, UInt32Collection availableSequenceNumbers, CancellationToken ct = default)
+        public async Task<bool> TransferAsync(
+            ISession session,
+            uint id,
+            UInt32Collection availableSequenceNumbers,
+            CancellationToken ct = default
+        )
         {
             if (Created)
             {
@@ -866,7 +894,11 @@ namespace Opc.Ua.Client
                 // remove the subscription from disconnected session
                 if (Session?.RemoveTransferredSubscription(this) != true)
                 {
-                    Utils.LogError("SubscriptionId {0}: Failed to remove transferred subscription from owner SessionId={1}.", Id, Session?.SessionId);
+                    Utils.LogError(
+                        "SubscriptionId {0}: Failed to remove transferred subscription from owner SessionId={1}.",
+                        Id,
+                        Session?.SessionId
+                    );
                     return false;
                 }
 
@@ -877,7 +909,11 @@ namespace Opc.Ua.Client
                 // add transferred subscription to session
                 if (!session.AddSubscription(this))
                 {
-                    Utils.LogError("SubscriptionId {0}: Failed to add transferred subscription to SessionId={1}.", Id, session.SessionId);
+                    Utils.LogError(
+                        "SubscriptionId {0}: Failed to add transferred subscription to SessionId={1}.",
+                        Id,
+                        session.SessionId
+                    );
                     return false;
                 }
             }
@@ -890,17 +926,23 @@ namespace Opc.Ua.Client
                 (success, serverHandles, clientHandles) = await GetMonitoredItemsAsync(ct).ConfigureAwait(false);
                 if (!success)
                 {
-                    Utils.LogError("SubscriptionId {0}: The server failed to respond to GetMonitoredItems after transfer.", Id);
+                    Utils.LogError(
+                        "SubscriptionId {0}: The server failed to respond to GetMonitoredItems after transfer.",
+                        Id
+                    );
                     return false;
                 }
 
                 int monitoredItemsCount = m_monitoredItems.Count;
-                if (serverHandles.Count != monitoredItemsCount ||
-                    clientHandles.Count != monitoredItemsCount)
+                if (serverHandles.Count != monitoredItemsCount || clientHandles.Count != monitoredItemsCount)
                 {
                     // invalid state
-                    Utils.LogError("SubscriptionId {0}: Number of Monitored Items on client and server do not match after transfer {1}!={2}",
-                        Id, serverHandles.Count, monitoredItemsCount);
+                    Utils.LogError(
+                        "SubscriptionId {0}: Number of Monitored Items on client and server do not match after transfer {1}!={2}",
+                        Id,
+                        serverHandles.Count,
+                        monitoredItemsCount
+                    );
                     return false;
                 }
 
@@ -957,7 +999,8 @@ namespace Opc.Ua.Client
                     null,
                     subscriptionIds,
                     out results,
-                    out diagnosticInfos);
+                    out diagnosticInfos
+                );
 
                 // validate response.
                 ClientBase.ValidateResponse(results, subscriptionIds);
@@ -965,10 +1008,11 @@ namespace Opc.Ua.Client
 
                 if (StatusCode.IsBad(results[0]))
                 {
-                    throw new ServiceResultException(ClientBase.GetResult(results[0], 0, diagnosticInfos, responseHeader));
+                    throw new ServiceResultException(
+                        ClientBase.GetResult(results[0], 0, diagnosticInfos, responseHeader)
+                    );
                 }
             }
-
             // suppress exception if silent flag is set.
             catch (Exception e)
             {
@@ -977,7 +1021,6 @@ namespace Opc.Ua.Client
                     throw new ServiceResultException(e, StatusCodes.BadUnexpectedError);
                 }
             }
-
             // always put object in disconnected state even if an error occurs.
             finally
             {
@@ -1011,13 +1054,11 @@ namespace Opc.Ua.Client
                 Priority,
                 out revisedPublishingInterval,
                 out revisedLifetimeCounter,
-                out revisedKeepAliveCount);
+                out revisedKeepAliveCount
+            );
 
             // update current state.
-            ModifySubscription(
-                revisedPublishingInterval,
-                revisedKeepAliveCount,
-                revisedLifetimeCounter);
+            ModifySubscription(revisedPublishingInterval, revisedKeepAliveCount, revisedLifetimeCounter);
 
             ChangesCompleted();
 
@@ -1042,7 +1083,8 @@ namespace Opc.Ua.Client
                 enabled,
                 new uint[] { Id },
                 out results,
-                out diagnosticInfos);
+                out diagnosticInfos
+            );
 
             // validate response.
             ClientBase.ValidateResponse(results, subscriptionIds);
@@ -1071,11 +1113,7 @@ namespace Opc.Ua.Client
 
             NotificationMessage message;
 
-            Session.Republish(
-                null,
-                Id,
-                sequenceNumber,
-                out message);
+            Session.Republish(null, Id, sequenceNumber, out message);
 
             return message;
         }
@@ -1117,7 +1155,8 @@ namespace Opc.Ua.Client
                 null,
                 browsePaths,
                 out results,
-                out diagnosticInfos);
+                out diagnosticInfos
+            );
 
             ClientBase.ValidateResponse(results, browsePaths);
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, browsePaths);
@@ -1154,7 +1193,8 @@ namespace Opc.Ua.Client
                 TimestampsToReturn,
                 requestItems,
                 out results,
-                out diagnosticInfos);
+                out diagnosticInfos
+            );
 
             ClientBase.ValidateResponse(results, itemsToCreate);
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToCreate);
@@ -1199,7 +1239,8 @@ namespace Opc.Ua.Client
                 TimestampsToReturn,
                 requestItems,
                 out results,
-                out diagnosticInfos);
+                out diagnosticInfos
+            );
 
             ClientBase.ValidateResponse(results, itemsToModify);
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, itemsToModify);
@@ -1247,7 +1288,8 @@ namespace Opc.Ua.Client
                 Id,
                 monitoredItemIds,
                 out results,
-                out diagnosticInfos);
+                out diagnosticInfos
+            );
 
             ClientBase.ValidateResponse(results, monitoredItemIds);
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, monitoredItemIds);
@@ -1268,9 +1310,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Set monitoring mode of items.
         /// </summary>
-        public List<ServiceResult> SetMonitoringMode(
-            MonitoringMode monitoringMode,
-            IList<MonitoredItem> monitoredItems)
+        public List<ServiceResult> SetMonitoringMode(MonitoringMode monitoringMode, IList<MonitoredItem> monitoredItems)
         {
             if (monitoredItems == null)
             {
@@ -1300,7 +1340,8 @@ namespace Opc.Ua.Client
                 monitoringMode,
                 monitoredItemIds,
                 out results,
-                out diagnosticInfos);
+                out diagnosticInfos
+            );
 
             ClientBase.ValidateResponse(results, monitoredItemIds);
             ClientBase.ValidateDiagnosticInfos(diagnosticInfos, monitoredItemIds);
@@ -1308,9 +1349,13 @@ namespace Opc.Ua.Client
             // update results.
             var errors = new List<ServiceResult>();
             bool noErrors = UpdateMonitoringMode(
-                monitoredItems, errors, results,
-                diagnosticInfos, responseHeader,
-                monitoringMode);
+                monitoredItems,
+                errors,
+                results,
+                diagnosticInfos,
+                responseHeader,
+                monitoringMode
+            );
 
             // raise state changed event.
             m_changeMask |= SubscriptionChangeMask.ItemsModified;
@@ -1328,9 +1373,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Adds the notification message to internal cache.
         /// </summary>
-        public void SaveMessageInCache(
-            IList<uint> availableSequenceNumbers,
-            NotificationMessage message)
+        public void SaveMessageInCache(IList<uint> availableSequenceNumbers, NotificationMessage message)
         {
             PublishStateChangedEventHandler callback = null;
 
@@ -1349,7 +1392,7 @@ namespace Opc.Ua.Client
                 // check if a publish error was previously reported.
                 if (PublishingStopped)
                 {
-                    callback = m_publishStatusChanged;
+                    callback = m_PublishStatusChanged;
                     TraceState("PUBLISHING RECOVERED");
                 }
 
@@ -1360,10 +1403,7 @@ namespace Opc.Ua.Client
                 m_lastNotificationTickCount = tickCount;
 
                 // create queue for the first time.
-                if (m_incomingMessages == null)
-                {
-                    m_incomingMessages = new LinkedList<IncomingMessage>();
-                }
+                m_incomingMessages ??= new LinkedList<IncomingMessage>();
 
                 // find or create an entry for the incoming sequence number.
                 IncomingMessage entry = FindOrCreateEntry(now, tickCount, message.SequenceNumber);
@@ -1389,7 +1429,7 @@ namespace Opc.Ua.Client
                         {
                             SequenceNumber = entry.SequenceNumber + 1,
                             Timestamp = now,
-                            TickCount = tickCount
+                            TickCount = tickCount,
                         };
                         node = m_incomingMessages.AddAfter(node, placeholder);
                         continue;
@@ -1407,8 +1447,16 @@ namespace Opc.Ua.Client
                     LinkedListNode<IncomingMessage> next = node.Next;
 
                     // can only pull off processed or expired or missing messages.
-                    if (!entry.Processed &&
-                        !(entry.Republished && (entry.RepublishStatus != StatusCodes.Good || (tickCount - entry.TickCount) > kRepublishMessageExpiredTimeout)))
+                    if (
+                        !entry.Processed
+                        && !(
+                            entry.Republished
+                            && (
+                                entry.RepublishStatus != StatusCodes.Good
+                                || (tickCount - entry.TickCount) > kRepublishMessageExpiredTimeout
+                            )
+                        )
+                    )
                     {
                         break;
                     }
@@ -1420,7 +1468,11 @@ namespace Opc.Ua.Client
                         {
                             if (!entry.Processed)
                             {
-                                Utils.LogWarning("SubscriptionId {0} skipping PublishResponse Sequence Number {1}", Id, entry.SequenceNumber);
+                                Utils.LogWarning(
+                                    "SubscriptionId {0} skipping PublishResponse Sequence Number {1}",
+                                    Id,
+                                    entry.SequenceNumber
+                                );
                             }
 
                             m_lastSequenceNumberProcessed = entry.SequenceNumber;
@@ -1600,10 +1652,7 @@ namespace Opc.Ua.Client
 
             try
             {
-                Session.Call(
-                    ObjectTypeIds.ConditionType,
-                    MethodIds.ConditionType_ConditionRefresh,
-                    Id);
+                Session.Call(ObjectTypeIds.ConditionType, MethodIds.ConditionType_ConditionRefresh, Id);
 
                 return true;
             }
@@ -1626,17 +1675,18 @@ namespace Opc.Ua.Client
             {
                 object[] inputArguments = [Id, monitoredItemId];
 
-                Session.Call(
-                    ObjectTypeIds.ConditionType,
-                    MethodIds.ConditionType_ConditionRefresh2,
-                    inputArguments);
+                Session.Call(ObjectTypeIds.ConditionType, MethodIds.ConditionType_ConditionRefresh2, inputArguments);
 
                 return true;
             }
             catch (ServiceResultException sre)
             {
-                Utils.LogError(sre, "SubscriptionId {0}: Item {1} Failed to call ConditionRefresh2 on server",
-                    Id, monitoredItemId);
+                Utils.LogError(
+                    sre,
+                    "SubscriptionId {0}: Item {1} Failed to call ConditionRefresh2 on server",
+                    Id,
+                    monitoredItemId
+                );
             }
             return false;
         }
@@ -1669,7 +1719,11 @@ namespace Opc.Ua.Client
             clientHandles = [];
             try
             {
-                IList<object> outputArguments = Session.Call(ObjectIds.Server, MethodIds.Server_GetMonitoredItems, TransferId);
+                IList<object> outputArguments = Session.Call(
+                    ObjectIds.Server,
+                    MethodIds.Server_GetMonitoredItems,
+                    TransferId
+                );
                 if (outputArguments != null && outputArguments.Count == 2)
                 {
                     serverHandles.AddRange((uint[])outputArguments[0]);
@@ -1693,9 +1747,12 @@ namespace Opc.Ua.Client
 
             try
             {
-                IList<object> outputArguments = Session.Call(ObjectIds.Server,
+                IList<object> outputArguments = Session.Call(
+                    ObjectIds.Server,
                     MethodIds.Server_SetSubscriptionDurable,
-                    Id, lifetimeInHours);
+                    Id,
+                    lifetimeInHours
+                );
 
                 if (outputArguments != null && outputArguments.Count == 1)
                 {
@@ -1734,10 +1791,7 @@ namespace Opc.Ua.Client
                 if (availableSequenceNumbers.Count != 0 && RepublishAfterTransfer)
                 {
                     // create queue for the first time.
-                    if (m_incomingMessages == null)
-                    {
-                        m_incomingMessages = new LinkedList<IncomingMessage>();
-                    }
+                    m_incomingMessages ??= new LinkedList<IncomingMessage>();
 
                     // update last sequence number processed
                     // available seq numbers may not be in order
@@ -1783,8 +1837,12 @@ namespace Opc.Ua.Client
                         }
                     }
 
-                    Utils.LogInfo("SubscriptionId {0}: Republishing {1} messages, next sequencenumber {2} after transfer.",
-                        Id, republishMessages, m_lastSequenceNumberProcessed);
+                    Utils.LogInfo(
+                        "SubscriptionId {0}: Republishing {1} messages, next sequencenumber {2} after transfer.",
+                        Id,
+                        republishMessages,
+                        m_lastSequenceNumberProcessed
+                    );
 
                     availableSequenceNumbers.Clear();
                 }
@@ -1795,13 +1853,17 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Call the GetMonitoredItems method on the server.
         /// </summary>
-        public async Task<(bool, UInt32Collection, UInt32Collection)> GetMonitoredItemsAsync(CancellationToken ct = default)
+        public async Task<(bool, UInt32Collection, UInt32Collection)> GetMonitoredItemsAsync(
+            CancellationToken ct = default
+        )
         {
             var serverHandles = new UInt32Collection();
             var clientHandles = new UInt32Collection();
             try
             {
-                IList<object> outputArguments = await Session.CallAsync(ObjectIds.Server, MethodIds.Server_GetMonitoredItems, ct, TransferId).ConfigureAwait(false);
+                IList<object> outputArguments = await Session
+                    .CallAsync(ObjectIds.Server, MethodIds.Server_GetMonitoredItems, ct, TransferId)
+                    .ConfigureAwait(false);
                 if (outputArguments != null && outputArguments.Count == 2)
                 {
                     serverHandles.AddRange((uint[])outputArguments[0]);
@@ -1819,17 +1881,24 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Set the subscription to durable.
         /// </summary>
-        public async Task<(bool, uint)> SetSubscriptionDurableAsync(uint lifetimeInHours, CancellationToken ct = default)
+        public async Task<(bool, uint)> SetSubscriptionDurableAsync(
+            uint lifetimeInHours,
+            CancellationToken ct = default
+        )
         {
             uint revisedLifetimeInHours = lifetimeInHours;
 
             try
             {
-                IList<object> outputArguments = await Session.CallAsync(
-                    ObjectIds.Server,
-                    MethodIds.Server_SetSubscriptionDurable,
-                    ct, TransferId,
-                    lifetimeInHours).ConfigureAwait(false);
+                IList<object> outputArguments = await Session
+                    .CallAsync(
+                        ObjectIds.Server,
+                        MethodIds.Server_SetSubscriptionDurable,
+                        ct,
+                        TransferId,
+                        lifetimeInHours
+                    )
+                    .ConfigureAwait(false);
 
                 if (outputArguments != null && outputArguments.Count == 1)
                 {
@@ -1844,7 +1913,6 @@ namespace Opc.Ua.Client
 
             return (false, revisedLifetimeInHours);
         }
-
 #endif
 
         /// <summary>
@@ -1857,7 +1925,10 @@ namespace Opc.Ua.Client
             {
                 if (m_disposed)
                 {
-                    throw new ObjectDisposedException(nameof(Subscription), "Starting keep alive timer on disposed subscription");
+                    throw new ObjectDisposedException(
+                        nameof(Subscription),
+                        "Starting keep alive timer on disposed subscription"
+                    );
                 }
                 bool startPublishing = false;
                 int oldKeepAliveInterval = m_keepAliveInterval;
@@ -1870,7 +1941,12 @@ namespace Opc.Ua.Client
                     m_publishTimer = null;
                     Interlocked.Exchange(ref m_lastNotificationTime, DateTime.UtcNow.Ticks);
                     m_lastNotificationTickCount = HiResClock.TickCount;
-                    m_publishTimer = new Timer(OnKeepAlive, m_keepAliveInterval, m_keepAliveInterval, m_keepAliveInterval);
+                    m_publishTimer = new Timer(
+                        OnKeepAlive,
+                        m_keepAliveInterval,
+                        m_keepAliveInterval,
+                        m_keepAliveInterval
+                    );
                     startPublishing = true;
                 }
 
@@ -1879,8 +1955,14 @@ namespace Opc.Ua.Client
                     Utils.SilentDispose(m_messageWorkerCts);
                     m_messageWorkerCts = new CancellationTokenSource();
                     CancellationToken ct = m_messageWorkerCts.Token;
-                    m_messageWorkerTask = Task.Factory.StartNew(() => PublishResponseMessageWorkerAsync(ct), ct,
-                        TaskCreationOptions.LongRunning, TaskScheduler.Default).Unwrap();
+                    m_messageWorkerTask = Task
+                        .Factory.StartNew(
+                            () => PublishResponseMessageWorkerAsync(ct),
+                            ct,
+                            TaskCreationOptions.LongRunning,
+                            TaskScheduler.Default
+                        )
+                        .Unwrap();
                     startPublishing = true;
                 }
 
@@ -1913,7 +1995,7 @@ namespace Opc.Ua.Client
         private void HandleOnKeepAliveStopped()
         {
             // check if a publish has arrived.
-            PublishStateChangedEventHandler callback = m_publishStatusChanged;
+            PublishStateChangedEventHandler callback = m_PublishStatusChanged;
 
             Interlocked.Increment(ref m_publishLateCount);
 
@@ -1930,7 +2012,11 @@ namespace Opc.Ua.Client
         /// </summary>
         private async Task PublishResponseMessageWorkerAsync(CancellationToken ct)
         {
-            Utils.LogTrace("SubscriptionId {0} - Publish Thread {1:X8} Started.", Id, Environment.CurrentManagedThreadId);
+            Utils.LogTrace(
+                "SubscriptionId {0} - Publish Thread {1:X8} Started.",
+                Id,
+                Environment.CurrentManagedThreadId
+            );
 
             try
             {
@@ -1950,11 +2036,20 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                Utils.LogError(e, "SubscriptionId {0} - Publish Worker Thread {1:X8} Exited Unexpectedly.", Id, Environment.CurrentManagedThreadId);
+                Utils.LogError(
+                    e,
+                    "SubscriptionId {0} - Publish Worker Thread {1:X8} Exited Unexpectedly.",
+                    Id,
+                    Environment.CurrentManagedThreadId
+                );
                 return;
             }
 
-            Utils.LogTrace("SubscriptionId {0} - Publish Thread {1:X8} Exited Normally.", Id, Environment.CurrentManagedThreadId);
+            Utils.LogTrace(
+                "SubscriptionId {0} - Publish Thread {1:X8} Exited Normally.",
+                Id,
+                Environment.CurrentManagedThreadId
+            );
         }
 
         /// <summary>
@@ -1962,8 +2057,16 @@ namespace Opc.Ua.Client
         /// </summary>
         internal void TraceState(string context)
         {
-            CoreClientUtils.EventLog.SubscriptionState(context, Id, new DateTime(m_lastNotificationTime), Session?.GoodPublishRequestCount ?? 0,
-                CurrentPublishingInterval, CurrentKeepAliveCount, CurrentPublishingEnabled, MonitoredItemCount);
+            CoreClientUtils.EventLog.SubscriptionState(
+                context,
+                Id,
+                new DateTime(m_lastNotificationTime),
+                Session?.GoodPublishRequestCount ?? 0,
+                CurrentPublishingInterval,
+                CurrentKeepAliveCount,
+                CurrentPublishingEnabled,
+                MonitoredItemCount
+            );
         }
 
         /// <summary>
@@ -1981,10 +2084,15 @@ namespace Opc.Ua.Client
             double revisedPublishingInterval,
             uint revisedKeepAliveCount,
             uint revisedLifetimeCounter
-            )
+        )
         {
-            CreateOrModifySubscription(false, 0,
-                revisedPublishingInterval, revisedKeepAliveCount, revisedLifetimeCounter);
+            CreateOrModifySubscription(
+                false,
+                0,
+                revisedPublishingInterval,
+                revisedKeepAliveCount,
+                revisedLifetimeCounter
+            );
         }
 
         /// <summary>
@@ -1995,10 +2103,15 @@ namespace Opc.Ua.Client
             double revisedPublishingInterval,
             uint revisedKeepAliveCount,
             uint revisedLifetimeCounter
-            )
+        )
         {
-            CreateOrModifySubscription(true, subscriptionId,
-                revisedPublishingInterval, revisedKeepAliveCount, revisedLifetimeCounter);
+            CreateOrModifySubscription(
+                true,
+                subscriptionId,
+                revisedPublishingInterval,
+                revisedKeepAliveCount,
+                revisedLifetimeCounter
+            );
         }
 
         /// <summary>
@@ -2010,7 +2123,7 @@ namespace Opc.Ua.Client
             double revisedPublishingInterval,
             uint revisedKeepAliveCount,
             uint revisedLifetimeCounter
-            )
+        )
         {
             // update current state.
             CurrentPublishingInterval = revisedPublishingInterval;
@@ -2033,25 +2146,42 @@ namespace Opc.Ua.Client
 
             if (KeepAliveCount != revisedKeepAliveCount)
             {
-                Utils.LogInfo("For subscription {0}, Keep alive count was revised from {1} to {2}",
-                    Id, KeepAliveCount, revisedKeepAliveCount);
+                Utils.LogInfo(
+                    "For subscription {0}, Keep alive count was revised from {1} to {2}",
+                    Id,
+                    KeepAliveCount,
+                    revisedKeepAliveCount
+                );
             }
 
             if (LifetimeCount != revisedLifetimeCounter)
             {
-                Utils.LogInfo("For subscription {0}, Lifetime count was revised from {1} to {2}",
-                    Id, LifetimeCount, revisedLifetimeCounter);
+                Utils.LogInfo(
+                    "For subscription {0}, Lifetime count was revised from {1} to {2}",
+                    Id,
+                    LifetimeCount,
+                    revisedLifetimeCounter
+                );
             }
 
             if (PublishingInterval != revisedPublishingInterval)
             {
-                Utils.LogInfo("For subscription {0}, Publishing interval was revised from {1} to {2}",
-                    Id, PublishingInterval, revisedPublishingInterval);
+                Utils.LogInfo(
+                    "For subscription {0}, Publishing interval was revised from {1} to {2}",
+                    Id,
+                    PublishingInterval,
+                    revisedPublishingInterval
+                );
             }
 
             if (revisedLifetimeCounter < revisedKeepAliveCount * 3)
             {
-                Utils.LogInfo("For subscription {0}, Revised lifetime counter (value={1}) is less than three times the keep alive count (value={2})", Id, revisedLifetimeCounter, revisedKeepAliveCount);
+                Utils.LogInfo(
+                    "For subscription {0}, Revised lifetime counter (value={1}) is less than three times the keep alive count (value={2})",
+                    Id,
+                    revisedLifetimeCounter,
+                    revisedKeepAliveCount
+                );
             }
 
             if (CurrentPriority == 0)
@@ -2066,7 +2196,8 @@ namespace Opc.Ua.Client
         /// <returns></returns>
         private int CalculateKeepAliveInterval()
         {
-            int keepAliveInterval = (int)Math.Min(CurrentPublishingInterval * (CurrentKeepAliveCount + 1), int.MaxValue);
+            int keepAliveInterval = (int)
+                Math.Min(CurrentPublishingInterval * (CurrentKeepAliveCount + 1), int.MaxValue);
             if (keepAliveInterval < kMinKeepAliveTimerInterval)
             {
                 keepAliveInterval = (int)Math.Min(PublishingInterval * (KeepAliveCount + 1), int.MaxValue);
@@ -2112,8 +2243,12 @@ namespace Opc.Ua.Client
             // keep alive count must be at least 1, 10 is a good default.
             if (keepAliveCount == 0)
             {
-                Utils.LogInfo("Adjusted KeepAliveCount from value={0}, to value={1}, for subscription {2}.",
-                    keepAliveCount, kDefaultKeepAlive, Id);
+                Utils.LogInfo(
+                    "Adjusted KeepAliveCount from value={0}, to value={1}, for subscription {2}.",
+                    keepAliveCount,
+                    kDefaultKeepAlive,
+                    Id
+                );
                 keepAliveCount = kDefaultKeepAlive;
             }
 
@@ -2122,8 +2257,12 @@ namespace Opc.Ua.Client
             {
                 if (MinLifetimeInterval > 0 && MinLifetimeInterval < Session.SessionTimeout)
                 {
-                    Utils.LogWarning("A smaller minLifetimeInterval {0}ms than session timeout {1}ms configured for subscription {2}.",
-                        MinLifetimeInterval, Session.SessionTimeout, Id);
+                    Utils.LogWarning(
+                        "A smaller minLifetimeInterval {0}ms than session timeout {1}ms configured for subscription {2}.",
+                        MinLifetimeInterval,
+                        Session.SessionTimeout,
+                        Id
+                    );
                 }
 
                 uint minLifetimeCount = (uint)(MinLifetimeInterval / PublishingInterval);
@@ -2137,22 +2276,29 @@ namespace Opc.Ua.Client
                         lifetimeCount++;
                     }
 
-                    Utils.LogInfo("Adjusted LifetimeCount to value={0}, for subscription {1}. ",
-                        lifetimeCount, Id);
+                    Utils.LogInfo("Adjusted LifetimeCount to value={0}, for subscription {1}. ", lifetimeCount, Id);
                 }
 
                 if (lifetimeCount * PublishingInterval < Session.SessionTimeout)
                 {
-                    Utils.LogWarning("Lifetime {0}ms configured for subscription {1} is less than session timeout {2}ms.",
-                        lifetimeCount * PublishingInterval, Id, Session.SessionTimeout);
+                    Utils.LogWarning(
+                        "Lifetime {0}ms configured for subscription {1} is less than session timeout {2}ms.",
+                        lifetimeCount * PublishingInterval,
+                        Id,
+                        Session.SessionTimeout
+                    );
                 }
             }
             else if (lifetimeCount == 0)
             {
                 // don't know what the sampling interval will be - use something large enough
                 // to ensure the user does not experience unexpected drop outs.
-                Utils.LogInfo("Adjusted LifetimeCount from value={0}, to value={1}, for subscription {2}. ",
-                    lifetimeCount, kDefaultLifeTime, Id);
+                Utils.LogInfo(
+                    "Adjusted LifetimeCount from value={0}, to value={1}, for subscription {2}. ",
+                    lifetimeCount,
+                    kDefaultLifeTime,
+                    Id
+                );
                 lifetimeCount = kDefaultLifeTime;
             }
 
@@ -2160,8 +2306,12 @@ namespace Opc.Ua.Client
             uint minLifeTimeCount = 3 * keepAliveCount;
             if (lifetimeCount < minLifeTimeCount)
             {
-                Utils.LogInfo("Adjusted LifetimeCount from value={0}, to value={1}, for subscription {2}. ",
-                    lifetimeCount, minLifeTimeCount, Id);
+                Utils.LogInfo(
+                    "Adjusted LifetimeCount from value={0}, to value={1}, for subscription {2}. ",
+                    lifetimeCount,
+                    minLifeTimeCount,
+                    Id
+                );
                 lifetimeCount = minLifeTimeCount;
             }
         }
@@ -2200,8 +2350,11 @@ namespace Opc.Ua.Client
                     for (LinkedListNode<IncomingMessage> ii = m_incomingMessages.First; ii != null; ii = ii.Next)
                     {
                         // update monitored items with unprocessed messages.
-                        if (ii.Value.Message != null && !ii.Value.Processed &&
-                            (!m_sequentialPublishing || ValidSequentialPublishMessage(ii.Value)))
+                        if (
+                            ii.Value.Message != null
+                            && !ii.Value.Processed
+                            && (!m_sequentialPublishing || ValidSequentialPublishMessage(ii.Value))
+                        )
                         {
                             (messagesToProcess ??= []).Add(ii.Value.Message);
 
@@ -2215,32 +2368,42 @@ namespace Opc.Ua.Client
                             ii.Value.Processed = true;
 
                             // Keep the last sequence number processed going up
-                            if (ii.Value.SequenceNumber > m_lastSequenceNumberProcessed ||
-                               (ii.Value.SequenceNumber == 1 && m_lastSequenceNumberProcessed == uint.MaxValue))
+                            if (
+                                ii.Value.SequenceNumber > m_lastSequenceNumberProcessed
+                                || (ii.Value.SequenceNumber == 1 && m_lastSequenceNumberProcessed == uint.MaxValue)
+                            )
                             {
                                 m_lastSequenceNumberProcessed = ii.Value.SequenceNumber;
                                 if (m_resyncLastSequenceNumberProcessed)
                                 {
-                                    Utils.LogInfo("SubscriptionId {0}: Resynced last sequence number processed to {1}.",
-                                        Id, m_lastSequenceNumberProcessed);
+                                    Utils.LogInfo(
+                                        "SubscriptionId {0}: Resynced last sequence number processed to {1}.",
+                                        Id,
+                                        m_lastSequenceNumberProcessed
+                                    );
                                     m_resyncLastSequenceNumberProcessed = false;
                                 }
                             }
                         }
-
                         // process keep alive messages
                         else if (ii.Next == null && ii.Value.Message == null && !ii.Value.Processed)
                         {
                             (keepAliveToProcess ??= []).Add(ii.Value);
                             publishStateChangedMask |= PublishStateChangedMask.KeepAlive;
                         }
-
                         // check for missing messages.
-                        else if (ii.Next != null && ii.Value.Message == null && !ii.Value.Processed && !ii.Value.Republished)
+                        else if (
+                            ii.Next != null
+                            && ii.Value.Message == null
+                            && !ii.Value.Processed
+                            && !ii.Value.Republished
+                        )
                         {
                             // tolerate if a single request was received out of order
-                            if (ii.Next.Next != null &&
-                                (HiResClock.TickCount - ii.Value.TickCount) > kRepublishMessageTimeout)
+                            if (
+                                ii.Next.Next != null
+                                && (HiResClock.TickCount - ii.Value.TickCount) > kRepublishMessageTimeout
+                            )
                             {
                                 ii.Value.Republished = true;
                                 publishStateChangedMask |= PublishStateChangedMask.Republish;
@@ -2252,7 +2415,11 @@ namespace Opc.Ua.Client
                                 }
                                 else
                                 {
-                                    Utils.LogInfo("Skipped to receive RepublishAsync for {0}-{1}-BadMessageNotAvailable", subscriptionId, ii.Value.SequenceNumber);
+                                    Utils.LogInfo(
+                                        "Skipped to receive RepublishAsync for {0}-{1}-BadMessageNotAvailable",
+                                        subscriptionId,
+                                        ii.Value.SequenceNumber
+                                    );
                                     ii.Value.RepublishStatus = StatusCodes.BadMessageNotAvailable;
                                 }
                             }
@@ -2261,15 +2428,19 @@ namespace Opc.Ua.Client
                         // a message that is deferred because of a missing sequence number
                         else if (ii.Value.Message != null && !ii.Value.Processed)
                         {
-                            Utils.LogDebug("Subscription {0}: Delayed message with sequence number {1}, expected sequence number is {2}.",
-                                Id, ii.Value.SequenceNumber, m_lastSequenceNumberProcessed + 1);
+                            Utils.LogDebug(
+                                "Subscription {0}: Delayed message with sequence number {1}, expected sequence number is {2}.",
+                                Id,
+                                ii.Value.SequenceNumber,
+                                m_lastSequenceNumberProcessed + 1
+                            );
                         }
 #endif
                     }
 
                     session = Session;
                     subscriptionId = Id;
-                    callback = m_publishStatusChanged;
+                    callback = m_PublishStatusChanged;
                 }
 
                 // process new keep alive messages.
@@ -2281,7 +2452,7 @@ namespace Opc.Ua.Client
                         var keepAlive = new NotificationData
                         {
                             PublishTime = message.Timestamp,
-                            SequenceNumber = message.SequenceNumber
+                            SequenceNumber = message.SequenceNumber,
                         };
                         keepAliveCallback(this, keepAlive);
                     }
@@ -2337,8 +2508,11 @@ namespace Opc.Ua.Client
                                     statusChanged.SequenceNumber = message.SequenceNumber;
                                     statusChanged.MoreNotifications = message.MoreNotifications;
 
-                                    Utils.LogWarning("StatusChangeNotification received with Status = {0} for SubscriptionId={1}.",
-                                        statusChanged.Status.ToString(), Id);
+                                    Utils.LogWarning(
+                                        "StatusChangeNotification received with Status = {0} for SubscriptionId={1}.",
+                                        statusChanged.Status.ToString(),
+                                        Id
+                                    );
 
                                     if (statusChanged.Status == StatusCodes.GoodSubscriptionTransferred)
                                     {
@@ -2360,8 +2534,12 @@ namespace Opc.Ua.Client
 
                         if (MaxNotificationsPerPublish != 0 && noNotificationsReceived > MaxNotificationsPerPublish)
                         {
-                            Utils.LogWarning("For subscription {0}, more notifications were received={1} than the max notifications per publish value={2}",
-                                Id, noNotificationsReceived, MaxNotificationsPerPublish);
+                            Utils.LogWarning(
+                                "For subscription {0}, more notifications were received={1} than the max notifications per publish value={2}",
+                                Id,
+                                noNotificationsReceived,
+                                MaxNotificationsPerPublish
+                            );
                         }
                     }
 
@@ -2426,7 +2604,10 @@ namespace Opc.Ua.Client
 
             if (!created && Session is null) // Occurs only on Create() and CreateAsync()
             {
-                throw new ServiceResultException(StatusCodes.BadInvalidState, "Subscription has not been assigned to a Session");
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidState,
+                    "Subscription has not been assigned to a Session"
+                );
             }
         }
 
@@ -2436,9 +2617,11 @@ namespace Opc.Ua.Client
         private bool ValidSequentialPublishMessage(IncomingMessage message)
         {
             // If sequential publishing is enabled, only release messages in perfect sequence.
-            return message.SequenceNumber <= m_lastSequenceNumberProcessed + 1 ||
+            return message.SequenceNumber <= m_lastSequenceNumberProcessed + 1
+                ||
                 // reconnect / transfer subscription case
-                m_resyncLastSequenceNumberProcessed ||
+                m_resyncLastSequenceNumberProcessed
+                ||
                 // release the first message after wrapping around.
                 (message.SequenceNumber == 1 && m_lastSequenceNumberProcessed == uint.MaxValue);
         }
@@ -2453,7 +2636,8 @@ namespace Opc.Ua.Client
             StatusCodeCollection results,
             DiagnosticInfoCollection diagnosticInfos,
             ResponseHeader responseHeader,
-            MonitoringMode monitoringMode)
+            MonitoringMode monitoringMode
+        )
         {
             // update results.
             bool noErrors = true;
@@ -2534,7 +2718,8 @@ namespace Opc.Ua.Client
         /// </summary>
         private void PrepareItemsToModify(
             MonitoredItemModifyRequestCollection requestItems,
-            List<MonitoredItem> itemsToModify)
+            List<MonitoredItem> itemsToModify
+        )
         {
             lock (m_cache)
             {
@@ -2547,10 +2732,7 @@ namespace Opc.Ua.Client
                     }
 
                     // build item request.
-                    var request = new MonitoredItemModifyRequest
-                    {
-                        MonitoredItemId = monitoredItem.Status.Id
-                    };
+                    var request = new MonitoredItemModifyRequest { MonitoredItemId = monitoredItem.Status.Id };
                     request.RequestedParameters.ClientHandle = monitoredItem.ClientHandle;
                     request.RequestedParameters.SamplingInterval = monitoredItem.SamplingInterval;
                     request.RequestedParameters.QueueSize = monitoredItem.QueueSize;
@@ -2574,7 +2756,8 @@ namespace Opc.Ua.Client
         private void TransferItems(
             UInt32Collection serverHandles,
             UInt32Collection clientHandles,
-            out IList<MonitoredItem> itemsToModify)
+            out IList<MonitoredItem> itemsToModify
+        )
         {
             lock (m_cache)
             {
@@ -2604,26 +2787,26 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Prepare the ResolveItem to NodeId service call.
         /// </summary>
-        private void PrepareResolveItemNodeIds(
-            BrowsePathCollection browsePaths,
-            List<MonitoredItem> itemsToBrowse)
+        private void PrepareResolveItemNodeIds(BrowsePathCollection browsePaths, List<MonitoredItem> itemsToBrowse)
         {
             lock (m_cache)
             {
                 foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
                 {
-                    if (!string.IsNullOrEmpty(monitoredItem.RelativePath) && NodeId.IsNull(monitoredItem.ResolvedNodeId))
+                    if (
+                        !string.IsNullOrEmpty(monitoredItem.RelativePath) && NodeId.IsNull(monitoredItem.ResolvedNodeId)
+                    )
                     {
                         // cannot change the relative path after an item is created.
                         if (monitoredItem.Created)
                         {
-                            throw new ServiceResultException(StatusCodes.BadInvalidState, "Cannot modify item path after it is created.");
+                            throw new ServiceResultException(
+                                StatusCodes.BadInvalidState,
+                                "Cannot modify item path after it is created."
+                            );
                         }
 
-                        var browsePath = new BrowsePath
-                        {
-                            StartingNode = monitoredItem.StartNodeId
-                        };
+                        var browsePath = new BrowsePath { StartingNode = monitoredItem.StartNodeId };
 
                         // parse the relative path.
                         try
@@ -2646,7 +2829,11 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Saves a data change in the monitored item cache.
         /// </summary>
-        private void SaveDataChange(NotificationMessage message, DataChangeNotification notifications, IList<string> stringTable)
+        private void SaveDataChange(
+            NotificationMessage message,
+            DataChangeNotification notifications,
+            IList<string> stringTable
+        )
         {
             // check for empty monitored items list.
             if (notifications.MonitoredItems == null || notifications.MonitoredItems.Count == 0)
@@ -2666,7 +2853,11 @@ namespace Opc.Ua.Client
                 {
                     if (!m_monitoredItems.TryGetValue(notification.ClientHandle, out monitoredItem))
                     {
-                        Utils.LogWarning("Publish response contains invalid MonitoredItem. SubscriptionId = {0}, ClientHandle = {1}", Id, notification.ClientHandle);
+                        Utils.LogWarning(
+                            "Publish response contains invalid MonitoredItem. SubscriptionId = {0}, ClientHandle = {1}",
+                            Id,
+                            notification.ClientHandle
+                        );
                         continue;
                     }
                 }
@@ -2688,7 +2879,11 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Saves events in the monitored item cache.
         /// </summary>
-        private void SaveEvents(NotificationMessage message, EventNotificationList notifications, IList<string> stringTable)
+        private void SaveEvents(
+            NotificationMessage message,
+            EventNotificationList notifications,
+            IList<string> stringTable
+        )
         {
             for (int ii = 0; ii < notifications.Events.Count; ii++)
             {
@@ -2700,7 +2895,11 @@ namespace Opc.Ua.Client
                 {
                     if (!m_monitoredItems.TryGetValue(eventFields.ClientHandle, out monitoredItem))
                     {
-                        Utils.LogWarning("Publish response contains invalid MonitoredItem.SubscriptionId = {0}, ClientHandle = {1}", Id, eventFields.ClientHandle);
+                        Utils.LogWarning(
+                            "Publish response contains invalid MonitoredItem.SubscriptionId = {0}, ClientHandle = {1}",
+                            Id,
+                            eventFields.ClientHandle
+                        );
                         continue;
                     }
                 }
@@ -2743,7 +2942,7 @@ namespace Opc.Ua.Client
                     {
                         SequenceNumber = sequenceNumber,
                         Timestamp = utcNow,
-                        TickCount = tickCount
+                        TickCount = tickCount,
                     };
                     m_incomingMessages.AddAfter(node, entry);
                     break;
@@ -2759,7 +2958,7 @@ namespace Opc.Ua.Client
                 {
                     SequenceNumber = sequenceNumber,
                     Timestamp = utcNow,
-                    TickCount = tickCount
+                    TickCount = tickCount,
                 };
                 m_incomingMessages.AddLast(entry);
             }
@@ -2791,7 +2990,7 @@ namespace Opc.Ua.Client
         private int m_lastNotificationTickCount;
         private int m_keepAliveInterval;
         private int m_publishLateCount;
-        private event PublishStateChangedEventHandler m_publishStatusChanged;
+        private event PublishStateChangedEventHandler m_PublishStatusChanged;
 
         private bool m_disposed;
         private object m_cache = new();
@@ -2827,7 +3026,10 @@ namespace Opc.Ua.Client
     /// <summary>
     /// Flags indicating what has changed in a subscription.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1714:FlagsEnumsShouldHavePluralNames"), Flags]
+    [
+        System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1714:FlagsEnumsShouldHavePluralNames"),
+        Flags
+    ]
     public enum SubscriptionChangeMask
     {
         /// <summary>
@@ -2878,13 +3080,16 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Subscription was transferred on the server.
         /// </summary>
-        Transferred = 0x100
+        Transferred = 0x100,
     }
 
     /// <summary>
     /// Flags indicating what has changed in a publish state change.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1714:FlagsEnumsShouldHavePluralNames"), Flags]
+    [
+        System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1714:FlagsEnumsShouldHavePluralNames"),
+        Flags
+    ]
     public enum PublishStateChangedMask
     {
         /// <summary>
@@ -2926,17 +3131,28 @@ namespace Opc.Ua.Client
     /// <summary>
     /// The delegate used to receive data change notifications via a direct function call instead of a .NET Event.
     /// </summary>
-    public delegate void FastDataChangeNotificationEventHandler(Subscription subscription, DataChangeNotification notification, IList<string> stringTable);
+    public delegate void FastDataChangeNotificationEventHandler(
+        Subscription subscription,
+        DataChangeNotification notification,
+        IList<string> stringTable
+    );
 
     /// <summary>
     /// The delegate used to receive event notifications via a direct function call instead of a .NET Event.
     /// </summary>
-    public delegate void FastEventNotificationEventHandler(Subscription subscription, EventNotificationList notification, IList<string> stringTable);
+    public delegate void FastEventNotificationEventHandler(
+        Subscription subscription,
+        EventNotificationList notification,
+        IList<string> stringTable
+    );
 
     /// <summary>
     /// The delegate used to receive keep alive notifications via a direct function call instead of a .NET Event.
     /// </summary>
-    public delegate void FastKeepAliveNotificationEventHandler(Subscription subscription, NotificationData notification);
+    public delegate void FastKeepAliveNotificationEventHandler(
+        Subscription subscription,
+        NotificationData notification
+    );
 
     /// <summary>
     /// The event arguments provided when the state of a subscription changes.
@@ -2960,7 +3176,10 @@ namespace Opc.Ua.Client
     /// <summary>
     /// The delegate used to receive subscription state change notifications.
     /// </summary>
-    public delegate void SubscriptionStateChangedEventHandler(Subscription subscription, SubscriptionStateChangedEventArgs e);
+    public delegate void SubscriptionStateChangedEventHandler(
+        Subscription subscription,
+        SubscriptionStateChangedEventArgs e
+    );
 
     /// <summary>
     /// The event arguments provided when the state of a subscription changes.
@@ -3001,13 +3220,15 @@ namespace Opc.Ua.Client
         /// Initializes the collection from another collection.
         /// </summary>
         /// <param name="collection">The existing collection to use as the basis of creating this collection</param>
-        public SubscriptionCollection(IEnumerable<Subscription> collection) : base(collection) { }
+        public SubscriptionCollection(IEnumerable<Subscription> collection)
+            : base(collection) { }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">The max. capacity of the collection</param>
-        public SubscriptionCollection(int capacity) : base(capacity) { }
+        public SubscriptionCollection(int capacity)
+            : base(capacity) { }
 
         /// <inheritdoc/>
         public virtual object Clone()

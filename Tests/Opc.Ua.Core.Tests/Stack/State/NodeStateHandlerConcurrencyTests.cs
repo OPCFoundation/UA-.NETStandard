@@ -84,7 +84,11 @@ namespace Opc.Ua.Core.Tests.Stack.State
                     state.OnWriteWriteMask = NodeAttributeEventHandler;
                     state.OnWriteWriteMask = null;
                 };
-                yield return new TestCaseData(Attributes.WriteMask, new Variant((uint)AttributeWriteMask.WriteMask | (uint)AttributeWriteMask.UserWriteMask), action);
+                yield return new TestCaseData(
+                    Attributes.WriteMask,
+                    new Variant((uint)AttributeWriteMask.WriteMask | (uint)AttributeWriteMask.UserWriteMask),
+                    action
+                );
 
                 // Test OnWriteUserWriteMask
                 action = state =>
@@ -92,7 +96,11 @@ namespace Opc.Ua.Core.Tests.Stack.State
                     state.OnWriteUserWriteMask = NodeAttributeEventHandler;
                     state.OnWriteUserWriteMask = null;
                 };
-                yield return new TestCaseData(Attributes.UserWriteMask, new Variant((uint)AttributeWriteMask.WriteMask | (uint)AttributeWriteMask.UserWriteMask), action);
+                yield return new TestCaseData(
+                    Attributes.UserWriteMask,
+                    new Variant((uint)AttributeWriteMask.WriteMask | (uint)AttributeWriteMask.UserWriteMask),
+                    action
+                );
 
                 // Test OnWriteRolePermissions
                 action = state =>
@@ -108,7 +116,11 @@ namespace Opc.Ua.Core.Tests.Stack.State
                     state.OnWriteAccessRestrictions = NodeAttributeEventHandler;
                     state.OnWriteAccessRestrictions = null;
                 };
-                yield return new TestCaseData(Attributes.AccessRestrictions, new Variant((ushort)AccessRestrictionType.EncryptionRequired), action);
+                yield return new TestCaseData(
+                    Attributes.AccessRestrictions,
+                    new Variant((ushort)AccessRestrictionType.EncryptionRequired),
+                    action
+                );
 
                 // Test OnWriteDataType
                 action = state =>
@@ -132,7 +144,11 @@ namespace Opc.Ua.Core.Tests.Stack.State
                     state.OnWriteArrayDimensions = NodeAttributeEventHandler;
                     state.OnWriteArrayDimensions = null;
                 };
-                yield return new TestCaseData(Attributes.ArrayDimensions, new Variant(new List<uint>() { 2, 2 }), action);
+                yield return new TestCaseData(
+                    Attributes.ArrayDimensions,
+                    new Variant(new List<uint>() { 2, 2 }),
+                    action
+                );
 
                 // Test OnWriteAccessLevel
                 action = state =>
@@ -148,7 +164,11 @@ namespace Opc.Ua.Core.Tests.Stack.State
                     state.OnWriteUserAccessLevel = NodeAttributeEventHandler;
                     state.OnWriteUserAccessLevel = null;
                 };
-                yield return new TestCaseData(Attributes.UserAccessLevel, new Variant(AccessLevels.CurrentRead), action);
+                yield return new TestCaseData(
+                    Attributes.UserAccessLevel,
+                    new Variant(AccessLevels.CurrentRead),
+                    action
+                );
 
                 // Test OnWriteMinimumSamplingInterval
                 action = state =>
@@ -197,7 +217,11 @@ namespace Opc.Ua.Core.Tests.Stack.State
                     state.OnWriteArrayDimensions = NodeAttributeEventHandler;
                     state.OnWriteArrayDimensions = null;
                 };
-                yield return new TestCaseData(Attributes.ArrayDimensions, new Variant(new List<uint>() { 2, 2 }), action);
+                yield return new TestCaseData(
+                    Attributes.ArrayDimensions,
+                    new Variant(new List<uint>() { 2, 2 }),
+                    action
+                );
 
                 // Test OnWriteIsAbstract
                 action = state =>
@@ -222,7 +246,11 @@ namespace Opc.Ua.Core.Tests.Stack.State
                     state.OnWriteEventNotifier = NodeAttributeEventHandler;
                     state.OnWriteEventNotifier = null;
                 };
-                yield return new TestCaseData(Attributes.EventNotifier, new Variant(EventNotifiers.SubscribeToEvents), action);
+                yield return new TestCaseData(
+                    Attributes.EventNotifier,
+                    new Variant(EventNotifiers.SubscribeToEvents),
+                    action
+                );
             }
         }
 
@@ -264,7 +292,11 @@ namespace Opc.Ua.Core.Tests.Stack.State
                     state.OnWriteInverseName = NodeAttributeEventHandler;
                     state.OnWriteInverseName = null;
                 };
-                yield return new TestCaseData(Attributes.InverseName, new Variant(new LocalizedText("inverse test")), action);
+                yield return new TestCaseData(
+                    Attributes.InverseName,
+                    new Variant(new LocalizedText("inverse test")),
+                    action
+                );
 
                 // Test Symmetric
                 action = state =>
@@ -289,7 +321,11 @@ namespace Opc.Ua.Core.Tests.Stack.State
                     state.OnWriteEventNotifier = NodeAttributeEventHandler;
                     state.OnWriteEventNotifier = null;
                 };
-                yield return new TestCaseData(Attributes.EventNotifier, new Variant(EventNotifiers.SubscribeToEvents), action);
+                yield return new TestCaseData(
+                    Attributes.EventNotifier,
+                    new Variant(EventNotifiers.SubscribeToEvents),
+                    action
+                );
 
                 // Test ContainsNoLoops
                 action = state =>
@@ -314,7 +350,11 @@ namespace Opc.Ua.Core.Tests.Stack.State
                     state.OnWriteDataTypeDefinition = NodeAttributeEventHandler;
                     state.OnWriteDataTypeDefinition = null;
                 };
-                yield return new TestCaseData(Attributes.DataTypeDefinition, new Variant(new ExtensionObject()), action);
+                yield return new TestCaseData(
+                    Attributes.DataTypeDefinition,
+                    new Variant(new ExtensionObject()),
+                    action
+                );
             }
         }
 
@@ -325,7 +365,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
         public void VariableNodeHandlerConcurrencyTest(
             uint attribute,
             Variant variant,
-            Action<BaseVariableState> concurrentTaskAction)
+            Action<BaseVariableState> concurrentTaskAction
+        )
         {
             var testNodeState = new AnalogUnitRangeState(null);
             var serviceMessageContext = new ServiceMessageContext();
@@ -337,14 +378,10 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 new NodeId("TestNode", 7),
                 new QualifiedName("TestNode", 7),
                 new LocalizedText("TestNode"),
-                true);
+                true
+            );
 
-            ExecuteNodeHandlerConcurrencyTest(
-                systemContext,
-                attribute,
-                variant,
-                testNodeState,
-                concurrentTaskAction);
+            ExecuteNodeHandlerConcurrencyTest(systemContext, attribute, variant, testNodeState, concurrentTaskAction);
         }
 
         [TestCaseSource(nameof(VariableTypeHandlerTestCases))]
@@ -352,7 +389,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
         public void VariableTypeNodeHandlerConcurrencyTest(
             uint attribute,
             Variant variant,
-            Action<BaseDataVariableTypeState> concurrentTaskAction)
+            Action<BaseDataVariableTypeState> concurrentTaskAction
+        )
         {
             var testNodeState = new BaseDataVariableTypeState();
             var serviceMessageContext = new ServiceMessageContext();
@@ -364,14 +402,10 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 new NodeId("TestNode", 7),
                 new QualifiedName("TestNode", 7),
                 new LocalizedText("TestNode"),
-                true);
+                true
+            );
 
-            ExecuteNodeHandlerConcurrencyTest(
-                systemContext,
-                attribute,
-                variant,
-                testNodeState,
-                concurrentTaskAction);
+            ExecuteNodeHandlerConcurrencyTest(systemContext, attribute, variant, testNodeState, concurrentTaskAction);
         }
 
         [TestCaseSource(nameof(ObjectHandlerTestCases))]
@@ -379,7 +413,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
         public void ObjectNodeHandlerConcurrencyTest(
             uint attribute,
             Variant variant,
-            Action<BaseObjectState> concurrentTaskAction)
+            Action<BaseObjectState> concurrentTaskAction
+        )
         {
             var testNodeState = new BaseObjectState(null);
             var serviceMessageContext = new ServiceMessageContext();
@@ -391,14 +426,10 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 new NodeId("TestNode", 7),
                 new QualifiedName("TestNode", 7),
                 new LocalizedText("TestNode"),
-                true);
+                true
+            );
 
-            ExecuteNodeHandlerConcurrencyTest(
-                systemContext,
-                attribute,
-                variant,
-                testNodeState,
-                concurrentTaskAction);
+            ExecuteNodeHandlerConcurrencyTest(systemContext, attribute, variant, testNodeState, concurrentTaskAction);
         }
 
         [TestCaseSource(nameof(MethodHandlerTestCases))]
@@ -406,7 +437,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
         public void MethodNodeHandlerConcurrencyTest(
             uint attribute,
             Variant variant,
-            Action<MethodState> concurrentTaskAction)
+            Action<MethodState> concurrentTaskAction
+        )
         {
             var testNodeState = new MethodState(null);
             var serviceMessageContext = new ServiceMessageContext();
@@ -418,14 +450,10 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 new NodeId("TestNode", 7),
                 new QualifiedName("TestNode", 7),
                 new LocalizedText("TestNode"),
-                true);
+                true
+            );
 
-            ExecuteNodeHandlerConcurrencyTest(
-                systemContext,
-                attribute,
-                variant,
-                testNodeState,
-                concurrentTaskAction);
+            ExecuteNodeHandlerConcurrencyTest(systemContext, attribute, variant, testNodeState, concurrentTaskAction);
         }
 
         [TestCaseSource(nameof(ReferenceTypeHandlerTestCases))]
@@ -433,7 +461,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
         public void ReferenceTypeNodeHandlerConcurrencyTest(
             uint attribute,
             Variant variant,
-            Action<ReferenceTypeState> concurrentTaskAction)
+            Action<ReferenceTypeState> concurrentTaskAction
+        )
         {
             var testNodeState = new ReferenceTypeState();
             var serviceMessageContext = new ServiceMessageContext();
@@ -445,14 +474,10 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 new NodeId("TestNode", 7),
                 new QualifiedName("TestNode", 7),
                 new LocalizedText("TestNode"),
-                true);
+                true
+            );
 
-            ExecuteNodeHandlerConcurrencyTest(
-                systemContext,
-                attribute,
-                variant,
-                testNodeState,
-                concurrentTaskAction);
+            ExecuteNodeHandlerConcurrencyTest(systemContext, attribute, variant, testNodeState, concurrentTaskAction);
         }
 
         [TestCaseSource(nameof(ViewHandlerTestCases))]
@@ -460,7 +485,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
         public void ViewNodeHandlerConcurrencyTest(
             uint attribute,
             Variant variant,
-            Action<ViewState> concurrentTaskAction)
+            Action<ViewState> concurrentTaskAction
+        )
         {
             var testNodeState = new ViewState();
             var serviceMessageContext = new ServiceMessageContext();
@@ -472,14 +498,10 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 new NodeId("TestNode", 7),
                 new QualifiedName("TestNode", 7),
                 new LocalizedText("TestNode"),
-                true);
+                true
+            );
 
-            ExecuteNodeHandlerConcurrencyTest(
-                systemContext,
-                attribute,
-                variant,
-                testNodeState,
-                concurrentTaskAction);
+            ExecuteNodeHandlerConcurrencyTest(systemContext, attribute, variant, testNodeState, concurrentTaskAction);
         }
 
         private static void ExecuteNodeHandlerConcurrencyTest<T>(
@@ -487,19 +509,52 @@ namespace Opc.Ua.Core.Tests.Stack.State
             uint attribute,
             Variant variant,
             T node,
-            Action<T> concurrentTaskAction) where T : NodeState
+            Action<T> concurrentTaskAction
+        )
+            where T : NodeState
         {
-            node.WriteMask = AttributeWriteMask.AccessLevel | AttributeWriteMask.ArrayDimensions | AttributeWriteMask.BrowseName | AttributeWriteMask.ContainsNoLoops | AttributeWriteMask.DataType |
-                            AttributeWriteMask.Description | AttributeWriteMask.DisplayName | AttributeWriteMask.EventNotifier | AttributeWriteMask.Executable | AttributeWriteMask.Historizing | AttributeWriteMask.InverseName | AttributeWriteMask.IsAbstract |
-                            AttributeWriteMask.MinimumSamplingInterval | AttributeWriteMask.NodeClass | AttributeWriteMask.NodeId | AttributeWriteMask.Symmetric | AttributeWriteMask.UserAccessLevel | AttributeWriteMask.UserExecutable |
-                            AttributeWriteMask.UserWriteMask | AttributeWriteMask.ValueForVariableType | AttributeWriteMask.ValueRank | AttributeWriteMask.WriteMask | AttributeWriteMask.RolePermissions | AttributeWriteMask.AccessRestrictions;
+            node.WriteMask =
+                AttributeWriteMask.AccessLevel
+                | AttributeWriteMask.ArrayDimensions
+                | AttributeWriteMask.BrowseName
+                | AttributeWriteMask.ContainsNoLoops
+                | AttributeWriteMask.DataType
+                | AttributeWriteMask.Description
+                | AttributeWriteMask.DisplayName
+                | AttributeWriteMask.EventNotifier
+                | AttributeWriteMask.Executable
+                | AttributeWriteMask.Historizing
+                | AttributeWriteMask.InverseName
+                | AttributeWriteMask.IsAbstract
+                | AttributeWriteMask.MinimumSamplingInterval
+                | AttributeWriteMask.NodeClass
+                | AttributeWriteMask.NodeId
+                | AttributeWriteMask.Symmetric
+                | AttributeWriteMask.UserAccessLevel
+                | AttributeWriteMask.UserExecutable
+                | AttributeWriteMask.UserWriteMask
+                | AttributeWriteMask.ValueForVariableType
+                | AttributeWriteMask.ValueRank
+                | AttributeWriteMask.WriteMask
+                | AttributeWriteMask.RolePermissions
+                | AttributeWriteMask.AccessRestrictions;
 
             if (node is BaseVariableState baseVariableState)
             {
                 // Make Value attribute writable so that it is possible to test Value attribute writing
-                ServiceResult result = baseVariableState.WriteAttribute(systemContext, Attributes.AccessLevel, NumericRange.Empty, new DataValue(new Variant(AccessLevels.CurrentReadOrWrite)));
+                ServiceResult result = baseVariableState.WriteAttribute(
+                    systemContext,
+                    Attributes.AccessLevel,
+                    NumericRange.Empty,
+                    new DataValue(new Variant(AccessLevels.CurrentReadOrWrite))
+                );
                 Assert.IsTrue(ServiceResult.IsGood(result));
-                result = baseVariableState.WriteAttribute(systemContext, Attributes.UserAccessLevel, NumericRange.Empty, new DataValue(new Variant(AccessLevels.CurrentReadOrWrite)));
+                result = baseVariableState.WriteAttribute(
+                    systemContext,
+                    Attributes.UserAccessLevel,
+                    NumericRange.Empty,
+                    new DataValue(new Variant(AccessLevels.CurrentReadOrWrite))
+                );
                 Assert.IsTrue(ServiceResult.IsGood(result));
             }
 
@@ -520,12 +575,17 @@ namespace Opc.Ua.Core.Tests.Stack.State
             while (DateTime.UtcNow - utcNow < TimeSpan.FromSeconds(1))
             {
                 ServiceResult writeResult = node.WriteAttribute(
-                                    systemContext,
-                                    attribute,
-                                    NumericRange.Empty,
-                                    new DataValue(variant));
+                    systemContext,
+                    attribute,
+                    NumericRange.Empty,
+                    new DataValue(variant)
+                );
 
-                Assert.IsTrue(ServiceResult.IsGood(writeResult), "Expected Good ServiceResult but was: {0}", writeResult);
+                Assert.IsTrue(
+                    ServiceResult.IsGood(writeResult),
+                    "Expected Good ServiceResult but was: {0}",
+                    writeResult
+                );
             }
 
             running = false;
@@ -540,15 +600,13 @@ namespace Opc.Ua.Core.Tests.Stack.State
             QualifiedName dataEncoding,
             ref object value,
             ref StatusCode statusCode,
-            ref DateTime timestamp)
+            ref DateTime timestamp
+        )
         {
             return ServiceResult.Good;
         }
 
-        private static ServiceResult NodeAttributeEventHandler<T>(
-            ISystemContext context,
-            NodeState node,
-            ref T value)
+        private static ServiceResult NodeAttributeEventHandler<T>(ISystemContext context, NodeState node, ref T value)
         {
             return ServiceResult.Good;
         }

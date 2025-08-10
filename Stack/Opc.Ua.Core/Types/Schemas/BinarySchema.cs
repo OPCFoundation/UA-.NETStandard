@@ -23,7 +23,7 @@ namespace Opc.Ua.Schema.Binary
         /// <summary>
         /// The qualifed name for the type.
         /// </summary>
-        [XmlIgnore()]
+        [XmlIgnore]
         public XmlQualifiedName QName { get; set; }
     }
 }

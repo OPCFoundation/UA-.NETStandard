@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -47,7 +47,7 @@ namespace Opc.Ua.Server
                 TreatUncertainAsBad = false,
                 PercentDataBad = 100,
                 PercentDataGood = 100,
-                UseSlopedExtrapolation = false
+                UseSlopedExtrapolation = false,
             };
             Initialize(aggregateId, DateTime.UtcNow, DateTime.MaxValue, 1000, false, configuration);
         }
@@ -67,7 +67,8 @@ namespace Opc.Ua.Server
             DateTime endTime,
             double processingInterval,
             bool stepped,
-            AggregateConfiguration configuration)
+            AggregateConfiguration configuration
+        )
         {
             Initialize(aggregateId, startTime, endTime, processingInterval, stepped, configuration);
         }
@@ -87,7 +88,8 @@ namespace Opc.Ua.Server
             DateTime endTime,
             double processingInterval,
             bool stepped,
-            AggregateConfiguration configuration)
+            AggregateConfiguration configuration
+        )
         {
             AggregateId = aggregateId;
             StartTime = startTime;
@@ -217,12 +219,16 @@ namespace Opc.Ua.Server
             {
                 if (m_startOfData > earlyTime && m_startOfData < lateTime)
                 {
-                    value.StatusCode = value.StatusCode.SetAggregateBits(value.StatusCode.AggregateBits | AggregateBits.Partial);
+                    value.StatusCode = value.StatusCode.SetAggregateBits(
+                        value.StatusCode.AggregateBits | AggregateBits.Partial
+                    );
                 }
 
                 if (!UsingExtrapolation && !TimeFlowsBackward && m_endOfData >= earlyTime && m_endOfData < lateTime)
                 {
-                    value.StatusCode = value.StatusCode.SetAggregateBits(value.StatusCode.AggregateBits | AggregateBits.Partial);
+                    value.StatusCode = value.StatusCode.SetAggregateBits(
+                        value.StatusCode.AggregateBits | AggregateBits.Partial
+                    );
                 }
             }
 
@@ -265,14 +271,24 @@ namespace Opc.Ua.Server
             }
 
             // check if more to be done.
-            Complete = (!TimeFlowsBackward && CurrentSlice.EndTime >= EndTime) || (TimeFlowsBackward && CurrentSlice.StartTime <= EndTime);
+            Complete =
+                (!TimeFlowsBackward && CurrentSlice.EndTime >= EndTime)
+                || (TimeFlowsBackward && CurrentSlice.StartTime <= EndTime);
 
             if (Complete)
             {
                 // check if overlapping the end of data.
-                if (SetPartialBit && !UsingExtrapolation && !TimeFlowsBackward && m_endOfData >= earlyTime && m_endOfData < lateTime)
+                if (
+                    SetPartialBit
+                    && !UsingExtrapolation
+                    && !TimeFlowsBackward
+                    && m_endOfData >= earlyTime
+                    && m_endOfData < lateTime
+                )
                 {
-                    value.StatusCode = value.StatusCode.SetAggregateBits(value.StatusCode.AggregateBits | AggregateBits.Partial);
+                    value.StatusCode = value.StatusCode.SetAggregateBits(
+                        value.StatusCode.AggregateBits | AggregateBits.Partial
+                    );
                 }
             }
             else
@@ -661,10 +677,7 @@ namespace Opc.Ua.Server
                     }
 
                     // save first value in the slice.
-                    if (slice.End == null)
-                    {
-                        slice.End = ii;
-                    }
+                    slice.End ??= ii;
 
                     // save end of slice.
                     if (slice.Begin == null)
@@ -702,10 +715,7 @@ namespace Opc.Ua.Server
                     }
 
                     // save first value in the slice.
-                    if (slice.Begin == null)
-                    {
-                        slice.Begin = ii;
-                    }
+                    slice.Begin ??= ii;
 
                     // save end of slice.
                     slice.End = ii;
@@ -812,11 +822,7 @@ namespace Opc.Ua.Server
         /// <returns>The interpolated value.</returns>
         protected DataValue Interpolate(DateTime timestamp, TimeSlice reference)
         {
-            var slice = new TimeSlice
-            {
-                StartTime = timestamp,
-                EndTime = timestamp
-            };
+            var slice = new TimeSlice { StartTime = timestamp, EndTime = timestamp };
             UpdateSlice(slice);
 
             // check for value at the timestamp.
@@ -826,7 +832,6 @@ namespace Opc.Ua.Server
             }
 
             bool stepped = Stepped;
-
 
             DataValue dataValue;
             // check if the required bounds are available.
@@ -848,7 +853,11 @@ namespace Opc.Ua.Server
                 // check if extrapolation is possible.
                 if (slice.EarlyBound != null)
                 {
-                    if (Configuration.UseSlopedExtrapolation && slice.EarlyBound != null && slice.SecondEarlyBound != null)
+                    if (
+                        Configuration.UseSlopedExtrapolation
+                        && slice.EarlyBound != null
+                        && slice.SecondEarlyBound != null
+                    )
                     {
                         UsingExtrapolation = true;
                         dataValue = SlopedInterpolate(timestamp, slice.SecondEarlyBound.Value, slice.EarlyBound.Value);
@@ -895,7 +904,7 @@ namespace Opc.Ua.Server
                 WrappedValue = earlyBound.WrappedValue,
                 SourceTimestamp = timestamp,
                 ServerTimestamp = timestamp,
-                StatusCode = StatusCodes.Good
+                StatusCode = StatusCodes.Good,
             };
 
             // update status code.
@@ -947,7 +956,8 @@ namespace Opc.Ua.Server
                 // do interpolation.
                 double range = (lateBound.SourceTimestamp - earlyBound.SourceTimestamp).TotalMilliseconds;
                 double slope = (lateValue - earlyValue) / range;
-                double calculatedValue = (slope * (timestamp - earlyBound.SourceTimestamp).TotalMilliseconds) + earlyValue;
+                double calculatedValue =
+                    (slope * (timestamp - earlyBound.SourceTimestamp).TotalMilliseconds) + earlyValue;
 
                 // convert back to original type.
                 var dataValue = new DataValue
@@ -955,7 +965,7 @@ namespace Opc.Ua.Server
                     WrappedValue = CastToOriginalType(calculatedValue, earlyBound),
                     SourceTimestamp = timestamp,
                     ServerTimestamp = timestamp,
-                    StatusCode = StatusCodes.Good
+                    StatusCode = StatusCodes.Good,
                 };
 
                 // update status code.
@@ -968,7 +978,6 @@ namespace Opc.Ua.Server
 
                 return dataValue;
             }
-
             // exception occurs on data conversion errors.
             catch (Exception)
             {
@@ -989,7 +998,11 @@ namespace Opc.Ua.Server
         /// </summary>
         protected static Variant CastToOriginalType(double value, DataValue original)
         {
-            object castValue = TypeInfo.Cast(value, TypeInfo.Scalars.Double, original.WrappedValue.TypeInfo.BuiltInType);
+            object castValue = TypeInfo.Cast(
+                value,
+                TypeInfo.Scalars.Double,
+                original.WrappedValue.TypeInfo.BuiltInType
+            );
             return new Variant(castValue, original.WrappedValue.TypeInfo);
         }
 
@@ -998,7 +1011,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected DataValue GetSimpleBound(DateTime timestamp, TimeSlice slice)
         {
-            // choose the start point 
+            // choose the start point
             LinkedListNode<DataValue> start = slice.EarlyBound ?? m_values.First;
 
             // look for a raw value at or immediately before the timestamp.
@@ -1079,7 +1092,10 @@ namespace Opc.Ua.Server
         protected List<DataValue> GetValuesWithSimpleBounds(TimeSlice slice)
         {
             // check if slice is beyond end of available data.
-            if (CompareTimestamps(slice.StartTime, m_values.Last) > 0 || CompareTimestamps(slice.EndTime, m_values.First) < 0)
+            if (
+                CompareTimestamps(slice.StartTime, m_values.Last) > 0
+                || CompareTimestamps(slice.EndTime, m_values.First) < 0
+            )
             {
                 return null;
             }
@@ -1125,7 +1141,10 @@ namespace Opc.Ua.Server
         protected List<DataValue> GetValues(TimeSlice slice)
         {
             // check if slice is beyond end of available data.
-            if (CompareTimestamps(slice.StartTime, m_values.Last) > 0 || CompareTimestamps(slice.EndTime, m_values.First) < 0)
+            if (
+                CompareTimestamps(slice.StartTime, m_values.Last) > 0
+                || CompareTimestamps(slice.EndTime, m_values.First) < 0
+            )
             {
                 return null;
             }
@@ -1249,7 +1268,11 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns the values in the list with simple bounds.
         /// </summary>
-        protected List<SubRegion> GetRegionsInValueSet(List<DataValue> values, bool ignoreBadData, bool useSteppedCalculations)
+        protected List<SubRegion> GetRegionsInValueSet(
+            List<DataValue> values,
+            bool ignoreBadData,
+            bool useSteppedCalculations
+        )
         {
             // nothing to do if no data.
             if (values == null)
@@ -1321,12 +1344,13 @@ namespace Opc.Ua.Server
                     {
                         currentRegion.EndValue = currentRegion.StartValue;
                     }
-
                     // using interpolated calculations means the end affects the status of the current region.
                     else if (IsGood(values[ii]))
                     {
                         // handle case with uncertain end point.
-                        if (StatusCode.IsNotGood(values[ii].StatusCode) && StatusCode.IsNotBad(currentRegion.StatusCode))
+                        if (
+                            StatusCode.IsNotGood(values[ii].StatusCode) && StatusCode.IsNotBad(currentRegion.StatusCode)
+                        )
                         {
                             currentRegion.StatusCode = StatusCodes.UncertainDataSubNormal;
                         }
@@ -1348,11 +1372,16 @@ namespace Opc.Ua.Server
 
                     // if at end of data then duration is 1 tick.
                     // must be end of data if start of region is good yet end bound is bad.
-                    if (!ignoreBadData && currentRegion != null && IsGood(currentRegion.DataPoint) && currentStatus == StatusCodes.BadNoData && ii == values.Count - 1)
+                    if (
+                        !ignoreBadData
+                        && currentRegion != null
+                        && IsGood(currentRegion.DataPoint)
+                        && currentStatus == StatusCodes.BadNoData
+                        && ii == values.Count - 1
+                    )
                     {
                         currentRegion.Duration = 1;
                     }
-
                     // calculate region span.
                     else
                     {
@@ -1375,7 +1404,7 @@ namespace Opc.Ua.Server
                     EndValue = currentValue,
                     StartTime = currentTime,
                     StatusCode = currentStatus,
-                    DataPoint = values[ii]
+                    DataPoint = values[ii],
                 };
             }
 
@@ -1470,8 +1499,10 @@ namespace Opc.Ua.Server
                 }
 
                 // Take into account the Uncertain status code
-                if (StatusCode.IsGood(region.StatusCode)
-                    || (!Configuration.TreatUncertainAsBad && StatusCode.IsUncertain(region.StatusCode)))
+                if (
+                    StatusCode.IsGood(region.StatusCode)
+                    || (!Configuration.TreatUncertainAsBad && StatusCode.IsUncertain(region.StatusCode))
+                )
                 {
                     goodDuration += region.Duration;
                 }

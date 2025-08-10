@@ -80,10 +80,7 @@ namespace Opc.Ua
         /// Formats the text with the arguments using the specified locale.
         /// </summary>
         public LocalizedText(string key, string locale, string text, params object[] args)
-        :
-            this(new TranslationInfo(key, locale, text, args))
-        {
-        }
+            : this(new TranslationInfo(key, locale, text, args)) { }
 
         /// <summary>
         /// Creates text from a TranslationInfo object.
@@ -240,11 +237,12 @@ namespace Opc.Ua
             {
                 if (m_translations == null && XmlEncodedLocale != null)
                 {
-                    return new ReadOnlyDictionary<string, string>(new Dictionary<string, string> { { XmlEncodedLocale, XmlEncodedText } });
+                    return new ReadOnlyDictionary<string, string>(
+                        new Dictionary<string, string> { { XmlEncodedLocale, XmlEncodedText } }
+                    );
                 }
                 return m_translations;
             }
-
             set
             {
                 if (value == null || value.Count == 0)
@@ -291,7 +289,6 @@ namespace Opc.Ua
 
                 return null;
             }
-
             set
             {
                 if (TranslationInfo != null)
@@ -330,7 +327,10 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (ltext.XmlEncodedLocale != XmlEncodedLocale && !(string.IsNullOrEmpty(ltext.XmlEncodedLocale) && string.IsNullOrEmpty(XmlEncodedLocale)))
+            if (
+                ltext.XmlEncodedLocale != XmlEncodedLocale
+                && !(string.IsNullOrEmpty(ltext.XmlEncodedLocale) && string.IsNullOrEmpty(XmlEncodedLocale))
+            )
             {
                 return false;
             }
@@ -512,9 +512,9 @@ namespace Opc.Ua
                     return this;
                 }
 
-                var translations = new ReadOnlyDictionary<string, string>(Translations
-                    .Where(t => preferredLocales.Contains(t.Key))
-                    .ToDictionary(s => s.Key, s => s.Value));
+                var translations = new ReadOnlyDictionary<string, string>(
+                    Translations.Where(t => preferredLocales.Contains(t.Key)).ToDictionary(s => s.Key, s => s.Value)
+                );
 
                 // If matching locales are found return those
                 if (translations.Count > 0)
@@ -569,8 +569,14 @@ namespace Opc.Ua
             try
             {
                 // The expected JSON structure is defined in https://reference.opcfoundation.org/Core/Part3/v105/docs/8.5
-                Dictionary<string, object> json = JsonConvert.DeserializeObject<Dictionary<string, object>>(XmlEncodedText);
-                if (json != null && json.TryGetValue(kMulLocaleDictionaryKey, out object tValue) && tValue is Newtonsoft.Json.Linq.JArray tArray)
+                Dictionary<string, object> json = JsonConvert.DeserializeObject<Dictionary<string, object>>(
+                    XmlEncodedText
+                );
+                if (
+                    json != null
+                    && json.TryGetValue(kMulLocaleDictionaryKey, out object tValue)
+                    && tValue is Newtonsoft.Json.Linq.JArray tArray
+                )
                 {
                     foreach (Newtonsoft.Json.Linq.JToken pairToken in tArray)
                     {
@@ -615,13 +621,15 @@ namespace Opc.Ua
         /// Initializes the collection from another collection.
         /// </summary>
         /// <param name="collection">The collection to copy into this new instance</param>
-        public LocalizedTextCollection(IEnumerable<LocalizedText> collection) : base(collection) { }
+        public LocalizedTextCollection(IEnumerable<LocalizedText> collection)
+            : base(collection) { }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">The max capacity of this collection</param>
-        public LocalizedTextCollection(int capacity) : base(capacity) { }
+        public LocalizedTextCollection(int capacity)
+            : base(capacity) { }
 
         /// <summary>
         /// Converts an array to a collection.
@@ -666,5 +674,5 @@ namespace Opc.Ua
 
             return clone;
         }
-    }//class
-}//namespace
+    } //class
+} //namespace

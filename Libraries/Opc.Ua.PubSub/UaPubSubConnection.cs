@@ -48,16 +48,20 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Create new instance of UaPubSubConnection with PubSubConnectionDataType configuration data
         /// </summary>
-        internal UaPubSubConnection(UaPubSubApplication parentUaPubSubApplication, PubSubConnectionDataType pubSubConnectionDataType)
+        internal UaPubSubConnection(
+            UaPubSubApplication parentUaPubSubApplication,
+            PubSubConnectionDataType pubSubConnectionDataType
+        )
         {
             // set the default message context that uses the GlobalContext
             MessageContext = new ServiceMessageContext
             {
                 NamespaceUris = ServiceMessageContext.GlobalContext.NamespaceUris,
-                ServerUris = ServiceMessageContext.GlobalContext.ServerUris
+                ServerUris = ServiceMessageContext.GlobalContext.ServerUris,
             };
 
-            Application = parentUaPubSubApplication ?? throw new ArgumentNullException(nameof(parentUaPubSubApplication));
+            Application =
+                parentUaPubSubApplication ?? throw new ArgumentNullException(nameof(parentUaPubSubApplication));
             Application.UaPubSubConfigurator.WriterGroupAdded += UaPubSubConfigurator_WriterGroupAdded;
             PubSubConnectionConfiguration = pubSubConnectionDataType;
 
@@ -66,7 +70,9 @@ namespace Opc.Ua.PubSub
             if (string.IsNullOrEmpty(pubSubConnectionDataType.Name))
             {
                 pubSubConnectionDataType.Name = "<connection>";
-                Utils.Trace("UaPubSubConnection() received a PubSubConnectionDataType object without name. '<connection>' will be used");
+                Utils.Trace(
+                    "UaPubSubConnection() received a PubSubConnectionDataType object without name. '<connection>' will be used"
+                );
             }
         }
 
@@ -177,12 +183,17 @@ namespace Opc.Ua.PubSub
                 return false;
             }
             // check if connection status is operational
-            if (Application.UaPubSubConfigurator.FindStateForObject(PubSubConnectionConfiguration) != PubSubState.Operational)
+            if (
+                Application.UaPubSubConfigurator.FindStateForObject(PubSubConnectionConfiguration)
+                != PubSubState.Operational
+            )
             {
                 return false;
             }
 
-            if (Application.UaPubSubConfigurator.FindStateForObject(writerGroupConfiguration) != PubSubState.Operational)
+            if (
+                Application.UaPubSubConfigurator.FindStateForObject(writerGroupConfiguration) != PubSubState.Operational
+            )
             {
                 return false;
             }
@@ -204,7 +215,10 @@ namespace Opc.Ua.PubSub
         /// <param name="writerGroupConfiguration">The writer group configuration </param>
         /// <param name="state">The publish state for the writer group.</param>
         /// <returns>A list of the <see cref="UaNetworkMessage"/> created from the provided writerGroupConfiguration.</returns>
-        public abstract IList<UaNetworkMessage> CreateNetworkMessages(WriterGroupDataType writerGroupConfiguration, WriterGroupPublishState state);
+        public abstract IList<UaNetworkMessage> CreateNetworkMessages(
+            WriterGroupDataType writerGroupConfiguration,
+            WriterGroupPublishState state
+        );
 
         /// <summary>
         /// Publish the network message
@@ -224,7 +238,10 @@ namespace Opc.Ua.PubSub
         public List<DataSetReaderDataType> GetOperationalDataSetReaders()
         {
             var readersList = new List<DataSetReaderDataType>();
-            if (Application.UaPubSubConfigurator.FindStateForObject(PubSubConnectionConfiguration) != PubSubState.Operational)
+            if (
+                Application.UaPubSubConfigurator.FindStateForObject(PubSubConnectionConfiguration)
+                != PubSubState.Operational
+            )
             {
                 return readersList;
             }
@@ -273,10 +290,17 @@ namespace Opc.Ua.PubSub
                     lock (Lock)
                     {
                         // check if reader's MetaData shall be updated
-                        if (reader.DataSetWriterId != 0
+                        if (
+                            reader.DataSetWriterId != 0
                             && reader.DataSetWriterId == networkMessage.DataSetWriterId
-                            && (reader.DataSetMetaData == null
-                            || !Utils.IsEqual(reader.DataSetMetaData.ConfigurationVersion, networkMessage.DataSetMetaData.ConfigurationVersion)))
+                            && (
+                                reader.DataSetMetaData == null
+                                || !Utils.IsEqual(
+                                    reader.DataSetMetaData.ConfigurationVersion,
+                                    networkMessage.DataSetMetaData.ConfigurationVersion
+                                )
+                            )
+                        )
                         {
                             raiseChangedEvent = true;
                         }
@@ -290,7 +314,7 @@ namespace Opc.Ua.PubSub
                             ChangedProperty = ConfigurationProperty.DataSetMetaData,
                             Parent = reader,
                             NewValue = networkMessage.DataSetMetaData,
-                            Cancel = false
+                            Cancel = false,
                         };
 
                         // raise the ConfigurationUpdating event and see if configuration shall be changed
@@ -299,8 +323,12 @@ namespace Opc.Ua.PubSub
                         // check to see if the event handler canceled the save of new MetaData
                         if (!metaDataUpdatedEventArgs.Cancel)
                         {
-                            Utils.Trace("Connection '{0}' - The MetaData is updated for DataSetReader '{1}' with DataSetWriterId={2}",
-                                    source, reader.Name, networkMessage.DataSetWriterId);
+                            Utils.Trace(
+                                "Connection '{0}' - The MetaData is updated for DataSetReader '{1}' with DataSetWriterId={2}",
+                                source,
+                                reader.Name,
+                                networkMessage.DataSetWriterId
+                            );
 
                             lock (Lock)
                             {
@@ -313,7 +341,7 @@ namespace Opc.Ua.PubSub
                 var subscribedDataEventArgs = new SubscribedDataEventArgs()
                 {
                     NetworkMessage = networkMessage,
-                    Source = source
+                    Source = source,
                 };
 
                 // trigger notification for received DataSet MetaData
@@ -322,14 +350,15 @@ namespace Opc.Ua.PubSub
                 Utils.Trace(
                     "Connection '{0}' - RaiseMetaDataReceivedEvent() from source={0}",
                     source,
-                    subscribedDataEventArgs.NetworkMessage.DataSetMessages.Count);
+                    subscribedDataEventArgs.NetworkMessage.DataSetMessages.Count
+                );
             }
             else if (networkMessage.DataSetMessages != null && networkMessage.DataSetMessages.Count > 0)
             {
                 var subscribedDataEventArgs = new SubscribedDataEventArgs()
                 {
                     NetworkMessage = networkMessage,
-                    Source = source
+                    Source = source,
                 };
 
                 //trigger notification for received subscribed DataSet
@@ -338,14 +367,18 @@ namespace Opc.Ua.PubSub
                 Utils.Trace(
                     "Connection '{0}' - RaiseNetworkMessageDataReceivedEvent() from source={0}, with {1} DataSets",
                     source,
-                    subscribedDataEventArgs.NetworkMessage.DataSetMessages.Count);
+                    subscribedDataEventArgs.NetworkMessage.DataSetMessages.Count
+                );
             }
             else if (networkMessage is Encoding.UadpNetworkMessage)
             {
                 if (networkMessage is Encoding.UadpNetworkMessage uadpNetworkMessage)
                 {
-                    if (uadpNetworkMessage.UADPDiscoveryType == UADPNetworkMessageDiscoveryType.DataSetWriterConfiguration &&
-                        uadpNetworkMessage.UADPNetworkMessageType == UADPNetworkMessageType.DiscoveryResponse)
+                    if (
+                        uadpNetworkMessage.UADPDiscoveryType
+                            == UADPNetworkMessageDiscoveryType.DataSetWriterConfiguration
+                        && uadpNetworkMessage.UADPNetworkMessageType == UADPNetworkMessageType.DiscoveryResponse
+                    )
                     {
                         var eventArgs = new DataSetWriterConfigurationEventArgs()
                         {
@@ -353,7 +386,7 @@ namespace Opc.Ua.PubSub
                             Source = source,
                             DataSetWriterConfiguration = uadpNetworkMessage.DataSetWriterConfiguration,
                             PublisherId = uadpNetworkMessage.PublisherId,
-                            StatusCodes = uadpNetworkMessage.MessageStatusCodes
+                            StatusCodes = uadpNetworkMessage.MessageStatusCodes,
                         };
 
                         //trigger notification for received configuration
@@ -362,17 +395,20 @@ namespace Opc.Ua.PubSub
                         Utils.Trace(
                             "Connection '{0}' - RaiseDataSetWriterConfigurationReceivedEvent() from source={0}, with {1} DataSetWriterConfiguration",
                             source,
-                            eventArgs.DataSetWriterIds.Length);
+                            eventArgs.DataSetWriterIds.Length
+                        );
                     }
-                    else if (uadpNetworkMessage.UADPDiscoveryType == UADPNetworkMessageDiscoveryType.PublisherEndpoint &&
-                        uadpNetworkMessage.UADPNetworkMessageType == UADPNetworkMessageType.DiscoveryResponse)
+                    else if (
+                        uadpNetworkMessage.UADPDiscoveryType == UADPNetworkMessageDiscoveryType.PublisherEndpoint
+                        && uadpNetworkMessage.UADPNetworkMessageType == UADPNetworkMessageType.DiscoveryResponse
+                    )
                     {
                         var publisherEndpointsEventArgs = new PublisherEndpointsEventArgs()
                         {
                             PublisherEndpoints = uadpNetworkMessage.PublisherEndpoints,
                             Source = source,
                             PublisherId = uadpNetworkMessage.PublisherId,
-                            StatusCode = uadpNetworkMessage.PublisherProvideEndpoints
+                            StatusCode = uadpNetworkMessage.PublisherProvideEndpoints,
                         };
 
                         //trigger notification for received publisher endpoints
@@ -381,7 +417,8 @@ namespace Opc.Ua.PubSub
                         Utils.Trace(
                             "Connection '{0}' - RaisePublisherEndpointsReceivedEvent() from source={0}, with {1} PublisherEndpoints",
                             source,
-                            publisherEndpointsEventArgs.PublisherEndpoints.Length);
+                            publisherEndpointsEventArgs.PublisherEndpoints.Length
+                        );
                     }
                 }
             }
@@ -417,12 +454,14 @@ namespace Opc.Ua.PubSub
         /// <summary>
         /// Get data set writer discovery responses
         /// </summary>
-        protected IList<DataSetWriterConfigurationResponse> GetDataSetWriterDiscoveryResponses(ushort[] dataSetWriterIds)
+        protected IList<DataSetWriterConfigurationResponse> GetDataSetWriterDiscoveryResponses(
+            ushort[] dataSetWriterIds
+        )
         {
             var responses = new List<DataSetWriterConfigurationResponse>();
 
-            var writerGroupsIds = PubSubConnectionConfiguration.WriterGroups
-                .SelectMany(group => group.DataSetWriters)
+            var writerGroupsIds = PubSubConnectionConfiguration
+                .WriterGroups.SelectMany(group => group.DataSetWriters)
                 .Select(writer => writer.DataSetWriterId)
                 .ToList();
 
@@ -438,8 +477,9 @@ namespace Opc.Ua.PubSub
                 }
                 else
                 {
-                    response.DataSetWriterConfig = PubSubConnectionConfiguration.WriterGroups
-                        .First(group => group.DataSetWriters.First(writer => writer.DataSetWriterId == dataSetWriterId) != null);
+                    response.DataSetWriterConfig = PubSubConnectionConfiguration.WriterGroups.First(group =>
+                        group.DataSetWriters.First(writer => writer.DataSetWriterId == dataSetWriterId) != null
+                    );
 
                     response.DataSetWriterIds = [dataSetWriterId];
 
@@ -503,8 +543,8 @@ namespace Opc.Ua.PubSub
         /// </summary>
         private void UaPubSubConfigurator_WriterGroupAdded(object sender, WriterGroupEventArgs e)
         {
-            var pubSubConnectionDataType = Application.UaPubSubConfigurator.FindObjectById(e.ConnectionId)
-                as PubSubConnectionDataType;
+            var pubSubConnectionDataType =
+                Application.UaPubSubConfigurator.FindObjectById(e.ConnectionId) as PubSubConnectionDataType;
             if (PubSubConnectionConfiguration == pubSubConnectionDataType)
             {
                 var publisher = new UaPublisher(this, e.WriterGroupDataType);

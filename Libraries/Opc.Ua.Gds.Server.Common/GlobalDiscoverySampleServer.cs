@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -62,7 +62,7 @@ namespace Opc.Ua.Gds.Server
             IUserDatabase userDatabase,
             bool autoApprove = true,
             bool createStandardUsers = true
-            )
+        )
         {
             m_database = database;
             m_request = request;
@@ -96,14 +96,24 @@ namespace Opc.Ua.Gds.Server
         /// always creates a CoreNodeManager which handles the built-in nodes defined by the specification.
         /// Any additional NodeManagers are expected to handle application specific nodes.
         /// </remarks>
-        protected override MasterNodeManager CreateMasterNodeManager(IServerInternal server, ApplicationConfiguration configuration)
+        protected override MasterNodeManager CreateMasterNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration
+        )
         {
             Utils.LogInfo("Creating the Node Managers.");
 
             var nodeManagers = new List<INodeManager>
             {
                 // create the custom node managers.
-                new ApplicationsNodeManager(server, configuration, m_database, m_request, m_certificateGroup, m_autoApprove)
+                new ApplicationsNodeManager(
+                    server,
+                    configuration,
+                    m_database,
+                    m_request,
+                    m_certificateGroup,
+                    m_autoApprove
+                ),
             };
 
             // create master node manager.
@@ -125,7 +135,7 @@ namespace Opc.Ua.Gds.Server
                 ProductUri = "http://somecompany.com/GlobalDiscoveryServer",
                 SoftwareVersion = Utils.GetAssemblySoftwareVersion(),
                 BuildNumber = Utils.GetAssemblyBuildNumber(),
-                BuildDate = Utils.GetAssemblyTimestamp()
+                BuildDate = Utils.GetAssemblyTimestamp(),
             };
         }
 
@@ -145,14 +155,18 @@ namespace Opc.Ua.Gds.Server
                     var info = new TranslationInfo(
                         "NoWriteAllowed",
                         "en-US",
-                        "Must provide a valid user before calling write.");
+                        "Must provide a valid user before calling write."
+                    );
 
                     // create an exception with a vendor defined sub-code.
-                    throw new ServiceResultException(new ServiceResult(
-                        StatusCodes.BadUserAccessDenied,
-                        "NoWriteAllowed",
-                        Namespaces.OpcUaGds,
-                        new LocalizedText(info)));
+                    throw new ServiceResultException(
+                        new ServiceResult(
+                            StatusCodes.BadUserAccessDenied,
+                            "NoWriteAllowed",
+                            Namespaces.OpcUaGds,
+                            new LocalizedText(info)
+                        )
+                    );
                 }
 
                 UserIdentityToken securityToken = context.UserIdentity.GetIdentityToken();
@@ -206,7 +220,7 @@ namespace Opc.Ua.Gds.Server
             {
                 VerifyUserTokenCertificate(x509Token.Certificate);
 
-                // todo: is cert listed in admin list? then 
+                // todo: is cert listed in admin list? then
                 // role = GdsRole.ApplicationAdmin;
 
                 Utils.LogInfo("X509 Token Accepted: {0} as {1}", args.Identity.DisplayName, Role.AuthenticatedUser);
@@ -235,12 +249,18 @@ namespace Opc.Ua.Gds.Server
             X509Utils.DoesUrlMatchCertificate(applicationInstanceCertificate, applicationUri);
 
             //get access to GDS configuration section to find out ApplicationCertificatesStorePath
-            GlobalDiscoveryServerConfiguration configuration = Configuration.ParseExtension<GlobalDiscoveryServerConfiguration>() ?? new GlobalDiscoveryServerConfiguration();
+            GlobalDiscoveryServerConfiguration configuration =
+                Configuration.ParseExtension<GlobalDiscoveryServerConfiguration>()
+                ?? new GlobalDiscoveryServerConfiguration();
             //check if application certificate is in the Store of the GDS
-            var certificateStoreIdentifier = new CertificateStoreIdentifier(configuration.ApplicationCertificatesStorePath);
-            using (ICertificateStore ApplicationsStore = certificateStoreIdentifier.OpenStore())
+            var certificateStoreIdentifier = new CertificateStoreIdentifier(
+                configuration.ApplicationCertificatesStorePath
+            );
+            using (ICertificateStore applicationsStore = certificateStoreIdentifier.OpenStore())
             {
-                X509Certificate2Collection matchingCerts = ApplicationsStore.FindByThumbprintAsync(applicationInstanceCertificate.Thumbprint).Result;
+                X509Certificate2Collection matchingCerts = applicationsStore
+                    .FindByThumbprintAsync(applicationInstanceCertificate.Thumbprint)
+                    .Result;
 
                 if (matchingCerts.Contains(applicationInstanceCertificate))
                 {
@@ -254,9 +274,9 @@ namespace Opc.Ua.Gds.Server
             }
             //check if application certificate is revoked
             certificateStoreIdentifier = new CertificateStoreIdentifier(configuration.AuthoritiesStorePath);
-            using (ICertificateStore AuthoritiesStore = certificateStoreIdentifier.OpenStore())
+            using (ICertificateStore authoritiesStore = certificateStoreIdentifier.OpenStore())
             {
-                foreach (X509CRL crl in AuthoritiesStore.EnumerateCRLsAsync().Result)
+                foreach (X509CRL crl in authoritiesStore.EnumerateCRLsAsync().Result)
                 {
                     if (crl.IsRevoked(applicationInstanceCertificate))
                     {
@@ -286,7 +306,8 @@ namespace Opc.Ua.Gds.Server
                         "InvalidCertificate",
                         "en-US",
                         "'{0}' is an invalid user certificate.",
-                        certificate.Subject);
+                        certificate.Subject
+                    );
 
                     result = StatusCodes.BadIdentityTokenInvalid;
                 }
@@ -297,15 +318,14 @@ namespace Opc.Ua.Gds.Server
                         "UntrustedCertificate",
                         "en-US",
                         "'{0}' is not a trusted user certificate.",
-                        certificate.Subject);
+                        certificate.Subject
+                    );
                 }
 
                 // create an exception with a vendor defined sub-code.
-                throw new ServiceResultException(new ServiceResult(
-                    result,
-                    info.Key,
-                    LoadServerProperties().ProductUri,
-                    new LocalizedText(info)));
+                throw new ServiceResultException(
+                    new ServiceResult(result, info.Key, LoadServerProperties().ProductUri, new LocalizedText(info))
+                );
             }
         }
 
@@ -320,12 +340,24 @@ namespace Opc.Ua.Gds.Server
         /// </summary>
         private void RegisterDefaultUsers()
         {
-            m_userDatabase.CreateUser("sysadmin", "demo", [GdsRole.CertificateAuthorityAdmin, GdsRole.DiscoveryAdmin, Role.SecurityAdmin, Role.ConfigureAdmin]);
-            m_userDatabase.CreateUser("appadmin", "demo", [Role.AuthenticatedUser, GdsRole.CertificateAuthorityAdmin, GdsRole.DiscoveryAdmin]);
+            m_userDatabase.CreateUser(
+                "sysadmin",
+                "demo",
+                [GdsRole.CertificateAuthorityAdmin, GdsRole.DiscoveryAdmin, Role.SecurityAdmin, Role.ConfigureAdmin]
+            );
+            m_userDatabase.CreateUser(
+                "appadmin",
+                "demo",
+                [Role.AuthenticatedUser, GdsRole.CertificateAuthorityAdmin, GdsRole.DiscoveryAdmin]
+            );
             m_userDatabase.CreateUser("appuser", "demo", [Role.AuthenticatedUser]);
 
             m_userDatabase.CreateUser("DiscoveryAdmin", "demo", [Role.AuthenticatedUser, GdsRole.DiscoveryAdmin]);
-            m_userDatabase.CreateUser("CertificateAuthorityAdmin", "demo", [Role.AuthenticatedUser, GdsRole.CertificateAuthorityAdmin]);
+            m_userDatabase.CreateUser(
+                "CertificateAuthorityAdmin",
+                "demo",
+                [Role.AuthenticatedUser, GdsRole.CertificateAuthorityAdmin]
+            );
         }
 
         /// <summary>
@@ -339,12 +371,17 @@ namespace Opc.Ua.Gds.Server
             ApplicationRecordDataType[] application = m_database.FindApplications(applicationUri);
             if (application == null || application.Length != 1)
             {
-                Utils.LogInfo("Cannot login based on ApplicationInstanceCertificate, no unique result for Application with URI: {0}", applicationUri);
+                Utils.LogInfo(
+                    "Cannot login based on ApplicationInstanceCertificate, no unique result for Application with URI: {0}",
+                    applicationUri
+                );
                 return;
             }
             NodeId applicationId = application.FirstOrDefault().ApplicationId;
-            Utils.LogInfo("Application {0} accepted based on ApplicationInstanceCertificate as ApplicationSelfAdmin",
-                applicationUri);
+            Utils.LogInfo(
+                "Application {0} accepted based on ApplicationInstanceCertificate as ApplicationSelfAdmin",
+                applicationUri
+            );
             args.Identity = new GdsRoleBasedIdentity(new UserIdentity(), [GdsRole.ApplicationSelfAdmin], applicationId);
             return;
         }

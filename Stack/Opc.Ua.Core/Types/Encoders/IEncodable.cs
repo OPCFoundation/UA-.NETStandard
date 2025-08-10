@@ -79,13 +79,15 @@ namespace Opc.Ua
         /// <exception cref="T:System.ArgumentNullException">
         /// 	<paramref name="collection"/> is null.
         /// </exception>
-        public IEncodeableCollection(IEnumerable<IEncodeable> collection) : base(collection) { }
+        public IEncodeableCollection(IEnumerable<IEncodeable> collection)
+            : base(collection) { }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">The initial capacity of the collection.</param>
-        public IEncodeableCollection(int capacity) : base(capacity) { }
+        public IEncodeableCollection(int capacity)
+            : base(capacity) { }
 
         /// <summary>
         /// Converts an array to a collection.

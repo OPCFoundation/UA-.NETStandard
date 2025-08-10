@@ -36,7 +36,8 @@ namespace Opc.Ua
             EndpointDescription endpointDescription,
             IServiceRequest request,
             AsyncCallback callback,
-            object callbackData);
+            object callbackData
+        );
 
         /// <summary>
         /// Ends processing a request received via a binary encoded channel.
@@ -51,9 +52,9 @@ namespace Opc.Ua
         /// The ChannelId is known to the sessions of the Server.
         /// Each session has an AuthenticationToken which can be used to identify the session.
         /// </summary>
-        /// <param name="AuthenticationToken">The AuthenticationToken from the RequestHeader</param>
+        /// <param name="authenticationToken">The AuthenticationToken from the RequestHeader</param>
         /// <param name="channelId">The Channel id</param>
         /// <returns>returns true if a channelId was found for the provided AuthenticationToken</returns>
-        bool TryGetSecureChannelIdForAuthenticationToken(NodeId AuthenticationToken, out uint channelId);
+        bool TryGetSecureChannelIdForAuthenticationToken(NodeId authenticationToken, out uint channelId);
     }
 }

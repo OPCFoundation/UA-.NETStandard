@@ -73,7 +73,7 @@ namespace Opc.Ua.Gds.Tests
             {
                 ApplicationName = "Global Discovery Client",
                 ApplicationType = ApplicationType.Client,
-                ConfigSectionName = configSectionName
+                ConfigSectionName = configSectionName,
             };
 
 #if USE_FILE_CONFIG
@@ -88,25 +88,26 @@ namespace Opc.Ua.Gds.Tests
                 AppUserName = "appuser",
                 AppPassword = "demo",
                 AdminUserName = "appadmin",
-                AdminPassword = "demo"
+                AdminPassword = "demo",
             };
 
-            CertificateIdentifierCollection applicationCerts = ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
-                "CN=Global Discovery Test Client, O=OPC Foundation, DC=localhost",
-                CertificateStoreType.Directory,
-                pkiRoot);
+            CertificateIdentifierCollection applicationCerts =
+                ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
+                    "CN=Global Discovery Test Client, O=OPC Foundation, DC=localhost",
+                    CertificateStoreType.Directory,
+                    pkiRoot
+                );
 
             // build the application configuration.
             Configuration = await m_application
                 .Build(
                     "urn:localhost:opcfoundation.org:GlobalDiscoveryTestClient",
-                    "http://opcfoundation.org/UA/GlobalDiscoveryTestClient")
+                    "http://opcfoundation.org/UA/GlobalDiscoveryTestClient"
+                )
                 .AsClient()
                 .SetDefaultSessionTimeout(600000)
                 .SetMinSubscriptionLifetime(10000)
-                .AddSecurityConfiguration(
-                    applicationCerts,
-                    pkiRoot)
+                .AddSecurityConfiguration(applicationCerts, pkiRoot)
                 .SetAutoAcceptUntrustedCertificates(true)
                 .SetRejectSHA1SignedCertificates(false)
                 .SetRejectUnknownRevocationStatus(true)
@@ -114,21 +115,30 @@ namespace Opc.Ua.Gds.Tests
                 .AddExtension<GlobalDiscoveryTestClientConfiguration>(null, clientConfig)
                 .SetOutputFilePath(Path.Combine(root, "Logs", "Opc.Ua.Gds.Tests.log.txt"))
                 .SetTraceMasks(519)
-                .Create().ConfigureAwait(false);
+                .Create()
+                .ConfigureAwait(false);
 #endif
             // check the application certificate.
-            bool haveAppCertificate = await m_application.CheckApplicationInstanceCertificates(true).ConfigureAwait(false);
+            bool haveAppCertificate = await m_application
+                .CheckApplicationInstanceCertificates(true)
+                .ConfigureAwait(false);
             if (!haveAppCertificate)
             {
                 throw new Exception("Application instance certificate invalid!");
             }
 
-            Configuration.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(CertificateValidator_CertificateValidation);
+            Configuration.CertificateValidator.CertificateValidation += new CertificateValidationEventHandler(
+                CertificateValidator_CertificateValidation
+            );
 
-            GlobalDiscoveryTestClientConfiguration gdsClientConfiguration = Configuration.ParseExtension<GlobalDiscoveryTestClientConfiguration>();
+            GlobalDiscoveryTestClientConfiguration gdsClientConfiguration =
+                Configuration.ParseExtension<GlobalDiscoveryTestClientConfiguration>();
             GDSClient = new GlobalDiscoveryServerClient(Configuration, gdsClientConfiguration.GlobalDiscoveryServerUrl)
             {
-                EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(gdsClientConfiguration.GlobalDiscoveryServerUrl, port)
+                EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(
+                    gdsClientConfiguration.GlobalDiscoveryServerUrl,
+                    port
+                ),
             };
             if (string.IsNullOrEmpty(gdsClientConfiguration.AppUserName))
             {
@@ -168,7 +178,8 @@ namespace Opc.Ua.Gds.Tests
 
                 OwnApplicationTestData.CertificateRequestId = req_id;
                 //Finish KeyPairRequest
-                byte[] certificate, privateKey;
+                byte[] certificate,
+                    privateKey;
                 FinishKeyPair(OwnApplicationTestData, out certificate, out privateKey);
                 if (certificate == null || privateKey == null)
                 {
@@ -209,38 +220,47 @@ namespace Opc.Ua.Gds.Tests
         private async Task ApplyNewApplicationInstanceCertificateAsync(byte[] certificate, byte[] privateKey)
         {
             using X509Certificate2 x509 = X509CertificateLoader.LoadCertificate(certificate);
-            X509Certificate2 certWithPrivateKey = CertificateFactory.CreateCertificateWithPEMPrivateKey(x509, privateKey);
-            GDSClient.Configuration.SecurityConfiguration.ApplicationCertificate = new CertificateIdentifier(certWithPrivateKey);
+            X509Certificate2 certWithPrivateKey = CertificateFactory.CreateCertificateWithPEMPrivateKey(
+                x509,
+                privateKey
+            );
+            GDSClient.Configuration.SecurityConfiguration.ApplicationCertificate = new CertificateIdentifier(
+                certWithPrivateKey
+            );
             ICertificateStore store = GDSClient.Configuration.SecurityConfiguration.ApplicationCertificate.OpenStore();
             await store.AddAsync(certWithPrivateKey).ConfigureAwait(false);
         }
 
-        private void FinishKeyPair(ApplicationTestData ownApplicationTestData, out byte[] certificate, out byte[] privateKey)
+        private void FinishKeyPair(
+            ApplicationTestData ownApplicationTestData,
+            out byte[] certificate,
+            out byte[] privateKey
+        )
         {
             GDSClient.ConnectAsync(GDSClient.EndpointUrl).Wait();
-            //get cert
-            certificate = GDSClient.FinishRequest(
-             ownApplicationTestData.ApplicationRecord.ApplicationId,
-             ownApplicationTestData.CertificateRequestId,
-             out privateKey,
-             out _
-             );
+            //get cert
+            certificate = GDSClient.FinishRequest(
+                ownApplicationTestData.ApplicationRecord.ApplicationId,
+                ownApplicationTestData.CertificateRequestId,
+                out privateKey,
+                out _
+            );
             GDSClient.Disconnect();
         }
 
         private NodeId StartNewKeyPair(ApplicationTestData ownApplicationTestData)
         {
             GDSClient.ConnectAsync(GDSClient.EndpointUrl).Wait();
-            //request new Cert
-            NodeId req_id = GDSClient.StartNewKeyPairRequest(
-             ownApplicationTestData.ApplicationRecord.ApplicationId,
-             ownApplicationTestData.CertificateGroupId,
-             ownApplicationTestData.CertificateTypeId,
-             ownApplicationTestData.Subject,
-             ownApplicationTestData.DomainNames,
-             ownApplicationTestData.PrivateKeyFormat,
-             ownApplicationTestData.PrivateKeyPassword
-             );
+            //request new Cert
+            NodeId req_id = GDSClient.StartNewKeyPairRequest(
+                ownApplicationTestData.ApplicationRecord.ApplicationId,
+                ownApplicationTestData.CertificateGroupId,
+                ownApplicationTestData.CertificateTypeId,
+                ownApplicationTestData.Subject,
+                ownApplicationTestData.DomainNames,
+                ownApplicationTestData.PrivateKeyFormat,
+                ownApplicationTestData.PrivateKeyPassword
+            );
 
             GDSClient.Disconnect();
             return req_id;
@@ -253,7 +273,11 @@ namespace Opc.Ua.Gds.Tests
             GDSClient.Disconnect();
             return id;
         }
-        private static void CertificateValidator_CertificateValidation(CertificateValidator validator, CertificateValidationEventArgs e)
+
+        private static void CertificateValidator_CertificateValidation(
+            CertificateValidator validator,
+            CertificateValidationEventArgs e
+        )
         {
             if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted)
             {
@@ -279,7 +303,7 @@ namespace Opc.Ua.Gds.Tests
                     ApplicationType = GDSClient.Configuration.ApplicationType,
                     ProductUri = GDSClient.Configuration.ProductUri,
                     ApplicationNames = [new LocalizedText(GDSClient.Configuration.ApplicationName)],
-                    ApplicationId = new NodeId(Guid.NewGuid())
+                    ApplicationId = new NodeId(Guid.NewGuid()),
                 },
                 PrivateKeyFormat = "PEM",
                 Subject = $"CN={GDSClient.Configuration.ApplicationName},DC={Utils.GetHostName()},O=OPC Foundation",
@@ -307,7 +331,7 @@ namespace Opc.Ua.Gds.Tests
         /// <summary>
         /// Initializes the object during deserialization.
         /// </summary>
-        [OnDeserializing()]
+        [OnDeserializing]
         private static void Initialize(StreamingContext context)
         {
             Initialize();
@@ -316,18 +340,20 @@ namespace Opc.Ua.Gds.Tests
         /// <summary>
         /// Sets private members to default values.
         /// </summary>
-        private static void Initialize()
-        {
-        }
+        private static void Initialize() { }
 
         [DataMember(Order = 1)]
         public string GlobalDiscoveryServerUrl { get; set; }
+
         [DataMember(Order = 2)]
         public string AppUserName { get; set; }
+
         [DataMember(Order = 3)]
         public string AppPassword { get; set; }
+
         [DataMember(Order = 4, IsRequired = true)]
         public string AdminUserName { get; set; }
+
         [DataMember(Order = 5, IsRequired = true)]
         public string AdminPassword { get; set; }
     }

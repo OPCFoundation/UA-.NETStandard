@@ -30,13 +30,20 @@ namespace Opc.Ua.Server.Tests
                 var nodeManager = new TestableCustomNodeManger2(server.CurrentInstance, ns);
 
                 var baseObject = new BaseObjectState(null);
-                var nodeHandle = new NodeHandle(new NodeId((string)CommonTestWorkers.NodeIdTestSetStatic[0].Identifier, 0), baseObject);
+                var nodeHandle = new NodeHandle(
+                    new NodeId((string)CommonTestWorkers.NodeIdTestSetStatic[0].Identifier, 0),
+                    baseObject
+                );
 
                 //Act
-                await RunTaskInParallelAsync(() => UseComponentCacheAsync(nodeManager, baseObject, nodeHandle), 100).ConfigureAwait(false);
+                await RunTaskInParallelAsync(() => UseComponentCacheAsync(nodeManager, baseObject, nodeHandle), 100)
+                    .ConfigureAwait(false);
 
                 //Assert, that entry was deleted from cache after parallel operations on the same node
-                NodeState handleFromCache = nodeManager.LookupNodeInComponentCache(nodeManager.SystemContext, nodeHandle);
+                NodeState handleFromCache = nodeManager.LookupNodeInComponentCache(
+                    nodeManager.SystemContext,
+                    nodeHandle
+                );
 
                 Assert.That(handleFromCache, Is.Null);
             }
@@ -96,7 +103,8 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(nodeManager.PredefinedNodes, Is.Empty);
 
                 //Act
-                await RunTaskInParallelAsync(() => UsePredefinedNodesAsync(nodeManager, baseObject, nodeId), 100).ConfigureAwait(false);
+                await RunTaskInParallelAsync(() => UsePredefinedNodesAsync(nodeManager, baseObject, nodeId), 100)
+                    .ConfigureAwait(false);
 
                 //last operation added the Node back into the dictionary
                 Assert.That(nodeManager.PredefinedNodes.ContainsKey(nodeId), Is.True);
@@ -111,7 +119,11 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
-        private static async Task UsePredefinedNodesAsync(TestableCustomNodeManger2 nodeManager, DataItemState baseObject, NodeId nodeId)
+        private static async Task UsePredefinedNodesAsync(
+            TestableCustomNodeManger2 nodeManager,
+            DataItemState baseObject,
+            NodeId nodeId
+        )
         {
             nodeManager.AddPredefinedNode(nodeManager.SystemContext, baseObject);
             _ = nodeManager.Find(nodeId);
@@ -131,7 +143,11 @@ namespace Opc.Ua.Server.Tests
         /// Test Methods  AddNodeToComponentCache,  RemoveNodeFromComponentCache & LookupNodeInComponentCache & verify the node is added to the cache
         /// </summary>
         /// <returns></returns>
-        private static async Task UseComponentCacheAsync(TestableCustomNodeManger2 nodeManager, BaseObjectState baseObject, NodeHandle nodeHandle)
+        private static async Task UseComponentCacheAsync(
+            TestableCustomNodeManger2 nodeManager,
+            BaseObjectState baseObject,
+            NodeHandle nodeHandle
+        )
         {
             //-- Act
             nodeManager.AddNodeToComponentCache(nodeManager.SystemContext, nodeHandle, baseObject);
@@ -154,28 +170,35 @@ namespace Opc.Ua.Server.Tests
             await Task.CompletedTask.ConfigureAwait(false);
         }
 
-        public static async Task<(bool IsSuccess, Exception Error)> RunTaskInParallelAsync(Func<Task> task, int iterations)
+        public static async Task<(bool IsSuccess, Exception Error)> RunTaskInParallelAsync(
+            Func<Task> task,
+            int iterations
+        )
         {
             var cancellationTokenSource = new CancellationTokenSource();
             Exception error = null;
             int tasksCompletedCount = 0;
-            ParallelLoopResult result = Parallel.For(0, iterations, new ParallelOptions(),
-                          async _ =>
-                          {
-                              try
-                              {
-                                  await task().ConfigureAwait(false);
-                              }
-                              catch (Exception ex)
-                              {
-                                  error = ex;
-                                  cancellationTokenSource.Cancel();
-                              }
-                              finally
-                              {
-                                  tasksCompletedCount++;
-                              }
-                          });
+            ParallelLoopResult result = Parallel.For(
+                0,
+                iterations,
+                new ParallelOptions(),
+                async _ =>
+                {
+                    try
+                    {
+                        await task().ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        error = ex;
+                        cancellationTokenSource.Cancel();
+                    }
+                    finally
+                    {
+                        tasksCompletedCount++;
+                    }
+                }
+            );
 
             int spinWaitCount = 0;
             const int maxSpinWaitCount = 100;
@@ -191,23 +214,26 @@ namespace Opc.Ua.Server.Tests
 
     public class TestableCustomNodeManger2 : CustomNodeManager2
     {
-        public TestableCustomNodeManger2(IServerInternal server, params string[] namespaceUris) : base(server, namespaceUris)
-        { }
+        public TestableCustomNodeManger2(IServerInternal server, params string[] namespaceUris)
+            : base(server, namespaceUris) { }
 
         public new NodeState AddNodeToComponentCache(ISystemContext context, NodeHandle handle, NodeState node)
         {
             return base.AddNodeToComponentCache(context, handle, node);
         }
+
         public new void RemoveNodeFromComponentCache(ISystemContext context, NodeHandle handle)
         {
             base.RemoveNodeFromComponentCache(context, handle);
         }
+
         public new NodeState LookupNodeInComponentCache(ISystemContext context, NodeHandle handle)
         {
             return base.LookupNodeInComponentCache(context, handle);
         }
 
         public new NodeIdDictionary<NodeState> PredefinedNodes => base.PredefinedNodes;
+
         public new virtual void AddPredefinedNode(ISystemContext context, NodeState node)
         {
             base.AddPredefinedNode(context, node);

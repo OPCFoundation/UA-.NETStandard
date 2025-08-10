@@ -38,15 +38,16 @@ namespace Opc.Ua.Server
     public class MonitoredNodeMonitoredItemManager : IMonitoredItemManager
     {
         /// <inheritdoc/>
-        public MonitoredNodeMonitoredItemManager(
-            CustomNodeManager2 nodeManager)
+        public MonitoredNodeMonitoredItemManager(CustomNodeManager2 nodeManager)
         {
             m_nodeManager = nodeManager;
             MonitoredNodes = [];
             MonitoredItems = new ConcurrentDictionary<uint, IMonitoredItem>();
         }
+
         /// <inheritdoc/>
         public NodeIdDictionary<MonitoredNode2> MonitoredNodes { get; }
+
         /// <inheritdoc/>
         public ConcurrentDictionary<uint, IMonitoredItem> MonitoredItems { get; }
 
@@ -67,14 +68,15 @@ namespace Opc.Ua.Server
             uint revisedQueueSize,
             bool createDurable,
             uint monitoredItemId,
-            Func<ISystemContext, NodeHandle, NodeState, NodeState> AddNodeToComponentCache)
+            Func<ISystemContext, NodeHandle, NodeState, NodeState> addNodeToComponentCache
+        )
         {
             // check if the node is already being monitored.
             MonitoredNode2 monitoredNode = null;
 
             if (!MonitoredNodes.TryGetValue(handle.Node.NodeId, out monitoredNode))
             {
-                NodeState cachedNode = AddNodeToComponentCache(context, handle, handle.Node);
+                NodeState cachedNode = addNodeToComponentCache(context, handle, handle.Node);
                 MonitoredNodes[handle.Node.NodeId] = monitoredNode = new MonitoredNode2(m_nodeManager, cachedNode);
             }
 
@@ -100,7 +102,8 @@ namespace Opc.Ua.Server
                 revisedQueueSize,
                 itemToCreate.RequestedParameters.DiscardOldest,
                 0,
-                createDurable);
+                createDurable
+            );
 
             // save the monitored item.
             monitoredNode.Add(datachangeItem);
@@ -108,6 +111,7 @@ namespace Opc.Ua.Server
 
             return datachangeItem;
         }
+
         /// <inheritdoc/>
         public void ApplyChanges()
         {
@@ -125,12 +129,14 @@ namespace Opc.Ua.Server
         /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
-        protected virtual void Dispose(bool disposing)
-        {
-        }
+        protected virtual void Dispose(bool disposing) { }
 
         /// <inheritdoc/>
-        public StatusCode DeleteMonitoredItem(ServerSystemContext context, ISampledDataChangeMonitoredItem monitoredItem, NodeHandle handle)
+        public StatusCode DeleteMonitoredItem(
+            ServerSystemContext context,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            NodeHandle handle
+        )
         {
             // check if the node is already being monitored.
             MonitoredNode2 monitoredNode;
@@ -153,7 +159,12 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public (ServiceResult, MonitoringMode?) SetMonitoringMode(ServerSystemContext context, ISampledDataChangeMonitoredItem monitoredItem, MonitoringMode monitoringMode, NodeHandle handle)
+        public (ServiceResult, MonitoringMode?) SetMonitoringMode(
+            ServerSystemContext context,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            MonitoringMode monitoringMode,
+            NodeHandle handle
+        )
         {
             // update monitoring mode.
             MonitoringMode previousMode = monitoredItem.SetMonitoringMode(monitoringMode);
@@ -168,20 +179,22 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public bool RestoreMonitoredItem(IServerInternal server,
-                                         INodeManager nodeManager,
-                                         ServerSystemContext context,
-                                         NodeHandle handle,
-                                         IStoredMonitoredItem storedMonitoredItem,
-                                         IUserIdentity savedOwnerIdentity,
-                                         Func<ISystemContext, NodeHandle, NodeState, NodeState> AddNodeToComponentCache,
-                                         out ISampledDataChangeMonitoredItem monitoredItem)
+        public bool RestoreMonitoredItem(
+            IServerInternal server,
+            INodeManager nodeManager,
+            ServerSystemContext context,
+            NodeHandle handle,
+            IStoredMonitoredItem storedMonitoredItem,
+            IUserIdentity savedOwnerIdentity,
+            Func<ISystemContext, NodeHandle, NodeState, NodeState> addNodeToComponentCache,
+            out ISampledDataChangeMonitoredItem monitoredItem
+        )
         {
             // check if the node is already being monitored.
             MonitoredNode2 monitoredNode;
             if (!MonitoredNodes.TryGetValue(handle.Node.NodeId, out monitoredNode))
             {
-                NodeState cachedNode = AddNodeToComponentCache(context, handle, handle.Node);
+                NodeState cachedNode = addNodeToComponentCache(context, handle, handle.Node);
                 MonitoredNodes[handle.Node.NodeId] = monitoredNode = new MonitoredNode2(m_nodeManager, cachedNode);
             }
 
@@ -193,7 +206,8 @@ namespace Opc.Ua.Server
                 server,
                 nodeManager,
                 handle,
-                storedMonitoredItem);
+                storedMonitoredItem
+            );
 
             // update monitored item list.
             monitoredItem = datachangeItem;
@@ -203,16 +217,19 @@ namespace Opc.Ua.Server
 
             return true;
         }
+
         /// <inheritdoc/>
-        public ServiceResult ModifyMonitoredItem(ServerSystemContext context,
-                                                 DiagnosticsMasks diagnosticsMasks,
-                                                 TimestampsToReturn timestampsToReturn,
-                                                 MonitoringFilter filterToUse,
-                                                 Range euRange,
-                                                 double samplingInterval,
-                                                 uint revisedQueueSize,
-                                                 ISampledDataChangeMonitoredItem monitoredItem,
-                                                 MonitoredItemModifyRequest itemToModify)
+        public ServiceResult ModifyMonitoredItem(
+            ServerSystemContext context,
+            DiagnosticsMasks diagnosticsMasks,
+            TimestampsToReturn timestampsToReturn,
+            MonitoringFilter filterToUse,
+            Range euRange,
+            double samplingInterval,
+            uint revisedQueueSize,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            MonitoredItemModifyRequest itemToModify
+        )
         {
             // modify the monitored item parameters.
             return monitoredItem.ModifyAttributes(
@@ -224,10 +241,17 @@ namespace Opc.Ua.Server
                 euRange,
                 samplingInterval,
                 revisedQueueSize,
-                itemToModify.RequestedParameters.DiscardOldest);
+                itemToModify.RequestedParameters.DiscardOldest
+            );
         }
+
         /// <inheritdoc/>
-        public (MonitoredNode2, ServiceResult) SubscribeToEvents(ServerSystemContext context, NodeState source, IEventMonitoredItem monitoredItem, bool unsubscribe)
+        public (MonitoredNode2, ServiceResult) SubscribeToEvents(
+            ServerSystemContext context,
+            NodeState source,
+            IEventMonitoredItem monitoredItem,
+            bool unsubscribe
+        )
         {
             MonitoredNode2 monitoredNode = null;
             // handle unsubscribe.
@@ -252,7 +276,10 @@ namespace Opc.Ua.Server
             }
 
             // only objects or views can be subscribed to.
-            if ((source is not BaseObjectState instance) || (instance.EventNotifier & EventNotifiers.SubscribeToEvents) == 0)
+            if (
+                (source is not BaseObjectState instance)
+                || (instance.EventNotifier & EventNotifiers.SubscribeToEvents) == 0
+            )
             {
                 if ((source is not ViewState view) || (view.EventNotifier & EventNotifiers.SubscribeToEvents) == 0)
                 {

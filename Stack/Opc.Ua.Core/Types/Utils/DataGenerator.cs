@@ -141,17 +141,17 @@ namespace Opc.Ua.Test
             ServerUris = new StringTable();
 
             // create a random source if none provided.
-            if (m_random == null)
-            {
-                m_random = new RandomSource();
-            }
+            m_random ??= new RandomSource();
 
             // load the boundary values.
             m_boundaryValues = [];
 
-            for (int ii = 0; ii < s_AvailableBoundaryValues.Length; ii++)
+            for (int ii = 0; ii < s_availableBoundaryValues.Length; ii++)
             {
-                m_boundaryValues[s_AvailableBoundaryValues[ii].SystemType.Name] = [.. s_AvailableBoundaryValues[ii].Values];
+                m_boundaryValues[s_availableBoundaryValues[ii].SystemType.Name] =
+                [
+                    .. s_availableBoundaryValues[ii].Values,
+                ];
             }
 
             // load the localized tokens.
@@ -325,8 +325,7 @@ namespace Opc.Ua.Test
 
                 if (value != null)
                 {
-                    if (expectedType == BuiltInType.Guid &&
-                        value is Guid guidValue)
+                    if (expectedType == BuiltInType.Guid && value is Guid guidValue)
                     {
                         value = new Uuid(guidValue);
                     }
@@ -552,7 +551,12 @@ namespace Opc.Ua.Test
         /// <summary>
         /// Returns an array wrapped in a variant.
         /// </summary>
-        private Variant[] GetRandomArrayInVariant(BuiltInType builtInType, bool useBoundaryValues, int length, bool fixedLength)
+        private Variant[] GetRandomArrayInVariant(
+            BuiltInType builtInType,
+            bool useBoundaryValues,
+            int length,
+            bool fixedLength
+        )
         {
             Array array = GetRandomArray(builtInType, useBoundaryValues, length, fixedLength);
             var variants = new Variant[array.Length];
@@ -646,13 +650,21 @@ namespace Opc.Ua.Test
                         // ensure a valid null type is returned
                         Type t = typeof(T);
                         if (t == typeof(ExpandedNodeId))
-                        { element = ExpandedNodeId.Null; }
+                        {
+                            element = ExpandedNodeId.Null;
+                        }
                         else if (t == typeof(NodeId))
-                        { element = NodeId.Null; }
+                        {
+                            element = NodeId.Null;
+                        }
                         else if (t == typeof(LocalizedText))
-                        { element = LocalizedText.Null; }
+                        {
+                            element = LocalizedText.Null;
+                        }
                         else if (t == typeof(QualifiedName))
-                        { element = QualifiedName.Null; }
+                        {
+                            element = QualifiedName.Null;
+                        }
                     }
                 }
 
@@ -854,7 +866,8 @@ namespace Opc.Ua.Test
             XmlElement element = document.CreateElement(
                 "n0",
                 CreateString(locale1, true),
-                Utils.Format("http://{0}", CreateString(locale1, true)));
+                Utils.Format("http://{0}", CreateString(locale1, true))
+            );
 
             document.AppendChild(element);
 
@@ -876,10 +889,7 @@ namespace Opc.Ua.Test
             {
                 string elementName = CreateString(locale1, true);
 
-                XmlElement childElement = document.CreateElement(
-                    element.Prefix,
-                    elementName,
-                    element.NamespaceURI);
+                XmlElement childElement = document.CreateElement(element.Prefix, elementName, element.NamespaceURI);
 
                 childElement.InnerText = CreateString(locale2, false);
 
@@ -916,7 +926,11 @@ namespace Opc.Ua.Test
         {
             NodeId nodeId = GetRandomNodeId();
             ushort serverIndex = ServerUris.Count == 0 ? (ushort)0 : (ushort)m_random.NextInt32(ServerUris.Count - 1);
-            return new ExpandedNodeId(nodeId, nodeId.NamespaceIndex > 0 ? NamespaceUris.GetString(nodeId.NamespaceIndex) : null, serverIndex);
+            return new ExpandedNodeId(
+                nodeId,
+                nodeId.NamespaceIndex > 0 ? NamespaceUris.GetString(nodeId.NamespaceIndex) : null,
+                serverIndex
+            );
         }
 
         /// <inheritdoc/>
@@ -935,25 +949,29 @@ namespace Opc.Ua.Test
             return new LocalizedText(locale, CreateString(locale, false));
         }
 
-        private readonly List<KeyValuePair<uint, string>> KnownsStatusCodes = [];
+        private readonly List<KeyValuePair<uint, string>> m_knownStatusCodes = [];
 
         /// <inheritdoc/>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public StatusCode GetRandomStatusCode()
         {
-            if (KnownsStatusCodes.Count == 0)
+            if (m_knownStatusCodes.Count == 0)
             {
                 foreach (FieldInfo field in typeof(StatusCodes).GetFields(BindingFlags.Public | BindingFlags.Static))
                 {
-                    if (field.Name.StartsWith("Good") || field.Name.StartsWith("Uncertain") || field.Name.StartsWith("Bad"))
+                    if (
+                        field.Name.StartsWith("Good")
+                        || field.Name.StartsWith("Uncertain")
+                        || field.Name.StartsWith("Bad")
+                    )
                     {
-                        KnownsStatusCodes.Add(new KeyValuePair<uint, string>((uint)field.GetValue(null), field.Name));
+                        m_knownStatusCodes.Add(new KeyValuePair<uint, string>((uint)field.GetValue(null), field.Name));
                     }
                 }
             }
 
-            int index = GetRandomRange(0, KnownsStatusCodes.Count - 1);
-            return KnownsStatusCodes[index].Key;
+            int index = GetRandomRange(0, m_knownStatusCodes.Count - 1);
+            return m_knownStatusCodes[index].Key;
         }
 
         /// <inheritdoc/>
@@ -979,7 +997,10 @@ namespace Opc.Ua.Test
         /// <summary>
         /// Returns a random variant containing a scalar or array value.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Microsoft.Maintainability",
+            "CA1502:AvoidExcessiveComplexity"
+        )]
         private Variant GetRandomVariant(BuiltInType builtInType, bool isArray)
         {
             if (builtInType == BuiltInType.Null)
@@ -1113,11 +1134,7 @@ namespace Opc.Ua.Test
         public DiagnosticInfo GetRandomDiagnosticInfo()
         {
             // TODO: return random values
-            return new DiagnosticInfo(
-                ServiceResult.Good,
-                DiagnosticsMasks.NoInnerStatus,
-                true,
-                new StringTable());
+            return new DiagnosticInfo(ServiceResult.Good, DiagnosticsMasks.NoInnerStatus, true, new StringTable());
         }
 
         /// <inheritdoc/>
@@ -1200,7 +1217,7 @@ namespace Opc.Ua.Test
         /// <summary>
         /// Boundary values used or testing.
         /// </summary>
-        private static readonly BoundaryValues[] s_AvailableBoundaryValues =
+        private static readonly BoundaryValues[] s_availableBoundaryValues =
         [
             new(typeof(sbyte), sbyte.MinValue, (sbyte)0, sbyte.MaxValue),
             new(typeof(byte), byte.MinValue, byte.MaxValue),
@@ -1210,19 +1227,52 @@ namespace Opc.Ua.Test
             new(typeof(uint), uint.MinValue, uint.MaxValue),
             new(typeof(long), long.MinValue, (long)0, long.MaxValue),
             new(typeof(ulong), ulong.MinValue, ulong.MaxValue),
-            new(typeof(float), float.Epsilon, float.MaxValue, float.MinValue, float.NaN, float.NegativeInfinity, float.PositiveInfinity, (float)0 ),
-            new(typeof(double), double.Epsilon, double.MaxValue, double.MinValue, double.NaN, double.NegativeInfinity, double.PositiveInfinity, (double)0 ),
-            new(typeof(string), null, string.Empty ),
-            new(typeof(DateTime), DateTime.MinValue, DateTime.MaxValue, new DateTime(1099, 1, 1), Utils.TimeBase, new DateTime(2039, 4, 4), new DateTime(2001, 9, 11, 9, 15, 0, DateTimeKind.Local)),
+            new(
+                typeof(float),
+                float.Epsilon,
+                float.MaxValue,
+                float.MinValue,
+                float.NaN,
+                float.NegativeInfinity,
+                float.PositiveInfinity,
+                (float)0
+            ),
+            new(
+                typeof(double),
+                double.Epsilon,
+                double.MaxValue,
+                double.MinValue,
+                double.NaN,
+                double.NegativeInfinity,
+                double.PositiveInfinity,
+                (double)0
+            ),
+            new(typeof(string), null, string.Empty),
+            new(
+                typeof(DateTime),
+                DateTime.MinValue,
+                DateTime.MaxValue,
+                new DateTime(1099, 1, 1),
+                Utils.TimeBase,
+                new DateTime(2039, 4, 4),
+                new DateTime(2001, 9, 11, 9, 15, 0, DateTimeKind.Local)
+            ),
             new(typeof(Guid), Guid.Empty),
             new(typeof(Uuid), Uuid.Empty),
             new(typeof(byte[]), null, Array.Empty<byte>()),
-            new(typeof(XmlElement), null ),
-            new(typeof(NodeId), null, NodeId.Null, new NodeId(Guid.Empty), new NodeId(string.Empty), new NodeId([]) ),
-            new(typeof(ExpandedNodeId), null, ExpandedNodeId.Null, new ExpandedNodeId(Guid.Empty), new ExpandedNodeId(string.Empty), new ExpandedNodeId([]) ),
-            new(typeof(QualifiedName), null, QualifiedName.Null ),
-            new(typeof(LocalizedText), null, LocalizedText.Null ),
-            new(typeof(StatusCode), StatusCodes.Good, StatusCodes.Uncertain, StatusCodes.Bad ),
+            new(typeof(XmlElement), null),
+            new(typeof(NodeId), null, NodeId.Null, new NodeId(Guid.Empty), new NodeId(string.Empty), new NodeId([])),
+            new(
+                typeof(ExpandedNodeId),
+                null,
+                ExpandedNodeId.Null,
+                new ExpandedNodeId(Guid.Empty),
+                new ExpandedNodeId(string.Empty),
+                new ExpandedNodeId([])
+            ),
+            new(typeof(QualifiedName), null, QualifiedName.Null),
+            new(typeof(LocalizedText), null, LocalizedText.Null),
+            new(typeof(StatusCode), StatusCodes.Good, StatusCodes.Uncertain, StatusCodes.Bad),
             new(typeof(ExtensionObject), ExtensionObject.Null),
         ];
 
@@ -1342,8 +1392,7 @@ namespace Opc.Ua.Test
             BuiltInType builtInType = TypeInfo.Construct(expectedType).BuiltInType;
             object value = GetRandom(builtInType);
 
-            if (builtInType == BuiltInType.Guid &&
-                expectedType == typeof(Guid))
+            if (builtInType == BuiltInType.Guid && expectedType == typeof(Guid))
             {
                 return (Guid)(Uuid)value;
             }

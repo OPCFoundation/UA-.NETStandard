@@ -69,7 +69,6 @@ namespace Opc.Ua
         public event EventHandler<ConfigurationWatcherEventArgs> Changed
         {
             add => m_Changed += value;
-
             remove => m_Changed -= value;
         }
 
@@ -94,7 +93,10 @@ namespace Opc.Ua
 
                 m_lastWriteTime = fileInfo.LastWriteTimeUtc;
 
-                m_Changed?.Invoke(this, new ConfigurationWatcherEventArgs(m_configuration, m_configuration.SourceFilePath));
+                m_Changed?.Invoke(
+                    this,
+                    new ConfigurationWatcherEventArgs(m_configuration, m_configuration.SourceFilePath)
+                );
             }
             catch (Exception exception)
             {
@@ -116,9 +118,7 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with a configuration and a file path.
         /// </summary>
-        public ConfigurationWatcherEventArgs(
-            ApplicationConfiguration configuration,
-            string filePath)
+        public ConfigurationWatcherEventArgs(ApplicationConfiguration configuration, string filePath)
         {
             Configuration = configuration;
             FilePath = filePath;

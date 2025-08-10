@@ -41,23 +41,40 @@ namespace Opc.Ua.Fuzzing
     [Category("Fuzzing")]
     public class EncoderTests
     {
-        public static readonly TestcaseAsset[] GoodTestcases = [.. AssetCollection<TestcaseAsset>.CreateFromFiles(TestUtils.EnumerateTestAssets("Testcases", "*.*"))];
-        public static readonly TestcaseAsset[] CrashAssets = [.. AssetCollection<TestcaseAsset>.CreateFromFiles(TestUtils.EnumerateTestAssets("Assets", "crash*.*"))];
-        public static readonly TestcaseAsset[] TimeoutAssets = [.. AssetCollection<TestcaseAsset>.CreateFromFiles(TestUtils.EnumerateTestAssets("Assets", "timeout*.*"))];
-        public static readonly TestcaseAsset[] SlowAssets = [.. AssetCollection<TestcaseAsset>.CreateFromFiles(TestUtils.EnumerateTestAssets("Assets", "slow*.*"))];
+        public static readonly TestcaseAsset[] GoodTestcases =
+        [
+            .. AssetCollection<TestcaseAsset>.CreateFromFiles(TestUtils.EnumerateTestAssets("Testcases", "*.*")),
+        ];
+        public static readonly TestcaseAsset[] CrashAssets =
+        [
+            .. AssetCollection<TestcaseAsset>.CreateFromFiles(TestUtils.EnumerateTestAssets("Assets", "crash*.*")),
+        ];
+        public static readonly TestcaseAsset[] TimeoutAssets =
+        [
+            .. AssetCollection<TestcaseAsset>.CreateFromFiles(TestUtils.EnumerateTestAssets("Assets", "timeout*.*")),
+        ];
+        public static readonly TestcaseAsset[] SlowAssets =
+        [
+            .. AssetCollection<TestcaseAsset>.CreateFromFiles(TestUtils.EnumerateTestAssets("Assets", "slow*.*")),
+        ];
 
         [DatapointSource]
         public static readonly string[] TestcaseEncoderSuffixes = [".Binary", ".Json", ".Xml"];
 
         [DatapointSource]
-        public static readonly FuzzTargetFunction[] FuzzableFunctions = [.. typeof(FuzzableCode).GetMethods(BindingFlags.Static | BindingFlags.Public)
-            .Where(f => f.GetParameters().Length == 1)
-            .Select(f => new FuzzTargetFunction(f))];
+        public static readonly FuzzTargetFunction[] FuzzableFunctions =
+        [
+            .. typeof(FuzzableCode)
+                .GetMethods(BindingFlags.Static | BindingFlags.Public)
+                .Where(f => f.GetParameters().Length == 1)
+                .Select(f => new FuzzTargetFunction(f)),
+        ];
 
         [Theory]
         public void FuzzGoodTestcases(
             FuzzTargetFunction fuzzableCode,
-            [ValueSource(nameof(GoodTestcases))] TestcaseAsset messageEncoder)
+            [ValueSource(nameof(GoodTestcases))] TestcaseAsset messageEncoder
+        )
         {
             FuzzTarget(fuzzableCode, messageEncoder.Testcase);
         }
@@ -83,7 +100,8 @@ namespace Opc.Ua.Fuzzing
         [CancelAfter(1000)]
         public void FuzzTimeoutAssets(
             FuzzTargetFunction fuzzableCode,
-            [ValueSource(nameof(TimeoutAssets))] TestcaseAsset messageEncoder)
+            [ValueSource(nameof(TimeoutAssets))] TestcaseAsset messageEncoder
+        )
         {
             FuzzTarget(fuzzableCode, messageEncoder.Testcase);
         }
@@ -92,7 +110,8 @@ namespace Opc.Ua.Fuzzing
         [CancelAfter(1000)]
         public void FuzzSlowAssets(
             FuzzTargetFunction fuzzableCode,
-            [ValueSource(nameof(SlowAssets))] TestcaseAsset messageEncoder)
+            [ValueSource(nameof(SlowAssets))] TestcaseAsset messageEncoder
+        )
         {
             FuzzTarget(fuzzableCode, messageEncoder.Testcase);
         }

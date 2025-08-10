@@ -211,10 +211,14 @@ namespace Opc.Ua
             ICertificateStore store = m_store;
 
             // determine if the store configuration changed
-            if (store != null &&
-                (store.StoreType != StoreType ||
-                 store.StorePath != StorePath ||
-                 store.NoPrivateKeys != m_noPrivateKeys))
+            if (
+                store != null
+                && (
+                    store.StoreType != StoreType
+                    || store.StorePath != StorePath
+                    || store.NoPrivateKeys != m_noPrivateKeys
+                )
+            )
             {
                 ICertificateStore previousStore = Interlocked.CompareExchange(ref m_store, null, store);
                 previousStore?.Dispose();

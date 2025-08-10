@@ -34,7 +34,8 @@ namespace Opc.Ua
         /// </summary>
         public NumericRange ParsedIndexRange
         {
-            get => m_parsedIndexRange; set => m_parsedIndexRange = value;
+            get => m_parsedIndexRange;
+            set => m_parsedIndexRange = value;
         }
 
         /// <summary>
@@ -60,7 +61,7 @@ namespace Opc.Ua
                 return StatusCodes.BadAttributeIdInvalid;
             }
 
-            // data encoding and index range is only valid for value attributes. 
+            // data encoding and index range is only valid for value attributes.
             if (valueId.AttributeId != Attributes.Value)
             {
                 if (!string.IsNullOrEmpty(valueId.IndexRange))

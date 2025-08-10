@@ -25,9 +25,9 @@ namespace Opc.Ua
         /// </summary>
         public void CreateListener(
             Uri url,
-            ConnectionWaitingHandlerAsync OnConnectionWaiting,
-            EventHandler<ConnectionStatusEventArgs> OnConnectionStatusChanged
-            )
+            ConnectionWaitingHandlerAsync onConnectionWaiting,
+            EventHandler<ConnectionStatusEventArgs> onConnectionStatusChanged
+        )
         {
             if (url == null)
             {
@@ -36,12 +36,16 @@ namespace Opc.Ua
 
             ITransportListener listener = TransportBindings.Listeners.GetListener(url.Scheme);
 
-            m_listener = listener ?? throw ServiceResultException.Create(
+            m_listener =
+                listener
+                ?? throw ServiceResultException.Create(
                     StatusCodes.BadProtocolVersionUnsupported,
-                    "Unsupported transport profile for scheme {0}.", url.Scheme);
+                    "Unsupported transport profile for scheme {0}.",
+                    url.Scheme
+                );
             Url = url;
-            m_onConnectionWaiting = OnConnectionWaiting;
-            m_onConnectionStatusChanged = OnConnectionStatusChanged;
+            m_onConnectionWaiting = onConnectionWaiting;
+            m_onConnectionStatusChanged = onConnectionStatusChanged;
         }
 
         /// <summary>
@@ -70,11 +74,7 @@ namespace Opc.Ua
 
                 Utils.LogInfo("Open reverse connect listener for {0}.", Url);
 
-                m_listener.Open(
-                   Url,
-                   settings,
-                   null
-                   );
+                m_listener.Open(Url, settings, null);
 
                 m_listener.ConnectionWaiting += m_onConnectionWaiting;
                 m_listener.ConnectionStatusChanged += m_onConnectionStatusChanged;

@@ -65,7 +65,6 @@ namespace Opc.Ua
         public string GuidString
         {
             readonly get => m_guid.ToString();
-
             set
             {
                 if (string.IsNullOrEmpty(value))
@@ -228,14 +227,14 @@ namespace Opc.Ua
         }
 
         /// <summary>
-		/// Compares the current instance to the object.
-		/// </summary>
+        /// Compares the current instance to the object.
+        /// </summary>
         /// <remarks>
         /// Compares the current instance to the object. This function will check if the object
         /// passed in is a <see cref="Guid"/> or <see cref="Uuid"/>.
         /// </remarks>
         /// <param name="obj">The object being compared to *this* object</param>
-		public readonly int CompareTo(object obj)
+        public readonly int CompareTo(object obj)
         {
             // check for uuids.
             if (obj is Uuid uuidValue)
@@ -289,7 +288,8 @@ namespace Opc.Ua
         /// Initializes the collection from another collection.
         /// </remarks>
         /// <param name="collection">The collection to copy</param>
-        public UuidCollection(IEnumerable<Uuid> collection) : base(collection) { }
+        public UuidCollection(IEnumerable<Uuid> collection)
+            : base(collection) { }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
@@ -298,7 +298,8 @@ namespace Opc.Ua
         /// Initializes the collection with the specified capacity.
         /// </remarks>
         /// <param name="capacity">The maximum size of the collection</param>
-        public UuidCollection(int capacity) : base(capacity) { }
+        public UuidCollection(int capacity)
+            : base(capacity) { }
 
         /// <summary>
         /// Converts an array to a collection.
@@ -346,4 +347,4 @@ namespace Opc.Ua
             return new UuidCollection(this);
         }
     }
-}//namespace
+} //namespace

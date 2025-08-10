@@ -35,8 +35,7 @@ namespace Opc.Ua.Client.ComplexTypes
     /// Factory function for the default complex type builder
     /// using classes created with Reflection.Emit.
     /// </summary>
-    public class ComplexTypeBuilderFactory :
-        IComplexTypeFactory
+    public class ComplexTypeBuilderFactory : IComplexTypeFactory
     {
         private readonly AssemblyModule m_moduleFactory;
 
@@ -54,11 +53,10 @@ namespace Opc.Ua.Client.ComplexTypes
         public override IComplexTypeBuilder Create(
             string targetNamespace,
             int targetNamespaceIndex,
-            string moduleName = null)
+            string moduleName = null
+        )
         {
-            return new ComplexTypeBuilder(
-                m_moduleFactory, targetNamespace,
-                targetNamespaceIndex, moduleName);
+            return new ComplexTypeBuilder(m_moduleFactory, targetNamespace, targetNamespaceIndex, moduleName);
         }
 
         /// <summary>
@@ -69,4 +67,4 @@ namespace Opc.Ua.Client.ComplexTypes
             return m_moduleFactory.GetTypes();
         }
     }
-}//namespace
+} //namespace

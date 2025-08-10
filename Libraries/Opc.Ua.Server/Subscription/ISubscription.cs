@@ -50,6 +50,7 @@ namespace Opc.Ua.Server
         /// The identifier for the item that is unique within the server.
         /// </summary>
         uint Id { get; }
+
         /// <summary>
         /// The identifier for the session that owns the subscription.
         /// </summary>
@@ -135,7 +136,8 @@ namespace Opc.Ua.Server
             uint maxLifetimeCount,
             uint maxKeepAliveCount,
             uint maxNotificationsPerPublish,
-            byte priority);
+            byte priority
+        );
 
         /// <summary>
         /// Changes the monitoring mode for a set of items.
@@ -145,14 +147,13 @@ namespace Opc.Ua.Server
             MonitoringMode monitoringMode,
             UInt32Collection monitoredItemIds,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            out DiagnosticInfoCollection diagnosticInfos
+        );
 
         /// <summary>
         /// Enables/disables publishing for the subscription.
         /// </summary>
-        void SetPublishingMode(
-            OperationContext context,
-            bool publishingEnabled);
+        void SetPublishingMode(OperationContext context, bool publishingEnabled);
 
         /// <summary>
         /// Deletes the monitored items in a subscription.
@@ -161,7 +162,8 @@ namespace Opc.Ua.Server
             OperationContext context,
             UInt32Collection monitoredItemIds,
             out StatusCodeCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            out DiagnosticInfoCollection diagnosticInfos
+        );
 
         /// <summary>
         /// Modifies monitored items in a subscription.
@@ -171,7 +173,8 @@ namespace Opc.Ua.Server
             TimestampsToReturn timestampsToReturn,
             MonitoredItemModifyRequestCollection itemsToModify,
             out MonitoredItemModifyResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            out DiagnosticInfoCollection diagnosticInfos
+        );
 
         /// <summary>
         /// Adds monitored items to a subscription.
@@ -181,7 +184,8 @@ namespace Opc.Ua.Server
             TimestampsToReturn timestampsToReturn,
             MonitoredItemCreateRequestCollection itemsToCreate,
             out MonitoredItemCreateResultCollection results,
-            out DiagnosticInfoCollection diagnosticInfos);
+            out DiagnosticInfoCollection diagnosticInfos
+        );
 
         /// <summary>
         /// Gets the monitored items for the subscription.
@@ -226,9 +230,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns a cached notification message.
         /// </summary>
-        NotificationMessage Republish(
-            OperationContext context,
-            uint retransmitSequenceNumber);
+        NotificationMessage Republish(OperationContext context, uint retransmitSequenceNumber);
 
         /// <summary>
         /// Publishes a timeout status message.
@@ -246,7 +248,8 @@ namespace Opc.Ua.Server
         NotificationMessage Publish(
             OperationContext context,
             out UInt32Collection availableSequenceNumbers,
-            out bool moreNotifications);
+            out bool moreNotifications
+        );
 
         /// <summary>
         /// Transfers the subscription to a new session.
@@ -266,7 +269,8 @@ namespace Opc.Ua.Server
             out StatusCodeCollection addResults,
             out DiagnosticInfoCollection addDiagnosticInfos,
             out StatusCodeCollection removeResults,
-            out DiagnosticInfoCollection removeDiagnosticInfos);
+            out DiagnosticInfoCollection removeDiagnosticInfos
+        );
 
         /// <summary>
         /// Return a StorableSubscription for restore after a server restart

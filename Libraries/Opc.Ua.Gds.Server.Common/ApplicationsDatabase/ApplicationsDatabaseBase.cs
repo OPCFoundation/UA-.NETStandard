@@ -36,15 +36,11 @@ namespace Opc.Ua.Gds.Server.Database
     [Serializable]
     public abstract class ApplicationsDatabaseBase : IApplicationsDatabase
     {
-        public virtual void Initialize()
-        {
-        }
+        public virtual void Initialize() { }
 
         public ushort NamespaceIndex { get; set; }
 
-        public virtual NodeId RegisterApplication(
-            ApplicationRecordDataType application
-            )
+        public virtual NodeId RegisterApplication(ApplicationRecordDataType application)
         {
             if (application == null)
             {
@@ -61,12 +57,22 @@ namespace Opc.Ua.Gds.Server.Database
                 throw new ArgumentException(application.ApplicationUri + " is not a valid URI.", nameof(application));
             }
 
-            if (application.ApplicationType < ApplicationType.Server || application.ApplicationType > ApplicationType.DiscoveryServer)
+            if (
+                application.ApplicationType < ApplicationType.Server
+                || application.ApplicationType > ApplicationType.DiscoveryServer
+            )
             {
-                throw new ArgumentException(application.ApplicationType.ToString() + " is not a valid ApplicationType.", nameof(application));
+                throw new ArgumentException(
+                    application.ApplicationType.ToString() + " is not a valid ApplicationType.",
+                    nameof(application)
+                );
             }
 
-            if (application.ApplicationNames == null || application.ApplicationNames.Count == 0 || LocalizedText.IsNullOrEmpty(application.ApplicationNames[0]))
+            if (
+                application.ApplicationNames == null
+                || application.ApplicationNames.Count == 0
+                || LocalizedText.IsNullOrEmpty(application.ApplicationNames[0])
+            )
             {
                 throw new ArgumentException("At least one ApplicationName must be provided.", nameof(application));
             }
@@ -139,17 +145,13 @@ namespace Opc.Ua.Gds.Server.Database
             ValidateApplicationNodeId(applicationId);
         }
 
-        public virtual ApplicationRecordDataType GetApplication(
-            NodeId applicationId
-            )
+        public virtual ApplicationRecordDataType GetApplication(NodeId applicationId)
         {
             ValidateApplicationNodeId(applicationId);
             return null;
         }
 
-        public virtual ApplicationRecordDataType[] FindApplications(
-            string applicationUri
-            )
+        public virtual ApplicationRecordDataType[] FindApplications(string applicationUri)
         {
             return null;
         }
@@ -161,7 +163,8 @@ namespace Opc.Ua.Gds.Server.Database
             string applicationUri,
             string productUri,
             string[] serverCapabilities,
-            out DateTime lastCounterResetTime)
+            out DateTime lastCounterResetTime
+        )
         {
             lastCounterResetTime = DateTime.MinValue;
             return null;
@@ -177,18 +180,14 @@ namespace Opc.Ua.Gds.Server.Database
             string[] serverCapabilities,
             out DateTime lastCounterResetTime,
             out uint nextRecordId
-            )
+        )
         {
             lastCounterResetTime = DateTime.MinValue;
             nextRecordId = 0;
             return null;
         }
 
-        public virtual bool SetApplicationCertificate(
-            NodeId applicationId,
-            string certificateType,
-            byte[] certificate
-            )
+        public virtual bool SetApplicationCertificate(NodeId applicationId, string certificateType, byte[] certificate)
         {
             ValidateApplicationNodeId(applicationId);
             return false;
@@ -197,25 +196,25 @@ namespace Opc.Ua.Gds.Server.Database
         public virtual bool GetApplicationCertificate(
             NodeId applicationId,
             string certificateTypeId,
-            out byte[] certificate)
+            out byte[] certificate
+        )
         {
             certificate = null;
             ValidateApplicationNodeId(applicationId);
             return false;
         }
 
-        public virtual bool SetApplicationTrustLists(
-            NodeId applicationId,
-            string certificateTypeId,
-            string trustListId)
+        public virtual bool SetApplicationTrustLists(NodeId applicationId, string certificateTypeId, string trustListId)
         {
             ValidateApplicationNodeId(applicationId);
             return false;
         }
+
         public virtual bool GetApplicationTrustLists(
             NodeId applicationId,
             string certificateTypeId,
-            out string trustListId)
+            out string trustListId
+        )
         {
             trustListId = null;
             ValidateApplicationNodeId(applicationId);
@@ -286,7 +285,10 @@ namespace Opc.Ua.Gds.Server.Database
             {
                 if (application.ServerCapabilities == null || application.ServerCapabilities.Count == 0)
                 {
-                    throw new ArgumentException("At least one Server Capability must be provided.", nameof(application));
+                    throw new ArgumentException(
+                        "At least one Server Capability must be provided.",
+                        nameof(application)
+                    );
                 }
             }
 
@@ -313,9 +315,7 @@ namespace Opc.Ua.Gds.Server.Database
             return capabilities.ToString();
         }
 
-        protected Guid GetNodeIdGuid(
-            NodeId nodeId
-            )
+        protected Guid GetNodeIdGuid(NodeId nodeId)
         {
             if (NodeId.IsNull(nodeId))
             {
@@ -334,9 +334,7 @@ namespace Opc.Ua.Gds.Server.Database
             return id;
         }
 
-        protected string GetNodeIdString(
-            NodeId nodeId
-            )
+        protected string GetNodeIdString(NodeId nodeId)
         {
             if (NodeId.IsNull(nodeId))
             {
@@ -355,17 +353,17 @@ namespace Opc.Ua.Gds.Server.Database
             return id;
         }
 
-        protected void ValidateApplicationNodeId(
-            NodeId nodeId
-            )
+        protected void ValidateApplicationNodeId(NodeId nodeId)
         {
             if (NodeId.IsNull(nodeId))
             {
                 throw new ArgumentNullException(nameof(nodeId));
             }
 
-            if ((nodeId.IdType != IdType.Guid && nodeId.IdType != IdType.String) ||
-                NamespaceIndex != nodeId.NamespaceIndex)
+            if (
+                (nodeId.IdType != IdType.Guid && nodeId.IdType != IdType.String)
+                || NamespaceIndex != nodeId.NamespaceIndex
+            )
             {
                 throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
             }

@@ -28,7 +28,8 @@ namespace Opc.Ua
         public SecureChannelContext(
             string secureChannelId,
             EndpointDescription endpointDescription,
-            RequestEncoding messageEncoding)
+            RequestEncoding messageEncoding
+        )
         {
             SecureChannelId = secureChannelId;
             EndpointDescription = endpointDescription;
@@ -74,12 +75,11 @@ namespace Opc.Ua
         /// <value>The current secure channel context.</value>
         public static SecureChannelContext Current
         {
-            get => s_Dataslot.Value;
-
-            set => s_Dataslot.Value = value;
+            get => s_dataslot.Value;
+            set => s_dataslot.Value = value;
         }
 
-        private static readonly ThreadLocal<SecureChannelContext> s_Dataslot = new();
+        private static readonly ThreadLocal<SecureChannelContext> s_dataslot = new();
     }
 
     /// <summary>
@@ -100,6 +100,6 @@ namespace Opc.Ua
         /// <summary>
         /// The request used the UA JSON encoding.
         /// </summary>
-        Json
+        Json,
     }
 }

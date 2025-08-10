@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -45,7 +45,10 @@ namespace Quickstarts.Servers
             TypeNameHandling = TypeNameHandling.All,
             Converters = { new ExtensionObjectConverter(), new NumericRangeConverter() },
         };
-        private static readonly string s_storage_path = Path.Combine(Environment.CurrentDirectory, "Durable Subscriptions");
+        private static readonly string s_storage_path = Path.Combine(
+            Environment.CurrentDirectory,
+            "Durable Subscriptions"
+        );
         private const string kFilename = "subscriptionsStore.txt";
         private readonly DurableMonitoredItemQueueFactory m_durableMonitoredItemQueueFactory;
 
@@ -89,7 +92,10 @@ namespace Quickstarts.Servers
                 if (File.Exists(filePath))
                 {
                     string json = File.ReadAllText(filePath);
-                    List<IStoredSubscription> result = JsonConvert.DeserializeObject<List<IStoredSubscription>>(json, s_settings);
+                    List<IStoredSubscription> result = JsonConvert.DeserializeObject<List<IStoredSubscription>>(
+                        json,
+                        s_settings
+                    );
 
                     File.Delete(filePath);
 
@@ -111,7 +117,12 @@ namespace Quickstarts.Servers
                 return objectType == typeof(ExtensionObject);
             }
 
-            public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+            public override object ReadJson(
+                JsonReader reader,
+                Type objectType,
+                object existingValue,
+                JsonSerializer serializer
+            )
             {
                 var jo = JObject.Load(reader);
                 object body = jo["Body"].ToObject<object>(serializer);
@@ -125,7 +136,7 @@ namespace Quickstarts.Servers
                 var jo = new JObject
                 {
                     ["Body"] = JToken.FromObject(extensionObject.Body, serializer),
-                    ["TypeId"] = JToken.FromObject(extensionObject.TypeId, serializer)
+                    ["TypeId"] = JToken.FromObject(extensionObject.TypeId, serializer),
                 };
                 jo.WriteTo(writer);
             }
@@ -138,7 +149,12 @@ namespace Quickstarts.Servers
                 return objectType == typeof(NumericRange);
             }
 
-            public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+            public override object ReadJson(
+                JsonReader reader,
+                Type objectType,
+                object existingValue,
+                JsonSerializer serializer
+            )
             {
                 var jo = JObject.Load(reader);
                 int begin = jo["Begin"].ToObject<int>(serializer);
@@ -152,7 +168,7 @@ namespace Quickstarts.Servers
                 var jo = new JObject
                 {
                     ["Begin"] = JToken.FromObject(extensionObject.Begin, serializer),
-                    ["End"] = JToken.FromObject(extensionObject.End, serializer)
+                    ["End"] = JToken.FromObject(extensionObject.End, serializer),
                 };
                 jo.WriteTo(writer);
             }
@@ -162,6 +178,7 @@ namespace Quickstarts.Servers
         {
             return m_durableMonitoredItemQueueFactory?.RestoreDataChangeQueue(monitoredItemId, s_storage_path);
         }
+
         public IEventMonitoredItemQueue RestoreEventMonitoredItemQueue(uint monitoredItemId)
         {
             return m_durableMonitoredItemQueueFactory?.RestoreEventQueue(monitoredItemId, s_storage_path);

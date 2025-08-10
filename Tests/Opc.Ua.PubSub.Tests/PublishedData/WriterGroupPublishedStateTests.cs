@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -47,17 +47,16 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
         public enum PubSubMessageType
         {
             Uadp,
-            Json
+            Json,
         }
 
-        private const ushort NamespaceIndexAllTypes = 3;
-        //private const string MqttsUrlFormat = "{0}://{1}:8883";
+        private const ushort kNamespaceIndexAllTypes = 3;
 
         [Test(Description = "Publish Uadp | Json DataSetMessages with KeyFrameCount and delta frames")]
         public void PublishDataSetMessages(
-            [Values(PubSubMessageType.Uadp, PubSubMessageType.Json)]
-                PubSubMessageType pubSubMessageType,
-            [Values(1, 2, 3, 4)] int keyFrameCount)
+            [Values(PubSubMessageType.Uadp, PubSubMessageType.Json)] PubSubMessageType pubSubMessageType,
+            [Values(1, 2, 3, 4)] int keyFrameCount
+        )
         {
             //Arrange
             object publisherId = 1;
@@ -78,76 +77,117 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
 
             if (pubSubMessageType == PubSubMessageType.Uadp)
             {
-                const UadpNetworkMessageContentMask uadpNetworkMessageContentMask = UadpNetworkMessageContentMask.PublisherId
+                const UadpNetworkMessageContentMask uadpNetworkMessageContentMask =
+                    UadpNetworkMessageContentMask.PublisherId
                     | UadpNetworkMessageContentMask.WriterGroupId
                     | UadpNetworkMessageContentMask.PayloadHeader;
                 const UadpDataSetMessageContentMask uadpDataSetMessageContentMask = UadpDataSetMessageContentMask.None;
 
                 publisherConfiguration = MessagesHelper.CreatePublisherConfiguration(
                     Profiles.PubSubMqttUadpTransport,
-                    addressUrl, publisherId: publisherId, writerGroupId: writerGroupId,
+                    addressUrl,
+                    publisherId: publisherId,
+                    writerGroupId: writerGroupId,
                     uadpNetworkMessageContentMask: uadpNetworkMessageContentMask,
                     uadpDataSetMessageContentMask: uadpDataSetMessageContentMask,
                     dataSetFieldContentMask: dataSetFieldContentMask,
-                    dataSetMetaDataArray: dataSetMetaDataArray, nameSpaceIndexForData: NamespaceIndexAllTypes,
-                    keyFrameCount: Convert.ToUInt32(keyFrameCount));
+                    dataSetMetaDataArray: dataSetMetaDataArray,
+                    nameSpaceIndexForData: kNamespaceIndexAllTypes,
+                    keyFrameCount: Convert.ToUInt32(keyFrameCount)
+                );
             }
 
             if (pubSubMessageType == PubSubMessageType.Json)
             {
-                const JsonNetworkMessageContentMask jsonNetworkMessageContentMask = JsonNetworkMessageContentMask.NetworkMessageHeader
+                const JsonNetworkMessageContentMask jsonNetworkMessageContentMask =
+                    JsonNetworkMessageContentMask.NetworkMessageHeader
                     | JsonNetworkMessageContentMask.PublisherId
                     | JsonNetworkMessageContentMask.DataSetMessageHeader;
-                const JsonDataSetMessageContentMask jsonDataSetMessageContentMask = JsonDataSetMessageContentMask.DataSetWriterId;
+                const JsonDataSetMessageContentMask jsonDataSetMessageContentMask =
+                    JsonDataSetMessageContentMask.DataSetWriterId;
 
                 publisherConfiguration = MessagesHelper.CreatePublisherConfiguration(
                     Profiles.PubSubMqttJsonTransport,
-                    addressUrl, publisherId: publisherId, writerGroupId: writerGroupId,
+                    addressUrl,
+                    publisherId: publisherId,
+                    writerGroupId: writerGroupId,
                     jsonNetworkMessageContentMask: jsonNetworkMessageContentMask,
                     jsonDataSetMessageContentMask: jsonDataSetMessageContentMask,
                     dataSetFieldContentMask: dataSetFieldContentMask,
-                    dataSetMetaDataArray: dataSetMetaDataArray, nameSpaceIndexForData: NamespaceIndexAllTypes,
-                    keyFrameCount: Convert.ToUInt32(keyFrameCount));
+                    dataSetMetaDataArray: dataSetMetaDataArray,
+                    nameSpaceIndexForData: kNamespaceIndexAllTypes,
+                    keyFrameCount: Convert.ToUInt32(keyFrameCount)
+                );
             }
 
             Assert.IsNotNull(publisherConfiguration, "publisherConfiguration should not be null");
 
             // Create publisher application for multiple datasets
             var publisherApplication = UaPubSubApplication.Create(publisherConfiguration);
-            MessagesHelper.LoadData(publisherApplication, NamespaceIndexAllTypes);
+            MessagesHelper.LoadData(publisherApplication, kNamespaceIndexAllTypes);
 
             IUaPubSubConnection publisherConnection = publisherApplication.PubSubConnections[0];
             Assert.IsNotNull(publisherConnection, "Publisher first connection should not be null");
 
-            Assert.IsNotNull(publisherConfiguration.Connections[0], "publisherConfiguration first connection should not be null");
-            Assert.IsNotNull(publisherConfiguration.Connections[0].WriterGroups[0], "publisherConfiguration first writer group of first connection should not be null");
+            Assert.IsNotNull(
+                publisherConfiguration.Connections[0],
+                "publisherConfiguration first connection should not be null"
+            );
+            Assert.IsNotNull(
+                publisherConfiguration.Connections[0].WriterGroups[0],
+                "publisherConfiguration first writer group of first connection should not be null"
+            );
 
             var writerGroupPublishState = new WriterGroupPublishState();
-            IList<UaNetworkMessage> networkMessages = publisherConnection.CreateNetworkMessages(publisherConfiguration.Connections[0].WriterGroups[0], writerGroupPublishState);
+            IList<UaNetworkMessage> networkMessages = publisherConnection.CreateNetworkMessages(
+                publisherConfiguration.Connections[0].WriterGroups[0],
+                writerGroupPublishState
+            );
             Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not return null");
-            Assert.GreaterOrEqual(networkMessages.Count, 1, "connection.CreateNetworkMessages shall have at least one network message");
+            Assert.GreaterOrEqual(
+                networkMessages.Count,
+                1,
+                "connection.CreateNetworkMessages shall have at least one network message"
+            );
 
             List<UaNetworkMessage> uaNetworkMessages = null;
 
             object uaNetworkMessagesList;
             if (pubSubMessageType == PubSubMessageType.Uadp)
             {
-                uaNetworkMessagesList = MessagesHelper.GetUaDataNetworkMessages(networkMessages.Cast<PubSubEncoding.UadpNetworkMessage>().ToList());
+                uaNetworkMessagesList = MessagesHelper.GetUaDataNetworkMessages(
+                    networkMessages.Cast<PubSubEncoding.UadpNetworkMessage>().ToList()
+                );
                 Assert.IsNotNull(uaNetworkMessagesList, "uaNetworkMessagesList should not be null");
-                uaNetworkMessages = [.. ((IEnumerable<UaNetworkMessage>)uaNetworkMessagesList).Cast<UaNetworkMessage>()];
+                uaNetworkMessages =
+                [
+                    .. ((IEnumerable<UaNetworkMessage>)uaNetworkMessagesList).Cast<UaNetworkMessage>(),
+                ];
             }
             if (pubSubMessageType == PubSubMessageType.Json)
             {
-                uaNetworkMessagesList = MessagesHelper.GetUaDataNetworkMessages(networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>().ToList());
-                uaNetworkMessages = [.. ((IEnumerable<UaNetworkMessage>)uaNetworkMessagesList).Cast<UaNetworkMessage>()];
+                uaNetworkMessagesList = MessagesHelper.GetUaDataNetworkMessages(
+                    networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>().ToList()
+                );
+                uaNetworkMessages =
+                [
+                    .. ((IEnumerable<UaNetworkMessage>)uaNetworkMessagesList).Cast<UaNetworkMessage>(),
+                ];
             }
-            Assert.IsNotNull(uaNetworkMessages, "uaNetworkMessages should not be null. Data entry is missing from configuration!?");
+            Assert.IsNotNull(
+                uaNetworkMessages,
+                "uaNetworkMessages should not be null. Data entry is missing from configuration!?"
+            );
 
             // get datastore data
             var dataStoreData = new Dictionary<NodeId, DataValue>();
             foreach (UaNetworkMessage uaDataNetworkMessage in uaNetworkMessages)
             {
-                Dictionary<NodeId, DataValue> dataSetsData = MessagesHelper.GetDataStoreData(publisherApplication, uaDataNetworkMessage, NamespaceIndexAllTypes);
+                Dictionary<NodeId, DataValue> dataSetsData = MessagesHelper.GetDataStoreData(
+                    publisherApplication,
+                    uaDataNetworkMessage,
+                    kNamespaceIndexAllTypes
+                );
                 foreach (NodeId nodeId in dataSetsData.Keys)
                 {
                     if (!dataStoreData.ContainsKey(nodeId))
@@ -167,37 +207,73 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
             for (int keyCount = 0; keyCount < keyFrameCount - 1; keyCount++)
             {
                 // change the values and get one more time the dataset(s) data
-                MessagesHelper.UpdateSnapshotData(publisherApplication, NamespaceIndexAllTypes);
-                networkMessages = publisherConnection.CreateNetworkMessages(publisherConfiguration.Connections[0].WriterGroups[0], writerGroupPublishState);
+                MessagesHelper.UpdateSnapshotData(publisherApplication, kNamespaceIndexAllTypes);
+                networkMessages = publisherConnection.CreateNetworkMessages(
+                    publisherConfiguration.Connections[0].WriterGroups[0],
+                    writerGroupPublishState
+                );
                 Assert.IsNotNull(networkMessages, "connection.CreateNetworkMessages shall not be null");
-                Assert.GreaterOrEqual(networkMessages.Count, 1, "connection.CreateNetworkMessages should have at least one network message");
+                Assert.GreaterOrEqual(
+                    networkMessages.Count,
+                    1,
+                    "connection.CreateNetworkMessages should have at least one network message"
+                );
 
                 if (pubSubMessageType == PubSubMessageType.Uadp)
                 {
-                    uaNetworkMessagesList = MessagesHelper.GetUaDataNetworkMessages(networkMessages.Cast<PubSubEncoding.UadpNetworkMessage>().ToList());
+                    uaNetworkMessagesList = MessagesHelper.GetUaDataNetworkMessages(
+                        networkMessages.Cast<PubSubEncoding.UadpNetworkMessage>().ToList()
+                    );
                     Assert.IsNotNull(uaNetworkMessagesList, "uaNetworkMessagesList shall not be null");
-                    uaNetworkMessages = [.. ((IEnumerable<UaNetworkMessage>)uaNetworkMessagesList).Cast<UaNetworkMessage>()];
+                    uaNetworkMessages =
+                    [
+                        .. ((IEnumerable<UaNetworkMessage>)uaNetworkMessagesList).Cast<UaNetworkMessage>(),
+                    ];
                 }
                 if (pubSubMessageType == PubSubMessageType.Json)
                 {
-                    uaNetworkMessagesList = MessagesHelper.GetUaDataNetworkMessages(networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>().ToList());
-                    uaNetworkMessages = [.. ((IEnumerable<UaNetworkMessage>)uaNetworkMessagesList).Cast<UaNetworkMessage>()];
+                    uaNetworkMessagesList = MessagesHelper.GetUaDataNetworkMessages(
+                        networkMessages.Cast<PubSubEncoding.JsonNetworkMessage>().ToList()
+                    );
+                    uaNetworkMessages =
+                    [
+                        .. ((IEnumerable<UaNetworkMessage>)uaNetworkMessagesList).Cast<UaNetworkMessage>(),
+                    ];
                 }
-                Assert.IsNotNull(uaNetworkMessages, "uaNetworkMessages should not be null. Data entry is missing from configuration!?");
+                Assert.IsNotNull(
+                    uaNetworkMessages,
+                    "uaNetworkMessages should not be null. Data entry is missing from configuration!?"
+                );
 
                 // check if delta received data is valid
-                Dictionary<NodeId, DataValue> snapshotData = MessagesHelper.GetSnapshotData(publisherApplication, NamespaceIndexAllTypes);
+                Dictionary<NodeId, DataValue> snapshotData = MessagesHelper.GetSnapshotData(
+                    publisherApplication,
+                    kNamespaceIndexAllTypes
+                );
                 foreach (UaNetworkMessage uaDataNetworkMessage in uaNetworkMessages)
                 {
-                    ValidateDataSetMessageData(uaDataNetworkMessage, keyFrameCount == 1 ? dataStoreData : snapshotData, keyFrameCount, writerGroupPublishState);
+                    ValidateDataSetMessageData(
+                        uaDataNetworkMessage,
+                        keyFrameCount == 1 ? dataStoreData : snapshotData,
+                        keyFrameCount,
+                        writerGroupPublishState
+                    );
                 }
             }
 
             // check one more time if delta received data is valid
-            Dictionary<NodeId, DataValue> snapshotDataCopy = MessagesHelper.GetSnapshotData(publisherApplication, NamespaceIndexAllTypes);
+            Dictionary<NodeId, DataValue> snapshotDataCopy = MessagesHelper.GetSnapshotData(
+                publisherApplication,
+                kNamespaceIndexAllTypes
+            );
             foreach (UaNetworkMessage uaDataNetworkMessage in uaNetworkMessages)
             {
-                ValidateDataSetMessageData(uaDataNetworkMessage, keyFrameCount == 1 ? dataStoreData : snapshotDataCopy, keyFrameCount, writerGroupPublishState);
+                ValidateDataSetMessageData(
+                    uaDataNetworkMessage,
+                    keyFrameCount == 1 ? dataStoreData : snapshotDataCopy,
+                    keyFrameCount,
+                    writerGroupPublishState
+                );
             }
         }
 
@@ -206,19 +282,25 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
         /// </summary>
         /// <param name="uaDataNetworkMessage"></param>
         /// <param name="keyFrameCount"></param>
-        private static void ValidateDataSetMessageData(UaNetworkMessage uaDataNetworkMessage, Dictionary<NodeId, DataValue> dataStoreData,
-            int keyFrameCount = 1, WriterGroupPublishState writerGroupPublishState = null)
+        private static void ValidateDataSetMessageData(
+            UaNetworkMessage uaDataNetworkMessage,
+            Dictionary<NodeId, DataValue> dataStoreData,
+            int keyFrameCount = 1,
+            WriterGroupPublishState writerGroupPublishState = null
+        )
         {
             IEnumerable<object> writerGroupDataSetStates = null;
             if (writerGroupPublishState != null)
             {
-                object dataSetStates = writerGroupPublishState.GetType()
-                        .GetField("m_dataSetStates", BindingFlags.Instance | BindingFlags.NonPublic)
-                        .GetValue(writerGroupPublishState);
+                object dataSetStates = writerGroupPublishState
+                    .GetType()
+                    .GetField("m_dataSetStates", BindingFlags.Instance | BindingFlags.NonPublic)
+                    .GetValue(writerGroupPublishState);
 
-                object dataSetStatesValues = dataSetStates.GetType()
-                     .GetProperty("Values", BindingFlags.Instance | BindingFlags.Public)
-                     .GetValue(dataSetStates);
+                object dataSetStatesValues = dataSetStates
+                    .GetType()
+                    .GetProperty("Values", BindingFlags.Instance | BindingFlags.Public)
+                    .GetValue(dataSetStates);
 
                 writerGroupDataSetStates = ((IEnumerable<object>)dataSetStatesValues).Cast<object>();
             }
@@ -229,21 +311,26 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                 {
                     Assert.Greater(keyFrameCount, 1, "keyFrameCount > 1 if dataset is delta!");
                     Assert.IsNotNull(writerGroupPublishState, "WriterGroupPublishState should not be null");
-                    Assert.IsNotNull(writerGroupDataSetStates, "writerGroupDataSetStates that contains last saved detaset should not be null");
+                    Assert.IsNotNull(
+                        writerGroupDataSetStates,
+                        "writerGroupDataSetStates that contains last saved detaset should not be null"
+                    );
 
                     DataSet lastDataSetFound = null;
                     foreach (object dataSetState in writerGroupDataSetStates)
                     {
-                        object writerGroupLastDataSet = dataSetState.GetType()
+                        object writerGroupLastDataSet = dataSetState
+                            .GetType()
                             .GetField("LastDataSet", BindingFlags.Instance | BindingFlags.Public)
                             .GetValue(dataSetState);
                         if (writerGroupLastDataSet != null)
                         {
-                            string dataSetName = writerGroupLastDataSet.GetType()
-                                .GetProperty("Name", BindingFlags.Instance | BindingFlags.Public)
-                                .GetValue(writerGroupLastDataSet) as string;
-                            if (!string.IsNullOrEmpty(dataSetName) &&
-                                datasetMessage.DataSet.Name == dataSetName)
+                            string dataSetName =
+                                writerGroupLastDataSet
+                                    .GetType()
+                                    .GetProperty("Name", BindingFlags.Instance | BindingFlags.Public)
+                                    .GetValue(writerGroupLastDataSet) as string;
+                            if (!string.IsNullOrEmpty(dataSetName) && datasetMessage.DataSet.Name == dataSetName)
                             {
                                 lastDataSetFound = writerGroupLastDataSet as DataSet;
                             }
@@ -254,21 +341,44 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                     int fieldIndex = 0;
                     foreach (Field field in datasetMessage.DataSet.Fields)
                     {
-                        // ghost field should still be hold it in the state.LastDataSet 
+                        // ghost field should still be hold it in the state.LastDataSet
                         Field lastDataSetField = lastDataSetFound.Fields[fieldIndex++];
-                        Assert.IsNotNull(lastDataSetField, "lastDataSetField should not be null even if the partial field is missing due to delta");
+                        Assert.IsNotNull(
+                            lastDataSetField,
+                            "lastDataSetField should not be null even if the partial field is missing due to delta"
+                        );
                         // for delta frames dataset might contains partial filled data
                         if (field == null)
                         {
                             continue;
                         }
-                        var targetNodeId = new NodeId(field.FieldMetaData.Name, NamespaceIndexAllTypes);
-                        Assert.IsTrue(dataStoreData.ContainsKey(targetNodeId), "field name: '{0}' should be exists in partial received dataset", field.FieldMetaData.Name);
-                        Assert.IsNotNull(dataStoreData[targetNodeId], "field: '{0}' should not be null", field.FieldMetaData.Name);
-                        Assert.AreEqual(field.Value.Value, dataStoreData[targetNodeId].Value, "field: '{0}' value: {1} should be equal to datastore value: {2}",
-                            field.FieldMetaData.Name, field.Value, dataStoreData[targetNodeId].Value);
-                        Assert.AreEqual(lastDataSetField.Value.Value, dataStoreData[targetNodeId].Value, "lastDataSetField: '{0}' value: {1} should be equal to datastore value: {2}",
-                            lastDataSetField.FieldMetaData.Name, lastDataSetField.Value, dataStoreData[targetNodeId].Value);
+                        var targetNodeId = new NodeId(field.FieldMetaData.Name, kNamespaceIndexAllTypes);
+                        Assert.IsTrue(
+                            dataStoreData.ContainsKey(targetNodeId),
+                            "field name: '{0}' should be exists in partial received dataset",
+                            field.FieldMetaData.Name
+                        );
+                        Assert.IsNotNull(
+                            dataStoreData[targetNodeId],
+                            "field: '{0}' should not be null",
+                            field.FieldMetaData.Name
+                        );
+                        Assert.AreEqual(
+                            field.Value.Value,
+                            dataStoreData[targetNodeId].Value,
+                            "field: '{0}' value: {1} should be equal to datastore value: {2}",
+                            field.FieldMetaData.Name,
+                            field.Value,
+                            dataStoreData[targetNodeId].Value
+                        );
+                        Assert.AreEqual(
+                            lastDataSetField.Value.Value,
+                            dataStoreData[targetNodeId].Value,
+                            "lastDataSetField: '{0}' value: {1} should be equal to datastore value: {2}",
+                            lastDataSetField.FieldMetaData.Name,
+                            lastDataSetField.Value,
+                            dataStoreData[targetNodeId].Value
+                        );
                     }
                 }
                 else
@@ -276,12 +386,30 @@ namespace Opc.Ua.PubSub.Tests.PublishedData
                     Assert.AreEqual(keyFrameCount, 1, "keyFrameCount = 1 if dataset is not delta!");
                     foreach (Field field in datasetMessage.DataSet.Fields)
                     {
-                        Assert.IsNotNull(field, "field {0}: should not be null if dataset is not delta!", field.FieldMetaData.Name);
-                        var targetNodeId = new NodeId(field.FieldMetaData.Name, NamespaceIndexAllTypes);
-                        Assert.IsTrue(dataStoreData.ContainsKey(targetNodeId), "field name: {0} should be exists in partial received dataset", field.FieldMetaData.Name);
-                        Assert.IsNotNull(dataStoreData[targetNodeId], "field {0}: should not be null", field.FieldMetaData.Name);
-                        Assert.AreEqual(field.Value.Value, dataStoreData[targetNodeId].Value, "field: '{0}' value: {1} should be equal to datastore value: {2}",
-                            field.FieldMetaData.Name, field.Value, dataStoreData[targetNodeId].Value);
+                        Assert.IsNotNull(
+                            field,
+                            "field {0}: should not be null if dataset is not delta!",
+                            field.FieldMetaData.Name
+                        );
+                        var targetNodeId = new NodeId(field.FieldMetaData.Name, kNamespaceIndexAllTypes);
+                        Assert.IsTrue(
+                            dataStoreData.ContainsKey(targetNodeId),
+                            "field name: {0} should be exists in partial received dataset",
+                            field.FieldMetaData.Name
+                        );
+                        Assert.IsNotNull(
+                            dataStoreData[targetNodeId],
+                            "field {0}: should not be null",
+                            field.FieldMetaData.Name
+                        );
+                        Assert.AreEqual(
+                            field.Value.Value,
+                            dataStoreData[targetNodeId].Value,
+                            "field: '{0}' value: {1} should be equal to datastore value: {2}",
+                            field.FieldMetaData.Name,
+                            field.Value,
+                            dataStoreData[targetNodeId].Value
+                        );
                     }
                 }
             }

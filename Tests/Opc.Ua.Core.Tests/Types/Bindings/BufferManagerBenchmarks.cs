@@ -129,6 +129,7 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
                 m_arrayPool.Return(buffer);
             }
         }
+
         /// <summary>
         /// Benchmark Buffer allocation.
         /// </summary>

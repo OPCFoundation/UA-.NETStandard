@@ -36,7 +36,8 @@ namespace Opc.Ua.Security
             EndpointDescription endpoint,
             X509Certificate2 clientCertificate,
             X509Certificate2 serverCertificate,
-            BinaryEncodingSupport encodingSupport)
+            BinaryEncodingSupport encodingSupport
+        )
         {
             // do nothing if security turned off.
             if ((Utils.TraceMask & Utils.TraceMasks.Security) == 0)
@@ -60,9 +61,15 @@ namespace Opc.Ua.Security
                     encoding = "BinaryOrXml";
                 }
 
-                Utils.LogInfo("SECURE CHANNEL CREATED [{0}] [ID={1}] Connected To: {2} [{3}/{4}/{5}]",
-                    implementationInfo, secureChannelId, endpointUrl,
-                    endpoint.SecurityMode.ToString(), SecurityPolicies.GetDisplayName(endpoint.SecurityPolicyUri), encoding);
+                Utils.LogInfo(
+                    "SECURE CHANNEL CREATED [{0}] [ID={1}] Connected To: {2} [{3}/{4}/{5}]",
+                    implementationInfo,
+                    secureChannelId,
+                    endpointUrl,
+                    endpoint.SecurityMode.ToString(),
+                    SecurityPolicies.GetDisplayName(endpoint.SecurityPolicyUri),
+                    encoding
+                );
 
                 if (endpoint.SecurityMode != MessageSecurityMode.None)
                 {
@@ -72,7 +79,12 @@ namespace Opc.Ua.Security
             }
             else
             {
-                Utils.LogInfo("SECURE CHANNEL CREATED [{0}] [ID={1}] Connected To: {2}", implementationInfo, secureChannelId, endpointUrl);
+                Utils.LogInfo(
+                    "SECURE CHANNEL CREATED [{0}] [ID={1}] Connected To: {2}",
+                    implementationInfo,
+                    secureChannelId,
+                    endpointUrl
+                );
             }
         }
 
@@ -81,9 +93,7 @@ namespace Opc.Ua.Security
         /// </summary>
         /// <param name="implementationInfo">Information about the secure channel implementation.</param>
         /// <param name="secureChannelId">The identifier assigned to the secure channel.</param>
-        public static void SecureChannelRenewed(
-            string implementationInfo,
-            string secureChannelId)
+        public static void SecureChannelRenewed(string implementationInfo, string secureChannelId)
         {
             // do nothing if security turned off.
             if ((Utils.TraceMask & Utils.TraceMasks.Security) == 0)

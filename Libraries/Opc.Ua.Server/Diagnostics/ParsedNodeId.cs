@@ -88,7 +88,7 @@ namespace Opc.Ua.Server
                 NamespaceIndex = nodeId.NamespaceIndex,
 
                 // extract the type of identifier.
-                RootType = 0
+                RootType = 0,
             };
 
             int start = 0;
@@ -154,13 +154,18 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Constructs a node identifier from the component pieces.
         /// </summary>
-        public static NodeId Construct(int rootType, string rootId, ushort namespaceIndex, params string[] componentNames)
+        public static NodeId Construct(
+            int rootType,
+            string rootId,
+            ushort namespaceIndex,
+            params string[] componentNames
+        )
         {
             var pnd = new ParsedNodeId
             {
                 RootType = rootType,
                 RootId = rootId,
-                NamespaceIndex = namespaceIndex
+                NamespaceIndex = namespaceIndex,
             };
 
             if (componentNames != null)

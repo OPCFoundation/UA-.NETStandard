@@ -348,7 +348,11 @@ namespace Opc.Ua
             // oops - not found.
             if (namespaceIndex < 0)
             {
-                throw ServiceResultException.Create(StatusCodes.BadBrowseNameInvalid, "NamespaceUri ({0}) is not in the NamespaceTable.", namespaceUri);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadBrowseNameInvalid,
+                    "NamespaceUri ({0}) is not in the NamespaceTable.",
+                    namespaceUri
+                );
             }
 
             // return the name.
@@ -443,15 +447,23 @@ namespace Opc.Ua
 
                 if (index < 0)
                 {
-                    throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, $"Invalid QualifiedName ({originalText}).");
+                    throw new ServiceResultException(
+                        StatusCodes.BadNodeIdInvalid,
+                        $"Invalid QualifiedName ({originalText})."
+                    );
                 }
 
                 string namespaceUri = Utils.UnescapeUri(text.AsSpan()[4..index]);
-                namespaceIndex = updateTables ? context.NamespaceUris.GetIndexOrAppend(namespaceUri) : context.NamespaceUris.GetIndex(namespaceUri);
+                namespaceIndex = updateTables
+                    ? context.NamespaceUris.GetIndexOrAppend(namespaceUri)
+                    : context.NamespaceUris.GetIndex(namespaceUri);
 
                 if (namespaceIndex < 0)
                 {
-                    throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, $"No mapping to NamespaceIndex for NamespaceUri ({namespaceUri}).");
+                    throw new ServiceResultException(
+                        StatusCodes.BadNodeIdInvalid,
+                        $"No mapping to NamespaceIndex for NamespaceUri ({namespaceUri})."
+                    );
                 }
 
                 text = text[(index + 1)..];
@@ -468,7 +480,10 @@ namespace Opc.Ua
                     }
                     else
                     {
-                        throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, $"Invalid QualifiedName ({originalText}).");
+                        throw new ServiceResultException(
+                            StatusCodes.BadNodeIdInvalid,
+                            $"Invalid QualifiedName ({originalText})."
+                        );
                     }
                 }
 
@@ -582,13 +597,15 @@ namespace Opc.Ua
         /// Initializes the collection from another collection.
         /// </summary>
         /// <param name="collection">The enumerated collection of qualified names to add to this new collection</param>
-        public QualifiedNameCollection(IEnumerable<QualifiedName> collection) : base(collection) { }
+        public QualifiedNameCollection(IEnumerable<QualifiedName> collection)
+            : base(collection) { }
 
         /// <summary>
         /// Initializes the collection with the specified capacity.
         /// </summary>
         /// <param name="capacity">Max capacity of this collection</param>
-        public QualifiedNameCollection(int capacity) : base(capacity) { }
+        public QualifiedNameCollection(int capacity)
+            : base(capacity) { }
 
         /// <summary>
         /// Converts an array to a collection.
@@ -633,5 +650,5 @@ namespace Opc.Ua
 
             return clone;
         }
-    }//class
-}//namespace
+    } //class
+} //namespace

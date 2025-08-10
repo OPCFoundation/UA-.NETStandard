@@ -29,8 +29,8 @@ namespace Opc.Ua
         }
 
         /// <summary>
-		/// The value for the argument.
-		/// </summary>
-		public object Value { get; set; }
+        /// The value for the argument.
+        /// </summary>
+        public object Value { get; set; }
     }
 }

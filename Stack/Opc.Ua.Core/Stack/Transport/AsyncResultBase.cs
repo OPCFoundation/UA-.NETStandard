@@ -27,9 +27,7 @@ namespace Opc.Ua
         /// <param name="callbackData">The callback data.</param>
         /// <param name="timeout">The timeout for the operation.</param>
         public AsyncResultBase(AsyncCallback callback, object callbackData, int timeout)
-            : this(callback, callbackData, timeout, null)
-        {
-        }
+            : this(callback, callbackData, timeout, null) { }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="AsyncResultBase"/> class.
@@ -169,10 +167,7 @@ namespace Opc.Ua
                         return true;
                     }
 
-                    if (m_waitHandle == null)
-                    {
-                        m_waitHandle = new ManualResetEvent(false);
-                    }
+                    m_waitHandle ??= new ManualResetEvent(false);
 
                     waitHandle = m_waitHandle;
                 }
@@ -330,10 +325,7 @@ namespace Opc.Ua
             {
                 lock (Lock)
                 {
-                    if (m_waitHandle == null)
-                    {
-                        m_waitHandle = new ManualResetEvent(false);
-                    }
+                    m_waitHandle ??= new ManualResetEvent(false);
 
                     return m_waitHandle;
                 }

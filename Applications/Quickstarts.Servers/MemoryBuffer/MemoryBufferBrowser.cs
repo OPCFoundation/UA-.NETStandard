@@ -50,9 +50,9 @@ namespace MemoryBuffer
             QualifiedName browseName,
             IEnumerable<IReference> additionalReferences,
             bool internalOnly,
-            MemoryBufferState buffer)
-        :
-            base(
+            MemoryBufferState buffer
+        )
+            : base(
                 context,
                 view,
                 referenceType,
@@ -60,7 +60,8 @@ namespace MemoryBuffer
                 browseDirection,
                 browseName,
                 additionalReferences,
-                internalOnly)
+                internalOnly
+            )
         {
             m_buffer = buffer;
             m_stage = Stage.Begin;
@@ -160,7 +161,6 @@ namespace MemoryBuffer
                 tag = new MemoryTagState(m_buffer, m_position);
                 m_position = uint.MaxValue;
             }
-
             // return the child at the next position.
             else
             {
@@ -190,7 +190,7 @@ namespace MemoryBuffer
             Begin,
             Components,
             ModelParents,
-            Done
+            Done,
         }
 
         private Stage m_stage;

@@ -49,7 +49,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         private byte[] m_signature;
         private RSA m_rsaPrivateKey;
         private RSA m_rsaPublicKey;
-        private static readonly string[] domainNames = ["mypc", "mypc.opcfoundation.org", "192.168.1.100"];
+        private static readonly string[] s_domainNames = ["mypc", "mypc.opcfoundation.org", "192.168.1.100"];
 
         /// <summary>
         /// Setup variables for running benchmarks.
@@ -57,19 +57,17 @@ namespace Opc.Ua.Security.Certificates.Tests
         [GlobalSetup]
         public void GlobalSetup()
         {
-            m_issuerCert = CertificateBuilder.Create("CN=Root CA")
-                            .SetCAConstraint()
-                            .CreateForRSA();
-            m_certificate = CertificateBuilder.Create("CN=TestCert")
+            m_issuerCert = CertificateBuilder.Create("CN=Root CA").SetCAConstraint().CreateForRSA();
+            m_certificate = CertificateBuilder
+                .Create("CN=TestCert")
                 .SetNotBefore(DateTime.Today.AddDays(-1))
-                .AddExtension(
-                    new X509SubjectAltNameExtension("urn:opcfoundation.org:mypc",
-                    domainNames))
+                .AddExtension(new X509SubjectAltNameExtension("urn:opcfoundation.org:mypc", s_domainNames))
                 .CreateForRSA();
 
-            CrlBuilder crlBuilder = CrlBuilder.Create(m_issuerCert.SubjectName, HashAlgorithmName.SHA256)
-                           .SetThisUpdate(DateTime.UtcNow.Date)
-                           .SetNextUpdate(DateTime.UtcNow.Date.AddDays(30));
+            CrlBuilder crlBuilder = CrlBuilder
+                .Create(m_issuerCert.SubjectName, HashAlgorithmName.SHA256)
+                .SetThisUpdate(DateTime.UtcNow.Date)
+                .SetNextUpdate(DateTime.UtcNow.Date.AddDays(30));
             var revokedarray = new RevokedCertificate(m_certificate.SerialNumber);
             crlBuilder.RevokedCertificates.Add(revokedarray);
             crlBuilder.CrlExtensions.Add(X509Extensions.BuildCRLNumber(1));
@@ -87,7 +85,11 @@ namespace Opc.Ua.Security.Certificates.Tests
             random.NextBytes(m_randomByteArray);
 
             m_encryptedByteArray = m_rsaPublicKey.Encrypt(m_randomByteArray, RSAEncryptionPadding.OaepSHA256);
-            m_signature = m_rsaPrivateKey.SignData(m_randomByteArray, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            m_signature = m_rsaPrivateKey.SignData(
+                m_randomByteArray,
+                HashAlgorithmName.SHA256,
+                RSASignaturePadding.Pkcs1
+            );
         }
 
         /// <summary>
@@ -173,8 +175,12 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Benchmark]
         public void VerifySHA256PKCS1()
         {
-            _ = m_rsaPublicKey.VerifyData(m_randomByteArray, m_signature,
-                HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            _ = m_rsaPublicKey.VerifyData(
+                m_randomByteArray,
+                m_signature,
+                HashAlgorithmName.SHA256,
+                RSASignaturePadding.Pkcs1
+            );
         }
 
         /// <summary>
@@ -183,8 +189,7 @@ namespace Opc.Ua.Security.Certificates.Tests
         [Benchmark]
         public void SignSHA256PKCS1()
         {
-            _ = m_rsaPrivateKey.SignData(m_randomByteArray,
-                HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            _ = m_rsaPrivateKey.SignData(m_randomByteArray, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         }
 
         /// <summary>
@@ -207,7 +212,8 @@ namespace Opc.Ua.Security.Certificates.Tests
             byte[] serial = [1, 2, 3];
             var revokedarray = new RevokedCertificate(serial);
 
-            CrlBuilder crlBuilder = CrlBuilder.Create(m_issuerCert.SubjectName, HashAlgorithmName.SHA256)
+            CrlBuilder crlBuilder = CrlBuilder
+                .Create(m_issuerCert.SubjectName, HashAlgorithmName.SHA256)
                 .SetThisUpdate(DateTime.UtcNow.Date)
                 .SetNextUpdate(DateTime.UtcNow.Date.AddDays(30));
             crlBuilder.RevokedCertificates.Add(revokedarray);

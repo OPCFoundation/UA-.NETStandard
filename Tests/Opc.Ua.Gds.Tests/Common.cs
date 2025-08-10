@@ -78,12 +78,14 @@ namespace Opc.Ua.Gds.Tests
                             appRecord.ProductUri = DataGenerator.GetRandomString();
                             break;
                         case 3:
-                            appRecord.DiscoveryUrls = appRecord.ApplicationType == ApplicationType.Client ?
-                                RandomDiscoveryUrl(["xxxyyyzzz"], RandomSource.NextInt32(0x7fff), "TestClient") : null;
+                            appRecord.DiscoveryUrls =
+                                appRecord.ApplicationType == ApplicationType.Client
+                                    ? RandomDiscoveryUrl(["xxxyyyzzz"], RandomSource.NextInt32(0x7fff), "TestClient")
+                                    : null;
                             break;
                         case 4:
-                            appRecord.ServerCapabilities = appRecord.ApplicationType == ApplicationType.Client ?
-                                RandomServerCapabilities() : null;
+                            appRecord.ServerCapabilities =
+                                appRecord.ApplicationType == ApplicationType.Client ? RandomServerCapabilities() : null;
                             break;
                         case 5:
                             appRecord.ApplicationId = new NodeId(100);
@@ -95,7 +97,11 @@ namespace Opc.Ua.Gds.Tests
             return testDataSet;
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "SYSLIB1045:Convert to 'GeneratedRegexAttribute'.", Justification = "Tests")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Performance",
+            "SYSLIB1045:Convert to 'GeneratedRegexAttribute'.",
+            Justification = "Tests"
+        )]
         private ApplicationTestData RandomApplicationTestData()
         {
             // TODO: set to discoveryserver
@@ -108,7 +114,11 @@ namespace Opc.Ua.Gds.Tests
             string localhost = domainNames[0];
             string locale = RandomSource.NextInt32(10) == 0 ? null : "en-US";
             string privateKeyFormat = RandomSource.NextInt32(1) == 0 ? "PEM" : "PFX";
-            string appUri = ("urn:localhost:opcfoundation.org:" + pureAppUri.ToLower()).Replace("localhost", localhost, StringComparison.Ordinal);
+            string appUri = ("urn:localhost:opcfoundation.org:" + pureAppUri.ToLower()).Replace(
+                "localhost",
+                localhost,
+                StringComparison.Ordinal
+            );
             string prodUri = "http://opcfoundation.org/UA/" + pureAppUri;
             var discoveryUrls = new StringCollection();
             var serverCapabilities = new StringCollection();
@@ -141,11 +151,11 @@ namespace Opc.Ua.Gds.Tests
                     ApplicationType = appType,
                     ProductUri = prodUri,
                     DiscoveryUrls = discoveryUrls,
-                    ServerCapabilities = serverCapabilities
+                    ServerCapabilities = serverCapabilities,
                 },
                 DomainNames = domainNames,
                 Subject = Utils.Format("CN={0},DC={1},O=OPC Foundation", appName, localhost),
-                PrivateKeyFormat = privateKeyFormat
+                PrivateKeyFormat = privateKeyFormat,
             };
         }
 
@@ -167,7 +177,11 @@ namespace Opc.Ua.Gds.Tests
             return serverCapabilities;
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "SYSLIB1045:Convert to 'GeneratedRegexAttribute'.", Justification = "Test")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Performance",
+            "SYSLIB1045:Convert to 'GeneratedRegexAttribute'.",
+            Justification = "Test"
+        )]
         private string RandomLocalHost()
         {
             string localhost = Regex.Replace(DataGenerator.GetRandomSymbol("en").Trim().ToLower(), @"[^\w\d]", "");
@@ -197,15 +211,31 @@ namespace Opc.Ua.Gds.Tests
                 int random = RandomSource.NextInt32(7);
                 if ((result.Count == 0) || (random & 1) == 0)
                 {
-                    result.Add(Utils.Format("opc.tcp://{0}:{1}/{2}", name, port++.ToString(CultureInfo.InvariantCulture), appUri));
+                    result.Add(
+                        Utils.Format(
+                            "opc.tcp://{0}:{1}/{2}",
+                            name,
+                            port++.ToString(CultureInfo.InvariantCulture),
+                            appUri
+                        )
+                    );
                 }
                 if ((random & 2) == 0)
                 {
-                    result.Add(Utils.Format("http://{0}:{1}/{2}", name, port++.ToString(CultureInfo.InvariantCulture), appUri));
+                    result.Add(
+                        Utils.Format("http://{0}:{1}/{2}", name, port++.ToString(CultureInfo.InvariantCulture), appUri)
+                    );
                 }
                 if ((random & 4) == 0)
                 {
-                    result.Add(Utils.Format("opc.https://{0}:{1}/{2}", name, port++.ToString(CultureInfo.InvariantCulture), appUri));
+                    result.Add(
+                        Utils.Format(
+                            "opc.https://{0}:{1}/{2}",
+                            name,
+                            port++.ToString(CultureInfo.InvariantCulture),
+                            appUri
+                        )
+                    );
                 }
             }
             return result;
@@ -275,7 +305,10 @@ namespace Opc.Ua.Gds.Tests
                 {
                     ConsoleKeyInfo result = Console.ReadKey();
                     Console.WriteLine();
-                    return await Task.FromResult((result.KeyChar == 'y') || (result.KeyChar == 'Y') || (result.KeyChar == '\r')).ConfigureAwait(false);
+                    return await Task.FromResult(
+                            (result.KeyChar == 'y') || (result.KeyChar == 'Y') || (result.KeyChar == '\r')
+                        )
+                        .ConfigureAwait(false);
                 }
                 catch
                 {
@@ -292,7 +325,9 @@ namespace Opc.Ua.Gds.Tests
 
         public static async Task CleanupTrustList(ICertificateStore store, bool dispose = true)
         {
-            System.Security.Cryptography.X509Certificates.X509Certificate2Collection certs = await store.EnumerateAsync().ConfigureAwait(false);
+            System.Security.Cryptography.X509Certificates.X509Certificate2Collection certs = await store
+                .EnumerateAsync()
+                .ConfigureAwait(false);
             foreach (System.Security.Cryptography.X509Certificates.X509Certificate2 cert in certs)
             {
                 await store.DeleteAsync(cert.Thumbprint).ConfigureAwait(false);
@@ -321,6 +356,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         private const int kMinPort = Utils.UaTcpDefaultPort;
+
         public static void PatchBaseAddressesPorts(ApplicationConfiguration config, int basePort)
         {
             if (basePort >= kMinPort && basePort <= ServerFixtureUtils.MaxTestPort)
@@ -328,10 +364,7 @@ namespace Opc.Ua.Gds.Tests
                 var newBaseAddresses = new StringCollection();
                 foreach (string baseAddress in config.ServerConfiguration.BaseAddresses)
                 {
-                    var baseAddressUri = new UriBuilder(baseAddress)
-                    {
-                        Port = basePort++
-                    };
+                    var baseAddressUri = new UriBuilder(baseAddress) { Port = basePort++ };
                     newBaseAddresses.Add(baseAddressUri.Uri.AbsoluteUri);
                 }
                 config.ServerConfiguration.BaseAddresses = newBaseAddresses;
@@ -352,7 +385,10 @@ namespace Opc.Ua.Gds.Tests
             return url;
         }
 
-        public static async Task<GlobalDiscoveryTestServer> StartGDS(bool clean, string storeType = CertificateStoreType.Directory)
+        public static async Task<GlobalDiscoveryTestServer> StartGDS(
+            bool clean,
+            string storeType = CertificateStoreType.Directory
+        )
         {
             GlobalDiscoveryTestServer server = null;
             int testPort = ServerFixtureUtils.GetNextFreeIPPort();
@@ -369,8 +405,7 @@ namespace Opc.Ua.Gds.Tests
                 {
                     serverStartRetries--;
                     testPort = s_random.Next(ServerFixtureUtils.MinTestPort, ServerFixtureUtils.MaxTestPort);
-                    if (serverStartRetries == 0 ||
-                        sre.StatusCode != StatusCodes.BadNoCommunication)
+                    if (serverStartRetries == 0 || sre.StatusCode != StatusCodes.BadNoCommunication)
                     {
                         throw;
                     }

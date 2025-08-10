@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -45,21 +45,17 @@ namespace Alarms
             SupportedAlarmConditionType alarmConditionType,
             Type controllerType,
             int interval,
-            bool optional) :
-            base(alarmNodeManager, parent, trigger, name, alarmConditionType, controllerType, interval, optional)
+            bool optional
+        )
+            : base(alarmNodeManager, parent, trigger, name, alarmConditionType, controllerType, interval, optional)
         {
             m_alarmConditionType = alarmConditionType;
         }
 
-        protected new void Initialize(
-            uint alarmTypeIdentifier,
-            string name)
+        protected new void Initialize(uint alarmTypeIdentifier, string name)
         {
-            if (m_alarm == null)
-            {
-                // this is invalid
-                m_alarm = new ConditionState(m_parent);
-            }
+            // this is invalid
+            m_alarm ??= new ConditionState(m_parent);
 
             ConditionState alarm = GetAlarm();
 
@@ -107,16 +103,22 @@ namespace Alarms
                 // This could be a transition between alarm states,
                 // or a transition to inactive
                 // So a branch can only be created when the severity changes
-                if (currentSeverity > AlarmDefines.INACTIVE_SEVERITY &&
-                    newSeverity != currentSeverity)
+                if (currentSeverity > AlarmDefines.INACTIVE_SEVERITY && newSeverity != currentSeverity)
                 {
                     NodeId branchId = GetNewBranchId();
                     ConditionState branch = alarm.CreateBranch(SystemContext, branchId);
 
                     string postEventId = Utils.ToHexString(branch.EventId.Value);
 
-                    Log("CreateBranch", " Branch " + branchId +
-                        " EventId " + postEventId + " created, Message " + alarm.Message.Value.Text);
+                    Log(
+                        "CreateBranch",
+                        " Branch "
+                            + branchId
+                            + " EventId "
+                            + postEventId
+                            + " created, Message "
+                            + alarm.Message.Value.Text
+                    );
 
                     m_alarmController.SetBranchCount(alarm.GetBranchCount());
                 }
@@ -147,10 +149,7 @@ namespace Alarms
 
         public void ReportEvent(ConditionState alarm = null)
         {
-            if (alarm == null)
-            {
-                alarm = GetAlarm();
-            }
+            alarm ??= GetAlarm();
 
             if (alarm.EnabledState.Id.Value)
             {
@@ -158,8 +157,13 @@ namespace Alarms
                 alarm.Time.Value = DateTime.UtcNow;
                 alarm.ReceiveTime.Value = alarm.Time.Value;
 
-                Log("ReportEvent", " Value " + m_alarmController.GetValue().ToString(CultureInfo.InvariantCulture) +
-                    " Message " + alarm.Message.Value.Text);
+                Log(
+                    "ReportEvent",
+                    " Value "
+                        + m_alarmController.GetValue().ToString(CultureInfo.InvariantCulture)
+                        + " Message "
+                        + alarm.Message.Value.Text
+                );
 
                 alarm.ClearChangeMasks(SystemContext, true);
 
@@ -246,10 +250,7 @@ namespace Alarms
 
         private ConditionState GetAlarm(BaseEventState alarm = null)
         {
-            if (alarm == null)
-            {
-                alarm = m_alarm;
-            }
+            alarm ??= m_alarm;
             return (ConditionState)alarm;
         }
 
@@ -270,10 +271,7 @@ namespace Alarms
             return " Requested Event " + Utils.ToHexString(eventId);
         }
 
-        public ServiceResult OnEnableDisableAlarm(
-            ISystemContext context,
-            ConditionState condition,
-            bool enabling)
+        public ServiceResult OnEnableDisableAlarm(ISystemContext context, ConditionState condition, bool enabling)
         {
             StatusCode status = StatusCodes.Good;
 
@@ -303,7 +301,8 @@ namespace Alarms
             ISystemContext context,
             ConditionState condition,
             byte[] eventId,
-            LocalizedText comment)
+            LocalizedText comment
+        )
         {
             ConditionState alarm = GetAlarm();
 

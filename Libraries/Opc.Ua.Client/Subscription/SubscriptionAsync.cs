@@ -54,21 +54,25 @@ namespace Opc.Ua.Client
 
             AdjustCounts(ref revisedMaxKeepAliveCount, ref revisedLifetimeCount);
 
-            CreateSubscriptionResponse response = await Session.CreateSubscriptionAsync(
-                null,
-                PublishingInterval,
-                revisedLifetimeCount,
-                revisedMaxKeepAliveCount,
-                MaxNotificationsPerPublish,
-                false,
-                Priority,
-                ct).ConfigureAwait(false);
+            CreateSubscriptionResponse response = await Session
+                .CreateSubscriptionAsync(
+                    null,
+                    PublishingInterval,
+                    revisedLifetimeCount,
+                    revisedMaxKeepAliveCount,
+                    MaxNotificationsPerPublish,
+                    false,
+                    Priority,
+                    ct
+                )
+                .ConfigureAwait(false);
 
             CreateSubscription(
                 response.SubscriptionId,
                 response.RevisedPublishingInterval,
                 response.RevisedMaxKeepAliveCount,
-                response.RevisedLifetimeCount);
+                response.RevisedLifetimeCount
+            );
 
             await CreateItemsAsync(ct).ConfigureAwait(false);
 
@@ -104,10 +108,9 @@ namespace Opc.Ua.Client
                 // delete the subscription.
                 UInt32Collection subscriptionIds = new uint[] { Id };
 
-                DeleteSubscriptionsResponse response = await Session.DeleteSubscriptionsAsync(
-                    null,
-                    subscriptionIds,
-                    ct).ConfigureAwait(false);
+                DeleteSubscriptionsResponse response = await Session
+                    .DeleteSubscriptionsAsync(null, subscriptionIds, ct)
+                    .ConfigureAwait(false);
 
                 // validate response.
                 ClientBase.ValidateResponse(response.Results, subscriptionIds);
@@ -116,10 +119,10 @@ namespace Opc.Ua.Client
                 if (StatusCode.IsBad(response.Results[0]))
                 {
                     throw new ServiceResultException(
-                        ClientBase.GetResult(response.Results[0], 0, response.DiagnosticInfos, response.ResponseHeader));
+                        ClientBase.GetResult(response.Results[0], 0, response.DiagnosticInfos, response.ResponseHeader)
+                    );
                 }
             }
-
             // suppress exception if silent flag is set.
             catch (Exception e)
             {
@@ -150,21 +153,25 @@ namespace Opc.Ua.Client
 
             AdjustCounts(ref revisedKeepAliveCount, ref revisedLifetimeCounter);
 
-            ModifySubscriptionResponse response = await Session.ModifySubscriptionAsync(
-                null,
-                Id,
-                PublishingInterval,
-                revisedLifetimeCounter,
-                revisedKeepAliveCount,
-                MaxNotificationsPerPublish,
-                Priority,
-                ct).ConfigureAwait(false);
+            ModifySubscriptionResponse response = await Session
+                .ModifySubscriptionAsync(
+                    null,
+                    Id,
+                    PublishingInterval,
+                    revisedLifetimeCounter,
+                    revisedKeepAliveCount,
+                    MaxNotificationsPerPublish,
+                    Priority,
+                    ct
+                )
+                .ConfigureAwait(false);
 
             // update current state.
             ModifySubscription(
                 response.RevisedPublishingInterval,
                 response.RevisedMaxKeepAliveCount,
-                response.RevisedLifetimeCount);
+                response.RevisedLifetimeCount
+            );
 
             ChangesCompleted();
         }
@@ -179,11 +186,9 @@ namespace Opc.Ua.Client
             // modify the subscription.
             UInt32Collection subscriptionIds = new uint[] { Id };
 
-            SetPublishingModeResponse response = await Session.SetPublishingModeAsync(
-                null,
-                enabled,
-                new uint[] { Id },
-                ct).ConfigureAwait(false);
+            SetPublishingModeResponse response = await Session
+                .SetPublishingModeAsync(null, enabled, new uint[] { Id }, ct)
+                .ConfigureAwait(false);
 
             // validate response.
             ClientBase.ValidateResponse(response.Results, subscriptionIds);
@@ -192,7 +197,8 @@ namespace Opc.Ua.Client
             if (StatusCode.IsBad(response.Results[0]))
             {
                 throw new ServiceResultException(
-                    ClientBase.GetResult(response.Results[0], 0, response.DiagnosticInfos, response.ResponseHeader));
+                    ClientBase.GetResult(response.Results[0], 0, response.DiagnosticInfos, response.ResponseHeader)
+                );
             }
 
             // update current state.
@@ -209,11 +215,9 @@ namespace Opc.Ua.Client
         {
             VerifySubscriptionState(true);
 
-            RepublishResponse response = await Session.RepublishAsync(
-                null,
-                Id,
-                sequenceNumber,
-                ct).ConfigureAwait(false);
+            RepublishResponse response = await Session
+                .RepublishAsync(null, Id, sequenceNumber, ct)
+                .ConfigureAwait(false);
 
             return response.NotificationMessage;
         }
@@ -248,10 +252,9 @@ namespace Opc.Ua.Client
             }
 
             // translate browse paths.
-            TranslateBrowsePathsToNodeIdsResponse response = await Session.TranslateBrowsePathsToNodeIdsAsync(
-                null,
-                browsePaths,
-                ct).ConfigureAwait(false);
+            TranslateBrowsePathsToNodeIdsResponse response = await Session
+                .TranslateBrowsePathsToNodeIdsAsync(null, browsePaths, ct)
+                .ConfigureAwait(false);
 
             BrowsePathResultCollection results = response.Results;
             ClientBase.ValidateResponse(results, browsePaths);
@@ -260,7 +263,8 @@ namespace Opc.Ua.Client
             // update results.
             for (int ii = 0; ii < results.Count; ii++)
             {
-                itemsToBrowse[ii].SetResolvePathResult(results[ii], ii, response.DiagnosticInfos, response.ResponseHeader);
+                itemsToBrowse[ii]
+                    .SetResolvePathResult(results[ii], ii, response.DiagnosticInfos, response.ResponseHeader);
             }
 
             m_changeMask |= SubscriptionChangeMask.ItemsModified;
@@ -280,12 +284,9 @@ namespace Opc.Ua.Client
             }
 
             // create monitored items.
-            CreateMonitoredItemsResponse response = await Session.CreateMonitoredItemsAsync(
-                null,
-                Id,
-                TimestampsToReturn,
-                requestItems,
-                ct).ConfigureAwait(false);
+            CreateMonitoredItemsResponse response = await Session
+                .CreateMonitoredItemsAsync(null, Id, TimestampsToReturn, requestItems, ct)
+                .ConfigureAwait(false);
 
             MonitoredItemCreateResultCollection results = response.Results;
             ClientBase.ValidateResponse(results, itemsToCreate);
@@ -294,7 +295,14 @@ namespace Opc.Ua.Client
             // update results.
             for (int ii = 0; ii < results.Count; ii++)
             {
-                itemsToCreate[ii].SetCreateResult(requestItems[ii], results[ii], ii, response.DiagnosticInfos, response.ResponseHeader);
+                itemsToCreate[ii]
+                    .SetCreateResult(
+                        requestItems[ii],
+                        results[ii],
+                        ii,
+                        response.DiagnosticInfos,
+                        response.ResponseHeader
+                    );
             }
 
             m_changeMask |= SubscriptionChangeMask.ItemsCreated;
@@ -322,12 +330,9 @@ namespace Opc.Ua.Client
             }
 
             // modify the subscription.
-            ModifyMonitoredItemsResponse response = await Session.ModifyMonitoredItemsAsync(
-                null,
-                Id,
-                TimestampsToReturn,
-                requestItems,
-                ct).ConfigureAwait(false);
+            ModifyMonitoredItemsResponse response = await Session
+                .ModifyMonitoredItemsAsync(null, Id, TimestampsToReturn, requestItems, ct)
+                .ConfigureAwait(false);
 
             MonitoredItemModifyResultCollection results = response.Results;
             ClientBase.ValidateResponse(results, itemsToModify);
@@ -336,7 +341,14 @@ namespace Opc.Ua.Client
             // update results.
             for (int ii = 0; ii < results.Count; ii++)
             {
-                itemsToModify[ii].SetModifyResult(requestItems[ii], results[ii], ii, response.DiagnosticInfos, response.ResponseHeader);
+                itemsToModify[ii]
+                    .SetModifyResult(
+                        requestItems[ii],
+                        results[ii],
+                        ii,
+                        response.DiagnosticInfos,
+                        response.ResponseHeader
+                    );
             }
 
             m_changeMask |= SubscriptionChangeMask.ItemsModified;
@@ -368,11 +380,9 @@ namespace Opc.Ua.Client
                 monitoredItemIds.Add(monitoredItem.Status.Id);
             }
 
-            DeleteMonitoredItemsResponse response = await Session.DeleteMonitoredItemsAsync(
-                null,
-                Id,
-                monitoredItemIds,
-                ct).ConfigureAwait(false);
+            DeleteMonitoredItemsResponse response = await Session
+                .DeleteMonitoredItemsAsync(null, Id, monitoredItemIds, ct)
+                .ConfigureAwait(false);
 
             StatusCodeCollection results = response.Results;
             ClientBase.ValidateResponse(results, monitoredItemIds);
@@ -397,7 +407,8 @@ namespace Opc.Ua.Client
         public async Task<List<ServiceResult>> SetMonitoringModeAsync(
             MonitoringMode monitoringMode,
             IList<MonitoredItem> monitoredItems,
-            CancellationToken ct = default)
+            CancellationToken ct = default
+        )
         {
             if (monitoredItems == null)
             {
@@ -418,12 +429,9 @@ namespace Opc.Ua.Client
                 monitoredItemIds.Add(monitoredItem.Status.Id);
             }
 
-            SetMonitoringModeResponse response = await Session.SetMonitoringModeAsync(
-                null,
-                Id,
-                monitoringMode,
-                monitoredItemIds,
-                ct).ConfigureAwait(false);
+            SetMonitoringModeResponse response = await Session
+                .SetMonitoringModeAsync(null, Id, monitoringMode, monitoredItemIds, ct)
+                .ConfigureAwait(false);
 
             StatusCodeCollection results = response.Results;
             ClientBase.ValidateResponse(results, monitoredItemIds);
@@ -432,9 +440,13 @@ namespace Opc.Ua.Client
             // update results.
             var errors = new List<ServiceResult>();
             bool noErrors = UpdateMonitoringMode(
-                monitoredItems, errors, results,
-                response.DiagnosticInfos, response.ResponseHeader,
-                monitoringMode);
+                monitoredItems,
+                errors,
+                results,
+                response.DiagnosticInfos,
+                response.ResponseHeader,
+                monitoringMode
+            );
 
             // raise state changed event.
             m_changeMask |= SubscriptionChangeMask.ItemsModified;
@@ -456,18 +468,17 @@ namespace Opc.Ua.Client
         {
             VerifySubscriptionState(true);
 
-            var methodsToCall = new CallMethodRequestCollection {
-                new CallMethodRequest() {
+            var methodsToCall = new CallMethodRequestCollection
+            {
+                new CallMethodRequest()
+                {
                     ObjectId = ObjectTypeIds.ConditionType,
                     MethodId = MethodIds.ConditionType_ConditionRefresh,
-                    InputArguments = [new Variant(Id)]
-                }
+                    InputArguments = [new Variant(Id)],
+                },
             };
 
-            CallResponse response = await Session.CallAsync(
-                null,
-                methodsToCall,
-                ct).ConfigureAwait(false);
+            CallResponse response = await Session.CallAsync(null, methodsToCall, ct).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -478,20 +489,17 @@ namespace Opc.Ua.Client
         {
             VerifySubscriptionState(true);
 
-            var methodsToCall = new CallMethodRequestCollection {
-                new CallMethodRequest() {
+            var methodsToCall = new CallMethodRequestCollection
+            {
+                new CallMethodRequest()
+                {
                     ObjectId = ObjectTypeIds.ConditionType,
                     MethodId = MethodIds.ConditionType_ConditionRefresh2,
-                    InputArguments = [
-                    new Variant(Id),
-                    new Variant( monitoredItemId ) ]
-                }
+                    InputArguments = [new Variant(Id), new Variant(monitoredItemId)],
+                },
             };
 
-            CallResponse response = await Session.CallAsync(
-                null,
-                methodsToCall,
-                ct).ConfigureAwait(false);
+            CallResponse response = await Session.CallAsync(null, methodsToCall, ct).ConfigureAwait(false);
         }
     }
 }

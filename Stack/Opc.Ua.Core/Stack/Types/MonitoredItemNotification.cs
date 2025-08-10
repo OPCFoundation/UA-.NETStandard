@@ -15,7 +15,7 @@ namespace Opc.Ua
     /// <summary>
     /// A datachange returned in a NotificationMessage.
     /// </summary>
-	public partial class MonitoredItemNotification
+    public partial class MonitoredItemNotification
     {
         /// <summary>
         /// The notification message that the item belongs to.

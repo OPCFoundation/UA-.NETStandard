@@ -34,7 +34,8 @@ namespace Opc.Ua
         /// </summary>
         public NumericRange ParsedIndexRange
         {
-            get => m_parsedIndexRange; set => m_parsedIndexRange = value;
+            get => m_parsedIndexRange;
+            set => m_parsedIndexRange = value;
         }
 
         /// <summary>
@@ -81,9 +82,12 @@ namespace Opc.Ua
                     {
                         // Check for String or ByteString arrays. Those DataTypes have special handling
                         // when using sub ranges.
-                        bool isArrayWithValidDataType = (value.Value.Value is Array &&
-                            value.Value.WrappedValue.TypeInfo.BuiltInType == BuiltInType.String) ||
-                            value.Value.WrappedValue.TypeInfo.BuiltInType == BuiltInType.ByteString;
+                        bool isArrayWithValidDataType =
+                            (
+                                value.Value.Value is Array
+                                && value.Value.WrappedValue.TypeInfo.BuiltInType == BuiltInType.String
+                            )
+                            || value.Value.WrappedValue.TypeInfo.BuiltInType == BuiltInType.ByteString;
 
                         if (!isArrayWithValidDataType)
                         {

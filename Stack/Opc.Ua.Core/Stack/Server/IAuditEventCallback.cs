@@ -33,24 +33,21 @@ namespace Opc.Ua
             EndpointDescription endpointDescription,
             OpenSecureChannelRequest request,
             X509Certificate2 clientCertificate,
-            Exception exception);
+            Exception exception
+        );
 
         /// <summary>
         /// Report the close secure channel audit event.
         /// </summary>
         /// <param name="globalChannelId">The global unique channel id.</param>
         /// <param name="exception">The exception resulted from the open secure channel request.</param>
-        void ReportAuditCloseSecureChannelEvent(
-            string globalChannelId,
-            Exception exception);
+        void ReportAuditCloseSecureChannelEvent(string globalChannelId, Exception exception);
 
         /// <summary>
         /// Report certificate audit event.
         /// </summary>
         /// <param name="clientCertificate">The client certificate.</param>
         /// <param name="exception">The Exception that triggers a certificate audit event.</param>
-        void ReportAuditCertificateEvent(
-            X509Certificate2 clientCertificate,
-            Exception exception);
+        void ReportAuditCertificateEvent(X509Certificate2 clientCertificate, Exception exception);
     }
 }

@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2020 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -55,10 +55,34 @@ namespace Quickstarts.ConsoleReferencePublisher
         private PublishedDataSetDataTypeCollection m_publishedDataSets;
         private IUaPubSubDataStore m_dataStore;
         private Timer m_updateValuesTimer;
-        string[] m_aviationAlphabet = new string[] {
-            "Alfa", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot", "Golf", "Hotel", "India",
-            "Juliet", "Kilo", "Lima", "Mike",  "November",  "Oscar", "Papa", "Quebec", "Romeo",
-            "Sierra", "Tango", "Uniform", "Victor", "Whiskey", "X-Ray", "Yankee", "Zulu"
+        string[] m_aviationAlphabet = new string[]
+        {
+            "Alfa",
+            "Bravo",
+            "Charlie",
+            "Delta",
+            "Echo",
+            "Foxtrot",
+            "Golf",
+            "Hotel",
+            "India",
+            "Juliet",
+            "Kilo",
+            "Lima",
+            "Mike",
+            "November",
+            "Oscar",
+            "Papa",
+            "Quebec",
+            "Romeo",
+            "Sierra",
+            "Tango",
+            "Uniform",
+            "Victor",
+            "Whiskey",
+            "X-Ray",
+            "Yankee",
+            "Zulu",
         };
         int m_aviationAlphabetIndex = 0;
         private object m_lock = new object();
@@ -88,13 +112,13 @@ namespace Quickstarts.ConsoleReferencePublisher
         #region Public Methods
 
         /// <summary>
-        /// Initialize PublisherData with information from configuration and start timer to update data 
+        /// Initialize PublisherData with information from configuration and start timer to update data
         /// </summary>
         public void Start()
         {
             if (m_publishedDataSets != null)
             {
-                // Remember the fields to be updated 
+                // Remember the fields to be updated
                 foreach (var publishedDataSet in m_publishedDataSets)
                 {
                     switch (publishedDataSet.Name)
@@ -115,7 +139,11 @@ namespace Quickstarts.ConsoleReferencePublisher
             }
             catch (Exception e)
             {
-                Utils.Trace(Utils.TraceMasks.Error, "SamplePublisher.DataStoreValuesGenerator.LoadInitialData wrong field: {0}", e.StackTrace);
+                Utils.Trace(
+                    Utils.TraceMasks.Error,
+                    "SamplePublisher.DataStoreValuesGenerator.LoadInitialData wrong field: {0}",
+                    e.StackTrace
+                );
             }
 
             m_updateValuesTimer = new Timer(UpdateValues, null, 1000, 1000);
@@ -130,29 +158,105 @@ namespace Quickstarts.ConsoleReferencePublisher
         private void LoadInitialData()
         {
             #region DataSet 'Simple' fill with data
-            WriteFieldData("BoolToggle", NamespaceIndexSimple, new DataValue(new Variant(false), StatusCodes.Good, DateTime.UtcNow));
-            WriteFieldData("Int32", NamespaceIndexSimple, new DataValue(new Variant(0), StatusCodes.Good, DateTime.UtcNow));
-            WriteFieldData("Int32Fast", NamespaceIndexSimple, new DataValue(new Variant(0), StatusCodes.Good, DateTime.UtcNow));
-            WriteFieldData("DateTime", NamespaceIndexSimple, new DataValue(new Variant(DateTime.UtcNow), StatusCodes.Good, DateTime.UtcNow));
+            WriteFieldData(
+                "BoolToggle",
+                NamespaceIndexSimple,
+                new DataValue(new Variant(false), StatusCodes.Good, DateTime.UtcNow)
+            );
+            WriteFieldData(
+                "Int32",
+                NamespaceIndexSimple,
+                new DataValue(new Variant(0), StatusCodes.Good, DateTime.UtcNow)
+            );
+            WriteFieldData(
+                "Int32Fast",
+                NamespaceIndexSimple,
+                new DataValue(new Variant(0), StatusCodes.Good, DateTime.UtcNow)
+            );
+            WriteFieldData(
+                "DateTime",
+                NamespaceIndexSimple,
+                new DataValue(new Variant(DateTime.UtcNow), StatusCodes.Good, DateTime.UtcNow)
+            );
             #endregion
 
             #region DataSet 'AllTypes' fill with data
 
-            WriteFieldData("BoolToggle", NamespaceIndexAllTypes, new DataValue(new Variant(true), StatusCodes.Good, DateTime.UtcNow));
-            WriteFieldData("Byte", NamespaceIndexAllTypes, new DataValue(new Variant((byte)0), StatusCodes.Good, DateTime.UtcNow));
-            WriteFieldData("Int16", NamespaceIndexAllTypes, new DataValue(new Variant((Int16)0), StatusCodes.Good, DateTime.UtcNow));
-            WriteFieldData("Int32", NamespaceIndexAllTypes, new DataValue(new Variant(0), StatusCodes.Good, DateTime.UtcNow));
-            WriteFieldData("SByte", NamespaceIndexAllTypes, new DataValue(new Variant((sbyte)0), StatusCodes.Good, DateTime.UtcNow));
-            WriteFieldData("UInt16", NamespaceIndexAllTypes, new DataValue(new Variant((UInt16)0), StatusCodes.Good, DateTime.UtcNow));
-            WriteFieldData("UInt32", NamespaceIndexAllTypes, new DataValue(new Variant((UInt32)0), StatusCodes.Good, DateTime.UtcNow));
-            WriteFieldData("UInt64", NamespaceIndexAllTypes, new DataValue(new Variant((UInt64)0), StatusCodes.Good, DateTime.UtcNow));
-            WriteFieldData("Float", NamespaceIndexAllTypes, new DataValue(new Variant((float)0F), StatusCodes.Good, DateTime.UtcNow));
-            WriteFieldData("Double", NamespaceIndexAllTypes, new DataValue(new Variant((double)0.0), StatusCodes.Good, DateTime.UtcNow));
-            WriteFieldData("String", NamespaceIndexAllTypes, new DataValue(new Variant(m_aviationAlphabet[0]), StatusCodes.Good, DateTime.UtcNow));
-            WriteFieldData("ByteString", NamespaceIndexAllTypes, new DataValue(new Variant(new byte[] { 1, 2, 3 }), StatusCodes.Good, DateTime.UtcNow));
-            WriteFieldData("Guid", NamespaceIndexAllTypes, new DataValue(new Variant(Guid.NewGuid()), StatusCodes.Good, DateTime.UtcNow));
-            WriteFieldData("DateTime", NamespaceIndexAllTypes, new DataValue(new Variant(DateTime.UtcNow), StatusCodes.Good, DateTime.UtcNow));
-            WriteFieldData("UInt32Array", NamespaceIndexAllTypes, new DataValue(new Variant(new UInt32[] { 1, 2, 3 }), StatusCodes.Good, DateTime.UtcNow));
+            WriteFieldData(
+                "BoolToggle",
+                NamespaceIndexAllTypes,
+                new DataValue(new Variant(true), StatusCodes.Good, DateTime.UtcNow)
+            );
+            WriteFieldData(
+                "Byte",
+                NamespaceIndexAllTypes,
+                new DataValue(new Variant((byte)0), StatusCodes.Good, DateTime.UtcNow)
+            );
+            WriteFieldData(
+                "Int16",
+                NamespaceIndexAllTypes,
+                new DataValue(new Variant((Int16)0), StatusCodes.Good, DateTime.UtcNow)
+            );
+            WriteFieldData(
+                "Int32",
+                NamespaceIndexAllTypes,
+                new DataValue(new Variant(0), StatusCodes.Good, DateTime.UtcNow)
+            );
+            WriteFieldData(
+                "SByte",
+                NamespaceIndexAllTypes,
+                new DataValue(new Variant((sbyte)0), StatusCodes.Good, DateTime.UtcNow)
+            );
+            WriteFieldData(
+                "UInt16",
+                NamespaceIndexAllTypes,
+                new DataValue(new Variant((UInt16)0), StatusCodes.Good, DateTime.UtcNow)
+            );
+            WriteFieldData(
+                "UInt32",
+                NamespaceIndexAllTypes,
+                new DataValue(new Variant((UInt32)0), StatusCodes.Good, DateTime.UtcNow)
+            );
+            WriteFieldData(
+                "UInt64",
+                NamespaceIndexAllTypes,
+                new DataValue(new Variant((UInt64)0), StatusCodes.Good, DateTime.UtcNow)
+            );
+            WriteFieldData(
+                "Float",
+                NamespaceIndexAllTypes,
+                new DataValue(new Variant((float)0F), StatusCodes.Good, DateTime.UtcNow)
+            );
+            WriteFieldData(
+                "Double",
+                NamespaceIndexAllTypes,
+                new DataValue(new Variant((double)0.0), StatusCodes.Good, DateTime.UtcNow)
+            );
+            WriteFieldData(
+                "String",
+                NamespaceIndexAllTypes,
+                new DataValue(new Variant(m_aviationAlphabet[0]), StatusCodes.Good, DateTime.UtcNow)
+            );
+            WriteFieldData(
+                "ByteString",
+                NamespaceIndexAllTypes,
+                new DataValue(new Variant(new byte[] { 1, 2, 3 }), StatusCodes.Good, DateTime.UtcNow)
+            );
+            WriteFieldData(
+                "Guid",
+                NamespaceIndexAllTypes,
+                new DataValue(new Variant(Guid.NewGuid()), StatusCodes.Good, DateTime.UtcNow)
+            );
+            WriteFieldData(
+                "DateTime",
+                NamespaceIndexAllTypes,
+                new DataValue(new Variant(DateTime.UtcNow), StatusCodes.Good, DateTime.UtcNow)
+            );
+            WriteFieldData(
+                "UInt32Array",
+                NamespaceIndexAllTypes,
+                new DataValue(new Variant(new UInt32[] { 1, 2, 3 }), StatusCodes.Good, DateTime.UtcNow)
+            );
 
             #endregion
         }
@@ -164,7 +268,11 @@ namespace Quickstarts.ConsoleReferencePublisher
         /// <param name="dataValue"></param>
         private void WriteFieldData(string metaDatafieldName, ushort namespaceIndex, DataValue dataValue)
         {
-            m_dataStore.WritePublishedDataItem(new NodeId(metaDatafieldName, namespaceIndex), Attributes.Value, dataValue);
+            m_dataStore.WritePublishedDataItem(
+                new NodeId(metaDatafieldName, namespaceIndex),
+                Attributes.Value,
+                dataValue
+            );
         }
 
         /// <summary>
@@ -222,10 +330,18 @@ namespace Quickstarts.ConsoleReferencePublisher
         /// <param name="namespaceIndex"></param>
         /// <param name="maxAllowedValue"></param>
         /// <param name="step"></param>
-        private void IncrementValue(FieldMetaData variable, ushort namespaceIndex, long maxAllowedValue = Int32.MaxValue, int step = 0)
+        private void IncrementValue(
+            FieldMetaData variable,
+            ushort namespaceIndex,
+            long maxAllowedValue = Int32.MaxValue,
+            int step = 0
+        )
         {
             // Read value to be incremented
-            DataValue dataValue = m_dataStore.ReadPublishedDataItem(new NodeId(variable.Name, namespaceIndex), Attributes.Value);
+            DataValue dataValue = m_dataStore.ReadPublishedDataItem(
+                new NodeId(variable.Name, namespaceIndex),
+                Attributes.Value
+            );
             if (dataValue.Value == null)
             {
                 return;

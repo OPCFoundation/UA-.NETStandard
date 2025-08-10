@@ -161,8 +161,7 @@ namespace Opc.Ua.Client
                 }
 
                 // do not return temporary nodes created after a Browse().
-                if (node != null &&
-                    node?.GetType() != typeof(Node))
+                if (node != null && node?.GetType() != typeof(Node))
                 {
                     nodes.Add(node);
                 }
@@ -218,7 +217,8 @@ namespace Opc.Ua.Client
             NodeId referenceTypeId,
             bool isInverse,
             bool includeSubtypes,
-            QualifiedName browseName)
+            QualifiedName browseName
+        )
         {
             // find the source.
             if (Find(sourceId) is not Node source)
@@ -259,11 +259,7 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        public IList<INode> Find(
-            ExpandedNodeId sourceId,
-            NodeId referenceTypeId,
-            bool isInverse,
-            bool includeSubtypes)
+        public IList<INode> Find(ExpandedNodeId sourceId, NodeId referenceTypeId, bool isInverse, bool includeSubtypes)
         {
             var hits = new List<INode>();
 
@@ -727,7 +723,12 @@ namespace Opc.Ua.Client
 
             var predefinedNodes = new NodeStateCollection();
             Assembly assembly = typeof(ArgumentCollection).GetTypeInfo().Assembly;
-            predefinedNodes.LoadFromBinaryResource(context, "Opc.Ua.Stack.Generated.Opc.Ua.PredefinedNodes.uanodes", assembly, true);
+            predefinedNodes.LoadFromBinaryResource(
+                context,
+                "Opc.Ua.Stack.Generated.Opc.Ua.PredefinedNodes.uanodes",
+                assembly,
+                true
+            );
 
             m_cacheLock.EnterWriteLock();
             try
@@ -812,7 +813,11 @@ namespace Opc.Ua.Client
             }
             catch (Exception e)
             {
-                Utils.LogError("Could not fetch references for valid node with NodeId = {0}. Error = {1}", nodeId, Redact.Create(e));
+                Utils.LogError(
+                    "Could not fetch references for valid node with NodeId = {0}. Error = {1}",
+                    nodeId,
+                    Redact.Create(e)
+                );
             }
 
             InternalWriteLockedAttach(source);
@@ -830,11 +835,16 @@ namespace Opc.Ua.Client
             }
 
             var localIds = new NodeIdCollection(
-                nodeIds.Select(nodeId => ExpandedNodeId.ToNodeId(nodeId, m_session.NamespaceUris)));
+                nodeIds.Select(nodeId => ExpandedNodeId.ToNodeId(nodeId, m_session.NamespaceUris))
+            );
 
             // fetch nodes and references from server.
             m_session.ReadNodes(localIds, out IList<Node> sourceNodes, out IList<ServiceResult> readErrors);
-            m_session.FetchReferences(localIds, out IList<ReferenceDescriptionCollection> referenceCollectionList, out IList<ServiceResult> fetchErrors);
+            m_session.FetchReferences(
+                localIds,
+                out IList<ReferenceDescriptionCollection> referenceCollectionList,
+                out IList<ServiceResult> fetchErrors
+            );
 
             int ii = 0;
             for (ii = 0; ii < count; ii++)
@@ -872,7 +882,8 @@ namespace Opc.Ua.Client
                         }
 
                         // add the reference.
-                        sourceNodes[ii].ReferenceTable.Add(reference.ReferenceTypeId, !reference.IsForward, reference.NodeId);
+                        sourceNodes[ii]
+                            .ReferenceTable.Add(reference.ReferenceTypeId, !reference.IsForward, reference.NodeId);
                     }
                 }
 
@@ -914,7 +925,8 @@ namespace Opc.Ua.Client
             ExpandedNodeId nodeId,
             NodeId referenceTypeId,
             bool isInverse,
-            bool includeSubtypes)
+            bool includeSubtypes
+        )
         {
             IList<INode> targets = [];
 
@@ -935,8 +947,7 @@ namespace Opc.Ua.Client
                 m_cacheLock.ExitReadLock();
             }
 
-            var targetIds = new ExpandedNodeIdCollection(
-                references.Select(reference => reference.TargetId));
+            var targetIds = new ExpandedNodeIdCollection(references.Select(reference => reference.TargetId));
 
             foreach (INode target in Find(targetIds))
             {
@@ -953,7 +964,8 @@ namespace Opc.Ua.Client
             IList<ExpandedNodeId> nodeIds,
             IList<NodeId> referenceTypeIds,
             bool isInverse,
-            bool includeSubtypes)
+            bool includeSubtypes
+        )
         {
             IList<INode> targets = [];
             if (nodeIds.Count == 0 || referenceTypeIds.Count == 0)
@@ -982,8 +994,7 @@ namespace Opc.Ua.Client
                         m_cacheLock.ExitReadLock();
                     }
 
-                    targetIds.AddRange(
-                        references.Select(reference => reference.TargetId));
+                    targetIds.AddRange(references.Select(reference => reference.TargetId));
                 }
             }
 

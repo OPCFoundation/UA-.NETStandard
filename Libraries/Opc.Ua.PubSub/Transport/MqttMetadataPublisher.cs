@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2021 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -48,13 +48,22 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Create new instance of <see cref="MqttMetadataPublisher"/>.
         /// </summary>
-        internal MqttMetadataPublisher(IMqttPubSubConnection parentConnection, WriterGroupDataType writerGroup, DataSetWriterDataType dataSetWriter,
-            double metaDataUpdateTime)
+        internal MqttMetadataPublisher(
+            IMqttPubSubConnection parentConnection,
+            WriterGroupDataType writerGroup,
+            DataSetWriterDataType dataSetWriter,
+            double metaDataUpdateTime
+        )
         {
             m_parentConnection = parentConnection;
             m_writerGroup = writerGroup;
             m_dataSetWriter = dataSetWriter;
-            m_intervalRunner = new IntervalRunner(dataSetWriter.DataSetWriterId, metaDataUpdateTime, CanPublish, PublishMessage);
+            m_intervalRunner = new IntervalRunner(
+                dataSetWriter.DataSetWriterId,
+                metaDataUpdateTime,
+                CanPublish,
+                PublishMessage
+            );
         }
 
         /// <summary>
@@ -63,8 +72,10 @@ namespace Opc.Ua.PubSub.Transport
         public void Start()
         {
             m_intervalRunner.Start();
-            Utils.Trace("The MqttMetadataPublisher for DataSetWriterId '{0}' was started.",
-                m_dataSetWriter.DataSetWriterId);
+            Utils.Trace(
+                "The MqttMetadataPublisher for DataSetWriterId '{0}' was started.",
+                m_dataSetWriter.DataSetWriterId
+            );
         }
 
         /// <summary>
@@ -74,8 +85,10 @@ namespace Opc.Ua.PubSub.Transport
         {
             m_intervalRunner.Stop();
 
-            Utils.Trace("The MqttMetadataPublisher for DataSetWriterId '{0}' was stopped.",
-                m_dataSetWriter.DataSetWriterId);
+            Utils.Trace(
+                "The MqttMetadataPublisher for DataSetWriterId '{0}' was stopped.",
+                m_dataSetWriter.DataSetWriterId
+            );
         }
 
         /// <summary>
@@ -94,13 +107,18 @@ namespace Opc.Ua.PubSub.Transport
         {
             try
             {
-                UaNetworkMessage metaDataNetworkMessage = m_parentConnection.CreateDataSetMetaDataNetworkMessage(m_writerGroup, m_dataSetWriter);
+                UaNetworkMessage metaDataNetworkMessage = m_parentConnection.CreateDataSetMetaDataNetworkMessage(
+                    m_writerGroup,
+                    m_dataSetWriter
+                );
                 if (metaDataNetworkMessage != null)
                 {
                     bool success = m_parentConnection.PublishNetworkMessage(metaDataNetworkMessage);
                     Utils.Trace(
                         "MqttMetadataPublisher Publish DataSetMetaData, DataSetWriterId:{0}; success = {1}",
-                        m_dataSetWriter.DataSetWriterId, success);
+                        m_dataSetWriter.DataSetWriterId,
+                        success
+                    );
                 }
             }
             catch (Exception e)
@@ -126,7 +144,7 @@ namespace Opc.Ua.PubSub.Transport
 
                 var transport =
                     ExtensionObject.ToEncodeable(DataSetWriter.TransportSettings)
-                        as BrokerDataSetWriterTransportDataType;
+                    as BrokerDataSetWriterTransportDataType;
 
                 MetaDataUpdateTime = transport?.MetaDataUpdateTime ?? 0;
             }

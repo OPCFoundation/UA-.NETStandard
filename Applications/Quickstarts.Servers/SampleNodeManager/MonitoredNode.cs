@@ -2,7 +2,7 @@
  * Copyright (c) 2005-2019 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- * 
+ *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
  * files (the "Software"), to deal in the Software without
@@ -11,7 +11,7 @@
  * copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following
  * conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
@@ -40,10 +40,7 @@ namespace Opc.Ua.Sample
         /// <summary>
         /// Initializes the instance with the context for the node being monitored.
         /// </summary>
-        public MonitoredNode(
-            IServerInternal server,
-            INodeManager nodeManager,
-            NodeState node)
+        public MonitoredNode(IServerInternal server, INodeManager nodeManager, NodeState node)
         {
             Server = server;
             NodeManager = nodeManager;
@@ -76,7 +73,10 @@ namespace Opc.Ua.Sample
                 {
                     DataChangeMonitoredItem monitoredItem = m_monitoredItems[ii];
 
-                    if (monitoredItem.AttributeId == attributeId && monitoredItem.MonitoringMode != MonitoringMode.Disabled)
+                    if (
+                        monitoredItem.AttributeId == attributeId
+                        && monitoredItem.MonitoringMode != MonitoringMode.Disabled
+                    )
                     {
                         return true;
                     }
@@ -120,7 +120,8 @@ namespace Opc.Ua.Sample
             bool discardOldest,
             DataChangeFilter filter,
             Range range,
-            bool alwaysReportUpdates)
+            bool alwaysReportUpdates
+        )
         {
             var monitoredItem = new DataChangeMonitoredItem(
                 Server.MonitoredItemQueueFactory,
@@ -138,7 +139,8 @@ namespace Opc.Ua.Sample
                 discardOldest,
                 filter,
                 range,
-                alwaysReportUpdates);
+                alwaysReportUpdates
+            );
 
             if (m_monitoredItems == null)
             {
@@ -177,7 +179,8 @@ namespace Opc.Ua.Sample
             MonitoringMode monitoringMode,
             uint clientHandle,
             double samplingInterval,
-            bool alwaysReportUpdates)
+            bool alwaysReportUpdates
+        )
         {
             return CreateDataChangeItem(
                 context,
@@ -194,21 +197,22 @@ namespace Opc.Ua.Sample
                 false,
                 null,
                 null,
-                alwaysReportUpdates);
+                alwaysReportUpdates
+            );
         }
 
         /// <summary>
         /// Restore a data change item after a server restart
         /// </summary>
         /// <returns>The new monitored item.</returns>
-        public DataChangeMonitoredItem RestoreDataChangeItem(
-            IStoredMonitoredItem storedMonitoredItem)
+        public DataChangeMonitoredItem RestoreDataChangeItem(IStoredMonitoredItem storedMonitoredItem)
         {
             var monitoredItem = new DataChangeMonitoredItem(
                 Server.SubscriptionStore,
                 Server.MonitoredItemQueueFactory,
                 this,
-                storedMonitoredItem);
+                storedMonitoredItem
+            );
 
             if (m_monitoredItems == null)
             {
@@ -280,10 +284,7 @@ namespace Opc.Ua.Sample
         /// </summary>
         public void SubscribeToEvents(ISystemContext context, IEventMonitoredItem eventSubscription)
         {
-            if (m_eventSubscriptions == null)
-            {
-                m_eventSubscriptions = [];
-            }
+            m_eventSubscriptions ??= [];
 
             if (m_eventSubscriptions.Count == 0)
             {
@@ -349,9 +350,7 @@ namespace Opc.Ua.Sample
         /// </summary>
         /// <param name="context">The system context.</param>
         /// <param name="monitoredItem">The item to refresh.</param>
-        public void ConditionRefresh(
-            ISystemContext context,
-            IEventMonitoredItem monitoredItem)
+        public void ConditionRefresh(ISystemContext context, IEventMonitoredItem monitoredItem)
         {
             if (m_eventSubscriptions != null)
             {
