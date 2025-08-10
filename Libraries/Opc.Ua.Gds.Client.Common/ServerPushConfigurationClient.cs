@@ -464,7 +464,7 @@ namespace Opc.Ua.Gds.Client
                 System.Collections.Generic.IList<object> outputArguments = m_session.Call(
                     ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList, m_session.NamespaceUris),
                     ExpandedNodeId.ToNodeId(Ua.MethodIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup_TrustList_Open, m_session.NamespaceUris),
-                    (byte)OpenFileMode.Write | (byte)OpenFileMode.EraseExisting);
+                    (byte)((int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting));
 
                 uint fileHandle = (uint)outputArguments[0];
 

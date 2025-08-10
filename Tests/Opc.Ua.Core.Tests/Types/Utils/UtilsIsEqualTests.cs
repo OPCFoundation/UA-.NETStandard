@@ -54,9 +54,9 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         class UtilsIsEqualTests
     {
 #if NET7_0_OR_GREATER
-        [LibraryImport("msvcrt.dll")]
+        [LibraryImport("msvcrt")]
         [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
-        private static partial int memcmp(in byte[] b1, in byte[] b2, long count);
+        private static partial int memcmp(ReadOnlySpan<byte> b1, ReadOnlySpan<byte> b2, long count);
 #else
         [DllImport("msvcrt.dll", CallingConvention = CallingConvention.Cdecl)]
         private static extern int memcmp(byte[] b1, byte[] b2, long count);

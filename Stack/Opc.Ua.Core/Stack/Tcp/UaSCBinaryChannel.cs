@@ -67,7 +67,6 @@ namespace Opc.Ua.Bindings
             MessageSecurityMode securityMode,
             string securityPolicyUri)
         {
-
             // create a unique contex if none provided.
             m_contextId = contextId;
 

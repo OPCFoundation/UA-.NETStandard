@@ -106,17 +106,17 @@ namespace Quickstarts.ConsoleReferenceClient
                 { "r|renew", "renew application certificate", r => renewCertificate = r != null },
                 { "t|timeout=", "timeout in seconds to exit application", (int t) => timeout = t * 1000 },
                 { "logfile=", "custom file name for log output", l => { if (l != null) { logFile = l; } } },
-                { "lt|loadtypes", "Load custom types", lt => { if (lt != null) loadTypes = true; } },
-                { "m|managedbrowseall", "Browse all references using the MangedBrowseAsync method", m => { if (m != null) managedbrowseall = true; } },
-                { "b|browseall", "Browse all references", b => { if (b != null) browseall = true; } },
-                { "f|fetchall", "Fetch all nodes", f => { if (f != null) fetchall = true; } },
-                { "j|json", "Output all Values as JSON", j => { if (j != null) jsonvalues = true; } },
-                { "v|verbose", "Verbose output", v => { if (v != null) verbose = true; } },
-                { "s|subscribe", "Subscribe", s => { if (s != null) subscribe = true; } },
+                { "lt|loadtypes", "Load custom types", lt => { if (lt != null) { loadTypes = true; } } },
+                { "m|managedbrowseall", "Browse all references using the MangedBrowseAsync method", m => { if (m != null) { managedbrowseall = true; } } },
+                { "b|browseall", "Browse all references", b => { if (b != null) { browseall = true; } } },
+                { "f|fetchall", "Fetch all nodes", f => { if (f != null) { fetchall = true; } } },
+                { "j|json", "Output all Values as JSON", j => { if (j != null) { jsonvalues = true; } } },
+                { "v|verbose", "Verbose output", v => { if (v != null) { verbose = true; } } },
+                { "s|subscribe", "Subscribe", s => { if (s != null) { subscribe = true; } } },
                 { "rc|reverseconnect=", "Connect using the reverse connect endpoint. (e.g. rc=opc.tcp://localhost:65300)", (string url) => reverseConnectUrlString = url},
-                { "forever", "run inner connect/disconnect loop forever", f => { if (f != null) forever = true; } },
-                { "leakchannels", "Leave a channel leak open when disconnecting a session.", l => { if (l != null) leakChannels = true; } },
-                { "ds|durablesubscription", "SetDurableSubscription example", ds => { if (ds != null) enableDurableSubscriptions = true; } },
+                { "forever", "run inner connect/disconnect loop forever", f => { if (f != null) { forever = true; } } },
+                { "leakchannels", "Leave a channel leak open when disconnecting a session.", l => { if (l != null) { leakChannels = true; } } },
+                { "ds|durablesubscription", "SetDurableSubscription example", ds => { if (ds != null) { enableDurableSubscriptions = true; } } },
             };
 
             ReverseConnectManager reverseConnectManager = null;
@@ -247,7 +247,7 @@ namespace Quickstarts.ConsoleReferenceClient
                             }
                         }
 
-                        if ( enableDurableSubscriptions )
+                        if (enableDurableSubscriptions)
                         {
                             uaClient.ReconnectPeriodExponentialBackoff = 60000;
                         }
@@ -436,7 +436,7 @@ namespace Quickstarts.ConsoleReferenceClient
                                                 quitCTS.Token).ConfigureAwait(true);
                                         }
 
-                                        if ( waitCounters > closeSessionTime && waitCounters < restartSessionTime )
+                                        if (waitCounters > closeSessionTime && waitCounters < restartSessionTime)
                                         {
                                             Console.WriteLine("No Communication Interval " + stopCount.ToString(CultureInfo.InvariantCulture));
                                             stopCount++;

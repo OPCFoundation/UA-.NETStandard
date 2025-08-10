@@ -380,6 +380,8 @@ dotnet_diagnostic.CA1510.severity                                             = 
 dotnet_diagnostic.CA1511.severity                                             = none
 dotnet_diagnostic.CA1512.severity                                             = none
 dotnet_diagnostic.CA1513.severity                                             = none
+
+# Roslynator settings
 dotnet_diagnostic.RCS0063.severity                                            = suggestion
 dotnet_diagnostic.RCS1002.severity                                            = none
 dotnet_diagnostic.RCS1004.severity                                            = none
@@ -387,6 +389,7 @@ dotnet_diagnostic.RCS1006.severity                                            = 
 dotnet_diagnostic.RCS1005.severity                                            = suggestion
 dotnet_diagnostic.RCS1007.severity                                            = warning
 dotnet_diagnostic.RCS1031.severity                                            = suggestion
+dotnet_diagnostic.RCS1037.severity                                            = suggestion
 dotnet_diagnostic.RCS1043.severity                                            = suggestion
 dotnet_diagnostic.RCS1055.severity                                            = suggestion
 dotnet_diagnostic.RCS1061.severity                                            = suggestion

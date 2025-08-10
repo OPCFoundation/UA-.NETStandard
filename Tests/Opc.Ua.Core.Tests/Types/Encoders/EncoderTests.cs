@@ -409,7 +409,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assert.IsTrue(defaultspan.IsEmpty);
             Assert.IsTrue(defaultspan == ReadOnlySpan<byte>.Empty);
 
-            ReadOnlySpan<byte> emptyspan = [];
+            var emptyspan = new ReadOnlySpan<byte>([]);
             encoder.WriteByteString("ByteString7", emptyspan);
             Assert.IsTrue(emptyspan.IsEmpty);
             Assert.IsTrue(emptyspan != ReadOnlySpan<byte>.Empty);

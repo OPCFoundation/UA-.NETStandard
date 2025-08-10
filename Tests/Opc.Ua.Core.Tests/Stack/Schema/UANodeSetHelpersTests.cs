@@ -202,9 +202,9 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
         /// </summary>
         [Test]
         [TestCase("Stack/Opc.Ua.Core/Schema/Opc.Ua.NodeSet2.xml")]
-        [TestCase("Applications/Quickstarts.Servers/TestData/TestData.NodeSet2.xml")]
-        [TestCase("Applications/Quickstarts.Servers/MemoryBuffer/MemoryBuffer.NodeSet2.xml")]
-        [TestCase("Applications/Quickstarts.Servers/Boiler/Boiler.NodeSet2.xml")]
+        [TestCase("Applications/Quickstarts.Servers/TestData/Generated/TestData.NodeSet2.xml")]
+        [TestCase("Applications/Quickstarts.Servers/MemoryBuffer/Generated/MemoryBuffer.NodeSet2.xml")]
+        [TestCase("Applications/Quickstarts.Servers/Boiler/Generated/Boiler.NodeSet2.xml")]
         public void NodeSet2ValidationTest(string nodeset2File)
         {
             string assetPath = Utils.GetAbsoluteFilePath("../../../../../" + nodeset2File, true, false, false);

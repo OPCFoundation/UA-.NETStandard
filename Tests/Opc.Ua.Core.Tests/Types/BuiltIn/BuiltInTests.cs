@@ -208,7 +208,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             NUnit.Framework.Assert.Throws<ServiceResultException>(() => new ExtensionObject(new object()));
             // constructor by object
             byte[] byteArray = [1, 2, 3];
-            extensionObject = new ExtensionObject(byteArray);
+            extensionObject = new ExtensionObject((object)byteArray);
             Assert.NotNull(extensionObject);
             Assert.AreEqual(extensionObject, extensionObject);
             // string extension
