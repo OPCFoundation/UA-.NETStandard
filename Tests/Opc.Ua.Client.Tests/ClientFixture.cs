@@ -225,8 +225,30 @@ namespace Opc.Ua.Client.Tests
             {
                 getEndpointsUrl = CoreClientUtils.GetDiscoveryUrl(uri);
             }
-            
-            return await ConnectAsync(await GetEndpointAsync(getEndpointsUrl, securityProfile, endpoints).ConfigureAwait(false), userIdentity).ConfigureAwait(false);
+
+            bool serverHalted;
+            do
+            {
+                serverHalted = false;
+                try
+                {
+                    return await ConnectAsync(await GetEndpointAsync(getEndpointsUrl, securityProfile, endpoints).ConfigureAwait(false), userIdentity).ConfigureAwait(false);
+                }
+                catch (ServiceResultException e)
+                {
+                    if (e.StatusCode == StatusCodes.BadServerHalted)
+                    {
+                        serverHalted = true;
+                        await Task.Delay(1000).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        throw;
+                    }
+                }
+            } while (serverHalted);
+
+            throw new ServiceResultException(StatusCodes.BadNoCommunication);
         }
 
         /// <summary>
