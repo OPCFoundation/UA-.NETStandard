@@ -192,7 +192,7 @@ namespace Opc.Ua
         /// Takes a Task delegate to allow for asynchronous processing.
         /// Only works if the server / node managers supports async method calls.
         /// </summary>
-        public GenericAsyncMethodCalledEventHandler2 OnAsyncCallMethod2;
+        public GenericMethodCalledEventHandler2Async OnCallMethod2Async;
         #endregion
 
         #region Serialization Functions
@@ -852,11 +852,11 @@ namespace Opc.Ua
             IList<object> outputArguments,
             CancellationToken cancellationToken = default)
         {
-            GenericAsyncMethodCalledEventHandler2 onAsyncCallMethod2 = OnAsyncCallMethod2;
+            GenericMethodCalledEventHandler2Async onCallMethod2Async = OnCallMethod2Async;
 
-            if (OnAsyncCallMethod2 != null)
+            if (OnCallMethod2Async != null)
             {
-                return await onAsyncCallMethod2(context, this, objectId, inputArguments, outputArguments, cancellationToken).ConfigureAwait(false);
+                return await onCallMethod2Async(context, this, objectId, inputArguments, outputArguments, cancellationToken).ConfigureAwait(false);
             }
 
             return Call(context, null, inputArguments, outputArguments);
@@ -949,7 +949,7 @@ namespace Opc.Ua
     /// <summary>
     /// Used to process a method call.
     /// </summary>
-    public delegate ValueTask<ServiceResult> GenericAsyncMethodCalledEventHandler2(
+    public delegate ValueTask<ServiceResult> GenericMethodCalledEventHandler2Async(
         ISystemContext context,
         MethodState method,
         NodeId objectId,
