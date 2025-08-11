@@ -1057,7 +1057,7 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the best discovery URL for the base address based on the URL used by the client.
         /// </summary>
-        private static string GetBestDiscoveryUrl(Uri clientUrl, BaseAddress baseAddress)
+        private static string GetBestDiscoveryUrl(BaseAddress baseAddress)
         {
             string url = baseAddress.Url.ToString();
 
@@ -1093,7 +1093,7 @@ namespace Opc.Ua
 
             foreach (BaseAddress baseAddress in baseAddresses)
             {
-                discoveryUrls.Add(GetBestDiscoveryUrl(clientUrl, baseAddress));
+                discoveryUrls.Add(GetBestDiscoveryUrl(baseAddress));
             }
 
             // copy the description.

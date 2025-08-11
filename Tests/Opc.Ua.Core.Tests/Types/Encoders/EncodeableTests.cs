@@ -261,7 +261,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         private static object CreateDefaultEncodeableType(Type systemType)
         {
             object instance = Activator.CreateInstance(systemType);
-            SetDefaultEncodeableType(systemType, instance);
+            SetDefaultEncodeableType(instance);
             return instance;
         }
 
@@ -269,7 +269,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Set encodeable type properties recursively
         /// to expected default values.
         /// </summary>
-        private static void SetDefaultEncodeableType(Type systemType, object typeInstance)
+        private static void SetDefaultEncodeableType(object typeInstance)
         {
             foreach (System.Reflection.PropertyInfo property in typeInstance.GetType().GetProperties())
             {
@@ -289,7 +289,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                             }
                             else if (propertyObject is not null and IEncodeable)
                             {
-                                SetDefaultEncodeableType(property.PropertyType, propertyObject);
+                                SetDefaultEncodeableType(propertyObject);
                             }
                             break;
                         case BuiltInType.Null:

@@ -79,7 +79,9 @@ namespace Opc.Ua
                 false,
                 null,
                 false
-            ) { }
+            )
+        {
+        }
 
         /// <summary>
         /// Initializes the object with default values.
@@ -100,7 +102,8 @@ namespace Opc.Ua
                 stream,
                 leaveOpen,
                 streamSize
-            ) { }
+            )
+        { }
 
         /// <summary>
         /// Initializes the object with default values.
@@ -117,7 +120,8 @@ namespace Opc.Ua
                 useReversibleEncoding ? JsonEncodingType.Reversible : JsonEncodingType.NonReversible,
                 streamWriter,
                 topLevelIsArray
-            ) { }
+            )
+        { }
 
         /// <summary>
         /// Initializes the object with default values.

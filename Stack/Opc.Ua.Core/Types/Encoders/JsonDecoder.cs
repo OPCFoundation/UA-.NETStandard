@@ -271,7 +271,9 @@ namespace Opc.Ua
         {
             if (checkEof && m_reader.TokenType != JsonToken.EndObject)
             {
-                while (m_reader.Read() && m_reader.TokenType != JsonToken.EndObject) { }
+                while (m_reader.Read() && m_reader.TokenType != JsonToken.EndObject)
+                {
+                }
             }
 
             m_reader.Close();

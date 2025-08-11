@@ -152,13 +152,15 @@ namespace Opc.Ua.Security.Certificates
             X509Certificate2 certificate = null;
 
             X509KeyStorageFlags defaultStorageSet = X509KeyStorageFlags.DefaultKeySet;
-
-#if !NETSTANDARD2_0
-            if (!noEphemeralKeySet && !RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            if (!noEphemeralKeySet)
             {
-                defaultStorageSet |= X509KeyStorageFlags.EphemeralKeySet;
-            }
+#if !NETSTANDARD2_0
+                if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                {
+                    defaultStorageSet |= X509KeyStorageFlags.EphemeralKeySet;
+                }
 #endif
+            }
             // By default keys are not persisted
             defaultStorageSet |= X509KeyStorageFlags.Exportable;
 

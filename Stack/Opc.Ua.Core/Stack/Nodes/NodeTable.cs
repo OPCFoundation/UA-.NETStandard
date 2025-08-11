@@ -322,7 +322,7 @@ namespace Opc.Ua
                     {
                         if (Find(targetId) is not RemoteNode remoteNode)
                         {
-                            remoteNode = new RemoteNode(this, targetId);
+                            remoteNode = new RemoteNode(targetId);
                             InternalAdd(remoteNode);
                         }
 
@@ -418,7 +418,7 @@ namespace Opc.Ua
             {
                 if (reference.NodeId.ServerIndex != 0)
                 {
-                    var node = new RemoteNode(this, reference.NodeId);
+                    var node = new RemoteNode(reference.NodeId);
                     InternalAdd(node);
                     target = node;
                 }
@@ -502,7 +502,7 @@ namespace Opc.Ua
                     {
                         if (Find(reference.TargetId) is not RemoteNode remoteNode)
                         {
-                            remoteNode = new RemoteNode(this, reference.TargetId);
+                            remoteNode = new RemoteNode(reference.TargetId);
                             InternalAdd(remoteNode);
                         }
 
@@ -710,9 +710,8 @@ namespace Opc.Ua
             /// <summary>
             /// Initializes the object.
             /// </summary>
-            /// <param name="owner">The owner.</param>
             /// <param name="nodeId">The node identifier.</param>
-            public RemoteNode(INodeTable owner, ExpandedNodeId nodeId)
+            public RemoteNode(ExpandedNodeId nodeId)
             {
                 NodeId = nodeId;
                 m_refs = 0;

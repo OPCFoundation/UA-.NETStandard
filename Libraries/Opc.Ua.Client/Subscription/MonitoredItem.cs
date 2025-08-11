@@ -680,7 +680,7 @@ namespace Opc.Ua.Client
                 }
             }
 
-            Status.SetResolvePathResult(result, error);
+            Status.SetResolvePathResult(error);
         }
 
         /// <summary>

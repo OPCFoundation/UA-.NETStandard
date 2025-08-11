@@ -321,7 +321,8 @@ namespace Opc.Ua.Gds.Client
             Session.KeepAlive += Session_KeepAlive;
             Session.KeepAlive += KeepAlive;
             // TODO: implement, suppress warning/error
-            if (ServerStatusChanged != null) { }
+            if (ServerStatusChanged != null)
+            { }
 
             if (Session.Factory.GetSystemType(DataTypeIds.ApplicationRecordDataType) == null)
             {

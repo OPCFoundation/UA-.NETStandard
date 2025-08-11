@@ -54,8 +54,6 @@ namespace Opc.Ua.Server
         /// <param name="clientCertificate">The client certificate.</param>
         /// <param name="clientCertificateChain">The client certifiate chain</param>
         /// <param name="sessionTimeout">The session timeout.</param>
-        /// <param name="maxResponseMessageSize">The maximum size of a response message</param>
-        /// <param name="maxRequestAge">The max request age.</param>
         /// <param name="maxBrowseContinuationPoints">The maximum number of browse continuation points.</param>
         /// <param name="maxHistoryContinuationPoints">The maximum number of history continuation points.</param>
         public Session(
@@ -71,8 +69,6 @@ namespace Opc.Ua.Server
             X509Certificate2 clientCertificate,
             X509Certificate2Collection clientCertificateChain,
             double sessionTimeout,
-            uint maxResponseMessageSize,
-            double maxRequestAge,
             int maxBrowseContinuationPoints,
             int maxHistoryContinuationPoints
         )

@@ -538,8 +538,6 @@ namespace Opc.Ua.Server
                 clientCertificate,
                 clientCertificateChain,
                 sessionTimeout,
-                maxResponseMessageSize,
-                m_maxRequestAge,
                 m_maxBrowseContinuationPoints,
                 m_maxHistoryContinuationPoints
             );

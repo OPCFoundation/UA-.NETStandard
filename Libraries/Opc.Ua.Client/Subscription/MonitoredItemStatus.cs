@@ -141,7 +141,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Updates the object with the results of a translate browse paths request.
         /// </summary>
-        internal void SetResolvePathResult(BrowsePathResult result, ServiceResult error)
+        internal void SetResolvePathResult(ServiceResult error)
         {
             Error = error;
         }

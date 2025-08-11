@@ -776,7 +776,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     { 1, 2, 3 },
                     { 4, 5, 6 },
                 },
-                PropertyInt325DArray = new[,,,,]
+                PropertyInt325DArray = new[, , , ,]
                 {
                     {
                         {

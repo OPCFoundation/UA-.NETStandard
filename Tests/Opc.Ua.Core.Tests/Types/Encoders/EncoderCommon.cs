@@ -1234,7 +1234,9 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     xmlEncodingId,
                     jsonEncodingId,
                     new Dictionary<string, (int, string)> { { "Foo", (1, foo) } }
-                ) { }
+                )
+            {
+            }
 
             public DynamicEncodeable(
                 string xmlName,
@@ -1262,8 +1264,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             public ExpandedNodeId BinaryEncodingId { get; set; }
             public ExpandedNodeId XmlEncodingId { get; set; }
             public ExpandedNodeId JsonEncodingId { get; set; }
-
-            //ExpandedNodeId IComplexTypeInstance.TypeId { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
             public void Encode(IEncoder encoder)
             {
@@ -1299,13 +1299,14 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             {
                 if (m_fields == null)
                 {
-                    // When the dynamic encodeable is instantiated by a encoder/decoder, it needs to find it's type information
+                    // When the dynamic encodeable is instantiated by a encoder/decoder,
+                    // it needs to find it's type information
 
                     // Obtain a previously registered instance from the Factory
-                    // Other systems will want to put just type information into the factory, or have other means of finding type information given an encoding id
-                    DynamicEncodeable encodeable = (
-                        factory as DynamicEncodeableFactory
-                    )?.GetDynamicEncodeableForEncoding(TypeId);
+                    // Other systems will want to put just type information into the factory,
+                    // or have other means of finding type information given an encoding id
+                    DynamicEncodeable encodeable = factory is DynamicEncodeableFactory df
+                        ? df.GetDynamicEncodeableForEncoding(TypeId) : null;
                     // Read the type information
                     TypeId = encodeable?.TypeId;
                     XmlEncodingId = encodeable?.XmlEncodingId;

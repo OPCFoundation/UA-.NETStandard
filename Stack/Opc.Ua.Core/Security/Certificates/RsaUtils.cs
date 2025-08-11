@@ -75,16 +75,16 @@ namespace Opc.Ua
         /// <summary>
         /// Return the ciphertext block size for RSA OAEP encryption.
         /// </summary>
-        internal static int GetCipherTextBlockSize(X509Certificate2 encryptingCertificate, Padding padding)
+        internal static int GetCipherTextBlockSize(X509Certificate2 encryptingCertificate)
         {
             using RSA rsa = encryptingCertificate.GetRSAPublicKey();
-            return GetCipherTextBlockSize(rsa, padding);
+            return GetCipherTextBlockSize(rsa);
         }
 
         /// <summary>
         /// Return the ciphertext block size for RSA OAEP encryption.
         /// </summary>
-        internal static int GetCipherTextBlockSize(RSA rsa, Padding padding)
+        internal static int GetCipherTextBlockSize(RSA rsa)
         {
             if (rsa != null)
             {
@@ -180,7 +180,7 @@ namespace Opc.Ua
             int plaintextBlockSize = GetPlainTextBlockSize(rsa, padding);
             int blockCount = ((dataToEncrypt.Length + 4) / plaintextBlockSize) + 1;
             int plainTextSize = blockCount * plaintextBlockSize;
-            int cipherTextSize = blockCount * GetCipherTextBlockSize(rsa, padding);
+            int cipherTextSize = blockCount * GetCipherTextBlockSize(rsa);
 
             byte[] plainText = new byte[plainTextSize];
 
@@ -216,7 +216,7 @@ namespace Opc.Ua
         )
         {
             int inputBlockSize = GetPlainTextBlockSize(rsa, padding);
-            int outputBlockSize = GetCipherTextBlockSize(rsa, padding);
+            int outputBlockSize = GetCipherTextBlockSize(rsa);
 
             // verify the input data is the correct block size.
             if (dataToEncrypt.Count % inputBlockSize != 0)
@@ -272,7 +272,7 @@ namespace Opc.Ua
                     "No private key for certificate."
                 );
 
-            int plainTextSize = dataToDecrypt.Count / GetCipherTextBlockSize(rsa, padding);
+            int plainTextSize = dataToDecrypt.Count / GetCipherTextBlockSize(rsa);
             plainTextSize *= GetPlainTextBlockSize(encryptingCertificate, padding);
 
             byte[] buffer = new byte[plainTextSize];
@@ -311,7 +311,7 @@ namespace Opc.Ua
             ArraySegment<byte> outputBuffer
         )
         {
-            int inputBlockSize = GetCipherTextBlockSize(rsa, padding);
+            int inputBlockSize = GetCipherTextBlockSize(rsa);
             int outputBlockSize = GetPlainTextBlockSize(rsa, padding);
 
             // verify the input data is the correct block size.

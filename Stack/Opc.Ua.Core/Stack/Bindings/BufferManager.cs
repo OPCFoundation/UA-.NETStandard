@@ -16,6 +16,7 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace Opc.Ua.Bindings
 {
@@ -130,6 +131,8 @@ namespace Opc.Ua.Bindings
             {
                 throw new ArgumentOutOfRangeException(nameof(size));
             }
+
+            Debug.Assert(owner != null);
 
             byte[] buffer = m_arrayPool.Rent(size + kCookieLength);
 #if TRACK_MEMORY
@@ -255,6 +258,8 @@ namespace Opc.Ua.Bindings
             {
                 return;
             }
+
+            Debug.Assert(owner != null);
 
 #if TRACE_MEMORY
             Utils.LogTrace(

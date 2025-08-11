@@ -545,7 +545,7 @@ namespace Opc.Ua
         /// Sets the request context for the thread.
         /// </summary>
         /// <param name="encoding">The encoding.</param>
-        protected void SetRequestContext(RequestEncoding encoding) { }
+        protected virtual void SetRequestContext(RequestEncoding encoding) { }
 
         /// <summary>
         /// Called when a new request is received by the endpoint.

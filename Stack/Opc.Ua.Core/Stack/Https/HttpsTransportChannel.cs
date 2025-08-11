@@ -207,7 +207,7 @@ namespace Opc.Ua.Bindings
 
                     try
                     {
-                        serverCertificateCustomValidationCallback = (httpRequestMessage, cert, chain, policyErrors) =>
+                        serverCertificateCustomValidationCallback = (_, cert, chain, _) =>
                         {
                             try
                             {

@@ -447,7 +447,7 @@ namespace Opc.Ua.Security
         private static string SetObject(Type type, object value)
         {
             using var memoryStream = new MemoryStream();
-            var serializer = new DataContractSerializer(value.GetType());
+            var serializer = new DataContractSerializer(value?.GetType() ?? type);
             serializer.WriteObject(memoryStream, value);
 
             // must extract the inner xml.

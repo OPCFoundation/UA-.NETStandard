@@ -652,7 +652,7 @@ namespace Opc.Ua.Export
                 {
                     var o = (UADataType)node;
                     var value = new DataTypeState { IsAbstract = o.IsAbstract };
-                    Ua.DataTypeDefinition dataTypeDefinition = Import(o, o.Definition, context.NamespaceUris);
+                    Ua.DataTypeDefinition dataTypeDefinition = Import(o.Definition, context.NamespaceUris);
                     value.DataTypeDefinition = new ExtensionObject(dataTypeDefinition);
                     value.Purpose = o.Purpose;
                     importedNode = value;
@@ -1071,7 +1071,6 @@ namespace Opc.Ua.Export
         /// Imports a DataTypeDefinition
         /// </summary>
         private Ua.DataTypeDefinition Import(
-            UADataType dataType,
             DataTypeDefinition source,
             NamespaceTable namespaceUris
         )

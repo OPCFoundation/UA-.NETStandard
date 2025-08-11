@@ -166,11 +166,11 @@ namespace Opc.Ua.Client.Tests
                 clientCertificate,
                 clientCertificateChain,
                 sessionTimeout,
-                maxResponseMessageSize,
-                maxRequestAge,
                 maxBrowseContinuationPoints,
                 maxHistoryContinuationPoints
-            ) { }
+            )
+        {
+        }
 
         public void SetMaxNumberOfContinuationPoints(uint maxNumberOfContinuationPoints)
         {

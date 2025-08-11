@@ -229,25 +229,25 @@ namespace Opc.Ua.Server
                         }
 
                         case ObjectTypes.CertificateGroupType:
+                        {
+                            ServerCertificateGroup result = m_certificateGroups.FirstOrDefault(group =>
+                                group.NodeId == passiveNode.NodeId
+                            );
+
+                            if (result != null)
                             {
-                                ServerCertificateGroup result = m_certificateGroups.FirstOrDefault(group =>
-                                    group.NodeId == passiveNode.NodeId
-                                );
+                                var activeNode = new CertificateGroupState(passiveNode.Parent);
+                                activeNode.Create(context, passiveNode);
 
-                                if (result != null)
-                                {
-                                    var activeNode = new CertificateGroupState(passiveNode.Parent);
-                                    activeNode.Create(context, passiveNode);
+                                result.NodeId = activeNode.NodeId;
+                                result.Node = activeNode;
 
-                                    result.NodeId = activeNode.NodeId;
-                                    result.Node = activeNode;
-
-                                    // replace the node in the parent.
-                                    passiveNode.Parent?.ReplaceChild(context, activeNode);
-                                    return activeNode;
-                                }
+                                // replace the node in the parent.
+                                passiveNode.Parent?.ReplaceChild(context, activeNode);
+                                return activeNode;
                             }
-                            break;
+                        }
+                        break;
                     }
                 }
             }

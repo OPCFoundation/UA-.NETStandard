@@ -112,7 +112,7 @@ namespace Opc.Ua.Bindings
                 );
 
             int inputBlockSize = RsaUtils.GetPlainTextBlockSize(rsa, padding);
-            int outputBlockSize = RsaUtils.GetCipherTextBlockSize(rsa, padding);
+            int outputBlockSize = RsaUtils.GetCipherTextBlockSize(rsa);
 
             // verify the input data is the correct block size.
             if (dataToEncrypt.Count % inputBlockSize != 0)
@@ -176,7 +176,7 @@ namespace Opc.Ua.Bindings
                     "No private key for certificate."
                 );
 
-            int inputBlockSize = RsaUtils.GetCipherTextBlockSize(rsa, padding);
+            int inputBlockSize = RsaUtils.GetCipherTextBlockSize(rsa);
             int outputBlockSize = RsaUtils.GetPlainTextBlockSize(rsa, padding);
 
             // verify the input data is the correct block size.

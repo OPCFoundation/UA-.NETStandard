@@ -292,13 +292,13 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.Basic256:
                 case SecurityPolicies.Basic256Sha256:
                 case SecurityPolicies.Aes128_Sha256_RsaOaep:
-                    return RsaUtils.GetCipherTextBlockSize(receiverCertificate, RsaUtils.Padding.OaepSHA1);
+                    return RsaUtils.GetCipherTextBlockSize(receiverCertificate);
 
                 case SecurityPolicies.Aes256_Sha256_RsaPss:
-                    return RsaUtils.GetCipherTextBlockSize(receiverCertificate, RsaUtils.Padding.OaepSHA256);
+                    return RsaUtils.GetCipherTextBlockSize(receiverCertificate);
 
                 case SecurityPolicies.Basic128Rsa15:
-                    return RsaUtils.GetCipherTextBlockSize(receiverCertificate, RsaUtils.Padding.Pkcs1);
+                    return RsaUtils.GetCipherTextBlockSize(receiverCertificate);
 
                 case SecurityPolicies.ECC_nistP256:
                 case SecurityPolicies.ECC_nistP384:

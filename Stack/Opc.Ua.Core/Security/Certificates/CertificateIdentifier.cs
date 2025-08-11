@@ -958,6 +958,7 @@ namespace Opc.Ua
         public bool SupportsLoadPrivateKey => false;
 
         /// <inheritdoc/>
+        [Obsolete("Use LoadPrivateKeyAsync instead.")]
         public Task<X509Certificate2> LoadPrivateKey(string thumbprint, string subjectName, string password)
         {
             return Task.FromResult<X509Certificate2>(null);

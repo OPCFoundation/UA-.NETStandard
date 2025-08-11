@@ -422,7 +422,9 @@ namespace Opc.Ua.Bindings
                     // after processing the ReadComplete and let the outer call handle it
                     if (!innerCall && !ServiceResult.IsBad(error))
                     {
-                        while (ReadNext()) { }
+                        while (ReadNext())
+                        {
+                        }
                     }
                 }
                 catch (Exception ex)

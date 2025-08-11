@@ -32,7 +32,8 @@ namespace Opc.Ua
             X509Certificate2 senderCertificate = null,
             X509Certificate2Collection senderIssuerCertificates = null,
             bool doNotEncodeSenderCertificate = false
-        ) { }
+        )
+        { }
 
         /// <summary>
         /// Decrypts the token (implemented by the subclass).
@@ -45,7 +46,8 @@ namespace Opc.Ua
             X509Certificate2 senderCertificate = null,
             X509Certificate2Collection senderIssuerCertificates = null,
             CertificateValidator validator = null
-        ) { }
+        )
+        { }
 
         /// <summary>
         /// Creates a signature with the token (implemented by the subclass).
