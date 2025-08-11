@@ -17,6 +17,7 @@ using System.Numerics;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Threading;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
@@ -568,7 +569,7 @@ namespace Opc.Ua
                 applicationUri = builder.ToString();
             }
 
-            Uri uri =
+            _ =
                 Utils.ParseUri(applicationUri)
                 ?? throw new ArgumentNullException(nameof(applicationUri), "Must specify a valid URL.");
 
@@ -600,6 +601,6 @@ namespace Opc.Ua
         }
 
         private static readonly Dictionary<string, X509Certificate2> s_certificates = [];
-        private static readonly object s_certificatesLock = new();
+        private static readonly Lock s_certificatesLock = new();
     }
 }

@@ -221,7 +221,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             INode node = DataTypeNodes[typeId];
             if (node is DataTypeNode dataTypeNode)
             {
-                if (dataTypeNode.DataTypeDefinition.Body is EnumDefinition enumDefinition)
+                if (dataTypeNode.DataTypeDefinition.Body is EnumDefinition)
                 {
                     return Task.FromResult(DataTypeIds.Enumeration);
                 }

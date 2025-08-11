@@ -3,7 +3,7 @@
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
 
-#if NET6_0_OR_GREATER
+#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
 
 using System;
 using System.Collections.Generic;

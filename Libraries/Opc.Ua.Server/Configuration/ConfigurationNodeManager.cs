@@ -229,25 +229,25 @@ namespace Opc.Ua.Server
                         }
 
                         case ObjectTypes.CertificateGroupType:
-                        {
-                            ServerCertificateGroup result = m_certificateGroups.FirstOrDefault(group =>
-                                group.NodeId == passiveNode.NodeId
-                            );
-
-                            if (result != null)
                             {
-                                var activeNode = new CertificateGroupState(passiveNode.Parent);
-                                activeNode.Create(context, passiveNode);
+                                ServerCertificateGroup result = m_certificateGroups.FirstOrDefault(group =>
+                                    group.NodeId == passiveNode.NodeId
+                                );
 
-                                result.NodeId = activeNode.NodeId;
-                                result.Node = activeNode;
+                                if (result != null)
+                                {
+                                    var activeNode = new CertificateGroupState(passiveNode.Parent);
+                                    activeNode.Create(context, passiveNode);
 
-                                // replace the node in the parent.
-                                passiveNode.Parent?.ReplaceChild(context, activeNode);
-                                return activeNode;
+                                    result.NodeId = activeNode.NodeId;
+                                    result.Node = activeNode;
+
+                                    // replace the node in the parent.
+                                    passiveNode.Parent?.ReplaceChild(context, activeNode);
+                                    return activeNode;
+                                }
                             }
-                        }
-                        break;
+                            break;
                     }
                 }
             }
@@ -497,23 +497,21 @@ namespace Opc.Ua.Server
                 // identify the existing certificate to be updated
                 // it should be of the same type and same subject name as the new certificate
                 CertificateIdentifier existingCertIdentifier =
-                    certificateGroup.ApplicationCertificates.FirstOrDefault(cert =>
-                        X509Utils.CompareDistinguishedName(cert.SubjectName, newCert.Subject)
-                        && cert.CertificateType == certificateTypeId
+                    (
+                        certificateGroup.ApplicationCertificates.FirstOrDefault(cert =>
+                            X509Utils.CompareDistinguishedName(cert.SubjectName, newCert.Subject)
+                            && cert.CertificateType == certificateTypeId
+                        )
+                        ?? certificateGroup.ApplicationCertificates.FirstOrDefault(cert =>
+                            m_configuration.ApplicationUri
+                                == X509Utils.GetApplicationUriFromCertificate(cert.Certificate)
+                            && cert.CertificateType == certificateTypeId
+                        )
                     )
-                    ?? certificateGroup.ApplicationCertificates.FirstOrDefault(cert =>
-                        m_configuration.ApplicationUri == X509Utils.GetApplicationUriFromCertificate(cert.Certificate)
-                        && cert.CertificateType == certificateTypeId
-                    );
-
-                // if there is no such existing certificate then this is an error
-                if (existingCertIdentifier == null)
-                {
-                    throw new ServiceResultException(
+                    ?? throw new ServiceResultException(
                         StatusCodes.BadInvalidArgument,
                         "No existing certificate found for the specified certificate type and subject name."
                     );
-                }
 
                 var newIssuerCollection = new X509Certificate2Collection();
 
@@ -1069,7 +1067,7 @@ namespace Opc.Ua.Server
                             serverNamespacesReference.TargetId,
                             Server.NamespaceUris
                         );
-                        if (!(FindNodeInAddressSpace(nameSpaceNodeId) is NamespaceMetadataState namespaceMetadata))
+                        if (FindNodeInAddressSpace(nameSpaceNodeId) is not NamespaceMetadataState namespaceMetadata)
                         {
                             continue;
                         }

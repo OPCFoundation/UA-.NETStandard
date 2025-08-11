@@ -32,8 +32,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-#pragma warning disable 0618
-
 namespace Opc.Ua.Server
 {
     /// <summary>
@@ -43,7 +41,6 @@ namespace Opc.Ua.Server
     /// Every Server has one instance of this NodeManager.
     /// It stores objects that implement ILocalNode and indexes them by NodeId.
     /// </remarks>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling")]
     public class CoreNodeManager : INodeManager, IDisposable
     {
         /// <summary>
@@ -334,14 +331,17 @@ namespace Opc.Ua.Server
                 // get previous enumerator.
 
                 // fetch a snapshot all references for node.
-#pragma warning disable CA1859 // Use concrete types when possible for improved performance
                 if (continuationPoint.Data is not IEnumerator<IReference> enumerator)
                 {
-                    var copy = new List<IReference>(source.References);
-                    enumerator = copy.GetEnumerator();
+                    enumerator = GetEnumerator(source.References);
                     enumerator.MoveNext();
                 }
-#pragma warning restore CA1859 // Use concrete types when possible for improved performance
+
+                static IEnumerator<IReference> GetEnumerator(IReferenceCollection references)
+                {
+                    var copy = new List<IReference>(references);
+                    return copy.GetEnumerator();
+                }
 
                 do
                 {
@@ -842,16 +842,6 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        [
-            System.Diagnostics.CodeAnalysis.SuppressMessage(
-                "Microsoft.Maintainability",
-                "CA1506:AvoidExcessiveClassCoupling"
-            ),
-            System.Diagnostics.CodeAnalysis.SuppressMessage(
-                "Microsoft.Maintainability",
-                "CA1502:AvoidExcessiveComplexity"
-            )
-        ]
         public void Write(OperationContext context, IList<WriteValue> nodesToWrite, IList<ServiceResult> errors)
         {
             if (context == null)
@@ -1014,10 +1004,6 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Microsoft.Maintainability",
-            "CA1502:AvoidExcessiveComplexity"
-        )]
         public void HistoryUpdate(
             OperationContext context,
             Type detailsType,
@@ -1075,16 +1061,6 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        [
-            System.Diagnostics.CodeAnalysis.SuppressMessage(
-                "Microsoft.Maintainability",
-                "CA1502:AvoidExcessiveComplexity"
-            ),
-            System.Diagnostics.CodeAnalysis.SuppressMessage(
-                "Microsoft.Maintainability",
-                "CA1506:AvoidExcessiveClassCoupling"
-            )
-        ]
         public void Call(
             OperationContext context,
             IList<CallMethodRequest> methodsToCall,
@@ -1972,7 +1948,7 @@ namespace Opc.Ua.Server
 
             lock (DataLock)
             {
-                if (!(GetManagerHandle(sourceId) is ILocalNode source))
+                if (GetManagerHandle(sourceId) is not ILocalNode source)
                 {
                     return null;
                 }
@@ -2020,7 +1996,7 @@ namespace Opc.Ua.Server
 
             lock (DataLock)
             {
-                if (!(GetManagerHandle(sourceId) is ILocalNode source))
+                if (GetManagerHandle(sourceId) is not ILocalNode source)
                 {
                     return null;
                 }
@@ -2042,7 +2018,7 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    if (!(GetManagerHandle((NodeId)targetId) is ILocalNode target))
+                    if (GetManagerHandle((NodeId)targetId) is not ILocalNode target)
                     {
                         continue;
                     }
@@ -2155,10 +2131,6 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Applys the modelling rules to any existing instance.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Microsoft.Maintainability",
-            "CA1502:AvoidExcessiveComplexity"
-        )]
         public void ApplyModellingRules(
             ILocalNode instance,
             ILocalNode typeDefinition,
@@ -2240,7 +2212,7 @@ namespace Opc.Ua.Server
 
                 // check if the same instance has multiple browse paths to it.
                 ILocalNode newInstance;
-                if (instancesToCreate.TryGetValue(instanceDeclaration.NodeId, out newInstance))
+                if (instancesToCreate.TryGetValue(instanceDeclaration.NodeId, out _))
                 {
                     continue;
                 }
@@ -2954,7 +2926,7 @@ namespace Opc.Ua.Server
         )
         {
             // find reference type.
-            if (!(GetLocalNode(referenceTypeId) is IReferenceType referenceType))
+            if (GetLocalNode(referenceTypeId) is not IReferenceType)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadReferenceTypeIdInvalid,
@@ -3086,7 +3058,7 @@ namespace Opc.Ua.Server
             lock (DataLock)
             {
                 // find source.
-                if (!(GetManagerHandle(sourceId) is ILocalNode source))
+                if (GetManagerHandle(sourceId) is not ILocalNode source)
                 {
                     return StatusCodes.BadParentNodeIdInvalid;
                 }
@@ -3095,7 +3067,7 @@ namespace Opc.Ua.Server
                 if (bidirectional)
                 {
                     // find target.
-                    if (!(GetManagerHandle(targetId) is ILocalNode target))
+                    if (GetManagerHandle(targetId) is not ILocalNode target)
                     {
                         return StatusCodes.BadNodeIdUnknown;
                     }
@@ -3542,7 +3514,8 @@ namespace Opc.Ua.Server
             range = null;
 
             if (
-                !(GetTargetNode(node, ReferenceTypes.HasProperty, false, true, BrowseNames.EURange) is IVariable target)
+                GetTargetNode(node, ReferenceTypes.HasProperty, false, true, BrowseNames.EURange)
+                is not IVariable target
             )
             {
                 return StatusCodes.BadNodeIdUnknown;

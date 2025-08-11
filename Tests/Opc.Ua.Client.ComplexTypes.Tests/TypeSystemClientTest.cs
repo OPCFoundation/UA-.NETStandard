@@ -117,7 +117,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
 
             m_clientFixture = new ClientFixture();
 
-            await m_clientFixture.LoadClientConfiguration(m_pkiRoot).ConfigureAwait(false);
+            await m_clientFixture.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             m_clientFixture.Config.TransportQuotas.MaxMessageSize = 4 * 1024 * 1024;
             m_url = new Uri(
                 m_uriScheme + "://localhost:" + m_serverFixture.Port.ToString(CultureInfo.InvariantCulture)
@@ -167,7 +167,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         [TestCase(true, false, false)]
         [TestCase(false, true, false)]
         [TestCase(false, false, true)]
-        public async Task LoadTypeSystem(
+        public async Task LoadTypeSystemAsync(
             bool onlyEnumTypes,
             bool disableDataTypeDefinition,
             bool disableDataTypeDictionary
@@ -178,7 +178,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             typeSystem.DisableDataTypeDefinition = disableDataTypeDefinition;
             typeSystem.DisableDataTypeDictionary = disableDataTypeDictionary;
 
-            bool success = await typeSystem.Load(onlyEnumTypes, true).ConfigureAwait(false);
+            bool success = await typeSystem.LoadAsync(onlyEnumTypes, true).ConfigureAwait(false);
             Assert.IsTrue(success);
 
             Type[] types = typeSystem.GetDefinedTypes();

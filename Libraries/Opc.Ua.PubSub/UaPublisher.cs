@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace Opc.Ua.PubSub
 {
@@ -37,7 +38,7 @@ namespace Opc.Ua.PubSub
     /// </summary>
     internal class UaPublisher : IUaPublisher
     {
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
         private readonly WriterGroupPublishState m_writerGroupPublishState;
 
         /// <summary>

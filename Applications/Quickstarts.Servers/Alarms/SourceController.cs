@@ -29,8 +29,6 @@
 
 using Opc.Ua;
 
-#pragma warning disable CS1591
-
 namespace Alarms
 {
     public class SourceController

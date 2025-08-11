@@ -212,9 +212,10 @@ namespace Opc.Ua.PubSub.Transport
                 //Wrong configuration of writer group MessageSettings
                 return null;
             }
+
             if (
                 ExtensionObject.ToEncodeable(writerGroupConfiguration.TransportSettings)
-                is not DatagramWriterGroupTransportDataType transportSettings
+                is not DatagramWriterGroupTransportDataType
             )
             {
                 //Wrong configuration of writer group TransportSettings
@@ -610,7 +611,7 @@ namespace Opc.Ua.PubSub.Transport
             }
 
             // this is what had been passed into BeginReceive as the second parameter:
-            if (!(result.AsyncState is UdpClient socket))
+            if (result.AsyncState is not UdpClient socket)
             {
                 return;
             }

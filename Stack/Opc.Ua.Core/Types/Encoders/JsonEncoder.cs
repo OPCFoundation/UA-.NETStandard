@@ -79,8 +79,7 @@ namespace Opc.Ua
                 false,
                 null,
                 false
-            )
-        { }
+            ) { }
 
         /// <summary>
         /// Initializes the object with default values.
@@ -101,8 +100,7 @@ namespace Opc.Ua
                 stream,
                 leaveOpen,
                 streamSize
-            )
-        { }
+            ) { }
 
         /// <summary>
         /// Initializes the object with default values.
@@ -119,8 +117,7 @@ namespace Opc.Ua
                 useReversibleEncoding ? JsonEncodingType.Reversible : JsonEncodingType.NonReversible,
                 streamWriter,
                 topLevelIsArray
-            )
-        { }
+            ) { }
 
         /// <summary>
         /// Initializes the object with default values.
@@ -1862,15 +1859,15 @@ namespace Opc.Ua
                 switch (value.Encoding)
                 {
                     case ExtensionObjectEncoding.Binary:
-                        typeId = encodeable.BinaryEncodingId;
+                        _ = encodeable.BinaryEncodingId;
                         break;
 
                     case ExtensionObjectEncoding.Xml:
-                        typeId = encodeable.XmlEncodingId;
+                        _ = encodeable.XmlEncodingId;
                         break;
 
                     default:
-                        typeId = encodeable.TypeId;
+                        _ = encodeable.TypeId;
                         break;
                 }
             }
@@ -3230,30 +3227,24 @@ namespace Opc.Ua
                     return;
                 }
 
-                if (field.BuiltInType == (byte)BuiltInType.ExtensionObject)
+                if (field.BuiltInType == (byte)BuiltInType.ExtensionObject && value is IList<ExtensionObject> list)
                 {
-                    if (value is IList<ExtensionObject> list)
+                    PushArray(null);
+
+                    foreach (ExtensionObject element in list)
                     {
-                        PushArray(null);
-
-                        foreach (ExtensionObject element in list)
-                        {
-                            WriteRawExtensionObject(element);
-                        }
-
-                        PopArray();
-                        m_commaRequired = true;
-                        return;
+                        WriteRawExtensionObject(element);
                     }
+
+                    PopArray();
+                    m_commaRequired = true;
+                    return;
                 }
 
-                if (field.BuiltInType == (byte)BuiltInType.Variant)
+                if (field.BuiltInType == (byte)BuiltInType.Variant && value is IList<Variant>)
                 {
-                    if (value is IList<Variant> list)
-                    {
-                        WriteRawVariantArray(value);
-                        return;
-                    }
+                    WriteRawVariantArray(value);
+                    return;
                 }
             }
 

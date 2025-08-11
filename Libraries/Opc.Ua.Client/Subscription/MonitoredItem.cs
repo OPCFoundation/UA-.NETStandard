@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
+using System.Threading;
 
 namespace Opc.Ua.Client
 {
@@ -145,7 +146,7 @@ namespace Opc.Ua.Client
         protected void Initialize(StreamingContext context)
         {
             // object initializers are not called during deserialization.
-            m_cache = new object();
+            m_cache = new Lock();
 
             Initialize();
         }
@@ -523,7 +524,6 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Raised when a new notification arrives.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1009:DeclareEventHandlersCorrectly")]
         public event MonitoredItemNotificationEventHandler Notification
         {
             add
@@ -1034,7 +1034,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private void UseDefaultEventFilter()
         {
-            EventFilter filter = filter = new EventFilter();
+            EventFilter filter = _ = new EventFilter();
 
             filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.EventId);
             filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.EventType);
@@ -1058,7 +1058,7 @@ namespace Opc.Ua.Client
         private bool m_discardOldest;
         private static long s_globalClientHandle;
 
-        private object m_cache = new();
+        private Lock m_cache = new();
         private MonitoredItemDataCache m_dataCache;
         private MonitoredItemEventCache m_eventCache;
         private IEncodeable m_lastNotification;

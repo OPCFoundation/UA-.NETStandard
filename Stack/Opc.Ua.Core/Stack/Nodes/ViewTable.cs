@@ -12,6 +12,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace Opc.Ua
 {
@@ -171,7 +172,7 @@ namespace Opc.Ua
             }
         }
 
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
         private readonly Dictionary<NodeId, ViewNode> m_views;
     }
 }

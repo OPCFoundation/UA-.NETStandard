@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if NETCOREAPP3_0_OR_GREATER
+#if NET8_0_OR_GREATER
 #define USE_LRU_CACHE
 #endif
 

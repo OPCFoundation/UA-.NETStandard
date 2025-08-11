@@ -20,10 +20,6 @@ namespace Opc.Ua
         /// <summary>
         /// The body of the message.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Microsoft.Design",
-            "CA1051:DoNotDeclareVisibleInstanceFields"
-        )]
         public byte[] InvokeServiceRequest;
 
         /// <summary>

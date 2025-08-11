@@ -386,7 +386,6 @@ namespace Opc.Ua
         /// Returns the host associated with the current context.
         /// </summary>
         /// <returns>The host associated with the current context.</returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         protected static IServiceHostBase GetHostForContext()
         {
             throw new ServiceResultException(
@@ -399,17 +398,12 @@ namespace Opc.Ua
         /// Gets the server object from the operation context.
         /// </summary>
         /// <value>The server object from the operation context.</value>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Microsoft.Naming",
-            "CA1721:PropertyNamesShouldNotMatchGetMethods"
-        )]
         protected IServerBase ServerForContext => m_server ??= GetServerForContext();
 
         /// <summary>
         /// Gets the server object from the operation context.
         /// </summary>
         /// <returns>The server object from the operation context.</returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         protected IServerBase GetServerForContext()
         {
             // get the server associated with the host.

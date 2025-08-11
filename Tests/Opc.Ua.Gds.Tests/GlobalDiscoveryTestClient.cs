@@ -55,7 +55,7 @@ namespace Opc.Ua.Gds.Tests
         public ApplicationTestData OwnApplicationTestData { get; private set; }
         public ApplicationConfiguration Configuration { get; private set; }
 
-        public async Task LoadClientConfiguration(int port = -1)
+        public async Task LoadClientConfigurationAsync(int port = -1)
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
 
@@ -78,7 +78,7 @@ namespace Opc.Ua.Gds.Tests
 
 #if USE_FILE_CONFIG
             // load the application configuration.
-            Configuration = await m_application.LoadApplicationConfiguration(false).ConfigureAwait(false);
+            Configuration = await m_application.LoadApplicationConfigurationAsync(false).ConfigureAwait(false);
 #else
             string root = Path.Combine("%LocalApplicationData%", "OPC");
             string pkiRoot = Path.Combine(root, "pki");
@@ -120,7 +120,7 @@ namespace Opc.Ua.Gds.Tests
 #endif
             // check the application certificate.
             bool haveAppCertificate = await m_application
-                .CheckApplicationInstanceCertificates(true)
+                .CheckApplicationInstanceCertificatesAsync(true)
                 .ConfigureAwait(false);
             if (!haveAppCertificate)
             {
@@ -155,7 +155,7 @@ namespace Opc.Ua.Gds.Tests
         /// <summary>
         /// Register the Test Client at the used GDS, needed to test the ApplicationSelfAdminPrivilege
         /// </summary>
-        public bool RegisterTestClientAtGds()
+        public async Task<bool> RegisterTestClientAtGdsAsync()
         {
             try
             {
@@ -163,14 +163,14 @@ namespace Opc.Ua.Gds.Tests
 
                 GDSClient.AdminCredentials = AdminUser;
                 //register
-                NodeId id = Register(OwnApplicationTestData);
+                NodeId id = await RegisterAsync(OwnApplicationTestData).ConfigureAwait(false);
                 if (id == null)
                 {
                     return false;
                 }
                 OwnApplicationTestData.ApplicationRecord.ApplicationId = id;
                 //start Key Pair Request
-                NodeId req_id = StartNewKeyPair(OwnApplicationTestData);
+                NodeId req_id = await StartNewKeyPairAsync(OwnApplicationTestData).ConfigureAwait(false);
                 if (req_id == null)
                 {
                     return false;
@@ -186,7 +186,7 @@ namespace Opc.Ua.Gds.Tests
                     return false;
                 }
                 //apply cert
-                ApplyNewApplicationInstanceCertificateAsync(certificate, privateKey).Wait();
+                await ApplyNewApplicationInstanceCertificateAsync(certificate, privateKey).ConfigureAwait(false);
                 OwnApplicationTestData.Certificate = certificate;
                 OwnApplicationTestData.PrivateKey = privateKey;
                 OwnApplicationTestData.CertificateRequestId = null;
@@ -237,7 +237,7 @@ namespace Opc.Ua.Gds.Tests
             out byte[] privateKey
         )
         {
-            GDSClient.ConnectAsync(GDSClient.EndpointUrl).Wait();
+            GDSClient.ConnectAsync(GDSClient.EndpointUrl).GetAwaiter().GetResult();
             //get cert
             certificate = GDSClient.FinishRequest(
                 ownApplicationTestData.ApplicationRecord.ApplicationId,
@@ -248,9 +248,9 @@ namespace Opc.Ua.Gds.Tests
             GDSClient.Disconnect();
         }
 
-        private NodeId StartNewKeyPair(ApplicationTestData ownApplicationTestData)
+        private async Task<NodeId> StartNewKeyPairAsync(ApplicationTestData ownApplicationTestData)
         {
-            GDSClient.ConnectAsync(GDSClient.EndpointUrl).Wait();
+            await GDSClient.ConnectAsync(GDSClient.EndpointUrl).ConfigureAwait(false);
             //request new Cert
             NodeId req_id = GDSClient.StartNewKeyPairRequest(
                 ownApplicationTestData.ApplicationRecord.ApplicationId,
@@ -266,9 +266,9 @@ namespace Opc.Ua.Gds.Tests
             return req_id;
         }
 
-        private NodeId Register(ApplicationTestData ownApplicationTestData)
+        private async Task<NodeId> RegisterAsync(ApplicationTestData ownApplicationTestData)
         {
-            GDSClient.ConnectAsync(GDSClient.EndpointUrl).Wait();
+            await GDSClient.ConnectAsync(GDSClient.EndpointUrl).ConfigureAwait(false);
             NodeId id = GDSClient.RegisterApplication(ownApplicationTestData.ApplicationRecord);
             GDSClient.Disconnect();
             return id;

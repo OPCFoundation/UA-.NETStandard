@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Threading;
 using System.Xml;
 
 namespace Opc.Ua.Server
@@ -1363,13 +1364,10 @@ namespace Opc.Ua.Server
                 // check if queueing enabled.
                 if (m_dataChangeQueueHandler != null && (!m_resendData || m_dataChangeQueueHandler.ItemsInQueue != 0))
                 {
-                    DataValue value = null;
-                    ServiceResult error = null;
-
                     uint notificationCount = 0;
                     while (
                         notificationCount < maxNotificationsPerPublish
-                        && m_dataChangeQueueHandler.PublishSingleValue(out value, out error)
+                        && m_dataChangeQueueHandler.PublishSingleValue(out DataValue value, out ServiceResult error)
                     )
                     {
                         Publish(context, notifications, diagnostics, value, error);
@@ -2033,7 +2031,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
         private IServerInternal m_server;
         private string m_indexRange;
         private NumericRange m_parsedIndexRange;

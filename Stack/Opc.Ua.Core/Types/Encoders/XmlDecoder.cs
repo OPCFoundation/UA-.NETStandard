@@ -247,10 +247,6 @@ namespace Opc.Ua
         /// Reads the contents of an Variant object.
         /// </summary>
         /// <returns></returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Microsoft.Maintainability",
-            "CA1502:AvoidExcessiveComplexity"
-        )]
         public object ReadVariantContents(out TypeInfo typeInfo)
         {
             typeInfo = TypeInfo.Unknown;

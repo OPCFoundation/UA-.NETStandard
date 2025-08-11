@@ -65,7 +65,8 @@ namespace Opc.Ua.Fuzzing
         public static void ReadResponse(IEncoder encoder)
         {
             DateTime now = DateTime.UtcNow;
-            var nodeId = new NodeId(1000);
+
+            _ = new NodeId(1000);
             var readRequest = new ReadResponse
             {
                 Results =

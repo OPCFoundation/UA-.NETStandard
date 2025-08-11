@@ -365,12 +365,6 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         /// exponential entity expansion in this version of .NET.
         /// </summary>
         [Test]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Security",
-            "CA3075:Insecure DTD processing in XML",
-            Justification = "Validate that XmlDocument DtdProcessing is protected against"
-                + "exponential entity expansion in this version of .NET."
-        )]
         public void ExponentialEntityExpansionProcessing()
         {
             var xmlEEXX = new StringBuilder();
@@ -392,7 +386,13 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             XmlException ex = NUnit.Framework.Assert.Throws<XmlException>(() =>
             {
                 var document = new XmlDocument();
+#pragma warning disable IDE0079 // Remove unnecessary suppression
+#pragma warning disable CA3075 // Insecure DTD processing in XML
+#pragma warning restore IDE0079 // Remove unnecessary suppression
                 document.LoadXml(xmlEEXX.ToString());
+#pragma warning disable IDE0079 // Remove unnecessary suppression
+#pragma warning restore CA3075 // Insecure DTD processing in XML
+#pragma warning restore IDE0079 // Remove unnecessary suppression
             });
             TestContext.Out.WriteLine(ex.Message);
 
@@ -400,7 +400,13 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             TestContext.Out.WriteLine("Testing XmlDocument.InnerXml.");
             ex = NUnit.Framework.Assert.Throws<XmlException>(() =>
             {
+#pragma warning disable IDE0079 // Remove unnecessary suppression
+#pragma warning disable CA3075 // Insecure DTD processing in XML
+#pragma warning restore IDE0079 // Remove unnecessary suppression
                 var document = new XmlDocument { InnerXml = xmlEEXX.ToString() };
+#pragma warning disable IDE0079 // Remove unnecessary suppression
+#pragma warning restore CA3075 // Insecure DTD processing in XML
+#pragma warning restore IDE0079 // Remove unnecessary suppression
             });
             TestContext.Out.WriteLine(ex.Message);
 

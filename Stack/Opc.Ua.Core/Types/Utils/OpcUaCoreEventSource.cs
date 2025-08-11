@@ -202,6 +202,7 @@ namespace Opc.Ua
             }
         }
 
+#if UNUSED
         [NonEvent]
         private LogLevel GetDefaultLevel()
         {
@@ -229,6 +230,7 @@ namespace Opc.Ua
 
             return LogLevel.Critical;
         }
+#endif
 
         /// <summary>
         /// A server service call message.

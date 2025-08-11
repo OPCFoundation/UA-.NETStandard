@@ -17,13 +17,7 @@ namespace Opc.Ua
     /// <summary>
     /// The DiagnosticsMasks enumeration.
     /// </summary>
-    [
-        System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Microsoft.Naming",
-            "CA1717:OnlyFlagsEnumsShouldHavePluralNames"
-        ),
-        Flags
-    ]
+    [Flags]
     public enum DiagnosticsMasks : uint
     {
         /// <summary>

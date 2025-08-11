@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#pragma warning disable CS1591 // self describing enum values, suppress warning
-
 namespace Opc.Ua.Security.Certificates
 {
     /// <summary>
@@ -52,15 +50,34 @@ namespace Opc.Ua.Security.Certificates
     /// </remarks>
     public enum CRLReason
     {
+        /// <summary> Unspecified </summary>
         Unspecified = 0,
+
+        /// <summary> KeyCompromise </summary>
         KeyCompromise = 1,
+
+        /// <summary> CACompromise </summary>
         CACompromise = 2,
+
+        /// <summary> AffiliationChanged </summary>
         AffiliationChanged = 3,
+
+        /// <summary> Superseded </summary>
         Superseded = 4,
+
+        /// <summary> CessationOfOperation </summary>
         CessationOfOperation = 5,
+
+        /// <summary> CertificateHold </summary>
         CertificateHold = 6,
+
+        /// <summary> RemoveFromCRL </summary>
         RemoveFromCRL = 8,
+
+        /// <summary> PrivilegeWithdrawn </summary>
         PrivilegeWithdrawn = 9,
+
+        /// <summary> AACompromise </summary>
         AACompromise = 10,
     }
 }

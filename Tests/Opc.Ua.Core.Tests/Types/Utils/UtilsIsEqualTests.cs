@@ -36,7 +36,7 @@ using System.Xml;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
-#if NET7_0_OR_GREATER
+#if NET7_0_OR_GREATER && !NET_STANDARD_TESTS
 using System.Runtime.CompilerServices;
 #endif
 
@@ -48,12 +48,12 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
     [MemoryDiagnoser]
     [DisassemblyDiagnoser]
     public
-#if NET7_0_OR_GREATER
+#if NET7_0_OR_GREATER && !NET_STANDARD_TESTS
     partial
 #endif
     class UtilsIsEqualTests
     {
-#if NET7_0_OR_GREATER
+#if NET7_0_OR_GREATER && !NET_STANDARD_TESTS
         [LibraryImport("msvcrt")]
         [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
         private static partial int memcmp(ReadOnlySpan<byte> b1, ReadOnlySpan<byte> b2, long count);

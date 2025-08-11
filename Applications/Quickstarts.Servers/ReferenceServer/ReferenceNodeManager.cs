@@ -58,10 +58,6 @@ namespace Quickstarts.ReferenceServer
         {
             SystemContext.NodeIdFactory = this;
 
-            // get the configuration for the node manager.
-            m_configuration =
-                configuration.ParseExtension<ReferenceServerConfiguration>() ?? new ReferenceServerConfiguration();
-
             // use suitable defaults if no configuration exists.
 
             m_dynamicNodes = [];
@@ -5404,7 +5400,6 @@ namespace Quickstarts.ReferenceServer
             return null;
         }
 
-        private readonly ReferenceServerConfiguration m_configuration;
         private RandomSource m_randomSource;
         private DataGenerator m_generator;
         private Timer m_simulationTimer;

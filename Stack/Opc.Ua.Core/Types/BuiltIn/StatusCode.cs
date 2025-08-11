@@ -726,7 +726,7 @@ namespace Opc.Ua
     /// <summary>
     /// Flags that are set by the historian when returning archived values.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1008:EnumsShouldHaveZeroValue"), Flags]
+    [Flags]
     public enum AggregateBits : int
     {
         /// <summary>

@@ -172,7 +172,7 @@ namespace Opc.Ua.Gds.Server
                 UserIdentityToken securityToken = context.UserIdentity.GetIdentityToken();
 
                 // check for a user name token.
-                if (securityToken is UserNameIdentityToken userNameToken)
+                if (securityToken is UserNameIdentityToken)
                 {
                     lock (Lock)
                     {

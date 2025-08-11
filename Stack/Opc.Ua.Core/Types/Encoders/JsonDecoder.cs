@@ -271,8 +271,7 @@ namespace Opc.Ua
         {
             if (checkEof && m_reader.TokenType != JsonToken.EndObject)
             {
-                while (m_reader.Read() && m_reader.TokenType != JsonToken.EndObject)
-                { }
+                while (m_reader.Read() && m_reader.TokenType != JsonToken.EndObject) { }
             }
 
             m_reader.Close();
@@ -970,8 +969,6 @@ namespace Opc.Ua
 
             if (token is string text)
             {
-                ExpandedNodeId nodeId;
-
                 try
                 {
                     return ExpandedNodeId.Parse(
@@ -988,7 +985,7 @@ namespace Opc.Ua
                 catch
                 {
                     // fallback on error. this allows the application to sort out the problem.
-                    nodeId = new NodeId(text, 0);
+                    _ = new NodeId(text, 0);
                 }
             }
 

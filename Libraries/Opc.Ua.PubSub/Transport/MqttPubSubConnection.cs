@@ -386,20 +386,16 @@ namespace Opc.Ua.PubSub.Transport
                 if (
                     networkAddressUrlState.Url != null
                     && Uri.TryCreate(networkAddressUrlState.Url, UriKind.Absolute, out connectionUri)
+                    && connectionUri.Scheme is Utils.UriSchemeMqtt or Utils.UriSchemeMqtts
+                    && !string.IsNullOrEmpty(connectionUri.Host)
                 )
                 {
-                    if ((connectionUri.Scheme == Utils.UriSchemeMqtt) || (connectionUri.Scheme == Utils.UriSchemeMqtts))
-                    {
-                        if (!string.IsNullOrEmpty(connectionUri.Host))
-                        {
-                            BrokerHostName = connectionUri.Host;
-                            BrokerPort =
-                                (connectionUri.Port > 0)
-                                    ? connectionUri.Port
-                                    : ((connectionUri.Scheme == Utils.UriSchemeMqtt) ? 1883 : 8883);
-                            UrlScheme = connectionUri.Scheme;
-                        }
-                    }
+                    BrokerHostName = connectionUri.Host;
+                    BrokerPort =
+                        (connectionUri.Port > 0)
+                            ? connectionUri.Port
+                            : ((connectionUri.Scheme == Utils.UriSchemeMqtt) ? 1883 : 8883);
+                    UrlScheme = connectionUri.Scheme;
                 }
 
                 if (UrlScheme == null)
@@ -425,10 +421,8 @@ namespace Opc.Ua.PubSub.Transport
                         }
 
                         if (
-                            !(
-                                ExtensionObject.ToEncodeable(dataSetWriter.TransportSettings)
-                                is BrokerDataSetWriterTransportDataType transport
-                            )
+                            ExtensionObject.ToEncodeable(dataSetWriter.TransportSettings)
+                                is not BrokerDataSetWriterTransportDataType transport
                             || transport.MetaDataUpdateTime == 0
                         )
                         {
@@ -799,17 +793,17 @@ namespace Opc.Ua.PubSub.Transport
             }
 
             // Setup data needed also in mqttClientOptionsBuilder
-            if ((connectionUri.Scheme == Utils.UriSchemeMqtt) || (connectionUri.Scheme == Utils.UriSchemeMqtts))
+            if (
+                connectionUri.Scheme is Utils.UriSchemeMqtt or Utils.UriSchemeMqtts
+                && !string.IsNullOrEmpty(connectionUri.Host)
+            )
             {
-                if (!string.IsNullOrEmpty(connectionUri.Host))
-                {
-                    BrokerHostName = connectionUri.Host;
-                    BrokerPort =
-                        (connectionUri.Port > 0)
-                            ? connectionUri.Port
-                            : ((connectionUri.Scheme == Utils.UriSchemeMqtt) ? 1883 : 8883);
-                    UrlScheme = connectionUri.Scheme;
-                }
+                BrokerHostName = connectionUri.Host;
+                BrokerPort =
+                    (connectionUri.Port > 0)
+                        ? connectionUri.Port
+                        : ((connectionUri.Scheme == Utils.UriSchemeMqtt) ? 1883 : 8883);
+                UrlScheme = connectionUri.Scheme;
             }
 
             ITransportProtocolConfiguration transportProtocolConfiguration = new MqttClientProtocolConfiguration(

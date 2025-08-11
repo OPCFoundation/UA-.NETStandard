@@ -54,7 +54,7 @@ namespace Opc.Ua.Client.Tests
         /// Set up a Server and a Client instance.
         /// </summary>
         [OneTimeSetUp]
-        public new Task OneTimeSetUp()
+        public override Task OneTimeSetUpAsync()
         {
             // the tests can be run against server specified in .runsettings
             SupportsExternalServerUrl = true;
@@ -68,7 +68,7 @@ namespace Opc.Ua.Client.Tests
         /// Tear down the Server and the Client.
         /// </summary>
         [OneTimeTearDown]
-        public new Task OneTimeTearDownAsync()
+        public override Task OneTimeTearDownAsync()
         {
             return base.OneTimeTearDownAsync();
         }
@@ -77,18 +77,18 @@ namespace Opc.Ua.Client.Tests
         /// Test setup.
         /// </summary>
         [SetUp]
-        public new Task SetUp()
+        public override Task SetUpAsync()
         {
-            return base.SetUp();
+            return base.SetUpAsync();
         }
 
         /// <summary>
         /// Test teardown.
         /// </summary>
         [TearDown]
-        public new Task TearDown()
+        public override Task TearDownAsync()
         {
-            return base.TearDown();
+            return base.TearDownAsync();
         }
 
         [Test, Order(100)]
@@ -919,7 +919,7 @@ namespace Opc.Ua.Client.Tests
 
         [Test, Order(400)]
         [CancelAfter(30_000)]
-        public async Task PublishRequestCount()
+        public async Task PublishRequestCountAsync()
         {
             var subscriptionList = new List<Subscription>();
             long numOfNotifications = 0L;

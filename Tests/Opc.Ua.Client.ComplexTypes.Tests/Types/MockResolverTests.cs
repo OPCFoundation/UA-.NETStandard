@@ -122,13 +122,13 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
         [DatapointSource]
         public static readonly TestType[] TypeSource = new TestTypeCollection(
-#if NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
             Enum.GetValues<BuiltInType>()
 #else
             Enum.GetValues(typeof(BuiltInType))
                 .Cast<BuiltInType>()
 #endif
-                .Where(b => b > BuiltInType.Null && b <= BuiltInType.DiagnosticInfo)
+                .Where(b => b is > BuiltInType.Null and <= BuiltInType.DiagnosticInfo)
                 .Select(b => new TestType(b))
         )
         {
@@ -764,7 +764,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         [Test]
         public void CreateBaseComplexTypeTest()
         {
-            var testDataComplexType = new TestDataComplexType()
+            _ = new TestDataComplexType()
             {
                 PropertyInt8 = 1,
                 PropertyInt16 = 2,
@@ -776,7 +776,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     { 1, 2, 3 },
                     { 4, 5, 6 },
                 },
-                PropertyInt325DArray = new[, , , ,]
+                PropertyInt325DArray = new[,,,,]
                 {
                     {
                         {

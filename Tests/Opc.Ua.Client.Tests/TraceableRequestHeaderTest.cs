@@ -13,9 +13,9 @@ namespace Opc.Ua.Client.Tests
         /// Setup a server and client fixture.
         /// </summary>
         [OneTimeSetUp]
-        public Task OneTimeSetUpAsync()
+        public override Task OneTimeSetUpAsync()
         {
-            return OneTimeSetUpAsync(
+            return base.OneTimeSetUpAsync(
                 writer: null,
                 securityNone: false,
                 enableClientSideTracing: true,
@@ -27,7 +27,7 @@ namespace Opc.Ua.Client.Tests
         /// Tear down the Server and the Client.
         /// </summary>
         [OneTimeTearDown]
-        public new Task OneTimeTearDownAsync()
+        public override Task OneTimeTearDownAsync()
         {
             Utils.SilentDispose(ClientFixture);
             return base.OneTimeTearDownAsync();
@@ -37,25 +37,25 @@ namespace Opc.Ua.Client.Tests
         /// Test setup.
         /// </summary>
         [SetUp]
-        public new Task SetUp()
+        public override Task SetUpAsync()
         {
-            return base.SetUp();
+            return base.SetUpAsync();
         }
 
         /// <summary>
         /// Test teardown.
         /// </summary>
         [TearDown]
-        public new Task TearDown()
+        public override Task TearDownAsync()
         {
-            return base.TearDown();
+            return base.TearDownAsync();
         }
 
         /// <summary>
         /// Global Setup for benchmarks.
         /// </summary>
         [GlobalSetup]
-        public new void GlobalSetup()
+        public override void GlobalSetup()
         {
             Console.WriteLine("GlobalSetup: Start Server");
             OneTimeSetUpAsync(
@@ -75,7 +75,7 @@ namespace Opc.Ua.Client.Tests
         /// Global cleanup for benchmarks.
         /// </summary>
         [GlobalCleanup]
-        public new void GlobalCleanup()
+        public override void GlobalCleanup()
         {
             base.GlobalCleanup();
         }

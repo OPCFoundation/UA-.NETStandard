@@ -51,7 +51,7 @@ namespace Opc.Ua.Gds.Tests
         public string TempStorePath { get; private set; }
         public ApplicationConfiguration Config { get; private set; }
 
-        public async Task LoadClientConfiguration(int port = -1)
+        public async Task LoadClientConfigurationAsync(int port = -1)
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
             var application = new ApplicationInstance
@@ -62,7 +62,7 @@ namespace Opc.Ua.Gds.Tests
             };
 #if USE_FILE_CONFIG
             // load the application configuration.
-            Config = await application.LoadApplicationConfiguration(false).ConfigureAwait(false);
+            Config = await application.LoadApplicationConfigurationAsync(false).ConfigureAwait(false);
 #else
             string root = Path.Combine("%LocalApplicationData%", "OPC");
             string pkiRoot = Path.Combine(root, "pki");
@@ -116,7 +116,7 @@ namespace Opc.Ua.Gds.Tests
 #endif
             // check the application certificate.
             bool haveAppCertificate = await application
-                .CheckApplicationInstanceCertificates(true)
+                .CheckApplicationInstanceCertificatesAsync(true)
                 .ConfigureAwait(false);
             if (!haveAppCertificate)
             {

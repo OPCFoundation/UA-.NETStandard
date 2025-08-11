@@ -15,6 +15,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Xml;
 
 namespace Opc.Ua
@@ -1614,8 +1615,6 @@ namespace Opc.Ua
 
             // move to body.
             decoder.ReadStartElement();
-
-            var symbolicName = new QualifiedName(childName.Name, (ushort)namespaceIndex);
 
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
@@ -4664,10 +4663,10 @@ namespace Opc.Ua
         /// </summary>
         protected NodeStateChangeMasks m_changeMasks;
 
-        private readonly object m_areEventsMonitoredLock = new();
-        private readonly object m_notifiersLock = new();
-        private readonly object m_referencesLock = new();
-        private readonly object m_childrenLock = new();
+        private readonly Lock m_areEventsMonitoredLock = new();
+        private readonly Lock m_notifiersLock = new();
+        private readonly Lock m_referencesLock = new();
+        private readonly Lock m_childrenLock = new();
         private NodeId m_nodeId;
         private QualifiedName m_browseName;
         private LocalizedText m_displayName;
@@ -4677,7 +4676,7 @@ namespace Opc.Ua
         private RolePermissionTypeCollection m_rolePermissions;
         private RolePermissionTypeCollection m_userRolePermissions;
         private AccessRestrictionType? m_accessRestrictions;
-        private IReferenceDictionary<object> m_references;
+        private ReferenceDictionary<object> m_references;
         private int m_areEventsMonitored;
         private List<Notifier> m_notifiers;
     }

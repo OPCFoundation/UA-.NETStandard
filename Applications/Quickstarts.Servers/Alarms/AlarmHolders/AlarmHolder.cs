@@ -32,8 +32,6 @@ using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 
-#pragma warning disable CS1591
-
 namespace Alarms
 {
     public class AlarmHolder

@@ -132,7 +132,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
                 return false;
             }
 
-            return CreateDefaultNodeStateType(systemType) is NodeState nodeState;
+            return CreateDefaultNodeStateType(systemType) is NodeState;
         }
     }
 }

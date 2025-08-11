@@ -87,7 +87,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
 
         [DatapointSource]
         public static readonly BuiltInType[] BuiltInTypes =
-#if NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
         [
             .. Enum.GetValues<BuiltInType>()
 #else
@@ -95,7 +95,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             .. Enum.GetValues(typeof(BuiltInType))
                 .Cast<BuiltInType>()
 #endif
-            .Where(b => (b > BuiltInType.Null) && (b < BuiltInType.DataValue)),
+            .Where(b => b is > BuiltInType.Null and < BuiltInType.DataValue),
         ];
 
         /// <summary>
@@ -157,13 +157,16 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
         public void VariantFromEnumArray()
         {
             // Enum Scalar
-            var variant0 = new Variant(DayOfWeek.Monday);
-            var variant1 = new Variant(DayOfWeek.Monday, new TypeInfo(BuiltInType.Enumeration, ValueRanks.Scalar));
+            _ = new Variant(DayOfWeek.Monday);
+
+            _ = new Variant(DayOfWeek.Monday, new TypeInfo(BuiltInType.Enumeration, ValueRanks.Scalar));
 
             // Enum array
             var days = new DayOfWeek[] { DayOfWeek.Monday, DayOfWeek.Tuesday };
-            var variant2 = new Variant(days, new TypeInfo(BuiltInType.Enumeration, ValueRanks.OneDimension));
-            var variant3 = new Variant(days);
+
+            _ = new Variant(days, new TypeInfo(BuiltInType.Enumeration, ValueRanks.OneDimension));
+
+            _ = new Variant(days);
 
             // Enum 2-dim Array
             var daysdays = new DayOfWeek[,]
@@ -171,7 +174,8 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                 { DayOfWeek.Monday, DayOfWeek.Tuesday },
                 { DayOfWeek.Monday, DayOfWeek.Tuesday },
             };
-            var variant5 = new Variant(daysdays, new TypeInfo(BuiltInType.Enumeration, ValueRanks.TwoDimensions));
+
+            _ = new Variant(daysdays, new TypeInfo(BuiltInType.Enumeration, ValueRanks.TwoDimensions));
 
             // not supported
             // Variant variant6 = new Variant(daysdays);
@@ -799,9 +803,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             Assert.IsTrue(ValueRanks.IsValid(actualValueRank, actualValueRank));
             Assert.IsTrue(ValueRanks.IsValid(actualValueRank, ValueRanks.Any));
             Assert.AreEqual(
-                actualValueRank == ValueRanks.Scalar
-                    || actualValueRank == ValueRanks.OneDimension
-                    || actualValueRank == ValueRanks.ScalarOrOneDimension,
+                actualValueRank is ValueRanks.Scalar or ValueRanks.OneDimension or ValueRanks.ScalarOrOneDimension,
                 ValueRanks.IsValid(actualValueRank, ValueRanks.ScalarOrOneDimension)
             );
             Assert.AreEqual(actualValueRank >= 0, ValueRanks.IsValid(actualValueRank, ValueRanks.OneOrMoreDimensions));

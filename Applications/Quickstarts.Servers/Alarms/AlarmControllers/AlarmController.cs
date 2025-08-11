@@ -30,8 +30,6 @@
 using System;
 using Opc.Ua;
 
-#pragma warning disable CS1591
-
 namespace Alarms
 {
     /// <summary>
@@ -51,7 +49,6 @@ namespace Alarms
         protected bool m_reset;
         protected DateTime m_lastMaxValue = new();
         protected bool m_validLastMaxValue;
-        private int m_branchCount;
         protected int m_midpoint = AlarmDefines.NORMAL_START_VALUE;
 
         public AlarmController(BaseDataVariableState variable, int interval, bool isBoolean)
@@ -186,12 +183,9 @@ namespace Alarms
             TypicalGetValue(minValue, maxValue, ref intValue, ref boolValue);
         }
 
-        public bool SupportsBranching { get; set; } = false;
+        public bool SupportsBranching { get; set; }
 
-        public virtual void SetBranchCount(int count)
-        {
-            m_branchCount = count;
-        }
+        public virtual void SetBranchCount(int count) { }
 
         protected void TypicalGetValue(int minValue, int maxValue, ref int intValue, ref bool boolValue)
         {

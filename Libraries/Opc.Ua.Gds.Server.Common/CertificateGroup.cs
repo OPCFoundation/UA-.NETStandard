@@ -510,7 +510,8 @@ namespace Opc.Ua.Gds.Server
         )
         {
             X509CRL updatedCRL = null;
-            X500DistinguishedName subjectName = certificate.IssuerName;
+
+            _ = certificate.IssuerName;
 
             // caller may want to create empty CRL using the CA cert itself
             bool isCACert = X509Utils.IsCertificateAuthority(certificate);
@@ -522,7 +523,7 @@ namespace Opc.Ua.Gds.Server
             string serialNumber;
             if (authority != null)
             {
-                string keyId = authority.KeyIdentifier;
+                _ = authority.KeyIdentifier;
                 serialNumber = authority.SerialNumber;
             }
             else

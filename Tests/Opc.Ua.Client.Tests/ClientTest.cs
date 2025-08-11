@@ -76,17 +76,17 @@ namespace Opc.Ua.Client.Tests
         /// Set up a Server and a Client instance.
         /// </summary>
         [OneTimeSetUp]
-        public new Task OneTimeSetUp()
+        public override Task OneTimeSetUpAsync()
         {
             SupportsExternalServerUrl = true;
-            return base.OneTimeSetUp();
+            return base.OneTimeSetUpAsync();
         }
 
         /// <summary>
         /// Tear down the Server and the Client.
         /// </summary>
         [OneTimeTearDown]
-        public new Task OneTimeTearDownAsync()
+        public override Task OneTimeTearDownAsync()
         {
             return base.OneTimeTearDownAsync();
         }
@@ -95,25 +95,25 @@ namespace Opc.Ua.Client.Tests
         /// Test setup.
         /// </summary>
         [SetUp]
-        public new Task SetUp()
+        public override Task SetUpAsync()
         {
-            return base.SetUp();
+            return base.SetUpAsync();
         }
 
         /// <summary>
         /// Test teardown.
         /// </summary>
         [TearDown]
-        public new Task TearDown()
+        public override Task TearDownAsync()
         {
-            return base.TearDown();
+            return base.TearDownAsync();
         }
 
         /// <summary>
         /// Global Setup for benchmarks.
         /// </summary>
         [GlobalSetup]
-        public new void GlobalSetup()
+        public override void GlobalSetup()
         {
             base.GlobalSetup();
         }
@@ -122,7 +122,7 @@ namespace Opc.Ua.Client.Tests
         /// Global cleanup for benchmarks.
         /// </summary>
         [GlobalCleanup]
-        public new void GlobalCleanup()
+        public override void GlobalCleanup()
         {
             base.GlobalCleanup();
         }
@@ -328,7 +328,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test, Order(110)]
-        public async Task InvalidConfiguration()
+        public async Task InvalidConfigurationAsync()
         {
             var applicationInstance = new ApplicationInstance()
             {
@@ -341,7 +341,7 @@ namespace Opc.Ua.Client.Tests
                     ClientFixture.Config.SecurityConfiguration.ApplicationCertificate.SubjectName
                 );
 
-            ApplicationConfiguration config = await applicationInstance
+            _ = await applicationInstance
                 .Build(ClientFixture.Config.ApplicationUri, ClientFixture.Config.ProductUri)
                 .AsClient()
                 .AddSecurityConfiguration(applicationCerts)
@@ -350,14 +350,14 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory, Order(200)]
-        public async Task ConnectAndClose(string securityPolicy)
+        public async Task ConnectAndCloseSyncAsync(string securityPolicy)
         {
             bool closeChannel = securityPolicy != SecurityPolicies.Aes128_Sha256_RsaOaep;
             ISession session = await ClientFixture
                 .ConnectAsync(ServerUrl, securityPolicy, Endpoints)
                 .ConfigureAwait(false);
             Assert.NotNull(session);
-            Session.SessionClosing += Session_Closing;
+            Session.SessionClosing += SessionClosing;
             StatusCode result = session.Close(5_000, closeChannel);
             Assert.NotNull(result);
             session.Dispose();
@@ -371,7 +371,7 @@ namespace Opc.Ua.Client.Tests
                 .ConnectAsync(ServerUrl, securityPolicy, Endpoints)
                 .ConfigureAwait(false);
             Assert.NotNull(session);
-            Session.SessionClosing += Session_Closing;
+            Session.SessionClosing += SessionClosing;
             StatusCode result = await session
                 .CloseAsync(5_000, closeChannel, CancellationToken.None)
                 .ConfigureAwait(false);
@@ -380,14 +380,14 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test, Order(202)]
-        public async Task ConnectAndCloseAsyncReadAfterClose()
+        public async Task ConnectAndCloseAsyncReadAfterCloseAsync()
         {
             const string securityPolicy = SecurityPolicies.Basic256Sha256;
             using ISession session = await ClientFixture
                 .ConnectAsync(ServerUrl, securityPolicy, Endpoints)
                 .ConfigureAwait(false);
             Assert.NotNull(session);
-            Session.SessionClosing += Session_Closing;
+            Session.SessionClosing += SessionClosing;
 
             var nodeId = new NodeId(VariableIds.ServerStatusType_BuildInfo);
             Node node = await session.ReadNodeAsync(nodeId, CancellationToken.None).ConfigureAwait(false);
@@ -413,7 +413,7 @@ namespace Opc.Ua.Client.Tests
                 .ConnectAsync(ServerUrl, securityPolicy, Endpoints)
                 .ConfigureAwait(false);
             Assert.NotNull(session);
-            Session.SessionClosing += Session_Closing;
+            Session.SessionClosing += SessionClosing;
 
             IUserIdentity userIdentity = session.Identity;
             string sessionName = session.SessionName;
@@ -441,14 +441,14 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test, Order(206)]
-        public async Task ConnectCloseSessionCloseChannel()
+        public async Task ConnectCloseSessionCloseChannelAsync()
         {
             const string securityPolicy = SecurityPolicies.Basic256Sha256;
             using ISession session = await ClientFixture
                 .ConnectAsync(ServerUrl, securityPolicy, Endpoints)
                 .ConfigureAwait(false);
             Assert.NotNull(session);
-            Session.SessionClosing += Session_Closing;
+            Session.SessionClosing += SessionClosing;
 
             IUserIdentity userIdentity = session.Identity;
             string sessionName = session.SessionName;
@@ -548,7 +548,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory, Order(220)]
-        public async Task ConnectJWT(string securityPolicy)
+        public async Task ConnectJWTAsync(string securityPolicy)
         {
             const string identityToken = "fakeTokenString";
 
@@ -577,7 +577,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory, Order(230)]
-        public async Task ReconnectJWT(string securityPolicy)
+        public async Task ReconnectJWTAsync(string securityPolicy)
         {
             static UserIdentity CreateUserIdentity(string tokenData)
             {
@@ -660,7 +660,7 @@ namespace Opc.Ua.Client.Tests
         /// Close the first channel before or after the new channel is activated.
         /// </summary>
         [Theory, Order(250)]
-        public async Task ReconnectSessionOnAlternateChannel(bool closeChannel, bool asyncReconnect)
+        public async Task ReconnectSessionOnAlternateChannelAsync(bool closeChannel, bool asyncReconnect)
         {
             ServiceResultException sre;
 
@@ -803,7 +803,7 @@ namespace Opc.Ua.Client.Tests
         [TestCase(SecurityPolicies.ECC_nistP384, true, false)]
         [TestCase(SecurityPolicies.ECC_nistP384, false, false)]
         [TestCase(SecurityPolicies.ECC_nistP384, false, true)]
-        public async Task ReconnectSessionOnAlternateChannelWithSavedSessionSecrets(
+        public async Task ReconnectSessionOnAlternateChannelWithSavedSessionSecretsAsync(
             string securityPolicy,
             bool anonymous,
             bool asyncReconnect
@@ -919,7 +919,7 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(270)]
         [TestCase(false)]
         [TestCase(true)]
-        public async Task RecreateSessionWithRenewUserIdentity(bool async)
+        public async Task RecreateSessionWithRenewUserIdentityAsync(bool async)
         {
             var userIdentityAnonymous = new UserIdentity();
             var userIdentityPW = new UserIdentity("user1", "password");
@@ -1192,7 +1192,7 @@ namespace Opc.Ua.Client.Tests
                 [DataTypeIds.ProgramDiagnosticDataType],
                 NodeClass.DataType,
                 out IList<Node> nodes,
-                out IList<ServiceResult> errors,
+                out _,
                 false
             );
             ValidateDataTypeDefinition(nodes[0]);
@@ -1226,7 +1226,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory, Order(400)]
-        public async Task BrowseFullAddressSpace(string securityPolicy, bool operationLimits = false)
+        public async Task BrowseFullAddressSpaceAsync(string securityPolicy, bool operationLimits = false)
         {
             if (OperationLimits == null)
             {
@@ -1268,11 +1268,11 @@ namespace Opc.Ua.Client.Tests
 
         [Test, Order(410)]
         [NonParallelizable]
-        public async Task ReadDisplayNames()
+        public async Task ReadDisplayNamesSyncAsync()
         {
             if (ReferenceDescriptions == null)
             {
-                await BrowseFullAddressSpace(null).ConfigureAwait(false);
+                await BrowseFullAddressSpaceAsync(null).ConfigureAwait(false);
             }
             var nodeIds = ReferenceDescriptions
                 .Select(n => ExpandedNodeId.ToNodeId(n.NodeId, Session.NamespaceUris))
@@ -1330,11 +1330,11 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test, Order(550)]
-        public async Task ReadNode()
+        public async Task ReadNodeSyncAsync()
         {
             if (ReferenceDescriptions == null)
             {
-                await BrowseFullAddressSpace(null).ConfigureAwait(false);
+                await BrowseFullAddressSpaceAsync(null).ConfigureAwait(false);
             }
 
             foreach (ReferenceDescription reference in ReferenceDescriptions.Take(MaxReferences))
@@ -1364,7 +1364,7 @@ namespace Opc.Ua.Client.Tests
         {
             if (ReferenceDescriptions == null)
             {
-                await BrowseFullAddressSpace(null).ConfigureAwait(false);
+                await BrowseFullAddressSpaceAsync(null).ConfigureAwait(false);
             }
 
             foreach (ReferenceDescription reference in ReferenceDescriptions.Take(MaxReferences))
@@ -1392,11 +1392,11 @@ namespace Opc.Ua.Client.Tests
         [Test, Order(560)]
         [TestCase(0)]
         [TestCase(MaxReferences)]
-        public async Task ReadNodes(int nodeCount)
+        public async Task ReadNodesSyncAsync(int nodeCount)
         {
             if (ReferenceDescriptions == null)
             {
-                await BrowseFullAddressSpace(null).ConfigureAwait(false);
+                await BrowseFullAddressSpaceAsync(null).ConfigureAwait(false);
             }
 
             var nodes = new NodeIdCollection(
@@ -1461,7 +1461,7 @@ namespace Opc.Ua.Client.Tests
         {
             if (ReferenceDescriptions == null)
             {
-                await BrowseFullAddressSpace(null).ConfigureAwait(false);
+                await BrowseFullAddressSpaceAsync(null).ConfigureAwait(false);
             }
 
             var nodes = new NodeIdCollection(
@@ -1550,7 +1550,7 @@ namespace Opc.Ua.Client.Tests
         /// </remarks>
         [Theory, Order(800)]
         [NonParallelizable]
-        public async Task TransferSubscriptionNative(bool sendInitialData)
+        public async Task TransferSubscriptionNativeAsync(bool sendInitialData)
         {
             ISession transferSession = null;
             try
@@ -1668,7 +1668,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test, Order(900)]
-        public async Task ClientTestRequestHeaderUpdate()
+        public async Task ClientTestRequestHeaderUpdateAsync()
         {
             Activity rootActivity = new Activity("Test_Activity_Root")
             {
@@ -1778,7 +1778,7 @@ namespace Opc.Ua.Client.Tests
         /// Open a session on a channel using ECC encrypted UserIdentityToken
         /// </summary>
         [Test, Combinatorial, Order(10100)]
-        public async Task OpenSessionECCUserNamePwdIdentityToken(
+        public async Task OpenSessionECCUserNamePwdIdentityTokenAsync(
             [Values(
                 SecurityPolicies.ECC_nistP256,
                 SecurityPolicies.ECC_nistP384,
@@ -1828,7 +1828,7 @@ namespace Opc.Ua.Client.Tests
         /// Open a session on a channel using ECC encrypted IssuedIdentityToken
         /// </summary>
         [Test, Combinatorial, Order(10200)]
-        public async Task OpenSessionECCIssuedIdentityToken(
+        public async Task OpenSessionECCIssuedIdentityTokenAsync(
             [Values(
                 SecurityPolicies.ECC_nistP256,
                 SecurityPolicies.ECC_nistP384,
@@ -1889,7 +1889,7 @@ namespace Opc.Ua.Client.Tests
         /// Open a session on a channel using ECC encrypted UserCertificateIdentityToken
         /// </summary>
         [Test, Combinatorial, Order(10300)]
-        public async Task OpenSessionECCUserCertIdentityToken(
+        public async Task OpenSessionECCUserCertIdentityTokenAsync(
             [Values(
                 SecurityPolicies.ECC_nistP256,
                 SecurityPolicies.ECC_nistP384,
@@ -1966,7 +1966,7 @@ namespace Opc.Ua.Client.Tests
         /// Happy SetSubscriptionDurable
         /// </summary>
         [Test, Order(11000)]
-        public void SetSubscriptionDurable_Success()
+        public void SetSubscriptionDurableSuccess()
         {
             const uint expectedRevised = 5;
 
@@ -1978,10 +1978,7 @@ namespace Opc.Ua.Client.Tests
                 .Setup(mock => mock.Call(It.IsAny<NodeId>(), It.IsAny<NodeId>(), It.IsAny<uint>(), It.IsAny<uint>()))
                 .Returns(outputParameters);
 
-            var subscription = new Subscription
-            {
-                Session = sessionMock.Object
-            };
+            var subscription = new Subscription { Session = sessionMock.Object };
 
             if (subscription.SetSubscriptionDurable(1, out uint revised))
             {
@@ -1997,7 +1994,7 @@ namespace Opc.Ua.Client.Tests
         /// SetSubscriptionDurable Typical Failure
         /// </summary>
         [Test, Order(11010)]
-        public void SetSubscriptionDurable_Exception()
+        public void SetSubscriptionDurableException()
         {
             var sessionMock = new Mock<ISession>();
 
@@ -2005,10 +2002,7 @@ namespace Opc.Ua.Client.Tests
                 .Setup(mock => mock.Call(It.IsAny<NodeId>(), It.IsAny<NodeId>(), It.IsAny<uint>(), It.IsAny<uint>()))
                 .Throws(new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid));
 
-            var subscription = new Subscription
-            {
-                Session = sessionMock.Object
-            };
+            var subscription = new Subscription { Session = sessionMock.Object };
 
             Assert.IsFalse(subscription.SetSubscriptionDurable(1, out uint revised));
         }
@@ -2018,7 +2012,7 @@ namespace Opc.Ua.Client.Tests
         /// Not an expected case
         /// </summary>
         [Test, Order(11020)]
-        public void SetSubscriptionDurable_NoOutputParameters()
+        public void SetSubscriptionDurableNoOutputParameters()
         {
             var outputParameters = new List<object>();
 
@@ -2028,10 +2022,7 @@ namespace Opc.Ua.Client.Tests
                 .Setup(mock => mock.Call(It.IsAny<NodeId>(), It.IsAny<NodeId>(), It.IsAny<uint>(), It.IsAny<uint>()))
                 .Returns(outputParameters);
 
-            var subscription = new Subscription
-            {
-                Session = sessionMock.Object
-            };
+            var subscription = new Subscription { Session = sessionMock.Object };
 
             Assert.IsFalse(subscription.SetSubscriptionDurable(1, out uint revised));
         }
@@ -2041,7 +2032,7 @@ namespace Opc.Ua.Client.Tests
         /// Not an expected case
         /// </summary>
         [Test, Order(11030)]
-        public void SetSubscriptionDurable_NullOutputParameters()
+        public void SetSubscriptionDurableNullOutputParameters()
         {
             List<object> outputParameters = null;
 
@@ -2051,10 +2042,7 @@ namespace Opc.Ua.Client.Tests
                 .Setup(mock => mock.Call(It.IsAny<NodeId>(), It.IsAny<NodeId>(), It.IsAny<uint>(), It.IsAny<uint>()))
                 .Returns(outputParameters);
 
-            var subscription = new Subscription
-            {
-                Session = sessionMock.Object
-            };
+            var subscription = new Subscription { Session = sessionMock.Object };
 
             Assert.IsFalse(subscription.SetSubscriptionDurable(1, out uint revised));
         }
@@ -2064,7 +2052,7 @@ namespace Opc.Ua.Client.Tests
         /// Not an expected case
         /// </summary>
         [Test, Order(11040)]
-        public void SetSubscriptionDurable_TooManyOutputParameters()
+        public void SetSubscriptionDurableTooManyOutputParameters()
         {
             const uint expectedRevised = 5;
 
@@ -2076,10 +2064,7 @@ namespace Opc.Ua.Client.Tests
                 .Setup(mock => mock.Call(It.IsAny<NodeId>(), It.IsAny<NodeId>(), It.IsAny<uint>(), It.IsAny<uint>()))
                 .Returns(outputParameters);
 
-            var subscription = new Subscription
-            {
-                Session = sessionMock.Object
-            };
+            var subscription = new Subscription { Session = sessionMock.Object };
 
             Assert.IsFalse(subscription.SetSubscriptionDurable(1, out uint revised));
         }
@@ -2088,7 +2073,7 @@ namespace Opc.Ua.Client.Tests
         /// GetMonitoredItems Success Case
         /// </summary>
         [Test, Order(11100)]
-        public void GetMonitoredItems_Success()
+        public void GetMonitoredItemsSuccess()
         {
             var outputParameters = new List<object> { new uint[] { 1, 2, 3, 4, 5 }, new uint[] { 6, 7, 8, 9, 10 } };
 
@@ -2098,10 +2083,7 @@ namespace Opc.Ua.Client.Tests
                 .Setup(mock => mock.Call(It.IsAny<NodeId>(), It.IsAny<NodeId>(), It.IsAny<uint>()))
                 .Returns(outputParameters);
 
-            var subscription = new Subscription
-            {
-                Session = sessionMock.Object
-            };
+            var subscription = new Subscription { Session = sessionMock.Object };
 
             UInt32Collection serverHandles;
             UInt32Collection clientHandles;
@@ -2114,7 +2096,7 @@ namespace Opc.Ua.Client.Tests
         /// GetMonitoredItems Error Case
         /// </summary>
         [Test, Order(11110)]
-        public void GetMonitoredItems_Exception()
+        public void GetMonitoredItemsException()
         {
             var sessionMock = new Mock<ISession>();
 
@@ -2122,10 +2104,7 @@ namespace Opc.Ua.Client.Tests
                 .Setup(mock => mock.Call(It.IsAny<NodeId>(), It.IsAny<NodeId>(), It.IsAny<uint>()))
                 .Throws(new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid));
 
-            var subscription = new Subscription
-            {
-                Session = sessionMock.Object
-            };
+            var subscription = new Subscription { Session = sessionMock.Object };
 
             Assert.IsFalse(
                 subscription.GetMonitoredItems(out UInt32Collection serverHandles, out UInt32Collection clientHandles)
@@ -2137,7 +2116,7 @@ namespace Opc.Ua.Client.Tests
         /// Not an expected case
         /// </summary>
         [Test, Order(11120)]
-        public void GetMonitoredItems_NoOutputParameters()
+        public void GetMonitoredItemsNoOutputParameters()
         {
             var outputParameters = new List<object>();
 
@@ -2147,10 +2126,7 @@ namespace Opc.Ua.Client.Tests
                 .Setup(mock => mock.Call(It.IsAny<NodeId>(), It.IsAny<NodeId>(), It.IsAny<uint>()))
                 .Returns(outputParameters);
 
-            var subscription = new Subscription
-            {
-                Session = sessionMock.Object
-            };
+            var subscription = new Subscription { Session = sessionMock.Object };
 
             Assert.IsFalse(
                 subscription.GetMonitoredItems(out UInt32Collection serverHandles, out UInt32Collection clientHandles)
@@ -2162,7 +2138,7 @@ namespace Opc.Ua.Client.Tests
         /// Not an expected case
         /// </summary>
         [Test, Order(11130)]
-        public void GetMonitoredItems_NullOutputParameters()
+        public void GetMonitoredItemsNullOutputParameters()
         {
             List<object> outputParameters = null;
 
@@ -2172,10 +2148,7 @@ namespace Opc.Ua.Client.Tests
                 .Setup(mock => mock.Call(It.IsAny<NodeId>(), It.IsAny<NodeId>(), It.IsAny<uint>()))
                 .Returns(outputParameters);
 
-            var subscription = new Subscription
-            {
-                Session = sessionMock.Object
-            };
+            var subscription = new Subscription { Session = sessionMock.Object };
 
             Assert.IsFalse(
                 subscription.GetMonitoredItems(out UInt32Collection serverHandles, out UInt32Collection clientHandles)
@@ -2187,7 +2160,7 @@ namespace Opc.Ua.Client.Tests
         /// Not an expected case
         /// </summary>
         [Test, Order(11140)]
-        public void GetMonitoredItems_TooManyOutputParameters()
+        public void GetMonitoredItemsTooManyOutputParameters()
         {
             var outputParameters = new List<object>
             {
@@ -2202,10 +2175,7 @@ namespace Opc.Ua.Client.Tests
                 .Setup(mock => mock.Call(It.IsAny<NodeId>(), It.IsAny<NodeId>(), It.IsAny<uint>()))
                 .Returns(outputParameters);
 
-            var subscription = new Subscription
-            {
-                Session = sessionMock.Object
-            };
+            var subscription = new Subscription { Session = sessionMock.Object };
 
             Assert.IsFalse(
                 subscription.GetMonitoredItems(out UInt32Collection serverHandles, out UInt32Collection clientHandles)
@@ -2216,9 +2186,9 @@ namespace Opc.Ua.Client.Tests
         /// Benchmark wrapper for browse tests.
         /// </summary>
         [Benchmark]
-        public async Task BrowseFullAddressSpaceBenchmark()
+        public async Task BrowseFullAddressSpaceBenchmarkAsync()
         {
-            await BrowseFullAddressSpace(null).ConfigureAwait(false);
+            await BrowseFullAddressSpaceAsync(null).ConfigureAwait(false);
         }
 
         private static void ValidateOperationLimit(uint serverLimit, uint clientLimit)

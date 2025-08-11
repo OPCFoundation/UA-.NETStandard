@@ -74,7 +74,7 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
             }
         }
 
-#if NET6_0_OR_GREATER
+#if NET6_0_OR_GREATER && !NET_STANDARD_TESTS
         /// <summary>
         /// Benchmark allocation with new.
         /// </summary>
@@ -244,6 +244,6 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
         private BufferManager m_bufferManager;
         private readonly int m_maxBufferSize = 1234;
         private readonly ReaderWriterLockSlim m_readerWriterLockSlim = new();
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
     }
 }

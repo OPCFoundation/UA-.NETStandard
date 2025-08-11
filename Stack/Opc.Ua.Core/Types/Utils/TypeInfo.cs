@@ -704,10 +704,8 @@ namespace Opc.Ua
                     return typeof(ExtensionObject);
 
                 case DataTypes.Number:
-                    return typeof(Variant);
 
                 case DataTypes.Integer:
-                    return typeof(Variant);
 
                 case DataTypes.UInteger:
                     return typeof(Variant);
@@ -786,10 +784,6 @@ namespace Opc.Ua
         /// <returns>
         /// An data type info if the value is an instance of the data type with the specified value rank; otherwise <c>null</c>.
         /// </returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Microsoft.Maintainability",
-            "CA1502:AvoidExcessiveComplexity"
-        )]
         public static TypeInfo IsInstanceOfDataType(
             object value,
             NodeId expectedDataTypeId,
@@ -1133,10 +1127,6 @@ namespace Opc.Ua
         /// <param name="builtInType">A built-in type.</param>
         /// <param name="valueRank">The value rank.</param>
         /// <returns>A system type equivalent to the built-in type.</returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Microsoft.Maintainability",
-            "CA1502:AvoidExcessiveComplexity"
-        )]
         public static Type GetSystemType(BuiltInType builtInType, int valueRank)
         {
             if (valueRank == ValueRanks.Scalar)
@@ -1196,9 +1186,7 @@ namespace Opc.Ua
                     case BuiltInType.Enumeration:
                         return typeof(int);
                     case BuiltInType.Number:
-                        return typeof(Variant);
                     case BuiltInType.Integer:
-                        return typeof(Variant);
                     case BuiltInType.UInteger:
                         return typeof(Variant);
                 }
@@ -1260,9 +1248,7 @@ namespace Opc.Ua
                     case BuiltInType.Enumeration:
                         return typeof(int[]);
                     case BuiltInType.Number:
-                        return typeof(Variant[]);
                     case BuiltInType.Integer:
-                        return typeof(Variant[]);
                     case BuiltInType.UInteger:
                         return typeof(Variant[]);
                 }
@@ -1361,10 +1347,6 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="systemType">The specified system (framework) type.</param>
         /// <returns><see cref="TypeInfo"/> instance storing information equivalent to the <paramref name="systemType"/> type.</returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Microsoft.Maintainability",
-            "CA1502:AvoidExcessiveComplexity"
-        )]
         public static TypeInfo Construct(Type systemType)
         {
             // check for null.
@@ -1585,7 +1567,6 @@ namespace Opc.Ua
                     return Uuid.Empty;
 
                 case BuiltInType.ByteString:
-                    return null;
 
                 case BuiltInType.XmlElement:
                     return null;
@@ -1671,7 +1652,6 @@ namespace Opc.Ua
                         return DateTime.MinValue;
 
                     case DataTypes.Counter:
-                        return (uint)0;
 
                     case DataTypes.IntegerId:
                         return (uint)0;
@@ -1711,21 +1691,11 @@ namespace Opc.Ua
         /// <param name="type">The built-in type.</param>
         /// <param name="dimensions">The dimensions.</param>
         /// <returns>The default value for the specified built-in type</returns>
-        [
-            System.Diagnostics.CodeAnalysis.SuppressMessage(
-                "Microsoft.Usage",
-                "CA2208:InstantiateArgumentExceptionsCorrectly"
-            ),
-            System.Diagnostics.CodeAnalysis.SuppressMessage(
-                "Microsoft.Maintainability",
-                "CA1502:AvoidExcessiveComplexity"
-            )
-        ]
         public static Array CreateArray(BuiltInType type, params int[] dimensions)
         {
             if (dimensions == null || dimensions.Length == 0)
             {
-                throw new ArgumentOutOfRangeException("Array dimensions must be specified.");
+                throw new ArgumentOutOfRangeException(nameof(dimensions), "Array dimensions must be specified.");
             }
 
             int length = dimensions[0];
@@ -1817,10 +1787,8 @@ namespace Opc.Ua
                         return new int[length];
 
                     case BuiltInType.Number:
-                        return new Variant[length];
 
                     case BuiltInType.Integer:
-                        return new Variant[length];
 
                     case BuiltInType.UInteger:
                         return new Variant[length];
@@ -1913,10 +1881,8 @@ namespace Opc.Ua
                         return Array.CreateInstance(typeof(int), dimensions);
 
                     case BuiltInType.Number:
-                        return Array.CreateInstance(typeof(Variant), dimensions);
 
                     case BuiltInType.Integer:
-                        return Array.CreateInstance(typeof(Variant), dimensions);
 
                     case BuiltInType.UInteger:
                         return Array.CreateInstance(typeof(Variant), dimensions);
@@ -1947,10 +1913,6 @@ namespace Opc.Ua
         /// <param name="targetType">Type of the target.</param>
         /// <returns>Return casted value.</returns>
         /// <exception cref="InvalidCastException">if impossible to cast.</exception>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Microsoft.Maintainability",
-            "CA1502:AvoidExcessiveComplexity"
-        )]
         public static object Cast(object source, TypeInfo sourceType, BuiltInType targetType)
         {
             // null always casts to null.
@@ -2173,10 +2135,6 @@ namespace Opc.Ua
         /// <summary>
         /// Maps the type name to a built-in type.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Microsoft.Maintainability",
-            "CA1502:AvoidExcessiveComplexity"
-        )]
         private static BuiltInType GetBuiltInType(string typeName)
         {
             switch (typeName)
@@ -2200,7 +2158,6 @@ namespace Opc.Ua
                 case "UInt64":
                     return BuiltInType.UInt64;
                 case "Float":
-                    return BuiltInType.Float;
                 case "Single":
                     return BuiltInType.Float;
                 case "Double":
@@ -3199,7 +3156,6 @@ namespace Opc.Ua
         /// <summary>
         /// Constants for scalar types.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1034:NestedTypesShouldNotBeVisible")]
         public static class Scalars
         {
             /// <summary>
@@ -3331,7 +3287,6 @@ namespace Opc.Ua
         /// <summary>
         /// Constants for one dimensional array types.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1034:NestedTypesShouldNotBeVisible")]
         public static class Arrays
         {
             /// <summary>

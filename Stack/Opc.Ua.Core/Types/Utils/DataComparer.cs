@@ -641,10 +641,6 @@ namespace Opc.Ua.Test
         /// <param name="value2">Second Value.</param>
         /// <returns>True in case of equal values.
         /// False or ServiceResultException in case of unequal values.</returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Microsoft.Maintainability",
-            "CA1502:AvoidExcessiveComplexity"
-        )]
         public bool CompareVariant(Variant value1, Variant value2)
         {
             if (value1.Value == null || value2.Value == null)

@@ -76,7 +76,7 @@ namespace Alarms
             m_alarm ??= new ExclusiveLevelAlarmState(m_parent);
 
             // Call the base class to set parameters
-            Initialize(alarmTypeIdentifier, name, maxTimeShelved, isLimit: false);
+            Initialize(alarmTypeIdentifier, name, maxTimeShelved);
         }
     }
 }

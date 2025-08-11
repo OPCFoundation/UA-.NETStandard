@@ -572,7 +572,7 @@ namespace Opc.Ua.Client
             m_updateFromServer = false;
         }
 
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
         private ReconnectState m_state;
         private readonly Random m_random;
         private bool m_reconnectFailed;

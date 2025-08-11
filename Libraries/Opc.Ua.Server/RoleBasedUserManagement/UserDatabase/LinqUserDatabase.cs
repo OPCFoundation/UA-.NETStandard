@@ -203,9 +203,7 @@ namespace Opc.Ua.Server.UserDatabase
         private static string Hash(string password)
         {
 #if NETSTANDARD2_0 || NET462
-#pragma warning disable CA5379 // Ensure Key Derivation Function algorithm is sufficiently strong
             using var algorithm = new Rfc2898DeriveBytes(password, kSaltSize, kIterations);
-#pragma warning restore CA5379 // Ensure Key Derivation Function algorithm is sufficiently strong
 #else
             using var algorithm = new Rfc2898DeriveBytes(password, kSaltSize, kIterations, HashAlgorithmName.SHA512);
 #endif
@@ -232,9 +230,7 @@ namespace Opc.Ua.Server.UserDatabase
             byte[] key = Convert.FromBase64String(parts[2]);
 
 #if NETSTANDARD2_0 || NET462
-#pragma warning disable CA5379 // Ensure Key Derivation Function algorithm is sufficiently strong
             using var algorithm = new Rfc2898DeriveBytes(password, salt, iterations);
-#pragma warning restore CA5379 // Ensure Key Derivation Function algorithm is sufficiently strong
 #else
             using var algorithm = new Rfc2898DeriveBytes(password, salt, iterations, HashAlgorithmName.SHA512);
 #endif

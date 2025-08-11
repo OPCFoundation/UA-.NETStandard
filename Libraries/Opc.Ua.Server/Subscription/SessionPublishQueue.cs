@@ -489,7 +489,7 @@ namespace Opc.Ua.Server
             // check for error.
             if (ServiceResult.IsGood(error) && StatusCode.IsBad(request.Error))
             {
-                error = request.Error;
+                _ = request.Error;
             }
 
             // must reassign subscription on error.
@@ -924,7 +924,7 @@ namespace Opc.Ua.Server
             Utils.LogTrace(buffer.ToString());
         }
 
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
         private readonly IServerInternal m_server;
         private readonly ISession m_session;
         private readonly ManualResetEvent m_publishEvent;

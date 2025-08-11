@@ -265,7 +265,7 @@ namespace Opc.Ua.Security.Certificates
 
         private void Decode(byte[] data)
         {
-            if (Oid.Value == AuthorityKeyIdentifierOid || Oid.Value == AuthorityKeyIdentifier2Oid)
+            if (Oid.Value is AuthorityKeyIdentifierOid or AuthorityKeyIdentifier2Oid)
             {
                 try
                 {

@@ -93,7 +93,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [OneTimeSetUp]
         public async Task OneTimeSetUpAsync()
         {
-#if NETCOREAPP2_1_OR_GREATER && !ECC_SUPPORT
+#if NETCOREAPP2_1_OR_GREATER && !ECC_SUPPORT && !NET_STANDARD_TESTS
             // this test cannot create the required certs on macOS with legacy bouncy castle support
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {

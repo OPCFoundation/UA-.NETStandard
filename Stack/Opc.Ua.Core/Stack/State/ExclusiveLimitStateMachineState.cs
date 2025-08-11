@@ -28,12 +28,12 @@ namespace Opc.Ua
         /// <summary>
         /// The table of states belonging to the state machine.
         /// </summary>
-        protected override ElementInfo[] StateTable => s_StateTable;
+        protected override ElementInfo[] StateTable => s_stateTable;
 
         /// <summary>
         /// A table of valid states.
         /// </summary>
-        private readonly ElementInfo[] s_StateTable =
+        private static readonly ElementInfo[] s_stateTable =
         [
             new(Objects.ExclusiveLimitStateMachineType_HighHigh, BrowseNames.HighHigh, 1),
             new(Objects.ExclusiveLimitStateMachineType_High, BrowseNames.High, 2),
@@ -44,12 +44,12 @@ namespace Opc.Ua
         /// <summary>
         /// The table of transitions belonging to the state machine.
         /// </summary>
-        protected override ElementInfo[] TransitionTable => s_TransitionTable;
+        protected override ElementInfo[] TransitionTable => s_transitionTable;
 
         /// <summary>
         /// A table of valid transitions.
         /// </summary>
-        private static readonly ElementInfo[] s_TransitionTable =
+        private static readonly ElementInfo[] s_transitionTable =
         [
             new(Objects.ExclusiveLimitStateMachineType_HighHighToHigh, BrowseNames.HighHighToHigh, 1),
             new(Objects.ExclusiveLimitStateMachineType_HighToHighHigh, BrowseNames.HighToHighHigh, 2),

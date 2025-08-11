@@ -458,8 +458,9 @@ namespace Opc.Ua.PubSub.Tests.Transport
                 foreach (UnicastIPAddressInformation uniIpAddrInfo in netI.GetIPProperties().UnicastAddresses)
                 {
                     if (
-                        uniIpAddrInfo.Address.AddressFamily == AddressFamily.InterNetwork
-                        || uniIpAddrInfo.Address.AddressFamily == AddressFamily.InterNetworkV6
+                        uniIpAddrInfo.Address.AddressFamily
+                        is AddressFamily.InterNetwork
+                            or AddressFamily.InterNetworkV6
                     )
                     {
                         if (

@@ -31,8 +31,6 @@ using System;
 using System.Collections.Generic;
 using Opc.Ua;
 
-#pragma warning disable CS1591
-
 namespace Alarms
 {
     // Ignore all Optionals for Confirm, as it should be supported.  For this object, that means remove all Optional conditions

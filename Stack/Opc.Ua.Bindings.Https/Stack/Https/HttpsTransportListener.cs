@@ -137,11 +137,6 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Microsoft.Usage",
-            "CA2213:DisposableFieldsShouldBeDisposed",
-            MessageId = "m_simulator"
-        )]
         protected virtual void Dispose(bool disposing)
         {
             if (disposing)
@@ -173,7 +168,6 @@ namespace Opc.Ua.Bindings
             ListenerId = Guid.NewGuid().ToString();
 
             EndpointUrl = baseAddress;
-            m_discovery = EndpointUrl.AbsolutePath?.TrimEnd('/') + ConfiguredEndpoint.DiscoverySuffix;
             m_descriptions = settings.Descriptions;
             EndpointConfiguration configuration = settings.Configuration;
 
@@ -303,11 +297,7 @@ namespace Opc.Ua.Bindings
 #endif
 
             UriHostNameType hostType = Uri.CheckHostName(EndpointUrl.Host);
-            if (
-                hostType == UriHostNameType.Dns
-                || hostType == UriHostNameType.Unknown
-                || hostType == UriHostNameType.Basic
-            )
+            if (hostType is UriHostNameType.Dns or UriHostNameType.Unknown or UriHostNameType.Basic)
             {
                 // bind to any address
                 m_hostBuilder.UseKestrel(options =>
@@ -583,7 +573,6 @@ namespace Opc.Ua.Bindings
             return true;
         }
 
-        private string m_discovery;
         private EndpointDescriptionCollection m_descriptions;
         private ChannelQuotas m_quotas;
         private ITransportListenerCallback m_callback;

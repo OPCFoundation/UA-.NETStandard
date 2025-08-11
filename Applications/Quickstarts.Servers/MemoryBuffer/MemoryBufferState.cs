@@ -103,6 +103,17 @@ namespace MemoryBuffer
         /// </summary>
         public int MaximumScanRate { get; private set; }
 
+        /// <inheritdoc/>
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                Utils.SilentDispose(m_scanTimer);
+                m_scanTimer = null;
+            }
+            base.Dispose(disposing);
+        }
+
         /// <summary>
         /// Initializes the buffer with enough space to hold the specified number of elements.
         /// </summary>
@@ -497,6 +508,7 @@ namespace MemoryBuffer
             if (m_monitoringTable == null)
             {
                 m_monitoringTable = new MemoryBufferMonitoredItem[elementCount][];
+                Utils.SilentDispose(m_scanTimer);
                 m_scanTimer = new Timer(DoScan, null, 100, 100);
             }
 
@@ -677,7 +689,7 @@ namespace MemoryBuffer
             }
         }
 
-        private readonly object m_dataLock = new();
+        private readonly Lock m_dataLock = new();
         private MemoryBufferMonitoredItem[][] m_monitoringTable;
         private Dictionary<uint, MemoryBufferMonitoredItem> m_nonValueMonitoredItems;
         private int m_elementSize;

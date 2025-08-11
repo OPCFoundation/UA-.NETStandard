@@ -267,7 +267,6 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Raised to indicate that the state of the subscription has changed.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1009:DeclareEventHandlersCorrectly")]
         public event SubscriptionStateChangedEventHandler StateChanged
         {
             add => m_StateChanged += value;
@@ -462,8 +461,7 @@ namespace Opc.Ua.Client
         /// Allows the list of monitored items to be saved/restored when the object is serialized.
         /// </summary>
         [DataMember(Name = "MonitoredItems", Order = 11)]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
-        private List<MonitoredItem> SavedMonitoredItems
+        internal List<MonitoredItem> SavedMonitoredItems
         {
             get
             {
@@ -3026,10 +3024,7 @@ namespace Opc.Ua.Client
     /// <summary>
     /// Flags indicating what has changed in a subscription.
     /// </summary>
-    [
-        System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1714:FlagsEnumsShouldHavePluralNames"),
-        Flags
-    ]
+    [Flags]
     public enum SubscriptionChangeMask
     {
         /// <summary>
@@ -3086,10 +3081,7 @@ namespace Opc.Ua.Client
     /// <summary>
     /// Flags indicating what has changed in a publish state change.
     /// </summary>
-    [
-        System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1714:FlagsEnumsShouldHavePluralNames"),
-        Flags
-    ]
+    [Flags]
     public enum PublishStateChangedMask
     {
         /// <summary>

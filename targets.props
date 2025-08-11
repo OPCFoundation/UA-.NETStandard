@@ -48,6 +48,7 @@
     </When>
     <When Condition="'$(CustomTestTarget)' == 'netstandard2.0'">
       <PropertyGroup>
+        <NetStandardTests>true</NetStandardTests>
         <DisableECCTests>true</DisableECCTests>
         <AppTargetFrameworks>net8.0</AppTargetFrameworks>
         <AppTargetFramework>net8.0</AppTargetFramework>
@@ -60,6 +61,7 @@
     </When>
     <When Condition="'$(CustomTestTarget)' == 'netstandard2.1'">
       <PropertyGroup>
+        <NetStandardTests>true</NetStandardTests>
         <AppTargetFrameworks>net8.0</AppTargetFrameworks>
         <AppTargetFramework>net8.0</AppTargetFramework>
         <TestsTargetFrameworks>net8.0</TestsTargetFrameworks>
@@ -117,7 +119,7 @@
       <PropertyGroup>
         <AppTargetFrameworks>net9.0;net8.0;net48</AppTargetFrameworks>
         <AppTargetFramework>net9.0</AppTargetFramework>
-        <TestsTargetFrameworks>net48;net9.0</TestsTargetFrameworks>
+        <TestsTargetFrameworks>net472;net48;net8.0;net9.0</TestsTargetFrameworks>
         <LibTargetFrameworks>net472;net48;netstandard2.0;netstandard2.1;net8.0;net9.0</LibTargetFrameworks>
         <LibCoreTargetFrameworks>net472;net48;netstandard2.0;netstandard2.1;net8.0;net9.0</LibCoreTargetFrameworks>
         <LibxTargetFrameworks>net472;net48;netstandard2.1;net8.0;net9.0</LibxTargetFrameworks>

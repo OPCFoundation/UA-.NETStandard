@@ -477,7 +477,7 @@ namespace Opc.Ua.Bindings
             return channel;
         }
 
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
         private Uri m_url;
         private TransportChannelSettings m_settings;
         private ChannelQuotas m_quotas;

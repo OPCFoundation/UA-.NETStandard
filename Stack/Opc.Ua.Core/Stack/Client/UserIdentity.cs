@@ -222,7 +222,7 @@ namespace Opc.Ua
                 }
             }
 
-            if (token is AnonymousIdentityToken anonymousToken)
+            if (token is AnonymousIdentityToken)
             {
                 TokenType = UserTokenType.Anonymous;
                 IssuedTokenType = null;

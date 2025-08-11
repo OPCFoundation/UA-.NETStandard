@@ -66,8 +66,7 @@ namespace Opc.Ua
                 outerResult.LocalizedText,
                 outerResult.AdditionalInfo,
                 innerResult
-            )
-        { }
+            ) { }
 
         /// <summary>
         /// Constructs an object by specifying each property.

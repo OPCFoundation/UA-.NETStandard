@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
 
 namespace Opc.Ua.Server
 {
@@ -58,11 +59,6 @@ namespace Opc.Ua.Server
         /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Microsoft.Usage",
-            "CA2213:DisposableFieldsShouldBeDisposed",
-            MessageId = "m_requestTimer"
-        )]
         protected virtual void Dispose(bool disposing)
         {
             if (disposing)
@@ -215,7 +211,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
         private readonly IServerInternal m_server;
         private AggregateConfiguration m_defaultConfiguration;
         private readonly NodeIdDictionary<AggregatorFactory> m_factories;

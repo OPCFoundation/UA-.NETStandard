@@ -172,11 +172,6 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="context">The context information of an underlying data-stream</param>
         [OnDeserializing]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Microsoft.Usage",
-            "CA1801:ReviewUnusedParameters",
-            MessageId = "context"
-        )]
         private void Initialize(StreamingContext context)
         {
             Initialize();

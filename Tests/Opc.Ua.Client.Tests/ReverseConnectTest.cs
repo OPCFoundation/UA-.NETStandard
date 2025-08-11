@@ -62,7 +62,7 @@ namespace Opc.Ua.Client.Tests
         /// Setup a server and client fixture.
         /// </summary>
         [OneTimeSetUp]
-        public async Task OneTimeSetUpAsync()
+        public override async Task OneTimeSetUpAsync()
         {
             // this test fails on macOS, ignore (TODO)
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
@@ -86,8 +86,8 @@ namespace Opc.Ua.Client.Tests
             // create client
             ClientFixture = new ClientFixture();
 
-            await ClientFixture.LoadClientConfiguration(PkiRoot).ConfigureAwait(false);
-            await ClientFixture.StartReverseConnectHost().ConfigureAwait(false);
+            await ClientFixture.LoadClientConfigurationAsync(PkiRoot).ConfigureAwait(false);
+            await ClientFixture.StartReverseConnectHostAsync().ConfigureAwait(false);
             m_endpointUrl = new Uri(
                 Utils.ReplaceLocalhost(
                     "opc.tcp://localhost:" + ServerFixture.Port.ToString(CultureInfo.InvariantCulture)
@@ -101,7 +101,7 @@ namespace Opc.Ua.Client.Tests
         /// Tear down the Server and the Client.
         /// </summary>
         [OneTimeTearDown]
-        public new Task OneTimeTearDownAsync()
+        public override Task OneTimeTearDownAsync()
         {
             Utils.SilentDispose(ClientFixture);
             return base.OneTimeTearDownAsync();
@@ -111,33 +111,33 @@ namespace Opc.Ua.Client.Tests
         /// Test setup.
         /// </summary>
         [SetUp]
-        public new Task SetUp()
+        public override Task SetUpAsync()
         {
-            return base.SetUp();
+            return base.SetUpAsync();
         }
 
         /// <summary>
         /// Test teardown.
         /// </summary>
         [TearDown]
-        public new Task TearDown()
+        public override Task TearDownAsync()
         {
-            return base.TearDown();
+            return base.TearDownAsync();
         }
 
         /// <summary>
         /// Get endpoints using a reverse connection.
         /// </summary>
         [Test, Order(100)]
-        public async Task GetEndpoints()
+        public async Task GetEndpointsAsync()
         {
-            await RequireEndpoints().ConfigureAwait(false);
+            await RequireEndpointsAsync().ConfigureAwait(false);
         }
 
         /// <summary>
         /// Internal get endpoints which is called with semaphore.
         /// </summary>
-        public async Task GetEndpointsInternal()
+        public async Task GetEndpointsInternalAsync()
         {
             ApplicationConfiguration config = ClientFixture.Config;
             ITransportWaitingConnection connection;
@@ -160,7 +160,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test, Order(200)]
-        public async Task SelectEndpoint()
+        public async Task SelectEndpointAsync()
         {
             ApplicationConfiguration config = ClientFixture.Config;
             ITransportWaitingConnection connection;
@@ -176,10 +176,10 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory, Order(300)]
-        public async Task ReverseConnect(string securityPolicy, ISessionFactory sessionFactory)
+        public async Task ReverseConnectAsync(string securityPolicy, ISessionFactory sessionFactory)
         {
             // ensure endpoints are available
-            await RequireEndpoints().ConfigureAwait(false);
+            await RequireEndpointsAsync().ConfigureAwait(false);
 
             // get a connection
             ApplicationConfiguration config = ClientFixture.Config;
@@ -238,12 +238,16 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory, Order(301)]
-        public async Task ReverseConnect2(bool updateBeforeConnect, bool checkDomain, ISessionFactory sessionFactory)
+        public async Task ReverseConnect2Async(
+            bool updateBeforeConnect,
+            bool checkDomain,
+            ISessionFactory sessionFactory
+        )
         {
             const string securityPolicy = SecurityPolicies.Basic256Sha256;
 
             // ensure endpoints are available
-            await RequireEndpoints().ConfigureAwait(false);
+            await RequireEndpointsAsync().ConfigureAwait(false);
 
             // get a connection
             ApplicationConfiguration config = ClientFixture.Config;
@@ -294,14 +298,14 @@ namespace Opc.Ua.Client.Tests
             session.Dispose();
         }
 
-        private async Task RequireEndpoints()
+        private async Task RequireEndpointsAsync()
         {
             await m_requiredLock.WaitAsync().ConfigureAwait(false);
             try
             {
                 if (Endpoints == null)
                 {
-                    await GetEndpointsInternal().ConfigureAwait(false);
+                    await GetEndpointsInternalAsync().ConfigureAwait(false);
                 }
             }
             finally

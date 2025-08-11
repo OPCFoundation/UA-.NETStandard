@@ -99,7 +99,7 @@ namespace Opc.Ua.PubSub.Transport
         private void OnUadpDiscoveryReceive(IAsyncResult result)
         {
             // this is what had been passed into BeginReceive as the second parameter:
-            if (!(result.AsyncState is UdpClient socket))
+            if (result.AsyncState is not UdpClient socket)
             {
                 return;
             }

@@ -43,7 +43,6 @@ namespace Opc.Ua.Server
     /// <summary>
     /// The standard implementation of a UA server.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling")]
     public class StandardServer : SessionServerBase
     {
         /// <summary>
@@ -58,23 +57,6 @@ namespace Opc.Ua.Server
         /// An overrideable version of the Dispose.
         /// </summary>
         /// <param name="disposing"><c>true</c> to release both managed and unmanaged resources; <c>false</c> to release only unmanaged resources.</param>
-        [
-            System.Diagnostics.CodeAnalysis.SuppressMessage(
-                "Microsoft.Usage",
-                "CA2213:DisposableFieldsShouldBeDisposed",
-                MessageId = "m_serverInternal"
-            ),
-            System.Diagnostics.CodeAnalysis.SuppressMessage(
-                "Microsoft.Usage",
-                "CA2213:DisposableFieldsShouldBeDisposed",
-                MessageId = "m_registrationTimer"
-            ),
-            System.Diagnostics.CodeAnalysis.SuppressMessage(
-                "Microsoft.Usage",
-                "CA2213:DisposableFieldsShouldBeDisposed",
-                MessageId = "m_configurationWatcher"
-            )
-        ]
         protected override void Dispose(bool disposing)
         {
             if (disposing)
@@ -2685,13 +2667,8 @@ namespace Opc.Ua.Server
         /// The state object associated with the server.
         /// </summary>
         /// <value>The server internal data.</value>
-        protected IServerInternal ServerInternal
-        {
-            get
-            {
-                return m_serverInternal ?? throw new ServiceResultException(StatusCodes.BadServerHalted);
-            }
-        }
+        protected IServerInternal ServerInternal =>
+            m_serverInternal ?? throw new ServiceResultException(StatusCodes.BadServerHalted);
 
         /// <summary>
         /// Verifies that the request header is valid.
@@ -2944,7 +2921,6 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="sender">The sender.</param>
         /// <param name="args">The <see cref="ConfigurationWatcherEventArgs"/> instance containing the event data.</param>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2109:ReviewVisibleEventHandlers")]
         protected virtual async void OnConfigurationChangedAsync(object sender, ConfigurationWatcherEventArgs args)
         {
             try
@@ -2985,7 +2961,10 @@ namespace Opc.Ua.Server
                     .SecurityConfiguration
                     .RejectedCertificateStore;
 
-                Configuration.CertificateValidator.UpdateAsync(Configuration.SecurityConfiguration).Wait();
+                Configuration
+                    .CertificateValidator.UpdateAsync(Configuration.SecurityConfiguration)
+                    .GetAwaiter()
+                    .GetResult();
 
                 // update trace configuration.
                 Configuration.TraceConfiguration = configuration.TraceConfiguration ?? new TraceConfiguration();
@@ -3693,7 +3672,7 @@ namespace Opc.Ua.Server
             ApplicationConfiguration configuration
         )
         {
-            var resourceManager = new ResourceManager(server, configuration);
+            var resourceManager = new ResourceManager(configuration);
 
             // load default text for all status codes.
             resourceManager.LoadDefaultText();
@@ -3860,7 +3839,7 @@ namespace Opc.Ua.Server
 
         private OperationLimitsState OperationLimits => ServerInternal.ServerObject.ServerCapabilities.OperationLimits;
 
-        private readonly object m_registrationLock = new();
+        private readonly Lock m_registrationLock = new();
         private IServerInternal m_serverInternal;
         private ConfigurationWatcher m_configurationWatcher;
         private ConfiguredEndpointCollection m_registrationEndpoints;

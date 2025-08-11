@@ -45,8 +45,7 @@ namespace Opc.Ua.Bindings
                 endpoints,
                 securityMode,
                 securityPolicyUri
-            )
-        { }
+            ) { }
 
         /// <summary>
         /// Attaches the object to an existing socket.
@@ -69,8 +68,7 @@ namespace Opc.Ua.Bindings
                 endpoints,
                 securityMode,
                 securityPolicyUri
-            )
-        { }
+            ) { }
 
         /// <summary>
         /// Attaches the object to an existing socket.

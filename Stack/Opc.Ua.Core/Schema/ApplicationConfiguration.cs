@@ -2237,7 +2237,7 @@ namespace Opc.Ua
         /// Options that can be used to suppress certificate validation errors.
         /// </summary>
         [DataMember(Name = "ValidationOptions", IsRequired = false, EmitDefaultValue = false, Order = 4)]
-        private int XmlEncodedValidationOptions
+        internal int XmlEncodedValidationOptions
         {
             get => (int)ValidationOptions;
             set => ValidationOptions = (CertificateValidationOptions)value;
@@ -2536,7 +2536,7 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The XML encoded validation options.</value>
         [DataMember(Name = "ValidationOptions", IsRequired = false, EmitDefaultValue = false, Order = 70)]
-        private int XmlEncodedValidationOptions
+        internal int XmlEncodedValidationOptions
         {
             get => (int)ValidationOptions;
             set => ValidationOptions = (CertificateValidationOptions)value;

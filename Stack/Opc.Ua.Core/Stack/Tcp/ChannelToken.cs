@@ -107,73 +107,41 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// The nonce provided by the client.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Microsoft.Performance",
-            "CA1819:PropertiesShouldNotReturnArrays"
-        )]
         public byte[] ClientNonce { get; set; }
 
         /// <summary>
         /// The nonce provided by the server.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Microsoft.Performance",
-            "CA1819:PropertiesShouldNotReturnArrays"
-        )]
         public byte[] ServerNonce { get; set; }
 
         /// <summary>
         /// The key used to sign messages sent by the client.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Microsoft.Performance",
-            "CA1819:PropertiesShouldNotReturnArrays"
-        )]
         public byte[] ClientSigningKey { get; set; }
 
         /// <summary>
         /// The key used to encrypt messages sent by the client.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Microsoft.Performance",
-            "CA1819:PropertiesShouldNotReturnArrays"
-        )]
         public byte[] ClientEncryptingKey { get; set; }
 
         /// <summary>
         /// The initialization vector by the client when encrypting a message.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Microsoft.Performance",
-            "CA1819:PropertiesShouldNotReturnArrays"
-        )]
         public byte[] ClientInitializationVector { get; set; }
 
         /// <summary>
         /// The key used to sign messages sent by the server.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Microsoft.Performance",
-            "CA1819:PropertiesShouldNotReturnArrays"
-        )]
         public byte[] ServerSigningKey { get; set; }
 
         /// <summary>
         /// The key used to encrypt messages sent by the server.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Microsoft.Performance",
-            "CA1819:PropertiesShouldNotReturnArrays"
-        )]
         public byte[] ServerEncryptingKey { get; set; }
 
         /// <summary>
         /// The initialization vector by the server when encrypting a message.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Microsoft.Performance",
-            "CA1819:PropertiesShouldNotReturnArrays"
-        )]
         public byte[] ServerInitializationVector { get; set; }
 
         /// <summary>

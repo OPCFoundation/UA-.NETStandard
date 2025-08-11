@@ -226,7 +226,6 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="sender">The sender.</param>
         /// <param name="args">The <see cref="ConfigurationWatcherEventArgs"/> instance containing the event data.</param>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2109:ReviewVisibleEventHandlers")]
         protected virtual async void OnConfigurationChangedAsync(object sender, ConfigurationWatcherEventArgs args)
         {
             try
@@ -816,7 +815,7 @@ namespace Opc.Ua.Client
             cts.Dispose();
         }
 
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
         private ConfigurationWatcher m_configurationWatcher;
         private ApplicationType m_applicationType;
         private Type m_configType;
@@ -824,7 +823,7 @@ namespace Opc.Ua.Client
         private Dictionary<Uri, ReverseConnectInfo> m_endpointUrls;
         private ReverseConnectManagerState m_state;
         private readonly List<Registration> m_registrations;
-        private readonly object m_registrationsLock = new();
+        private readonly Lock m_registrationsLock = new();
         private CancellationTokenSource m_cts;
     }
 }

@@ -99,7 +99,7 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Load the default client configuration.
         /// </summary>
-        public async Task LoadClientConfiguration(string pkiRoot = null, string clientName = "TestClient")
+        public async Task LoadClientConfigurationAsync(string pkiRoot = null, string clientName = "TestClient")
         {
             var application = new ApplicationInstance { ApplicationName = clientName };
 
@@ -138,7 +138,7 @@ namespace Opc.Ua.Client.Tests
 
             // check the application certificate.
             bool haveAppCertificate = await application
-                .CheckApplicationInstanceCertificates(true)
+                .CheckApplicationInstanceCertificatesAsync(true)
                 .ConfigureAwait(false);
             if (!haveAppCertificate)
             {
@@ -151,7 +151,7 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Start a host for reverse connections on random port.
         /// </summary>
-        public async Task StartReverseConnectHost()
+        public async Task StartReverseConnectHostAsync()
         {
             var random = new Random();
             int testPort = ServerFixtureUtils.GetNextFreeIPPort();
@@ -184,7 +184,7 @@ namespace Opc.Ua.Client.Tests
         /// Connects the specified endpoint URL.
         /// </summary>
         /// <param name="endpointUrl">The endpoint URL.</param>
-        public async Task<ISession> Connect(string endpointUrl)
+        public async Task<ISession> ConnectAsync(string endpointUrl)
         {
             if (string.IsNullOrEmpty(endpointUrl))
             {
@@ -303,7 +303,7 @@ namespace Opc.Ua.Client.Tests
             EndpointDescriptionCollection endpoints = null
         )
         {
-            endpoints ??= await GetEndpoints(url).ConfigureAwait(false);
+            endpoints ??= await GetEndpointsAsync(url).ConfigureAwait(false);
             EndpointDescription endpointDescription = SelectEndpoint(Config, endpoints, url, securityPolicy);
             if (endpointDescription == null)
             {
@@ -369,7 +369,7 @@ namespace Opc.Ua.Client.Tests
         /// Get endpoints from discovery endpoint.
         /// </summary>
         /// <param name="url">The url of the discovery endpoint.</param>
-        public async Task<EndpointDescriptionCollection> GetEndpoints(Uri url)
+        public async Task<EndpointDescriptionCollection> GetEndpointsAsync(Uri url)
         {
             var endpointConfiguration = EndpointConfiguration.Create();
             endpointConfiguration.OperationTimeout = OperationTimeout;

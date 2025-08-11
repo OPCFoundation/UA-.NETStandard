@@ -457,7 +457,7 @@ namespace MemoryBuffer
             }
 
             // modify the monitored item parameters.
-            ServiceResult error = datachangeItem.Modify(
+            _ = datachangeItem.Modify(
                 diagnosticsMasks,
                 timestampsToReturn,
                 itemToModify.RequestedParameters.ClientHandle,

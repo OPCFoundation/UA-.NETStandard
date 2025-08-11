@@ -391,6 +391,10 @@ dotnet_diagnostic.IDE0045.severity                                            = 
 dotnet_diagnostic.IDE0065.severity                                            = none
 csharp_prefer_system_threading_lock                                           = true:suggestion
 
+# IDE0072: Add missing cases
+dotnet_diagnostic.IDE0072.severity = none
+dotnet_diagnostic.IDE0010.severity = none
+
 # RCS1146: Use conditional access
 dotnet_diagnostic.RCS1146.severity                                            = none
 # CA1510: Use throw helpers - enable when we have a polyfill
@@ -440,7 +444,7 @@ csharp_style_allow_blank_lines_between_consecutive_braces_experimental = true:si
 csharp_style_allow_blank_line_after_colon_in_constructor_initializer_experimental = true:silent
 csharp_style_allow_blank_line_after_token_in_conditional_expression_experimental = true:silent
 csharp_style_allow_blank_line_after_token_in_arrow_expression_clause_experimental = true:silent
-csharp_style_prefer_switch_expression = true:suggestion
+csharp_style_prefer_switch_expression = false:suggestion
 csharp_style_prefer_pattern_matching = true:silent
 csharp_style_prefer_not_pattern = true:suggestion
 csharp_style_prefer_extended_property_pattern = true:suggestion

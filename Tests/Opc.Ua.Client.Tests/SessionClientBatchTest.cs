@@ -48,7 +48,7 @@ namespace Opc.Ua.Client.Tests
     [DisassemblyDiagnoser]
     public class SessionClientBatchTest : ClientTestFramework
     {
-        public const uint kOperationLimit = 5;
+        private const uint kOperationLimit = 5;
         private Random m_random;
 
         public SessionClientBatchTest(string uriScheme = Utils.UriSchemeOpcTcp)
@@ -58,10 +58,10 @@ namespace Opc.Ua.Client.Tests
         /// Set up a Server and a Client instance.
         /// </summary>
         [OneTimeSetUp]
-        public new async Task OneTimeSetUp()
+        public override async Task OneTimeSetUpAsync()
         {
             SupportsExternalServerUrl = true;
-            await base.OneTimeSetUp().ConfigureAwait(false);
+            await base.OneTimeSetUpAsync().ConfigureAwait(false);
             if (Session is Session session)
             {
                 session.OperationLimits = null;
@@ -88,7 +88,7 @@ namespace Opc.Ua.Client.Tests
         /// Tear down the Server and the Client.
         /// </summary>
         [OneTimeTearDown]
-        public new Task OneTimeTearDownAsync()
+        public override Task OneTimeTearDownAsync()
         {
             return base.OneTimeTearDownAsync();
         }
@@ -97,9 +97,9 @@ namespace Opc.Ua.Client.Tests
         /// Test setup.
         /// </summary>
         [SetUp]
-        public new async Task SetUp()
+        public override async Task SetUpAsync()
         {
-            await base.SetUp().ConfigureAwait(false);
+            await base.SetUpAsync().ConfigureAwait(false);
 
             // test if the server accepts RequestHeader timestampes which
             // are up to +-5 days off.
@@ -120,9 +120,9 @@ namespace Opc.Ua.Client.Tests
         /// Test teardown.
         /// </summary>
         [TearDown]
-        public new Task TearDown()
+        public override Task TearDownAsync()
         {
-            return base.TearDown();
+            return base.TearDownAsync();
         }
 
         [Test]
@@ -887,7 +887,7 @@ namespace Opc.Ua.Client.Tests
 
         private static EventFilter DefaultEventFilter()
         {
-            EventFilter filter = filter = new EventFilter();
+            EventFilter filter = _ = new EventFilter();
 
             filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.EventId);
             filter.AddSelectClause(ObjectTypes.BaseEventType, BrowseNames.EventType);

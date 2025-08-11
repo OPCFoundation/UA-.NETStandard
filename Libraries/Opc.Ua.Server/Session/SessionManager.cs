@@ -638,7 +638,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
         private readonly IServerInternal m_server;
         private readonly NodeIdDictionary<ISession> m_sessions;
         private long m_lastSessionId;
@@ -652,7 +652,7 @@ namespace Opc.Ua.Server
         private readonly int m_maxBrowseContinuationPoints;
         private readonly int m_maxHistoryContinuationPoints;
 
-        private readonly object m_eventLock = new();
+        private readonly Lock m_eventLock = new();
         private event SessionEventHandler m_SessionCreated;
         private event SessionEventHandler m_SessionActivated;
         private event SessionEventHandler m_SessionClosing;

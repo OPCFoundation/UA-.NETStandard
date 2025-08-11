@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#pragma warning disable CA5394 // Do not use insecure randomness
-
 using System;
 using System.Collections.Generic;
 using BenchmarkDotNet.Attributes;
@@ -125,7 +123,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
         }
 
-        public void OneTimeSetUp()
+        public virtual void OneTimeSetUp()
         {
             // for validating benchmark tests
             m_context = new ServiceMessageContext();
@@ -135,7 +133,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             m_bufferManager = new BufferManager(nameof(BinaryEncoder), StreamBufferSize);
         }
 
-        public void OneTimeTearDown()
+        public virtual void OneTimeTearDown()
         {
             m_context = null;
             m_memoryManager = null;
@@ -145,7 +143,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// <summary>
         /// Set up some variables for benchmarks.
         /// </summary>
-        public void GlobalSetup()
+        public virtual void GlobalSetup()
         {
             // for validating benchmark tests
             m_context = new ServiceMessageContext();
@@ -158,7 +156,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// <summary>
         /// Tear down benchmark variables.
         /// </summary>
-        public void GlobalCleanup()
+        public virtual void GlobalCleanup()
         {
             m_context = null;
             m_memoryManager = null;

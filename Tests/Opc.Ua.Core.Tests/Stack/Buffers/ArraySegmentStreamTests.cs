@@ -69,7 +69,7 @@ namespace Opc.Ua.Buffers.Tests
             Assert.That(stream.Seek(0, SeekOrigin.Begin), Is.EqualTo(0));
             Assert.That(stream.ReadByte(), Is.EqualTo(-1));
             Assert.That(stream.Read(buffer, 0, 1), Is.EqualTo(0));
-#if NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER && !NET_STANDARD_TESTS
             Assert.That(stream.Read(buffer.AsSpan(0, 1)), Is.EqualTo(0));
 #endif
             stream.Position = 0;
@@ -80,7 +80,7 @@ namespace Opc.Ua.Buffers.Tests
             Assert.That(stream.Seek(0, SeekOrigin.Begin), Is.EqualTo(0));
             stream.WriteByte(0xaa);
             stream.Write(buffer, 0, 1);
-#if NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER && !NET_STANDARD_TESTS
             stream.Write(buffer.AsSpan(0, 1));
 #else
             stream.Write(buffer, 0, 1);
@@ -98,7 +98,7 @@ namespace Opc.Ua.Buffers.Tests
             Assert.That(stream.Position, Is.EqualTo(2));
             Assert.That(stream.Length, Is.EqualTo(3));
             Assert.That(buffer[0], Is.EqualTo(0x55));
-#if NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER && !NET_STANDARD_TESTS
             Assert.That(stream.Read(buffer.AsSpan(0, 1)), Is.EqualTo(1));
 #else
             Assert.That(stream.Read(buffer, 0, 1), Is.EqualTo(1));
@@ -108,7 +108,7 @@ namespace Opc.Ua.Buffers.Tests
             Assert.That(buffer[0], Is.EqualTo(0x55));
             Assert.That(stream.ReadByte(), Is.EqualTo(-1));
             Assert.That(stream.Read(buffer, 0, 1), Is.EqualTo(0));
-#if NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER && !NET_STANDARD_TESTS
             Assert.That(stream.Read(buffer.AsSpan(0, 1)), Is.EqualTo(0));
 #endif
 
@@ -174,7 +174,7 @@ namespace Opc.Ua.Buffers.Tests
                     case 1:
                         writer.Write(buffer, 0, chunkSize);
                         break;
-#if NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER && !NET_STANDARD_TESTS
                     default:
                         writer.Write(buffer.AsSpan(0, chunkSize));
                         break;
@@ -218,7 +218,7 @@ namespace Opc.Ua.Buffers.Tests
                         }
                         break;
                     default:
-#if NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER && !NET_STANDARD_TESTS
                         bytesRead = writer.Read(buffer.AsSpan(0, chunkSize));
                         Assert.That(chunkSize, Is.EqualTo(bytesRead));
                         for (int v = 0; v < chunkSize; v++)

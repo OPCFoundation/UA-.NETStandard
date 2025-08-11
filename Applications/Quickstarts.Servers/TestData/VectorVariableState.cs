@@ -52,7 +52,7 @@ namespace TestData
         protected void InitializeVariable(ISystemContext context, BaseVariableState variable)
         {
             // set a valid initial value.
-            var system = context.SystemHandle as TestDataSystem;
+            _ = context.SystemHandle as TestDataSystem;
 
             // copy access level to childs
             variable.AccessLevel = AccessLevel;

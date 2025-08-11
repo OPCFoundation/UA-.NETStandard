@@ -32,8 +32,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using Opc.Ua.Security.Certificates;
 
-#pragma warning disable 0618
-
 namespace Opc.Ua.Server
 {
     /// <summary>
@@ -338,17 +336,21 @@ namespace Opc.Ua.Server
         {
             get
             {
+#pragma warning disable CS0618 // Type or member is obsolete
                 lock (Status.Lock)
                 {
                     return Status.Value.State;
                 }
+#pragma warning restore CS0618 // Type or member is obsolete
             }
             set
             {
+#pragma warning disable CS0618 // Type or member is obsolete
                 lock (Status.Lock)
                 {
                     Status.Value.State = value;
                 }
+#pragma warning restore CS0618 // Type or member is obsolete
             }
         }
 
@@ -399,6 +401,7 @@ namespace Opc.Ua.Server
         {
             get
             {
+#pragma warning disable CS0618 // Type or member is obsolete
                 if (Status == null)
                 {
                     return false;
@@ -418,6 +421,7 @@ namespace Opc.Ua.Server
 
                     return false;
                 }
+#pragma warning restore CS0618 // Type or member is obsolete
             }
         }
 
@@ -519,7 +523,9 @@ namespace Opc.Ua.Server
 
             lock (DiagnosticsLock)
             {
+#pragma warning disable CS0618 // Type or member is obsolete
                 action.Invoke(Status);
+#pragma warning restore CS0618 // Type or member is obsolete
             }
         }
 
@@ -704,11 +710,13 @@ namespace Opc.Ua.Server
                 serverObject.ServerStatus.MinimumSamplingInterval = 1000;
                 serverObject.ServerStatus.CurrentTime.MinimumSamplingInterval = 1000;
 
+#pragma warning disable CS0618 // Type or member is obsolete
                 Status = new ServerStatusValue(serverObject.ServerStatus, serverStatus, DiagnosticsLock)
                 {
                     Timestamp = DateTime.UtcNow,
                     OnBeforeRead = OnReadServerStatus,
                 };
+#pragma warning restore CS0618 // Type or member is obsolete
 
                 // initialize diagnostics.
                 ServerDiagnostics = new ServerDiagnosticsSummaryDataType
@@ -779,8 +787,13 @@ namespace Opc.Ua.Server
             lock (DiagnosticsLock)
             {
                 DateTime now = DateTime.UtcNow;
+#pragma warning disable CS0618 // Type or member is obsolete
                 Status.Timestamp = now;
+#pragma warning restore CS0618 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
                 Status.Value.CurrentTime = now;
+#pragma warning restore CS0618 // Type or member is obsolete
+
                 // update other timestamps in NodeState objects which are used to derive the source timestamp
                 if (
                     variable is ServerStatusValue serverStatusValue

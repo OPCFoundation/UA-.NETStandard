@@ -37,7 +37,6 @@
 //
 
 // Disable: 'Use the LoggerMessage delegates'
-#pragma warning disable CA1848
 
 using System;
 using System.Diagnostics;
@@ -45,6 +44,10 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Redaction;
+
+#pragma warning disable IDE0079 // Remove unnecessary suppression
+#pragma warning disable CA2254 // Template should be a static expression
+#pragma warning restore IDE0079 // Remove unnecessary suppression
 
 namespace Opc.Ua
 {
@@ -250,9 +253,7 @@ namespace Opc.Ua
         {
             if (EventLog.IsEnabled())
             {
-#pragma warning disable CA2254 // Template should be a static expression
                 EventLog.Log(LogLevel.Trace, eventId, exception, message, args);
-#pragma warning restore CA2254 // Template should be a static expression
             }
             else if (Logger.IsEnabled(LogLevel.Trace))
             {
@@ -271,9 +272,7 @@ namespace Opc.Ua
         {
             if (EventLog.IsEnabled())
             {
-#pragma warning disable CA2254 // Template should be a static expression
                 EventLog.Log(LogLevel.Trace, eventId, message, args);
-#pragma warning restore CA2254 // Template should be a static expression
             }
             else if (Logger.IsEnabled(LogLevel.Trace))
             {
@@ -292,9 +291,7 @@ namespace Opc.Ua
         {
             if (EventLog.IsEnabled())
             {
-#pragma warning disable CA2254 // Template should be a static expression
                 EventLog.Log(LogLevel.Trace, 0, exception, message, args);
-#pragma warning restore CA2254 // Template should be a static expression
             }
             else if (Logger.IsEnabled(LogLevel.Trace))
             {
@@ -312,9 +309,7 @@ namespace Opc.Ua
         {
             if (EventLog.IsEnabled())
             {
-#pragma warning disable CA2254 // Template should be a static expression
                 EventLog.Log(LogLevel.Trace, 0, message, args);
-#pragma warning restore CA2254 // Template should be a static expression
             }
             else if (Logger.IsEnabled(LogLevel.Trace))
             {
@@ -536,9 +531,7 @@ namespace Opc.Ua
         {
             if (EventLog.IsEnabled())
             {
-#pragma warning disable CA2254 // Template should be a static expression
                 EventLog.Log(logLevel, eventId, null, message, args);
-#pragma warning restore CA2254 // Template should be a static expression
             }
             else if (Logger.IsEnabled(logLevel))
             {
@@ -555,9 +548,8 @@ namespace Opc.Ua
                         return;
                     }
                 }
-#pragma warning disable CA2254 // Template should be a static expression
+
                 Logger.Log(logLevel, eventId, null, message, args);
-#pragma warning restore CA2254 // Template should be a static expression
             }
         }
 
@@ -591,9 +583,7 @@ namespace Opc.Ua
         {
             if (EventLog.IsEnabled())
             {
-#pragma warning disable CA2254 // Template should be a static expression
                 EventLog.Log(logLevel, eventId, exception, message, args);
-#pragma warning restore CA2254 // Template should be a static expression
             }
             else if (Logger.IsEnabled(logLevel))
             {
@@ -611,9 +601,8 @@ namespace Opc.Ua
                         return;
                     }
                 }
-#pragma warning disable CA2254 // Template should be a static expression
+
                 Logger.Log(logLevel, eventId, exception, message, args);
-#pragma warning restore CA2254 // Template should be a static expression
             }
         }
 
@@ -632,13 +621,10 @@ namespace Opc.Ua
         {
             if (EventLog.IsEnabled())
             {
-#pragma warning disable CA2254 // Template should be a static expression
                 return EventLog.BeginScope(messageFormat, args);
-#pragma warning restore CA2254 // Template should be a static expression
             }
-#pragma warning disable CA2254 // Template should be a static expression
+
             return Logger.BeginScope(messageFormat, args);
-#pragma warning restore CA2254 // Template should be a static expression
         }
 
         /// <summary>

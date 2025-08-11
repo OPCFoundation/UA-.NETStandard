@@ -317,12 +317,11 @@ namespace Opc.Ua
         /// <summary>
         /// Returns a unique identifier for the table instance. Used to debug problems with shared tables.
         /// </summary>
-        public int InstanceId
-        {
+        public int InstanceId {
 #if DEBUG
             get;
 #else
-            get { return 0; }
+            get => 0;
 #endif
         }
 

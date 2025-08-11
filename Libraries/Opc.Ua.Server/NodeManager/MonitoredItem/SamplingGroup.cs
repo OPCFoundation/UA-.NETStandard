@@ -102,7 +102,7 @@ namespace Opc.Ua.Server
                 {
                     try
                     {
-                        m_samplingTask.Wait();
+                        m_samplingTask.GetAwaiter().GetResult();
                     }
                     catch (AggregateException)
                     { /* Ignore exceptions on shutdown */
@@ -510,7 +510,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
         private readonly IServerInternal m_server;
         private readonly INodeManager m_nodeManager;
         private ISession m_session;

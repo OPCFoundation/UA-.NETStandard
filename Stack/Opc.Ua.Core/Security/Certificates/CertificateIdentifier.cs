@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
 
@@ -146,9 +147,9 @@ namespace Opc.Ua
         /// <summary>
         /// Finds a certificate in a store.
         /// </summary>
-        public Task<X509Certificate2> FindAsync(string applicationUri = null)
+        public Task<X509Certificate2> FindAsync(string applicationUri = null, CancellationToken ct = default)
         {
-            return FindAsync(false, applicationUri);
+            return FindAsync(false, applicationUri, ct);
         }
 
         /// <summary>
@@ -166,11 +167,16 @@ namespace Opc.Ua
         /// <summary>
         /// Loads the private key for the certificate with an optional password.
         /// </summary>
-        public Task<X509Certificate2> LoadPrivateKeyAsync(string password, string applicationUri = null)
+        public Task<X509Certificate2> LoadPrivateKeyAsync(
+            string password,
+            string applicationUri = null,
+            CancellationToken ct = default
+        )
         {
             return LoadPrivateKeyExAsync(
                 password != null ? new CertificatePasswordProvider(password) : null,
-                applicationUri
+                applicationUri,
+                ct
             );
         }
 
@@ -191,7 +197,8 @@ namespace Opc.Ua
         /// </summary>
         public async Task<X509Certificate2> LoadPrivateKeyExAsync(
             ICertificatePasswordProvider passwordProvider,
-            string applicationUri = null
+            string applicationUri = null,
+            CancellationToken ct = default
         )
         {
             if (StoreType != CertificateStoreType.X509Store)
@@ -202,14 +209,14 @@ namespace Opc.Ua
                 {
                     string password = passwordProvider?.GetPassword(this);
                     m_certificate = await store
-                        .LoadPrivateKeyAsync(Thumbprint, SubjectName, null, CertificateType, password)
+                        .LoadPrivateKeyAsync(Thumbprint, SubjectName, null, CertificateType, password, ct)
                         .ConfigureAwait(false);
 
                     //find certificate by applicationUri instead of subjectName, as the subjectName could have changed after a certificate update
                     if (m_certificate == null && !string.IsNullOrEmpty(applicationUri))
                     {
                         m_certificate = await store
-                            .LoadPrivateKeyAsync(Thumbprint, null, applicationUri, CertificateType, password)
+                            .LoadPrivateKeyAsync(Thumbprint, null, applicationUri, CertificateType, password, ct)
                             .ConfigureAwait(false);
                     }
 
@@ -217,7 +224,7 @@ namespace Opc.Ua
                 }
                 return null;
             }
-            return await FindAsync(true).ConfigureAwait(false);
+            return await FindAsync(true, ct: ct).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -240,9 +247,14 @@ namespace Opc.Ua
         /// <remarks>The certificate type is used to match the signature and public key type.</remarks>
         /// <param name="needPrivateKey">if set to <c>true</c> the returned certificate must contain the private key.</param>
         /// <param name="applicationUri">the application uri in the extensions of the certificate.</param>
+        /// <param name="ct">Cancellation token to cancel action</param>
         /// <returns>An instance of the <see cref="X509Certificate2"/> that is embedded by this instance or find it in
         /// the selected store pointed out by the <see cref="StorePath"/> using selected <see cref="SubjectName"/> or if specified applicationUri.</returns>
-        public async Task<X509Certificate2> FindAsync(bool needPrivateKey, string applicationUri = null)
+        public async Task<X509Certificate2> FindAsync(
+            bool needPrivateKey,
+            string applicationUri = null,
+            CancellationToken ct = default
+        )
         {
             X509Certificate2 certificate = null;
 
@@ -261,7 +273,7 @@ namespace Opc.Ua
                     return null;
                 }
 
-                X509Certificate2Collection collection = await store.EnumerateAsync().ConfigureAwait(false);
+                X509Certificate2Collection collection = await store.EnumerateAsync(ct).ConfigureAwait(false);
 
                 certificate = Find(
                     collection,
@@ -497,23 +509,15 @@ namespace Opc.Ua
         /// <param name="certificate">The certificate with a signature.</param>
         public static NodeId GetCertificateType(X509Certificate2 certificate)
         {
-            switch (certificate.SignatureAlgorithm.Value)
+            return certificate.SignatureAlgorithm.Value switch
             {
-                case Oids.ECDsaWithSha1:
-                case Oids.ECDsaWithSha384:
-                case Oids.ECDsaWithSha256:
-                case Oids.ECDsaWithSha512:
-                    return EccUtils.GetEccCertificateTypeId(certificate);
-
-                case Oids.RsaPkcs1Sha256:
-                case Oids.RsaPkcs1Sha384:
-                case Oids.RsaPkcs1Sha512:
-                    return ObjectTypeIds.RsaSha256ApplicationCertificateType;
-                case Oids.RsaPkcs1Sha1:
-                    return ObjectTypeIds.RsaMinApplicationCertificateType;
-                default:
-                    return NodeId.Null;
-            }
+                Oids.ECDsaWithSha1 or Oids.ECDsaWithSha384 or Oids.ECDsaWithSha256 or Oids.ECDsaWithSha512 =>
+                    EccUtils.GetEccCertificateTypeId(certificate),
+                Oids.RsaPkcs1Sha256 or Oids.RsaPkcs1Sha384 or Oids.RsaPkcs1Sha512 =>
+                    ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                Oids.RsaPkcs1Sha1 => ObjectTypeIds.RsaMinApplicationCertificateType,
+                _ => NodeId.Null,
+            };
         }
 
         /// <summary>
@@ -648,6 +652,7 @@ namespace Opc.Ua
             { ObjectTypes.ApplicationCertificateType, "Rsa" },
         };
 
+#if UNUSED
         /// <summary>
         /// Checks if the certificate data represents a valid X509v3 certificate header.
         /// </summary>
@@ -712,6 +717,7 @@ namespace Opc.Ua
             // potentially valid.
             return true;
         }
+#endif
 
         /// <summary>
         /// The tags of the supported certificate types used to encode the NodeId coressponding to existing value.
@@ -839,13 +845,13 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public async Task<X509Certificate2Collection> EnumerateAsync()
+        public async Task<X509Certificate2Collection> EnumerateAsync(CancellationToken ct = default)
         {
             var collection = new X509Certificate2Collection();
 
             for (int ii = 0; ii < Count; ii++)
             {
-                X509Certificate2 certificate = await this[ii].FindAsync(false).ConfigureAwait(false);
+                X509Certificate2 certificate = await this[ii].FindAsync(false, ct: ct).ConfigureAwait(false);
 
                 if (certificate != null)
                 {
@@ -863,7 +869,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public async Task AddAsync(X509Certificate2 certificate, string password = null)
+        public async Task AddAsync(X509Certificate2 certificate, string password = null, CancellationToken ct = default)
         {
             if (certificate == null)
             {
@@ -872,7 +878,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < Count; ii++)
             {
-                X509Certificate2 current = await this[ii].FindAsync(false).ConfigureAwait(false);
+                X509Certificate2 current = await this[ii].FindAsync(false, ct: ct).ConfigureAwait(false);
 
                 if (current != null && current.Thumbprint == certificate.Thumbprint)
                 {
@@ -896,7 +902,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public async Task<bool> DeleteAsync(string thumbprint)
+        public async Task<bool> DeleteAsync(string thumbprint, CancellationToken ct = default)
         {
             if (string.IsNullOrEmpty(thumbprint))
             {
@@ -905,7 +911,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < Count; ii++)
             {
-                X509Certificate2 certificate = await this[ii].FindAsync(false).ConfigureAwait(false);
+                X509Certificate2 certificate = await this[ii].FindAsync(false, ct: ct).ConfigureAwait(false);
 
                 if (certificate != null && certificate.Thumbprint == thumbprint)
                 {
@@ -925,7 +931,10 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public async Task<X509Certificate2Collection> FindByThumbprintAsync(string thumbprint)
+        public async Task<X509Certificate2Collection> FindByThumbprintAsync(
+            string thumbprint,
+            CancellationToken ct = default
+        )
         {
             if (string.IsNullOrEmpty(thumbprint))
             {
@@ -934,7 +943,7 @@ namespace Opc.Ua
 
             for (int ii = 0; ii < Count; ii++)
             {
-                X509Certificate2 certificate = await this[ii].FindAsync(false).ConfigureAwait(false);
+                X509Certificate2 certificate = await this[ii].FindAsync(false, ct: ct).ConfigureAwait(false);
 
                 if (certificate != null && certificate.Thumbprint == thumbprint)
                 {
@@ -974,7 +983,8 @@ namespace Opc.Ua
             string subjectName,
             string applicationUri,
             NodeId certificateType,
-            string password
+            string password,
+            CancellationToken ct = default
         )
         {
             return Task.FromResult<X509Certificate2>(null);
@@ -991,7 +1001,11 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Task<StatusCode> IsRevokedAsync(X509Certificate2 issuer, X509Certificate2 certificate)
+        public Task<StatusCode> IsRevokedAsync(
+            X509Certificate2 issuer,
+            X509Certificate2 certificate,
+            CancellationToken ct = default
+        )
         {
             return Task.FromResult((StatusCode)StatusCodes.BadNotSupported);
         }
@@ -1004,7 +1018,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Task<X509CRLCollection> EnumerateCRLsAsync()
+        public Task<X509CRLCollection> EnumerateCRLsAsync(CancellationToken ct = default)
         {
             return Task.FromResult(new X509CRLCollection());
         }
@@ -1017,7 +1031,11 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Task<X509CRLCollection> EnumerateCRLsAsync(X509Certificate2 issuer, bool validateUpdateTime = true)
+        public Task<X509CRLCollection> EnumerateCRLsAsync(
+            X509Certificate2 issuer,
+            bool validateUpdateTime = true,
+            CancellationToken ct = default
+        )
         {
             return Task.FromResult(new X509CRLCollection());
         }
@@ -1030,7 +1048,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Task AddCRLAsync(X509CRL crl)
+        public Task AddCRLAsync(X509CRL crl, CancellationToken ct = default)
         {
             throw new ServiceResultException(StatusCodes.BadNotSupported);
         }
@@ -1043,7 +1061,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Task<bool> DeleteCRLAsync(X509CRL crl)
+        public Task<bool> DeleteCRLAsync(X509CRL crl, CancellationToken ct = default)
         {
             throw new ServiceResultException(StatusCodes.BadNotSupported);
         }
@@ -1056,7 +1074,11 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Task AddRejectedAsync(X509Certificate2Collection certificates, int maxCertificates)
+        public Task AddRejectedAsync(
+            X509Certificate2Collection certificates,
+            int maxCertificates,
+            CancellationToken ct = default
+        )
         {
             return Task.CompletedTask;
         }

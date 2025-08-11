@@ -91,6 +91,37 @@ namespace TestData
             SystemContext.SystemHandle = m_system;
         }
 
+        /// <inheritdoc/>
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+#if CONDITION_SAMPLES
+                Utils.SilentDispose(m_systemStatusTimer);
+                Utils.SilentDispose(m_systemStatusCondition);
+                Utils.SilentDispose(m_dialog);
+
+                m_systemStatusTimer = null;
+                m_systemStatusCondition = null;
+                m_dialog = null;
+#endif
+                Utils.SilentDispose(m_dataStaticStructureScalarStructure);
+                Utils.SilentDispose(m_dataDynamicStructureScalarStructure);
+                Utils.SilentDispose(m_dataStaticStructureVectorStructure);
+                Utils.SilentDispose(m_dataDynamicStructureVectorStructure);
+                Utils.SilentDispose(m_dataStaticVectorScalarValue);
+                Utils.SilentDispose(m_dataDynamicVectorScalarValue);
+
+                m_dataStaticStructureScalarStructure = null;
+                m_dataDynamicStructureScalarStructure = null;
+                m_dataStaticStructureVectorStructure = null;
+                m_dataDynamicStructureVectorStructure = null;
+                m_dataStaticVectorScalarValue = null;
+                m_dataDynamicVectorScalarValue = null;
+            }
+            base.Dispose(disposing);
+        }
+
         /// <summary>
         /// Updates the variable after receiving a notification that it has changed in the underlying system.
         /// </summary>
@@ -160,6 +191,7 @@ namespace TestData
 
                 if (m_systemStatusCondition != null)
                 {
+                    Utils.SilentDispose(m_systemStatusTimer);
                     m_systemStatusTimer = new Timer(OnCheckSystemStatus, null, 5000, 5000);
                     m_systemStatusCondition.Retain.Value = true;
                 }

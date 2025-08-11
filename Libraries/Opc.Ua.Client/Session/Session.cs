@@ -403,7 +403,6 @@ namespace Opc.Ua.Client
         /// If this read operation succeeds this event will be raised each time the keep alive period elapses.
         /// If an error is detected (KeepAliveStopped == true) then this event will be raised as well.
         /// </remarks>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1009:DeclareEventHandlersCorrectly")]
         public event KeepAliveEventHandler KeepAlive
         {
             add => m_KeepAlive += value;
@@ -417,7 +416,6 @@ namespace Opc.Ua.Client
         /// All publish requests are managed by the Session object. When a response arrives it is
         /// validated and passed to the appropriate Subscription object and this event is raised.
         /// </remarks>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1009:DeclareEventHandlersCorrectly")]
         public event NotificationEventHandler Notification
         {
             add => m_Publish += value;
@@ -435,7 +433,6 @@ namespace Opc.Ua.Client
         /// Subscriptions. The OperationTimeout should be twice the minimum value for
         /// PublishingInterval*KeepAliveCount.
         /// </remarks>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1009:DeclareEventHandlersCorrectly")]
         public event PublishErrorEventHandler PublishError
         {
             add => m_PublishError += value;
@@ -1048,7 +1045,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default
         )
         {
-            return Create(
+            return CreateAsync(
                 DefaultSessionFactory.Instance,
                 configuration,
                 connection,
@@ -1058,6 +1055,103 @@ namespace Opc.Ua.Client
                 sessionName,
                 sessionTimeout,
                 identity,
+                preferredLocales,
+                ct
+            );
+        }
+
+        /// <summary>
+        /// Create a session
+        /// </summary>
+        [Obsolete("Use ISessionFactory.CreateAsync")]
+        public static Task<Session> Create(
+            ISessionInstantiator sessionInstantiator,
+            ApplicationConfiguration configuration,
+            ITransportWaitingConnection connection,
+            ConfiguredEndpoint endpoint,
+            bool updateBeforeConnect,
+            bool checkDomain,
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity identity,
+            IList<string> preferredLocales,
+            CancellationToken ct = default
+        )
+        {
+            return CreateAsync(
+                sessionInstantiator,
+                configuration,
+                connection,
+                endpoint,
+                updateBeforeConnect,
+                checkDomain,
+                sessionName,
+                sessionTimeout,
+                identity,
+                preferredLocales,
+                ct
+            );
+        }
+
+        /// <summary>
+        /// Create a session
+        /// </summary>
+        [Obsolete("Use ISessionFactory.CreateAsync")]
+        public static Task<Session> Create(
+            ISessionInstantiator sessionInstantiator,
+            ApplicationConfiguration configuration,
+            ReverseConnectManager reverseConnectManager,
+            ConfiguredEndpoint endpoint,
+            bool updateBeforeConnect,
+            bool checkDomain,
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity userIdentity,
+            IList<string> preferredLocales,
+            CancellationToken ct = default
+        )
+        {
+            return CreateAsync(
+                sessionInstantiator,
+                configuration,
+                reverseConnectManager,
+                endpoint,
+                updateBeforeConnect,
+                checkDomain,
+                sessionName,
+                sessionTimeout,
+                userIdentity,
+                preferredLocales,
+                ct
+            );
+        }
+
+        /// <summary>
+        /// Create a session
+        /// </summary>
+        [Obsolete("Use ISessionFactory.CreateAsync")]
+        public static Task<Session> Create(
+            ApplicationConfiguration configuration,
+            ReverseConnectManager reverseConnectManager,
+            ConfiguredEndpoint endpoint,
+            bool updateBeforeConnect,
+            bool checkDomain,
+            string sessionName,
+            uint sessionTimeout,
+            IUserIdentity userIdentity,
+            IList<string> preferredLocales,
+            CancellationToken ct = default
+        )
+        {
+            return CreateAsync(
+                configuration,
+                reverseConnectManager,
+                endpoint,
+                updateBeforeConnect,
+                checkDomain,
+                sessionName,
+                sessionTimeout,
+                userIdentity,
                 preferredLocales,
                 ct
             );
@@ -1078,7 +1172,7 @@ namespace Opc.Ua.Client
         /// <param name="preferredLocales">The preferred locales.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The new session object.</returns>
-        public static async Task<Session> Create(
+        public static async Task<Session> CreateAsync(
             ISessionInstantiator sessionInstantiator,
             ApplicationConfiguration configuration,
             ITransportWaitingConnection connection,
@@ -1136,7 +1230,7 @@ namespace Opc.Ua.Client
         /// <param name="preferredLocales">The preferred locales.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The new session object.</returns>
-        public static Task<Session> Create(
+        public static Task<Session> CreateAsync(
             ApplicationConfiguration configuration,
             ReverseConnectManager reverseConnectManager,
             ConfiguredEndpoint endpoint,
@@ -1149,7 +1243,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default
         )
         {
-            return Create(
+            return CreateAsync(
                 DefaultSessionFactory.Instance,
                 configuration,
                 reverseConnectManager,
@@ -1179,7 +1273,7 @@ namespace Opc.Ua.Client
         /// <param name="preferredLocales">The preferred locales.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <returns>The new session object.</returns>
-        public static async Task<Session> Create(
+        public static async Task<Session> CreateAsync(
             ISessionInstantiator sessionInstantiator,
             ApplicationConfiguration configuration,
             ReverseConnectManager reverseConnectManager,
@@ -1195,7 +1289,7 @@ namespace Opc.Ua.Client
         {
             if (reverseConnectManager == null)
             {
-                return await Create(
+                return await CreateAsync(
                         sessionInstantiator,
                         configuration,
                         (ITransportWaitingConnection)null,
@@ -1234,7 +1328,7 @@ namespace Opc.Ua.Client
                 }
             } while (connection == null);
 
-            return await Create(
+            return await CreateAsync(
                     sessionInstantiator,
                     configuration,
                     connection,
@@ -2150,7 +2244,7 @@ namespace Opc.Ua.Client
                 includeSubtypes: true,
                 nodeClassMask: 0,
                 out IList<ReferenceDescriptionCollection> descriptionsList,
-                out IList<ServiceResult> errors
+                out _
             );
             return descriptionsList[0];
         }
@@ -2210,10 +2304,6 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Microsoft.Maintainability",
-            "CA1506:AvoidExcessiveClassCoupling"
-        )]
         public void Open(
             string sessionName,
             uint sessionTimeout,
@@ -2616,9 +2706,6 @@ namespace Opc.Ua.Client
             // send the software certificates assigned to the client.
             SignedSoftwareCertificateCollection clientSoftwareCertificates = GetSoftwareCertificates();
 
-            StatusCodeCollection certificateResults;
-
-            DiagnosticInfoCollection certificateDiagnosticInfos;
             // activate session.
             ResponseHeader responseHeader = ActivateSession(
                 null,
@@ -2628,8 +2715,8 @@ namespace Opc.Ua.Client
                 new ExtensionObject(identityToken),
                 userTokenSignature,
                 out serverNonce,
-                out certificateResults,
-                out certificateDiagnosticInfos
+                out _,
+                out _
             );
 
             ProcessResponseAdditionalHeader(responseHeader, m_serverCertificate);
@@ -5590,6 +5677,7 @@ namespace Opc.Ua.Client
             }
         }
 
+#if UNUSED
         /// <summary>
         /// Validates the ServerCertificate ApplicationUri to match the ApplicationUri of the Endpoint for an open call (Spec Part 4 5.4.1)
         /// </summary>
@@ -5613,6 +5701,7 @@ namespace Opc.Ua.Client
                 );
             }
         }
+#endif
 
         private void BuildCertificateData(out byte[] clientCertificateData, out byte[] clientCertificateChainData)
         {

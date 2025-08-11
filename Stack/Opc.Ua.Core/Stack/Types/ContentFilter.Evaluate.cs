@@ -607,7 +607,6 @@ namespace Opc.Ua
                     return (bool)value;
 
                 case BuiltInType.SByte:
-                    return Convert.ToBoolean((byte)value);
                 case BuiltInType.Byte:
                     return Convert.ToBoolean((byte)value);
                 case BuiltInType.Int16:
@@ -696,7 +695,7 @@ namespace Opc.Ua
         {
             // check for array conversions.
 
-            if (value is Array array)
+            if (value is Array)
             {
                 throw new NotImplementedException("Arrays of Byte not supported. Use ByteString instead.");
             }
@@ -1772,9 +1771,9 @@ namespace Opc.Ua
 
             DoImplicitConversion(ref lhs, ref rhs);
 
-            if (lhs is IComparable && rhs is IComparable)
+            if (lhs is IComparable l && rhs is IComparable r)
             {
-                return ((IComparable)lhs).CompareTo(rhs) > 0;
+                return l.CompareTo(r) > 0;
             }
 
             // return null if the types are not comparable.
@@ -1793,9 +1792,9 @@ namespace Opc.Ua
 
             DoImplicitConversion(ref lhs, ref rhs);
 
-            if (lhs is IComparable && rhs is IComparable)
+            if (lhs is IComparable l && rhs is IComparable r)
             {
-                return ((IComparable)lhs).CompareTo(rhs) >= 0;
+                return l.CompareTo(r) >= 0;
             }
 
             // return null if the types are not comparable.
@@ -1835,9 +1834,9 @@ namespace Opc.Ua
 
             DoImplicitConversion(ref lhs, ref rhs);
 
-            if (lhs is IComparable && rhs is IComparable)
+            if (lhs is IComparable l && rhs is IComparable r)
             {
-                return ((IComparable)lhs).CompareTo(rhs) <= 0;
+                return l.CompareTo(r) <= 0;
             }
 
             // return null if the types are not comparable.

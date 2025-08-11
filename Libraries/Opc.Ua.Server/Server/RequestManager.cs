@@ -61,11 +61,6 @@ namespace Opc.Ua.Server
         /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Microsoft.Usage",
-            "CA2213:DisposableFieldsShouldBeDisposed",
-            MessageId = "m_requestTimer"
-        )]
         protected virtual void Dispose(bool disposing)
         {
             if (disposing)
@@ -248,12 +243,10 @@ namespace Opc.Ua.Server
             }
         }
 
-        private readonly object m_lock = new();
-
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
+        private readonly Lock m_lock = new();
         private readonly IServerInternal m_server;
         private readonly Dictionary<uint, OperationContext> m_requests;
-        private readonly object m_requestsLock = new();
+        private readonly Lock m_requestsLock = new();
         private Timer m_requestTimer;
         private event RequestCancelledEventHandler m_RequestCancelled;
     }

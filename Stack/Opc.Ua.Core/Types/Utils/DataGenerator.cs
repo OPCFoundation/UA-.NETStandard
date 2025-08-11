@@ -675,14 +675,12 @@ namespace Opc.Ua.Test
         }
 
         /// <inheritdoc/>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public bool GetRandomBoolean()
         {
             return m_random.NextInt32(1) != 0;
         }
 
         /// <inheritdoc/>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public sbyte GetRandomSByte()
         {
             int buffer = m_random.NextInt32(byte.MaxValue);
@@ -696,14 +694,12 @@ namespace Opc.Ua.Test
         }
 
         /// <inheritdoc/>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public byte GetRandomByte()
         {
             return (byte)m_random.NextInt32(byte.MaxValue);
         }
 
         /// <inheritdoc/>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public short GetRandomInt16()
         {
             int buffer = m_random.NextInt32(ushort.MaxValue);
@@ -717,21 +713,18 @@ namespace Opc.Ua.Test
         }
 
         /// <inheritdoc/>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public ushort GetRandomUInt16()
         {
             return (ushort)m_random.NextInt32(ushort.MaxValue);
         }
 
         /// <inheritdoc/>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public int GetRandomInt32()
         {
             return m_random.NextInt32(int.MaxValue);
         }
 
         /// <inheritdoc/>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public uint GetRandomUInt32()
         {
             byte[] bytes = new byte[4];
@@ -740,7 +733,6 @@ namespace Opc.Ua.Test
         }
 
         /// <inheritdoc/>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public long GetRandomInt64()
         {
             byte[] bytes = new byte[8];
@@ -749,7 +741,6 @@ namespace Opc.Ua.Test
         }
 
         /// <inheritdoc/>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public ulong GetRandomUInt64()
         {
             byte[] bytes = new byte[8];
@@ -758,7 +749,6 @@ namespace Opc.Ua.Test
         }
 
         /// <inheritdoc/>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public float GetRandomFloat()
         {
             byte[] bytes = new byte[4];
@@ -767,7 +757,6 @@ namespace Opc.Ua.Test
         }
 
         /// <inheritdoc/>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public double GetRandomDouble()
         {
             byte[] bytes = new byte[8];
@@ -778,7 +767,6 @@ namespace Opc.Ua.Test
         /// <summary>
         /// Creates a random string with a random locale.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public string GetRandomString()
         {
             return CreateString(GetRandomLocale(), false);
@@ -809,7 +797,6 @@ namespace Opc.Ua.Test
         }
 
         /// <inheritdoc/>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public DateTime GetRandomDateTime()
         {
             int minTicks = (int)(MinDateTimeValue.Ticks >> 32);
@@ -825,7 +812,6 @@ namespace Opc.Ua.Test
         }
 
         /// <inheritdoc/>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public Guid GetRandomGuid()
         {
             byte[] bytes = new byte[16];
@@ -834,7 +820,6 @@ namespace Opc.Ua.Test
         }
 
         /// <inheritdoc/>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public Uuid GetRandomUuid()
         {
             byte[] bytes = new byte[16];
@@ -854,7 +839,6 @@ namespace Opc.Ua.Test
         }
 
         /// <inheritdoc/>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public XmlElement GetRandomXmlElement()
         {
             string locale1 = GetRandomLocale();
@@ -900,7 +884,6 @@ namespace Opc.Ua.Test
         }
 
         /// <inheritdoc/>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public NodeId GetRandomNodeId()
         {
             ushort ns = (ushort)m_random.NextInt32(NamespaceUris.Count - 1);
@@ -921,7 +904,6 @@ namespace Opc.Ua.Test
         }
 
         /// <inheritdoc/>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public ExpandedNodeId GetRandomExpandedNodeId()
         {
             NodeId nodeId = GetRandomNodeId();
@@ -934,7 +916,6 @@ namespace Opc.Ua.Test
         }
 
         /// <inheritdoc/>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public QualifiedName GetRandomQualifiedName()
         {
             ushort ns = (ushort)m_random.NextInt32(NamespaceUris.Count - 1);
@@ -942,7 +923,6 @@ namespace Opc.Ua.Test
         }
 
         /// <inheritdoc/>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public LocalizedText GetRandomLocalizedText()
         {
             string locale = GetRandomLocale();
@@ -952,7 +932,6 @@ namespace Opc.Ua.Test
         private readonly List<KeyValuePair<uint, string>> m_knownStatusCodes = [];
 
         /// <inheritdoc/>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public StatusCode GetRandomStatusCode()
         {
             if (m_knownStatusCodes.Count == 0)
@@ -997,10 +976,6 @@ namespace Opc.Ua.Test
         /// <summary>
         /// Returns a random variant containing a scalar or array value.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Microsoft.Maintainability",
-            "CA1502:AvoidExcessiveComplexity"
-        )]
         private Variant GetRandomVariant(BuiltInType builtInType, bool isArray)
         {
             if (builtInType == BuiltInType.Null)
@@ -1124,7 +1099,7 @@ namespace Opc.Ua.Test
             Variant variant = GetRandomVariant();
             StatusCode statusCode = GetRandomStatusCode();
             DateTime sourceTimeStamp = GetRandomDateTime();
-            DateTime serverTimeStamp = GetRandomDateTime();
+
             return new DataValue(variant, statusCode, sourceTimeStamp, DateTime.UtcNow);
         }
 
@@ -1138,7 +1113,6 @@ namespace Opc.Ua.Test
         }
 
         /// <inheritdoc/>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public object GetRandomNumber()
         {
             switch (m_random.NextInt32(5))
@@ -1158,7 +1132,6 @@ namespace Opc.Ua.Test
         }
 
         /// <inheritdoc/>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public object GetRandomInteger()
         {
             switch (m_random.NextInt32(3))
@@ -1175,7 +1148,6 @@ namespace Opc.Ua.Test
         }
 
         /// <inheritdoc/>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public object GetRandomUInteger()
         {
             switch (m_random.NextInt32(3))

@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using Opc.Ua.Server;
 
 namespace Opc.Ua.Sample
@@ -770,13 +771,10 @@ namespace Opc.Ua.Sample
                 // check if queuing is enabled.
                 if (m_queue != null && (!m_resendData || m_queue.ItemsInQueue != 0))
                 {
-                    DataValue value = null;
-                    ServiceResult error = null;
-
                     uint notificationCount = 0;
                     while (
                         notificationCount < maxNotificationsPerPublish
-                        && m_queue.PublishSingleValue(out value, out error)
+                        && m_queue.PublishSingleValue(out DataValue value, out ServiceResult error)
                     )
                     {
                         Publish(context, value, error, notifications, diagnostics);
@@ -848,7 +846,7 @@ namespace Opc.Ua.Sample
 
                 if (error != null)
                 {
-                    error = new ServiceResult(
+                    _ = new ServiceResult(
                         error.StatusCode.SetStructureChanged(true),
                         error.SymbolicId,
                         error.NamespaceUri,
@@ -903,7 +901,7 @@ namespace Opc.Ua.Sample
             //only durable queues need to be disposed
         }
 
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
         private readonly IMonitoredItemQueueFactory m_monitoredItemQueueFactory;
         private readonly MonitoredNode m_source;
         private DataValue m_lastValue;

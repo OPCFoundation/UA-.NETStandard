@@ -539,11 +539,6 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         [Test]
         [Category("WriteByteString")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Usage",
-            "CA2265:Do not compare Span<T> to 'null' or 'default'",
-            Justification = "Null compare works with ReadOnlySpan<byte>"
-        )]
         public void XmlEncoder_WriteByteString()
         {
             using var stream = new MemoryStream();
@@ -698,7 +693,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             Assume.That(builtInType != BuiltInType.Null);
             // reduce array dimension for arrays with large values
             int maxRand = 6;
-            if (builtInType == BuiltInType.XmlElement || builtInType == BuiltInType.ExtensionObject)
+            if (builtInType is BuiltInType.XmlElement or BuiltInType.ExtensionObject)
             {
                 maxRand = 2;
             }

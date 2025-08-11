@@ -98,28 +98,28 @@ namespace Opc.Ua.Gds.Tests
         /// Set up a Global Discovery Server and Client instance and connect the session
         /// </summary>
         [OneTimeSetUp]
-        protected async Task OneTimeSetUp()
+        protected async Task OneTimeSetUpAsync()
         {
             // start GDS first clean, then restart server
             // to ensure the application cert is not 'fresh'
-            m_server = await TestUtils.StartGDS(true).ConfigureAwait(false);
+            m_server = await TestUtils.StartGDSAsync(true).ConfigureAwait(false);
             m_server.StopServer();
             await Task.Delay(1000).ConfigureAwait(false);
-            m_server = await TestUtils.StartGDS(false).ConfigureAwait(false);
+            m_server = await TestUtils.StartGDSAsync(false).ConfigureAwait(false);
 
             m_randomSource = new RandomSource(kRandomStart);
 
             // load clients
             m_gdsClient = new GlobalDiscoveryTestClient(true);
-            await m_gdsClient.LoadClientConfiguration(m_server.BasePort).ConfigureAwait(false);
+            await m_gdsClient.LoadClientConfigurationAsync(m_server.BasePort).ConfigureAwait(false);
             m_pushClient = new ServerConfigurationPushTestClient(true);
-            await m_pushClient.LoadClientConfiguration(m_server.BasePort).ConfigureAwait(false);
+            await m_pushClient.LoadClientConfigurationAsync(m_server.BasePort).ConfigureAwait(false);
 
             // connect once
             await m_gdsClient.GDSClient.ConnectAsync(m_gdsClient.GDSClient.EndpointUrl).ConfigureAwait(false);
             await m_pushClient.PushClient.ConnectAsync(m_pushClient.PushClient.EndpointUrl).ConfigureAwait(false);
 
-            ConnectGDSClient(true);
+            await ConnectGDSClientAsync(true).ConfigureAwait(false);
             RegisterPushServerApplication(m_pushClient.PushClient.EndpointUrl);
 
             m_selfSignedServerCert = X509CertificateLoader.LoadCertificate(
@@ -127,18 +127,18 @@ namespace Opc.Ua.Gds.Tests
             );
             m_domainNames = [.. X509Utils.GetDomainsFromCertificate(m_selfSignedServerCert)];
 
-            await CreateCATestCerts(m_pushClient.TempStorePath).ConfigureAwait(false);
+            await CreateCATestCertsAsync(m_pushClient.TempStorePath).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Tear down the Global Discovery Server and disconnect the Client
         /// </summary>
         [OneTimeTearDown]
-        protected void OneTimeTearDown()
+        protected async Task OneTimeTearDownAsync()
         {
             try
             {
-                ConnectGDSClient(true);
+                await ConnectGDSClientAsync(true).ConfigureAwait(false);
                 UnRegisterPushServerApplication();
                 m_gdsClient.DisconnectClient();
                 m_pushClient.DisconnectClient();
@@ -573,21 +573,21 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test, Order(509)]
-        public void UpdateCertificateCASignedRegeneratePrivateKey()
+        public async Task UpdateCertificateCASignedRegeneratePrivateKeyAsync()
         {
-            UpdateCertificateCASigned(true);
+            await UpdateCertificateCASignedAsync(true).ConfigureAwait(false);
         }
 
         [Test, Order(510)]
-        public void UpdateCertificateCASigned()
+        public async Task UpdateCertificateCASignedAsync()
         {
-            UpdateCertificateCASigned(false);
+            await UpdateCertificateCASignedAsync(false).ConfigureAwait(false);
         }
 
-        public void UpdateCertificateCASigned(bool regeneratePrivateKey)
+        public async Task UpdateCertificateCASignedAsync(bool regeneratePrivateKey)
         {
             ConnectPushClient(true);
-            ConnectGDSClient(true);
+            await ConnectGDSClientAsync(true).ConfigureAwait(false);
             TestContext.Out.WriteLine("Create Signing Request");
             byte[] csr = m_pushClient.PushClient.CreateSigningRequest(
                 null,
@@ -905,13 +905,13 @@ namespace Opc.Ua.Gds.Tests
             m_pushClient.PushClient.Disconnect();
         }
 
-        private void ConnectGDSClient(
+        private async Task ConnectGDSClientAsync(
             bool admin,
             [System.Runtime.CompilerServices.CallerMemberName] string memberName = ""
         )
         {
             m_gdsClient.GDSClient.AdminCredentials = admin ? m_gdsClient.AdminUser : m_gdsClient.AppUser;
-            m_gdsClient.GDSClient.ConnectAsync(m_gdsClient.GDSClient.EndpointUrl).Wait();
+            await m_gdsClient.GDSClient.ConnectAsync(m_gdsClient.GDSClient.EndpointUrl).ConfigureAwait(false);
             TestContext.Progress.WriteLine($"GDS Client({admin}) connected -- {memberName}");
         }
 
@@ -949,9 +949,9 @@ namespace Opc.Ua.Gds.Tests
             // add issuer and trusted certs to client stores
             NodeId trustListId = m_gdsClient.GDSClient.GetTrustList(id, null);
             TrustListDataType trustList = m_gdsClient.GDSClient.ReadTrustList(trustListId);
-            bool result = AddTrustListToStore(m_gdsClient.Configuration.SecurityConfiguration, trustList).Result;
+            bool result = AddTrustListToStoreAsync(m_gdsClient.Configuration.SecurityConfiguration, trustList).Result;
             Assert.IsTrue(result);
-            result = AddTrustListToStore(m_pushClient.Config.SecurityConfiguration, trustList).Result;
+            result = AddTrustListToStoreAsync(m_pushClient.Config.SecurityConfiguration, trustList).Result;
             Assert.IsTrue(result);
         }
 
@@ -978,7 +978,10 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
-        private static async Task<bool> AddTrustListToStore(SecurityConfiguration config, TrustListDataType trustList)
+        private static async Task<bool> AddTrustListToStoreAsync(
+            SecurityConfiguration config,
+            TrustListDataType trustList
+        )
         {
             int masks = (int)trustList.SpecifiedLists;
 
@@ -1026,7 +1029,7 @@ namespace Opc.Ua.Gds.Tests
             int updateMasks = (int)TrustListMasks.None;
             if (
                 (masks & (int)TrustListMasks.IssuerCertificates) != 0
-                && await UpdateStoreCertificates(config.TrustedIssuerCertificates, issuerCertificates)
+                && await UpdateStoreCertificatesAsync(config.TrustedIssuerCertificates, issuerCertificates)
                     .ConfigureAwait(false)
             )
             {
@@ -1034,14 +1037,14 @@ namespace Opc.Ua.Gds.Tests
             }
             if (
                 (masks & (int)TrustListMasks.IssuerCrls) != 0
-                && await UpdateStoreCrls(config.TrustedIssuerCertificates, issuerCrls).ConfigureAwait(false)
+                && await UpdateStoreCrlsAsync(config.TrustedIssuerCertificates, issuerCrls).ConfigureAwait(false)
             )
             {
                 updateMasks |= (int)TrustListMasks.IssuerCrls;
             }
             if (
                 (masks & (int)TrustListMasks.TrustedCertificates) != 0
-                && await UpdateStoreCertificates(config.TrustedPeerCertificates, trustedCertificates)
+                && await UpdateStoreCertificatesAsync(config.TrustedPeerCertificates, trustedCertificates)
                     .ConfigureAwait(false)
             )
             {
@@ -1049,7 +1052,7 @@ namespace Opc.Ua.Gds.Tests
             }
             if (
                 (masks & (int)TrustListMasks.TrustedCrls) != 0
-                && await UpdateStoreCrls(config.TrustedPeerCertificates, trustedCrls).ConfigureAwait(false)
+                && await UpdateStoreCrlsAsync(config.TrustedPeerCertificates, trustedCrls).ConfigureAwait(false)
             )
             {
                 updateMasks |= (int)TrustListMasks.TrustedCrls;
@@ -1058,7 +1061,10 @@ namespace Opc.Ua.Gds.Tests
             return masks == updateMasks;
         }
 
-        private static async Task<bool> UpdateStoreCrls(CertificateTrustList trustList, X509CRLCollection updatedCrls)
+        private static async Task<bool> UpdateStoreCrlsAsync(
+            CertificateTrustList trustList,
+            X509CRLCollection updatedCrls
+        )
         {
             bool result = true;
             ICertificateStore store = null;
@@ -1089,7 +1095,7 @@ namespace Opc.Ua.Gds.Tests
             return result;
         }
 
-        private static async Task<bool> UpdateStoreCertificates(
+        private static async Task<bool> UpdateStoreCertificatesAsync(
             CertificateTrustList trustList,
             X509Certificate2Collection updatedCerts
         )
@@ -1133,7 +1139,7 @@ namespace Opc.Ua.Gds.Tests
         /// <summary>
         /// Create CA test certificates.
         /// </summary>
-        private async Task CreateCATestCerts(string tempStorePath)
+        private async Task CreateCATestCertsAsync(string tempStorePath)
         {
             var certificateStoreIdentifier = new CertificateStoreIdentifier(tempStorePath, false);
             Assert.IsTrue(EraseStore(certificateStoreIdentifier));
@@ -1166,7 +1172,7 @@ namespace Opc.Ua.Gds.Tests
 #endif
 
             // initialize cert revocation list (CRL)
-            m_caCrl = await CertificateGroup
+            X509CRL caCrl = await CertificateGroup
                 .RevokeCertificateAsync(certificateStoreIdentifier, m_caCert)
                 .ConfigureAwait(false);
         }
@@ -1208,7 +1214,6 @@ namespace Opc.Ua.Gds.Tests
         private X509Certificate2 m_selfSignedServerCert;
         private string[] m_domainNames;
         private X509Certificate2 m_caCert;
-        private X509CRL m_caCrl;
         private readonly NodeId m_certificateType;
     }
 }

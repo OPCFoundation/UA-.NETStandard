@@ -71,19 +71,19 @@ namespace Opc.Ua.Client.Tests
         /// Set up a Server and a Client instance.
         /// </summary>
         [OneTimeSetUp]
-        public new Task OneTimeSetUp()
+        public override Task OneTimeSetUpAsync()
         {
             SupportsExternalServerUrl = true;
             // create a new session for every test
             SingleSession = false;
-            return base.OneTimeSetUp();
+            return base.OneTimeSetUpAsync();
         }
 
         /// <summary>
         /// Tear down the Server and the Client.
         /// </summary>
         [OneTimeTearDown]
-        public new Task OneTimeTearDownAsync()
+        public override Task OneTimeTearDownAsync()
         {
             return base.OneTimeTearDownAsync();
         }
@@ -92,9 +92,9 @@ namespace Opc.Ua.Client.Tests
         /// Test setup.
         /// </summary>
         [SetUp]
-        public new async Task SetUp()
+        public override async Task SetUpAsync()
         {
-            await base.SetUp().ConfigureAwait(false);
+            await base.SetUpAsync().ConfigureAwait(false);
 
             // clear node cache
             Session.NodeCache.Clear();
@@ -104,16 +104,16 @@ namespace Opc.Ua.Client.Tests
         /// Test teardown.
         /// </summary>
         [TearDown]
-        public new Task TearDown()
+        public override Task TearDownAsync()
         {
-            return base.TearDown();
+            return base.TearDownAsync();
         }
 
         /// <summary>
         /// Global Setup for benchmarks.
         /// </summary>
         [GlobalSetup]
-        public new void GlobalSetup()
+        public override void GlobalSetup()
         {
             base.GlobalSetup();
         }
@@ -122,7 +122,7 @@ namespace Opc.Ua.Client.Tests
         /// Global cleanup for benchmarks.
         /// </summary>
         [GlobalCleanup]
-        public new void GlobalCleanup()
+        public override void GlobalCleanup()
         {
             base.GlobalCleanup();
         }
@@ -131,7 +131,7 @@ namespace Opc.Ua.Client.Tests
         /// Load Ua types in node cache.
         /// </summary>
         [Test, Order(500)]
-        public void NodeCache_LoadUaDefinedTypes()
+        public void NodeCacheLoadUaDefinedTypes()
         {
             INodeCache nodeCache = Session.NodeCache;
             Assert.IsNotNull(nodeCache);
@@ -147,7 +147,7 @@ namespace Opc.Ua.Client.Tests
         /// Browse all variables in the objects folder.
         /// </summary>
         [Test, Order(100)]
-        public async Task NodeCache_BrowseAllVariables()
+        public async Task NodeCacheBrowseAllVariablesAsync()
         {
             var result = new List<INode>();
             var nodesToBrowse = new ExpandedNodeIdCollection { ObjectIds.ObjectsFolder };
@@ -213,7 +213,7 @@ namespace Opc.Ua.Client.Tests
         /// Browse all variables in the objects folder.
         /// </summary>
         [Test, Order(200)]
-        public async Task NodeCache_BrowseAllVariables_MultipleNodes()
+        public async Task NodeCacheBrowseAllVariablesMultipleNodesAsync()
         {
             var result = new List<INode>();
             var nodesToBrowse = new ExpandedNodeIdCollection { ObjectIds.ObjectsFolder };
@@ -267,7 +267,7 @@ namespace Opc.Ua.Client.Tests
         /// Load Ua types in node cache.
         /// </summary>
         [Test, Order(500)]
-        public void NodeCache_References()
+        public void NodeCacheReferences()
         {
             if (UseAsync)
             {
@@ -319,7 +319,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test, Order(720)]
-        public async Task NodeCacheFind()
+        public async Task NodeCacheFindAsync()
         {
             if (ReferenceDescriptions == null)
             {
@@ -343,7 +343,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test, Order(730)]
-        public async Task NodeCacheFetchNode()
+        public async Task NodeCacheFetchNodeAsync()
         {
             if (ReferenceDescriptions == null)
             {
@@ -367,7 +367,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test, Order(740)]
-        public async Task NodeCacheFetchNodes()
+        public async Task NodeCacheFetchNodesAsync()
         {
             if (ReferenceDescriptions == null)
             {
@@ -393,7 +393,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test, Order(750)]
-        public async Task NodeCacheFindReferences()
+        public async Task NodeCacheFindReferencesAsync()
         {
             if (ReferenceDescriptions == null)
             {
@@ -509,7 +509,7 @@ namespace Opc.Ua.Client.Tests
         /// Test concurrent access of Find.
         /// </summary>
         [Test, Order(1100)]
-        public async Task NodeCacheFindNodesConcurrent()
+        public async Task NodeCacheFindNodesConcurrentAsync()
         {
             if (ReferenceDescriptions == null)
             {
@@ -555,7 +555,7 @@ namespace Opc.Ua.Client.Tests
         /// Test concurrent access of FindReferences.
         /// </summary>
         [Test, Order(1200)]
-        public async Task NodeCacheFindReferencesConcurrent()
+        public async Task NodeCacheFindReferencesConcurrentAsync()
         {
             if (ReferenceDescriptions == null)
             {
@@ -609,7 +609,7 @@ namespace Opc.Ua.Client.Tests
         /// Test concurrent access of many methods in INodecache interface
         /// </summary>
         [Test, Order(1300)]
-        public async Task NodeCacheTestAllMethodsConcurrently()
+        public async Task NodeCacheTestAllMethodsConcurrentlyAsync()
         {
             const int testCases = 10;
             const int testCaseRunTime = 5_000;

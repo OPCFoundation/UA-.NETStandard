@@ -257,11 +257,6 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Microsoft.Usage",
-            "CA2213:DisposableFieldsShouldBeDisposed",
-            MessageId = "m_simulator"
-        )]
         protected virtual void Dispose(bool disposing)
         {
             if (disposing)
@@ -1087,11 +1082,13 @@ namespace Opc.Ua.Bindings
                         //try to find the new channel id for the authentication token to send response over new channel
                         var request = (IServiceRequest)args[2];
                         NodeId authenticationToken = request.RequestHeader.AuthenticationToken;
-                        if (m_callback?.TryGetSecureChannelIdForAuthenticationToken(
+                        if (
+                            m_callback?.TryGetSecureChannelIdForAuthenticationToken(
                                 authenticationToken,
                                 out uint channelId
                             ) == true
-                            && m_channels.TryGetValue(channelId, out TcpListenerChannel newChannel))
+                            && m_channels.TryGetValue(channelId, out TcpListenerChannel newChannel)
+                        )
                         {
                             var serverChannel = (TcpServerChannel)newChannel;
 
@@ -1122,7 +1119,7 @@ namespace Opc.Ua.Bindings
             return (uint)Utils.IncrementIdentifier(ref m_lastChannelId);
         }
 
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
         private EndpointDescriptionCollection m_descriptions;
         private BufferManager m_bufferManager;
         private ChannelQuotas m_quotas;

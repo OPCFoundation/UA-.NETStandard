@@ -55,7 +55,6 @@ namespace Opc.Ua
         /// <summary>
         /// Raised when a certificate validation error occurs.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1009:DeclareEventHandlersCorrectly")]
         public event CertificateValidationEventHandler CertificateValidation
         {
             add
@@ -991,7 +990,7 @@ namespace Opc.Ua
                         {
                             // number of certs for history + current chain
                             await store
-                                .AddRejectedAsync(certificateChain, m_maxRejectedCertificates)
+                                .AddRejectedAsync(certificateChain, m_maxRejectedCertificates, ct)
                                 .ConfigureAwait(false);
                         }
                     }
@@ -1312,11 +1311,11 @@ namespace Opc.Ua
         /// <param name="endpoint">The endpoint for domain validation.</param>
         /// <param name="ct">The cancellation token.</param>
         /// <exception cref="ServiceResultException">If certificate[0] cannot be accepted</exception>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Roslynanalyzer",
-            "IA5352:Do not set X509RevocationMode.NoCheck",
-            Justification = "Revocation is already checked."
-        )]
+        // [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        //     "Roslynanalyzer",
+        //     "IA5352:Do not set X509RevocationMode.NoCheck",
+        //     Justification = "Revocation is already checked."
+        // )]
         protected virtual async Task InternalValidateAsync(
             X509Certificate2Collection certificates,
             ConfiguredEndpoint endpoint,
@@ -1765,7 +1764,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns an object that can be used with a UA channel.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public ICertificateValidator GetChannelValidator()
         {
             return this;
@@ -1846,10 +1844,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns an error if the chain status elements indicate an error.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Microsoft.Maintainability",
-            "CA1502:AvoidExcessiveComplexity"
-        )]
         private static ServiceResult CheckChainStatus(
             X509ChainStatus status,
             CertificateIdentifier id,
@@ -2183,7 +2177,7 @@ namespace Opc.Ua
         }
 
         private readonly SemaphoreSlim m_semaphore = new(1, 1);
-        private readonly object m_callbackLock = new();
+        private readonly Lock m_callbackLock = new();
         private readonly Dictionary<string, X509Certificate2> m_validatedCertificates;
         private CertificateStoreIdentifier m_trustedCertificateStore;
         private CertificateIdentifierCollection m_trustedCertificateList;

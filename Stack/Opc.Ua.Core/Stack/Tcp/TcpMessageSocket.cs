@@ -13,6 +13,7 @@
 using System;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
 
 namespace Opc.Ua.Bindings
 {
@@ -421,9 +422,7 @@ namespace Opc.Ua.Bindings
                     // after processing the ReadComplete and let the outer call handle it
                     if (!innerCall && !ServiceResult.IsBad(error))
                     {
-                        while (ReadNext())
-                        {
-                        }
+                        while (ReadNext()) { }
                     }
                 }
                 catch (Exception ex)
@@ -744,7 +743,7 @@ namespace Opc.Ua.Bindings
         private readonly int m_receiveBufferSize;
         private readonly EventHandler<SocketAsyncEventArgs> m_readComplete;
 
-        private readonly object m_socketLock = new();
+        private readonly Lock m_socketLock = new();
         private Socket m_socket;
         private bool m_closed;
 
@@ -762,7 +761,7 @@ namespace Opc.Ua.Bindings
             Error = 0xff,
         }
 
-        private readonly object m_readLock = new();
+        private readonly Lock m_readLock = new();
         private byte[] m_receiveBuffer;
         private int m_bytesReceived;
         private int m_bytesToReceive;

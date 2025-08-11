@@ -41,7 +41,7 @@ namespace Opc.Ua.Client.Tests
     [TestFixtureSource(nameof(FixtureArgs))]
     public class ClientTestNoSecurity
     {
-        private ClientTest m_clientTest { get; }
+        private readonly ClientTest m_clientTest;
 
         public static readonly object[] FixtureArgs =
         [
@@ -65,7 +65,7 @@ namespace Opc.Ua.Client.Tests
         /// Set up a Server and a Client instance.
         /// </summary>
         [OneTimeSetUp]
-        public Task OneTimeSetUp()
+        public Task OneTimeSetUpAsync()
         {
             m_clientTest.SupportsExternalServerUrl = true;
             return m_clientTest.OneTimeSetUpAsync(null, true);
@@ -84,18 +84,18 @@ namespace Opc.Ua.Client.Tests
         /// Test setup.
         /// </summary>
         [SetUp]
-        public Task SetUp()
+        public Task SetUpAsync()
         {
-            return m_clientTest.SetUp();
+            return m_clientTest.SetUpAsync();
         }
 
         /// <summary>
         /// Test teardown.
         /// </summary>
         [TearDown]
-        public Task TearDown()
+        public Task TearDownAsync()
         {
-            return m_clientTest.TearDown();
+            return m_clientTest.TearDownAsync();
         }
 
         /// <summary>
@@ -109,15 +109,15 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test, Order(230)]
-        public Task ReconnectJWTSecurityNone()
+        public Task ReconnectJWTSecurityNoneAsync()
         {
-            return m_clientTest.ReconnectJWT(SecurityPolicies.None);
+            return m_clientTest.ReconnectJWTAsync(SecurityPolicies.None);
         }
 
         [Test, Order(220)]
-        public Task ConnectJWT()
+        public Task ConnectJWTAsync()
         {
-            return m_clientTest.ConnectJWT(SecurityPolicies.None);
+            return m_clientTest.ConnectJWTAsync(SecurityPolicies.None);
         }
 
         /// <summary>
@@ -128,12 +128,12 @@ namespace Opc.Ua.Client.Tests
         [TestCase(true, false)]
         [TestCase(false, false)]
         [TestCase(false, true)]
-        public Task ReconnectSessionOnAlternateChannelWithSavedSessionSecretsSecurityNone(
+        public Task ReconnectSessionOnAlternateChannelWithSavedSessionSecretsSecurityNoneAsync(
             bool anonymous,
             bool asyncReconnect
         )
         {
-            return m_clientTest.ReconnectSessionOnAlternateChannelWithSavedSessionSecrets(
+            return m_clientTest.ReconnectSessionOnAlternateChannelWithSavedSessionSecretsAsync(
                 SecurityPolicies.None,
                 anonymous,
                 asyncReconnect
@@ -141,13 +141,13 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Theory, Order(400)]
-        public Task BrowseFullAddressSpaceSecurityNone(bool operationLimits)
+        public Task BrowseFullAddressSpaceSecurityNoneAsync(bool operationLimits)
         {
-            return m_clientTest.BrowseFullAddressSpace(SecurityPolicies.None, operationLimits);
+            return m_clientTest.BrowseFullAddressSpaceAsync(SecurityPolicies.None, operationLimits);
         }
 
         [Test, Order(201)]
-        public Task ConnectAndCloseAsyncNoSecurity()
+        public Task ConnectAndCloseAsyncNoSecurityAsync()
         {
             return m_clientTest.ConnectAndCloseAsync(SecurityPolicies.None);
         }

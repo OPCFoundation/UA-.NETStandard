@@ -67,8 +67,7 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public bool HasBinding(string uriScheme)
         {
-            T binding;
-            return Bindings.TryGetValue(uriScheme, out binding);
+            return Bindings.TryGetValue(uriScheme, out _);
         }
 
         /// <inheritdoc/>
@@ -115,7 +114,7 @@ namespace Opc.Ua.Bindings
                 return false;
             }
 
-            if (Activator.CreateInstance(bindingType) is not T listener)
+            if (Activator.CreateInstance(bindingType) is not T)
             {
                 return false;
             }

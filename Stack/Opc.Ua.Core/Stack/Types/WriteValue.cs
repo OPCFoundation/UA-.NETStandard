@@ -78,7 +78,7 @@ namespace Opc.Ua
 
                 if (value.ParsedIndexRange.SubRanges != null)
                 {
-                    if (value.Value.Value is not Matrix matrix)
+                    if (value.Value.Value is not Matrix)
                     {
                         // Check for String or ByteString arrays. Those DataTypes have special handling
                         // when using sub ranges.

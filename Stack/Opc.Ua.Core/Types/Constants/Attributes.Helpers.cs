@@ -133,7 +133,6 @@ namespace Opc.Ua
                 case Value:
                     return BuiltInType.Variant;
                 case DisplayName:
-                    return BuiltInType.LocalizedText;
                 case Description:
                     return BuiltInType.LocalizedText;
                 case WriteMask:
@@ -199,7 +198,6 @@ namespace Opc.Ua
                 case Value:
                     return DataTypeIds.BaseDataType;
                 case DisplayName:
-                    return DataTypeIds.LocalizedText;
                 case Description:
                     return DataTypeIds.LocalizedText;
                 case WriteMask:

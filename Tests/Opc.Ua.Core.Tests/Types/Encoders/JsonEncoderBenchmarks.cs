@@ -236,13 +236,13 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         }
 
         [OneTimeSetUp]
-        public new void OneTimeSetUp()
+        public override void OneTimeSetUp()
         {
             base.OneTimeSetUp();
         }
 
         [OneTimeTearDown]
-        public new void OneTimeTearDown()
+        public override void OneTimeTearDown()
         {
             base.OneTimeTearDown();
         }
@@ -251,7 +251,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Set up some variables for benchmarks.
         /// </summary>
         [GlobalSetup]
-        public new void GlobalSetup()
+        public override void GlobalSetup()
         {
             base.GlobalSetup();
         }
@@ -260,7 +260,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
         /// Tear down benchmark variables.
         /// </summary>
         [GlobalCleanup]
-        public new void GlobalCleanup()
+        public override void GlobalCleanup()
         {
             base.GlobalCleanup();
         }

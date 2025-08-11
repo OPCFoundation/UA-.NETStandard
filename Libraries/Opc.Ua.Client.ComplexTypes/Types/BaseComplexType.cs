@@ -41,7 +41,7 @@ namespace Opc.Ua.Client.ComplexTypes
     /// <summary>
     /// The base class for all complex types.
     /// </summary>
-    public class BaseComplexType : IEncodeable, IFormattable, ICloneable, IComplexTypeProperties, IStructureTypeInfo
+    public class BaseComplexType : IEncodeable, IFormattable, IComplexTypeProperties, IStructureTypeInfo
     {
         /// <summary>
         /// Initializes the object with default values.
@@ -51,7 +51,6 @@ namespace Opc.Ua.Client.ComplexTypes
             TypeId = ExpandedNodeId.Null;
             BinaryEncodingId = ExpandedNodeId.Null;
             XmlEncodingId = ExpandedNodeId.Null;
-            m_context = MessageContextExtension.CurrentContext;
             InitializePropertyAttributes();
         }
 
@@ -64,12 +63,6 @@ namespace Opc.Ua.Client.ComplexTypes
             TypeId = typeId;
         }
 
-        [OnSerializing]
-        private void UpdateContext(StreamingContext context)
-        {
-            m_context = MessageContextExtension.CurrentContext;
-        }
-
         /// <summary>
         /// Initializes the object during deserialization.
         /// </summary>
@@ -77,7 +70,6 @@ namespace Opc.Ua.Client.ComplexTypes
         private void Initialize(StreamingContext context)
         {
             TypeId = ExpandedNodeId.Null;
-            m_context = MessageContextExtension.CurrentContext;
         }
 
         /// <inheritdoc/>
@@ -715,10 +707,6 @@ namespace Opc.Ua.Client.ComplexTypes
         {
             StructureDefinitionAttribute definitionAttribute = GetType()
                 .GetCustomAttribute<StructureDefinitionAttribute>();
-            if (definitionAttribute != null)
-            {
-                m_structureBaseType = definitionAttribute.BaseDataType;
-            }
 
             StructureTypeIdAttribute typeAttribute = GetType().GetCustomAttribute<StructureTypeIdAttribute>();
             if (typeAttribute != null)
@@ -774,8 +762,6 @@ namespace Opc.Ua.Client.ComplexTypes
         /// </summary>
         protected Dictionary<string, ComplexTypePropertyInfo> m_propertyDict;
 
-        private IServiceMessageContext m_context;
-        private StructureBaseDataType m_structureBaseType;
         private XmlQualifiedName m_xmlName;
     }
 } //namespace

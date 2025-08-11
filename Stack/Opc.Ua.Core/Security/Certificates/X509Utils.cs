@@ -423,8 +423,7 @@ namespace Opc.Ua
                     break;
                 }
 
-                char ch = name[ii];
-
+                char ch;
                 if (found)
                 {
                     char end = delimiter;
@@ -677,7 +676,7 @@ namespace Opc.Ua
                     certificateStoreIdentifier.OpenStore() ?? throw new ArgumentException("Invalid store type");
 
                 store.Open(storePath, false);
-                store.AddAsync(certificate, password).Wait();
+                store.AddAsync(certificate, password).GetAwaiter().GetResult();
                 store.Close();
             }
             return certificate;
@@ -711,7 +710,7 @@ namespace Opc.Ua
                         throw new ArgumentException("Invalid store type");
                     }
 
-                    store.AddAsync(certificate, password).Wait();
+                    store.AddAsync(certificate, password).GetAwaiter().GetResult();
                 }
                 finally
                 {
@@ -748,7 +747,7 @@ namespace Opc.Ua
                 using ICertificateStore store =
                     certificateStoreIdentifier.OpenStore() ?? throw new ArgumentException("Invalid store type");
 
-                await store.AddAsync(certificate, password).ConfigureAwait(false);
+                await store.AddAsync(certificate, password, ct).ConfigureAwait(false);
                 store.Close();
             }
             return certificate;
@@ -782,7 +781,7 @@ namespace Opc.Ua
                     {
                         throw new ArgumentException("Invalid store type");
                     }
-                    await store.AddAsync(certificate, password).ConfigureAwait(false);
+                    await store.AddAsync(certificate, password, ct).ConfigureAwait(false);
                 }
                 finally
                 {

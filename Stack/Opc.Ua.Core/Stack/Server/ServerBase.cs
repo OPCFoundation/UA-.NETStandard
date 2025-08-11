@@ -506,11 +506,6 @@ namespace Opc.Ua
         /// <summary>
         /// Stops the server and releases all resources.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Microsoft.Naming",
-            "CA1716:IdentifiersShouldNotMatchKeywords",
-            MessageId = "Stop"
-        )]
         public virtual void Stop()
         {
             // do any pre-stop processing.

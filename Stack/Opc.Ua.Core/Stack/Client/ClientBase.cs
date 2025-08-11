@@ -214,13 +214,6 @@ namespace Opc.Ua
         protected void InitializeChannel(ITransportChannel channel)
         {
             Interlocked.Exchange(ref m_channel, channel);
-
-            m_useTransportChannel = true;
-
-            if (channel is UaChannelBase uaChannel)
-            {
-                m_useTransportChannel = uaChannel.UaBypassChannel != null || uaChannel.UseBinaryEncoding;
-            }
         }
 
         /// <summary>
@@ -523,6 +516,5 @@ namespace Opc.Ua
         private ITransportChannel m_channel;
         private int m_nextRequestHandle;
         private int m_pendingRequestCount;
-        private bool m_useTransportChannel;
     }
 }

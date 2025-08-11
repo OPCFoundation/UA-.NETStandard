@@ -242,7 +242,7 @@ namespace Opc.Ua.Server.Tests
 
             // check the application certificate.
             bool haveAppCertificate = await Application
-                .CheckApplicationInstanceCertificates(true, CertificateFactory.DefaultLifeTime)
+                .CheckApplicationInstanceCertificatesAsync(true, CertificateFactory.DefaultLifeTime)
                 .ConfigureAwait(false);
             if (!haveAppCertificate)
             {

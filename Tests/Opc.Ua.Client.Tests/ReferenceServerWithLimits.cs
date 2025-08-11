@@ -53,7 +53,7 @@ namespace Opc.Ua.Client.Tests
     /// </summary>
     public class ReferenceServerWithLimits : ReferenceServer
     {
-        public uint Test_MaxBrowseReferencesPerNode { get; set; } = 10u;
+        public uint TestMaxBrowseReferencesPerNode { get; set; } = 10u;
         private MasterNodeManager MasterNodeManagerReference { get; set; }
         private SessionManagerWithLimits SessionManagerForTest { get; set; }
 
@@ -69,7 +69,7 @@ namespace Opc.Ua.Client.Tests
             return base.Browse(
                 requestHeader,
                 view,
-                Test_MaxBrowseReferencesPerNode,
+                TestMaxBrowseReferencesPerNode,
                 nodesToBrowse,
                 out results,
                 out diagnosticInfos
@@ -170,8 +170,7 @@ namespace Opc.Ua.Client.Tests
                 maxRequestAge,
                 maxBrowseContinuationPoints,
                 maxHistoryContinuationPoints
-            )
-        { }
+            ) { }
 
         public void SetMaxNumberOfContinuationPoints(uint maxNumberOfContinuationPoints)
         {

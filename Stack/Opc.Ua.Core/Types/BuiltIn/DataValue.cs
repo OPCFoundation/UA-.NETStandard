@@ -324,10 +324,6 @@ namespace Opc.Ua
         /// <summary>
         /// The value of data value.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Microsoft.Naming",
-            "CA1721:PropertyNamesShouldNotMatchGetMethods"
-        )]
         public object Value
         {
             get => m_value.Value;

@@ -227,8 +227,9 @@ namespace Opc.Ua.Security.Certificates.Tests
         {
             ECCurve eccurve = ECCurve.NamedCurves.nistP256;
             // default cert
-            NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(
-                () => CertificateBuilder.Create(Subject).SetSerialNumberLength(0).SetECCurve(eccurve).CreateForECDsa());
+            NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(() =>
+                CertificateBuilder.Create(Subject).SetSerialNumberLength(0).SetECCurve(eccurve).CreateForECDsa()
+            );
             NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(() =>
             {
                 CertificateBuilder
@@ -257,8 +258,9 @@ namespace Opc.Ua.Security.Certificates.Tests
         {
             ECCurve eccurve = ECCurve.NamedCurves.nistP256;
             // default cert
-            NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(
-                () => CertificateBuilder.Create(Subject).SetSerialNumber([]).SetECCurve(eccurve).CreateForECDsa());
+            NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(() =>
+                CertificateBuilder.Create(Subject).SetSerialNumber([]).SetECCurve(eccurve).CreateForECDsa()
+            );
             NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(() =>
             {
                 CertificateBuilder

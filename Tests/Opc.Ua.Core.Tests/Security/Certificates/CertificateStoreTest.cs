@@ -524,7 +524,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(() =>
                         x509Store.AddCRLAsync(new X509CRL())
                     );
-                    NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(x509Store.EnumerateCRLsAsync);
+                    NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(() => x509Store.EnumerateCRLsAsync());
                     NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(() =>
                         x509Store.DeleteCRLAsync(new X509CRL())
                     );

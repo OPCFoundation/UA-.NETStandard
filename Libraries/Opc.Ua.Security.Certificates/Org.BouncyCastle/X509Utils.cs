@@ -246,7 +246,9 @@ namespace Opc.Ua.Security.Certificates.BouncyCastle
             throw new ArgumentException("EccCurveByCoefficients cannot be identified");
         }
 
-        private static readonly Dictionary<string, string> s_friendlyNameToOidMap = new(StringComparer.OrdinalIgnoreCase)
+        private static readonly Dictionary<string, string> s_friendlyNameToOidMap = new(
+            StringComparer.OrdinalIgnoreCase
+        )
         {
             { "nistP256", "1.2.840.10045.3.1.7" },
             { "nistP384", "1.3.132.0.34" },

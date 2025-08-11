@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Threading;
 using System.Xml;
 #if !NETSTANDARD2_1_OR_GREATER && !NET6_0_OR_GREATER
 using System.Linq;
@@ -45,14 +46,13 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Initializes the resource manager with the server instance that owns it.
         /// </summary>
-        public ResourceManager(IServerInternal server, ApplicationConfiguration configuration)
+        public ResourceManager(ApplicationConfiguration configuration)
         {
             if (configuration == null)
             {
                 throw new ArgumentNullException(nameof(configuration));
             }
 
-            m_server = server ?? throw new ArgumentNullException(nameof(server));
             m_translationTables = [];
         }
 
@@ -103,8 +103,7 @@ namespace Opc.Ua.Server
                 return null;
             }
             // translate localized text.
-            LocalizedText translatedText = result.LocalizedText;
-
+            LocalizedText translatedText;
             if (LocalizedText.IsNullOrEmpty(result.LocalizedText))
             {
                 // extract any additional arguments from the translation info.
@@ -631,10 +630,7 @@ namespace Opc.Ua.Server
             return symbolicId;
         }
 
-        private readonly object m_lock = new();
-
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
-        private readonly IServerInternal m_server;
+        private readonly Lock m_lock = new();
         private readonly List<TranslationTable> m_translationTables;
         private Dictionary<uint, TranslationInfo> m_statusCodeMapping;
         private Dictionary<XmlQualifiedName, TranslationInfo> m_symbolicIdMapping;

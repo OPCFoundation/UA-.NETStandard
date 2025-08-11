@@ -24,14 +24,12 @@
     <PackageReference Include="System.IO.Compression" />
     <PackageReference Include="System.Private.Uri" />
   </ItemGroup>
-  <Choose>
-    <When Condition="'$(TargetFramework)' == 'net462'"></When>
-    <Otherwise>
-      <PropertyGroup Condition="'$(DisableECCTests)' != 'true'">
-        <DefineConstants>$(DefineConstants);ECC_SUPPORT</DefineConstants>
-      </PropertyGroup>
-    </Otherwise>
-  </Choose>
+  <PropertyGroup Condition="'$(DisableECCTests)' != 'true'">
+    <DefineConstants>$(DefineConstants);ECC_SUPPORT</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(NetStandardTests)' == 'true'">
+    <DefineConstants>$(DefineConstants);NET_STANDARD_TESTS</DefineConstants>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(SignAssembly)' == 'true'">
     <DefineConstants>$(DefineConstants);SIGNASSEMBLY</DefineConstants>
   </PropertyGroup>

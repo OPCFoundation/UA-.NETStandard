@@ -488,7 +488,6 @@ namespace Opc.Ua
         /// <summary>
         /// A element in a relative path string.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1034:NestedTypesShouldNotBeVisible")]
         public class Element : IFormattable
         {
             /// <summary>
@@ -842,7 +841,6 @@ namespace Opc.Ua
         /// <summary>
         /// The type of relative path element.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1034:NestedTypesShouldNotBeVisible")]
         public enum ElementType
         {
             /// <summary>

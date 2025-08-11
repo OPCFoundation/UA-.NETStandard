@@ -2349,16 +2349,6 @@ namespace Opc.Ua
         /// <summary>
         /// Reads an Variant from the stream.
         /// </summary>
-        [
-            System.Diagnostics.CodeAnalysis.SuppressMessage(
-                "Microsoft.Maintainability",
-                "CA1505:AvoidUnmaintainableCode"
-            ),
-            System.Diagnostics.CodeAnalysis.SuppressMessage(
-                "Microsoft.Maintainability",
-                "CA1502:AvoidExcessiveComplexity"
-            )
-        ]
         private Variant ReadVariantValue(string fieldName)
         {
             // read the encoding byte.

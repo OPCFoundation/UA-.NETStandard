@@ -34,7 +34,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Assert = NUnit.Framework.Legacy.ClassicAssert;
-#if NETCOREAPP2_1_OR_GREATER
+#if NETCOREAPP2_1_OR_GREATER && !NET_STANDARD_TESTS
 using System.Runtime.InteropServices;
 #endif
 
@@ -89,10 +89,12 @@ namespace Opc.Ua.Configuration.Tests
             string configPath = Utils.GetAbsoluteFilePath("Opc.Ua.Configuration.Tests.Config.xml", true, false, false);
             Assert.NotNull(configPath);
             ApplicationConfiguration applicationConfiguration = await applicationInstance
-                .LoadApplicationConfiguration(configPath, true)
+                .LoadApplicationConfigurationAsync(configPath, true)
                 .ConfigureAwait(false);
             Assert.NotNull(applicationConfiguration);
-            bool certOK = await applicationInstance.CheckApplicationInstanceCertificates(true).ConfigureAwait(false);
+            bool certOK = await applicationInstance
+                .CheckApplicationInstanceCertificatesAsync(true)
+                .ConfigureAwait(false);
             Assert.True(certOK);
         }
 
@@ -116,7 +118,9 @@ namespace Opc.Ua.Configuration.Tests
                 .Create()
                 .ConfigureAwait(false);
             Assert.NotNull(config);
-            bool certOK = await applicationInstance.CheckApplicationInstanceCertificates(true).ConfigureAwait(false);
+            bool certOK = await applicationInstance
+                .CheckApplicationInstanceCertificatesAsync(true)
+                .ConfigureAwait(false);
             Assert.True(certOK);
         }
 
@@ -259,7 +263,9 @@ namespace Opc.Ua.Configuration.Tests
                 .Create()
                 .ConfigureAwait(false);
             Assert.NotNull(config);
-            bool certOK = await applicationInstance.CheckApplicationInstanceCertificates(true).ConfigureAwait(false);
+            bool certOK = await applicationInstance
+                .CheckApplicationInstanceCertificatesAsync(true)
+                .ConfigureAwait(false);
             Assert.True(certOK);
         }
 
@@ -308,7 +314,9 @@ namespace Opc.Ua.Configuration.Tests
                 .Create()
                 .ConfigureAwait(false);
             Assert.NotNull(config);
-            bool certOK = await applicationInstance.CheckApplicationInstanceCertificates(true).ConfigureAwait(false);
+            bool certOK = await applicationInstance
+                .CheckApplicationInstanceCertificatesAsync(true)
+                .ConfigureAwait(false);
             Assert.True(certOK);
         }
 
@@ -343,7 +351,9 @@ namespace Opc.Ua.Configuration.Tests
                 .Create()
                 .ConfigureAwait(false);
             Assert.NotNull(config);
-            bool certOK = await applicationInstance.CheckApplicationInstanceCertificates(true).ConfigureAwait(false);
+            bool certOK = await applicationInstance
+                .CheckApplicationInstanceCertificatesAsync(true)
+                .ConfigureAwait(false);
             Assert.True(certOK);
         }
 
@@ -354,7 +364,7 @@ namespace Opc.Ua.Configuration.Tests
         [Test, Repeat(2)]
         public async Task TestNoFileConfigAsServerX509StoreAsync()
         {
-#if NETCOREAPP2_1_OR_GREATER
+#if NETCOREAPP2_1_OR_GREATER && !NET_STANDARD_TESTS
             // this test fails on macOS, ignore
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
@@ -389,7 +399,9 @@ namespace Opc.Ua.Configuration.Tests
                 .ApplicationCertificate;
             bool deleteAfterUse = applicationCertificate.Certificate != null;
 
-            bool certOK = await applicationInstance.CheckApplicationInstanceCertificates(true).ConfigureAwait(false);
+            bool certOK = await applicationInstance
+                .CheckApplicationInstanceCertificatesAsync(true)
+                .ConfigureAwait(false);
             Assert.True(certOK);
             using (
                 ICertificateStore store =
@@ -441,7 +453,9 @@ namespace Opc.Ua.Configuration.Tests
                 .Create()
                 .ConfigureAwait(false);
             Assert.NotNull(config);
-            bool certOK = await applicationInstance.CheckApplicationInstanceCertificates(true).ConfigureAwait(false);
+            bool certOK = await applicationInstance
+                .CheckApplicationInstanceCertificatesAsync(true)
+                .ConfigureAwait(false);
             Assert.True(certOK);
         }
 
@@ -525,7 +539,7 @@ namespace Opc.Ua.Configuration.Tests
                 if (suppress)
                 {
                     bool certOK = await applicationInstance
-                        .CheckApplicationInstanceCertificates(true)
+                        .CheckApplicationInstanceCertificatesAsync(true)
                         .ConfigureAwait(false);
 
                     Assert.True(certOK);
@@ -534,7 +548,7 @@ namespace Opc.Ua.Configuration.Tests
                 else
                 {
                     ServiceResultException sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
-                        await applicationInstance.CheckApplicationInstanceCertificates(true).ConfigureAwait(false)
+                        await applicationInstance.CheckApplicationInstanceCertificatesAsync(true).ConfigureAwait(false)
                     );
                     Assert.AreEqual(StatusCodes.BadConfigurationError, sre.StatusCode);
                 }
@@ -555,7 +569,11 @@ namespace Opc.Ua.Configuration.Tests
         [TestCase(InvalidCertType.HostName, true, false)]
         [TestCase(InvalidCertType.HostName, false, true)]
         //TODO [TestCase(InvalidCertType.KeySize1024, true, false)]
-        public async Task TestInvalidAppCertChainDoNotRecreateAsync(InvalidCertType certType, bool server, bool suppress)
+        public async Task TestInvalidAppCertChainDoNotRecreateAsync(
+            InvalidCertType certType,
+            bool server,
+            bool suppress
+        )
         {
             // pki directory root for test runs.
             string pkiRoot = Path.GetTempPath() + Path.GetRandomFileName() + Path.DirectorySeparatorChar;
@@ -631,7 +649,7 @@ namespace Opc.Ua.Configuration.Tests
                 if (suppress)
                 {
                     bool certOK = await applicationInstance
-                        .CheckApplicationInstanceCertificates(true)
+                        .CheckApplicationInstanceCertificatesAsync(true)
                         .ConfigureAwait(false);
 
                     Assert.True(certOK);
@@ -640,7 +658,7 @@ namespace Opc.Ua.Configuration.Tests
                 else
                 {
                     ServiceResultException sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
-                        await applicationInstance.CheckApplicationInstanceCertificates(true).ConfigureAwait(false)
+                        await applicationInstance.CheckApplicationInstanceCertificatesAsync(true).ConfigureAwait(false)
                     );
                     Assert.AreEqual(StatusCodes.BadConfigurationError, sre.StatusCode);
                 }
@@ -740,14 +758,14 @@ namespace Opc.Ua.Configuration.Tests
             if (disableCertificateAutoCreation)
             {
                 ServiceResultException sre = NUnit.Framework.Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await applicationInstance.CheckApplicationInstanceCertificates(true).ConfigureAwait(false)
+                    await applicationInstance.CheckApplicationInstanceCertificatesAsync(true).ConfigureAwait(false)
                 );
                 Assert.AreEqual(StatusCodes.BadConfigurationError, sre.StatusCode);
             }
             else
             {
                 bool certOK = await applicationInstance
-                    .CheckApplicationInstanceCertificates(true)
+                    .CheckApplicationInstanceCertificatesAsync(true)
                     .ConfigureAwait(false);
                 Assert.True(certOK);
             }

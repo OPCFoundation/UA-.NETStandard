@@ -39,7 +39,7 @@ namespace Opc.Ua.PubSub
     public class IntervalRunner : IDisposable
     {
         private const int kMinInterval = 10;
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
 
         private double m_interval = kMinInterval;
         private double m_nextPublishTick;
@@ -178,7 +178,7 @@ namespace Opc.Ua.PubSub
                         SpinWait.SpinUntil(() => HiResClock.Ticks >= nextPublishTick);
                     }
                 }
-                else if (sleepCycle >= 0 && sleepCycle <= 16)
+                else if (sleepCycle is >= 0 and <= 16)
                 {
                     SpinWait.SpinUntil(() => HiResClock.Ticks >= nextPublishTick);
                 }

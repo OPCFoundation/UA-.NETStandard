@@ -287,7 +287,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                             {
                                 property.SetValue(typeInstance, ExtensionObject.Null);
                             }
-                            else if (propertyObject != null && propertyObject is IEncodeable)
+                            else if (propertyObject is not null and IEncodeable)
                             {
                                 SetDefaultEncodeableType(property.PropertyType, propertyObject);
                             }

@@ -34,7 +34,6 @@ using System.Runtime.CompilerServices;
 namespace System.Threading
 {
 #if !NET9_0_OR_GREATER
-#pragma warning disable CS9216
     /// <summary>
     /// A backport of .NET 9.0+'s System.Threading.Lock.
     /// </summary>
@@ -46,7 +45,9 @@ namespace System.Threading
         /// <returns>
         /// true if the current thread holds this lock; otherwise, false.
         /// </returns>
+#pragma warning disable CS9216
         public bool IsHeldByCurrentThread => Monitor.IsEntered(this);
+#pragma warning restore CS9216
 
         /// <summary>
         /// <inheritdoc cref="Monitor.Enter(object)"/>
@@ -54,7 +55,9 @@ namespace System.Threading
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Enter()
         {
+#pragma warning disable CS9216
             Monitor.Enter(this);
+#pragma warning restore CS9216
         }
 
         /// <summary>
@@ -66,28 +69,36 @@ namespace System.Threading
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryEnter()
         {
+#pragma warning disable CS9216
             return Monitor.TryEnter(this);
+#pragma warning restore CS9216
         }
 
         /// <inheritdoc/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryEnter(TimeSpan timeout)
         {
+#pragma warning disable CS9216
             return Monitor.TryEnter(this, timeout);
+#pragma warning restore CS9216
         }
 
         /// <inheritdoc/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryEnter(int millisecondsTimeout)
         {
+#pragma warning disable CS9216
             return Monitor.TryEnter(this, millisecondsTimeout);
+#pragma warning restore CS9216
         }
 
         /// <inheritdoc/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Exit()
         {
+#pragma warning disable CS9216
             Monitor.Exit(this);
+#pragma warning restore CS9216
         }
 
         /// <summary>
@@ -114,14 +125,18 @@ namespace System.Threading
             bool lockTaken = false;
             try
             {
+#pragma warning disable CS9216
                 Monitor.Enter(this, ref lockTaken);
+#pragma warning restore CS9216
                 return new Scope(this);
             }
             catch (ThreadAbortException)
             {
                 if (lockTaken)
                 {
+#pragma warning disable CS9216
                     Monitor.Exit(this);
+#pragma warning restore CS9216
                 }
 
                 throw;
@@ -130,7 +145,9 @@ namespace System.Threading
 #else
         public Scope EnterScope()
         {
+#pragma warning disable CS9216
             Monitor.Enter(this);
+#pragma warning restore CS9216
             return new Scope(this);
         }
 #endif
@@ -157,6 +174,5 @@ namespace System.Threading
             }
         }
     }
-#pragma warning restore CS9216
 #endif
 }

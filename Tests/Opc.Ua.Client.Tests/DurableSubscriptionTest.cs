@@ -53,7 +53,7 @@ namespace Opc.Ua.Client.Tests
         /// Set up a Server and a Client instance.
         /// </summary>
         [OneTimeSetUp]
-        public new Task OneTimeSetUp()
+        public override Task OneTimeSetUpAsync()
         {
             // the tests can be run against server specified in .runsettings
             SupportsExternalServerUrl = true;
@@ -63,7 +63,7 @@ namespace Opc.Ua.Client.Tests
             return OneTimeSetUpAsync(writer: null, securityNone: true);
         }
 
-        public override async Task CreateReferenceServerFixture(
+        public override async Task CreateReferenceServerFixtureAsync(
             bool enableTracing,
             bool disableActivityLogging,
             bool securityNone,
@@ -113,7 +113,7 @@ namespace Opc.Ua.Client.Tests
         /// Tear down the Server and the Client.
         /// </summary>
         [OneTimeTearDown]
-        public new Task OneTimeTearDownAsync()
+        public override Task OneTimeTearDownAsync()
         {
             return base.OneTimeTearDownAsync();
         }
@@ -122,12 +122,12 @@ namespace Opc.Ua.Client.Tests
         /// Test setup.
         /// </summary>
         [SetUp]
-        public new Task SetUp()
+        public override Task SetUpAsync()
         {
-            return MySetUp();
+            return MySetUpAsync();
         }
 
-        public async Task MySetUp()
+        public async Task MySetUpAsync()
         {
             if (!SingleSession)
             {
@@ -165,9 +165,9 @@ namespace Opc.Ua.Client.Tests
         /// Test teardown.
         /// </summary>
         [TearDown]
-        public new Task TearDown()
+        public override Task TearDownAsync()
         {
-            return base.TearDown();
+            return base.TearDownAsync();
         }
 
         [Test, Order(100)]
@@ -204,7 +204,8 @@ namespace Opc.Ua.Client.Tests
             subscription.Create();
 
             Dictionary<string, NodeId> desiredNodeIds = GetDesiredNodeIds(subscription.Id);
-            Dictionary<string, object> initialValues = GetValues(desiredNodeIds);
+
+            _ = GetValues(desiredNodeIds);
 
             uint revisedLifetimeInHours;
             Assert.True(subscription.SetSubscriptionDurable(requestedHours, out revisedLifetimeInHours));
@@ -342,7 +343,7 @@ namespace Opc.Ua.Client.Tests
         [TestCase(false, false, TestName = "Validate Session Close")]
         [TestCase(true, false, TestName = "Validate Transfer")]
         [TestCase(true, true, TestName = "Restart of Server")]
-        public async Task TestSessionTransfer(bool setSubscriptionDurable, bool restartServer)
+        public async Task TestSessionTransferAsync(bool setSubscriptionDurable, bool restartServer)
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
@@ -579,7 +580,7 @@ namespace Opc.Ua.Client.Tests
                 ReferenceTypeIds.HierarchicalReferences,
                 true,
                 0,
-                out byte[] continuationPoint,
+                out _,
                 out references
             );
 

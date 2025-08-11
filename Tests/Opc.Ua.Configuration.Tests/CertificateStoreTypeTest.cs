@@ -30,6 +30,7 @@
 using System;
 using System.IO;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
@@ -94,7 +95,7 @@ namespace Opc.Ua.Configuration.Tests
             // patch custom stores before creating the config
             ApplicationConfiguration appConfig = await appConfigBuilder.Create().ConfigureAwait(false);
 
-            bool certOK = await application.CheckApplicationInstanceCertificates(true).ConfigureAwait(false);
+            bool certOK = await application.CheckApplicationInstanceCertificatesAsync(true).ConfigureAwait(false);
             Assert.True(certOK);
 
             int instancesCreatedWhileLoadingConfig = TestCertStore.InstancesCreated;
@@ -190,9 +191,9 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         /// <inheritdoc/>
-        public Task AddAsync(X509Certificate2 certificate, string password = null)
+        public Task AddAsync(X509Certificate2 certificate, string password = null, CancellationToken ct = default)
         {
-            return m_innerStore.AddAsync(certificate, password);
+            return m_innerStore.AddAsync(certificate, password, ct);
         }
 
         /// <inheritdoc/>
@@ -203,9 +204,9 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         /// <inheritdoc/>
-        public Task<bool> DeleteAsync(string thumbprint)
+        public Task<bool> DeleteAsync(string thumbprint, CancellationToken ct = default)
         {
-            return m_innerStore.DeleteAsync(thumbprint);
+            return m_innerStore.DeleteAsync(thumbprint, ct);
         }
 
         /// <inheritdoc/>
@@ -215,9 +216,9 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         /// <inheritdoc/>
-        public Task<X509Certificate2Collection> EnumerateAsync()
+        public Task<X509Certificate2Collection> EnumerateAsync(CancellationToken ct = default)
         {
-            return m_innerStore.EnumerateAsync();
+            return m_innerStore.EnumerateAsync(ct);
         }
 
         /// <inheritdoc/>
@@ -228,9 +229,9 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         /// <inheritdoc/>
-        public Task<X509Certificate2Collection> FindByThumbprintAsync(string thumbprint)
+        public Task<X509Certificate2Collection> FindByThumbprintAsync(string thumbprint, CancellationToken ct = default)
         {
-            return m_innerStore.FindByThumbprintAsync(thumbprint);
+            return m_innerStore.FindByThumbprintAsync(thumbprint, ct);
         }
 
         /// <inheritdoc/>
@@ -243,9 +244,9 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         /// <inheritdoc/>
-        public Task AddCRLAsync(X509CRL crl)
+        public Task AddCRLAsync(X509CRL crl, CancellationToken ct = default)
         {
-            return m_innerStore.AddCRLAsync(crl);
+            return m_innerStore.AddCRLAsync(crl, ct);
         }
 
         /// <inheritdoc/>
@@ -256,9 +257,9 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         /// <inheritdoc/>
-        public Task<bool> DeleteCRLAsync(X509CRL crl)
+        public Task<bool> DeleteCRLAsync(X509CRL crl, CancellationToken ct = default)
         {
-            return m_innerStore.DeleteCRLAsync(crl);
+            return m_innerStore.DeleteCRLAsync(crl, ct);
         }
 
         /// <inheritdoc/>
@@ -269,9 +270,9 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         /// <inheritdoc/>
-        public Task<X509CRLCollection> EnumerateCRLsAsync()
+        public Task<X509CRLCollection> EnumerateCRLsAsync(CancellationToken ct = default)
         {
-            return m_innerStore.EnumerateCRLsAsync();
+            return m_innerStore.EnumerateCRLsAsync(ct);
         }
 
         /// <inheritdoc/>
@@ -282,9 +283,13 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         /// <inheritdoc/>
-        public Task<X509CRLCollection> EnumerateCRLsAsync(X509Certificate2 issuer, bool validateUpdateTime = true)
+        public Task<X509CRLCollection> EnumerateCRLsAsync(
+            X509Certificate2 issuer,
+            bool validateUpdateTime = true,
+            CancellationToken ct = default
+        )
         {
-            return m_innerStore.EnumerateCRLsAsync(issuer, validateUpdateTime);
+            return m_innerStore.EnumerateCRLsAsync(issuer, validateUpdateTime, ct);
         }
 
         /// <inheritdoc/>
@@ -295,9 +300,13 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         /// <inheritdoc/>
-        public Task<StatusCode> IsRevokedAsync(X509Certificate2 issuer, X509Certificate2 certificate)
+        public Task<StatusCode> IsRevokedAsync(
+            X509Certificate2 issuer,
+            X509Certificate2 certificate,
+            CancellationToken ct = default
+        )
         {
-            return m_innerStore.IsRevokedAsync(issuer, certificate);
+            return m_innerStore.IsRevokedAsync(issuer, certificate, ct);
         }
 
         /// <inheritdoc/>
@@ -322,10 +331,18 @@ namespace Opc.Ua.Configuration.Tests
             string subjectName,
             string applicationUri,
             NodeId certificateType,
-            string password
+            string password,
+            CancellationToken ct = default
         )
         {
-            return m_innerStore.LoadPrivateKeyAsync(thumbprint, subjectName, applicationUri, certificateType, password);
+            return m_innerStore.LoadPrivateKeyAsync(
+                thumbprint,
+                subjectName,
+                applicationUri,
+                certificateType,
+                password,
+                ct
+            );
         }
 
         /// <inheritdoc/>
@@ -336,9 +353,13 @@ namespace Opc.Ua.Configuration.Tests
         }
 
         /// <inheritdoc/>
-        public Task AddRejectedAsync(X509Certificate2Collection certificates, int maxCertificates)
+        public Task AddRejectedAsync(
+            X509Certificate2Collection certificates,
+            int maxCertificates,
+            CancellationToken ct = default
+        )
         {
-            return m_innerStore.AddRejectedAsync(certificates, maxCertificates);
+            return m_innerStore.AddRejectedAsync(certificates, maxCertificates, ct);
         }
 
         public static int InstancesCreated { get; set; }

@@ -83,7 +83,7 @@ namespace Opc.Ua
 
             public DisposableAction(Action action)
             {
-                this.m_action = action;
+                m_action = action;
             }
 
             public void Dispose()

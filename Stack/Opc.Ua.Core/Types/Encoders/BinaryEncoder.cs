@@ -2348,16 +2348,6 @@ namespace Opc.Ua
         /// <summary>
         /// Writes an Variant to the stream.
         /// </summary>
-        [
-            System.Diagnostics.CodeAnalysis.SuppressMessage(
-                "Microsoft.Maintainability",
-                "CA1506:AvoidExcessiveClassCoupling"
-            ),
-            System.Diagnostics.CodeAnalysis.SuppressMessage(
-                "Microsoft.Maintainability",
-                "CA1502:AvoidExcessiveComplexity"
-            )
-        ]
         private void WriteVariantValue(string fieldName, Variant value)
         {
             // check for null.
@@ -2754,7 +2744,6 @@ namespace Opc.Ua
         XmlBody = 0x04,
     }
 
-#pragma warning disable RCS1157 // Composite enum value contains undefined flag
     /// <summary>
     /// The possible values for Variant encoding bits.
     /// </summary>
@@ -2762,9 +2751,14 @@ namespace Opc.Ua
     internal enum VariantArrayEncodingBits
     {
         None = 0,
-        TypeMask = 0x3F,
+        TypeBit0 = 0x01,
+        TypeBit1 = 0x02,
+        TypeBit2 = 0x04,
+        TypeBit3 = 0x08,
+        TypeBit4 = 0x10,
+        TypeBit5 = 0x20,
+        TypeMask = TypeBit0 | TypeBit1 | TypeBit2 | TypeBit3 | TypeBit4 | TypeBit5,
         ArrayDimensions = 0x40,
         Array = 0x80,
     }
-#pragma warning restore RCS1157 // Composite enum value contains undefined flag
 }

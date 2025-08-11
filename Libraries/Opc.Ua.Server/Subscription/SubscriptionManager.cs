@@ -435,13 +435,12 @@ namespace Opc.Ua.Server
         /// </summary>
         public virtual void SessionClosing(OperationContext context, NodeId sessionId, bool deleteSubscriptions)
         {
-            // close the publish queue for the session.
-            SessionPublishQueue queue = null;
             IList<ISubscription> subscriptionsToDelete = null;
 
+            // close the publish queue for the session.
             lock (m_lock)
             {
-                if (m_publishQueues.TryGetValue(sessionId, out queue))
+                if (m_publishQueues.TryGetValue(sessionId, out SessionPublishQueue queue))
                 {
                     m_publishQueues.Remove(sessionId);
                     subscriptionsToDelete = queue.Close();
@@ -457,7 +456,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            //remove the expired subscription status change notifications for this session
+            // remove the expired subscription status change notifications for this session
             lock (m_statusMessagesLock)
             {
                 Queue<StatusMessage> statusQueue = null;
@@ -1006,9 +1005,10 @@ namespace Opc.Ua.Server
                     Message = subscription.PublishTimeout(),
                 };
 
-                Queue<StatusMessage> queue = null;
-
-                if (subscription.SessionId != null && m_statusMessages.TryGetValue(subscription.SessionId, out queue))
+                if (
+                    subscription.SessionId != null
+                    && m_statusMessages.TryGetValue(subscription.SessionId, out Queue<StatusMessage> queue)
+                )
                 {
                     queue.Enqueue(message);
                 }
@@ -1227,7 +1227,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            double publishingInterval = subscription.PublishingInterval;
+            _ = subscription.PublishingInterval;
 
             // calculate publishing interval.
             revisedPublishingInterval = CalculatePublishingInterval(requestedPublishingInterval);
@@ -2331,7 +2331,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
         private long m_lastSubscriptionId;
         private readonly IServerInternal m_server;
         private readonly double m_minPublishingInterval;
@@ -2354,9 +2354,9 @@ namespace Opc.Ua.Server
         private readonly ManualResetEvent m_conditionRefreshEvent;
         private readonly ISubscriptionStore m_subscriptionStore;
 
-        private readonly object m_statusMessagesLock = new();
-        private readonly object m_eventLock = new();
-        private readonly object m_conditionRefreshLock = new();
+        private readonly Lock m_statusMessagesLock = new();
+        private readonly Lock m_eventLock = new();
+        private readonly Lock m_conditionRefreshLock = new();
         private event SubscriptionEventHandler m_SubscriptionCreated;
         private event SubscriptionEventHandler m_SubscriptionDeleted;
     }

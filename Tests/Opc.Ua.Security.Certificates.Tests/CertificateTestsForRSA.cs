@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -259,8 +258,9 @@ namespace Opc.Ua.Security.Certificates.Tests
         public void CreateRSADefaultWithSerialTest()
         {
             // default cert
-            NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(
-                () => CertificateBuilder.Create(Subject).SetSerialNumberLength(0).CreateForRSA());
+            NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(() =>
+                CertificateBuilder.Create(Subject).SetSerialNumberLength(0).CreateForRSA()
+            );
             NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(() =>
             {
                 CertificateBuilder
@@ -286,8 +286,9 @@ namespace Opc.Ua.Security.Certificates.Tests
         public void CreateRSAManualSerialTest()
         {
             // default cert
-            NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(
-                () => CertificateBuilder.Create(Subject).SetSerialNumber([]).CreateForRSA());
+            NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(() =>
+                CertificateBuilder.Create(Subject).SetSerialNumber([]).CreateForRSA()
+            );
             NUnit.Framework.Assert.Throws<ArgumentOutOfRangeException>(() =>
             {
                 CertificateBuilder
@@ -354,11 +355,6 @@ namespace Opc.Ua.Security.Certificates.Tests
 
 #if NETFRAMEWORK || NETCOREAPP3_1_OR_GREATER
         [Test]
-        [SuppressMessage(
-            "Interoperability",
-            "CA1416: Validate platform compatibility",
-            Justification = "Test is ignored."
-        )]
         public void CreateIssuerRSACngWithSuppliedKeyPair()
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -366,8 +362,20 @@ namespace Opc.Ua.Security.Certificates.Tests
                 NUnit.Framework.Assert.Ignore("Cng provider only available on windows");
             }
             X509Certificate2 issuer = null;
+#pragma warning disable IDE0079 // Remove unnecessary suppression
+#pragma warning disable CA1416 // Validate platform compatibility
+#pragma warning restore IDE0079 // Remove unnecessary suppression
             var cngKey = CngKey.Create(CngAlgorithm.Rsa);
+#pragma warning disable IDE0079 // Remove unnecessary suppression
+#pragma warning restore CA1416 // Validate platform compatibility
+#pragma warning restore IDE0079 // Remove unnecessary suppression
+#pragma warning disable IDE0079 // Remove unnecessary suppression
+#pragma warning disable CA1416 // Validate platform compatibility
+#pragma warning restore IDE0079 // Remove unnecessary suppression
             using RSA rsaKeyPair = new RSACng(cngKey);
+#pragma warning disable IDE0079 // Remove unnecessary suppression
+#pragma warning restore CA1416 // Validate platform compatibility
+#pragma warning restore IDE0079 // Remove unnecessary suppression
             // create cert with supplied keys
             var generator = X509SignatureGenerator.CreateForRSA(rsaKeyPair, RSASignaturePadding.Pkcs1);
             using (

@@ -99,7 +99,7 @@ namespace Opc.Ua.Client
         {
             using Activity activity = TraceableSession.ActivitySource.StartActivity();
             ISession session = await Session
-                .Create(
+                .CreateAsync(
                     this,
                     configuration,
                     (ITransportWaitingConnection)null,
@@ -133,7 +133,7 @@ namespace Opc.Ua.Client
         {
             using Activity activity = TraceableSession.ActivitySource.StartActivity();
             ISession session = await Session
-                .Create(
+                .CreateAsync(
                     this,
                     configuration,
                     connection,

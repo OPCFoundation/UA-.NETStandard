@@ -522,7 +522,7 @@ namespace Opc.Ua
 
                         for (int ii = 0; ii < attributes.Length; ii++)
                         {
-                            if (attributes[ii] is DataMemberAttribute contract)
+                            if (attributes[ii] is DataMemberAttribute)
                             {
                                 if (body.Length == 0)
                                 {

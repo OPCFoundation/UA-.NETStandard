@@ -1204,7 +1204,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void DurableEventQueueVerifyReferenceBatching()
+        public async Task DurableEventQueueVerifyReferenceBatchingAsync()
         {
             if (!m_factory.SupportsDurableQueues)
             {
@@ -1221,7 +1221,7 @@ namespace Opc.Ua.Server.Tests
             }
 
             // wait for persisting to take place
-            Task.Delay(1000).Wait();
+            await Task.Delay(1000).ConfigureAwait(false);
 
             for (uint i = 0; i < 3000; i++)
             {
@@ -1234,13 +1234,13 @@ namespace Opc.Ua.Server.Tests
                 //simulate publishing operation
                 if (i % 501 == 0)
                 {
-                    Task.Delay(1200).Wait();
+                    await Task.Delay(1200).ConfigureAwait(false);
                 }
             }
         }
 
         [Test]
-        public void DurableDataValueQueueVerifyReferenceBatching()
+        public async Task DurableDataValueQueueVerifyReferenceBatchingAsync()
         {
             if (!m_factory.SupportsDurableQueues)
             {
@@ -1257,7 +1257,7 @@ namespace Opc.Ua.Server.Tests
             }
 
             // wait for persisting to take place
-            Task.Delay(1000).Wait();
+            await Task.Delay(1000).ConfigureAwait(false);
 
             for (uint i = 0; i < 3000; i++)
             {
@@ -1270,7 +1270,7 @@ namespace Opc.Ua.Server.Tests
                 //simulate publishing operation
                 if (i % 501 == 0)
                 {
-                    Task.Delay(1200).Wait();
+                    await Task.Delay(1200).ConfigureAwait(false);
                 }
             }
         }

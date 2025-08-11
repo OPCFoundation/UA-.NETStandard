@@ -111,7 +111,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
         [DatapointSource]
         public StructureType[] StructureTypes =
-#if NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
         Enum.GetValues<StructureType>();
 #else
         (StructureType[])Enum.GetValues(typeof(StructureType));
@@ -125,7 +125,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
         public Type BuildComplexTypeWithAllBuiltInTypes(StructureType structureType, string testFunc)
         {
-            return BuildComplexTypeWithAllBuiltInTypes(null, structureType, testFunc, out ExpandedNodeId nodeId);
+            return BuildComplexTypeWithAllBuiltInTypes(null, structureType, testFunc, out _);
         }
 
         /// <summary>
@@ -181,11 +181,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             foreach (BuiltInType builtInType in BuiltInTypes)
             {
                 if (
-                    builtInType == BuiltInType.Null
-                    || builtInType == BuiltInType.Variant
-                    || builtInType == BuiltInType.DataValue
-                    || builtInType == BuiltInType.ExtensionObject
-                    || builtInType >= BuiltInType.Number
+                    builtInType
+                    is BuiltInType.Null
+                        or BuiltInType.Variant
+                        or BuiltInType.DataValue
+                        or BuiltInType.ExtensionObject
+                        or >= BuiltInType.Number
                 )
                 {
                     continue;
@@ -309,14 +310,13 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 buffer = encoderStream.ToArray();
             }
 
-            string formatted;
             switch (encoderType)
             {
                 case EncodingType.Json:
-                    formatted = PrettifyAndValidateJson(buffer);
+                    _ = PrettifyAndValidateJson(buffer);
                     break;
                 case EncodingType.Xml:
-                    formatted = PrettifyAndValidateXml(buffer);
+                    _ = PrettifyAndValidateXml(buffer);
                     break;
             }
 

@@ -1374,8 +1374,7 @@ namespace Opc.Ua
         /// <returns></returns>
         public static ECDsa GetPublicKey(X509Certificate2 certificate)
         {
-            string[] securityPolicyUris;
-            return GetPublicKey(certificate, out securityPolicyUris);
+            return GetPublicKey(certificate, out _);
         }
 
         /// <summary>

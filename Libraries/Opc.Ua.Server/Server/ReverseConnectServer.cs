@@ -332,7 +332,6 @@ namespace Opc.Ua.Server
                 ReverseConnectProperty reverseConnection = null;
                 if (m_connections.TryGetValue(e.EndpointUrl, out reverseConnection))
                 {
-                    ServiceResult priorStatus = reverseConnection.ServiceResult;
                     if (ServiceResult.IsBad(e.ChannelStatus))
                     {
                         reverseConnection.ServiceResult = e.ChannelStatus;
@@ -491,6 +490,6 @@ namespace Opc.Ua.Server
         private int m_connectTimeout;
         private int m_rejectTimeout;
         private readonly Dictionary<Uri, ReverseConnectProperty> m_connections;
-        private readonly object m_connectionsLock = new();
+        private readonly Lock m_connectionsLock = new();
     }
 }

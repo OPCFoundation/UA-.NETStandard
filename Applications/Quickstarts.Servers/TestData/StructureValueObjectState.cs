@@ -54,7 +54,7 @@ namespace TestData
             uint count
         )
         {
-            if (context.SystemHandle is not TestDataSystem system)
+            if (context.SystemHandle is not TestDataSystem)
             {
                 return StatusCodes.BadOutOfService;
             }

@@ -50,7 +50,11 @@ namespace Opc.Ua.Gds.Tests
             s_autoAccept = autoAccept;
         }
 
-        public async Task StartServer(bool clean, int basePort = -1, string storeType = CertificateStoreType.Directory)
+        public async Task StartServerAsync(
+            bool clean,
+            int basePort = -1,
+            string storeType = CertificateStoreType.Directory
+        )
         {
             ApplicationInstance.MessageDlg = new ApplicationMessageDlg();
 
@@ -71,7 +75,7 @@ namespace Opc.Ua.Gds.Tests
             };
 
             BasePort = basePort;
-            Config = await Load(Application, basePort).ConfigureAwait(false);
+            Config = await LoadAsync(Application, basePort).ConfigureAwait(false);
 
             if (clean)
             {
@@ -84,24 +88,24 @@ namespace Opc.Ua.Gds.Tests
 
                 // always start with clean cert store
                 await TestUtils
-                    .CleanupTrustList(Config.SecurityConfiguration.ApplicationCertificate.OpenStore())
+                    .CleanupTrustListAsync(Config.SecurityConfiguration.ApplicationCertificate.OpenStore())
                     .ConfigureAwait(false);
                 await TestUtils
-                    .CleanupTrustList(Config.SecurityConfiguration.TrustedIssuerCertificates.OpenStore())
+                    .CleanupTrustListAsync(Config.SecurityConfiguration.TrustedIssuerCertificates.OpenStore())
                     .ConfigureAwait(false);
                 await TestUtils
-                    .CleanupTrustList(Config.SecurityConfiguration.TrustedPeerCertificates.OpenStore())
+                    .CleanupTrustListAsync(Config.SecurityConfiguration.TrustedPeerCertificates.OpenStore())
                     .ConfigureAwait(false);
                 await TestUtils
-                    .CleanupTrustList(Config.SecurityConfiguration.RejectedCertificateStore.OpenStore())
+                    .CleanupTrustListAsync(Config.SecurityConfiguration.RejectedCertificateStore.OpenStore())
                     .ConfigureAwait(false);
 
-                Config = await Load(Application, basePort).ConfigureAwait(false);
+                Config = await LoadAsync(Application, basePort).ConfigureAwait(false);
             }
 
             // check the application certificate.
             bool haveAppCertificate = await Application
-                .CheckApplicationInstanceCertificates(true)
+                .CheckApplicationInstanceCertificatesAsync(true)
                 .ConfigureAwait(false);
             if (!haveAppCertificate)
             {
@@ -214,12 +218,12 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
-        private static async Task<ApplicationConfiguration> Load(ApplicationInstance application, int basePort)
+        private static async Task<ApplicationConfiguration> LoadAsync(ApplicationInstance application, int basePort)
         {
 #if !USE_FILE_CONFIG
             // load the application configuration.
             ApplicationConfiguration config = await application
-                .LoadApplicationConfiguration(true)
+                .LoadApplicationConfigurationAsync(true)
                 .ConfigureAwait(false);
 #else
             string[] baseAddresses = ["opc.tcp://localhost:58810/GlobalDiscoveryTestServer"];

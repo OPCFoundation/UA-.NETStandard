@@ -265,7 +265,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             if (!data.TypeId.IsNull)
             {
                 var nodeId = ExpandedNodeId.ToNodeId(data.TypeId, EncoderContext.NamespaceUris);
-                if (jsonEncoding == JsonEncodingType.NonReversible || jsonEncoding == JsonEncodingType.Reversible)
+                if (jsonEncoding is JsonEncodingType.NonReversible or JsonEncodingType.Reversible)
                 {
                     typeId = $"\"TypeId\":{{\"Id\":{nodeId.Identifier},\"Namespace\":{nodeId.NamespaceIndex}}},";
                 }
@@ -409,10 +409,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                             if (property.Name == "DateTime")
                             {
                                 oText = "\"0001-01-01T00:00:00Z\"";
-                                if (
-                                    jsonEncoding == JsonEncodingType.Reversible
-                                    || jsonEncoding == JsonEncodingType.NonReversible
-                                )
+                                if (jsonEncoding is JsonEncodingType.Reversible or JsonEncodingType.NonReversible)
                                 {
                                     continue;
                                 }
@@ -429,21 +426,15 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                                 {
                                     oText = "{}";
                                 }
-                                if (
-                                    jsonEncoding == JsonEncodingType.Reversible
-                                    || jsonEncoding == JsonEncodingType.NonReversible
-                                )
+                                if (jsonEncoding is JsonEncodingType.Reversible or JsonEncodingType.NonReversible)
                                 {
                                     continue;
                                 }
                             }
-                            else if (property.Name == "ByteString" || property.Name == "XmlElement")
+                            else if (property.Name is "ByteString" or "XmlElement")
                             {
                                 oText = "null";
-                                if (
-                                    jsonEncoding == JsonEncodingType.Reversible
-                                    || jsonEncoding == JsonEncodingType.NonReversible
-                                )
+                                if (jsonEncoding is JsonEncodingType.Reversible or JsonEncodingType.NonReversible)
                                 {
                                     continue;
                                 }
@@ -458,19 +449,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                                 {
                                     oText = "{}";
                                 }
-                                if (
-                                    jsonEncoding == JsonEncodingType.Reversible
-                                    || jsonEncoding == JsonEncodingType.NonReversible
-                                )
+                                if (jsonEncoding is JsonEncodingType.Reversible or JsonEncodingType.NonReversible)
                                 {
                                     continue;
                                 }
                             }
-                            else if (
-                                property.Name == "NodeId"
-                                || property.Name == "ExpandedNodeId"
-                                || property.Name == "QualifiedName"
-                            )
+                            else if (property.Name is "NodeId" or "ExpandedNodeId" or "QualifiedName")
                             {
                                 if (jsonEncoding == JsonEncodingType.Verbose)
                                 {
@@ -480,10 +464,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                                 {
                                     oText = "{}";
                                 }
-                                if (
-                                    jsonEncoding == JsonEncodingType.Reversible
-                                    || jsonEncoding == JsonEncodingType.NonReversible
-                                )
+                                if (jsonEncoding is JsonEncodingType.Reversible or JsonEncodingType.NonReversible)
                                 {
                                     continue;
                                 }
@@ -491,15 +472,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                             else if (property.Name == "Guid")
                             {
                                 oText = "\"00000000-0000-0000-0000-000000000000\"";
-                                if (
-                                    jsonEncoding == JsonEncodingType.Reversible
-                                    || jsonEncoding == JsonEncodingType.NonReversible
-                                )
+                                if (jsonEncoding is JsonEncodingType.Reversible or JsonEncodingType.NonReversible)
                                 {
                                     continue;
                                 }
                             }
-                            else if (property.Name == "UInt64" || property.Name == "Int64")
+                            else if (property.Name is "UInt64" or "Int64")
                             {
                                 oText = "\"" + oText + "\"";
                             }

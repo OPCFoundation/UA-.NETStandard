@@ -60,7 +60,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
 
         public const int BaseAddressCount = 6;
         public const int EndpointCount = 12;
-        private ApplicationConfiguration m_configuration;
+
         private ApplicationDescription m_serverDescription;
         private EndpointDescriptionCollection m_endpoints;
         private readonly TestConfigurations m_testConfiguration;
@@ -142,10 +142,11 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 Utils.ReplaceLocalhost("https://localhost:62542/UA/SampleServer")
             );
             if (
-                m_testConfiguration == TestConfigurations.DualBaseAddresses
-                || m_testConfiguration == TestConfigurations.DualBaseAddressesWithAlternateHost
-                || m_testConfiguration == TestConfigurations.DualBaseAddressesWithAlternateHostAndPort
-                || m_testConfiguration == TestConfigurations.DualBaseAdressesWithAlternatePort
+                m_testConfiguration
+                is TestConfigurations.DualBaseAddresses
+                    or TestConfigurations.DualBaseAddressesWithAlternateHost
+                    or TestConfigurations.DualBaseAddressesWithAlternateHostAndPort
+                    or TestConfigurations.DualBaseAdressesWithAlternatePort
             )
             {
                 configuration.ServerConfiguration.BaseAddresses.Add(
@@ -165,10 +166,11 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             }
 
             if (
-                m_testConfiguration == TestConfigurations.SingleBaseAdressesWithAlternateHost
-                || m_testConfiguration == TestConfigurations.SingleBaseAddressesWithAlternateHostAndPort
-                || m_testConfiguration == TestConfigurations.DualBaseAddressesWithAlternateHost
-                || m_testConfiguration == TestConfigurations.DualBaseAddressesWithAlternateHostAndPort
+                m_testConfiguration
+                is TestConfigurations.SingleBaseAdressesWithAlternateHost
+                    or TestConfigurations.SingleBaseAddressesWithAlternateHostAndPort
+                    or TestConfigurations.DualBaseAddressesWithAlternateHost
+                    or TestConfigurations.DualBaseAddressesWithAlternateHostAndPort
             )
             {
                 // alternate base addresses, FQDN and IP address
@@ -202,10 +204,11 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             }
 
             if (
-                m_testConfiguration == TestConfigurations.SingleBaseAdressesWithAlternatePort
-                || m_testConfiguration == TestConfigurations.SingleBaseAddressesWithAlternateHostAndPort
-                || m_testConfiguration == TestConfigurations.DualBaseAdressesWithAlternatePort
-                || m_testConfiguration == TestConfigurations.DualBaseAddressesWithAlternateHostAndPort
+                m_testConfiguration
+                is TestConfigurations.SingleBaseAdressesWithAlternatePort
+                    or TestConfigurations.SingleBaseAddressesWithAlternateHostAndPort
+                    or TestConfigurations.DualBaseAdressesWithAlternatePort
+                    or TestConfigurations.DualBaseAddressesWithAlternateHostAndPort
             )
             {
                 // port forwarded to external address, different port and hostname
@@ -221,8 +224,6 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             }
 
             InitializeBaseAddresses(configuration);
-
-            m_configuration = configuration;
 
             // add security policies.
             configuration.ServerConfiguration.SecurityPolicies.Add(new ServerSecurityPolicy());
@@ -475,10 +476,11 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 var firstMatchEndpointUrl = new Uri(firstMatch.EndpointUrl);
                 var translatedEndpointUrl = new Uri(translatedEndpoint.EndpointUrl);
                 if (
-                    m_testConfiguration != TestConfigurations.SingleBaseAddressesWithAlternateHostAndPort
-                    && m_testConfiguration != TestConfigurations.SingleBaseAdressesWithAlternatePort
-                    && m_testConfiguration != TestConfigurations.DualBaseAddressesWithAlternateHostAndPort
-                    && m_testConfiguration != TestConfigurations.DualBaseAdressesWithAlternatePort
+                    m_testConfiguration
+                    is not TestConfigurations.SingleBaseAddressesWithAlternateHostAndPort
+                        and not TestConfigurations.SingleBaseAdressesWithAlternatePort
+                        and not TestConfigurations.DualBaseAddressesWithAlternateHostAndPort
+                        and not TestConfigurations.DualBaseAdressesWithAlternatePort
                 )
                 {
                     Assert.AreEqual(firstMatchEndpointUrl.Port, translatedEndpointUrl.Port);

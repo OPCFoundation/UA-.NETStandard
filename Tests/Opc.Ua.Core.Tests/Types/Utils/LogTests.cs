@@ -51,16 +51,15 @@ namespace Opc.Ua.Core.Tests.Types.LogTests
         {
             private bool m_disposed;
             private readonly TextWriter m_writer;
-            private readonly int m_traceMasks;
             public List<string> TraceList { get; }
             public TraceEventArgs LastTraceEventArgs { get; set; }
 
             /// <summary>
             /// Create a serilog trace logger which replaces the default logging.
             /// </summary>
-            public static StringArrayTraceLogger Create(TextWriter writer, int traceMasks)
+            public static StringArrayTraceLogger Create(TextWriter writer)
             {
-                var traceLogger = new StringArrayTraceLogger(writer, traceMasks);
+                var traceLogger = new StringArrayTraceLogger(writer);
 
                 // disable the built in tracing, use nunit trace output
                 Utils.SetTraceMask(Utils.TraceMask & Utils.TraceMasks.StackTrace);
@@ -73,11 +72,10 @@ namespace Opc.Ua.Core.Tests.Types.LogTests
             /// <summary>
             /// Ctor of trace logger.
             /// </summary>
-            private StringArrayTraceLogger(TextWriter writer, int traceMasks)
+            private StringArrayTraceLogger(TextWriter writer)
             {
                 TraceList = [];
                 m_writer = writer;
-                m_traceMasks = traceMasks;
             }
 
             /// <summary>
@@ -136,7 +134,7 @@ namespace Opc.Ua.Core.Tests.Types.LogTests
         {
             Utils.SetLogLevel(logLevel);
 
-            using var logger = StringArrayTraceLogger.Create(TestContext.Out, Utils.TraceMasks.All);
+            using var logger = StringArrayTraceLogger.Create(TestContext.Out);
             Assert.NotNull(logger);
 
             logger.LastTraceEventArgs = null;

@@ -44,8 +44,8 @@ namespace Opc.Ua
         public ServiceHost(ServerBase server, Type endpointType, params Uri[] addresses)
         {
             m_server = server;
-            m_endpointType = endpointType;
-            m_addresses = addresses;
+            EndpointType = endpointType;
+            Addresses = addresses;
         }
 
         /// <summary>
@@ -97,8 +97,16 @@ namespace Opc.Ua
         /// </summary>
         public ServiceHostState State { get; private set; }
 
+        /// <summary>
+        /// Endpoint type
+        /// </summary>
+        internal Type EndpointType { get; }
+
+        /// <summary>
+        /// Addresses
+        /// </summary>
+        internal Uri[] Addresses { get; }
+
         private readonly ServerBase m_server;
-        private readonly Type m_endpointType;
-        private readonly Uri[] m_addresses;
     }
 }

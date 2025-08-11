@@ -1299,6 +1299,7 @@ namespace Opc.Ua.Export
             return [.. output];
         }
 
+#if UNUSED
         /// <summary>
         /// Exports localized text.
         /// </summary>
@@ -1311,6 +1312,7 @@ namespace Opc.Ua.Export
 
             return new LocalizedText { Locale = input.Locale, Value = input.Text };
         }
+#endif
 
         /// <summary>
         /// Imports localized text.

@@ -129,9 +129,11 @@ namespace Opc.Ua.Gds.Server
         /// <exception cref="ServiceResultException"></exception>
         public static void HasAuthenticatedSecureChannel(ISystemContext context)
         {
-            if (context is SystemContext { OperationContext: OperationContext operationContext }
+            if (
+                context is SystemContext { OperationContext: OperationContext operationContext }
                 && operationContext.ChannelContext?.EndpointDescription?.SecurityMode
-                    != MessageSecurityMode.SignAndEncrypt)
+                    != MessageSecurityMode.SignAndEncrypt
+            )
             {
                 throw new ServiceResultException(
                     StatusCodes.BadUserAccessDenied,

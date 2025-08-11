@@ -333,7 +333,7 @@ namespace Opc.Ua.Security.Certificates
         /// </remarks>
         private void Decode(byte[] data)
         {
-            if (Oid.Value == SubjectAltNameOid || Oid.Value == SubjectAltName2Oid)
+            if (Oid.Value is SubjectAltNameOid or SubjectAltName2Oid)
             {
                 try
                 {

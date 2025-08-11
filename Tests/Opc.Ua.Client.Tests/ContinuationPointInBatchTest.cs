@@ -80,7 +80,7 @@ namespace Opc.Ua.Client.Tests
             m_writer.Write(value);
         }
 
-        public List<string> getEntries()
+        public List<string> GetEntries()
         {
             m_stream.Position = 0;
             var entries = new List<string>();
@@ -157,7 +157,7 @@ namespace Opc.Ua.Client.Tests
         public ReferenceServerWithLimits ReferenceServerWithLimits { get; set; }
         public ServerFixture<ReferenceServerWithLimits> ServerFixtureWithLimits { get; set; }
 
-        public override async Task CreateReferenceServerFixture(
+        public override async Task CreateReferenceServerFixtureAsync(
             bool enableTracing,
             bool disableActivityLogging,
             bool securityNone,
@@ -220,7 +220,7 @@ namespace Opc.Ua.Client.Tests
         /// Set up a Server and a Client instance.
         /// </summary>
         [OneTimeSetUp]
-        public new Task OneTimeSetUp()
+        public override Task OneTimeSetUpAsync()
         {
             SupportsExternalServerUrl = true;
             // create a new session for every test
@@ -232,7 +232,7 @@ namespace Opc.Ua.Client.Tests
         /// Tear down the Server and the Client.
         /// </summary>
         [OneTimeTearDown]
-        public new Task OneTimeTearDownAsync()
+        public override Task OneTimeTearDownAsync()
         {
             return base.OneTimeTearDownAsync();
         }
@@ -241,9 +241,9 @@ namespace Opc.Ua.Client.Tests
         /// Test setup.
         /// </summary>
         [SetUp]
-        public new async Task SetUp()
+        public override async Task SetUpAsync()
         {
-            await base.SetUp().ConfigureAwait(false);
+            await base.SetUpAsync().ConfigureAwait(false);
             Session.NodeCache.Clear();
         }
 
@@ -251,16 +251,16 @@ namespace Opc.Ua.Client.Tests
         /// Test teardown.
         /// </summary>
         [TearDown]
-        public new Task TearDown()
+        public override Task TearDownAsync()
         {
-            return base.TearDown();
+            return base.TearDownAsync();
         }
 
         /// <summary>
         /// Global Setup for benchmarks.
         /// </summary>
         [GlobalSetup]
-        public new void GlobalSetup()
+        public override void GlobalSetup()
         {
             base.GlobalSetup();
         }
@@ -269,7 +269,7 @@ namespace Opc.Ua.Client.Tests
         /// Global cleanup for benchmarks.
         /// </summary>
         [GlobalCleanup]
-        public new void GlobalCleanup()
+        public override void GlobalCleanup()
         {
             base.GlobalCleanup();
         }
@@ -285,7 +285,7 @@ namespace Opc.Ua.Client.Tests
         /// <para>Browse all variables in the objects folder.</para>
         /// </summary>
         [Theory, Order(100)]
-        public void MBNodeCache_BrowseAllVariables(ManagedBrowseTestDataProvider testData)
+        public void MBNodeCacheBrowseAllVariables(ManagedBrowseTestDataProvider testData)
         {
             var theSession = (Session)((TraceableSession)Session).Session;
             theSession.NodeCache.Clear();
@@ -348,7 +348,7 @@ namespace Opc.Ua.Client.Tests
         /// Browse all variables in the objects folder.
         /// </summary>
         [Theory, Order(110)]
-        public void MBNodeCache_BrowseAllVariables_MultipleNodes(
+        public void MBNodeCacheBrowseAllVariablesMultipleNodes(
             ManagedBrowseTestDataProvider testData,
             ContinuationPointPolicy policy
         )
@@ -367,7 +367,7 @@ namespace Opc.Ua.Client.Tests
                 ExpectedNumberOfBadNoCPSCs = testData.ExpectedNumberOfBadNoCPSCs,
             };
 
-            ReferenceServerWithLimits.Test_MaxBrowseReferencesPerNode =
+            ReferenceServerWithLimits.TestMaxBrowseReferencesPerNode =
                 pass1ExpectedResults.InputMaxNumberOfReferencesPerNode;
 
             ReferenceServerWithLimits.SetMaxNumberOfContinuationPoints(
@@ -465,7 +465,7 @@ namespace Opc.Ua.Client.Tests
                 ExpectedNumberOfBadNoCPSCs = [],
             };
 
-            ReferenceServerWithLimits.Test_MaxBrowseReferencesPerNode =
+            ReferenceServerWithLimits.TestMaxBrowseReferencesPerNode =
                 pass1ExpectedResults.InputMaxNumberOfReferencesPerNode;
 
             ReferenceServerWithLimits.SetMaxNumberOfContinuationPoints(
@@ -491,7 +491,7 @@ namespace Opc.Ua.Client.Tests
 
             Assert.AreEqual(nodeIds.Count, referenceDescriptionCollectionsPass1.Count);
 
-            List<string> memoryLogPass1 = memoryWriter.getEntries();
+            List<string> memoryLogPass1 = memoryWriter.GetEntries();
             WriteMemoryLogToTextOut(memoryLogPass1, "memoryLogPass1");
 #if DEBUG
             VerifyExpectedResults(memoryLogPass1, pass1ExpectedResults);
@@ -509,7 +509,7 @@ namespace Opc.Ua.Client.Tests
 
             // now reset the server qutas to get a browse scenario without continuation points. This allows
             // to verify the result from the first browse service call (with quotas in place).
-            ReferenceServerWithLimits.Test_MaxBrowseReferencesPerNode =
+            ReferenceServerWithLimits.TestMaxBrowseReferencesPerNode =
                 pass2ExpectedResults.InputMaxNumberOfReferencesPerNode;
 
             ReferenceServerWithLimits.SetMaxNumberOfContinuationPoints(
@@ -531,7 +531,7 @@ namespace Opc.Ua.Client.Tests
             );
             Assert.AreEqual(nodeIds.Count, referenceDescriptionsPass2.Count);
 
-            List<string> memoryLogPass2 = memoryWriter.getEntries();
+            List<string> memoryLogPass2 = memoryWriter.GetEntries();
             WriteMemoryLogToTextOut(memoryLogPass2, "memoryLogPass2");
 #if DEBUG
             // since there is no randomness in this test, we can verify the results directly
@@ -645,7 +645,7 @@ namespace Opc.Ua.Client.Tests
                 ExpectedNumberOfBadNoCPSCs = [],
             };
 
-            ReferenceServerWithLimits.Test_MaxBrowseReferencesPerNode =
+            ReferenceServerWithLimits.TestMaxBrowseReferencesPerNode =
                 pass1ExpectedResults.InputMaxNumberOfReferencesPerNode;
 
             ReferenceServerWithLimits.SetMaxNumberOfContinuationPoints(
@@ -666,12 +666,12 @@ namespace Opc.Ua.Client.Tests
                 true,
                 0,
                 out IList<ReferenceDescriptionCollection> referenceDescriptionCollectionsPass1,
-                out IList<ServiceResult> errorsPass1
+                out _
             );
 
             Assert.AreEqual(nodeIds.Count, referenceDescriptionCollectionsPass1.Count);
 
-            List<string> memoryLogPass1 = memoryWriter.getEntries();
+            List<string> memoryLogPass1 = memoryWriter.GetEntries();
             WriteMemoryLogToTextOut(memoryLogPass1, "memoryLogPass1");
             // this is no typo - we expect no error, hence we use pass2ExpectedResults
             VerifyExpectedResults(memoryLogPass1, pass2ExpectedResults);
@@ -688,7 +688,7 @@ namespace Opc.Ua.Client.Tests
 
             // now reset the server qutas to get a browse scenario without continuation points. This allows
             // to verify the result from the first browse service call (with quotas in place).
-            ReferenceServerWithLimits.Test_MaxBrowseReferencesPerNode =
+            ReferenceServerWithLimits.TestMaxBrowseReferencesPerNode =
                 pass2ExpectedResults.InputMaxNumberOfReferencesPerNode;
 
             ReferenceServerWithLimits.SetMaxNumberOfContinuationPoints(
@@ -708,11 +708,11 @@ namespace Opc.Ua.Client.Tests
                 true,
                 0,
                 out IList<ReferenceDescriptionCollection> referenceDescriptionsPass2,
-                out IList<ServiceResult> errorsPass2
+                out _
             );
             Assert.AreEqual(nodeIds.Count, referenceDescriptionsPass2.Count);
 
-            List<string> memoryLogPass2 = memoryWriter.getEntries();
+            List<string> memoryLogPass2 = memoryWriter.GetEntries();
             WriteMemoryLogToTextOut(memoryLogPass2, "memoryLogPass2");
 
             // since there is no randomness in this test, we can verify the results directly
@@ -735,9 +735,9 @@ namespace Opc.Ua.Client.Tests
                 ReferenceTypeIds.Organizes,
                 true,
                 0,
-                out ByteStringCollection continuationPoints2ndBrowse,
+                out _,
                 out IList<ReferenceDescriptionCollection> referenceDescriptionCollections2ndBrowse,
-                out IList<ServiceResult> errors2ndBrowse
+                out _
             );
 
             var random = new Random();
@@ -828,7 +828,7 @@ namespace Opc.Ua.Client.Tests
                 ExpectedNumberOfBadNoCPSCs = [],
             };
 
-            ReferenceServerWithLimits.Test_MaxBrowseReferencesPerNode =
+            ReferenceServerWithLimits.TestMaxBrowseReferencesPerNode =
                 pass1ExpectedResults.InputMaxNumberOfReferencesPerNode;
 
             ReferenceServerWithLimits.SetMaxNumberOfContinuationPoints(
@@ -878,7 +878,7 @@ namespace Opc.Ua.Client.Tests
             Assert.AreEqual(nodeIds1.Count, referenceDescriptionCollectionsPass1.Count);
             Assert.AreEqual(nodeIds2.Count, referenceDescriptionCollectionsPass2.Count);
 
-            List<string> memoryLogPass1 = memoryWriter.getEntries();
+            List<string> memoryLogPass1 = memoryWriter.GetEntries();
             WriteMemoryLogToTextOut(memoryLogPass1, "memoryLogPass1");
 
             memoryWriter.Close();
@@ -896,7 +896,7 @@ namespace Opc.Ua.Client.Tests
             // finally browse again with a simple browse service call.
             // reset server quotas first:
 
-            ReferenceServerWithLimits.Test_MaxBrowseReferencesPerNode =
+            ReferenceServerWithLimits.TestMaxBrowseReferencesPerNode =
                 pass2ExpectedResults.InputMaxNumberOfReferencesPerNode;
 
             ReferenceServerWithLimits.SetMaxNumberOfContinuationPoints(
@@ -964,7 +964,7 @@ namespace Opc.Ua.Client.Tests
         /// <para>Browse all variables in the objects folder.</para>
         /// </summary>
         [Theory, Order(400)]
-        public async Task MBNodeCache_BrowseAllVariablesAsync(ManagedBrowseTestDataProvider testData)
+        public async Task MBNodeCacheBrowseAllVariablesAsync(ManagedBrowseTestDataProvider testData)
         {
             var theSession = (Session)((TraceableSession)Session).Session;
             theSession.NodeCache.Clear();
@@ -980,7 +980,7 @@ namespace Opc.Ua.Client.Tests
                 ExpectedNumberOfBadNoCPSCs = testData.ExpectedNumberOfBadNoCPSCs,
             };
 
-            ReferenceServerWithLimits.Test_MaxBrowseReferencesPerNode =
+            ReferenceServerWithLimits.TestMaxBrowseReferencesPerNode =
                 pass1ExpectedResults.InputMaxNumberOfReferencesPerNode;
 
             ReferenceServerWithLimits.SetMaxNumberOfContinuationPoints(
@@ -1040,7 +1040,7 @@ namespace Opc.Ua.Client.Tests
         /// Browse all variables in the objects folder.
         /// </summary>
         [Theory, Order(410)]
-        public async Task MBNodeCache_BrowseAllVariables_MultipleNodesAsync(
+        public async Task MBNodeCacheBrowseAllVariablesMultipleNodesAsync(
             ManagedBrowseTestDataProvider testData,
             ContinuationPointPolicy policy
         )
@@ -1059,7 +1059,7 @@ namespace Opc.Ua.Client.Tests
                 ExpectedNumberOfBadNoCPSCs = testData.ExpectedNumberOfBadNoCPSCs,
             };
 
-            ReferenceServerWithLimits.Test_MaxBrowseReferencesPerNode =
+            ReferenceServerWithLimits.TestMaxBrowseReferencesPerNode =
                 pass1ExpectedResults.InputMaxNumberOfReferencesPerNode;
 
             ReferenceServerWithLimits.SetMaxNumberOfContinuationPoints(
@@ -1140,7 +1140,7 @@ namespace Opc.Ua.Client.Tests
                 ExpectedNumberOfBadNoCPSCs = [],
             };
 
-            ReferenceServerWithLimits.Test_MaxBrowseReferencesPerNode =
+            ReferenceServerWithLimits.TestMaxBrowseReferencesPerNode =
                 pass1ExpectedResults.InputMaxNumberOfReferencesPerNode;
 
             ReferenceServerWithLimits.SetMaxNumberOfContinuationPoints(
@@ -1170,7 +1170,7 @@ namespace Opc.Ua.Client.Tests
             Assert.AreEqual(nodeIds.Count, referenceDescriptionCollectionPass1.Count);
 
 #if DEBUG
-            List<string> memoryLogPass1 = memoryWriter.getEntries();
+            List<string> memoryLogPass1 = memoryWriter.GetEntries();
             WriteMemoryLogToTextOut(memoryLogPass1, "memoryLogPass1");
             VerifyExpectedResults(memoryLogPass1, pass1ExpectedResults);
 #endif

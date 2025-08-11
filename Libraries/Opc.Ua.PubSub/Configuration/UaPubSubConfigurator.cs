@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 
 namespace Opc.Ua.PubSub.Configuration
 {
@@ -49,7 +50,7 @@ namespace Opc.Ua.PubSub.Configuration
         /// </summary>
         internal static uint InvalidId;
 
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
         private readonly Dictionary<uint, object> m_idsToObjects;
         private readonly Dictionary<object, uint> m_objectsToIds;
         private readonly Dictionary<uint, PubSubState> m_idsToPubSubState;
@@ -1652,7 +1653,7 @@ namespace Opc.Ua.PubSub.Configuration
                         OldState = oldState,
                     }
                 );
-                bool configurationObjectEnabled = newState == PubSubState.Operational || newState == PubSubState.Paused;
+                bool configurationObjectEnabled = newState is PubSubState.Operational or PubSubState.Paused;
                 //update the Enabled flag in config object
                 switch (configurationObject)
                 {
@@ -1703,13 +1704,13 @@ namespace Opc.Ua.PubSub.Configuration
                     }
                 }
             }
-            else if (parentState == PubSubState.Disabled || parentState == PubSubState.Paused)
+            else if (parentState is PubSubState.Disabled or PubSubState.Paused)
             {
                 // Parent changed to Disabled or Paused
                 foreach (uint childId in childrenIds)
                 {
                     PubSubState childState = FindStateForId(childId);
-                    if (childState == PubSubState.Operational || childState == PubSubState.Error)
+                    if (childState is PubSubState.Operational or PubSubState.Error)
                     {
                         // become Operational if Parent changed to Operational
                         object childObject = FindObjectById(childId);

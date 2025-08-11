@@ -109,7 +109,7 @@ namespace Opc.Ua.Bindings
         /// <param name="maxBufferSize">Max size of the buffer.</param>
         public BufferManager(string name, int maxBufferSize)
         {
-            m_name = name;
+            Name = name;
             m_arrayPool =
                 maxBufferSize <= 1024 * 1024
                     ? ArrayPool<byte>.Shared
@@ -397,7 +397,11 @@ namespace Opc.Ua.Bindings
         /// </remarks>
         public int MaxSuggestedBufferSize { get; }
 
-        private readonly string m_name;
+        /// <summary>
+        /// Debug view
+        /// </summary>
+        internal string Name { get; }
+
         private readonly int m_maxBufferSize;
 #if TRACE_MEMORY
         private int m_buffersTaken = 0;

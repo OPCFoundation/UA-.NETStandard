@@ -374,8 +374,10 @@ namespace Opc.Ua
 
                     if (ch == ',' || ii == textToParse.Length - 1)
                     {
-                        var subrange = new NumericRange();
+                        _ = new NumericRange();
                         string subtext = (ch == ',') ? textToParse[start..ii] : textToParse[start..];
+
+                        NumericRange subrange;
                         ServiceResult result = Validate(subtext, out subrange);
 
                         if (ServiceResult.IsBad(result))
@@ -910,7 +912,6 @@ namespace Opc.Ua
         /// </remarks>
         /// <param name="value">The array to subset.</param>
         /// <returns>The reason for the failure if the range could not be applied.</returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1007:UseGenericsWhereAppropriate")]
         public readonly StatusCode ApplyRange(ref object value)
         {
             // check for empty range.
@@ -1057,9 +1058,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException">Thrown when the numeric value of the parsed text is out of range</exception>
         public static NumericRange Parse(string textToParse)
         {
-            NumericRange range = Empty;
-
-            ServiceResult result = Validate(textToParse, out range);
+            ServiceResult result = Validate(textToParse, out NumericRange range);
 
             if (ServiceResult.IsBad(result))
             {

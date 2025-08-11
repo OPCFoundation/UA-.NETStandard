@@ -382,7 +382,7 @@ namespace Opc.Ua.Sample
         /// </summary>
         protected virtual NodeState AddBehaviourToPredefinedNode(ISystemContext context, NodeState predefinedNode)
         {
-            if (predefinedNode is not BaseObjectState passiveNode)
+            if (predefinedNode is not BaseObjectState)
             {
                 return predefinedNode;
             }
@@ -2598,7 +2598,7 @@ namespace Opc.Ua.Sample
                 }
 
                 initialValue.StatusCode = error.StatusCode;
-                error = ServiceResult.Good;
+                _ = ServiceResult.Good;
             }
 
             // validate parameters.
@@ -2904,7 +2904,7 @@ namespace Opc.Ua.Sample
             }
 
             // modify the monitored item parameters.
-            error = datachangeItem.Modify(
+            _ = datachangeItem.Modify(
                 diagnosticsMasks,
                 timestampsToReturn,
                 itemToModify.RequestedParameters.ClientHandle,
@@ -2992,9 +2992,6 @@ namespace Opc.Ua.Sample
 
             // owned by this node manager.
             processed = true;
-
-            // get the  source.
-            NodeState source = monitoredNode.Node;
 
             // check for valid monitored item.
             var datachangeItem = monitoredItem as DataChangeMonitoredItem;

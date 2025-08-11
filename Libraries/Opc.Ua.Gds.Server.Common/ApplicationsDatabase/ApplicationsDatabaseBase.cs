@@ -57,10 +57,7 @@ namespace Opc.Ua.Gds.Server.Database
                 throw new ArgumentException(application.ApplicationUri + " is not a valid URI.", nameof(application));
             }
 
-            if (
-                application.ApplicationType < ApplicationType.Server
-                || application.ApplicationType > ApplicationType.DiscoveryServer
-            )
+            if (application.ApplicationType is < ApplicationType.Server or > ApplicationType.DiscoveryServer)
             {
                 throw new ArgumentException(
                     application.ApplicationType.ToString() + " is not a valid ApplicationType.",
@@ -327,7 +324,7 @@ namespace Opc.Ua.Gds.Server.Database
                 throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
             }
 
-            if (!(nodeId.Identifier is Guid id))
+            if (nodeId.Identifier is not Guid id)
             {
                 throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
             }
@@ -371,7 +368,7 @@ namespace Opc.Ua.Gds.Server.Database
             if (nodeId.IdType == IdType.Guid)
             {
                 // test if identifier is a valid Guid - if null we already threw earlier
-                if (!(nodeId.Identifier is Guid id))
+                if (nodeId.Identifier is not Guid)
                 {
                     throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
                 }

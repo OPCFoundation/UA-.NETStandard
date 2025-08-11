@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
 
 namespace Opc.Ua.Server
 {
@@ -57,10 +58,6 @@ namespace Opc.Ua.Server
         /// <param name="maxRequestAge">The max request age.</param>
         /// <param name="maxBrowseContinuationPoints">The maximum number of browse continuation points.</param>
         /// <param name="maxHistoryContinuationPoints">The maximum number of history continuation points.</param>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Microsoft.Maintainability",
-            "CA1506:AvoidExcessiveClassCoupling"
-        )]
         public Session(
             OperationContext context,
             IServerInternal server,
@@ -92,7 +89,6 @@ namespace Opc.Ua.Server
             }
 
             m_server = server ?? throw new ArgumentNullException(nameof(server));
-            m_authenticationToken = authenticationToken;
             ClientNonce = clientNonce;
             m_serverNonce = serverNonce;
             m_sessionName = sessionName;
@@ -102,8 +98,6 @@ namespace Opc.Ua.Server
             m_clientIssuerCertificates = clientCertificateChain;
 
             SecureChannelId = context.ChannelContext.SecureChannelId;
-            m_maxResponseMessageSize = maxResponseMessageSize;
-            m_maxRequestAge = maxRequestAge;
             MaxBrowseContinuationPoints = maxBrowseContinuationPoints;
             m_maxHistoryContinuationPoints = maxHistoryContinuationPoints;
             EndpointDescription = context.ChannelContext.EndpointDescription;
@@ -256,10 +250,6 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The locales requested when the session was created.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Microsoft.Performance",
-            "CA1819:PropertiesShouldNotReturnArrays"
-        )]
         public string[] PreferredLocales { get; private set; }
 
         /// <summary>
@@ -305,7 +295,9 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
+#if ECC_SUPPORT
                 m_eccUserTokenSecurityPolicyUri = securityPolicyUri;
+#endif
                 m_eccUserTokenNonce = null;
             }
         }
@@ -601,9 +593,6 @@ namespace Opc.Ua.Server
                 {
                     // toggle the activated flag.
                     Activated = true;
-
-                    // save the software certificates.
-                    m_softwareCertificates = clientSoftwareCertificates;
 
                     TraceState("FIRST ACTIVATION");
                 }
@@ -1139,10 +1128,6 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Updates the diagnostic counters associated with the request.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Microsoft.Maintainability",
-            "CA1502:AvoidExcessiveComplexity"
-        )]
         private void UpdateDiagnosticCounters(RequestType requestType, bool error, bool authorizationError)
         {
             lock (DiagnosticsLock)
@@ -1293,25 +1278,17 @@ namespace Opc.Ua.Server
             }
         }
 
-        private readonly object m_lock = new();
-
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
-        private readonly NodeId m_authenticationToken;
+        private readonly Lock m_lock = new();
         private readonly IServerInternal m_server;
-
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
-        private List<SoftwareCertificate> m_softwareCertificates;
         private readonly string m_sessionName;
         private X509Certificate2 m_serverCertificate;
 
         private Nonce m_serverNonce;
+#if ECC_SUPPORT
         private string m_eccUserTokenSecurityPolicyUri;
+#endif
         private Nonce m_eccUserTokenNonce;
         private readonly X509Certificate2Collection m_clientIssuerCertificates;
-
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1823:AvoidUnusedPrivateFields")]
-        private readonly uint m_maxResponseMessageSize;
-        private readonly double m_maxRequestAge;
         private readonly int m_maxHistoryContinuationPoints;
         private readonly SessionSecurityDiagnosticsDataType m_securityDiagnostics;
         private List<ContinuationPoint> m_browseContinuationPoints;

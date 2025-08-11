@@ -30,6 +30,10 @@
 #if NETSTANDARD2_0 || NETFRAMEWORK
 using System;
 using System.Linq;
+
+#pragma warning disable IDE0079 // Remove unnecessary suppression
+#pragma warning disable IDE0060, RCS1163 // Unused parameter
+#pragma warning restore IDE0079 // Remove unnecessary suppression
 #endif
 
 namespace System
@@ -40,7 +44,6 @@ namespace System
     public static class Polyfills
     {
 #if NETSTANDARD2_0 || NETFRAMEWORK
-#pragma warning disable RCS1163 // Unused parameter
         /// <summary>
         /// Contains a character in a string using a specified comparison type.
         /// </summary>
@@ -93,7 +96,6 @@ namespace System
         {
             return target.Replace(oldValue, newValue);
         }
-#pragma warning restore RCS1163 // Unused parameter
 #endif
     }
 }

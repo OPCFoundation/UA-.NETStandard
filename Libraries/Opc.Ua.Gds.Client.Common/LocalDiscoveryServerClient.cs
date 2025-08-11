@@ -211,7 +211,7 @@ namespace Opc.Ua.Gds.Client
 
         public List<EndpointDescription> EndGetEndpoints(IAsyncResult result)
         {
-            if (!(result is GetEndpointsData data))
+            if (result is not GetEndpointsData data)
             {
                 throw new ArgumentException("Did not pass the correct IAsyncResult to end method.", nameof(result));
             }
@@ -347,7 +347,7 @@ namespace Opc.Ua.Gds.Client
 
         public List<ServerOnNetwork> EndFindServersOnNetwork(IAsyncResult result, out DateTime lastCounterResetTime)
         {
-            if (!(result is FindServersOnNetworkData data))
+            if (result is not FindServersOnNetworkData data)
             {
                 throw new ArgumentException("Did not pass the correct IAsyncResult to end method.", nameof(result));
             }

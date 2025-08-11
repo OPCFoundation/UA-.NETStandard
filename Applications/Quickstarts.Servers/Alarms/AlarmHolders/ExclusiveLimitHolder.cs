@@ -29,7 +29,6 @@
 
 using System;
 using Opc.Ua;
-#pragma warning disable CS0219
 
 namespace Alarms
 {

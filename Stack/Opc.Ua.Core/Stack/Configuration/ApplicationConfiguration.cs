@@ -16,6 +16,7 @@ using System.Globalization;
 using System.IO;
 using System.Runtime.Serialization;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 
@@ -346,13 +347,15 @@ namespace Opc.Ua
         /// <param name="systemType">Type of the system.</param>
         /// <param name="applyTraceSettings">if set to <c>true</c> apply trace settings after validation.</param>
         /// <param name="certificatePasswordProvider">The certificate password provider.</param>
+        /// <param name="ct">Cancellation token to cancel action</param>
         /// <returns>Application configuration</returns>
         public static async Task<ApplicationConfiguration> LoadAsync(
             FileInfo file,
             ApplicationType applicationType,
             Type systemType,
             bool applyTraceSettings,
-            ICertificatePasswordProvider certificatePasswordProvider = null
+            ICertificatePasswordProvider certificatePasswordProvider = null,
+            CancellationToken ct = default
         )
         {
             ApplicationConfiguration configuration = null;
@@ -365,7 +368,8 @@ namespace Opc.Ua
                         applicationType,
                         systemType,
                         applyTraceSettings,
-                        certificatePasswordProvider
+                        certificatePasswordProvider,
+                        ct
                     )
                     .ConfigureAwait(false);
             }
@@ -419,13 +423,15 @@ namespace Opc.Ua
         /// <param name="systemType">Type of the system.</param>
         /// <param name="applyTraceSettings">if set to <c>true</c> apply trace settings after validation.</param>
         /// <param name="certificatePasswordProvider">The certificate password provider.</param>
+        /// <param name="ct">Cancellation token to cancel action</param>
         /// <returns>Application configuration</returns>
         public static async Task<ApplicationConfiguration> LoadAsync(
             Stream stream,
             ApplicationType applicationType,
             Type systemType,
             bool applyTraceSettings,
-            ICertificatePasswordProvider certificatePasswordProvider = null
+            ICertificatePasswordProvider certificatePasswordProvider = null,
+            CancellationToken ct = default
         )
         {
             systemType ??= typeof(ApplicationConfiguration);
@@ -455,7 +461,7 @@ namespace Opc.Ua
 
                 configuration.SecurityConfiguration.CertificatePasswordProvider = certificatePasswordProvider;
 
-                await configuration.ValidateAsync(applicationType).ConfigureAwait(false);
+                await configuration.ValidateAsync(applicationType, ct).ConfigureAwait(false);
             }
 
             return configuration;
@@ -504,7 +510,8 @@ namespace Opc.Ua
         /// Ensures that the application configuration is valid.
         /// </summary>
         /// <param name="applicationType">Type of the application.</param>
-        public virtual async Task ValidateAsync(ApplicationType applicationType)
+        /// <param name="ct">Cancellation token to cancel action</param>
+        public virtual async Task ValidateAsync(ApplicationType applicationType, CancellationToken ct = default)
         {
             if (string.IsNullOrEmpty(ApplicationName))
             {
@@ -528,7 +535,7 @@ namespace Opc.Ua
             foreach (CertificateIdentifier applicationCertificate in SecurityConfiguration.ApplicationCertificates)
             {
                 await applicationCertificate
-                    .LoadPrivateKeyExAsync(SecurityConfiguration.CertificatePasswordProvider, ApplicationUri)
+                    .LoadPrivateKeyExAsync(SecurityConfiguration.CertificatePasswordProvider, ApplicationUri, ct)
                     .ConfigureAwait(false);
             }
 

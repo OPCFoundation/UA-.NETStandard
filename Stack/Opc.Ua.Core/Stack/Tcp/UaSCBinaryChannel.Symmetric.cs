@@ -11,7 +11,6 @@
 */
 
 using System;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
@@ -284,11 +283,6 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Computes the keys for a token.
         /// </summary>
-        [SuppressMessage(
-            "Security",
-            "CA5350:Do Not Use Weak Cryptographic Algorithms",
-            Justification = "SHA1 required for deprecated profiles"
-        )]
         protected void ComputeKeys(ChannelToken token)
         {
             if (SecurityMode == MessageSecurityMode.None)
@@ -413,7 +407,6 @@ namespace Opc.Ua.Bindings
 
                 case SecurityPolicies.ECC_curve25519:
                 case SecurityPolicies.ECC_curve448:
-                    break;
 
                 case SecurityPolicies.None:
                 default:
@@ -445,7 +438,6 @@ namespace Opc.Ua.Bindings
 
                 case SecurityPolicies.ECC_curve25519:
                 case SecurityPolicies.ECC_curve448:
-                    break;
 
                 case SecurityPolicies.None:
                 default:
@@ -691,10 +683,6 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Decrypts and verifies a message chunk.
         /// </summary>
-        [
-            SuppressMessage("Microsoft.Performance", "CA1804:RemoveUnusedLocals", MessageId = "messageType"),
-            SuppressMessage("Microsoft.Performance", "CA1804:RemoveUnusedLocals", MessageId = "messageSize")
-        ]
         protected ArraySegment<byte> ReadSymmetricMessage(
             ArraySegment<byte> buffer,
             bool isRequest,

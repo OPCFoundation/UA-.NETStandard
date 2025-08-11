@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#pragma warning disable CS1591
-
 namespace Alarms
 {
     public static class AlarmDefines

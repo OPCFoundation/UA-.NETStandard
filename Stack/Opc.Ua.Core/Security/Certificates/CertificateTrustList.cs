@@ -45,7 +45,6 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the certificates in the trust list.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         [Obsolete("Use GetCertificatesAsync() instead.")]
         public Task<X509Certificate2Collection> GetCertificates()
         {

@@ -147,7 +147,7 @@ namespace Quickstarts.ReferenceServer
             ApplicationConfiguration configuration
         )
         {
-            var resourceManager = new ResourceManager(server, configuration);
+            var resourceManager = new ResourceManager(configuration);
 
             foreach (
                 System.Reflection.FieldInfo field in typeof(StatusCodes).GetFields(

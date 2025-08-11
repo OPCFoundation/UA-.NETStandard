@@ -527,9 +527,7 @@ namespace Opc.Ua
                 }
 
                 // create the type info.
-                TypeInfo typeInfo = null;
-
-                if (!m_nodes.TryGetValue(node.NodeId, out typeInfo))
+                if (!m_nodes.TryGetValue(node.NodeId, out TypeInfo typeInfo))
                 {
                     typeInfo = new TypeInfo();
                     m_nodes.Add(node.NodeId, typeInfo);
@@ -671,9 +669,7 @@ namespace Opc.Ua
                 }
 
                 // create the type info.
-                TypeInfo typeInfo = null;
-
-                if (!m_nodes.TryGetValue(subTypeId, out typeInfo))
+                if (!m_nodes.TryGetValue(subTypeId, out TypeInfo typeInfo))
                 {
                     typeInfo = new TypeInfo();
                     m_nodes.Add(subTypeId, typeInfo);
@@ -840,7 +836,7 @@ namespace Opc.Ua
             }
         }
 
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
         private readonly NamespaceTable m_namespaceUris;
         private readonly SortedDictionary<QualifiedName, TypeInfo> m_referenceTypes;
         private readonly NodeIdDictionary<TypeInfo> m_nodes;

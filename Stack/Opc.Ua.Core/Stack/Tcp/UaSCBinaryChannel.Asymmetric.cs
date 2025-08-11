@@ -275,7 +275,6 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.ECC_brainpoolP384r1:
                 case SecurityPolicies.ECC_curve25519:
                 case SecurityPolicies.ECC_curve448:
-                    return 1;
 
                 case SecurityPolicies.None:
                 default:
@@ -307,7 +306,6 @@ namespace Opc.Ua.Bindings
                 case SecurityPolicies.ECC_brainpoolP384r1:
                 case SecurityPolicies.ECC_curve25519:
                 case SecurityPolicies.ECC_curve448:
-                    return 1;
 
                 case SecurityPolicies.None:
                 default:
@@ -447,7 +445,6 @@ namespace Opc.Ua.Bindings
             X509Certificate2 receiverCertificate
         )
         {
-            int senderCertificateSize;
             WriteAsymmetricMessageHeader(
                 encoder,
                 messageType,
@@ -456,7 +453,7 @@ namespace Opc.Ua.Bindings
                 senderCertificate,
                 null,
                 receiverCertificate,
-                out senderCertificateSize
+                out _
             );
         }
 
@@ -799,18 +796,6 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Reads the asymmetric security header to the buffer.
         /// </summary>
-        [
-            System.Diagnostics.CodeAnalysis.SuppressMessage(
-                "Microsoft.Performance",
-                "CA1804:RemoveUnusedLocals",
-                MessageId = "messageType"
-            ),
-            System.Diagnostics.CodeAnalysis.SuppressMessage(
-                "Microsoft.Performance",
-                "CA1804:RemoveUnusedLocals",
-                MessageId = "messageSize"
-            )
-        ]
         protected void ReadAsymmetricMessageHeader(
             BinaryDecoder decoder,
             ref X509Certificate2 receiverCertificate,
@@ -821,8 +806,9 @@ namespace Opc.Ua.Bindings
         {
             senderCertificateChain = null;
 
-            uint messageType = decoder.ReadUInt32(null);
-            uint messageSize = decoder.ReadUInt32(null);
+            _ = decoder.ReadUInt32(null);
+
+            _ = decoder.ReadUInt32(null);
 
             // decode security header.
             byte[] certificateData;

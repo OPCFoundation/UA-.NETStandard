@@ -25,6 +25,7 @@ using System.Runtime.Serialization;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 #if !NETFRAMEWORK
@@ -193,7 +194,7 @@ namespace Opc.Ua
 #endif
 
         private static string s_traceFileName = string.Empty;
-        private static readonly object s_traceFileLock = new();
+        private static readonly Lock s_traceFileLock = new();
 
         /// <summary>
         /// The possible trace output mechanisms.
@@ -1183,9 +1184,14 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc cref="Dns.GetHostAddressesAsync(string)"/>
-        public static Task<IPAddress[]> GetHostAddressesAsync(string hostNameOrAddress)
+        public static Task<IPAddress[]> GetHostAddressesAsync(string hostNameOrAddress, CancellationToken ct = default)
         {
+#if NET8_0_OR_GREATER
+            return Dns.GetHostAddressesAsync(hostNameOrAddress, ct);
+#else
+            ct.ThrowIfCancellationRequested();
             return Dns.GetHostAddressesAsync(hostNameOrAddress);
+#endif
         }
 
         /// <inheritdoc cref="Dns.GetHostAddresses(string)"/>
@@ -1504,14 +1510,14 @@ namespace Opc.Ua
             long exchangedValue;
             do
             {
-                value = System.Threading.Interlocked.Read(ref identifier);
+                value = Interlocked.Read(ref identifier);
                 exchangedValue = value;
                 if (value < lowerLimit)
                 {
-                    exchangedValue = System.Threading.Interlocked.CompareExchange(ref identifier, lowerLimit, value);
+                    exchangedValue = Interlocked.CompareExchange(ref identifier, lowerLimit, value);
                 }
             } while (exchangedValue != value);
-            return (uint)System.Threading.Interlocked.Read(ref identifier);
+            return (uint)Interlocked.Read(ref identifier);
         }
 
         /// <summary>
@@ -1519,8 +1525,8 @@ namespace Opc.Ua
         /// </summary>
         public static uint IncrementIdentifier(ref long identifier)
         {
-            System.Threading.Interlocked.CompareExchange(ref identifier, 0, uint.MaxValue);
-            return (uint)System.Threading.Interlocked.Increment(ref identifier);
+            Interlocked.CompareExchange(ref identifier, 0, uint.MaxValue);
+            return (uint)Interlocked.Increment(ref identifier);
         }
 
         /// <summary>
@@ -1528,8 +1534,8 @@ namespace Opc.Ua
         /// </summary>
         public static int IncrementIdentifier(ref int identifier)
         {
-            System.Threading.Interlocked.CompareExchange(ref identifier, 0, int.MaxValue);
-            return System.Threading.Interlocked.Increment(ref identifier);
+            Interlocked.CompareExchange(ref identifier, 0, int.MaxValue);
+            return Interlocked.Increment(ref identifier);
         }
 
         /// <summary>
@@ -2313,10 +2319,6 @@ namespace Opc.Ua
         /// <summary>
         /// Tests if the specified string matches the specified pattern.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Microsoft.Maintainability",
-            "CA1502:AvoidExcessiveComplexity"
-        )]
         public static bool Match(string target, string pattern, bool caseSensitive)
         {
             // an empty pattern always matches.
@@ -3004,11 +3006,6 @@ namespace Opc.Ua
         /// <summary>
         /// Generates a Pseudo random sequence of bits using the P_SHA1 alhorithm.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Security",
-            "CA5350:Do Not Use Weak Cryptographic Algorithms",
-            Justification = "SHA1 is needed for deprecated security profiles."
-        )]
         public static byte[] PSHA1(byte[] secret, string label, byte[] data, int offset, int length)
         {
             if (secret == null)
@@ -3037,11 +3034,6 @@ namespace Opc.Ua
         /// <summary>
         /// Generates a Pseudo random sequence of bits using the P_SHA1 alhorithm.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Security",
-            "CA5350:Do Not Use Weak Cryptographic Algorithms",
-            Justification = "SHA1 is needed for deprecated security profiles."
-        )]
         public static byte[] PSHA1(HMACSHA1 hmac, string label, byte[] data, int offset, int length)
         {
             return PSHA(hmac, label, data, offset, length);
@@ -3149,11 +3141,6 @@ namespace Opc.Ua
         /// <summary>
         /// Creates an HMAC.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Security",
-            "CA5350:Do Not Use Weak Cryptographic Algorithms",
-            Justification = "<Pending>"
-        )]
         public static HMAC CreateHMAC(HashAlgorithmName algorithmName, byte[] secret)
         {
             if (algorithmName == HashAlgorithmName.SHA256)

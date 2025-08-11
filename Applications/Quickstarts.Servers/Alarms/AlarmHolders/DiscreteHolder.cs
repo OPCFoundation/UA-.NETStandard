@@ -31,8 +31,6 @@ using System;
 using System.Globalization;
 using Opc.Ua;
 
-#pragma warning disable CS0219, CS1591
-
 namespace Alarms
 {
     public class DiscreteHolder : AlarmConditionTypeHolder

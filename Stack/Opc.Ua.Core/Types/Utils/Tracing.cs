@@ -11,6 +11,7 @@
 */
 
 using System;
+using System.Threading;
 
 namespace Opc.Ua
 {
@@ -19,7 +20,7 @@ namespace Opc.Ua
     /// </summary>
     public sealed class Tracing
     {
-        private static readonly object s_syncRoot = new();
+        private static readonly Lock s_syncRoot = new();
         private static Tracing s_instance;
 
         /// <summary>

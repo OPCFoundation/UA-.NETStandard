@@ -374,20 +374,25 @@ namespace Opc.Ua
             return GetEnumerator();
         }
 
-        private readonly IReferenceDictionary<object> m_references;
+        private readonly ReferenceDictionary<object> m_references;
     }
 
     /// <summary>
     /// A dictionary designed to provide efficient lookups for references.
     /// </summary>
-    public class IReferenceDictionary<T> : IDictionary<IReference, T>
+    public class ReferenceDictionary<T> : IDictionary<IReference, T>
     {
+        /// <summary>
+        /// Current version
+        /// </summary>
+        public ulong Version { get; private set; }
+
         /// <summary>
         /// Creates an empty dictionary.
         /// </summary>
-        public IReferenceDictionary()
+        public ReferenceDictionary()
         {
-            m_version = 0;
+            Version = 0;
             m_references = [];
             m_list = new LinkedList<KeyValuePair<IReference, T>>();
         }
@@ -608,9 +613,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public bool ContainsKey(IReference key)
         {
-            KeyValuePair<IReference, T> target;
-
-            return TryGetEntry(key, out target);
+            return TryGetEntry(key, out _);
         }
 
         /// <inheritdoc/>
@@ -638,7 +641,7 @@ namespace Opc.Ua
                 return false;
             }
 
-            m_version++;
+            Version++;
 
             // look up the reference type.
             ReferenceTypeEntry entry;
@@ -749,10 +752,6 @@ namespace Opc.Ua
         /// Gets or sets the value with the specified NodeId.
         /// </summary>
         /// <value>The value with the specified NodeId.</value>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Microsoft.Design",
-            "CA1065:DoNotRaiseExceptionsInUnexpectedLocations"
-        )]
         public T this[IReference key]
         {
             get
@@ -780,7 +779,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void Clear()
         {
-            m_version++;
+            Version++;
             m_references.Clear();
             m_list.Clear();
         }
@@ -1002,7 +1001,7 @@ namespace Opc.Ua
             // validate key.
             ValidateReference(key, true);
 
-            m_version++;
+            Version++;
 
             // look up the reference type.
             ReferenceTypeEntry entry;
@@ -1196,6 +1195,5 @@ namespace Opc.Ua
 
         private readonly NodeIdDictionary<ReferenceTypeEntry> m_references;
         private readonly LinkedList<KeyValuePair<IReference, T>> m_list;
-        private ulong m_version;
     }
 }

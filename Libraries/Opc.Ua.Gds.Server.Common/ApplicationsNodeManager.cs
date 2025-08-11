@@ -398,7 +398,7 @@ namespace Opc.Ua.Gds.Server
         /// </summary>
         protected override NodeState AddBehaviourToPredefinedNode(ISystemContext context, NodeState predefinedNode)
         {
-            if (!(predefinedNode is BaseObjectState passiveNode))
+            if (predefinedNode is not BaseObjectState passiveNode)
             {
                 return predefinedNode;
             }
@@ -675,7 +675,7 @@ namespace Opc.Ua.Gds.Server
                         && certificate != null
                     )
                     {
-                        RevokeCertificateAsync(certificate).Wait();
+                        RevokeCertificateAsync(certificate).GetAwaiter().GetResult();
                     }
                 }
                 catch
@@ -1336,7 +1336,7 @@ namespace Opc.Ua.Gds.Server
             }
 
             // verify the CSR integrity for the application
-            certificateGroup.VerifySigningRequestAsync(application, certificateRequest).Wait();
+            certificateGroup.VerifySigningRequestAsync(application, certificateRequest).GetAwaiter().GetResult();
 
             // store request in the queue for approval
             requestId = m_request.StartSigningRequest(
@@ -1565,7 +1565,7 @@ namespace Opc.Ua.Gds.Server
             );
             using (ICertificateStore store = certificateStoreIdentifier.OpenStore())
             {
-                store?.AddAsync(certificate).Wait();
+                store?.AddAsync(certificate).GetAwaiter().GetResult();
             }
 
             m_database.SetApplicationCertificate(

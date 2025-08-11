@@ -76,7 +76,7 @@ namespace Opc.Ua.Bindings
                     uri.Host = computerName;
                 }
 
-                bool sendCertificateChain = instanceCertificateTypesProvider.SendCertificateChain;
+                _ = instanceCertificateTypesProvider.SendCertificateChain;
                 ITransportListener listener = Create();
                 if (listener != null)
                 {

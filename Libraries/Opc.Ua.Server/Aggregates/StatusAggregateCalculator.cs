@@ -171,7 +171,7 @@ namespace Opc.Ua.Server
             }
 
             // get the regions.
-            List<SubRegion> regions = GetRegionsInValueSet(values, false, true);
+            _ = GetRegionsInValueSet(values, false, true);
 
             StatusCode worstQuality = StatusCodes.Good;
             int badQualityCount = 0;

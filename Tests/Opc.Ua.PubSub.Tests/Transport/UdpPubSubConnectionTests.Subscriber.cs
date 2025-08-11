@@ -47,13 +47,11 @@ namespace Opc.Ua.PubSub.Tests.Transport
 #endif
     public partial class UdpPubSubConnectionTests
     {
-        private static readonly object s_lock = new();
+        private static readonly Lock s_lock = new();
         private byte[] m_sentBytes;
 
         [
-            Test(
-                Description = "Validate subscriber data on first nic;Subscriber unicast ip - Publisher unicast ip"
-            ),
+            Test(Description = "Validate subscriber data on first nic;Subscriber unicast ip - Publisher unicast ip"),
             Order(1)
         ]
         public void ValidateUdpPubSubConnectionNetworkMessageReceiveFromUnicast()
@@ -127,9 +125,7 @@ namespace Opc.Ua.PubSub.Tests.Transport
         }
 
         [
-            Test(
-                Description = "Validate subscriber data on first nic;Subscriber unicast ip - Publisher broadcast ip"
-            ),
+            Test(Description = "Validate subscriber data on first nic;Subscriber unicast ip - Publisher broadcast ip"),
             Order(2)
         ]
 #if !CUSTOM_TESTS
@@ -369,8 +365,10 @@ namespace Opc.Ua.PubSub.Tests.Transport
             int sentBytesLen = udpMulticastClient.Send(m_sentBytes, m_sentBytes.Length, remoteEndPoint);
 
             //manually create dataset metadata message and trigger metadata reveived event for test
-            DataSetMetaDataType metaData = m_uaPublisherApplication.DataCollector.GetPublishedDataSet(
-                    m_uaPublisherApplication.UaPubSubConfigurator.PubSubConfiguration.PublishedDataSets[0].Name)
+            DataSetMetaDataType metaData = m_uaPublisherApplication
+                .DataCollector.GetPublishedDataSet(
+                    m_uaPublisherApplication.UaPubSubConfigurator.PubSubConfiguration.PublishedDataSets[0].Name
+                )
                 ?.DataSetMetaData;
             WriterGroupDataType writerConfig = m_uaPublisherApplication
                 .PubSubConnections[0]

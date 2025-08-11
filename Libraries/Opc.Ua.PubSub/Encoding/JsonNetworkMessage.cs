@@ -364,14 +364,13 @@ namespace Opc.Ua.PubSub.Encoding
         /// <param name="jsonDecoder"></param>
         private void DecodeNetworkMessageHeader(JsonDecoder jsonDecoder)
         {
-            object token;
-            if (jsonDecoder.ReadField(nameof(MessageId), out token))
+            if (jsonDecoder.ReadField(nameof(MessageId), out _))
             {
                 MessageId = jsonDecoder.ReadString(nameof(MessageId));
                 NetworkMessageContentMask = JsonNetworkMessageContentMask.NetworkMessageHeader;
             }
 
-            if (jsonDecoder.ReadField(nameof(MessageType), out token))
+            if (jsonDecoder.ReadField(nameof(MessageType), out _))
             {
                 MessageType = jsonDecoder.ReadString(nameof(MessageType));
 
@@ -397,7 +396,7 @@ namespace Opc.Ua.PubSub.Encoding
                 }
             }
 
-            if (jsonDecoder.ReadField(nameof(PublisherId), out token))
+            if (jsonDecoder.ReadField(nameof(PublisherId), out _))
             {
                 PublisherId = jsonDecoder.ReadString(nameof(PublisherId));
                 if (m_jsonNetworkMessageType == JSONNetworkMessageType.DataSetMessage)
@@ -407,7 +406,7 @@ namespace Opc.Ua.PubSub.Encoding
                 }
             }
 
-            if (jsonDecoder.ReadField(nameof(DataSetClassId), out token))
+            if (jsonDecoder.ReadField(nameof(DataSetClassId), out _))
             {
                 DataSetClassId = jsonDecoder.ReadString(nameof(DataSetClassId));
                 NetworkMessageContentMask |= JsonNetworkMessageContentMask.DataSetClassId;
@@ -416,7 +415,7 @@ namespace Opc.Ua.PubSub.Encoding
             if (m_jsonNetworkMessageType == JSONNetworkMessageType.DataSetMetaData)
             {
                 // for metadata messages the DataSetWriterId field is mandatory
-                if (jsonDecoder.ReadField(nameof(DataSetWriterId), out token))
+                if (jsonDecoder.ReadField(nameof(DataSetWriterId), out _))
                 {
                     DataSetWriterId = jsonDecoder.ReadUInt16(nameof(DataSetWriterId));
                 }

@@ -28,12 +28,12 @@ namespace Opc.Ua
         /// <summary>
         /// The table of states belonging to the state machine.
         /// </summary>
-        protected override ElementInfo[] StateTable => s_StateTable;
+        protected override ElementInfo[] StateTable => s_stateTable;
 
         /// <summary>
         /// A table of valid states.
         /// </summary>
-        private readonly ElementInfo[] s_StateTable =
+        private static readonly ElementInfo[] s_stateTable =
         [
             new(Objects.ShelvedStateMachineType_OneShotShelved, BrowseNames.OneShotShelve, 1),
             new(Objects.ShelvedStateMachineType_TimedShelved, BrowseNames.TimedShelved, 2),
@@ -43,12 +43,12 @@ namespace Opc.Ua
         /// <summary>
         /// The table of transitions belonging to the state machine.
         /// </summary>
-        protected override ElementInfo[] TransitionTable => s_TransitionTable;
+        protected override ElementInfo[] TransitionTable => s_transitionTable;
 
         /// <summary>
         /// A table of valid transitions.
         /// </summary>
-        private static readonly ElementInfo[] s_TransitionTable =
+        private static readonly ElementInfo[] s_transitionTable =
         [
             new(
                 Objects.ShelvedStateMachineType_OneShotShelvedToTimedShelved,
@@ -69,12 +69,12 @@ namespace Opc.Ua
         /// <summary>
         /// The mapping between transitions and their from and to states.
         /// </summary>
-        protected override uint[,] TransitionMappings => s_TransitionMappings;
+        protected override uint[,] TransitionMappings => s_transitionMappings;
 
         /// <summary>
         /// A table of the to and from states for the transitions.
         /// </summary>
-        private static readonly uint[,] s_TransitionMappings = new uint[,]
+        private static readonly uint[,] s_transitionMappings = new uint[,]
         {
             {
                 Objects.ShelvedStateMachineType_OneShotShelvedToTimedShelved,

@@ -77,10 +77,6 @@ namespace Opc.Ua
         /// The dimensions of the matrix.
         /// </summary>
         /// <value>The dimensions of the array.</value>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Microsoft.Performance",
-            "CA1819:PropertiesShouldNotReturnArrays"
-        )]
         public int[] Dimensions { get; }
 
         /// <summary>

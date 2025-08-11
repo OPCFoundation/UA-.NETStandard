@@ -321,11 +321,6 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Processes a Hello message from the client.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Microsoft.Performance",
-            "CA1804:RemoveUnusedLocals",
-            MessageId = "protocolVersion"
-        )]
         private bool ProcessHelloMessage(ArraySegment<byte> messageChunk)
         {
             const uint kProtocolVersion = 0;

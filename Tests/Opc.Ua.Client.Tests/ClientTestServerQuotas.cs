@@ -52,17 +52,17 @@ namespace Opc.Ua.Client.Tests
         /// Set up a Server and a Client instance.
         /// </summary>
         [OneTimeSetUp]
-        public new Task OneTimeSetUp()
+        public override Task OneTimeSetUpAsync()
         {
             SupportsExternalServerUrl = true;
-            return OneTimeSetUpAsync();
+            return base.OneTimeSetUpAsync();
         }
 
         /// <summary>
         /// Tear down the Server and the Client.
         /// </summary>
         [OneTimeTearDown]
-        public new Task OneTimeTearDownAsync()
+        public override Task OneTimeTearDownAsync()
         {
             return base.OneTimeTearDownAsync();
         }
@@ -71,12 +71,12 @@ namespace Opc.Ua.Client.Tests
         /// Test setup.
         /// </summary>
         [SetUp]
-        public new Task SetUp()
+        public override Task SetUpAsync()
         {
-            return base.SetUp();
+            return base.SetUpAsync();
         }
 
-        public override async Task CreateReferenceServerFixture(
+        public override async Task CreateReferenceServerFixtureAsync(
             bool enableTracing,
             bool disableActivityLogging,
             bool securityNone,
@@ -118,16 +118,16 @@ namespace Opc.Ua.Client.Tests
         /// Test teardown.
         /// </summary>
         [TearDown]
-        public new Task TearDown()
+        public override Task TearDownAsync()
         {
-            return base.TearDown();
+            return base.TearDownAsync();
         }
 
         /// <summary>
         /// Global Setup for benchmarks.
         /// </summary>
         [GlobalSetup]
-        public new void GlobalSetup()
+        public override void GlobalSetup()
         {
             base.GlobalSetup();
         }
@@ -136,7 +136,7 @@ namespace Opc.Ua.Client.Tests
         /// Global cleanup for benchmarks.
         /// </summary>
         [GlobalCleanup]
-        public new void GlobalCleanup()
+        public override void GlobalCleanup()
         {
             base.GlobalCleanup();
         }
@@ -146,37 +146,33 @@ namespace Opc.Ua.Client.Tests
         {
             var theSession = (Session)((TraceableSession)Session).Session;
 
-            int NamespaceIndex = theSession.NamespaceUris.GetIndex(
+            int namespaceIndex = theSession.NamespaceUris.GetIndex(
                 "http://opcfoundation.org/Quickstarts/ReferenceServer"
             );
-            var NodeId = new NodeId($"ns={NamespaceIndex};s=Scalar_Static_ByteString");
+            var nodeId = new NodeId($"ns={namespaceIndex};s=Scalar_Static_ByteString");
 
             var random = new Random();
 
             byte[] chunk = new byte[MaxByteStringLengthForTest];
             random.NextBytes(chunk);
 
-            var WriteValue = new WriteValue
+            var writeValue = new WriteValue
             {
-                NodeId = NodeId,
+                NodeId = nodeId,
                 AttributeId = Attributes.Value,
                 Value = new DataValue() { WrappedValue = new Variant(chunk) },
                 IndexRange = null,
             };
-            var writeValues = new WriteValueCollection { WriteValue };
-            theSession.Write(
-                null,
-                writeValues,
-                out StatusCodeCollection results,
-                out DiagnosticInfoCollection diagnosticInfos
-            );
+            var writeValues = new WriteValueCollection { writeValue };
+
+            theSession.Write(null, writeValues, out StatusCodeCollection results, out _);
 
             if (results[0] != StatusCodes.Good)
             {
                 NUnit.Framework.Assert.Fail($"Write failed with status code {results[0]}");
             }
 
-            byte[] readData = theSession.ReadByteStringInChunks(NodeId);
+            byte[] readData = theSession.ReadByteStringInChunks(nodeId);
 
             Assert.IsTrue(Utils.IsEqual(chunk, readData));
         }
@@ -186,34 +182,35 @@ namespace Opc.Ua.Client.Tests
         {
             var theSession = (Session)((TraceableSession)Session).Session;
 
-            int NamespaceIndex = theSession.NamespaceUris.GetIndex(
+            int namespaceIndex = theSession.NamespaceUris.GetIndex(
                 "http://opcfoundation.org/Quickstarts/ReferenceServer"
             );
-            var NodeId = new NodeId($"ns={NamespaceIndex};s=Scalar_Static_ByteString");
+            var nodeId = new NodeId($"ns={namespaceIndex};s=Scalar_Static_ByteString");
 
             var random = new Random();
 
             byte[] chunk = new byte[MaxByteStringLengthForTest];
             random.NextBytes(chunk);
 
-            var WriteValue = new WriteValue
+            var writeValue = new WriteValue
             {
-                NodeId = NodeId,
+                NodeId = nodeId,
                 AttributeId = Attributes.Value,
                 Value = new DataValue() { WrappedValue = new Variant(chunk) },
                 IndexRange = null,
             };
-            var writeValues = new WriteValueCollection { WriteValue };
+            var writeValues = new WriteValueCollection { writeValue };
 
             WriteResponse result = await theSession.WriteAsync(null, writeValues, default).ConfigureAwait(false);
             StatusCodeCollection results = result.Results;
-            DiagnosticInfoCollection diagnosticInfos = result.DiagnosticInfos;
+
+            _ = result.DiagnosticInfos;
             if (results[0] != StatusCodes.Good)
             {
                 NUnit.Framework.Assert.Fail($"Write failed with status code {results[0]}");
             }
 
-            byte[] readData = await theSession.ReadByteStringInChunksAsync(NodeId, default).ConfigureAwait(false);
+            byte[] readData = await theSession.ReadByteStringInChunksAsync(nodeId, default).ConfigureAwait(false);
             Assert.IsTrue(Utils.IsEqual(chunk, readData));
         }
     }

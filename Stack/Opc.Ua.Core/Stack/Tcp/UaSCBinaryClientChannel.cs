@@ -88,11 +88,6 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// An overrideable version of the Dispose.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Microsoft.Usage",
-            "CA2213:DisposableFieldsShouldBeDisposed",
-            MessageId = "m_handshakeTimer"
-        )]
         protected override void Dispose(bool disposing)
         {
             m_waitBetweenReconnects = Timeout.Infinite;
@@ -432,11 +427,6 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Processes an Acknowledge message.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Microsoft.Performance",
-            "CA1804:RemoveUnusedLocals",
-            MessageId = "protocolVersion"
-        )]
         private bool ProcessAcknowledgeMessage(ArraySegment<byte> messageChunk)
         {
             Utils.LogTrace("ChannelId {0}: ProcessAcknowledgeMessage()", ChannelId);
@@ -1602,7 +1592,6 @@ namespace Opc.Ua.Bindings
             request.RequestHeader.Timestamp = DateTime.UtcNow;
 
             // limits should never be exceeded sending a close message.
-            bool limitsExceeded;
 
             // construct the message.
             BufferCollection buffers = WriteSymmetricMessage(
@@ -1611,7 +1600,7 @@ namespace Opc.Ua.Bindings
                 currentToken,
                 request,
                 true,
-                out limitsExceeded
+                out _
             );
 
             // send the message.

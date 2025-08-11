@@ -478,7 +478,7 @@ namespace Opc.Ua.Client
                 },
             };
 
-            CallResponse response = await Session.CallAsync(null, methodsToCall, ct).ConfigureAwait(false);
+            _ = await Session.CallAsync(null, methodsToCall, ct).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -499,7 +499,7 @@ namespace Opc.Ua.Client
                 },
             };
 
-            CallResponse response = await Session.CallAsync(null, methodsToCall, ct).ConfigureAwait(false);
+            _ = await Session.CallAsync(null, methodsToCall, ct).ConfigureAwait(false);
         }
     }
 }

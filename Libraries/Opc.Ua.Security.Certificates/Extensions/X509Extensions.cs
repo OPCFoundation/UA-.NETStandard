@@ -74,8 +74,9 @@ namespace Opc.Ua.Security.Certificates
                     X509Extension extension = extensions
                         .Cast<X509Extension>()
                         .FirstOrDefault(e =>
-                            e.Oid.Value == X509AuthorityKeyIdentifierExtension.AuthorityKeyIdentifierOid
-                            || e.Oid.Value == X509AuthorityKeyIdentifierExtension.AuthorityKeyIdentifier2Oid
+                            e.Oid.Value
+                                is X509AuthorityKeyIdentifierExtension.AuthorityKeyIdentifierOid
+                                    or X509AuthorityKeyIdentifierExtension.AuthorityKeyIdentifier2Oid
                         );
                     if (extension != null)
                     {
@@ -88,8 +89,9 @@ namespace Opc.Ua.Security.Certificates
                     X509Extension extension = extensions
                         .Cast<X509Extension>()
                         .FirstOrDefault(e =>
-                            e.Oid.Value == X509SubjectAltNameExtension.SubjectAltNameOid
-                            || e.Oid.Value == X509SubjectAltNameExtension.SubjectAltName2Oid
+                            e.Oid.Value
+                                is X509SubjectAltNameExtension.SubjectAltNameOid
+                                    or X509SubjectAltNameExtension.SubjectAltName2Oid
                         );
                     if (extension != null)
                     {

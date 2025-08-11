@@ -92,11 +92,11 @@ namespace Opc.Ua.Gds.Tests
         protected async Task OneTimeSetUpAsync()
         {
             // start GDS
-            m_server = await TestUtils.StartGDS(true, m_storeType).ConfigureAwait(false);
+            m_server = await TestUtils.StartGDSAsync(true, m_storeType).ConfigureAwait(false);
 
             // load client
             m_gdsClient = new GlobalDiscoveryTestClient(true, m_storeType);
-            await m_gdsClient.LoadClientConfiguration(m_server.BasePort).ConfigureAwait(false);
+            await m_gdsClient.LoadClientConfigurationAsync(m_server.BasePort).ConfigureAwait(false);
 
             // good applications test set
             m_appTestDataGenerator = new ApplicationTestDataGenerator(1);
@@ -187,7 +187,7 @@ namespace Opc.Ua.Gds.Tests
                 NodeId id = m_gdsClient.GDSClient.RegisterApplication(application.ApplicationRecord);
                 Assert.NotNull(id);
                 Assert.IsFalse(id.IsNullNodeId);
-                NUnit.Framework.Assert.That(id.IdType == IdType.Guid || id.IdType == IdType.String);
+                NUnit.Framework.Assert.That(id.IdType is IdType.Guid or IdType.String);
                 application.ApplicationRecord.ApplicationId = id;
             }
             m_goodRegistrationOk = true;
@@ -205,7 +205,7 @@ namespace Opc.Ua.Gds.Tests
                 NodeId id = m_gdsClient.GDSClient.RegisterApplication(newRecord);
                 Assert.NotNull(id);
                 Assert.IsFalse(id.IsNullNodeId);
-                NUnit.Framework.Assert.That(id.IdType == IdType.Guid || id.IdType == IdType.String);
+                NUnit.Framework.Assert.That(id.IdType is IdType.Guid or IdType.String);
                 newRecord.ApplicationId = id;
                 ApplicationRecordDataType[] applicationDataRecords = m_gdsClient.GDSClient.FindApplication(
                     newRecord.ApplicationUri
@@ -741,8 +741,8 @@ namespace Opc.Ua.Gds.Tests
                 0,
                 "",
                 [],
-                out lastResetCounterTime,
-                out nextRecordId
+                out _,
+                out _
             );
             int totalCount = 0;
             Assert.IsNotNull(allApplications);
@@ -1173,7 +1173,7 @@ namespace Opc.Ua.Gds.Tests
                     Assert.NotNull(trustListId);
 
                     // Opc.Ua.TrustListDataType -> not possible, this needs ApplicationUserAccess
-                    TrustListDataType trustList = m_gdsClient.GDSClient.ReadTrustList(trustListId);
+                    m_gdsClient.GDSClient.ReadTrustList(trustListId);
                 }
             }
         }
@@ -1208,13 +1208,13 @@ namespace Opc.Ua.Gds.Tests
         /// use self registered application and get the group / trust lists
         /// </summary>
         [Test, Order(630)]
-        public void GetGoodCertificateGroupsAsSelfAdmin()
+        public async Task GetGoodCertificateGroupsAsSelfAdminAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
             AssertIgnoreTestWithoutGoodNewKeyPairRequest();
 
             // register at gds and get gds issued certificate
-            bool success = m_gdsClient.RegisterTestClientAtGds();
+            bool success = await m_gdsClient.RegisterTestClientAtGdsAsync().ConfigureAwait(false);
 
             if (success)
             {

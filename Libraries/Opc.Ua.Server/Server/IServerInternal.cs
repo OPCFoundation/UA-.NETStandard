@@ -30,8 +30,6 @@
 using System;
 using System.Collections.Generic;
 
-#pragma warning disable 0618
-
 namespace Opc.Ua.Server
 {
     /// <summary>

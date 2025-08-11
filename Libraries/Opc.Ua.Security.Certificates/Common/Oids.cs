@@ -205,22 +205,14 @@ namespace Opc.Ua.Security.Certificates
         /// <param name="oid">The signature algorithm oid.</param>
         public static HashAlgorithmName GetHashAlgorithmName(string oid)
         {
-            switch (oid)
+            return oid switch
             {
-                case ECDsaWithSha1:
-                case RsaPkcs1Sha1:
-                    return HashAlgorithmName.SHA1;
-                case ECDsaWithSha256:
-                case RsaPkcs1Sha256:
-                    return HashAlgorithmName.SHA256;
-                case ECDsaWithSha384:
-                case RsaPkcs1Sha384:
-                    return HashAlgorithmName.SHA384;
-                case ECDsaWithSha512:
-                case RsaPkcs1Sha512:
-                    return HashAlgorithmName.SHA512;
-            }
-            throw new CryptographicException($"Hash algorithm {oid} is not supported. ");
+                ECDsaWithSha1 or RsaPkcs1Sha1 => HashAlgorithmName.SHA1,
+                ECDsaWithSha256 or RsaPkcs1Sha256 => HashAlgorithmName.SHA256,
+                ECDsaWithSha384 or RsaPkcs1Sha384 => HashAlgorithmName.SHA384,
+                ECDsaWithSha512 or RsaPkcs1Sha512 => HashAlgorithmName.SHA512,
+                _ => throw new CryptographicException($"Hash algorithm {oid} is not supported. "),
+            };
         }
     }
 }

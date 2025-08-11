@@ -89,7 +89,7 @@ namespace Opc.Ua.Client
         )
         {
             return await Session
-                .Create(
+                .CreateAsync(
                     this,
                     configuration,
                     (ITransportWaitingConnection)null,
@@ -120,7 +120,7 @@ namespace Opc.Ua.Client
         )
         {
             return await Session
-                .Create(
+                .CreateAsync(
                     this,
                     configuration,
                     connection,

@@ -38,7 +38,6 @@ namespace Opc.Ua.Server
     /// <summary>
     /// The master node manager for the server.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1506:AvoidExcessiveClassCoupling")]
     public class MasterNodeManager : IDisposable
     {
         /// <summary>
@@ -75,11 +74,7 @@ namespace Opc.Ua.Server
 
             // need to build a table of NamespaceIndexes and their NodeManagers.
             List<INodeManager> registeredManagers;
-            var namespaceManagers = new Dictionary<int, List<INodeManager>>
-            {
-                [0] = registeredManagers = [],
-                [1] = registeredManagers = [],
-            };
+            var namespaceManagers = new Dictionary<int, List<INodeManager>> { [0] = [], [1] = registeredManagers = [] };
 
             // always add the diagnostics and configuration node manager to the start of the list.
             var configurationAndDiagnosticsManager = new ConfigurationNodeManager(server, configuration);
@@ -598,22 +593,16 @@ namespace Opc.Ua.Server
         /// </summary>
         public virtual void AddReferences(NodeId sourceId, IList<IReference> references)
         {
-            foreach (IReference reference in references)
+            // find source node.
+            INodeManager nodeManager;
+            object sourceHandle = GetManagerHandle(sourceId, out nodeManager);
+            if (sourceHandle == null)
             {
-                // find source node.
-                INodeManager nodeManager;
-                object sourceHandle = GetManagerHandle(sourceId, out nodeManager);
-
-                if (sourceHandle == null)
-                {
-                    continue;
-                }
-
-                // delete the reference.
-
-                var map = new Dictionary<NodeId, IList<IReference>> { { sourceId, references } };
-                nodeManager.AddReferences(map);
+                return;
             }
+
+            var map = new Dictionary<NodeId, IList<IReference>> { { sourceId, references } };
+            nodeManager.AddReferences(map);
         }
 
         /// <summary>
@@ -2548,7 +2537,7 @@ namespace Opc.Ua.Server
                 if (!item.IsRestored)
                 {
                     // all event subscriptions required an event filter.
-                    if (item.OriginalFilter is not EventFilter filter)
+                    if (item.OriginalFilter is not EventFilter)
                     {
                         continue;
                     }
@@ -3061,7 +3050,7 @@ namespace Opc.Ua.Server
             }
 
             // check for known filter.
-            if (!ExtensionObject.IsNull(attributes.Filter) && !(attributes.Filter.Body is MonitoringFilter filter))
+            if (!ExtensionObject.IsNull(attributes.Filter) && attributes.Filter.Body is not MonitoringFilter)
             {
                 return new ServiceResult(StatusCodes.BadMonitoredItemFilterInvalid);
             }
@@ -3662,7 +3651,7 @@ namespace Opc.Ua.Server
             );
         }
 
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
         private readonly List<INodeManager> m_nodeManagers;
         private long m_lastMonitoredItemId;
         private readonly uint m_maxContinuationPointsPerBrowse;

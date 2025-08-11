@@ -429,7 +429,7 @@ namespace Opc.Ua.Bindings
             return true;
         }
 
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
         private readonly AsyncCallback m_callback;
         private readonly object m_asyncState;
         private readonly bool m_synchronous;

@@ -1779,7 +1779,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             metadata.Description = new LocalizedText("Description text");
             metadata.DataSetClassId = new Uuid();
 
-            DataSetMetaDataType dataSetMetaData = hasMetaData ? metadata : null;
+            _ = hasMetaData ? metadata : null;
 
             var jsonNetworkMessage = new PubSubEncoding.JsonNetworkMessage(writerGroup, metadata)
             {
@@ -2681,8 +2681,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
 
             string messageIdValue;
 
-            object token;
-            if (jsonDecoder.ReadField(NetworkMessageMessageId, out token))
+            if (jsonDecoder.ReadField(NetworkMessageMessageId, out _))
             {
                 messageIdValue = jsonDecoder.ReadString(NetworkMessageMessageId);
             }
@@ -2699,7 +2698,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
             );
 
             string messageTypeValue;
-            if (jsonDecoder.ReadField(NetworkMessageMessageType, out token))
+            if (jsonDecoder.ReadField(NetworkMessageMessageType, out _))
             {
                 messageTypeValue = jsonDecoder.ReadString(NetworkMessageMessageType);
             }
@@ -2715,7 +2714,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 messageTypeValue
             );
 
-            if (jsonDecoder.ReadField(NetworkMessagePublisherId, out token))
+            if (jsonDecoder.ReadField(NetworkMessagePublisherId, out _))
             {
                 publisherIdValue = jsonDecoder.ReadString(NetworkMessagePublisherId);
                 Assert.AreEqual(
@@ -2727,7 +2726,7 @@ namespace Opc.Ua.PubSub.Tests.Encoding
                 );
             }
 
-            if (jsonDecoder.ReadField(NetworkMessageDataSetClassId, out token))
+            if (jsonDecoder.ReadField(NetworkMessageDataSetClassId, out _))
             {
                 string dataSetClassIdValue = jsonDecoder.ReadString(NetworkMessageDataSetClassId);
                 Assert.AreEqual(

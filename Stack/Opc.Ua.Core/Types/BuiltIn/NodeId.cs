@@ -1024,20 +1024,12 @@ namespace Opc.Ua
             ValidateImmutableNodeIdIsNotModified();
             IdType = idType;
 
-            switch (idType)
+            m_identifier = idType switch
             {
-                case IdType.Opaque:
-                    m_identifier = Utils.Clone(value);
-                    break;
-
-                case IdType.Guid:
-                    m_identifier = (Guid)value;
-                    break;
-
-                default:
-                    m_identifier = value;
-                    break;
-            }
+                IdType.Opaque => Utils.Clone(value),
+                IdType.Guid => (Guid)value,
+                _ => value,
+            };
         }
 
         /// <summary>
@@ -1057,10 +1049,6 @@ namespace Opc.Ua
         /// <remarks>
         /// Enables this object type to be compared to other types of object.
         /// </remarks>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Microsoft.Maintainability",
-            "CA1502:AvoidExcessiveComplexity"
-        )]
         public int CompareTo(object obj)
         {
             // check for null.
@@ -1600,13 +1588,10 @@ namespace Opc.Ua
             }
         }
 
+#if UNUSED
         /// <summary>
         /// Compares two node identifiers.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Microsoft.Maintainability",
-            "CA1502:AvoidExcessiveComplexity"
-        )]
         private static int CompareIdentifiers(IdType idType1, object id1, IdType idType2, object id2)
         {
             if (id1 == null && id2 == null)
@@ -1699,6 +1684,7 @@ namespace Opc.Ua
 
             return string.CompareOrdinal(id1.ToString(), id2.ToString());
         }
+#endif
 
         /// <summary>
         /// Helper to determine if the identifier of specified type is greater/less.

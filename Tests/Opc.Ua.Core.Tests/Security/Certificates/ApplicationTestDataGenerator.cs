@@ -35,13 +35,32 @@ using Opc.Ua.Test;
 
 namespace Opc.Ua.Core.Tests
 {
-    public class ApplicationTestDataGenerator
+    public
+#if NET7_0_OR_GREATER && !NET_STANDARD_TESTS
+    partial
+#endif
+    class ApplicationTestDataGenerator
     {
-        private readonly int m_randomStart = 1;
+#if NET7_0_OR_GREATER && !NET_STANDARD_TESTS
+        [GeneratedRegex(@"[^\w\d\s]")]
+        private static partial Regex Regex1();
+
+        [GeneratedRegex(@"[^\w\d]")]
+        private static partial Regex Regex2();
+#else
+        private static Regex Regex1()
+        {
+            return new(@"[^\w\d\s]");
+        }
+
+        private static Regex Regex2()
+        {
+            return new(@"[^\w\d]");
+        }
+#endif
 
         public ApplicationTestDataGenerator(int randomStart)
         {
-            m_randomStart = randomStart;
             RandomSource = new RandomSource(randomStart);
             DataGenerator = new DataGenerator(RandomSource);
         }
@@ -59,18 +78,13 @@ namespace Opc.Ua.Core.Tests
             return testDataSet;
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Performance",
-            "SYSLIB1045:Convert to 'GeneratedRegexAttribute'.",
-            Justification = "Test"
-        )]
         private ApplicationTestData RandomApplicationTestData()
         {
             // TODO: set to discoveryserver
             var appType = (ApplicationType)RandomSource.NextInt32((int)ApplicationType.ClientAndServer);
             string pureAppName = DataGenerator.GetRandomString("en");
-            pureAppName = Regex.Replace(pureAppName, @"[^\w\d\s]", "");
-            string pureAppUri = Regex.Replace(pureAppName, @"[^\w\d]", "");
+            pureAppName = Regex1().Replace(pureAppName, "");
+            string pureAppUri = Regex2().Replace(pureAppName, "");
             string appName = "UA " + pureAppName;
             StringCollection domainNames = RandomDomainNames();
             string localhost = domainNames[0];
@@ -80,8 +94,7 @@ namespace Opc.Ua.Core.Tests
                 localhost,
                 StringComparison.Ordinal
             );
-            string prodUri = "http://opcfoundation.org/UA/" + pureAppUri;
-            var discoveryUrls = new StringCollection();
+
             int port = (DataGenerator.GetRandomInt16() & 0x1fff) + 50000;
             switch (appType)
             {
@@ -93,11 +106,11 @@ namespace Opc.Ua.Core.Tests
                     goto case ApplicationType.Server;
                 case ApplicationType.DiscoveryServer:
                     appName += " DiscoveryServer";
-                    discoveryUrls = RandomDiscoveryUrl(domainNames, 4840, pureAppUri);
+                    _ = RandomDiscoveryUrl(domainNames, 4840, pureAppUri);
                     break;
                 case ApplicationType.Server:
                     appName += " Server";
-                    discoveryUrls = RandomDiscoveryUrl(domainNames, port, pureAppUri);
+                    _ = RandomDiscoveryUrl(domainNames, port, pureAppUri);
                     break;
             }
             return new ApplicationTestData
@@ -110,14 +123,9 @@ namespace Opc.Ua.Core.Tests
             };
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Performance",
-            "SYSLIB1045:Convert to 'GeneratedRegexAttribute'.",
-            Justification = "Test"
-        )]
         private string RandomLocalHost()
         {
-            string localhost = Regex.Replace(DataGenerator.GetRandomSymbol("en").Trim().ToLower(), @"[^\w\d]", "");
+            string localhost = Regex2().Replace(DataGenerator.GetRandomSymbol("en").Trim().ToLower(), "");
             if (localhost.Length >= 12)
             {
                 localhost = localhost[..12];

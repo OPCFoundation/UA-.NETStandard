@@ -207,7 +207,6 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Raised when a browse operation halted because of a continuation point.
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1009:DeclareEventHandlersCorrectly")]
         public event BrowserEventHandler MoreReferences
         {
             add => m_MoreReferences += value;

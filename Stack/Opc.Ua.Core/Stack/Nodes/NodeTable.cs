@@ -88,7 +88,6 @@ namespace Opc.Ua
     /// <summary>
     /// A table of nodes.
     /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1710:IdentifiersShouldHaveCorrectSuffix")]
     public class NodeTable : INodeTable, IEnumerable<INode>
     {
         /// <summary>
@@ -527,8 +526,10 @@ namespace Opc.Ua
                 }
 
                 // type definition and modelling rule references are one way.
-                if (reference.ReferenceTypeId != ReferenceTypeIds.HasTypeDefinition &&
-				    reference.ReferenceTypeId != ReferenceTypeIds.HasModellingRule)
+                if (
+                    reference.ReferenceTypeId != ReferenceTypeIds.HasTypeDefinition
+                    && reference.ReferenceTypeId != ReferenceTypeIds.HasModellingRule
+                )
                 {
                     targetNode.References.Add(reference.ReferenceTypeId, !reference.IsInverse, node.NodeId);
                 }

@@ -404,7 +404,7 @@ namespace Opc.Ua.Server
             // search node id in all node managers
             foreach (INodeManager nodeManager in Server.NodeManager.NodeManagers)
             {
-                if (!(nodeManager.GetManagerHandle(nodeId) is NodeHandle handle))
+                if (nodeManager.GetManagerHandle(nodeId) is not NodeHandle handle)
                 {
                     continue;
                 }
@@ -506,7 +506,7 @@ namespace Opc.Ua.Server
         /// </summary>
         protected virtual NodeState AddBehaviourToPredefinedNode(ISystemContext context, NodeState predefinedNode)
         {
-            if (predefinedNode is not BaseObjectState passiveNode)
+            if (predefinedNode is not BaseObjectState)
             {
                 return predefinedNode;
             }
@@ -1269,7 +1269,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            ViewState node =
+            _ =
                 (ViewState)FindPredefinedNode(view.ViewId, typeof(ViewState))
                 ?? throw new ServiceResultException(StatusCodes.BadViewIdUnknown);
 
@@ -1333,7 +1333,7 @@ namespace Opc.Ua.Server
             ContinuationPoint continuationPoint
         )
         {
-            ServerSystemContext systemContext = SystemContext.Copy(context);
+            _ = SystemContext.Copy(context);
 
             // create the type definition reference.
             var description = new ReferenceDescription { NodeId = reference.TargetId };
@@ -4026,7 +4026,7 @@ namespace Opc.Ua.Server
             // need to look up the EU range if a percent filter is requested.
             if (deadbandFilter.DeadbandType == (uint)DeadbandType.Percent)
             {
-                if (!(handle.Node.FindChild(context, BrowseNames.EURange) is PropertyState property))
+                if (handle.Node.FindChild(context, BrowseNames.EURange) is not PropertyState property)
                 {
                     return StatusCodes.BadMonitoredItemFilterUnsupported;
                 }

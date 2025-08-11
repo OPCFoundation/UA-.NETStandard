@@ -227,13 +227,12 @@ namespace Opc.Ua.Server
             DateTime processedTimestamp = DateTime.MinValue;
             bool duplicatesExist = false;
 
-            bool uncertainValueExists;
             if (valueType == 1)
             {
                 processedValue = minimumGoodValue;
                 processedTimestamp = minimumGoodTimestamp;
                 processedType = minimumOriginalType;
-                uncertainValueExists = minimumGoodValue > minimumUncertainValue;
+                _ = minimumGoodValue > minimumUncertainValue;
                 duplicatesExist = duplicatesMinimumsExist;
             }
             else if (valueType == 2)
@@ -241,15 +240,14 @@ namespace Opc.Ua.Server
                 processedValue = maximumGoodValue;
                 processedTimestamp = maximumGoodTimestamp;
                 processedType = maximumOriginalType;
-                uncertainValueExists = maximumGoodValue < maximumUncertainValue;
+                _ = maximumGoodValue < maximumUncertainValue;
                 duplicatesExist = duplicatesMaximumsExist;
             }
             else if (valueType == 3)
             {
                 processedValue = Math.Abs(maximumGoodValue - minimumGoodValue);
                 processedType = TypeInfo.Scalars.Double;
-                uncertainValueExists =
-                    maximumGoodValue < maximumUncertainValue || minimumGoodValue > minimumUncertainValue;
+                _ = maximumGoodValue < maximumUncertainValue || minimumGoodValue > minimumUncertainValue;
             }
 
             // set calculated if not returning actual time and value is not at the start time.

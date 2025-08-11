@@ -34,8 +34,6 @@ namespace Alarms
 {
     internal class LimitAlarmTypeHolder : AlarmConditionTypeHolder
     {
-        private bool m_isLimit = true;
-
         public LimitAlarmTypeHolder(
             AlarmNodeManager alarmNodeManager,
             FolderState parent,
@@ -67,18 +65,15 @@ namespace Alarms
             }
         }
 
-        public void Initialize(
+        public new void Initialize(
             uint alarmTypeIdentifier,
             string name,
-            double maxTimeShelved = AlarmDefines.NORMAL_MAX_TIME_SHELVED,
-            bool isLimit = true
+            double maxTimeShelved = AlarmDefines.NORMAL_MAX_TIME_SHELVED
         )
         {
             // Create an alarm and trigger name - Create a base method for creating the trigger, just provide the name
 
             m_alarm ??= new LimitAlarmState(m_parent);
-
-            m_isLimit = isLimit;
 
             LimitAlarmState alarm = GetAlarm();
 

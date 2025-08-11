@@ -10,6 +10,8 @@
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
+using System.Threading;
+
 namespace Opc.Ua
 {
     /// <summary>
@@ -57,6 +59,6 @@ namespace Opc.Ua
             }
         }
 
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
     }
 }

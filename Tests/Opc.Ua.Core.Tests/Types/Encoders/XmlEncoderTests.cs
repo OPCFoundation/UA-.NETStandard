@@ -42,11 +42,22 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
     [TestFixture, Category("XmlEncoder")]
     [SetCulture("en-us"), SetUICulture("en-us")]
     [Parallelizable]
-    public class XmlEncoderTests
+    public
+#if NET7_0_OR_GREATER && !NET_STANDARD_TESTS
+    partial
+#endif
+    class XmlEncoderTests
     {
-#pragma warning disable SYSLIB1045 // Convert to 'GeneratedRegexAttribute'.
-        internal static readonly Regex REValue = new("Value>([^<]*)<");
-#pragma warning restore SYSLIB1045 // Convert to 'GeneratedRegexAttribute'.
+#if NET7_0_OR_GREATER && !NET_STANDARD_TESTS
+        [GeneratedRegex(@"Value>([^<]*)<")]
+        internal static partial Regex REValue();
+#else
+        internal static Regex REValue()
+        {
+            return new Regex("Value>([^<]*)<");
+        }
+#endif
+
         private static readonly int[] s_elements = [1, 2, 3, 4];
         private static readonly int[] s_dimensions = [2, 2];
 
@@ -77,7 +88,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
 
             // Check encode result against expected XML value
-            Match m = REValue.Match(actualXmlValue);
+            Match m = REValue().Match(actualXmlValue);
             Assert.True(m.Success);
             Assert.True(m.Groups.Count == 2);
             Assert.AreEqual(m.Groups[1].Value, expectedXmlValue);
@@ -128,7 +139,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
             }
 
             // Check encode result against expected XML value
-            Match m = REValue.Match(actualXmlValue);
+            Match m = REValue().Match(actualXmlValue);
             Assert.True(m.Success);
             Assert.True(m.Groups.Count == 2);
             Assert.AreEqual(m.Groups[1].Value, expectedXmlValue);

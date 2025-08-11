@@ -238,6 +238,15 @@ namespace Opc.Ua.Client.ComplexTypes
         }
 
         /// <summary>
+        /// <see cref="LoadAsync(bool, bool, CancellationToken)"/>
+        /// </summary>
+        [Obsolete("Use LoadAsync instead.")]
+        public Task<bool> Load(bool onlyEnumTypes = false, bool throwOnError = false, CancellationToken ct = default)
+        {
+            return LoadAsync(onlyEnumTypes, throwOnError, ct).AsTask();
+        }
+
+        /// <summary>
         /// Load all custom types from a server into the session system type factory.
         /// </summary>
         /// <remarks>
@@ -254,7 +263,7 @@ namespace Opc.Ua.Client.ComplexTypes
         /// - Create all structured types from the dictionaries using the converted DataTypeDefinion attribute.
         /// </remarks>
         /// <returns>true if all DataTypes were loaded.</returns>
-        public async Task<bool> Load(
+        public async ValueTask<bool> LoadAsync(
             bool onlyEnumTypes = false,
             bool throwOnError = false,
             CancellationToken ct = default

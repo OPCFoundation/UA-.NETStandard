@@ -321,8 +321,7 @@ namespace Opc.Ua.Gds.Client
             Session.KeepAlive += Session_KeepAlive;
             Session.KeepAlive += KeepAlive;
             // TODO: implement, suppress warning/error
-            if (ServerStatusChanged != null)
-            { }
+            if (ServerStatusChanged != null) { }
 
             if (Session.Factory.GetSystemType(DataTypeIds.ApplicationRecordDataType) == null)
             {
@@ -438,7 +437,6 @@ namespace Opc.Ua.Gds.Client
             IList<string> serverCapabilities
         )
         {
-            DateTime lastCounterResetTime;
             return QueryServers(
                 startingRecordId,
                 maxRecordsToReturn,
@@ -446,7 +444,7 @@ namespace Opc.Ua.Gds.Client
                 applicationUri,
                 productUri,
                 serverCapabilities,
-                out lastCounterResetTime
+                out _
             );
         }
 

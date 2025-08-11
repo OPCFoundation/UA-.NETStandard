@@ -64,7 +64,7 @@ namespace Boiler
         {
             NamespaceUris = namespaceUris;
 
-            m_typeNamespaceIndex = Server.NamespaceUris.GetIndexOrAppend(namespaceUris[0]);
+            Server.NamespaceUris.GetIndexOrAppend(namespaceUris[0]);
             m_namespaceIndex = Server.NamespaceUris.GetIndexOrAppend(namespaceUris[1]);
 
             AddEncodeableNodeManagerTypes(typeof(BoilerNodeManager).Assembly, typeof(BoilerNodeManager).Namespace);
@@ -282,7 +282,6 @@ namespace Boiler
         }
 
         private readonly ushort m_namespaceIndex;
-        private readonly ushort m_typeNamespaceIndex;
         private long m_lastUsedId;
         private readonly List<BoilerState> m_boilers;
     }

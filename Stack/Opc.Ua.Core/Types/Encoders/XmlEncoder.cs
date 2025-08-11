@@ -1800,16 +1800,6 @@ namespace Opc.Ua
         /// <summary>
         /// Writes the contents of an Variant to the stream.
         /// </summary>
-        [
-            System.Diagnostics.CodeAnalysis.SuppressMessage(
-                "Microsoft.Maintainability",
-                "CA1506:AvoidExcessiveClassCoupling"
-            ),
-            System.Diagnostics.CodeAnalysis.SuppressMessage(
-                "Microsoft.Maintainability",
-                "CA1502:AvoidExcessiveComplexity"
-            )
-        ]
         public void WriteVariantContents(object value, TypeInfo typeInfo)
         {
             // check for null.

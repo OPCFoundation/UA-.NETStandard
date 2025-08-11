@@ -106,10 +106,8 @@ namespace Opc.Ua.Configuration
             ApplicationConfiguration.SecurityConfiguration = new SecurityConfiguration
             {
                 // app cert store
-#pragma warning disable CS0618 // Type or member is obsolete
                 ApplicationCertificate = new CertificateIdentifier()
                 {
-#pragma warning restore CS0618 // Type or member is obsolete
                     StoreType = appStoreType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.Application, appRoot),
                     SubjectName = Utils.ReplaceDCLocalhost(subjectName),
@@ -236,10 +234,8 @@ namespace Opc.Ua.Configuration
             ApplicationConfiguration.SecurityConfiguration = new SecurityConfiguration
             {
                 // app cert store
-#pragma warning disable CS0618 // Type or member is obsolete
                 ApplicationCertificate = new CertificateIdentifier()
                 {
-#pragma warning restore CS0618 // Type or member is obsolete
                     StoreType = appStoreType,
                     StorePath = DefaultCertificateStorePath(TrustlistType.Application, appRoot),
                     SubjectName = Utils.ReplaceDCLocalhost(subjectName),
@@ -318,24 +314,18 @@ namespace Opc.Ua.Configuration
         {
             // sanity checks
             if (
-                ApplicationInstance.ApplicationType == ApplicationType.Server
-                || ApplicationInstance.ApplicationType == ApplicationType.ClientAndServer
+                ApplicationInstance.ApplicationType is ApplicationType.Server or ApplicationType.ClientAndServer
+                && ApplicationConfiguration.ServerConfiguration == null
             )
             {
-                if (ApplicationConfiguration.ServerConfiguration == null)
-                {
-                    throw new ArgumentException("ApplicationType Server is not configured.");
-                }
+                throw new ArgumentException("ApplicationType Server is not configured.");
             }
             if (
-                ApplicationInstance.ApplicationType == ApplicationType.Client
-                || ApplicationInstance.ApplicationType == ApplicationType.ClientAndServer
+                ApplicationInstance.ApplicationType is ApplicationType.Client or ApplicationType.ClientAndServer
+                && ApplicationConfiguration.ClientConfiguration == null
             )
             {
-                if (ApplicationConfiguration.ClientConfiguration == null)
-                {
-                    throw new ArgumentException("ApplicationType Client is not configured.");
-                }
+                throw new ArgumentException("ApplicationType Client is not configured.");
             }
 
             // ensure for a user token policy

@@ -101,7 +101,7 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Set up a Server and a Client instance.
         /// </summary>
-        public Task OneTimeSetUp()
+        public virtual Task OneTimeSetUpAsync()
         {
             return OneTimeSetUpAsync(null);
         }
@@ -110,7 +110,7 @@ namespace Opc.Ua.Client.Tests
         /// Setup a server and client fixture.
         /// </summary>
         /// <param name="writer">The test output writer.</param>
-        public async Task OneTimeSetUpAsync(
+        public virtual async Task OneTimeSetUpAsync(
             TextWriter writer = null,
             bool securityNone = false,
             bool enableClientSideTracing = false,
@@ -143,7 +143,7 @@ namespace Opc.Ua.Client.Tests
 
             if (customUrl == null)
             {
-                await CreateReferenceServerFixture(
+                await CreateReferenceServerFixtureAsync(
                         enableServerSideTracing,
                         disableActivityLogging,
                         securityNone,
@@ -154,7 +154,7 @@ namespace Opc.Ua.Client.Tests
 
             ClientFixture = new ClientFixture(enableClientSideTracing, disableActivityLogging);
 
-            await ClientFixture.LoadClientConfiguration(PkiRoot).ConfigureAwait(false);
+            await ClientFixture.LoadClientConfigurationAsync(PkiRoot).ConfigureAwait(false);
             ClientFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
             ClientFixture.Config.TransportQuotas.MaxByteStringLength = ClientFixture
                 .Config
@@ -199,7 +199,7 @@ namespace Opc.Ua.Client.Tests
             }
         }
 
-        public virtual async Task CreateReferenceServerFixture(
+        public virtual async Task CreateReferenceServerFixtureAsync(
             bool enableTracing,
             bool disableActivityLogging,
             bool securityNone,
@@ -327,7 +327,7 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Tear down the Server and the Client.
         /// </summary>
-        public async Task OneTimeTearDownAsync()
+        public virtual async Task OneTimeTearDownAsync()
         {
             if (Session != null)
             {
@@ -356,7 +356,7 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Test setup.
         /// </summary>
-        public async Task SetUp()
+        public virtual async Task SetUpAsync()
         {
             if (!SingleSession)
             {
@@ -386,7 +386,7 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Test Teardown.
         /// </summary>
-        public Task TearDown()
+        public virtual Task TearDownAsync()
         {
             if (!SingleSession && Session != null)
             {
@@ -474,7 +474,7 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Global Setup for benchmarks.
         /// </summary>
-        public void GlobalSetup()
+        public virtual void GlobalSetup()
         {
             Console.WriteLine("GlobalSetup: Start Server");
             OneTimeSetUpAsync(Console.Out).GetAwaiter().GetResult();
@@ -486,7 +486,7 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Global cleanup for benchmarks.
         /// </summary>
-        public void GlobalCleanup()
+        public virtual void GlobalCleanup()
         {
             Console.WriteLine("GlobalCleanup: Disconnect and Stop Server");
             OneTimeTearDownAsync().GetAwaiter().GetResult();
@@ -585,7 +585,7 @@ namespace Opc.Ua.Client.Tests
             return [];
         }
 
-        protected void Session_Closing(object sender, EventArgs e)
+        protected void SessionClosing(object sender, EventArgs e)
         {
             if (sender is ISession session)
             {

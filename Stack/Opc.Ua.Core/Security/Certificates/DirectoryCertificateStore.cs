@@ -16,6 +16,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
@@ -152,7 +153,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Task<X509Certificate2Collection> EnumerateAsync()
+        public Task<X509Certificate2Collection> EnumerateAsync(CancellationToken ct = default)
         {
             lock (m_lock)
             {
@@ -183,7 +184,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Task AddAsync(X509Certificate2 certificate, string password = null)
+        public Task AddAsync(X509Certificate2 certificate, string password = null, CancellationToken ct = default)
         {
             if (certificate == null)
             {
@@ -238,7 +239,11 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Task AddRejectedAsync(X509Certificate2Collection certificates, int maxCertificates)
+        public Task AddRejectedAsync(
+            X509Certificate2Collection certificates,
+            int maxCertificates,
+            CancellationToken ct = default
+        )
         {
             if (certificates == null)
             {
@@ -331,7 +336,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public async Task<bool> DeleteAsync(string thumbprint)
+        public async Task<bool> DeleteAsync(string thumbprint, CancellationToken ct = default)
         {
             const int kRetries = 5;
             const int kRetryDelay = 100;
@@ -431,7 +436,7 @@ namespace Opc.Ua
 
                 if (retry > 0)
                 {
-                    await Task.Delay(kRetryDelay).ConfigureAwait(false);
+                    await Task.Delay(kRetryDelay, ct).ConfigureAwait(false);
                 }
             } while (retry > 0);
 
@@ -446,7 +451,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Task<X509Certificate2Collection> FindByThumbprintAsync(string thumbprint)
+        public Task<X509Certificate2Collection> FindByThumbprintAsync(string thumbprint, CancellationToken ct = default)
         {
             var certificates = new X509Certificate2Collection();
 
@@ -538,7 +543,8 @@ namespace Opc.Ua
             string subjectName,
             string applicationUri,
             NodeId certificateType,
-            string password
+            string password,
+            CancellationToken ct = default
         )
         {
             if (
@@ -798,7 +804,7 @@ namespace Opc.Ua
                 if (retryCounter > 0)
                 {
                     Utils.LogInfo(Utils.TraceMasks.Security, "Retry to import private key after {0} ms.", retryDelay);
-                    await Task.Delay(retryDelay).ConfigureAwait(false);
+                    await Task.Delay(retryDelay, ct).ConfigureAwait(false);
                 }
             }
 
@@ -813,7 +819,11 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Task<StatusCode> IsRevokedAsync(X509Certificate2 issuer, X509Certificate2 certificate)
+        public Task<StatusCode> IsRevokedAsync(
+            X509Certificate2 issuer,
+            X509Certificate2 certificate,
+            CancellationToken ct = default
+        )
         {
             if (issuer == null)
             {
@@ -890,7 +900,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Task<X509CRLCollection> EnumerateCRLsAsync()
+        public Task<X509CRLCollection> EnumerateCRLsAsync(CancellationToken ct = default)
         {
             var crls = new X509CRLCollection();
 
@@ -923,7 +933,11 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public async Task<X509CRLCollection> EnumerateCRLsAsync(X509Certificate2 issuer, bool validateUpdateTime = true)
+        public async Task<X509CRLCollection> EnumerateCRLsAsync(
+            X509Certificate2 issuer,
+            bool validateUpdateTime = true,
+            CancellationToken ct = default
+        )
         {
             if (issuer == null)
             {
@@ -931,7 +945,7 @@ namespace Opc.Ua
             }
 
             var crls = new X509CRLCollection();
-            foreach (X509CRL crl in await EnumerateCRLsAsync().ConfigureAwait(false))
+            foreach (X509CRL crl in await EnumerateCRLsAsync(ct).ConfigureAwait(false))
             {
                 if (!X509Utils.CompareDistinguishedName(crl.IssuerName, issuer.SubjectName))
                 {
@@ -966,7 +980,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public async Task AddCRLAsync(X509CRL crl)
+        public async Task AddCRLAsync(X509CRL crl, CancellationToken ct = default)
         {
             if (crl == null)
             {
@@ -974,7 +988,7 @@ namespace Opc.Ua
             }
 
             X509Certificate2 issuer = null;
-            X509Certificate2Collection certificates = await EnumerateAsync().ConfigureAwait(false);
+            X509Certificate2Collection certificates = await EnumerateAsync(ct).ConfigureAwait(false);
             foreach (X509Certificate2 certificate in certificates)
             {
                 if (
@@ -1017,7 +1031,7 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public Task<bool> DeleteCRLAsync(X509CRL crl)
+        public Task<bool> DeleteCRLAsync(X509CRL crl, CancellationToken ct = default)
         {
             if (crl == null)
             {
@@ -1318,7 +1332,7 @@ namespace Opc.Ua
             public DateTime LastWriteTimeUtc;
         }
 
-        private readonly object m_lock = new();
+        private readonly Lock m_lock = new();
         private readonly bool m_noSubDirs;
         private DirectoryInfo m_certificateSubdir;
         private DirectoryInfo m_crlSubdir;

@@ -168,7 +168,7 @@ namespace Opc.Ua.Configuration
 
             if (ApplicationConfiguration == null)
             {
-                await LoadApplicationConfiguration(false).ConfigureAwait(false);
+                await LoadApplicationConfigurationAsync(false).ConfigureAwait(false);
             }
 
             server.Start(ApplicationConfiguration);
@@ -183,15 +183,40 @@ namespace Opc.Ua.Configuration
         }
 
         /// <summary>
-        /// Loads the configuration.
+        /// <see cref="LoadAppConfigAsync(bool, string, ApplicationType, Type, bool, ICertificatePasswordProvider, CancellationToken)" />
         /// </summary>
-        public async Task<ApplicationConfiguration> LoadAppConfig(
+        [Obsolete("Use LoadAppConfigAsync instead.")]
+        public Task<ApplicationConfiguration> LoadAppConfig(
             bool silent,
             string filePath,
             ApplicationType applicationType,
             Type configurationType,
             bool applyTraceSettings,
             ICertificatePasswordProvider certificatePasswordProvider = null
+        )
+        {
+            return LoadAppConfigAsync(
+                    silent,
+                    filePath,
+                    applicationType,
+                    configurationType,
+                    applyTraceSettings,
+                    certificatePasswordProvider
+                )
+                .AsTask();
+        }
+
+        /// <summary>
+        /// Loads the configuration.
+        /// </summary>
+        public async ValueTask<ApplicationConfiguration> LoadAppConfigAsync(
+            bool silent,
+            string filePath,
+            ApplicationType applicationType,
+            Type configurationType,
+            bool applyTraceSettings,
+            ICertificatePasswordProvider certificatePasswordProvider = null,
+            CancellationToken ct = default
         )
         {
             LogInfo("Loading application configuration file. {0}", filePath);
@@ -205,7 +230,8 @@ namespace Opc.Ua.Configuration
                         applicationType,
                         configurationType,
                         applyTraceSettings,
-                        certificatePasswordProvider
+                        certificatePasswordProvider,
+                        ct
                     )
                     .ConfigureAwait(false);
             }
@@ -230,7 +256,7 @@ namespace Opc.Ua.Configuration
         }
 
         /// <summary>
-        /// Loads the configuration.
+        /// <see cref="LoadAppConfigAsync(bool, Stream, ApplicationType, Type, bool, ICertificatePasswordProvider, CancellationToken)" />
         /// </summary>
         [Obsolete("Use LoadAppConfigAsync instead.")]
         public Task<ApplicationConfiguration> LoadAppConfig(
@@ -243,25 +269,27 @@ namespace Opc.Ua.Configuration
         )
         {
             return LoadAppConfigAsync(
-                silent,
-                stream,
-                applicationType,
-                configurationType,
-                applyTraceSettings,
-                certificatePasswordProvider
-            );
+                    silent,
+                    stream,
+                    applicationType,
+                    configurationType,
+                    applyTraceSettings,
+                    certificatePasswordProvider
+                )
+                .AsTask();
         }
 
         /// <summary>
         /// Loads the configuration.
         /// </summary>
-        public async Task<ApplicationConfiguration> LoadAppConfigAsync(
+        public async ValueTask<ApplicationConfiguration> LoadAppConfigAsync(
             bool silent,
             Stream stream,
             ApplicationType applicationType,
             Type configurationType,
             bool applyTraceSettings,
-            ICertificatePasswordProvider certificatePasswordProvider = null
+            ICertificatePasswordProvider certificatePasswordProvider = null,
+            CancellationToken ct = default
         )
         {
             LogInfo("Loading application from stream.");
@@ -275,7 +303,8 @@ namespace Opc.Ua.Configuration
                         applicationType,
                         configurationType,
                         applyTraceSettings,
-                        certificatePasswordProvider
+                        certificatePasswordProvider,
+                        ct
                     )
                     .ConfigureAwait(false);
             }
@@ -300,7 +329,7 @@ namespace Opc.Ua.Configuration
         }
 
         /// <summary>
-        /// Loads the application configuration.
+        /// <see cref="LoadApplicationConfigurationAsync(Stream, bool, CancellationToken)" />
         /// </summary>
         [Obsolete("Use LoadApplicationConfigurationAsync instead.")]
         public Task<ApplicationConfiguration> LoadApplicationConfiguration(Stream stream, bool silent)
@@ -311,7 +340,11 @@ namespace Opc.Ua.Configuration
         /// <summary>
         /// Loads the application configuration.
         /// </summary>
-        public async Task<ApplicationConfiguration> LoadApplicationConfigurationAsync(Stream stream, bool silent)
+        public async Task<ApplicationConfiguration> LoadApplicationConfigurationAsync(
+            Stream stream,
+            bool silent,
+            CancellationToken ct = default
+        )
         {
             ApplicationConfiguration configuration = null;
 
@@ -323,7 +356,8 @@ namespace Opc.Ua.Configuration
                         ApplicationType,
                         ConfigurationType,
                         true,
-                        CertificatePasswordProvider
+                        CertificatePasswordProvider,
+                        ct
                     )
                     .ConfigureAwait(false);
             }
@@ -340,21 +374,44 @@ namespace Opc.Ua.Configuration
         }
 
         /// <summary>
+        /// <see cref="LoadApplicationConfigurationAsync(string, bool, CancellationToken)" />
+        /// </summary>
+        [Obsolete("Use LoadApplicationConfigurationAsync instead.")]
+        public Task<ApplicationConfiguration> LoadApplicationConfiguration(string filePath, bool silent)
+        {
+            return LoadApplicationConfigurationAsync(filePath, silent).AsTask();
+        }
+
+        /// <summary>
+        /// <see cref="LoadApplicationConfigurationAsync(bool, CancellationToken)" />
+        /// </summary>
+        [Obsolete("Use LoadApplicationConfigurationAsync instead.")]
+        public Task<ApplicationConfiguration> LoadApplicationConfiguration(bool silent)
+        {
+            return LoadApplicationConfigurationAsync(silent).AsTask();
+        }
+
+        /// <summary>
         /// Loads the application configuration.
         /// </summary>
-        public async Task<ApplicationConfiguration> LoadApplicationConfiguration(string filePath, bool silent)
+        public async ValueTask<ApplicationConfiguration> LoadApplicationConfigurationAsync(
+            string filePath,
+            bool silent,
+            CancellationToken ct = default
+        )
         {
             ApplicationConfiguration configuration = null;
 
             try
             {
-                configuration = await LoadAppConfig(
+                configuration = await LoadAppConfigAsync(
                         silent,
                         filePath,
                         ApplicationType,
                         ConfigurationType,
                         true,
-                        CertificatePasswordProvider
+                        CertificatePasswordProvider,
+                        ct
                     )
                     .ConfigureAwait(false);
             }
@@ -376,11 +433,13 @@ namespace Opc.Ua.Configuration
         /// <summary>
         /// Loads the application configuration.
         /// </summary>
-        public Task<ApplicationConfiguration> LoadApplicationConfiguration(bool silent)
+        public ValueTask<ApplicationConfiguration> LoadApplicationConfigurationAsync(
+            bool silent,
+            CancellationToken ct = default
+        )
         {
             string filePath = ApplicationConfiguration.GetFilePathFromAppConfig(ConfigSectionName);
-
-            return LoadApplicationConfiguration(filePath, silent);
+            return LoadApplicationConfigurationAsync(filePath, silent, ct);
         }
 
         /// <summary>
@@ -427,18 +486,40 @@ namespace Opc.Ua.Configuration
         }
 
         /// <summary>
-        /// Checks for a valid application instance certificate.
+        /// <see cref="CheckApplicationInstanceCertificatesAsync(bool, ushort?, CancellationToken)"/>
         /// </summary>
-        /// <param name="silent">if set to <c>true</c> no dialogs will be displayed.</param>
+        [Obsolete("Use CheckApplicationInstanceCertificatesAsync instead.")]
         public Task<bool> CheckApplicationInstanceCertificates(bool silent)
         {
-            return CheckApplicationInstanceCertificates(silent, CertificateFactory.DefaultLifeTime);
+            return CheckApplicationInstanceCertificatesAsync(silent).AsTask();
+        }
+
+        /// <summary>
+        /// <see cref="CheckApplicationInstanceCertificatesAsync(bool, ushort?, CancellationToken)"/>
+        /// </summary>
+        [Obsolete("Use CheckApplicationInstanceCertificatesAsync instead.")]
+        public Task<bool> CheckApplicationInstanceCertificates(
+            bool silent,
+            ushort lifeTimeInMonths,
+            CancellationToken ct = default
+        )
+        {
+            return CheckApplicationInstanceCertificatesAsync(silent, lifeTimeInMonths, ct).AsTask();
+        }
+
+        /// <summary>
+        /// <see cref="DeleteApplicationInstanceCertificateAsync(string[], CancellationToken)"/>
+        /// </summary>
+        [Obsolete("Use DeleteApplicationInstanceCertificateAsync instead.")]
+        public Task DeleteApplicationInstanceCertificate2(string[] profileIds = null, CancellationToken ct = default)
+        {
+            return DeleteApplicationInstanceCertificateAsync(profileIds, ct).AsTask();
         }
 
         /// <summary>
         /// Deletes all application certificates.
         /// </summary>
-        public async Task DeleteApplicationInstanceCertificate(
+        public async ValueTask DeleteApplicationInstanceCertificateAsync(
             string[] profileIds = null,
             CancellationToken ct = default
         )
@@ -461,17 +542,18 @@ namespace Opc.Ua.Configuration
         /// <param name="silent">if set to <c>true</c> no dialogs will be displayed.</param>
         /// <param name="lifeTimeInMonths">The lifetime in months.</param>
         /// <param name="ct"></param>
-        public async Task<bool> CheckApplicationInstanceCertificates(
+        public async ValueTask<bool> CheckApplicationInstanceCertificatesAsync(
             bool silent,
-            ushort lifeTimeInMonths,
+            ushort? lifeTimeInMonths = null,
             CancellationToken ct = default
         )
         {
+            lifeTimeInMonths ??= CertificateFactory.DefaultLifeTime;
             LogInfo("Checking application instance certificate.");
 
             if (ApplicationConfiguration == null)
             {
-                await LoadApplicationConfiguration(silent).ConfigureAwait(false);
+                await LoadApplicationConfigurationAsync(silent, ct).ConfigureAwait(false);
             }
 
             // find the existing certificates.
@@ -489,7 +571,13 @@ namespace Opc.Ua.Configuration
             foreach (CertificateIdentifier certId in securityConfiguration.ApplicationCertificates)
             {
                 ushort minimumKeySize = certId.GetMinKeySize(securityConfiguration);
-                bool nextResult = await CheckCertificateTypeAsync(certId, silent, minimumKeySize, lifeTimeInMonths, ct)
+                bool nextResult = await CheckCertificateTypeAsync(
+                        certId,
+                        silent,
+                        minimumKeySize,
+                        lifeTimeInMonths.Value,
+                        ct
+                    )
                     .ConfigureAwait(false);
                 result = result && nextResult;
             }
@@ -528,10 +616,11 @@ namespace Opc.Ua.Configuration
             ICertificatePasswordProvider passwordProvider = configuration
                 .SecurityConfiguration
                 .CertificatePasswordProvider;
-            await id.LoadPrivateKeyExAsync(passwordProvider, configuration.ApplicationUri).ConfigureAwait(false);
+            await id.LoadPrivateKeyExAsync(passwordProvider, configuration.ApplicationUri, ct).ConfigureAwait(false);
 
             // load the certificate
-            X509Certificate2 certificate = await id.FindAsync(true, configuration.ApplicationUri).ConfigureAwait(false);
+            X509Certificate2 certificate = await id.FindAsync(true, configuration.ApplicationUri, ct)
+                .ConfigureAwait(false);
 
             // check that it is ok.
             if (certificate != null)
@@ -564,7 +653,7 @@ namespace Opc.Ua.Configuration
             else
             {
                 // check for missing private key.
-                certificate = await id.FindAsync(false, configuration.ApplicationUri).ConfigureAwait(false);
+                certificate = await id.FindAsync(false, configuration.ApplicationUri, ct).ConfigureAwait(false);
 
                 if (certificate != null)
                 {
@@ -586,7 +675,7 @@ namespace Opc.Ua.Configuration
                             StorePath = id.StorePath,
                             SubjectName = id.SubjectName,
                         };
-                        certificate = await id2.FindAsync(true, configuration.ApplicationUri).ConfigureAwait(false);
+                        certificate = await id2.FindAsync(true, configuration.ApplicationUri, ct).ConfigureAwait(false);
                     }
 
                     if (certificate != null)
@@ -860,7 +949,7 @@ namespace Opc.Ua.Configuration
                     bool found = false;
 
                     // get IP addresses only if necessary.
-                    addresses ??= await GetHostAddressesAsync(computerName).ConfigureAwait(false);
+                    addresses ??= await GetHostAddressesAsync(computerName, ct).ConfigureAwait(false);
 
                     // check for ip addresses.
                     for (int jj = 0; jj < addresses.Length; jj++)
@@ -986,7 +1075,7 @@ namespace Opc.Ua.Configuration
             }
 
             // reload the certificate from disk.
-            id.Certificate = await id.LoadPrivateKeyExAsync(passwordProvider, configuration.ApplicationUri)
+            id.Certificate = await id.LoadPrivateKeyExAsync(passwordProvider, configuration.ApplicationUri, ct)
                 .ConfigureAwait(false);
 
             await configuration
@@ -1018,7 +1107,7 @@ namespace Opc.Ua.Configuration
             }
 
             // delete certificate and private key.
-            X509Certificate2 certificate = await id.FindAsync(configuration.ApplicationUri).ConfigureAwait(false);
+            X509Certificate2 certificate = await id.FindAsync(configuration.ApplicationUri, ct).ConfigureAwait(false);
             if (certificate != null)
             {
                 LogCertificate(
@@ -1048,7 +1137,7 @@ namespace Opc.Ua.Configuration
                     {
                         try
                         {
-                            bool deleted = await store.DeleteAsync(thumbprint).ConfigureAwait(false);
+                            bool deleted = await store.DeleteAsync(thumbprint, ct).ConfigureAwait(false);
                             if (deleted)
                             {
                                 LogInfo(
@@ -1070,7 +1159,7 @@ namespace Opc.Ua.Configuration
             if (certificate != null)
             {
                 using ICertificateStore store = id.OpenStore();
-                bool deleted = await store.DeleteAsync(certificate.Thumbprint).ConfigureAwait(false);
+                bool deleted = await store.DeleteAsync(certificate.Thumbprint, ct).ConfigureAwait(false);
                 if (deleted)
                 {
                     LogCertificate(
@@ -1133,7 +1222,7 @@ namespace Opc.Ua.Configuration
                 {
                     // check if it already exists.
                     X509Certificate2Collection existingCertificates = await store
-                        .FindByThumbprintAsync(certificate.Thumbprint)
+                        .FindByThumbprintAsync(certificate.Thumbprint, ct)
                         .ConfigureAwait(false);
 
                     if (existingCertificates.Count > 0)
@@ -1146,7 +1235,7 @@ namespace Opc.Ua.Configuration
                     List<string> subjectName = X509Utils.ParseDistinguishedName(certificate.Subject);
 
                     // check for old certificate.
-                    X509Certificate2Collection certificates = await store.EnumerateAsync().ConfigureAwait(false);
+                    X509Certificate2Collection certificates = await store.EnumerateAsync(ct).ConfigureAwait(false);
 
                     for (int ii = 0; ii < certificates.Count; ii++)
                     {
@@ -1180,7 +1269,7 @@ namespace Opc.Ua.Configuration
                             if (deleteCert)
                             {
                                 LogCertificate("Delete Certificate from trusted store.", certificate);
-                                await store.DeleteAsync(certificates[ii].Thumbprint).ConfigureAwait(false);
+                                await store.DeleteAsync(certificates[ii].Thumbprint, ct).ConfigureAwait(false);
                                 break;
                             }
                         }
@@ -1189,7 +1278,7 @@ namespace Opc.Ua.Configuration
                     // add new certificate.
                     X509Certificate2 publicKey = X509CertificateLoader.LoadCertificate(certificate.RawData);
 
-                    await store.AddAsync(publicKey).ConfigureAwait(false);
+                    await store.AddAsync(publicKey, ct: ct).ConfigureAwait(false);
 
                     LogInfo("Added application certificate to trusted peer store.");
                 }

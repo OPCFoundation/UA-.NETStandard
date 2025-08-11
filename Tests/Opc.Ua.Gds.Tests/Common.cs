@@ -40,14 +40,34 @@ using Opc.Ua.Test;
 
 namespace Opc.Ua.Gds.Tests
 {
-    public class ApplicationTestDataGenerator
+    public
+#if NET7_0_OR_GREATER && !NET_STANDARD_TESTS
+    partial
+#endif
+    class ApplicationTestDataGenerator
     {
-        private readonly int m_randomStart = 1;
+#if NET7_0_OR_GREATER && !NET_STANDARD_TESTS
+        [GeneratedRegex(@"[^\w\d\s]")]
+        private static partial Regex Regex1();
+
+        [GeneratedRegex(@"[^\w\d]")]
+        private static partial Regex Regex2();
+#else
+        private static Regex Regex1()
+        {
+            return new(@"[^\w\d\s]");
+        }
+
+        private static Regex Regex2()
+        {
+            return new(@"[^\w\d]");
+        }
+#endif
+
         private readonly ServerCapabilities m_serverCapabilities;
 
         public ApplicationTestDataGenerator(int randomStart)
         {
-            m_randomStart = randomStart;
             m_serverCapabilities = new ServerCapabilities();
             RandomSource = new RandomSource(randomStart);
             DataGenerator = new DataGenerator(RandomSource);
@@ -97,18 +117,13 @@ namespace Opc.Ua.Gds.Tests
             return testDataSet;
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Performance",
-            "SYSLIB1045:Convert to 'GeneratedRegexAttribute'.",
-            Justification = "Tests"
-        )]
         private ApplicationTestData RandomApplicationTestData()
         {
             // TODO: set to discoveryserver
             var appType = (ApplicationType)RandomSource.NextInt32((int)ApplicationType.ClientAndServer);
             string pureAppName = DataGenerator.GetRandomString("en");
-            pureAppName = Regex.Replace(pureAppName, @"[^\w\d\s]", "");
-            string pureAppUri = Regex.Replace(pureAppName, @"[^\w\d]", "");
+            pureAppName = Regex1().Replace(pureAppName, "");
+            string pureAppUri = Regex2().Replace(pureAppName, "");
             string appName = "UA " + pureAppName;
             StringCollection domainNames = RandomDomainNames();
             string localhost = domainNames[0];
@@ -177,14 +192,9 @@ namespace Opc.Ua.Gds.Tests
             return serverCapabilities;
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Performance",
-            "SYSLIB1045:Convert to 'GeneratedRegexAttribute'.",
-            Justification = "Test"
-        )]
         private string RandomLocalHost()
         {
-            string localhost = Regex.Replace(DataGenerator.GetRandomSymbol("en").Trim().ToLower(), @"[^\w\d]", "");
+            string localhost = Regex2().Replace(DataGenerator.GetRandomSymbol("en").Trim().ToLower(), "");
             if (localhost.Length >= 12)
             {
                 localhost = localhost[..12];
@@ -305,10 +315,7 @@ namespace Opc.Ua.Gds.Tests
                 {
                     ConsoleKeyInfo result = Console.ReadKey();
                     Console.WriteLine();
-                    return await Task.FromResult(
-                            (result.KeyChar == 'y') || (result.KeyChar == 'Y') || (result.KeyChar == '\r')
-                        )
-                        .ConfigureAwait(false);
+                    return await Task.FromResult(result.KeyChar is 'y' or 'Y' or '\r').ConfigureAwait(false);
                 }
                 catch
                 {
@@ -323,7 +330,7 @@ namespace Opc.Ua.Gds.Tests
     {
         private static readonly Random s_random = new();
 
-        public static async Task CleanupTrustList(ICertificateStore store, bool dispose = true)
+        public static async Task CleanupTrustListAsync(ICertificateStore store, bool dispose = true)
         {
             System.Security.Cryptography.X509Certificates.X509Certificate2Collection certs = await store
                 .EnumerateAsync()
@@ -359,7 +366,7 @@ namespace Opc.Ua.Gds.Tests
 
         public static void PatchBaseAddressesPorts(ApplicationConfiguration config, int basePort)
         {
-            if (basePort >= kMinPort && basePort <= ServerFixtureUtils.MaxTestPort)
+            if (basePort is >= kMinPort and <= ServerFixtureUtils.MaxTestPort)
             {
                 var newBaseAddresses = new StringCollection();
                 foreach (string baseAddress in config.ServerConfiguration.BaseAddresses)
@@ -373,7 +380,7 @@ namespace Opc.Ua.Gds.Tests
 
         public static string PatchOnlyGDSEndpointUrlPort(string url, int port)
         {
-            if (port >= kMinPort && port <= ServerFixtureUtils.MaxTestPort)
+            if (port is >= kMinPort and <= ServerFixtureUtils.MaxTestPort)
             {
                 var newUrl = new UriBuilder(url);
                 if (newUrl.Path.Contains("GlobalDiscoveryTestServer", StringComparison.Ordinal))
@@ -385,7 +392,7 @@ namespace Opc.Ua.Gds.Tests
             return url;
         }
 
-        public static async Task<GlobalDiscoveryTestServer> StartGDS(
+        public static async Task<GlobalDiscoveryTestServer> StartGDSAsync(
             bool clean,
             string storeType = CertificateStoreType.Directory
         )
@@ -399,7 +406,7 @@ namespace Opc.Ua.Gds.Tests
                 try
                 {
                     server = new GlobalDiscoveryTestServer(true);
-                    await server.StartServer(clean, testPort, storeType).ConfigureAwait(false);
+                    await server.StartServerAsync(clean, testPort, storeType).ConfigureAwait(false);
                 }
                 catch (ServiceResultException sre)
                 {

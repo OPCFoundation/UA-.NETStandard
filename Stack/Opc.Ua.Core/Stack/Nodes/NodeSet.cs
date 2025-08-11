@@ -21,13 +21,7 @@ namespace Opc.Ua
     /// <summary>
     /// A set of nodes in an address space.
     /// </summary>
-    [
-        System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Microsoft.Naming",
-            "CA1710:IdentifiersShouldHaveCorrectSuffix"
-        ),
-        DataContract(Namespace = Namespaces.OpcUaXsd)
-    ]
+    [DataContract(Namespace = Namespaces.OpcUaXsd)]
     [KnownType(typeof(ObjectNode))]
     [KnownType(typeof(ObjectTypeNode))]
     [KnownType(typeof(VariableNode))]

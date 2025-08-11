@@ -132,7 +132,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         [DatapointSource]
         public static readonly BuiltInType[] BuiltInTypes =
-#if NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
         [
             .. Enum.GetValues<BuiltInType>()
 #else
@@ -151,7 +151,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
 
         [DatapointSource]
         public static readonly EncodingType[] EncoderTypes =
-#if NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
         Enum.GetValues<EncodingType>();
 #else
         (EncodingType[])Enum.GetValues(typeof(EncodingType));
@@ -1014,7 +1014,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                 return false;
             }
 
-            return Activator.CreateInstance(systemType) is IEncodeable encodeable;
+            return Activator.CreateInstance(systemType) is IEncodeable;
         }
 
         /// <summary>
@@ -1234,8 +1234,7 @@ namespace Opc.Ua.Core.Tests.Types.Encoders
                     xmlEncodingId,
                     jsonEncodingId,
                     new Dictionary<string, (int, string)> { { "Foo", (1, foo) } }
-                )
-            { }
+                ) { }
 
             public DynamicEncodeable(
                 string xmlName,
