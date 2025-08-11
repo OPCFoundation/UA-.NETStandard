@@ -204,7 +204,7 @@ namespace Opc.Ua.Client.Tests
 
             if (writer != null)
             {
-                ServerFixture.TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security;
+                ServerFixture.TraceMasks = Utils.TraceMasks.All;
             }
 
             await ServerFixture.LoadConfiguration(PkiRoot).ConfigureAwait(false);

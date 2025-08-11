@@ -55,7 +55,7 @@ namespace Opc.Ua.Client.Tests
         public ReverseConnectManager ReverseConnectManager { get; private set; }
         public uint SessionTimeout { get; set; } = 10000;
         public int OperationTimeout { get; set; } = 10000;
-        public int TraceMasks { get; set; } = Utils.TraceMasks.Error | Utils.TraceMasks.StackTrace | Utils.TraceMasks.Security | Utils.TraceMasks.Information;
+        public int TraceMasks { get; set; } = Utils.TraceMasks.All;
         public ISessionFactory SessionFactory { get; set; } = DefaultSessionFactory.Instance;
         public ActivityListener ActivityListener { get; private set; }
 
