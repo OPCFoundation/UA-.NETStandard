@@ -19,6 +19,7 @@ using System.IO;
 using System.Runtime.Serialization;
 using System.Reflection;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua
 {
@@ -185,6 +186,13 @@ namespace Opc.Ua
         /// Raised when the method is called.
         /// </summary>
         public GenericMethodCalledEventHandler2 OnCallMethod2;
+
+        /// <summary>
+        /// Raised when the method is called.
+        /// Takes a Task delegate to allow for asynchronous processing.
+        /// Only works if the server / node managers supports async method calls.
+        /// </summary>
+        public GenericMethodCalledEventHandler2Async OnCallMethod2Async;
         #endregion
 
         #region Serialization Functions
@@ -604,6 +612,27 @@ namespace Opc.Ua
         /// <param name="inputArguments">The input arguments.</param>
         /// <param name="argumentErrors">Any errors for the input arguments.</param>
         /// <param name="outputArguments">The output arguments.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>The result of the method call.</returns>
+        public virtual ValueTask<ServiceResult> CallAsync(
+            ISystemContext context,
+            NodeId objectId,
+            IList<Variant> inputArguments,
+            IList<ServiceResult> argumentErrors,
+            IList<Variant> outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            return CallAsyncInternal(context, objectId, inputArguments, argumentErrors, outputArguments, sync: false, cancellationToken);
+        }
+
+        /// <summary>
+        /// Invokes the methods and returns the output parameters.
+        /// </summary>
+        /// <param name="context">The context to use.</param>
+        /// <param name="objectId">The object being called.</param>
+        /// <param name="inputArguments">The input arguments.</param>
+        /// <param name="argumentErrors">Any errors for the input arguments.</param>
+        /// <param name="outputArguments">The output arguments.</param>
         /// <returns>The result of the method call.</returns>
         public virtual ServiceResult Call(
             ISystemContext context,
@@ -611,6 +640,30 @@ namespace Opc.Ua
             IList<Variant> inputArguments,
             IList<ServiceResult> argumentErrors,
             IList<Variant> outputArguments)
+        {
+            // safe to access result directly as sync = true
+            return CallAsyncInternal(context, objectId, inputArguments, argumentErrors, outputArguments, sync: true).Result;
+        }
+
+        /// <summary>
+        /// Invokes the methods and returns the output parameters.
+        /// </summary>
+        /// <param name="context">The context to use.</param>
+        /// <param name="objectId">The object being called.</param>
+        /// <param name="inputArguments">The input arguments.</param>
+        /// <param name="argumentErrors">Any errors for the input arguments.</param>
+        /// <param name="outputArguments">The output arguments.</param>
+        /// <param name="sync">If the method shall execute synchronously.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>The result of the method call.</returns>
+        protected virtual async ValueTask<ServiceResult> CallAsyncInternal(
+            ISystemContext context,
+            NodeId objectId,
+            IList<Variant> inputArguments,
+            IList<ServiceResult> argumentErrors,
+            IList<Variant> outputArguments,
+            bool sync,
+            CancellationToken cancellationToken = default)
         {
             // check if executable.
             object executable = null;
@@ -698,7 +751,14 @@ namespace Opc.Ua
 
             try
             {
-                result = Call(context, objectId, inputs, outputs);
+                if (sync)
+                {
+                    result = Call(context, objectId, inputs, outputs);
+                }
+                else
+                {
+                    result = await CallAsync(context, objectId, inputs, outputs, cancellationToken).ConfigureAwait(false);
+                }
             }
             catch (Exception e)
             {
@@ -726,6 +786,18 @@ namespace Opc.Ua
             IList<object> outputArguments)
         {
             return Call(context, null, inputArguments, outputArguments);
+        }
+
+        /// <summary>
+        /// Invokes the method, returns the result and output argument.
+        /// </summary>
+        protected virtual ValueTask<ServiceResult> CallAsync(
+            ISystemContext context,
+            IList<object> inputArguments,
+            IList<object> outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            return CallAsync(context, null, inputArguments, outputArguments, cancellationToken);
         }
 
         /// <summary>
@@ -762,6 +834,32 @@ namespace Opc.Ua
             }
 
             return StatusCodes.BadUserAccessDenied;
+        }
+
+        /// <summary>
+        /// Asynchonously invokes the method, returns the result and output argument.
+        /// </summary>
+        /// <param name="context">The current context.</param>
+        /// <param name="objectId">The id of the object.</param>
+        /// <param name="inputArguments">The input arguments which have been already validated.</param>
+        /// <param name="outputArguments">The output arguments which have initialized with thier default values.</param>
+        /// <param name="cancellationToken">The cancellation token</param>
+        /// <returns></returns>
+        protected virtual async ValueTask<ServiceResult> CallAsync(
+            ISystemContext context,
+            NodeId objectId,
+            IList<object> inputArguments,
+            IList<object> outputArguments,
+            CancellationToken cancellationToken = default)
+        {
+            GenericMethodCalledEventHandler2Async onCallMethod2Async = OnCallMethod2Async;
+
+            if (OnCallMethod2Async != null)
+            {
+                return await onCallMethod2Async(context, this, objectId, inputArguments, outputArguments, cancellationToken).ConfigureAwait(false);
+            }
+
+            return Call(context, null, inputArguments, outputArguments);
         }
 
         /// <summary>
@@ -847,4 +945,15 @@ namespace Opc.Ua
         NodeId objectId,
         IList<object> inputArguments,
         IList<object> outputArguments);
+
+    /// <summary>
+    /// Used to process a method call.
+    /// </summary>
+    public delegate ValueTask<ServiceResult> GenericMethodCalledEventHandler2Async(
+        ISystemContext context,
+        MethodState method,
+        NodeId objectId,
+        IList<object> inputArguments,
+        IList<object> outputArguments,
+        CancellationToken cancellationToken = default);
 }
