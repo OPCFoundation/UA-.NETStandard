@@ -552,7 +552,7 @@ namespace Opc.Ua.Server.Tests
                     }
 
                     // Wait a bit to ensure that the server has time to queue the values
-                    Thread.Sleep(100);
+                    Thread.Sleep(500);
                 }
 
                 // call ResendData method from the same session context
