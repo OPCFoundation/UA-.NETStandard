@@ -199,7 +199,7 @@ namespace Opc.Ua.Client.Tests
             Dictionary<string, object> initialValues = GetValues(desiredNodeIds);
 
             uint revisedLifetimeInHours = 0;
-            Assert.True(subscription.SetSubscriptionDurable(requestedHours, out revisedLifetimeInHours));
+            Assert.True(subscription.SetSubscriptionDurable(requestedHours, out revisedLifetimeInHours), "Set Subscription Durable shall return True");
 
             Assert.AreEqual(expectedHours, revisedLifetimeInHours);
 
