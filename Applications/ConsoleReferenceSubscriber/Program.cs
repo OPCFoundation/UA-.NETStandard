@@ -45,11 +45,13 @@ namespace Quickstarts.ConsoleReferenceSubscriber
         public const ushort NamespaceIndexSimple = 2;
         public const ushort NamespaceIndexAllTypes = 3;
 
-        // constant DateTime that represents the initial time when the metadata for the configuration was created
-        private static DateTime kTimeOfConfiguration = new DateTime(2021, 5, 1, 0, 0, 0, DateTimeKind.Utc);
+        /// <summary>
+        /// constant DateTime that represents the initial time when the metadata for the configuration was created
+        /// </summary>
+        private static readonly DateTime s_timeOfConfiguration = new(2021, 5, 1, 0, 0, 0, DateTimeKind.Utc);
         private const string kDisplaySeparator = "------------------------------------------------";
 
-        private static object m_lock = new object();
+        private static readonly Lock s_lock = new();
 
         public static void Main(string[] args)
         {
@@ -62,7 +64,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             bool useUdpUadp = false;
             string subscriberUrl = null;
 
-            Mono.Options.OptionSet options = new Mono.Options.OptionSet
+            var options = new Mono.Options.OptionSet
             {
                 { "h|help", "Show usage information", v => showHelp = v != null },
                 {
@@ -75,7 +77,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                 { "url|subscriber_url=", "Subscriber Url Address", v => subscriberUrl = v },
             };
 
-            IList<string> extraArgs = null;
+            List<string> extraArgs;
             try
             {
                 extraArgs = options.Parse(args);
@@ -143,7 +145,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                 }
 
                 // Create the UA Publisher application
-                using (UaPubSubApplication uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration))
+                using (var uaPubSubApplication = UaPubSubApplication.Create(pubSubConfiguration))
                 {
                     // Subscribte to RawDataReceived event
                     uaPubSubApplication.RawDataReceived += UaPubSubApplication_RawDataReceived;
@@ -161,7 +163,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
 
                     Console.WriteLine("Subscriber Started. Press Ctrl-C to exit...");
 
-                    ManualResetEvent quitEvent = new ManualResetEvent(false);
+                    var quitEvent = new ManualResetEvent(false);
                     try
                     {
                         Console.CancelKeyPress += (sender, eArgs) =>
@@ -194,7 +196,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
         /// <param name="e"></param>
         private static void UaPubSubApplication_RawDataReceived(object sender, RawDataReceivedEventArgs e)
         {
-            lock (m_lock)
+            lock (s_lock)
             {
                 Console.WriteLine(
                     "RawDataReceived bytes:{0}, Source:{1}, TransportProtocol:{2}, MessageMapping:{3}",
@@ -215,26 +217,26 @@ namespace Quickstarts.ConsoleReferenceSubscriber
         /// <param name="e"></param>
         private static void UaPubSubApplication_DataReceived(object sender, SubscribedDataEventArgs e)
         {
-            lock (m_lock)
+            lock (s_lock)
             {
                 Console.WriteLine("DataReceived event:");
 
-                if (e.NetworkMessage is Encoding.UadpNetworkMessage)
+                if (e.NetworkMessage is Encoding.UadpNetworkMessage uadpMessage)
                 {
                     Console.WriteLine(
                         "UADP Network DataSetMessage ({0} DataSets): Source={1}, SequenceNumber={2}",
                         e.NetworkMessage.DataSetMessages.Count,
                         e.Source,
-                        ((Encoding.UadpNetworkMessage)e.NetworkMessage).SequenceNumber
+                        uadpMessage.SequenceNumber
                     );
                 }
-                else if (e.NetworkMessage is Encoding.JsonNetworkMessage)
+                else if (e.NetworkMessage is Encoding.JsonNetworkMessage jsonMessage)
                 {
                     Console.WriteLine(
                         "JSON Network DataSetMessage ({0} DataSets): Source={1}, MessageId={2}",
                         e.NetworkMessage.DataSetMessages.Count,
                         e.Source,
-                        ((Encoding.JsonNetworkMessage)e.NetworkMessage).MessageId
+                        jsonMessage.MessageId
                     );
                 }
 
@@ -269,26 +271,26 @@ namespace Quickstarts.ConsoleReferenceSubscriber
         /// <param name="e"></param>
         private static void UaPubSubApplication_MetaDataDataReceived(object sender, SubscribedDataEventArgs e)
         {
-            lock (m_lock)
+            lock (s_lock)
             {
                 Console.WriteLine("MetaDataDataReceived event:");
-                if (e.NetworkMessage is Encoding.JsonNetworkMessage)
+                if (e.NetworkMessage is Encoding.JsonNetworkMessage jsonMessage)
                 {
                     Console.WriteLine(
                         "JSON Network MetaData Message: Source={0}, PublisherId={1}, DataSetWriterId={2} Fields count={3}\n",
                         e.Source,
-                        ((Encoding.JsonNetworkMessage)e.NetworkMessage).PublisherId,
-                        ((Encoding.JsonNetworkMessage)e.NetworkMessage).DataSetWriterId,
+                        jsonMessage.PublisherId,
+                        jsonMessage.DataSetWriterId,
                         e.NetworkMessage.DataSetMetaData.Fields.Count
                     );
                 }
-                if (e.NetworkMessage is Encoding.UadpNetworkMessage)
+                if (e.NetworkMessage is Encoding.UadpNetworkMessage uapdMessage)
                 {
                     Console.WriteLine(
                         "UADP Network MetaData Message: Source={0}, PublisherId={1}, DataSetWriterId={2} Fields count={3}\n",
                         e.Source,
-                        ((Encoding.UadpNetworkMessage)e.NetworkMessage).PublisherId,
-                        ((Encoding.UadpNetworkMessage)e.NetworkMessage).DataSetWriterId,
+                        uapdMessage.PublisherId,
+                        uapdMessage.DataSetWriterId,
                         e.NetworkMessage.DataSetMetaData.Fields.Count
                     );
                 }
@@ -336,17 +338,21 @@ namespace Quickstarts.ConsoleReferenceSubscriber
         private static PubSubConfigurationDataType CreateSubscriberConfiguration_UdpUadp(string urlAddress)
         {
             // Define a PubSub connection with PublisherId 1
-            PubSubConnectionDataType pubSubConnection1 = new PubSubConnectionDataType();
-            pubSubConnection1.Name = "Subscriber Connection UDP UADP";
-            pubSubConnection1.Enabled = true;
-            pubSubConnection1.PublisherId = (UInt16)1;
-            pubSubConnection1.TransportProfileUri = Profiles.PubSubUdpUadpTransport;
-            NetworkAddressUrlDataType address = new NetworkAddressUrlDataType();
-            // Specify the local Network interface name to be used
-            // e.g. address.NetworkInterface = "Ethernet";
-            // Leave empty to subscribe on all available local interfaces.
-            address.NetworkInterface = String.Empty;
-            address.Url = urlAddress;
+            var pubSubConnection1 = new PubSubConnectionDataType
+            {
+                Name = "Subscriber Connection UDP UADP",
+                Enabled = true,
+                PublisherId = (ushort)1,
+                TransportProfileUri = Profiles.PubSubUdpUadpTransport
+            };
+            var address = new NetworkAddressUrlDataType
+            {
+                // Specify the local Network interface name to be used
+                // e.g. address.NetworkInterface = "Ethernet";
+                // Leave empty to subscribe on all available local interfaces.
+                NetworkInterface = string.Empty,
+                Url = urlAddress
+            };
             pubSubConnection1.Address = new ExtensionObject(address);
 
             // configure custoom DicoveryAddress for Dicovery messages
@@ -362,26 +368,30 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             };
 
             #region Define ReaderGroup1
-            ReaderGroupDataType readerGroup1 = new ReaderGroupDataType();
-            readerGroup1.Name = "ReaderGroup 1";
-            readerGroup1.Enabled = true;
-            readerGroup1.MaxNetworkMessageSize = 1500;
+            var readerGroup1 = new ReaderGroupDataType
+            {
+                Name = "ReaderGroup 1",
+                Enabled = true,
+                MaxNetworkMessageSize = 1500
+            };
 
             #region Define DataSetReader 'Simple' for PublisherId = (UInt16)1, DataSetWriterId = 1
-            DataSetReaderDataType dataSetReaderSimple = new DataSetReaderDataType();
-            dataSetReaderSimple.Name = "Reader 1 UDP UADP";
-            dataSetReaderSimple.PublisherId = (UInt16)1;
-            dataSetReaderSimple.WriterGroupId = 0;
-            dataSetReaderSimple.DataSetWriterId = 1;
-            dataSetReaderSimple.Enabled = true;
-            dataSetReaderSimple.DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData;
-            dataSetReaderSimple.KeyFrameCount = 1;
+            var dataSetReaderSimple = new DataSetReaderDataType
+            {
+                Name = "Reader 1 UDP UADP",
+                PublisherId = (ushort)1,
+                WriterGroupId = 0,
+                DataSetWriterId = 1,
+                Enabled = true,
+                DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData,
+                KeyFrameCount = 1
+            };
 
-            UadpDataSetReaderMessageDataType uadpDataSetReaderMessage = new UadpDataSetReaderMessageDataType()
+            var uadpDataSetReaderMessage = new UadpDataSetReaderMessageDataType()
             {
                 GroupVersion = 0,
                 NetworkMessageNumber = 0,
-                NetworkMessageContentMask = (uint)
+                NetworkMessageContentMask =
                     (uint)(
                         UadpNetworkMessageContentMask.PublisherId
                         | UadpNetworkMessageContentMask.GroupHeader
@@ -400,9 +410,11 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             DataSetMetaDataType simpleMetaData = CreateDataSetMetaDataSimple();
             dataSetReaderSimple.DataSetMetaData = simpleMetaData;
             // Create and set SubscribedDataSet
-            TargetVariablesDataType subscribedDataSet = new TargetVariablesDataType();
-            subscribedDataSet.TargetVariables = new FieldTargetDataTypeCollection();
-            foreach (var fieldMetaData in simpleMetaData.Fields)
+            var subscribedDataSet = new TargetVariablesDataType
+            {
+                TargetVariables = []
+            };
+            foreach (FieldMetaData fieldMetaData in simpleMetaData.Fields)
             {
                 subscribedDataSet.TargetVariables.Add(
                     new FieldTargetDataType()
@@ -412,7 +424,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                         AttributeId = Attributes.Value,
                         OverrideValueHandling = OverrideValueHandling.OverrideValue,
                         OverrideValue = new Variant(
-                            TypeInfo.GetDefaultValue(fieldMetaData.DataType, (int)ValueRanks.Scalar)
+                            TypeInfo.GetDefaultValue(fieldMetaData.DataType, ValueRanks.Scalar)
                         ),
                     }
                 );
@@ -425,20 +437,22 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             readerGroup1.DataSetReaders.Add(dataSetReaderSimple);
 
             #region Define DataSetReader 'AllTypes' for PublisherId = (UInt16)1, DataSetWriterId = 2
-            DataSetReaderDataType dataSetReaderAllTypes = new DataSetReaderDataType();
-            dataSetReaderAllTypes.Name = "Reader 2 UDP UADP";
-            dataSetReaderAllTypes.PublisherId = (UInt16)1;
-            dataSetReaderAllTypes.WriterGroupId = 0;
-            dataSetReaderAllTypes.DataSetWriterId = 2;
-            dataSetReaderAllTypes.Enabled = true;
-            dataSetReaderAllTypes.DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData;
-            dataSetReaderAllTypes.KeyFrameCount = 1;
+            var dataSetReaderAllTypes = new DataSetReaderDataType
+            {
+                Name = "Reader 2 UDP UADP",
+                PublisherId = (ushort)1,
+                WriterGroupId = 0,
+                DataSetWriterId = 2,
+                Enabled = true,
+                DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData,
+                KeyFrameCount = 1
+            };
 
             uadpDataSetReaderMessage = new UadpDataSetReaderMessageDataType()
             {
                 GroupVersion = 0,
                 NetworkMessageNumber = 0,
-                NetworkMessageContentMask = (uint)
+                NetworkMessageContentMask =
                     (uint)(
                         UadpNetworkMessageContentMask.PublisherId
                         | UadpNetworkMessageContentMask.GroupHeader
@@ -457,9 +471,11 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             DataSetMetaDataType allTypesMetaData = CreateDataSetMetaDataAllTypes();
             dataSetReaderAllTypes.DataSetMetaData = allTypesMetaData;
             // Create and set SubscribedDataSet
-            subscribedDataSet = new TargetVariablesDataType();
-            subscribedDataSet.TargetVariables = new FieldTargetDataTypeCollection();
-            foreach (var fieldMetaData in allTypesMetaData.Fields)
+            subscribedDataSet = new TargetVariablesDataType
+            {
+                TargetVariables = []
+            };
+            foreach (FieldMetaData fieldMetaData in allTypesMetaData.Fields)
             {
                 subscribedDataSet.TargetVariables.Add(
                     new FieldTargetDataType()
@@ -469,7 +485,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                         AttributeId = Attributes.Value,
                         OverrideValueHandling = OverrideValueHandling.OverrideValue,
                         OverrideValue = new Variant(
-                            TypeInfo.GetDefaultValue(fieldMetaData.DataType, (int)ValueRanks.Scalar)
+                            TypeInfo.GetDefaultValue(fieldMetaData.DataType, ValueRanks.Scalar)
                         ),
                     }
                 );
@@ -485,10 +501,10 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             pubSubConnection1.ReaderGroups.Add(readerGroup1);
 
             //create  pub sub configuration root object
-            PubSubConfigurationDataType pubSubConfiguration = new PubSubConfigurationDataType();
-            pubSubConfiguration.Connections = new PubSubConnectionDataTypeCollection() { pubSubConnection1 };
-
-            return pubSubConfiguration;
+            return new PubSubConfigurationDataType
+            {
+                Connections = [pubSubConnection1]
+            };
         }
 
         /// <summary>
@@ -498,48 +514,54 @@ namespace Quickstarts.ConsoleReferenceSubscriber
         private static PubSubConfigurationDataType CreateSubscriberConfiguration_MqttJson(string urlAddress)
         {
             // Define a PubSub connection with PublisherId 2
-            PubSubConnectionDataType pubSubConnection1 = new PubSubConnectionDataType();
-            pubSubConnection1.Name = "Subscriber Connection MQTT Json";
-            pubSubConnection1.Enabled = true;
-            pubSubConnection1.PublisherId = (UInt16)2;
-            pubSubConnection1.TransportProfileUri = Profiles.PubSubMqttJsonTransport;
-            NetworkAddressUrlDataType address = new NetworkAddressUrlDataType();
-            // Specify the local Network interface name to be used
-            // e.g. address.NetworkInterface = "Ethernet";
-            // Leave empty to subscribe on all available local interfaces.
-            address.NetworkInterface = String.Empty;
-            address.Url = urlAddress;
+            var pubSubConnection1 = new PubSubConnectionDataType
+            {
+                Name = "Subscriber Connection MQTT Json",
+                Enabled = true,
+                PublisherId = (ushort)2,
+                TransportProfileUri = Profiles.PubSubMqttJsonTransport
+            };
+            var address = new NetworkAddressUrlDataType
+            {
+                // Specify the local Network interface name to be used
+                // e.g. address.NetworkInterface = "Ethernet";
+                // Leave empty to subscribe on all available local interfaces.
+                NetworkInterface = string.Empty,
+                Url = urlAddress
+            };
             pubSubConnection1.Address = new ExtensionObject(address);
 
             // Configure the mqtt specific configuration with the MQTTbroker
-            ITransportProtocolConfiguration mqttConfiguration = new MqttClientProtocolConfiguration(
-                version: EnumMqttProtocolVersion.V500
-            );
+            var mqttConfiguration = new MqttClientProtocolConfiguration(version: EnumMqttProtocolVersion.V500);
             pubSubConnection1.ConnectionProperties = mqttConfiguration.ConnectionProperties;
 
-            string brokerQueueName = "Json_WriterGroup_1";
-            string brokerMetaData = "$Metadata";
+            const string brokerQueueName = "Json_WriterGroup_1";
+            const string brokerMetaData = "$Metadata";
 
             #region Define ReaderGroup1
-            ReaderGroupDataType readerGroup1 = new ReaderGroupDataType();
-            readerGroup1.Name = "ReaderGroup 1";
-            readerGroup1.Enabled = true;
-            readerGroup1.MaxNetworkMessageSize = 1500;
+            var readerGroup1 = new ReaderGroupDataType
+            {
+                Name = "ReaderGroup 1",
+                Enabled = true,
+                MaxNetworkMessageSize = 1500
+            };
 
             #region Define DataSetReader1 'Simple' for PublisherId = (UInt16)2, DataSetWriterId = 1
 
-            DataSetReaderDataType dataSetReaderSimple = new DataSetReaderDataType();
-            dataSetReaderSimple.Name = "Reader 1 MQTT JSON Variant Encoding";
-            dataSetReaderSimple.PublisherId = (UInt16)2;
-            dataSetReaderSimple.WriterGroupId = 1;
-            dataSetReaderSimple.DataSetWriterId = 1;
-            dataSetReaderSimple.Enabled = true;
-            dataSetReaderSimple.DataSetFieldContentMask = (uint)DataSetFieldContentMask.None; // Variant encoding;
-            dataSetReaderSimple.KeyFrameCount = 3;
-
-            JsonDataSetReaderMessageDataType jsonDataSetReaderMessage = new JsonDataSetReaderMessageDataType()
+            var dataSetReaderSimple = new DataSetReaderDataType
             {
-                NetworkMessageContentMask = (uint)
+                Name = "Reader 1 MQTT JSON Variant Encoding",
+                PublisherId = (ushort)2,
+                WriterGroupId = 1,
+                DataSetWriterId = 1,
+                Enabled = true,
+                DataSetFieldContentMask = (uint)DataSetFieldContentMask.None, // Variant encoding;
+                KeyFrameCount = 3
+            };
+
+            var jsonDataSetReaderMessage = new JsonDataSetReaderMessageDataType()
+            {
+                NetworkMessageContentMask =
                     (uint)(
                         JsonNetworkMessageContentMask.NetworkMessageHeader
                         | JsonNetworkMessageContentMask.DataSetMessageHeader
@@ -557,7 +579,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             };
             dataSetReaderSimple.MessageSettings = new ExtensionObject(jsonDataSetReaderMessage);
 
-            BrokerDataSetReaderTransportDataType brokerTransportSettings = new BrokerDataSetReaderTransportDataType()
+            var brokerTransportSettings = new BrokerDataSetReaderTransportDataType()
             {
                 QueueName = brokerQueueName,
                 RequestedDeliveryGuarantee = BrokerTransportQualityOfService.BestEffort,
@@ -569,9 +591,11 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             DataSetMetaDataType simpleMetaData = CreateDataSetMetaDataSimple();
             dataSetReaderSimple.DataSetMetaData = simpleMetaData;
             // Create and set SubscribedDataSet
-            TargetVariablesDataType subscribedDataSet = new TargetVariablesDataType();
-            subscribedDataSet.TargetVariables = new FieldTargetDataTypeCollection();
-            foreach (var fieldMetaData in simpleMetaData.Fields)
+            var subscribedDataSet = new TargetVariablesDataType
+            {
+                TargetVariables = []
+            };
+            foreach (FieldMetaData fieldMetaData in simpleMetaData.Fields)
             {
                 subscribedDataSet.TargetVariables.Add(
                     new FieldTargetDataType()
@@ -581,7 +605,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                         AttributeId = Attributes.Value,
                         OverrideValueHandling = OverrideValueHandling.OverrideValue,
                         OverrideValue = new Variant(
-                            TypeInfo.GetDefaultValue(fieldMetaData.DataType, (int)ValueRanks.Scalar)
+                            TypeInfo.GetDefaultValue(fieldMetaData.DataType, ValueRanks.Scalar)
                         ),
                     }
                 );
@@ -594,14 +618,16 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             readerGroup1.DataSetReaders.Add(dataSetReaderSimple);
 
             #region Define DataSetReader2 'AllTypes' for PublisherId = (UInt16)2, DataSetWriterId = 2
-            DataSetReaderDataType dataSetReaderAllTypes = new DataSetReaderDataType();
-            dataSetReaderAllTypes.Name = "Reader 2 MQTT JSON RawData Encoding";
-            dataSetReaderAllTypes.PublisherId = (UInt16)2;
-            dataSetReaderAllTypes.WriterGroupId = 1;
-            dataSetReaderAllTypes.DataSetWriterId = 2;
-            dataSetReaderAllTypes.Enabled = true;
-            dataSetReaderAllTypes.DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData; // RawData encoding;
-            dataSetReaderAllTypes.KeyFrameCount = 1;
+            var dataSetReaderAllTypes = new DataSetReaderDataType
+            {
+                Name = "Reader 2 MQTT JSON RawData Encoding",
+                PublisherId = (ushort)2,
+                WriterGroupId = 1,
+                DataSetWriterId = 2,
+                Enabled = true,
+                DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData, // RawData encoding;
+                KeyFrameCount = 1
+            };
 
             jsonDataSetReaderMessage = new JsonDataSetReaderMessageDataType()
             {
@@ -634,9 +660,11 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             DataSetMetaDataType allTypesMetaData = CreateDataSetMetaDataAllTypes();
             dataSetReaderAllTypes.DataSetMetaData = allTypesMetaData;
             // Create and set SubscribedDataSet
-            subscribedDataSet = new TargetVariablesDataType();
-            subscribedDataSet.TargetVariables = new FieldTargetDataTypeCollection();
-            foreach (var fieldMetaData in allTypesMetaData.Fields)
+            subscribedDataSet = new TargetVariablesDataType
+            {
+                TargetVariables = []
+            };
+            foreach (FieldMetaData fieldMetaData in allTypesMetaData.Fields)
             {
                 subscribedDataSet.TargetVariables.Add(
                     new FieldTargetDataType()
@@ -646,7 +674,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                         AttributeId = Attributes.Value,
                         OverrideValueHandling = OverrideValueHandling.OverrideValue,
                         OverrideValue = new Variant(
-                            TypeInfo.GetDefaultValue(fieldMetaData.DataType, (int)ValueRanks.Scalar)
+                            TypeInfo.GetDefaultValue(fieldMetaData.DataType, ValueRanks.Scalar)
                         ),
                     }
                 );
@@ -662,10 +690,10 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             pubSubConnection1.ReaderGroups.Add(readerGroup1);
 
             //create  pub sub configuration root object
-            PubSubConfigurationDataType pubSubConfiguration = new PubSubConfigurationDataType();
-            pubSubConfiguration.Connections = new PubSubConnectionDataTypeCollection() { pubSubConnection1 };
-
-            return pubSubConfiguration;
+            return new PubSubConfigurationDataType
+            {
+                Connections = [pubSubConnection1]
+            };
         }
 
         /// <summary>
@@ -675,44 +703,50 @@ namespace Quickstarts.ConsoleReferenceSubscriber
         private static PubSubConfigurationDataType CreateSubscriberConfiguration_MqttUadp(string urlAddress)
         {
             // Define a PubSub connection with PublisherId 3
-            PubSubConnectionDataType pubSubConnection1 = new PubSubConnectionDataType();
-            pubSubConnection1.Name = "Subscriber Connection MQTT UADP";
-            pubSubConnection1.Enabled = true;
-            pubSubConnection1.PublisherId = (UInt16)3;
-            pubSubConnection1.TransportProfileUri = Profiles.PubSubMqttUadpTransport;
-            NetworkAddressUrlDataType address = new NetworkAddressUrlDataType();
-            // Specify the local Network interface name to be used
-            // e.g. address.NetworkInterface = "Ethernet";
-            // Leave empty to subscribe on all available local interfaces.
-            address.NetworkInterface = String.Empty;
-            address.Url = urlAddress;
+            var pubSubConnection1 = new PubSubConnectionDataType
+            {
+                Name = "Subscriber Connection MQTT UADP",
+                Enabled = true,
+                PublisherId = (ushort)3,
+                TransportProfileUri = Profiles.PubSubMqttUadpTransport
+            };
+            var address = new NetworkAddressUrlDataType
+            {
+                // Specify the local Network interface name to be used
+                // e.g. address.NetworkInterface = "Ethernet";
+                // Leave empty to subscribe on all available local interfaces.
+                NetworkInterface = string.Empty,
+                Url = urlAddress
+            };
             pubSubConnection1.Address = new ExtensionObject(address);
 
             // Configure the mqtt specific configuration with the MQTTbroker
-            ITransportProtocolConfiguration mqttConfiguration = new MqttClientProtocolConfiguration(
-                version: EnumMqttProtocolVersion.V500
-            );
+            var mqttConfiguration = new MqttClientProtocolConfiguration(version: EnumMqttProtocolVersion.V500);
             pubSubConnection1.ConnectionProperties = mqttConfiguration.ConnectionProperties;
 
-            string brokerQueueName = "Uadp_WriterGroup_1";
-            string brokerMetaData = "$Metadata";
+            const string brokerQueueName = "Uadp_WriterGroup_1";
+            const string brokerMetaData = "$Metadata";
 
             #region Define ReaderGroup1
-            ReaderGroupDataType readerGroup1 = new ReaderGroupDataType();
-            readerGroup1.Name = "ReaderGroup 1";
-            readerGroup1.Enabled = true;
-            readerGroup1.MaxNetworkMessageSize = 1500;
+            var readerGroup1 = new ReaderGroupDataType
+            {
+                Name = "ReaderGroup 1",
+                Enabled = true,
+                MaxNetworkMessageSize = 1500
+            };
 
             #region Define DataSetReader 'Simple' for PublisherId = (UInt16)1, DataSetWriterId = 1
-            DataSetReaderDataType dataSetReaderSimple = new DataSetReaderDataType();
-            dataSetReaderSimple.Name = "Reader 1 MQTT UADP";
-            dataSetReaderSimple.PublisherId = (UInt16)3;
-            dataSetReaderSimple.WriterGroupId = 0;
-            dataSetReaderSimple.DataSetWriterId = 1;
-            dataSetReaderSimple.Enabled = true;
-            dataSetReaderSimple.DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData;
-            dataSetReaderSimple.KeyFrameCount = 1;
-            BrokerDataSetReaderTransportDataType brokerTransportSettings = new BrokerDataSetReaderTransportDataType()
+            var dataSetReaderSimple = new DataSetReaderDataType
+            {
+                Name = "Reader 1 MQTT UADP",
+                PublisherId = (ushort)3,
+                WriterGroupId = 0,
+                DataSetWriterId = 1,
+                Enabled = true,
+                DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData,
+                KeyFrameCount = 1
+            };
+            var brokerTransportSettings = new BrokerDataSetReaderTransportDataType()
             {
                 QueueName = brokerQueueName,
                 MetaDataQueueName = $"{brokerQueueName}/{brokerMetaData}",
@@ -720,11 +754,11 @@ namespace Quickstarts.ConsoleReferenceSubscriber
 
             dataSetReaderSimple.TransportSettings = new ExtensionObject(brokerTransportSettings);
 
-            UadpDataSetReaderMessageDataType uadpDataSetReaderMessage = new UadpDataSetReaderMessageDataType()
+            var uadpDataSetReaderMessage = new UadpDataSetReaderMessageDataType()
             {
                 GroupVersion = 0,
                 NetworkMessageNumber = 0,
-                NetworkMessageContentMask = (uint)
+                NetworkMessageContentMask =
                     (uint)(
                         UadpNetworkMessageContentMask.PublisherId
                         | UadpNetworkMessageContentMask.GroupHeader
@@ -744,9 +778,11 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             DataSetMetaDataType simpleMetaData = CreateDataSetMetaDataSimple();
             dataSetReaderSimple.DataSetMetaData = simpleMetaData;
             // Create and set SubscribedDataSet
-            TargetVariablesDataType subscribedDataSet = new TargetVariablesDataType();
-            subscribedDataSet.TargetVariables = new FieldTargetDataTypeCollection();
-            foreach (var fieldMetaData in simpleMetaData.Fields)
+            var subscribedDataSet = new TargetVariablesDataType
+            {
+                TargetVariables = []
+            };
+            foreach (FieldMetaData fieldMetaData in simpleMetaData.Fields)
             {
                 subscribedDataSet.TargetVariables.Add(
                     new FieldTargetDataType()
@@ -756,7 +792,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                         AttributeId = Attributes.Value,
                         OverrideValueHandling = OverrideValueHandling.OverrideValue,
                         OverrideValue = new Variant(
-                            TypeInfo.GetDefaultValue(fieldMetaData.DataType, (int)ValueRanks.Scalar)
+                            TypeInfo.GetDefaultValue(fieldMetaData.DataType, ValueRanks.Scalar)
                         ),
                     }
                 );
@@ -769,22 +805,24 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             readerGroup1.DataSetReaders.Add(dataSetReaderSimple);
 
             #region Define DataSetReader 'AllTypes' for PublisherId = (UInt16)1, DataSetWriterId = 2
-            DataSetReaderDataType dataSetReaderAllTypes = new DataSetReaderDataType();
-            dataSetReaderAllTypes.Name = "Reader 2 MQTT UADP";
-            dataSetReaderAllTypes.PublisherId = (UInt16)3;
-            dataSetReaderAllTypes.WriterGroupId = 0;
-            dataSetReaderAllTypes.DataSetWriterId = 2;
-            dataSetReaderAllTypes.Enabled = true;
-            dataSetReaderAllTypes.DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData;
-            dataSetReaderAllTypes.KeyFrameCount = 1;
+            var dataSetReaderAllTypes = new DataSetReaderDataType
+            {
+                Name = "Reader 2 MQTT UADP",
+                PublisherId = (ushort)3,
+                WriterGroupId = 0,
+                DataSetWriterId = 2,
+                Enabled = true,
+                DataSetFieldContentMask = (uint)DataSetFieldContentMask.RawData,
+                KeyFrameCount = 1,
 
-            dataSetReaderAllTypes.TransportSettings = new ExtensionObject(brokerTransportSettings);
+                TransportSettings = new ExtensionObject(brokerTransportSettings)
+            };
 
             uadpDataSetReaderMessage = new UadpDataSetReaderMessageDataType()
             {
                 GroupVersion = 0,
                 NetworkMessageNumber = 0,
-                NetworkMessageContentMask = (uint)
+                NetworkMessageContentMask =
                     (uint)(
                         UadpNetworkMessageContentMask.PublisherId
                         | UadpNetworkMessageContentMask.GroupHeader
@@ -804,9 +842,11 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             DataSetMetaDataType allTypesMetaData = CreateDataSetMetaDataAllTypes();
             dataSetReaderAllTypes.DataSetMetaData = allTypesMetaData;
             // Create and set SubscribedDataSet
-            subscribedDataSet = new TargetVariablesDataType();
-            subscribedDataSet.TargetVariables = new FieldTargetDataTypeCollection();
-            foreach (var fieldMetaData in allTypesMetaData.Fields)
+            subscribedDataSet = new TargetVariablesDataType
+            {
+                TargetVariables = []
+            };
+            foreach (FieldMetaData fieldMetaData in allTypesMetaData.Fields)
             {
                 subscribedDataSet.TargetVariables.Add(
                     new FieldTargetDataType()
@@ -816,7 +856,7 @@ namespace Quickstarts.ConsoleReferenceSubscriber
                         AttributeId = Attributes.Value,
                         OverrideValueHandling = OverrideValueHandling.OverrideValue,
                         OverrideValue = new Variant(
-                            TypeInfo.GetDefaultValue(fieldMetaData.DataType, (int)ValueRanks.Scalar)
+                            TypeInfo.GetDefaultValue(fieldMetaData.DataType, ValueRanks.Scalar)
                         ),
                     }
                 );
@@ -832,10 +872,10 @@ namespace Quickstarts.ConsoleReferenceSubscriber
             pubSubConnection1.ReaderGroups.Add(readerGroup1);
 
             //create  pub sub configuration root object
-            PubSubConfigurationDataType pubSubConfiguration = new PubSubConfigurationDataType();
-            pubSubConfiguration.Connections = new PubSubConnectionDataTypeCollection() { pubSubConnection1 };
-
-            return pubSubConfiguration;
+            return new PubSubConfigurationDataType
+            {
+                Connections = [pubSubConnection1]
+            };
         }
 
         /// <summary>
@@ -844,52 +884,52 @@ namespace Quickstarts.ConsoleReferenceSubscriber
         /// <returns></returns>
         private static DataSetMetaDataType CreateDataSetMetaDataSimple()
         {
-            DataSetMetaDataType simpleMetaData = new DataSetMetaDataType();
-            simpleMetaData.DataSetClassId = new Uuid(Guid.Empty);
-            simpleMetaData.Name = "Simple";
-            simpleMetaData.Fields = new FieldMetaDataCollection()
+            return new DataSetMetaDataType
             {
-                new FieldMetaData()
+                DataSetClassId = new Uuid(Guid.Empty),
+                Name = "Simple",
+                Fields =
+                [
+                    new FieldMetaData()
+                    {
+                        Name = "BoolToggle",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)DataTypes.Boolean,
+                        DataType = DataTypeIds.Boolean,
+                        ValueRank = ValueRanks.Scalar,
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "Int32",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)DataTypes.Int32,
+                        DataType = DataTypeIds.Int32,
+                        ValueRank = ValueRanks.Scalar,
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "Int32Fast",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)DataTypes.Int32,
+                        DataType = DataTypeIds.Int32,
+                        ValueRank = ValueRanks.Scalar,
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "DateTime",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)DataTypes.DateTime,
+                        DataType = DataTypeIds.DateTime,
+                        ValueRank = ValueRanks.Scalar,
+                    },
+                ],
+                // set the ConfigurationVersion relative to kTimeOfConfiguration constant
+                ConfigurationVersion = new ConfigurationVersionDataType()
                 {
-                    Name = "BoolToggle",
-                    DataSetFieldId = new Uuid(Guid.NewGuid()),
-                    BuiltInType = (byte)DataTypes.Boolean,
-                    DataType = DataTypeIds.Boolean,
-                    ValueRank = ValueRanks.Scalar,
-                },
-                new FieldMetaData()
-                {
-                    Name = "Int32",
-                    DataSetFieldId = new Uuid(Guid.NewGuid()),
-                    BuiltInType = (byte)DataTypes.Int32,
-                    DataType = DataTypeIds.Int32,
-                    ValueRank = ValueRanks.Scalar,
-                },
-                new FieldMetaData()
-                {
-                    Name = "Int32Fast",
-                    DataSetFieldId = new Uuid(Guid.NewGuid()),
-                    BuiltInType = (byte)DataTypes.Int32,
-                    DataType = DataTypeIds.Int32,
-                    ValueRank = ValueRanks.Scalar,
-                },
-                new FieldMetaData()
-                {
-                    Name = "DateTime",
-                    DataSetFieldId = new Uuid(Guid.NewGuid()),
-                    BuiltInType = (byte)DataTypes.DateTime,
-                    DataType = DataTypeIds.DateTime,
-                    ValueRank = ValueRanks.Scalar,
-                },
+                    MinorVersion = ConfigurationVersionUtils.CalculateVersionTime(s_timeOfConfiguration),
+                    MajorVersion = ConfigurationVersionUtils.CalculateVersionTime(s_timeOfConfiguration),
+                }
             };
-            // set the ConfigurationVersion relative to kTimeOfConfiguration constant
-            simpleMetaData.ConfigurationVersion = new ConfigurationVersionDataType()
-            {
-                MinorVersion = ConfigurationVersionUtils.CalculateVersionTime(kTimeOfConfiguration),
-                MajorVersion = ConfigurationVersionUtils.CalculateVersionTime(kTimeOfConfiguration),
-            };
-
-            return simpleMetaData;
         }
 
         /// <summary>
@@ -898,140 +938,140 @@ namespace Quickstarts.ConsoleReferenceSubscriber
         /// <returns></returns>
         private static DataSetMetaDataType CreateDataSetMetaDataAllTypes()
         {
-            DataSetMetaDataType allTypesMetaData = new DataSetMetaDataType();
-            allTypesMetaData.DataSetClassId = new Uuid(Guid.Empty);
-            allTypesMetaData.Name = "AllTypes";
-            allTypesMetaData.Fields = new FieldMetaDataCollection()
+            return new DataSetMetaDataType
             {
-                new FieldMetaData()
+                DataSetClassId = new Uuid(Guid.Empty),
+                Name = "AllTypes",
+                Fields =
+                [
+                    new FieldMetaData()
+                    {
+                        Name = "BoolToggle",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)DataTypes.Boolean,
+                        DataType = DataTypeIds.Boolean,
+                        ValueRank = ValueRanks.Scalar,
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "Byte",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)DataTypes.Byte,
+                        DataType = DataTypeIds.Byte,
+                        ValueRank = ValueRanks.Scalar,
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "Int16",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)DataTypes.Int16,
+                        DataType = DataTypeIds.Int16,
+                        ValueRank = ValueRanks.Scalar,
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "Int32",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)DataTypes.Int32,
+                        DataType = DataTypeIds.Int32,
+                        ValueRank = ValueRanks.Scalar,
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "SByte",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)DataTypes.SByte,
+                        DataType = DataTypeIds.SByte,
+                        ValueRank = ValueRanks.Scalar,
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "UInt16",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)DataTypes.UInt16,
+                        DataType = DataTypeIds.UInt16,
+                        ValueRank = ValueRanks.Scalar,
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "UInt32",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)DataTypes.UInt32,
+                        DataType = DataTypeIds.UInt32,
+                        ValueRank = ValueRanks.Scalar,
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "UInt64",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)DataTypes.UInt64,
+                        DataType = DataTypeIds.UInt64,
+                        ValueRank = ValueRanks.Scalar,
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "Float",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)DataTypes.Float,
+                        DataType = DataTypeIds.Float,
+                        ValueRank = ValueRanks.Scalar,
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "Double",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)DataTypes.Double,
+                        DataType = DataTypeIds.Double,
+                        ValueRank = ValueRanks.Scalar,
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "String",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)DataTypes.String,
+                        DataType = DataTypeIds.String,
+                        ValueRank = ValueRanks.Scalar,
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "ByteString",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)DataTypes.ByteString,
+                        DataType = DataTypeIds.ByteString,
+                        ValueRank = ValueRanks.Scalar,
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "Guid",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)DataTypes.Guid,
+                        DataType = DataTypeIds.Guid,
+                        ValueRank = ValueRanks.Scalar,
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "DateTime",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)DataTypes.DateTime,
+                        DataType = DataTypeIds.DateTime,
+                        ValueRank = ValueRanks.Scalar,
+                    },
+                    new FieldMetaData()
+                    {
+                        Name = "UInt32Array",
+                        DataSetFieldId = new Uuid(Guid.NewGuid()),
+                        BuiltInType = (byte)DataTypes.UInt32,
+                        DataType = DataTypeIds.UInt32,
+                        ValueRank = ValueRanks.OneDimension,
+                    },
+                ],
+                // set the ConfigurationVersion relative to kTimeOfConfiguration constant
+                ConfigurationVersion = new ConfigurationVersionDataType()
                 {
-                    Name = "BoolToggle",
-                    DataSetFieldId = new Uuid(Guid.NewGuid()),
-                    BuiltInType = (byte)DataTypes.Boolean,
-                    DataType = DataTypeIds.Boolean,
-                    ValueRank = ValueRanks.Scalar,
-                },
-                new FieldMetaData()
-                {
-                    Name = "Byte",
-                    DataSetFieldId = new Uuid(Guid.NewGuid()),
-                    BuiltInType = (byte)DataTypes.Byte,
-                    DataType = DataTypeIds.Byte,
-                    ValueRank = ValueRanks.Scalar,
-                },
-                new FieldMetaData()
-                {
-                    Name = "Int16",
-                    DataSetFieldId = new Uuid(Guid.NewGuid()),
-                    BuiltInType = (byte)DataTypes.Int16,
-                    DataType = DataTypeIds.Int16,
-                    ValueRank = ValueRanks.Scalar,
-                },
-                new FieldMetaData()
-                {
-                    Name = "Int32",
-                    DataSetFieldId = new Uuid(Guid.NewGuid()),
-                    BuiltInType = (byte)DataTypes.Int32,
-                    DataType = DataTypeIds.Int32,
-                    ValueRank = ValueRanks.Scalar,
-                },
-                new FieldMetaData()
-                {
-                    Name = "SByte",
-                    DataSetFieldId = new Uuid(Guid.NewGuid()),
-                    BuiltInType = (byte)DataTypes.SByte,
-                    DataType = DataTypeIds.SByte,
-                    ValueRank = ValueRanks.Scalar,
-                },
-                new FieldMetaData()
-                {
-                    Name = "UInt16",
-                    DataSetFieldId = new Uuid(Guid.NewGuid()),
-                    BuiltInType = (byte)DataTypes.UInt16,
-                    DataType = DataTypeIds.UInt16,
-                    ValueRank = ValueRanks.Scalar,
-                },
-                new FieldMetaData()
-                {
-                    Name = "UInt32",
-                    DataSetFieldId = new Uuid(Guid.NewGuid()),
-                    BuiltInType = (byte)DataTypes.UInt32,
-                    DataType = DataTypeIds.UInt32,
-                    ValueRank = ValueRanks.Scalar,
-                },
-                new FieldMetaData()
-                {
-                    Name = "UInt64",
-                    DataSetFieldId = new Uuid(Guid.NewGuid()),
-                    BuiltInType = (byte)DataTypes.UInt64,
-                    DataType = DataTypeIds.UInt64,
-                    ValueRank = ValueRanks.Scalar,
-                },
-                new FieldMetaData()
-                {
-                    Name = "Float",
-                    DataSetFieldId = new Uuid(Guid.NewGuid()),
-                    BuiltInType = (byte)DataTypes.Float,
-                    DataType = DataTypeIds.Float,
-                    ValueRank = ValueRanks.Scalar,
-                },
-                new FieldMetaData()
-                {
-                    Name = "Double",
-                    DataSetFieldId = new Uuid(Guid.NewGuid()),
-                    BuiltInType = (byte)DataTypes.Double,
-                    DataType = DataTypeIds.Double,
-                    ValueRank = ValueRanks.Scalar,
-                },
-                new FieldMetaData()
-                {
-                    Name = "String",
-                    DataSetFieldId = new Uuid(Guid.NewGuid()),
-                    BuiltInType = (byte)DataTypes.String,
-                    DataType = DataTypeIds.String,
-                    ValueRank = ValueRanks.Scalar,
-                },
-                new FieldMetaData()
-                {
-                    Name = "ByteString",
-                    DataSetFieldId = new Uuid(Guid.NewGuid()),
-                    BuiltInType = (byte)DataTypes.ByteString,
-                    DataType = DataTypeIds.ByteString,
-                    ValueRank = ValueRanks.Scalar,
-                },
-                new FieldMetaData()
-                {
-                    Name = "Guid",
-                    DataSetFieldId = new Uuid(Guid.NewGuid()),
-                    BuiltInType = (byte)DataTypes.Guid,
-                    DataType = DataTypeIds.Guid,
-                    ValueRank = ValueRanks.Scalar,
-                },
-                new FieldMetaData()
-                {
-                    Name = "DateTime",
-                    DataSetFieldId = new Uuid(Guid.NewGuid()),
-                    BuiltInType = (byte)DataTypes.DateTime,
-                    DataType = DataTypeIds.DateTime,
-                    ValueRank = ValueRanks.Scalar,
-                },
-                new FieldMetaData()
-                {
-                    Name = "UInt32Array",
-                    DataSetFieldId = new Uuid(Guid.NewGuid()),
-                    BuiltInType = (byte)DataTypes.UInt32,
-                    DataType = DataTypeIds.UInt32,
-                    ValueRank = ValueRanks.OneDimension,
-                },
+                    MinorVersion = ConfigurationVersionUtils.CalculateVersionTime(s_timeOfConfiguration),
+                    MajorVersion = ConfigurationVersionUtils.CalculateVersionTime(s_timeOfConfiguration),
+                }
             };
-            // set the ConfigurationVersion relative to kTimeOfConfiguration constant
-            allTypesMetaData.ConfigurationVersion = new ConfigurationVersionDataType()
-            {
-                MinorVersion = ConfigurationVersionUtils.CalculateVersionTime(kTimeOfConfiguration),
-                MajorVersion = ConfigurationVersionUtils.CalculateVersionTime(kTimeOfConfiguration),
-            };
-
-            return allTypesMetaData;
         }
 
         /// <summary>

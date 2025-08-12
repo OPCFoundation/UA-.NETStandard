@@ -35,7 +35,6 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Mono.Options;
 using Opc.Ua;
@@ -44,6 +43,9 @@ using Serilog;
 using Serilog.Events;
 using Serilog.Templates;
 using static Opc.Ua.Utils;
+#if NET5_0_OR_GREATER
+using Microsoft.Extensions.Configuration;
+#endif
 
 namespace Quickstarts
 {
@@ -52,7 +54,7 @@ namespace Quickstarts
     /// </summary>
     public class LogWriter : TextWriter
     {
-        private StringBuilder m_builder = new StringBuilder();
+        private readonly StringBuilder m_builder = new();
 
         public override void Write(char value)
         {
@@ -105,10 +107,7 @@ namespace Quickstarts
             m_builder.Clear();
         }
 
-        public override Encoding Encoding
-        {
-            get { return Encoding.Default; }
-        }
+        public override Encoding Encoding => Encoding.Default;
     }
 
     /// <summary>
@@ -123,7 +122,7 @@ namespace Quickstarts
         ErrorStopping = 0x83,
         ErrorCertificate = 0x84,
         ErrorInvalidCommandLine = 0x100,
-    };
+    }
 
     /// <summary>
     /// An exception that occured and caused an exit of the application.
@@ -173,7 +172,7 @@ namespace Quickstarts
     /// </summary>
     public class ApplicationMessageDlg : IApplicationMessageDlg
     {
-        private TextWriter m_output;
+        private readonly TextWriter m_output;
         private string m_message = string.Empty;
         private bool m_ask;
 
@@ -201,8 +200,7 @@ namespace Quickstarts
                     ConsoleKeyInfo result = Console.ReadKey();
                     m_output.WriteLine();
                     return await Task.FromResult(
-                            (result.KeyChar == 'y') || (result.KeyChar == 'Y') || (result.KeyChar == '\r')
-                        )
+result.KeyChar is 'y' or 'Y' or '\r')
                         .ConfigureAwait(false);
                 }
                 catch
@@ -244,7 +242,7 @@ namespace Quickstarts
                 .AddEnvironmentVariables(environmentPrefix + "_")
                 .Build();
 
-            List<string> argslist = args.ToList();
+            List<string> argslist = [.. args];
             foreach (Option option in options)
             {
                 string[] names = option.GetNames();
@@ -256,7 +254,7 @@ namespace Quickstarts
                     {
                         if (
                             string.IsNullOrWhiteSpace(envKey)
-                            || option.OptionValueType == Mono.Options.OptionValueType.None
+                            || option.OptionValueType == OptionValueType.None
                         )
                         {
                             argslist.Add("--" + longest);
@@ -268,7 +266,7 @@ namespace Quickstarts
                     }
                 }
             }
-            args = argslist.ToArray();
+            args = [.. argslist];
 #endif
 
             IList<string> extraArgs = null;
@@ -448,12 +446,12 @@ namespace Quickstarts
 
         private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs args)
         {
-            Utils.LogCritical("Unhandled Exception: {0} IsTerminating: {1}", args.ExceptionObject, args.IsTerminating);
+            LogCritical("Unhandled Exception: {0} IsTerminating: {1}", args.ExceptionObject, args.IsTerminating);
         }
 
         private static void Unobserved_TaskException(object sender, UnobservedTaskExceptionEventArgs args)
         {
-            Utils.LogCritical("Unobserved Exception: {0} Observed: {1}", args.Exception, args.Observed);
+            LogCritical("Unobserved Exception: {0} Observed: {1}", args.Exception, args.Observed);
         }
     }
 }

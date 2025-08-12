@@ -43,14 +43,14 @@ namespace Quickstarts
     public class UAServer<T>
         where T : StandardServer, new()
     {
-        public ApplicationInstance Application => m_application;
-        public ApplicationConfiguration Configuration => m_application.ApplicationConfiguration;
+        public ApplicationInstance Application { get; private set; }
+        public ApplicationConfiguration Configuration => Application.ApplicationConfiguration;
 
         public bool AutoAccept { get; set; }
         public string Password { get; set; }
 
         public ExitCode ExitCode { get; private set; }
-        public T Server => m_server;
+        public T Server { get; private set; }
 
         /// <summary>
         /// Ctor of the server.
@@ -71,17 +71,17 @@ namespace Quickstarts
                 ExitCode = ExitCode.ErrorNotStarted;
 
                 ApplicationInstance.MessageDlg = new ApplicationMessageDlg(m_output);
-                CertificatePasswordProvider PasswordProvider = new CertificatePasswordProvider(Password);
-                m_application = new ApplicationInstance
+                var passwordProvider = new CertificatePasswordProvider(Password);
+                Application = new ApplicationInstance
                 {
                     ApplicationName = applicationName,
                     ApplicationType = ApplicationType.Server,
                     ConfigSectionName = configSectionName,
-                    CertificatePasswordProvider = PasswordProvider,
+                    CertificatePasswordProvider = passwordProvider,
                 };
 
                 // load the application configuration.
-                await m_application.LoadApplicationConfiguration(false).ConfigureAwait(false);
+                await Application.LoadApplicationConfigurationAsync(false).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -96,15 +96,15 @@ namespace Quickstarts
         {
             try
             {
-                ApplicationConfiguration config = m_application.ApplicationConfiguration;
+                ApplicationConfiguration config = Application.ApplicationConfiguration;
                 if (renewCertificate)
                 {
-                    await m_application.DeleteApplicationInstanceCertificate().ConfigureAwait(false);
+                    await Application.DeleteApplicationInstanceCertificateAsync().ConfigureAwait(false);
                 }
 
                 // check the application certificate.
-                bool haveAppCertificate = await m_application
-                    .CheckApplicationInstanceCertificates(false)
+                bool haveAppCertificate = await Application
+                    .CheckApplicationInstanceCertificatesAsync(false)
                     .ConfigureAwait(false);
                 if (!haveAppCertificate)
                 {
@@ -132,12 +132,12 @@ namespace Quickstarts
             try
             {
                 // create the server.
-                m_server = new T();
+                Server = new T();
                 if (nodeManagerFactories != null)
                 {
                     foreach (INodeManagerFactory factory in nodeManagerFactories)
                     {
-                        m_server.AddNodeManager(factory);
+                        Server.AddNodeManager(factory);
                     }
                 }
             }
@@ -155,16 +155,16 @@ namespace Quickstarts
             try
             {
                 // create the server.
-                m_server = m_server ?? new T();
+                Server ??= new T();
 
                 // start the server
-                await m_application.StartAsync(m_server).ConfigureAwait(false);
+                await Application.StartAsync(Server).ConfigureAwait(false);
 
                 // save state
                 ExitCode = ExitCode.ErrorRunning;
 
                 // print endpoint info
-                IEnumerable<string> endpoints = m_application
+                IEnumerable<string> endpoints = Application
                     .Server.GetEndpoints()
                     .Select(e => e.EndpointUrl)
                     .Distinct();
@@ -177,9 +177,9 @@ namespace Quickstarts
                 m_status = Task.Run(StatusThreadAsync);
 
                 // print notification on session events
-                m_server.CurrentInstance.SessionManager.SessionActivated += EventStatus;
-                m_server.CurrentInstance.SessionManager.SessionClosing += EventStatus;
-                m_server.CurrentInstance.SessionManager.SessionCreated += EventStatus;
+                Server.CurrentInstance.SessionManager.SessionActivated += EventStatus;
+                Server.CurrentInstance.SessionManager.SessionClosing += EventStatus;
+                Server.CurrentInstance.SessionManager.SessionCreated += EventStatus;
             }
             catch (Exception ex)
             {
@@ -194,17 +194,15 @@ namespace Quickstarts
         {
             try
             {
-                if (m_server != null)
+                if (Server != null)
                 {
-                    using (T server = m_server)
-                    {
-                        // Stop status thread
-                        m_server = null;
-                        await m_status.ConfigureAwait(false);
+                    using T server = Server;
+                    // Stop status thread
+                    Server = null;
+                    await m_status.ConfigureAwait(false);
 
-                        // Stop server and dispose
-                        server.Stop();
-                    }
+                    // Stop server and dispose
+                    server.Stop();
                 }
 
                 ExitCode = ExitCode.Ok;
@@ -224,18 +222,15 @@ namespace Quickstarts
             CertificateValidationEventArgs e
         )
         {
-            if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted)
+            if (e.Error.StatusCode == StatusCodes.BadCertificateUntrusted && AutoAccept)
             {
-                if (AutoAccept)
-                {
-                    m_output.WriteLine(
-                        "Accepted Certificate: [{0}] [{1}]",
-                        e.Certificate.Subject,
-                        e.Certificate.Thumbprint
-                    );
-                    e.Accept = true;
-                    return;
-                }
+                m_output.WriteLine(
+                    "Accepted Certificate: [{0}] [{1}]",
+                    e.Certificate.Subject,
+                    e.Certificate.Thumbprint
+                );
+                e.Accept = true;
+                return;
             }
             m_output.WriteLine(
                 "Rejected Certificate: {0} [{1}] [{2}]",
@@ -259,7 +254,7 @@ namespace Quickstarts
         /// </summary>
         private void PrintSessionStatus(ISession session, string reason, bool lastContact = false)
         {
-            StringBuilder item = new StringBuilder();
+            var item = new StringBuilder();
             lock (session.DiagnosticsLock)
             {
                 item.AppendFormat(
@@ -293,11 +288,11 @@ namespace Quickstarts
         /// </summary>
         private async Task StatusThreadAsync()
         {
-            while (m_server != null)
+            while (Server != null)
             {
                 if (DateTime.UtcNow - m_lastEventTime > TimeSpan.FromMilliseconds(10000))
                 {
-                    IList<ISession> sessions = m_server.CurrentInstance.SessionManager.GetSessions();
+                    IList<ISession> sessions = Server.CurrentInstance.SessionManager.GetSessions();
                     for (int ii = 0; ii < sessions.Count; ii++)
                     {
                         ISession session = sessions[ii];
@@ -311,8 +306,6 @@ namespace Quickstarts
 
         #region Private Members
         private readonly TextWriter m_output;
-        private ApplicationInstance m_application;
-        private T m_server;
         private Task m_status;
         private DateTime m_lastEventTime;
         #endregion

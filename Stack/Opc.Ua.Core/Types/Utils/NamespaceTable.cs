@@ -12,7 +12,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Threading;
 
 namespace Opc.Ua
 {
@@ -29,7 +28,7 @@ namespace Opc.Ua
             m_strings = [];
 
 #if DEBUG
-            InstanceId = Interlocked.Increment(ref s_globalInstanceCount);
+            InstanceId = System.Threading.Interlocked.Increment(ref s_globalInstanceCount);
 #endif
         }
 
@@ -42,7 +41,7 @@ namespace Opc.Ua
 
 #if DEBUG
             m_shared = shared;
-            InstanceId = Interlocked.Increment(ref s_globalInstanceCount);
+            InstanceId = System.Threading.Interlocked.Increment(ref s_globalInstanceCount);
 #endif
         }
 
@@ -54,7 +53,7 @@ namespace Opc.Ua
             Update(strings);
 
 #if DEBUG
-            InstanceId = Interlocked.Increment(ref s_globalInstanceCount);
+            InstanceId = System.Threading.Interlocked.Increment(ref s_globalInstanceCount);
 #endif
         }
 

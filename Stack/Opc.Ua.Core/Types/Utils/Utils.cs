@@ -190,7 +190,6 @@ namespace Opc.Ua
         private static int s_traceOutput = (int)TraceOutput.DebugAndFile;
 #else
         private static int s_traceOutput = (int)TraceOutput.FileOnly;
-        private static int s_traceMasks = (int)TraceMasks.None;
 #endif
 
         private static string s_traceFileName = string.Empty;
@@ -1118,9 +1117,8 @@ namespace Opc.Ua
                 LogError(e, "Error disposing object: {0}", disposable.GetType().Name);
             }
 #else
-            catch (Exception)
+            catch
             {
-                ;
             }
 #endif
         }

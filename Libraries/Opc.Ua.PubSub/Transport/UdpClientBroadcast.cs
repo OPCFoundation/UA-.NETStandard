@@ -95,11 +95,11 @@ namespace Opc.Ua.PubSub.Transport
         /// </summary>
         private void CustomizeSocketToBroadcastThroughIf()
         {
-            void SetSocketOption(SocketOptionLevel socketOptionLevel, SocketOptionName socketOptionName, bool value)
+            static void SetSocketOption(UdpClientBroadcast @this, SocketOptionLevel socketOptionLevel, SocketOptionName socketOptionName, bool value)
             {
                 try
                 {
-                    Client.SetSocketOption(socketOptionLevel, socketOptionName, value);
+                    @this.Client.SetSocketOption(socketOptionLevel, socketOptionName, value);
                 }
                 catch (Exception ex)
                 {
@@ -112,9 +112,9 @@ namespace Opc.Ua.PubSub.Transport
                     );
                 }
             }
-            SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.Broadcast, true);
-            SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontRoute, false);
-            SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+            SetSocketOption(this, SocketOptionLevel.Socket, SocketOptionName.Broadcast, true);
+            SetSocketOption(this, SocketOptionLevel.Socket, SocketOptionName.DontRoute, false);
+            SetSocketOption(this, SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
 
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {

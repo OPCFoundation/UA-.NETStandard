@@ -75,14 +75,14 @@ namespace Quickstarts.ReferenceServer
             string usage = Utils.IsRunningOnMono()
                 ? $"Usage: mono {applicationName}.exe [OPTIONS]"
                 : $"Usage: dotnet {applicationName}.dll [OPTIONS]";
-            Mono.Options.OptionSet options = new Mono.Options.OptionSet
+            var options = new Mono.Options.OptionSet
             {
                 usage,
                 { "h|help", "show this message and exit", h => showHelp = h != null },
                 { "a|autoaccept", "auto accept certificates (for testing only)", a => autoAccept = a != null },
                 { "c|console", "log to console", c => logConsole = c != null },
                 { "l|log", "log app output", c => appLog = c != null },
-                { "p|password=", "optional password for private key", (string p) => password = p },
+                { "p|password=", "optional password for private key", p => password = p },
                 { "r|renew", "renew application certificate", r => renewCertificate = r != null },
                 { "t|timeout=", "timeout in seconds to exit application", (int t) => timeout = t * 1000 },
                 { "s|shadowconfig", "create configuration in pki root", s => shadowConfig = s != null },
@@ -150,7 +150,7 @@ namespace Quickstarts.ReferenceServer
                 // enable the sampling groups if requested
                 if (samplingGroups)
                 {
-                    Quickstarts.Servers.Utils.UseSamplingGroupsInReferenceNodeManager(server.Server);
+                    Servers.Utils.UseSamplingGroupsInReferenceNodeManager(server.Server);
                 }
 
                 // start the server
@@ -162,7 +162,7 @@ namespace Quickstarts.ReferenceServer
                 {
                     output.WriteLine("Apply settings for CTT.");
                     // start Alarms and other settings for CTT test
-                    Quickstarts.Servers.Utils.ApplyCTTMode(output, server.Server);
+                    Servers.Utils.ApplyCTTMode(output, server.Server);
                 }
 
                 output.WriteLine("Server started. Press Ctrl-C to exit...");

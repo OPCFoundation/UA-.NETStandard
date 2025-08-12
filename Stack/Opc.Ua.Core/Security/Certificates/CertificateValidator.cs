@@ -12,7 +12,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -1140,7 +1139,7 @@ namespace Opc.Ua
             ServiceResultException serviceResult = null;
 
 #if DEBUG // check if not self-signed, tested in outer loop
-            Debug.Assert(!X509Utils.IsSelfSigned(certificate));
+            System.Diagnostics.Debug.Assert(!X509Utils.IsSelfSigned(certificate));
 #endif
 
             X500DistinguishedName subjectName = certificate.IssuerName;

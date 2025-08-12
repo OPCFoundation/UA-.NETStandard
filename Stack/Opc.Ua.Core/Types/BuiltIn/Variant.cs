@@ -13,7 +13,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Globalization;
 using System.Reflection;
 using System.Runtime.Serialization;
@@ -87,16 +86,15 @@ namespace Opc.Ua
                 return;
             }
 
-            Debug.Assert(
+            System.Diagnostics.Debug.Assert(
                 sanityCheck.BuiltInType == TypeInfo.BuiltInType,
                 Utils.Format("{0} != {1}", sanityCheck.BuiltInType, typeInfo.BuiltInType)
             );
 
-            Debug.Assert(
+            System.Diagnostics.Debug.Assert(
                 sanityCheck.ValueRank == TypeInfo.ValueRank,
                 Utils.Format("{0} != {1}", sanityCheck.ValueRank, typeInfo.ValueRank)
             );
-
 #endif
         }
 

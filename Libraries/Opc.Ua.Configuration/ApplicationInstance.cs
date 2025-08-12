@@ -511,7 +511,7 @@ namespace Opc.Ua.Configuration
         /// <see cref="DeleteApplicationInstanceCertificateAsync(string[], CancellationToken)"/>
         /// </summary>
         [Obsolete("Use DeleteApplicationInstanceCertificateAsync instead.")]
-        public Task DeleteApplicationInstanceCertificate2(string[] profileIds = null, CancellationToken ct = default)
+        public Task DeleteApplicationInstanceCertificate(string[] profileIds = null, CancellationToken ct = default)
         {
             return DeleteApplicationInstanceCertificateAsync(profileIds, ct).AsTask();
         }

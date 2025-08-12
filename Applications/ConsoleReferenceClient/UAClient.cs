@@ -53,7 +53,7 @@ namespace Quickstarts
             Action<IList, IList> validateResponse
         )
         {
-            m_validateResponse = validateResponse;
+            ValidateResponse = validateResponse;
             m_output = writer;
             m_configuration = configuration;
             m_configuration.CertificateValidator.CertificateValidation += CertificateValidation;
@@ -70,7 +70,7 @@ namespace Quickstarts
             Action<IList, IList> validateResponse
         )
         {
-            m_validateResponse = validateResponse;
+            ValidateResponse = validateResponse;
             m_output = writer;
             m_configuration = configuration;
             m_configuration.CertificateValidator.CertificateValidation += CertificateValidation;
@@ -85,7 +85,7 @@ namespace Quickstarts
         public void Dispose()
         {
             m_disposed = true;
-            Utils.SilentDispose(m_session);
+            Utils.SilentDispose(Session);
             m_configuration.CertificateValidator.CertificateValidation -= CertificateValidation;
             GC.SuppressFinalize(this);
         }
@@ -95,12 +95,12 @@ namespace Quickstarts
         /// <summary>
         /// Action used
         /// </summary>
-        Action<IList, IList> ValidateResponse => m_validateResponse;
+        internal Action<IList, IList> ValidateResponse { get; }
 
         /// <summary>
         /// Gets the client session.
         /// </summary>
-        public ISession Session => m_session;
+        public ISession Session { get; private set; }
 
         /// <summary>
         /// The session keepalive interval to be used in ms.
@@ -142,29 +142,26 @@ namespace Quickstarts
         /// <summary>
         /// Do a Durable Subscription Transfer
         /// </summary>
-        public async Task<bool> DurableSubscriptionTransfer(
+        public async Task<bool> DurableSubscriptionTransferAsync(
             string serverUrl,
             bool useSecurity = true,
             CancellationToken ct = default
         )
         {
             bool success = false;
-            SubscriptionCollection subscriptions = new SubscriptionCollection(m_session.Subscriptions);
-            m_session = null;
-            if (await ConnectAsync(serverUrl, useSecurity, ct).ConfigureAwait(false))
+            SubscriptionCollection subscriptions = [.. Session.Subscriptions];
+            Session = null;
+            if (await ConnectAsync(serverUrl, useSecurity, ct).ConfigureAwait(false) && subscriptions != null && Session != null)
             {
-                if (subscriptions != null && m_session != null)
+                m_output.WriteLine(
+                    "Transferring "
+                        + subscriptions.Count.ToString(CultureInfo.InvariantCulture)
+                        + " subscriptions from old session to new session..."
+                );
+                success = Session.TransferSubscriptions(subscriptions, true);
+                if (success)
                 {
-                    m_output.WriteLine(
-                        "Transferring "
-                            + subscriptions.Count.ToString(CultureInfo.InvariantCulture)
-                            + " subscriptions from old session to new session..."
-                    );
-                    success = m_session.TransferSubscriptions(subscriptions, true);
-                    if (success)
-                    {
-                        m_output.WriteLine("Subscriptions transferred.");
-                    }
+                    m_output.WriteLine("Subscriptions transferred.");
                 }
             }
 
@@ -188,7 +185,7 @@ namespace Quickstarts
 
             try
             {
-                if (m_session != null && m_session.Connected == true)
+                if (Session != null && Session.Connected)
                 {
                     m_output.WriteLine("Session already connected!");
                 }
@@ -201,29 +198,27 @@ namespace Quickstarts
                         m_output.WriteLine("Waiting for reverse connection to.... {0}", serverUrl);
                         do
                         {
-                            using (var cts = new CancellationTokenSource(30_000))
-                            using (var linkedCTS = CancellationTokenSource.CreateLinkedTokenSource(ct, cts.Token))
+                            using var cts = new CancellationTokenSource(30_000);
+                            using var linkedCTS = CancellationTokenSource.CreateLinkedTokenSource(ct, cts.Token);
+                            connection = await m_reverseConnectManager
+                                .WaitForConnectionAsync(new Uri(serverUrl), null, linkedCTS.Token)
+                                .ConfigureAwait(false);
+                            if (connection == null)
                             {
-                                connection = await m_reverseConnectManager
-                                    .WaitForConnectionAsync(new Uri(serverUrl), null, linkedCTS.Token)
-                                    .ConfigureAwait(false);
-                                if (connection == null)
-                                {
-                                    throw new ServiceResultException(
-                                        StatusCodes.BadTimeout,
-                                        "Waiting for a reverse connection timed out."
-                                    );
-                                }
-                                if (endpointDescription == null)
-                                {
-                                    m_output.WriteLine("Discover reverse connection endpoints....");
-                                    endpointDescription = CoreClientUtils.SelectEndpoint(
-                                        m_configuration,
-                                        connection,
-                                        useSecurity
-                                    );
-                                    connection = null;
-                                }
+                                throw new ServiceResultException(
+                                    StatusCodes.BadTimeout,
+                                    "Waiting for a reverse connection timed out."
+                                );
+                            }
+                            if (endpointDescription == null)
+                            {
+                                m_output.WriteLine("Discover reverse connection endpoints....");
+                                endpointDescription = CoreClientUtils.SelectEndpoint(
+                                    m_configuration,
+                                    connection,
+                                    useSecurity
+                                );
+                                connection = null;
                             }
                         } while (connection == null);
                     }
@@ -235,8 +230,8 @@ namespace Quickstarts
 
                     // Get the endpoint by connecting to server's discovery endpoint.
                     // Try to find the first endopint with security.
-                    EndpointConfiguration endpointConfiguration = EndpointConfiguration.Create(m_configuration);
-                    ConfiguredEndpoint endpoint = new ConfiguredEndpoint(
+                    var endpointConfiguration = EndpointConfiguration.Create(m_configuration);
+                    var endpoint = new ConfiguredEndpoint(
                         null,
                         endpointDescription,
                         endpointConfiguration
@@ -263,24 +258,24 @@ namespace Quickstarts
                     // Assign the created session
                     if (session != null && session.Connected)
                     {
-                        m_session = session;
+                        Session = session;
 
                         // override keep alive interval
-                        m_session.KeepAliveInterval = KeepAliveInterval;
+                        Session.KeepAliveInterval = KeepAliveInterval;
 
                         // support transfer
-                        m_session.DeleteSubscriptionsOnClose = false;
-                        m_session.TransferSubscriptionsOnReconnect = true;
+                        Session.DeleteSubscriptionsOnClose = false;
+                        Session.TransferSubscriptionsOnReconnect = true;
 
                         // set up keep alive callback.
-                        m_session.KeepAlive += Session_KeepAlive;
+                        Session.KeepAlive += Session_KeepAlive;
 
                         // prepare a reconnect handler
                         m_reconnectHandler = new SessionReconnectHandler(true, ReconnectPeriodExponentialBackoff);
                     }
 
                     // Session created successfully.
-                    m_output.WriteLine("New Session Created with SessionName = {0}", m_session.SessionName);
+                    m_output.WriteLine("New Session Created with SessionName = {0}", Session.SessionName);
                 }
 
                 return true;
@@ -301,25 +296,25 @@ namespace Quickstarts
         {
             try
             {
-                if (m_session != null)
+                if (Session != null)
                 {
                     m_output.WriteLine("Disconnecting...");
 
                     lock (m_lock)
                     {
-                        m_session.KeepAlive -= Session_KeepAlive;
+                        Session.KeepAlive -= Session_KeepAlive;
                         m_reconnectHandler?.Dispose();
                         m_reconnectHandler = null;
                     }
 
-                    m_session.Close(!leaveChannelOpen);
+                    Session.Close(!leaveChannelOpen);
                     if (leaveChannelOpen)
                     {
                         // detach the channel, so it doesn't get closed when the session is disposed.
-                        m_session.DetachChannel();
+                        Session.DetachChannel();
                     }
-                    m_session.Dispose();
-                    m_session = null;
+                    Session.Dispose();
+                    Session = null;
 
                     // Log Session Disconnected event
                     m_output.WriteLine("Session Disconnected.");
@@ -344,7 +339,7 @@ namespace Quickstarts
             try
             {
                 // check for events from discarded sessions.
-                if (m_session == null || !m_session.Equals(session))
+                if (Session == null || !Session.Equals(session))
                 {
                     return;
                 }
@@ -359,7 +354,7 @@ namespace Quickstarts
                     }
 
                     SessionReconnectHandler.ReconnectState state = m_reconnectHandler.BeginReconnect(
-                        m_session,
+                        Session,
                         m_reverseConnectManager,
                         ReconnectPeriod,
                         Client_ReconnectComplete
@@ -396,7 +391,7 @@ namespace Quickstarts
         private void Client_ReconnectComplete(object sender, EventArgs e)
         {
             // ignore callbacks from discarded objects.
-            if (!Object.ReferenceEquals(sender, m_reconnectHandler))
+            if (!ReferenceEquals(sender, m_reconnectHandler))
             {
                 return;
             }
@@ -408,14 +403,14 @@ namespace Quickstarts
                 {
                     // ensure only a new instance is disposed
                     // after reactivate, the same session instance may be returned
-                    if (!Object.ReferenceEquals(m_session, m_reconnectHandler.Session))
+                    if (!ReferenceEquals(Session, m_reconnectHandler.Session))
                     {
                         m_output.WriteLine(
                             "--- RECONNECTED TO NEW SESSION --- {0}",
                             m_reconnectHandler.Session.SessionId
                         );
-                        ISession session = m_session;
-                        m_session = m_reconnectHandler.Session;
+                        ISession session = Session;
+                        Session = m_reconnectHandler.Session;
                         Utils.SilentDispose(session);
                     }
                     else
@@ -466,14 +461,12 @@ namespace Quickstarts
         #endregion
 
         #region Private Fields
-        private readonly object m_lock = new object();
-        private ReverseConnectManager m_reverseConnectManager;
-        private ApplicationConfiguration m_configuration;
+        private readonly Lock m_lock = new();
+        private readonly ReverseConnectManager m_reverseConnectManager;
+        private readonly ApplicationConfiguration m_configuration;
         private SessionReconnectHandler m_reconnectHandler;
-        private ISession m_session;
         private readonly TextWriter m_output;
-        private readonly Action<IList, IList> m_validateResponse;
-        private bool m_disposed = false;
+        private bool m_disposed;
         #endregion
     }
 }

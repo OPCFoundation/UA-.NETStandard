@@ -39,7 +39,7 @@ using System.Threading;
 namespace Opc.Ua
 {
     #region ServerObjectState Class
-    #if (!OPCUA_EXCLUDE_ServerObjectState)
+#if (!OPCUA_EXCLUDE_ServerObjectState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -57,7 +57,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.ServerType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -239,7 +239,7 @@ namespace Opc.Ua
            "b25kc1RpbGxTaHV0ZG93bgAH/////wAAAAAAAQAqAQEVAAAABgAAAFJlYXNvbgAV/////wAAAAAAAQAq" +
            "AQEWAAAABwAAAFJlc3RhcnQAAf////8AAAAAAAEAKAEBAAAAAQAAAAUAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -660,7 +660,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -1064,11 +1064,11 @@ namespace Opc.Ua
         private RequestServerStateChangeMethodState m_requestServerStateChangeMethod;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region ServerCapabilitiesState Class
-    #if (!OPCUA_EXCLUDE_ServerCapabilitiesState)
+#if (!OPCUA_EXCLUDE_ServerCapabilitiesState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -1086,7 +1086,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.ServerCapabilitiesType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -1276,7 +1276,7 @@ namespace Opc.Ua
            "/////wEB/////wAAAAAXYIkKAgAAAAAAEAAAAENvbmZvcm1hbmNlVW5pdHMBAB5eAC4ARB5eAAAAFAEA" +
            "AAABAAAAAAAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -1841,7 +1841,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -2377,11 +2377,11 @@ namespace Opc.Ua
         private PropertyState<QualifiedName[]> m_conformanceUnits;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region ServerDiagnosticsState Class
-    #if (!OPCUA_EXCLUDE_ServerDiagnosticsState)
+#if (!OPCUA_EXCLUDE_ServerDiagnosticsState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -2399,7 +2399,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.ServerDiagnosticsType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -2456,7 +2456,7 @@ namespace Opc.Ua
            "ADoMAC8BAMMIOgwAAAEAZAMBAAAAAQAAAAAAAAABAf////8AAAAAFWCJCgIAAAAAAAsAAABFbmFibGVk" +
            "RmxhZwEA6QcALgBE6QcAAAAB/////wMD/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -2589,7 +2589,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -2729,11 +2729,11 @@ namespace Opc.Ua
         private PropertyState<bool> m_enabledFlag;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region SessionsDiagnosticsSummaryState Class
-    #if (!OPCUA_EXCLUDE_SessionsDiagnosticsSummaryState)
+#if (!OPCUA_EXCLUDE_SessionsDiagnosticsSummaryState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -2751,7 +2751,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.SessionsDiagnosticsSummaryType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -2781,7 +2781,7 @@ namespace Opc.Ua
            "Y3VyaXR5RGlhZ25vc3RpY3NBcnJheQEA7AcALwEAwwjsBwAAAQBkAwEAAAABAAAAAAAAAAEB/////wAA" +
            "AAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -2842,7 +2842,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -2916,11 +2916,11 @@ namespace Opc.Ua
         private SessionSecurityDiagnosticsArrayState m_sessionSecurityDiagnosticsArray;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region SessionDiagnosticsObjectState Class
-    #if (!OPCUA_EXCLUDE_SessionDiagnosticsObjectState)
+#if (!OPCUA_EXCLUDE_SessionDiagnosticsObjectState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -2938,7 +2938,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.SessionDiagnosticsObjectType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -3032,7 +3032,7 @@ namespace Opc.Ua
            "AAAAAAABAf////8AAAAAF2CJCgIAAAAAAA4AAABDdXJyZW50Um9sZUlkcwEAZ0sALgBEZ0sAAAARAQAA" +
            "AAEAAAAAAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -3141,7 +3141,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -3259,11 +3259,11 @@ namespace Opc.Ua
         private PropertyState<NodeId[]> m_currentRoleIds;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region VendorServerInfoState Class
-    #if (!OPCUA_EXCLUDE_VendorServerInfoState)
+#if (!OPCUA_EXCLUDE_VendorServerInfoState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -3281,7 +3281,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.VendorServerInfoType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -3308,7 +3308,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAHAAAAFZlbmRvclNlcnZlckluZm9UeXBlSW5zdGFuY2UBAPEHAQDxB/EH" +
            "AAD/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -3320,11 +3320,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region ServerRedundancyState Class
-    #if (!OPCUA_EXCLUDE_ServerRedundancyState)
+#if (!OPCUA_EXCLUDE_ServerRedundancyState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -3342,7 +3342,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.ServerRedundancyType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -3380,7 +3380,7 @@ namespace Opc.Ua
            "/wEB/////wAAAAAXYIkKAgAAAAAAFAAAAFJlZHVuZGFudFNlcnZlckFycmF5AQCafgAuAESafgAAAQBV" +
            "AwEAAAABAAAAAAAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -3441,7 +3441,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -3515,11 +3515,11 @@ namespace Opc.Ua
         private PropertyState<RedundantServerDataType[]> m_redundantServerArray;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region TransparentRedundancyState Class
-    #if (!OPCUA_EXCLUDE_TransparentRedundancyState)
+#if (!OPCUA_EXCLUDE_TransparentRedundancyState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -3537,7 +3537,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.TransparentRedundancyType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -3567,7 +3567,7 @@ namespace Opc.Ua
            "RPYHAAABAFUDAQAAAAEAAAAAAAAAAQH/////AAAAABVgiQoCAAAAAAAPAAAAQ3VycmVudFNlcnZlcklk" +
            "AQD1BwAuAET1BwAAAAz/////AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -3604,7 +3604,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -3656,11 +3656,11 @@ namespace Opc.Ua
         private PropertyState<string> m_currentServerId;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region NonTransparentRedundancyState Class
-    #if (!OPCUA_EXCLUDE_NonTransparentRedundancyState)
+#if (!OPCUA_EXCLUDE_NonTransparentRedundancyState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -3678,7 +3678,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.NonTransparentRedundancyType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -3707,7 +3707,7 @@ namespace Opc.Ua
            "QkIPAAEAUwP/////AQH/////AAAAABdgiQoCAAAAAAAOAAAAU2VydmVyVXJpQXJyYXkBAPgHAC4ARPgH" +
            "AAAADAEAAAABAAAAAAAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -3744,7 +3744,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -3796,11 +3796,11 @@ namespace Opc.Ua
         private PropertyState<string[]> m_serverUriArray;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region NonTransparentNetworkRedundancyState Class
-    #if (!OPCUA_EXCLUDE_NonTransparentNetworkRedundancyState)
+#if (!OPCUA_EXCLUDE_NonTransparentNetworkRedundancyState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -3818,7 +3818,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.NonTransparentNetworkRedundancyType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -3848,7 +3848,7 @@ namespace Opc.Ua
            "RkIPAAAuAERGQg8AAAwBAAAAAQAAAAAAAAABAf////8AAAAAF2CJCgIAAAAAABMAAABTZXJ2ZXJOZXR3" +
            "b3JrR3JvdXBzAQCsLgAuAESsLgAAAQCoLgEAAAABAAAAAAAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -3885,7 +3885,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -3937,11 +3937,11 @@ namespace Opc.Ua
         private PropertyState<NetworkGroupDataType[]> m_serverNetworkGroups;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region NonTransparentBackupRedundancyState Class
-    #if (!OPCUA_EXCLUDE_NonTransparentBackupRedundancyState)
+#if (!OPCUA_EXCLUDE_NonTransparentBackupRedundancyState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -3959,7 +3959,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.NonTransparentBackupRedundancyType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -3991,7 +3991,7 @@ namespace Opc.Ua
            "AE1vZGUBAJ9+AC4ARJ9+AAABAKF+/////wEB/////wAAAAAEYYIKBAAAAAAACAAAAEZhaWxvdmVyAQCg" +
            "fgAvAQCgfqB+AAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -4052,7 +4052,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -4126,11 +4126,11 @@ namespace Opc.Ua
         private MethodState m_failoverMethod;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region OperationLimitsState Class
-    #if (!OPCUA_EXCLUDE_OperationLimitsState)
+#if (!OPCUA_EXCLUDE_OperationLimitsState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -4148,7 +4148,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.OperationLimitsType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -4296,7 +4296,7 @@ namespace Opc.Ua
            "RDUtAAAAB/////8BAf////8AAAAAFWCJCgIAAAAAABgAAABNYXhNb25pdG9yZWRJdGVtc1BlckNhbGwB" +
            "ADYtAC4ARDYtAAAAB/////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -4597,7 +4597,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -4891,11 +4891,11 @@ namespace Opc.Ua
         private PropertyState<uint> m_maxMonitoredItemsPerCall;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region FileState Class
-    #if (!OPCUA_EXCLUDE_FileState)
+#if (!OPCUA_EXCLUDE_FileState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -4913,7 +4913,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.FileType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -4993,7 +4993,7 @@ namespace Opc.Ua
            "LQAAlgIAAAABACoBARkAAAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAAAQAqAQEXAAAACAAAAFBvc2l0" +
            "aW9uAAn/////AAAAAAABACgBAQAAAAEAAAACAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -5318,7 +5318,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -5634,11 +5634,11 @@ namespace Opc.Ua
         private SetPositionMethodState m_setPositionMethod;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AddressSpaceFileState Class
-    #if (!OPCUA_EXCLUDE_AddressSpaceFileState)
+#if (!OPCUA_EXCLUDE_AddressSpaceFileState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -5656,7 +5656,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AddressSpaceFileType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -5718,7 +5718,7 @@ namespace Opc.Ua
            "AAABACoBARcAAAAIAAAAUG9zaXRpb24ACf////8AAAAAAAEAKAEBAAAAAQAAAAIAAAABAf////8AAAAA" +
            "BGGCCgQAAAAAAA8AAABFeHBvcnROYW1lc3BhY2UBAF8tAC8BAF8tXy0AAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -5755,7 +5755,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -5807,11 +5807,11 @@ namespace Opc.Ua
         private MethodState m_exportNamespaceMethod;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region NamespaceMetadataState Class
-    #if (!OPCUA_EXCLUDE_NamespaceMetadataState)
+#if (!OPCUA_EXCLUDE_NamespaceMetadataState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -5829,7 +5829,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.NamespaceMetadataType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -5972,7 +5972,7 @@ namespace Opc.Ua
            "CgIAAAAAABQAAABDb25maWd1cmF0aW9uVmVyc2lvbgEAs2IALgBEs2IAAAEABlL/////AQH/////AAAA" +
            "ABVgiQoCAAAAAAAMAAAATW9kZWxWZXJzaW9uAQCjfgAuAESjfgAAAQDHXv////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -6297,7 +6297,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -6613,11 +6613,11 @@ namespace Opc.Ua
         private PropertyState<string> m_modelVersion;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region NamespacesState Class
-    #if (!OPCUA_EXCLUDE_NamespacesState)
+#if (!OPCUA_EXCLUDE_NamespacesState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -6635,7 +6635,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.NamespacesType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -6662,7 +6662,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAFgAAAE5hbWVzcGFjZXNUeXBlSW5zdGFuY2UBAH0tAQB9LX0tAAD/////" +
            "AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -6674,11 +6674,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region BaseEventState Class
-    #if (!OPCUA_EXCLUDE_BaseEventState)
+#if (!OPCUA_EXCLUDE_BaseEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -6696,7 +6696,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.BaseEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -6779,7 +6779,7 @@ namespace Opc.Ua
            "aW9uU3ViQ2xhc3NJZAEAHXwALgBEHXwAAAARAQAAAAEAAAAAAAAAAQH/////AAAAABdgiQoCAAAAAAAV" +
            "AAAAQ29uZGl0aW9uU3ViQ2xhc3NOYW1lAQAefAAuAEQefAAAABUBAAAAAQAAAAAAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -7104,7 +7104,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -7420,11 +7420,11 @@ namespace Opc.Ua
         private PropertyState<LocalizedText[]> m_conditionSubClassName;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditEventState Class
-    #if (!OPCUA_EXCLUDE_AuditEventState)
+#if (!OPCUA_EXCLUDE_AuditEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -7442,7 +7442,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -7480,7 +7480,7 @@ namespace Opc.Ua
            "ABIAAABDbGllbnRBdWRpdEVudHJ5SWQBAAgIAC4ARAgIAAAADP////8BAf////8AAAAAFWCJCgIAAAAA" +
            "AAwAAABDbGllbnRVc2VySWQBAAkIAC4ARAkIAAAADP////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -7613,7 +7613,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -7753,11 +7753,11 @@ namespace Opc.Ua
         private PropertyState<string> m_clientUserId;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditSecurityEventState Class
-    #if (!OPCUA_EXCLUDE_AuditSecurityEventState)
+#if (!OPCUA_EXCLUDE_AuditSecurityEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -7775,7 +7775,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditSecurityEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -7824,7 +7824,7 @@ namespace Opc.Ua
            "/////wAAAAAVYIkKAgAAAAAADAAAAFN0YXR1c0NvZGVJZAEAz0QALgBEz0QAAAAT/////wEB/////wAA" +
            "AAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -7861,7 +7861,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -7913,11 +7913,11 @@ namespace Opc.Ua
         private PropertyState<StatusCode> m_statusCodeId;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditChannelEventState Class
-    #if (!OPCUA_EXCLUDE_AuditChannelEventState)
+#if (!OPCUA_EXCLUDE_AuditChannelEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -7935,7 +7935,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditChannelEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -7975,7 +7975,7 @@ namespace Opc.Ua
            "////AAAAABVgiQoCAAAAAAAPAAAAU2VjdXJlQ2hhbm5lbElkAQC5CgAuAES5CgAAAAz/////AQH/////" +
            "AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -8012,7 +8012,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -8064,11 +8064,11 @@ namespace Opc.Ua
         private PropertyState<string> m_secureChannelId;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditOpenSecureChannelEventState Class
-    #if (!OPCUA_EXCLUDE_AuditOpenSecureChannelEventState)
+#if (!OPCUA_EXCLUDE_AuditOpenSecureChannelEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -8086,7 +8086,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditOpenSecureChannelEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -8142,7 +8142,7 @@ namespace Opc.Ua
            "IgH/////AQH/////AAAAABVgiQoCAAAAAAAXAAAAQ2VydGlmaWNhdGVFcnJvckV2ZW50SWQBAEdeAC4A" +
            "REdeAAAAD/////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -8323,7 +8323,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -8507,11 +8507,11 @@ namespace Opc.Ua
         private PropertyState<byte[]> m_certificateErrorEventId;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditSessionEventState Class
-    #if (!OPCUA_EXCLUDE_AuditSessionEventState)
+#if (!OPCUA_EXCLUDE_AuditSessionEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -8529,7 +8529,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditSessionEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -8568,7 +8568,7 @@ namespace Opc.Ua
            "AQH/////AAAAABVgiQoCAAAAAAAMAAAAQ2xpZW50VXNlcklkAgAAtkIPAAAuAES2Qg8AAAz/////AQH/" +
            "////AAAAABVgiQoCAAAAAAAJAAAAU2Vzc2lvbklkAQAWCAAuAEQWCAAAABH/////AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -8605,7 +8605,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -8657,11 +8657,11 @@ namespace Opc.Ua
         private PropertyState<NodeId> m_sessionId;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditCreateSessionEventState Class
-    #if (!OPCUA_EXCLUDE_AuditCreateSessionEventState)
+#if (!OPCUA_EXCLUDE_AuditCreateSessionEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -8679,7 +8679,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditCreateSessionEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -8723,7 +8723,7 @@ namespace Opc.Ua
            "//8BAf////8AAAAAFWCJCgIAAAAAABUAAABSZXZpc2VkU2Vzc2lvblRpbWVvdXQBABoIAC4ARBoIAAAB" +
            "ACIB/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -8832,7 +8832,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -8950,11 +8950,11 @@ namespace Opc.Ua
         private PropertyState<double> m_revisedSessionTimeout;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditUrlMismatchEventState Class
-    #if (!OPCUA_EXCLUDE_AuditUrlMismatchEventState)
+#if (!OPCUA_EXCLUDE_AuditUrlMismatchEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -8972,7 +8972,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditUrlMismatchEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -9017,7 +9017,7 @@ namespace Opc.Ua
            "AAAuAETjQg8AAQAiAf////8BAf////8AAAAAFWCJCgIAAAAAAAsAAABFbmRwb2ludFVybAEAvQoALgBE" +
            "vQoAAAAM/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -9054,7 +9054,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -9106,11 +9106,11 @@ namespace Opc.Ua
         private PropertyState<string> m_endpointUrl;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditActivateSessionEventState Class
-    #if (!OPCUA_EXCLUDE_AuditActivateSessionEventState)
+#if (!OPCUA_EXCLUDE_AuditActivateSessionEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -9128,7 +9128,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditActivateSessionEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -9181,7 +9181,7 @@ namespace Opc.Ua
            "LAAuAETdLAAAAAz/////AQH/////AAAAABdgiQoCAAAAAAAOAAAAQ3VycmVudFJvbGVJZHMBAGhLAC4A" +
            "RGhLAAAAEQEAAAABAAAAAAAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -9290,7 +9290,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -9408,11 +9408,11 @@ namespace Opc.Ua
         private PropertyState<NodeId[]> m_currentRoleIds;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditCancelEventState Class
-    #if (!OPCUA_EXCLUDE_AuditCancelEventState)
+#if (!OPCUA_EXCLUDE_AuditCancelEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -9430,7 +9430,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditCancelEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -9470,7 +9470,7 @@ namespace Opc.Ua
            "//8AAAAAFWCJCgIAAAAAAAkAAABTZXNzaW9uSWQCAAALQw8AAC4ARAtDDwAAEf////8BAf////8AAAAA" +
            "FWCJCgIAAAAAAA0AAABSZXF1ZXN0SGFuZGxlAQAfCAAuAEQfCAAAAAf/////AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -9507,7 +9507,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -9559,11 +9559,11 @@ namespace Opc.Ua
         private PropertyState<uint> m_requestHandle;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditCertificateEventState Class
-    #if (!OPCUA_EXCLUDE_AuditCertificateEventState)
+#if (!OPCUA_EXCLUDE_AuditCertificateEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -9581,7 +9581,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditCertificateEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -9621,7 +9621,7 @@ namespace Opc.Ua
            "/wEB/////wAAAAAVYIkKAgAAAAAACwAAAENlcnRpZmljYXRlAQAhCAAuAEQhCAAAAA//////AQH/////" +
            "AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -9658,7 +9658,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -9710,11 +9710,11 @@ namespace Opc.Ua
         private PropertyState<byte[]> m_certificate;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditCertificateDataMismatchEventState Class
-    #if (!OPCUA_EXCLUDE_AuditCertificateDataMismatchEventState)
+#if (!OPCUA_EXCLUDE_AuditCertificateDataMismatchEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -9732,7 +9732,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditCertificateDataMismatchEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -9774,7 +9774,7 @@ namespace Opc.Ua
            "AAz/////AQH/////AAAAABVgiQoCAAAAAAAKAAAASW52YWxpZFVyaQEAJAgALgBEJAgAAAAM/////wEB" +
            "/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -9835,7 +9835,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -9909,11 +9909,11 @@ namespace Opc.Ua
         private PropertyState<string> m_invalidUri;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditCertificateExpiredEventState Class
-    #if (!OPCUA_EXCLUDE_AuditCertificateExpiredEventState)
+#if (!OPCUA_EXCLUDE_AuditCertificateExpiredEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -9931,7 +9931,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditCertificateExpiredEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -9971,7 +9971,7 @@ namespace Opc.Ua
            "DwAADP////8BAf////8AAAAAFWCJCgIAAAAAAAsAAABDZXJ0aWZpY2F0ZQIAAEZDDwAALgBERkMPAAAP" +
            "/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -9983,11 +9983,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditCertificateInvalidEventState Class
-    #if (!OPCUA_EXCLUDE_AuditCertificateInvalidEventState)
+#if (!OPCUA_EXCLUDE_AuditCertificateInvalidEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -10005,7 +10005,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditCertificateInvalidEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -10045,7 +10045,7 @@ namespace Opc.Ua
            "DwAADP////8BAf////8AAAAAFWCJCgIAAAAAAAsAAABDZXJ0aWZpY2F0ZQIAAFpDDwAALgBEWkMPAAAP" +
            "/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -10057,11 +10057,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditCertificateUntrustedEventState Class
-    #if (!OPCUA_EXCLUDE_AuditCertificateUntrustedEventState)
+#if (!OPCUA_EXCLUDE_AuditCertificateUntrustedEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -10079,7 +10079,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditCertificateUntrustedEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -10119,7 +10119,7 @@ namespace Opc.Ua
            "bEMPAAAM/////wEB/////wAAAAAVYIkKAgAAAAAACwAAAENlcnRpZmljYXRlAgAAbkMPAAAuAERuQw8A" +
            "AA//////AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -10131,11 +10131,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditCertificateRevokedEventState Class
-    #if (!OPCUA_EXCLUDE_AuditCertificateRevokedEventState)
+#if (!OPCUA_EXCLUDE_AuditCertificateRevokedEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -10153,7 +10153,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditCertificateRevokedEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -10193,7 +10193,7 @@ namespace Opc.Ua
            "DwAADP////8BAf////8AAAAAFWCJCgIAAAAAAAsAAABDZXJ0aWZpY2F0ZQIAAIJDDwAALgBEgkMPAAAP" +
            "/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -10205,11 +10205,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditCertificateMismatchEventState Class
-    #if (!OPCUA_EXCLUDE_AuditCertificateMismatchEventState)
+#if (!OPCUA_EXCLUDE_AuditCertificateMismatchEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -10227,7 +10227,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditCertificateMismatchEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -10267,7 +10267,7 @@ namespace Opc.Ua
            "Qw8AAAz/////AQH/////AAAAABVgiQoCAAAAAAALAAAAQ2VydGlmaWNhdGUCAACWQw8AAC4ARJZDDwAA" +
            "D/////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -10279,11 +10279,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditNodeManagementEventState Class
-    #if (!OPCUA_EXCLUDE_AuditNodeManagementEventState)
+#if (!OPCUA_EXCLUDE_AuditNodeManagementEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -10301,7 +10301,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditNodeManagementEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -10340,7 +10340,7 @@ namespace Opc.Ua
            "AAAM/////wEB/////wAAAAAVYIkKAgAAAAAADAAAAENsaWVudFVzZXJJZAIAAKhDDwAALgBEqEMPAAAM" +
            "/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -10352,11 +10352,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditAddNodesEventState Class
-    #if (!OPCUA_EXCLUDE_AuditAddNodesEventState)
+#if (!OPCUA_EXCLUDE_AuditAddNodesEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -10374,7 +10374,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditAddNodesEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -10414,7 +10414,7 @@ namespace Opc.Ua
            "/////wAAAAAXYIkKAgAAAAAACgAAAE5vZGVzVG9BZGQBACwIAC4ARCwIAAABAHgBAQAAAAEAAAAAAAAA" +
            "AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -10451,7 +10451,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -10503,11 +10503,11 @@ namespace Opc.Ua
         private PropertyState<AddNodesItem[]> m_nodesToAdd;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditDeleteNodesEventState Class
-    #if (!OPCUA_EXCLUDE_AuditDeleteNodesEventState)
+#if (!OPCUA_EXCLUDE_AuditDeleteNodesEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -10525,7 +10525,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditDeleteNodesEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -10565,7 +10565,7 @@ namespace Opc.Ua
            "/wEB/////wAAAAAXYIkKAgAAAAAADQAAAE5vZGVzVG9EZWxldGUBAC4IAC4ARC4IAAABAH4BAQAAAAEA" +
            "AAAAAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -10602,7 +10602,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -10654,11 +10654,11 @@ namespace Opc.Ua
         private PropertyState<DeleteNodesItem[]> m_nodesToDelete;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditAddReferencesEventState Class
-    #if (!OPCUA_EXCLUDE_AuditAddReferencesEventState)
+#if (!OPCUA_EXCLUDE_AuditAddReferencesEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -10676,7 +10676,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditAddReferencesEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -10716,7 +10716,7 @@ namespace Opc.Ua
            "////AQH/////AAAAABdgiQoCAAAAAAAPAAAAUmVmZXJlbmNlc1RvQWRkAQAwCAAuAEQwCAAAAQB7AQEA" +
            "AAABAAAAAAAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -10753,7 +10753,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -10805,11 +10805,11 @@ namespace Opc.Ua
         private PropertyState<AddReferencesItem[]> m_referencesToAdd;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditDeleteReferencesEventState Class
-    #if (!OPCUA_EXCLUDE_AuditDeleteReferencesEventState)
+#if (!OPCUA_EXCLUDE_AuditDeleteReferencesEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -10827,7 +10827,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditDeleteReferencesEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -10867,7 +10867,7 @@ namespace Opc.Ua
            "AAz/////AQH/////AAAAABdgiQoCAAAAAAASAAAAUmVmZXJlbmNlc1RvRGVsZXRlAQAyCAAuAEQyCAAA" +
            "AQCBAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -10904,7 +10904,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -10956,11 +10956,11 @@ namespace Opc.Ua
         private PropertyState<DeleteReferencesItem[]> m_referencesToDelete;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditUpdateEventState Class
-    #if (!OPCUA_EXCLUDE_AuditUpdateEventState)
+#if (!OPCUA_EXCLUDE_AuditUpdateEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -10978,7 +10978,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditUpdateEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -11017,7 +11017,7 @@ namespace Opc.Ua
            "Af////8AAAAAFWCJCgIAAAAAAAwAAABDbGllbnRVc2VySWQCAAACRA8AAC4ARAJEDwAADP////8BAf//" +
            "//8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -11029,11 +11029,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditWriteUpdateEventState Class
-    #if (!OPCUA_EXCLUDE_AuditWriteUpdateEventState)
+#if (!OPCUA_EXCLUDE_AuditWriteUpdateEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -11051,7 +11051,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditWriteUpdateEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -11093,7 +11093,7 @@ namespace Opc.Ua
            "iQoCAAAAAAAIAAAAT2xkVmFsdWUBADYIAC4ARDYIAAAAGP////8BAf////8AAAAAFWCJCgIAAAAAAAgA" +
            "AABOZXdWYWx1ZQEANwgALgBENwgAAAAY/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -11202,7 +11202,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -11320,11 +11320,11 @@ namespace Opc.Ua
         private PropertyState m_newValue;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditHistoryUpdateEventState Class
-    #if (!OPCUA_EXCLUDE_AuditHistoryUpdateEventState)
+#if (!OPCUA_EXCLUDE_AuditHistoryUpdateEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -11342,7 +11342,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditHistoryUpdateEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -11382,7 +11382,7 @@ namespace Opc.Ua
            "////AQH/////AAAAABVgiQoCAAAAAAATAAAAUGFyYW1ldGVyRGF0YVR5cGVJZAEAvwoALgBEvwoAAAAR" +
            "/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -11419,7 +11419,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -11471,11 +11471,11 @@ namespace Opc.Ua
         private PropertyState<NodeId> m_parameterDataTypeId;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditUpdateMethodEventState Class
-    #if (!OPCUA_EXCLUDE_AuditUpdateMethodEventState)
+#if (!OPCUA_EXCLUDE_AuditUpdateMethodEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -11493,7 +11493,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditUpdateMethodEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -11554,7 +11554,7 @@ namespace Opc.Ua
            "F2CJCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAGpLAC4ARGpLAAAAGAEAAAABAAAAAAAAAAEB////" +
            "/wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -11663,7 +11663,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -11781,11 +11781,11 @@ namespace Opc.Ua
         private PropertyState<object[]> m_outputArguments;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region SystemEventState Class
-    #if (!OPCUA_EXCLUDE_SystemEventState)
+#if (!OPCUA_EXCLUDE_SystemEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -11803,7 +11803,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.SystemEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -11837,7 +11837,7 @@ namespace Opc.Ua
            "AERARA8AABX/////AQH/////AAAAABVgiQoCAAAAAAAIAAAAU2V2ZXJpdHkCAABBRA8AAC4AREFEDwAA" +
            "Bf////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -11849,11 +11849,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region DeviceFailureEventState Class
-    #if (!OPCUA_EXCLUDE_DeviceFailureEventState)
+#if (!OPCUA_EXCLUDE_DeviceFailureEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -11871,7 +11871,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.DeviceFailureEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -11905,7 +11905,7 @@ namespace Opc.Ua
            "AE1EDwAALgBETUQPAAAV/////wEB/////wAAAAAVYIkKAgAAAAAACAAAAFNldmVyaXR5AgAATkQPAAAu" +
            "AERORA8AAAX/////AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -11917,11 +11917,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region SystemStatusChangeEventState Class
-    #if (!OPCUA_EXCLUDE_SystemStatusChangeEventState)
+#if (!OPCUA_EXCLUDE_SystemStatusChangeEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -11939,7 +11939,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.SystemStatusChangeEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -11974,7 +11974,7 @@ namespace Opc.Ua
            "RA8AAC4ARFtEDwAABf////8BAf////8AAAAAFWCJCgIAAAAAAAsAAABTeXN0ZW1TdGF0ZQEAsC0ALgBE" +
            "sC0AAAEAVAP/////AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -12011,7 +12011,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -12063,11 +12063,11 @@ namespace Opc.Ua
         private PropertyState<ServerState> m_systemState;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region BaseModelChangeEventState Class
-    #if (!OPCUA_EXCLUDE_BaseModelChangeEventState)
+#if (!OPCUA_EXCLUDE_BaseModelChangeEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -12085,7 +12085,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.BaseModelChangeEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -12119,7 +12119,7 @@ namespace Opc.Ua
            "AgAAZ0QPAAAuAERnRA8AABX/////AQH/////AAAAABVgiQoCAAAAAAAIAAAAU2V2ZXJpdHkCAABoRA8A" +
            "AC4ARGhEDwAABf////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -12131,11 +12131,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region GeneralModelChangeEventState Class
-    #if (!OPCUA_EXCLUDE_GeneralModelChangeEventState)
+#if (!OPCUA_EXCLUDE_GeneralModelChangeEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -12153,7 +12153,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.GeneralModelChangeEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -12188,7 +12188,7 @@ namespace Opc.Ua
            "RA8AAC4ARHVEDwAABf////8BAf////8AAAAAF2CJCgIAAAAAAAcAAABDaGFuZ2VzAQBWCAAuAERWCAAA" +
            "AQBtAwEAAAABAAAAAAAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -12225,7 +12225,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -12277,11 +12277,11 @@ namespace Opc.Ua
         private PropertyState<ModelChangeStructureDataType[]> m_changes;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region SemanticChangeEventState Class
-    #if (!OPCUA_EXCLUDE_SemanticChangeEventState)
+#if (!OPCUA_EXCLUDE_SemanticChangeEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -12299,7 +12299,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.SemanticChangeEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -12334,7 +12334,7 @@ namespace Opc.Ua
            "LgBEgkQPAAAF/////wEB/////wAAAAAXYIkKAgAAAAAABwAAAENoYW5nZXMBALMKAC4ARLMKAAABAIED" +
            "AQAAAAEAAAAAAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -12371,7 +12371,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -12423,11 +12423,11 @@ namespace Opc.Ua
         private PropertyState<SemanticChangeStructureDataType[]> m_changes;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region EventQueueOverflowEventState Class
-    #if (!OPCUA_EXCLUDE_EventQueueOverflowEventState)
+#if (!OPCUA_EXCLUDE_EventQueueOverflowEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -12445,7 +12445,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.EventQueueOverflowEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -12479,7 +12479,7 @@ namespace Opc.Ua
            "YWdlAgAAjkQPAAAuAESORA8AABX/////AQH/////AAAAABVgiQoCAAAAAAAIAAAAU2V2ZXJpdHkCAACP" +
            "RA8AAC4ARI9EDwAABf////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -12491,11 +12491,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region ProgressEventState Class
-    #if (!OPCUA_EXCLUDE_ProgressEventState)
+#if (!OPCUA_EXCLUDE_ProgressEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -12513,7 +12513,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.ProgressEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -12548,7 +12548,7 @@ namespace Opc.Ua
            "AAAF/////wEB/////wAAAAAVYIkKAgAAAAAABwAAAENvbnRleHQBANYwAC4ARNYwAAAAGP////8BAf//" +
            "//8AAAAAFWCJCgIAAAAAAAgAAABQcm9ncmVzcwEA1zAALgBE1zAAAAAF/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -12609,7 +12609,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -12683,11 +12683,11 @@ namespace Opc.Ua
         private PropertyState<ushort> m_progress;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditClientEventState Class
-    #if (!OPCUA_EXCLUDE_AuditClientEventState)
+#if (!OPCUA_EXCLUDE_AuditClientEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -12705,7 +12705,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditClientEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -12744,7 +12744,7 @@ namespace Opc.Ua
            "Af////8AAAAAFWCJCgIAAAAAAAwAAABDbGllbnRVc2VySWQCAACyRA8AAC4ARLJEDwAADP////8BAf//" +
            "//8AAAAAFWCJCgIAAAAAAAkAAABTZXJ2ZXJVcmkBAGRdAC4ARGRdAAABAMdc/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -12781,7 +12781,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -12833,11 +12833,11 @@ namespace Opc.Ua
         private PropertyState<string> m_serverUri;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditClientUpdateMethodResultEventState Class
-    #if (!OPCUA_EXCLUDE_AuditClientUpdateMethodResultEventState)
+#if (!OPCUA_EXCLUDE_AuditClientUpdateMethodResultEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -12855,7 +12855,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditClientUpdateMethodResultEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -12900,7 +12900,7 @@ namespace Opc.Ua
            "iQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQBUZAAuAERUZAAAABgBAAAAAQAAAAAAAAABAf////8A" +
            "AAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -13033,7 +13033,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -13173,11 +13173,11 @@ namespace Opc.Ua
         private PropertyState<object[]> m_outputArguments;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AggregateFunctionState Class
-    #if (!OPCUA_EXCLUDE_AggregateFunctionState)
+#if (!OPCUA_EXCLUDE_AggregateFunctionState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -13195,7 +13195,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AggregateFunctionType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -13222,7 +13222,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAHQAAAEFnZ3JlZ2F0ZUZ1bmN0aW9uVHlwZUluc3RhbmNlAQAkCQEAJAkk" +
            "CQAA/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -13234,11 +13234,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region ServerVendorCapabilityState Class
-    #if (!OPCUA_EXCLUDE_ServerVendorCapabilityState)
+#if (!OPCUA_EXCLUDE_ServerVendorCapabilityState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -13268,7 +13268,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -13295,7 +13295,7 @@ namespace Opc.Ua
            "//////////8VYIkCAgAAAAAAIgAAAFNlcnZlclZlbmRvckNhcGFiaWxpdHlUeXBlSW5zdGFuY2UBAFkI" +
            "AQBZCFkIAAAAGP////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -13356,11 +13356,11 @@ namespace Opc.Ua
         #endregion
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region ServerStatusState Class
-    #if (!OPCUA_EXCLUDE_ServerStatusState)
+#if (!OPCUA_EXCLUDE_ServerStatusState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -13390,7 +13390,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -13428,7 +13428,7 @@ namespace Opc.Ua
            "B/////8BAf////8AAAAAFWCJCgIAAAAAAA4AAABTaHV0ZG93blJlYXNvbgEAwQoALwA/wQoAAAAV////" +
            "/wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -13585,7 +13585,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -13905,12 +13905,18 @@ namespace Opc.Ua
 
         private void UpdateChildrenChangeMasks(ISystemContext context, ref ServerStatusDataType newValue, ref StatusCode statusCode, ref DateTime timestamp)
         {
-            if (!Utils.IsEqual(m_value.StartTime, newValue.StartTime)) UpdateChildVariableStatus(m_variable.StartTime, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.CurrentTime, newValue.CurrentTime)) UpdateChildVariableStatus(m_variable.CurrentTime, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.State, newValue.State)) UpdateChildVariableStatus(m_variable.State, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.BuildInfo, newValue.BuildInfo)) UpdateChildVariableStatus(m_variable.BuildInfo, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.SecondsTillShutdown, newValue.SecondsTillShutdown)) UpdateChildVariableStatus(m_variable.SecondsTillShutdown, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.ShutdownReason, newValue.ShutdownReason)) UpdateChildVariableStatus(m_variable.ShutdownReason, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.StartTime, newValue.StartTime))
+                UpdateChildVariableStatus(m_variable.StartTime, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.CurrentTime, newValue.CurrentTime))
+                UpdateChildVariableStatus(m_variable.CurrentTime, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.State, newValue.State))
+                UpdateChildVariableStatus(m_variable.State, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.BuildInfo, newValue.BuildInfo))
+                UpdateChildVariableStatus(m_variable.BuildInfo, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.SecondsTillShutdown, newValue.SecondsTillShutdown))
+                UpdateChildVariableStatus(m_variable.SecondsTillShutdown, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.ShutdownReason, newValue.ShutdownReason))
+                UpdateChildVariableStatus(m_variable.ShutdownReason, ref statusCode, ref timestamp);
         }
 
         private void UpdateParent(ISystemContext context, ref StatusCode statusCode, ref DateTime timestamp)
@@ -13922,7 +13928,8 @@ namespace Opc.Ua
 
         private void UpdateChildVariableStatus(BaseVariableState child, ref StatusCode statusCode, ref DateTime timestamp)
         {
-            if (child == null) return;
+            if (child == null)
+                return;
             child.StatusCode = statusCode;
             if (timestamp == DateTime.MinValue)
             {
@@ -14328,11 +14335,11 @@ namespace Opc.Ua
         #endregion
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region BuildInfoVariableState Class
-    #if (!OPCUA_EXCLUDE_BuildInfoVariableState)
+#if (!OPCUA_EXCLUDE_BuildInfoVariableState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -14362,7 +14369,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -14394,7 +14401,7 @@ namespace Opc.Ua
            "AAAACwAAAEJ1aWxkTnVtYmVyAQDwCwAvAD/wCwAAAAz/////AQH/////AAAAABVgiQoCAAAAAAAJAAAA" +
            "QnVpbGREYXRlAQDxCwAvAD/xCwAAAQAmAf////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -14551,7 +14558,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -14871,12 +14878,18 @@ namespace Opc.Ua
 
         private void UpdateChildrenChangeMasks(ISystemContext context, ref BuildInfo newValue, ref StatusCode statusCode, ref DateTime timestamp)
         {
-            if (!Utils.IsEqual(m_value.ProductUri, newValue.ProductUri)) UpdateChildVariableStatus(m_variable.ProductUri, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.ManufacturerName, newValue.ManufacturerName)) UpdateChildVariableStatus(m_variable.ManufacturerName, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.ProductName, newValue.ProductName)) UpdateChildVariableStatus(m_variable.ProductName, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.SoftwareVersion, newValue.SoftwareVersion)) UpdateChildVariableStatus(m_variable.SoftwareVersion, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.BuildNumber, newValue.BuildNumber)) UpdateChildVariableStatus(m_variable.BuildNumber, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.BuildDate, newValue.BuildDate)) UpdateChildVariableStatus(m_variable.BuildDate, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.ProductUri, newValue.ProductUri))
+                UpdateChildVariableStatus(m_variable.ProductUri, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.ManufacturerName, newValue.ManufacturerName))
+                UpdateChildVariableStatus(m_variable.ManufacturerName, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.ProductName, newValue.ProductName))
+                UpdateChildVariableStatus(m_variable.ProductName, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.SoftwareVersion, newValue.SoftwareVersion))
+                UpdateChildVariableStatus(m_variable.SoftwareVersion, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.BuildNumber, newValue.BuildNumber))
+                UpdateChildVariableStatus(m_variable.BuildNumber, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.BuildDate, newValue.BuildDate))
+                UpdateChildVariableStatus(m_variable.BuildDate, ref statusCode, ref timestamp);
         }
 
         private void UpdateParent(ISystemContext context, ref StatusCode statusCode, ref DateTime timestamp)
@@ -14888,7 +14901,8 @@ namespace Opc.Ua
 
         private void UpdateChildVariableStatus(BaseVariableState child, ref StatusCode statusCode, ref DateTime timestamp)
         {
-            if (child == null) return;
+            if (child == null)
+                return;
             child.StatusCode = statusCode;
             if (timestamp == DateTime.MinValue)
             {
@@ -15294,11 +15308,11 @@ namespace Opc.Ua
         #endregion
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region ServerDiagnosticsSummaryState Class
-    #if (!OPCUA_EXCLUDE_ServerDiagnosticsSummaryState)
+#if (!OPCUA_EXCLUDE_ServerDiagnosticsSummaryState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -15328,7 +15342,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -15368,7 +15382,7 @@ namespace Opc.Ua
            "/wEB/////wAAAAAVYIkKAgAAAAAAFQAAAFJlamVjdGVkUmVxdWVzdHNDb3VudAEAcwgALwA/cwgAAAAH" +
            "/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -15669,7 +15683,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -16163,18 +16177,30 @@ namespace Opc.Ua
 
         private void UpdateChildrenChangeMasks(ISystemContext context, ref ServerDiagnosticsSummaryDataType newValue, ref StatusCode statusCode, ref DateTime timestamp)
         {
-            if (!Utils.IsEqual(m_value.ServerViewCount, newValue.ServerViewCount)) UpdateChildVariableStatus(m_variable.ServerViewCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.CurrentSessionCount, newValue.CurrentSessionCount)) UpdateChildVariableStatus(m_variable.CurrentSessionCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.CumulatedSessionCount, newValue.CumulatedSessionCount)) UpdateChildVariableStatus(m_variable.CumulatedSessionCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.SecurityRejectedSessionCount, newValue.SecurityRejectedSessionCount)) UpdateChildVariableStatus(m_variable.SecurityRejectedSessionCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.RejectedSessionCount, newValue.RejectedSessionCount)) UpdateChildVariableStatus(m_variable.RejectedSessionCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.SessionTimeoutCount, newValue.SessionTimeoutCount)) UpdateChildVariableStatus(m_variable.SessionTimeoutCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.SessionAbortCount, newValue.SessionAbortCount)) UpdateChildVariableStatus(m_variable.SessionAbortCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.CurrentSubscriptionCount, newValue.CurrentSubscriptionCount)) UpdateChildVariableStatus(m_variable.CurrentSubscriptionCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.CumulatedSubscriptionCount, newValue.CumulatedSubscriptionCount)) UpdateChildVariableStatus(m_variable.CumulatedSubscriptionCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.PublishingIntervalCount, newValue.PublishingIntervalCount)) UpdateChildVariableStatus(m_variable.PublishingIntervalCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.SecurityRejectedRequestsCount, newValue.SecurityRejectedRequestsCount)) UpdateChildVariableStatus(m_variable.SecurityRejectedRequestsCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.RejectedRequestsCount, newValue.RejectedRequestsCount)) UpdateChildVariableStatus(m_variable.RejectedRequestsCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.ServerViewCount, newValue.ServerViewCount))
+                UpdateChildVariableStatus(m_variable.ServerViewCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.CurrentSessionCount, newValue.CurrentSessionCount))
+                UpdateChildVariableStatus(m_variable.CurrentSessionCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.CumulatedSessionCount, newValue.CumulatedSessionCount))
+                UpdateChildVariableStatus(m_variable.CumulatedSessionCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.SecurityRejectedSessionCount, newValue.SecurityRejectedSessionCount))
+                UpdateChildVariableStatus(m_variable.SecurityRejectedSessionCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.RejectedSessionCount, newValue.RejectedSessionCount))
+                UpdateChildVariableStatus(m_variable.RejectedSessionCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.SessionTimeoutCount, newValue.SessionTimeoutCount))
+                UpdateChildVariableStatus(m_variable.SessionTimeoutCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.SessionAbortCount, newValue.SessionAbortCount))
+                UpdateChildVariableStatus(m_variable.SessionAbortCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.CurrentSubscriptionCount, newValue.CurrentSubscriptionCount))
+                UpdateChildVariableStatus(m_variable.CurrentSubscriptionCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.CumulatedSubscriptionCount, newValue.CumulatedSubscriptionCount))
+                UpdateChildVariableStatus(m_variable.CumulatedSubscriptionCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.PublishingIntervalCount, newValue.PublishingIntervalCount))
+                UpdateChildVariableStatus(m_variable.PublishingIntervalCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.SecurityRejectedRequestsCount, newValue.SecurityRejectedRequestsCount))
+                UpdateChildVariableStatus(m_variable.SecurityRejectedRequestsCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.RejectedRequestsCount, newValue.RejectedRequestsCount))
+                UpdateChildVariableStatus(m_variable.RejectedRequestsCount, ref statusCode, ref timestamp);
         }
 
         private void UpdateParent(ISystemContext context, ref StatusCode statusCode, ref DateTime timestamp)
@@ -16186,7 +16212,8 @@ namespace Opc.Ua
 
         private void UpdateChildVariableStatus(BaseVariableState child, ref StatusCode statusCode, ref DateTime timestamp)
         {
-            if (child == null) return;
+            if (child == null)
+                return;
             child.StatusCode = statusCode;
             if (timestamp == DateTime.MinValue)
             {
@@ -16982,11 +17009,11 @@ namespace Opc.Ua
         #endregion
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region SamplingIntervalDiagnosticsArrayState Class
-    #if (!OPCUA_EXCLUDE_SamplingIntervalDiagnosticsArrayState)
+#if (!OPCUA_EXCLUDE_SamplingIntervalDiagnosticsArrayState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -17016,7 +17043,7 @@ namespace Opc.Ua
             return ValueRanks.OneDimension;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -17043,7 +17070,7 @@ namespace Opc.Ua
            "//////////8XYIkCAgAAAAAALAAAAFNhbXBsaW5nSW50ZXJ2YWxEaWFnbm9zdGljc0FycmF5VHlwZUlu" +
            "c3RhbmNlAQB0CAEAdAh0CAAAAQBYAwEAAAABAAAAAAAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -17055,11 +17082,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region SamplingIntervalDiagnosticsState Class
-    #if (!OPCUA_EXCLUDE_SamplingIntervalDiagnosticsState)
+#if (!OPCUA_EXCLUDE_SamplingIntervalDiagnosticsState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -17089,7 +17116,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -17121,7 +17148,7 @@ namespace Opc.Ua
            "IwAAAERpc2FibGVkTW9uaXRvcmVkSXRlbXNTYW1wbGluZ0NvdW50AQCzLQAvAD+zLQAAAAf/////AQH/" +
            "////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -17230,7 +17257,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -17471,7 +17498,8 @@ namespace Opc.Ua
 
         private void UpdateChildrenChangeMasks(ISystemContext context, ref SamplingIntervalDiagnosticsDataType newValue, ref StatusCode statusCode, ref DateTime timestamp)
         {
-            if (!Utils.IsEqual(m_value.SamplingInterval, newValue.SamplingInterval)) UpdateChildVariableStatus(m_variable.SamplingInterval, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.SamplingInterval, newValue.SamplingInterval))
+                UpdateChildVariableStatus(m_variable.SamplingInterval, ref statusCode, ref timestamp);
         }
 
         private void UpdateParent(ISystemContext context, ref StatusCode statusCode, ref DateTime timestamp)
@@ -17483,7 +17511,8 @@ namespace Opc.Ua
 
         private void UpdateChildVariableStatus(BaseVariableState child, ref StatusCode statusCode, ref DateTime timestamp)
         {
-            if (child == null) return;
+            if (child == null)
+                return;
             child.StatusCode = statusCode;
             if (timestamp == DateTime.MinValue)
             {
@@ -17564,11 +17593,11 @@ namespace Opc.Ua
         #endregion
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region SubscriptionDiagnosticsArrayState Class
-    #if (!OPCUA_EXCLUDE_SubscriptionDiagnosticsArrayState)
+#if (!OPCUA_EXCLUDE_SubscriptionDiagnosticsArrayState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -17598,7 +17627,7 @@ namespace Opc.Ua
             return ValueRanks.OneDimension;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -17625,7 +17654,7 @@ namespace Opc.Ua
            "//////////8XYIkCAgAAAAAAKAAAAFN1YnNjcmlwdGlvbkRpYWdub3N0aWNzQXJyYXlUeXBlSW5zdGFu" +
            "Y2UBAHsIAQB7CHsIAAABAGoDAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -17637,11 +17666,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region SubscriptionDiagnosticsState Class
-    #if (!OPCUA_EXCLUDE_SubscriptionDiagnosticsState)
+#if (!OPCUA_EXCLUDE_SubscriptionDiagnosticsState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -17671,7 +17700,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -17730,7 +17759,7 @@ namespace Opc.Ua
            "AD/BIgAAAAf/////AQH/////AAAAABVgiQoCAAAAAAAXAAAARXZlbnRRdWV1ZU92ZXJmbG93Q291bnQB" +
            "AMYiAC8AP8YiAAAAB/////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -18487,7 +18516,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -19532,37 +19561,68 @@ namespace Opc.Ua
 
         private void UpdateChildrenChangeMasks(ISystemContext context, ref SubscriptionDiagnosticsDataType newValue, ref StatusCode statusCode, ref DateTime timestamp)
         {
-            if (!Utils.IsEqual(m_value.SessionId, newValue.SessionId)) UpdateChildVariableStatus(m_variable.SessionId, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.SubscriptionId, newValue.SubscriptionId)) UpdateChildVariableStatus(m_variable.SubscriptionId, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.Priority, newValue.Priority)) UpdateChildVariableStatus(m_variable.Priority, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.PublishingInterval, newValue.PublishingInterval)) UpdateChildVariableStatus(m_variable.PublishingInterval, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.MaxKeepAliveCount, newValue.MaxKeepAliveCount)) UpdateChildVariableStatus(m_variable.MaxKeepAliveCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.MaxLifetimeCount, newValue.MaxLifetimeCount)) UpdateChildVariableStatus(m_variable.MaxLifetimeCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.MaxNotificationsPerPublish, newValue.MaxNotificationsPerPublish)) UpdateChildVariableStatus(m_variable.MaxNotificationsPerPublish, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.PublishingEnabled, newValue.PublishingEnabled)) UpdateChildVariableStatus(m_variable.PublishingEnabled, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.ModifyCount, newValue.ModifyCount)) UpdateChildVariableStatus(m_variable.ModifyCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.EnableCount, newValue.EnableCount)) UpdateChildVariableStatus(m_variable.EnableCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.DisableCount, newValue.DisableCount)) UpdateChildVariableStatus(m_variable.DisableCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.RepublishRequestCount, newValue.RepublishRequestCount)) UpdateChildVariableStatus(m_variable.RepublishRequestCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.RepublishMessageRequestCount, newValue.RepublishMessageRequestCount)) UpdateChildVariableStatus(m_variable.RepublishMessageRequestCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.RepublishMessageCount, newValue.RepublishMessageCount)) UpdateChildVariableStatus(m_variable.RepublishMessageCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.TransferRequestCount, newValue.TransferRequestCount)) UpdateChildVariableStatus(m_variable.TransferRequestCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.TransferredToAltClientCount, newValue.TransferredToAltClientCount)) UpdateChildVariableStatus(m_variable.TransferredToAltClientCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.TransferredToSameClientCount, newValue.TransferredToSameClientCount)) UpdateChildVariableStatus(m_variable.TransferredToSameClientCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.PublishRequestCount, newValue.PublishRequestCount)) UpdateChildVariableStatus(m_variable.PublishRequestCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.DataChangeNotificationsCount, newValue.DataChangeNotificationsCount)) UpdateChildVariableStatus(m_variable.DataChangeNotificationsCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.EventNotificationsCount, newValue.EventNotificationsCount)) UpdateChildVariableStatus(m_variable.EventNotificationsCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.NotificationsCount, newValue.NotificationsCount)) UpdateChildVariableStatus(m_variable.NotificationsCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.LatePublishRequestCount, newValue.LatePublishRequestCount)) UpdateChildVariableStatus(m_variable.LatePublishRequestCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.CurrentKeepAliveCount, newValue.CurrentKeepAliveCount)) UpdateChildVariableStatus(m_variable.CurrentKeepAliveCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.CurrentLifetimeCount, newValue.CurrentLifetimeCount)) UpdateChildVariableStatus(m_variable.CurrentLifetimeCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.UnacknowledgedMessageCount, newValue.UnacknowledgedMessageCount)) UpdateChildVariableStatus(m_variable.UnacknowledgedMessageCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.DiscardedMessageCount, newValue.DiscardedMessageCount)) UpdateChildVariableStatus(m_variable.DiscardedMessageCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.MonitoredItemCount, newValue.MonitoredItemCount)) UpdateChildVariableStatus(m_variable.MonitoredItemCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.DisabledMonitoredItemCount, newValue.DisabledMonitoredItemCount)) UpdateChildVariableStatus(m_variable.DisabledMonitoredItemCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.MonitoringQueueOverflowCount, newValue.MonitoringQueueOverflowCount)) UpdateChildVariableStatus(m_variable.MonitoringQueueOverflowCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.NextSequenceNumber, newValue.NextSequenceNumber)) UpdateChildVariableStatus(m_variable.NextSequenceNumber, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.EventQueueOverflowCount, newValue.EventQueueOverflowCount)) UpdateChildVariableStatus(m_variable.EventQueueOverflowCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.SessionId, newValue.SessionId))
+                UpdateChildVariableStatus(m_variable.SessionId, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.SubscriptionId, newValue.SubscriptionId))
+                UpdateChildVariableStatus(m_variable.SubscriptionId, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.Priority, newValue.Priority))
+                UpdateChildVariableStatus(m_variable.Priority, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.PublishingInterval, newValue.PublishingInterval))
+                UpdateChildVariableStatus(m_variable.PublishingInterval, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.MaxKeepAliveCount, newValue.MaxKeepAliveCount))
+                UpdateChildVariableStatus(m_variable.MaxKeepAliveCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.MaxLifetimeCount, newValue.MaxLifetimeCount))
+                UpdateChildVariableStatus(m_variable.MaxLifetimeCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.MaxNotificationsPerPublish, newValue.MaxNotificationsPerPublish))
+                UpdateChildVariableStatus(m_variable.MaxNotificationsPerPublish, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.PublishingEnabled, newValue.PublishingEnabled))
+                UpdateChildVariableStatus(m_variable.PublishingEnabled, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.ModifyCount, newValue.ModifyCount))
+                UpdateChildVariableStatus(m_variable.ModifyCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.EnableCount, newValue.EnableCount))
+                UpdateChildVariableStatus(m_variable.EnableCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.DisableCount, newValue.DisableCount))
+                UpdateChildVariableStatus(m_variable.DisableCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.RepublishRequestCount, newValue.RepublishRequestCount))
+                UpdateChildVariableStatus(m_variable.RepublishRequestCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.RepublishMessageRequestCount, newValue.RepublishMessageRequestCount))
+                UpdateChildVariableStatus(m_variable.RepublishMessageRequestCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.RepublishMessageCount, newValue.RepublishMessageCount))
+                UpdateChildVariableStatus(m_variable.RepublishMessageCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.TransferRequestCount, newValue.TransferRequestCount))
+                UpdateChildVariableStatus(m_variable.TransferRequestCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.TransferredToAltClientCount, newValue.TransferredToAltClientCount))
+                UpdateChildVariableStatus(m_variable.TransferredToAltClientCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.TransferredToSameClientCount, newValue.TransferredToSameClientCount))
+                UpdateChildVariableStatus(m_variable.TransferredToSameClientCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.PublishRequestCount, newValue.PublishRequestCount))
+                UpdateChildVariableStatus(m_variable.PublishRequestCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.DataChangeNotificationsCount, newValue.DataChangeNotificationsCount))
+                UpdateChildVariableStatus(m_variable.DataChangeNotificationsCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.EventNotificationsCount, newValue.EventNotificationsCount))
+                UpdateChildVariableStatus(m_variable.EventNotificationsCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.NotificationsCount, newValue.NotificationsCount))
+                UpdateChildVariableStatus(m_variable.NotificationsCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.LatePublishRequestCount, newValue.LatePublishRequestCount))
+                UpdateChildVariableStatus(m_variable.LatePublishRequestCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.CurrentKeepAliveCount, newValue.CurrentKeepAliveCount))
+                UpdateChildVariableStatus(m_variable.CurrentKeepAliveCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.CurrentLifetimeCount, newValue.CurrentLifetimeCount))
+                UpdateChildVariableStatus(m_variable.CurrentLifetimeCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.UnacknowledgedMessageCount, newValue.UnacknowledgedMessageCount))
+                UpdateChildVariableStatus(m_variable.UnacknowledgedMessageCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.DiscardedMessageCount, newValue.DiscardedMessageCount))
+                UpdateChildVariableStatus(m_variable.DiscardedMessageCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.MonitoredItemCount, newValue.MonitoredItemCount))
+                UpdateChildVariableStatus(m_variable.MonitoredItemCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.DisabledMonitoredItemCount, newValue.DisabledMonitoredItemCount))
+                UpdateChildVariableStatus(m_variable.DisabledMonitoredItemCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.MonitoringQueueOverflowCount, newValue.MonitoringQueueOverflowCount))
+                UpdateChildVariableStatus(m_variable.MonitoringQueueOverflowCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.NextSequenceNumber, newValue.NextSequenceNumber))
+                UpdateChildVariableStatus(m_variable.NextSequenceNumber, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.EventQueueOverflowCount, newValue.EventQueueOverflowCount))
+                UpdateChildVariableStatus(m_variable.EventQueueOverflowCount, ref statusCode, ref timestamp);
         }
 
         private void UpdateParent(ISystemContext context, ref StatusCode statusCode, ref DateTime timestamp)
@@ -19574,7 +19634,8 @@ namespace Opc.Ua
 
         private void UpdateChildVariableStatus(BaseVariableState child, ref StatusCode statusCode, ref DateTime timestamp)
         {
-            if (child == null) return;
+            if (child == null)
+                return;
             child.StatusCode = statusCode;
             if (timestamp == DateTime.MinValue)
             {
@@ -21605,11 +21666,11 @@ namespace Opc.Ua
         #endregion
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region SessionDiagnosticsArrayState Class
-    #if (!OPCUA_EXCLUDE_SessionDiagnosticsArrayState)
+#if (!OPCUA_EXCLUDE_SessionDiagnosticsArrayState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -21639,7 +21700,7 @@ namespace Opc.Ua
             return ValueRanks.OneDimension;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -21666,7 +21727,7 @@ namespace Opc.Ua
            "//////////8XYIkCAgAAAAAAIwAAAFNlc3Npb25EaWFnbm9zdGljc0FycmF5VHlwZUluc3RhbmNlAQCU" +
            "CAEAlAiUCAAAAQBhAwEAAAABAAAAAAAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -21678,11 +21739,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region SessionDiagnosticsVariableState Class
-    #if (!OPCUA_EXCLUDE_SessionDiagnosticsVariableState)
+#if (!OPCUA_EXCLUDE_SessionDiagnosticsVariableState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -21712,7 +21773,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -21783,7 +21844,7 @@ namespace Opc.Ua
            "AAASAAAAUmVnaXN0ZXJOb2Rlc0NvdW50AQCqCgAvAD+qCgAAAQBnA/////8BAf////8AAAAAFWCJCgIA" +
            "AAAAABQAAABVbnJlZ2lzdGVyTm9kZXNDb3VudAEAqwoALwA/qwoAAAEAZwP/////AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -22828,7 +22889,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -24221,49 +24282,92 @@ namespace Opc.Ua
 
         private void UpdateChildrenChangeMasks(ISystemContext context, ref SessionDiagnosticsDataType newValue, ref StatusCode statusCode, ref DateTime timestamp)
         {
-            if (!Utils.IsEqual(m_value.SessionId, newValue.SessionId)) UpdateChildVariableStatus(m_variable.SessionId, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.SessionName, newValue.SessionName)) UpdateChildVariableStatus(m_variable.SessionName, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.ClientDescription, newValue.ClientDescription)) UpdateChildVariableStatus(m_variable.ClientDescription, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.ServerUri, newValue.ServerUri)) UpdateChildVariableStatus(m_variable.ServerUri, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.EndpointUrl, newValue.EndpointUrl)) UpdateChildVariableStatus(m_variable.EndpointUrl, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.LocaleIds, newValue.LocaleIds)) UpdateChildVariableStatus(m_variable.LocaleIds, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.ActualSessionTimeout, newValue.ActualSessionTimeout)) UpdateChildVariableStatus(m_variable.ActualSessionTimeout, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.MaxResponseMessageSize, newValue.MaxResponseMessageSize)) UpdateChildVariableStatus(m_variable.MaxResponseMessageSize, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.ClientConnectionTime, newValue.ClientConnectionTime)) UpdateChildVariableStatus(m_variable.ClientConnectionTime, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.ClientLastContactTime, newValue.ClientLastContactTime)) UpdateChildVariableStatus(m_variable.ClientLastContactTime, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.CurrentSubscriptionsCount, newValue.CurrentSubscriptionsCount)) UpdateChildVariableStatus(m_variable.CurrentSubscriptionsCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.CurrentMonitoredItemsCount, newValue.CurrentMonitoredItemsCount)) UpdateChildVariableStatus(m_variable.CurrentMonitoredItemsCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.CurrentPublishRequestsInQueue, newValue.CurrentPublishRequestsInQueue)) UpdateChildVariableStatus(m_variable.CurrentPublishRequestsInQueue, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.TotalRequestCount, newValue.TotalRequestCount)) UpdateChildVariableStatus(m_variable.TotalRequestCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.UnauthorizedRequestCount, newValue.UnauthorizedRequestCount)) UpdateChildVariableStatus(m_variable.UnauthorizedRequestCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.ReadCount, newValue.ReadCount)) UpdateChildVariableStatus(m_variable.ReadCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.HistoryReadCount, newValue.HistoryReadCount)) UpdateChildVariableStatus(m_variable.HistoryReadCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.WriteCount, newValue.WriteCount)) UpdateChildVariableStatus(m_variable.WriteCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.HistoryUpdateCount, newValue.HistoryUpdateCount)) UpdateChildVariableStatus(m_variable.HistoryUpdateCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.CallCount, newValue.CallCount)) UpdateChildVariableStatus(m_variable.CallCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.CreateMonitoredItemsCount, newValue.CreateMonitoredItemsCount)) UpdateChildVariableStatus(m_variable.CreateMonitoredItemsCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.ModifyMonitoredItemsCount, newValue.ModifyMonitoredItemsCount)) UpdateChildVariableStatus(m_variable.ModifyMonitoredItemsCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.SetMonitoringModeCount, newValue.SetMonitoringModeCount)) UpdateChildVariableStatus(m_variable.SetMonitoringModeCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.SetTriggeringCount, newValue.SetTriggeringCount)) UpdateChildVariableStatus(m_variable.SetTriggeringCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.DeleteMonitoredItemsCount, newValue.DeleteMonitoredItemsCount)) UpdateChildVariableStatus(m_variable.DeleteMonitoredItemsCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.CreateSubscriptionCount, newValue.CreateSubscriptionCount)) UpdateChildVariableStatus(m_variable.CreateSubscriptionCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.ModifySubscriptionCount, newValue.ModifySubscriptionCount)) UpdateChildVariableStatus(m_variable.ModifySubscriptionCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.SetPublishingModeCount, newValue.SetPublishingModeCount)) UpdateChildVariableStatus(m_variable.SetPublishingModeCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.PublishCount, newValue.PublishCount)) UpdateChildVariableStatus(m_variable.PublishCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.RepublishCount, newValue.RepublishCount)) UpdateChildVariableStatus(m_variable.RepublishCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.TransferSubscriptionsCount, newValue.TransferSubscriptionsCount)) UpdateChildVariableStatus(m_variable.TransferSubscriptionsCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.DeleteSubscriptionsCount, newValue.DeleteSubscriptionsCount)) UpdateChildVariableStatus(m_variable.DeleteSubscriptionsCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.AddNodesCount, newValue.AddNodesCount)) UpdateChildVariableStatus(m_variable.AddNodesCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.AddReferencesCount, newValue.AddReferencesCount)) UpdateChildVariableStatus(m_variable.AddReferencesCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.DeleteNodesCount, newValue.DeleteNodesCount)) UpdateChildVariableStatus(m_variable.DeleteNodesCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.DeleteReferencesCount, newValue.DeleteReferencesCount)) UpdateChildVariableStatus(m_variable.DeleteReferencesCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.BrowseCount, newValue.BrowseCount)) UpdateChildVariableStatus(m_variable.BrowseCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.BrowseNextCount, newValue.BrowseNextCount)) UpdateChildVariableStatus(m_variable.BrowseNextCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.TranslateBrowsePathsToNodeIdsCount, newValue.TranslateBrowsePathsToNodeIdsCount)) UpdateChildVariableStatus(m_variable.TranslateBrowsePathsToNodeIdsCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.QueryFirstCount, newValue.QueryFirstCount)) UpdateChildVariableStatus(m_variable.QueryFirstCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.QueryNextCount, newValue.QueryNextCount)) UpdateChildVariableStatus(m_variable.QueryNextCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.RegisterNodesCount, newValue.RegisterNodesCount)) UpdateChildVariableStatus(m_variable.RegisterNodesCount, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.UnregisterNodesCount, newValue.UnregisterNodesCount)) UpdateChildVariableStatus(m_variable.UnregisterNodesCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.SessionId, newValue.SessionId))
+                UpdateChildVariableStatus(m_variable.SessionId, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.SessionName, newValue.SessionName))
+                UpdateChildVariableStatus(m_variable.SessionName, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.ClientDescription, newValue.ClientDescription))
+                UpdateChildVariableStatus(m_variable.ClientDescription, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.ServerUri, newValue.ServerUri))
+                UpdateChildVariableStatus(m_variable.ServerUri, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.EndpointUrl, newValue.EndpointUrl))
+                UpdateChildVariableStatus(m_variable.EndpointUrl, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.LocaleIds, newValue.LocaleIds))
+                UpdateChildVariableStatus(m_variable.LocaleIds, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.ActualSessionTimeout, newValue.ActualSessionTimeout))
+                UpdateChildVariableStatus(m_variable.ActualSessionTimeout, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.MaxResponseMessageSize, newValue.MaxResponseMessageSize))
+                UpdateChildVariableStatus(m_variable.MaxResponseMessageSize, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.ClientConnectionTime, newValue.ClientConnectionTime))
+                UpdateChildVariableStatus(m_variable.ClientConnectionTime, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.ClientLastContactTime, newValue.ClientLastContactTime))
+                UpdateChildVariableStatus(m_variable.ClientLastContactTime, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.CurrentSubscriptionsCount, newValue.CurrentSubscriptionsCount))
+                UpdateChildVariableStatus(m_variable.CurrentSubscriptionsCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.CurrentMonitoredItemsCount, newValue.CurrentMonitoredItemsCount))
+                UpdateChildVariableStatus(m_variable.CurrentMonitoredItemsCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.CurrentPublishRequestsInQueue, newValue.CurrentPublishRequestsInQueue))
+                UpdateChildVariableStatus(m_variable.CurrentPublishRequestsInQueue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.TotalRequestCount, newValue.TotalRequestCount))
+                UpdateChildVariableStatus(m_variable.TotalRequestCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.UnauthorizedRequestCount, newValue.UnauthorizedRequestCount))
+                UpdateChildVariableStatus(m_variable.UnauthorizedRequestCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.ReadCount, newValue.ReadCount))
+                UpdateChildVariableStatus(m_variable.ReadCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.HistoryReadCount, newValue.HistoryReadCount))
+                UpdateChildVariableStatus(m_variable.HistoryReadCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.WriteCount, newValue.WriteCount))
+                UpdateChildVariableStatus(m_variable.WriteCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.HistoryUpdateCount, newValue.HistoryUpdateCount))
+                UpdateChildVariableStatus(m_variable.HistoryUpdateCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.CallCount, newValue.CallCount))
+                UpdateChildVariableStatus(m_variable.CallCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.CreateMonitoredItemsCount, newValue.CreateMonitoredItemsCount))
+                UpdateChildVariableStatus(m_variable.CreateMonitoredItemsCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.ModifyMonitoredItemsCount, newValue.ModifyMonitoredItemsCount))
+                UpdateChildVariableStatus(m_variable.ModifyMonitoredItemsCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.SetMonitoringModeCount, newValue.SetMonitoringModeCount))
+                UpdateChildVariableStatus(m_variable.SetMonitoringModeCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.SetTriggeringCount, newValue.SetTriggeringCount))
+                UpdateChildVariableStatus(m_variable.SetTriggeringCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.DeleteMonitoredItemsCount, newValue.DeleteMonitoredItemsCount))
+                UpdateChildVariableStatus(m_variable.DeleteMonitoredItemsCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.CreateSubscriptionCount, newValue.CreateSubscriptionCount))
+                UpdateChildVariableStatus(m_variable.CreateSubscriptionCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.ModifySubscriptionCount, newValue.ModifySubscriptionCount))
+                UpdateChildVariableStatus(m_variable.ModifySubscriptionCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.SetPublishingModeCount, newValue.SetPublishingModeCount))
+                UpdateChildVariableStatus(m_variable.SetPublishingModeCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.PublishCount, newValue.PublishCount))
+                UpdateChildVariableStatus(m_variable.PublishCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.RepublishCount, newValue.RepublishCount))
+                UpdateChildVariableStatus(m_variable.RepublishCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.TransferSubscriptionsCount, newValue.TransferSubscriptionsCount))
+                UpdateChildVariableStatus(m_variable.TransferSubscriptionsCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.DeleteSubscriptionsCount, newValue.DeleteSubscriptionsCount))
+                UpdateChildVariableStatus(m_variable.DeleteSubscriptionsCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.AddNodesCount, newValue.AddNodesCount))
+                UpdateChildVariableStatus(m_variable.AddNodesCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.AddReferencesCount, newValue.AddReferencesCount))
+                UpdateChildVariableStatus(m_variable.AddReferencesCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.DeleteNodesCount, newValue.DeleteNodesCount))
+                UpdateChildVariableStatus(m_variable.DeleteNodesCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.DeleteReferencesCount, newValue.DeleteReferencesCount))
+                UpdateChildVariableStatus(m_variable.DeleteReferencesCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.BrowseCount, newValue.BrowseCount))
+                UpdateChildVariableStatus(m_variable.BrowseCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.BrowseNextCount, newValue.BrowseNextCount))
+                UpdateChildVariableStatus(m_variable.BrowseNextCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.TranslateBrowsePathsToNodeIdsCount, newValue.TranslateBrowsePathsToNodeIdsCount))
+                UpdateChildVariableStatus(m_variable.TranslateBrowsePathsToNodeIdsCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.QueryFirstCount, newValue.QueryFirstCount))
+                UpdateChildVariableStatus(m_variable.QueryFirstCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.QueryNextCount, newValue.QueryNextCount))
+                UpdateChildVariableStatus(m_variable.QueryNextCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.RegisterNodesCount, newValue.RegisterNodesCount))
+                UpdateChildVariableStatus(m_variable.RegisterNodesCount, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.UnregisterNodesCount, newValue.UnregisterNodesCount))
+                UpdateChildVariableStatus(m_variable.UnregisterNodesCount, ref statusCode, ref timestamp);
         }
 
         private void UpdateParent(ISystemContext context, ref StatusCode statusCode, ref DateTime timestamp)
@@ -24275,7 +24379,8 @@ namespace Opc.Ua
 
         private void UpdateChildVariableStatus(BaseVariableState child, ref StatusCode statusCode, ref DateTime timestamp)
         {
-            if (child == null) return;
+            if (child == null)
+                return;
             child.StatusCode = statusCode;
             if (timestamp == DateTime.MinValue)
             {
@@ -27086,11 +27191,11 @@ namespace Opc.Ua
         #endregion
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region SessionSecurityDiagnosticsArrayState Class
-    #if (!OPCUA_EXCLUDE_SessionSecurityDiagnosticsArrayState)
+#if (!OPCUA_EXCLUDE_SessionSecurityDiagnosticsArrayState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -27120,7 +27225,7 @@ namespace Opc.Ua
             return ValueRanks.OneDimension;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -27147,7 +27252,7 @@ namespace Opc.Ua
            "//////////8XYIkCAgAAAAAAKwAAAFNlc3Npb25TZWN1cml0eURpYWdub3N0aWNzQXJyYXlUeXBlSW5z" +
            "dGFuY2UBAMMIAQDDCMMIAAABAGQDAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -27159,11 +27264,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region SessionSecurityDiagnosticsState Class
-    #if (!OPCUA_EXCLUDE_SessionSecurityDiagnosticsState)
+#if (!OPCUA_EXCLUDE_SessionSecurityDiagnosticsState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -27193,7 +27298,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -27229,7 +27334,7 @@ namespace Opc.Ua
            "AD/MCAAAAAz/////AQH/////AAAAABVgiQoCAAAAAAARAAAAQ2xpZW50Q2VydGlmaWNhdGUBAPILAC8A" +
            "P/ILAAAAD/////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -27458,7 +27563,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -27865,15 +27970,24 @@ namespace Opc.Ua
 
         private void UpdateChildrenChangeMasks(ISystemContext context, ref SessionSecurityDiagnosticsDataType newValue, ref StatusCode statusCode, ref DateTime timestamp)
         {
-            if (!Utils.IsEqual(m_value.SessionId, newValue.SessionId)) UpdateChildVariableStatus(m_variable.SessionId, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.ClientUserIdOfSession, newValue.ClientUserIdOfSession)) UpdateChildVariableStatus(m_variable.ClientUserIdOfSession, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.ClientUserIdHistory, newValue.ClientUserIdHistory)) UpdateChildVariableStatus(m_variable.ClientUserIdHistory, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.AuthenticationMechanism, newValue.AuthenticationMechanism)) UpdateChildVariableStatus(m_variable.AuthenticationMechanism, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.Encoding, newValue.Encoding)) UpdateChildVariableStatus(m_variable.Encoding, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.TransportProtocol, newValue.TransportProtocol)) UpdateChildVariableStatus(m_variable.TransportProtocol, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.SecurityMode, newValue.SecurityMode)) UpdateChildVariableStatus(m_variable.SecurityMode, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.SecurityPolicyUri, newValue.SecurityPolicyUri)) UpdateChildVariableStatus(m_variable.SecurityPolicyUri, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.ClientCertificate, newValue.ClientCertificate)) UpdateChildVariableStatus(m_variable.ClientCertificate, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.SessionId, newValue.SessionId))
+                UpdateChildVariableStatus(m_variable.SessionId, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.ClientUserIdOfSession, newValue.ClientUserIdOfSession))
+                UpdateChildVariableStatus(m_variable.ClientUserIdOfSession, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.ClientUserIdHistory, newValue.ClientUserIdHistory))
+                UpdateChildVariableStatus(m_variable.ClientUserIdHistory, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.AuthenticationMechanism, newValue.AuthenticationMechanism))
+                UpdateChildVariableStatus(m_variable.AuthenticationMechanism, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.Encoding, newValue.Encoding))
+                UpdateChildVariableStatus(m_variable.Encoding, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.TransportProtocol, newValue.TransportProtocol))
+                UpdateChildVariableStatus(m_variable.TransportProtocol, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.SecurityMode, newValue.SecurityMode))
+                UpdateChildVariableStatus(m_variable.SecurityMode, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.SecurityPolicyUri, newValue.SecurityPolicyUri))
+                UpdateChildVariableStatus(m_variable.SecurityPolicyUri, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.ClientCertificate, newValue.ClientCertificate))
+                UpdateChildVariableStatus(m_variable.ClientCertificate, ref statusCode, ref timestamp);
         }
 
         private void UpdateParent(ISystemContext context, ref StatusCode statusCode, ref DateTime timestamp)
@@ -27885,7 +27999,8 @@ namespace Opc.Ua
 
         private void UpdateChildVariableStatus(BaseVariableState child, ref StatusCode statusCode, ref DateTime timestamp)
         {
-            if (child == null) return;
+            if (child == null)
+                return;
             child.StatusCode = statusCode;
             if (timestamp == DateTime.MinValue)
             {
@@ -28486,11 +28601,11 @@ namespace Opc.Ua
         #endregion
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region OptionSetState Class
-    #if (!OPCUA_EXCLUDE_OptionSetState)
+#if (!OPCUA_EXCLUDE_OptionSetState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -28520,7 +28635,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -28558,7 +28673,7 @@ namespace Opc.Ua
            "AAAAAAAAAQH/////AAAAABdgiQoCAAAAAAAHAAAAQml0TWFzawEAtS0ALgBEtS0AAAABAQAAAAEAAAAA" +
            "AAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -28619,7 +28734,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -28742,11 +28857,11 @@ namespace Opc.Ua
         #endregion
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region SelectionListState Class
-    #if (!OPCUA_EXCLUDE_SelectionListState)
+#if (!OPCUA_EXCLUDE_SelectionListState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -28776,7 +28891,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -28824,7 +28939,7 @@ namespace Opc.Ua
            "AAAAFQEAAAABAAAAAAAAAAEB/////wAAAAAVYIkKAgAAAAAADgAAAFJlc3RyaWN0VG9MaXN0AQC4PwAu" +
            "AES4PwAAAAH/////AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -28909,7 +29024,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -29054,11 +29169,11 @@ namespace Opc.Ua
         #endregion
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region AudioVariableState Class
-    #if (!OPCUA_EXCLUDE_AudioVariableState)
+#if (!OPCUA_EXCLUDE_AudioVariableState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -29088,7 +29203,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -29141,7 +29256,7 @@ namespace Opc.Ua
            "/wAAAAAVYIkKAgAAAAAACAAAAEFnZW5jeUlkAQBFRgAuAERFRgAAAAz/////AQH/////AAAAABVgiQoC" +
            "AAAAAAAJAAAAVmVyc2lvbklkAQBGRgAuAERGRgAAAAz/////AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -29226,7 +29341,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -29322,11 +29437,11 @@ namespace Opc.Ua
         private PropertyState<string> m_versionId;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region GetMonitoredItemsMethodState Class
-    #if (!OPCUA_EXCLUDE_GetMonitoredItemsMethodState)
+#if (!OPCUA_EXCLUDE_GetMonitoredItemsMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -29344,7 +29459,7 @@ namespace Opc.Ua
             return new GetMonitoredItemsMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -29368,7 +29483,7 @@ namespace Opc.Ua
            "AFNlcnZlckhhbmRsZXMABwEAAAABAAAAAAAAAAABACoBASAAAAANAAAAQ2xpZW50SGFuZGxlcwAHAQAA" +
            "AAEAAAAAAAAAAAEAKAEBAAAAAQAAAAIAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -29394,7 +29509,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -29424,7 +29539,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -29461,8 +29576,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -29500,11 +29615,11 @@ namespace Opc.Ua
         NodeId _objectId,
         uint subscriptionId,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region ResendDataMethodState Class
-    #if (!OPCUA_EXCLUDE_ResendDataMethodState)
+#if (!OPCUA_EXCLUDE_ResendDataMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -29522,7 +29637,7 @@ namespace Opc.Ua
             return new ResendDataMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -29543,7 +29658,7 @@ namespace Opc.Ua
            "//8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEATDIALgBETDIAAJYBAAAAAQAqAQEdAAAA" +
            "DgAAAFN1YnNjcmlwdGlvbklkAAf/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -29569,7 +29684,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -29591,7 +29706,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -29625,8 +29740,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -29658,11 +29773,11 @@ namespace Opc.Ua
         NodeId _objectId,
         uint subscriptionId,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region SetSubscriptionDurableMethodState Class
-    #if (!OPCUA_EXCLUDE_SetSubscriptionDurableMethodState)
+#if (!OPCUA_EXCLUDE_SetSubscriptionDurableMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -29680,7 +29795,7 @@ namespace Opc.Ua
             return new SetSubscriptionDurableMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -29704,7 +29819,7 @@ namespace Opc.Ua
            "T3V0cHV0QXJndW1lbnRzAQDSMQAuAETSMQAAlgEAAAABACoBASUAAAAWAAAAUmV2aXNlZExpZmV0aW1l" +
            "SW5Ib3VycwAH/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -29730,7 +29845,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -29759,7 +29874,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -29797,8 +29912,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -29835,11 +29950,11 @@ namespace Opc.Ua
         uint subscriptionId,
         uint lifetimeInHours,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region RequestServerStateChangeMethodState Class
-    #if (!OPCUA_EXCLUDE_RequestServerStateChangeMethodState)
+#if (!OPCUA_EXCLUDE_RequestServerStateChangeMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -29857,7 +29972,7 @@ namespace Opc.Ua
             return new RequestServerStateChangeMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -29881,7 +29996,7 @@ namespace Opc.Ua
            "AAABACoBARUAAAAGAAAAUmVhc29uABX/////AAAAAAABACoBARYAAAAHAAAAUmVzdGFydAAB/////wAA" +
            "AAAAAQAoAQEAAAABAAAABQAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -29907,7 +30022,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -29937,7 +30052,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -29979,8 +30094,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -30020,11 +30135,11 @@ namespace Opc.Ua
         LocalizedText reason,
         bool restart,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region StateMachineState Class
-    #if (!OPCUA_EXCLUDE_StateMachineState)
+#if (!OPCUA_EXCLUDE_StateMachineState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -30042,7 +30157,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.StateMachineType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -30081,7 +30196,7 @@ namespace Opc.Ua
            "TGFzdFRyYW5zaXRpb24BANIKAC8BAMoK0goAAAAV/////wEB/////wEAAAAVYIkKAgAAAAAAAgAAAElk" +
            "AQCMDgAuAESMDgAAABj/////AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -30142,7 +30257,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -30216,11 +30331,11 @@ namespace Opc.Ua
         private TransitionVariableState m_lastTransition;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region StateVariableState Class
-    #if (!OPCUA_EXCLUDE_StateVariableState)
+#if (!OPCUA_EXCLUDE_StateVariableState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -30250,7 +30365,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -30305,7 +30420,7 @@ namespace Opc.Ua
            "dW1iZXIBAMYKAC4ARMYKAAAAB/////8BAf////8AAAAAFWCJCgIAAAAAABQAAABFZmZlY3RpdmVEaXNw" +
            "bGF5TmFtZQEAxwoALgBExwoAAAAV/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -30414,7 +30529,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -30532,11 +30647,11 @@ namespace Opc.Ua
         private PropertyState<LocalizedText> m_effectiveDisplayName;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region TransitionVariableState Class
-    #if (!OPCUA_EXCLUDE_TransitionVariableState)
+#if (!OPCUA_EXCLUDE_TransitionVariableState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -30566,7 +30681,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -30631,7 +30746,7 @@ namespace Opc.Ua
            "b25UaW1lAQDOCgAuAETOCgAAAQAmAf////8BAf////8AAAAAFWCJCgIAAAAAABcAAABFZmZlY3RpdmVU" +
            "cmFuc2l0aW9uVGltZQEAwCwALgBEwCwAAAEAJgH/////AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -30764,7 +30879,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -30904,11 +31019,11 @@ namespace Opc.Ua
         private PropertyState<DateTime> m_effectiveTransitionTime;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region FiniteStateMachineState Class
-    #if (!OPCUA_EXCLUDE_FiniteStateMachineState)
+#if (!OPCUA_EXCLUDE_FiniteStateMachineState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -30926,7 +31041,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.FiniteStateMachineType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -30985,7 +31100,7 @@ namespace Opc.Ua
            "dGVzAQDjRAAvAD/jRAAAABEBAAAAAQAAAAAAAAABAf////8AAAAAF2CJCgIAAAAAABQAAABBdmFpbGFi" +
            "bGVUcmFuc2l0aW9ucwEA5EQALwA/5EQAAAARAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -31060,7 +31175,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -31176,11 +31291,11 @@ namespace Opc.Ua
         private BaseDataVariableState<NodeId[]> m_availableTransitions;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region FiniteStateVariableState Class
-    #if (!OPCUA_EXCLUDE_FiniteStateVariableState)
+#if (!OPCUA_EXCLUDE_FiniteStateVariableState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -31210,7 +31325,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -31238,7 +31353,7 @@ namespace Opc.Ua
            "CsgKAAAAFf////8BAf////8BAAAAFWCJCgIAAAAAAAIAAABJZAEAyQoALgBEyQoAAAAR/////wEB////" +
            "/wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -31259,7 +31374,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -31310,11 +31425,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region FiniteTransitionVariableState Class
-    #if (!OPCUA_EXCLUDE_FiniteTransitionVariableState)
+#if (!OPCUA_EXCLUDE_FiniteTransitionVariableState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -31344,7 +31459,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -31372,7 +31487,7 @@ namespace Opc.Ua
            "zwoBAM8KzwoAAAAV/////wEB/////wEAAAAVYIkKAgAAAAAAAgAAAElkAQDQCgAuAETQCgAAABH/////" +
            "AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -31393,7 +31508,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -31444,11 +31559,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region StateMachineStateState Class
-    #if (!OPCUA_EXCLUDE_StateMachineStateState)
+#if (!OPCUA_EXCLUDE_StateMachineStateState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -31466,7 +31581,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.StateType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -31493,7 +31608,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAEQAAAFN0YXRlVHlwZUluc3RhbmNlAQADCQEAAwkDCQAA/////wEAAAAV" +
            "YIkKAgAAAAAACwAAAFN0YXRlTnVtYmVyAQAECQAuAEQECQAAAAf/////AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -31530,7 +31645,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -31582,11 +31697,11 @@ namespace Opc.Ua
         private PropertyState<uint> m_stateNumber;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region StateMachineInitialStateState Class
-    #if (!OPCUA_EXCLUDE_StateMachineInitialStateState)
+#if (!OPCUA_EXCLUDE_StateMachineInitialStateState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -31604,7 +31719,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.InitialStateType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -31632,7 +31747,7 @@ namespace Opc.Ua
            "//8BAAAAFWCJCgIAAAAAAAsAAABTdGF0ZU51bWJlcgIAAM1EDwAALgBEzUQPAAAH/////wEB/////wAA" +
            "AAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -31644,11 +31759,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region StateMachineTransitionState Class
-    #if (!OPCUA_EXCLUDE_StateMachineTransitionState)
+#if (!OPCUA_EXCLUDE_StateMachineTransitionState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -31666,7 +31781,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.TransitionType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -31694,7 +31809,7 @@ namespace Opc.Ua
            "AQAAABVgiQoCAAAAAAAQAAAAVHJhbnNpdGlvbk51bWJlcgEACAkALgBECAkAAAAH/////wEB/////wAA" +
            "AAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -31731,7 +31846,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -31783,11 +31898,11 @@ namespace Opc.Ua
         private PropertyState<uint> m_transitionNumber;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region StateMachineChoiceStateTypeState Class
-    #if (!OPCUA_EXCLUDE_StateMachineChoiceStateTypeState)
+#if (!OPCUA_EXCLUDE_StateMachineChoiceStateTypeState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -31805,7 +31920,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.ChoiceStateType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -31833,7 +31948,7 @@ namespace Opc.Ua
            "/wEAAAAVYIkKAgAAAAAACwAAAFN0YXRlTnVtYmVyAgAAzkQPAAAuAETORA8AAAf/////AQH/////AAAA" +
            "AA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -31845,11 +31960,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region GuardVariableState Class
-    #if (!OPCUA_EXCLUDE_GuardVariableState)
+#if (!OPCUA_EXCLUDE_GuardVariableState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -31879,7 +31994,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -31906,7 +32021,7 @@ namespace Opc.Ua
            "//////////8VYIkCAgAAAAAAGQAAAEd1YXJkVmFyaWFibGVUeXBlSW5zdGFuY2UBAAk7AQAJOwk7AAAA" +
            "Ff////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -31918,11 +32033,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region ExpressionGuardVariableState Class
-    #if (!OPCUA_EXCLUDE_ExpressionGuardVariableState)
+#if (!OPCUA_EXCLUDE_ExpressionGuardVariableState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -31952,7 +32067,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -31980,7 +32095,7 @@ namespace Opc.Ua
            "OwEAGDsYOwAAABX/////AQH/////AQAAABVgiQoCAAAAAAAKAAAARXhwcmVzc2lvbgEAGTsALgBEGTsA" +
            "AAEASgL/////AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -32017,7 +32132,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -32069,11 +32184,11 @@ namespace Opc.Ua
         private PropertyState<ContentFilter> m_expression;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region ElseGuardVariableState Class
-    #if (!OPCUA_EXCLUDE_ElseGuardVariableState)
+#if (!OPCUA_EXCLUDE_ElseGuardVariableState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -32103,7 +32218,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -32130,7 +32245,7 @@ namespace Opc.Ua
            "//////////8VYIkCAgAAAAAAHQAAAEVsc2VHdWFyZFZhcmlhYmxlVHlwZUluc3RhbmNlAQDVOwEA1TvV" +
            "OwAAABX/////AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -32142,11 +32257,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region RationalNumberState Class
-    #if (!OPCUA_EXCLUDE_RationalNumberState)
+#if (!OPCUA_EXCLUDE_RationalNumberState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -32176,7 +32291,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -32205,7 +32320,7 @@ namespace Opc.Ua
            "Af////8AAAAAFWCJCgIAAAAAAAsAAABEZW5vbWluYXRvcgEAMUUALwA/MUUAAAAH/////wEB/////wAA" +
            "AAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -32266,7 +32381,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -32470,8 +32585,10 @@ namespace Opc.Ua
 
         private void UpdateChildrenChangeMasks(ISystemContext context, ref RationalNumber newValue, ref StatusCode statusCode, ref DateTime timestamp)
         {
-            if (!Utils.IsEqual(m_value.Numerator, newValue.Numerator)) UpdateChildVariableStatus(m_variable.Numerator, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.Denominator, newValue.Denominator)) UpdateChildVariableStatus(m_variable.Denominator, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.Numerator, newValue.Numerator))
+                UpdateChildVariableStatus(m_variable.Numerator, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.Denominator, newValue.Denominator))
+                UpdateChildVariableStatus(m_variable.Denominator, ref statusCode, ref timestamp);
         }
 
         private void UpdateParent(ISystemContext context, ref StatusCode statusCode, ref DateTime timestamp)
@@ -32483,7 +32600,8 @@ namespace Opc.Ua
 
         private void UpdateChildVariableStatus(BaseVariableState child, ref StatusCode statusCode, ref DateTime timestamp)
         {
-            if (child == null) return;
+            if (child == null)
+                return;
             child.StatusCode = statusCode;
             if (timestamp == DateTime.MinValue)
             {
@@ -32629,11 +32747,11 @@ namespace Opc.Ua
         #endregion
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region VectorState Class
-    #if (!OPCUA_EXCLUDE_VectorState)
+#if (!OPCUA_EXCLUDE_VectorState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -32663,7 +32781,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -32700,7 +32818,7 @@ namespace Opc.Ua
            "AQH/////AQAAABVgiQoCAAAAAAAKAAAAVmVjdG9yVW5pdAEAM0UALgBEM0UAAAEAdwP/////AQH/////" +
            "AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -32737,7 +32855,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -32789,11 +32907,11 @@ namespace Opc.Ua
         private PropertyState<EUInformation> m_vectorUnit;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region ThreeDVectorState Class
-    #if (!OPCUA_EXCLUDE_ThreeDVectorState)
+#if (!OPCUA_EXCLUDE_ThreeDVectorState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -32823,7 +32941,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -32852,7 +32970,7 @@ namespace Opc.Ua
            "YIkKAgAAAAAAAQAAAFkBAFJJAC8AP1JJAAAAC/////8BAf////8AAAAAFWCJCgIAAAAAAAEAAABaAQBT" +
            "SQAvAD9TSQAAAAv/////AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -32937,7 +33055,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -33170,9 +33288,12 @@ namespace Opc.Ua
 
         private void UpdateChildrenChangeMasks(ISystemContext context, ref ThreeDVector newValue, ref StatusCode statusCode, ref DateTime timestamp)
         {
-            if (!Utils.IsEqual(m_value.X, newValue.X)) UpdateChildVariableStatus(m_variable.X, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.Y, newValue.Y)) UpdateChildVariableStatus(m_variable.Y, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.Z, newValue.Z)) UpdateChildVariableStatus(m_variable.Z, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.X, newValue.X))
+                UpdateChildVariableStatus(m_variable.X, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.Y, newValue.Y))
+                UpdateChildVariableStatus(m_variable.Y, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.Z, newValue.Z))
+                UpdateChildVariableStatus(m_variable.Z, ref statusCode, ref timestamp);
         }
 
         private void UpdateParent(ISystemContext context, ref StatusCode statusCode, ref DateTime timestamp)
@@ -33184,7 +33305,8 @@ namespace Opc.Ua
 
         private void UpdateChildVariableStatus(BaseVariableState child, ref StatusCode statusCode, ref DateTime timestamp)
         {
-            if (child == null) return;
+            if (child == null)
+                return;
             child.StatusCode = statusCode;
             if (timestamp == DateTime.MinValue)
             {
@@ -33395,11 +33517,11 @@ namespace Opc.Ua
         #endregion
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region CartesianCoordinatesState Class
-    #if (!OPCUA_EXCLUDE_CartesianCoordinatesState)
+#if (!OPCUA_EXCLUDE_CartesianCoordinatesState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -33429,7 +33551,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -33466,7 +33588,7 @@ namespace Opc.Ua
            "VElUSQAAAQB5Sf////8BAf////8BAAAAFWCJCgIAAAAAAAoAAABMZW5ndGhVbml0AQBVSQAuAERVSQAA" +
            "AQB3A/////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -33503,7 +33625,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -33555,11 +33677,11 @@ namespace Opc.Ua
         private PropertyState<EUInformation> m_lengthUnit;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region ThreeDCartesianCoordinatesState Class
-    #if (!OPCUA_EXCLUDE_ThreeDCartesianCoordinatesState)
+#if (!OPCUA_EXCLUDE_ThreeDCartesianCoordinatesState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -33589,7 +33711,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -33618,7 +33740,7 @@ namespace Opc.Ua
            "////AQH/////AAAAABVgiQoCAAAAAAABAAAAWQEAWUkALwA/WUkAAAAL/////wEB/////wAAAAAVYIkK" +
            "AgAAAAAAAQAAAFoBAFpJAC8AP1pJAAAAC/////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -33703,7 +33825,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -33936,9 +34058,12 @@ namespace Opc.Ua
 
         private void UpdateChildrenChangeMasks(ISystemContext context, ref ThreeDCartesianCoordinates newValue, ref StatusCode statusCode, ref DateTime timestamp)
         {
-            if (!Utils.IsEqual(m_value.X, newValue.X)) UpdateChildVariableStatus(m_variable.X, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.Y, newValue.Y)) UpdateChildVariableStatus(m_variable.Y, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.Z, newValue.Z)) UpdateChildVariableStatus(m_variable.Z, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.X, newValue.X))
+                UpdateChildVariableStatus(m_variable.X, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.Y, newValue.Y))
+                UpdateChildVariableStatus(m_variable.Y, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.Z, newValue.Z))
+                UpdateChildVariableStatus(m_variable.Z, ref statusCode, ref timestamp);
         }
 
         private void UpdateParent(ISystemContext context, ref StatusCode statusCode, ref DateTime timestamp)
@@ -33950,7 +34075,8 @@ namespace Opc.Ua
 
         private void UpdateChildVariableStatus(BaseVariableState child, ref StatusCode statusCode, ref DateTime timestamp)
         {
-            if (child == null) return;
+            if (child == null)
+                return;
             child.StatusCode = statusCode;
             if (timestamp == DateTime.MinValue)
             {
@@ -34161,11 +34287,11 @@ namespace Opc.Ua
         #endregion
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region OrientationState Class
-    #if (!OPCUA_EXCLUDE_OrientationState)
+#if (!OPCUA_EXCLUDE_OrientationState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -34195,7 +34321,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -34232,7 +34358,7 @@ namespace Opc.Ua
            "Sf////8BAf////8BAAAAFWCJCgIAAAAAAAkAAABBbmdsZVVuaXQBAFxJAC4ARFxJAAABAHcD/////wEB" +
            "/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -34269,7 +34395,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -34321,11 +34447,11 @@ namespace Opc.Ua
         private PropertyState<EUInformation> m_angleUnit;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region ThreeDOrientationState Class
-    #if (!OPCUA_EXCLUDE_ThreeDOrientationState)
+#if (!OPCUA_EXCLUDE_ThreeDOrientationState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -34355,7 +34481,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -34384,7 +34510,7 @@ namespace Opc.Ua
            "AAAAABVgiQoCAAAAAAABAAAAQgEAYEkALwA/YEkAAAAL/////wEB/////wAAAAAVYIkKAgAAAAAAAQAA" +
            "AEMBAGFJAC8AP2FJAAAAC/////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -34469,7 +34595,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -34702,9 +34828,12 @@ namespace Opc.Ua
 
         private void UpdateChildrenChangeMasks(ISystemContext context, ref ThreeDOrientation newValue, ref StatusCode statusCode, ref DateTime timestamp)
         {
-            if (!Utils.IsEqual(m_value.A, newValue.A)) UpdateChildVariableStatus(m_variable.A, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.B, newValue.B)) UpdateChildVariableStatus(m_variable.B, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.C, newValue.C)) UpdateChildVariableStatus(m_variable.C, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.A, newValue.A))
+                UpdateChildVariableStatus(m_variable.A, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.B, newValue.B))
+                UpdateChildVariableStatus(m_variable.B, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.C, newValue.C))
+                UpdateChildVariableStatus(m_variable.C, ref statusCode, ref timestamp);
         }
 
         private void UpdateParent(ISystemContext context, ref StatusCode statusCode, ref DateTime timestamp)
@@ -34716,7 +34845,8 @@ namespace Opc.Ua
 
         private void UpdateChildVariableStatus(BaseVariableState child, ref StatusCode statusCode, ref DateTime timestamp)
         {
-            if (child == null) return;
+            if (child == null)
+                return;
             child.StatusCode = statusCode;
             if (timestamp == DateTime.MinValue)
             {
@@ -34927,11 +35057,11 @@ namespace Opc.Ua
         #endregion
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region FrameState Class
-    #if (!OPCUA_EXCLUDE_FrameState)
+#if (!OPCUA_EXCLUDE_FrameState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -34961,7 +35091,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -35016,7 +35146,7 @@ namespace Opc.Ua
            "AAAVYIkKAgAAAAAACQAAAEJhc2VGcmFtZQEAZUkALwA/ZUkAAAAR/////wEB/////wAAAAAVYIkKAgAA" +
            "AAAACQAAAEZpeGVkQmFzZQEAZkkALgBEZkkAAAAB/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -35149,7 +35279,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -35289,11 +35419,11 @@ namespace Opc.Ua
         private PropertyState<bool> m_fixedBase;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region ThreeDFrameState Class
-    #if (!OPCUA_EXCLUDE_ThreeDFrameState)
+#if (!OPCUA_EXCLUDE_ThreeDFrameState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -35323,7 +35453,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -35356,7 +35486,7 @@ namespace Opc.Ua
            "AQH/////AAAAABVgiQoCAAAAAAABAAAAQgEAg0oALwA/g0oAAAAL/////wEB/////wAAAAAVYIkKAgAA" +
            "AAAAAQAAAEMBAIRKAC8AP4RKAAAAC/////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -35384,7 +35514,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -35586,8 +35716,10 @@ namespace Opc.Ua
 
         private void UpdateChildrenChangeMasks(ISystemContext context, ref ThreeDFrame newValue, ref StatusCode statusCode, ref DateTime timestamp)
         {
-            if (!Utils.IsEqual(m_value.CartesianCoordinates, newValue.CartesianCoordinates)) UpdateChildVariableStatus(m_variable.CartesianCoordinates, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.Orientation, newValue.Orientation)) UpdateChildVariableStatus(m_variable.Orientation, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.CartesianCoordinates, newValue.CartesianCoordinates))
+                UpdateChildVariableStatus(m_variable.CartesianCoordinates, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.Orientation, newValue.Orientation))
+                UpdateChildVariableStatus(m_variable.Orientation, ref statusCode, ref timestamp);
         }
 
         private void UpdateParent(ISystemContext context, ref StatusCode statusCode, ref DateTime timestamp)
@@ -35599,7 +35731,8 @@ namespace Opc.Ua
 
         private void UpdateChildVariableStatus(BaseVariableState child, ref StatusCode statusCode, ref DateTime timestamp)
         {
-            if (child == null) return;
+            if (child == null)
+                return;
             child.StatusCode = statusCode;
             if (timestamp == DateTime.MinValue)
             {
@@ -35745,11 +35878,11 @@ namespace Opc.Ua
         #endregion
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region BitFieldState Class
-    #if (!OPCUA_EXCLUDE_BitFieldState)
+#if (!OPCUA_EXCLUDE_BitFieldState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -35779,7 +35912,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -35807,7 +35940,7 @@ namespace Opc.Ua
            "AQH/////AQAAABdgiQoCAAAAAAAUAAAAQml0RmllbGRzRGVmaW5pdGlvbnMBALB+AC4ARLB+AAABAKV+" +
            "AQAAAAEAAAAAAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -35844,7 +35977,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -35945,11 +36078,11 @@ namespace Opc.Ua
         #endregion
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region TransitionEventState Class
-    #if (!OPCUA_EXCLUDE_TransitionEventState)
+#if (!OPCUA_EXCLUDE_TransitionEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -35967,7 +36100,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.TransitionEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -36006,7 +36139,7 @@ namespace Opc.Ua
            "LwEAwwrYCgAAABX/////AQH/////AQAAABVgiQoCAAAAAAACAAAASWQBAKYOAC4ARKYOAAAAGP////8B" +
            "Af////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -36091,7 +36224,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -36187,11 +36320,11 @@ namespace Opc.Ua
         private StateVariableState m_toState;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditUpdateStateEventState Class
-    #if (!OPCUA_EXCLUDE_AuditUpdateStateEventState)
+#if (!OPCUA_EXCLUDE_AuditUpdateStateEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -36209,7 +36342,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditUpdateStateEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -36251,7 +36384,7 @@ namespace Opc.Ua
            "AAEB/////wAAAAAVYIkKAgAAAAAACgAAAE9sZFN0YXRlSWQBANkKAC4ARNkKAAAAGP////8BAf////8A" +
            "AAAAFWCJCgIAAAAAAAoAAABOZXdTdGF0ZUlkAQDaCgAuAETaCgAAABj/////AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -36312,7 +36445,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -36386,11 +36519,11 @@ namespace Opc.Ua
         private PropertyState m_newStateId;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region OpenMethodState Class
-    #if (!OPCUA_EXCLUDE_OpenMethodState)
+#if (!OPCUA_EXCLUDE_OpenMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -36408,7 +36541,7 @@ namespace Opc.Ua
             return new OpenMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -36431,7 +36564,7 @@ namespace Opc.Ua
            "cmd1bWVudHMBANwtAC4ARNwtAACWAQAAAAEAKgEBGQAAAAoAAABGaWxlSGFuZGxlAAf/////AAAAAAAB" +
            "ACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -36457,7 +36590,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -36484,7 +36617,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -36520,8 +36653,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -36556,11 +36689,11 @@ namespace Opc.Ua
         NodeId _objectId,
         byte mode,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region CloseMethodState Class
-    #if (!OPCUA_EXCLUDE_CloseMethodState)
+#if (!OPCUA_EXCLUDE_CloseMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -36578,7 +36711,7 @@ namespace Opc.Ua
             return new CloseMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -36599,7 +36732,7 @@ namespace Opc.Ua
            "ABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAN4tAC4ARN4tAACWAQAAAAEAKgEBGQAAAAoAAABG" +
            "aWxlSGFuZGxlAAf/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -36625,7 +36758,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -36647,7 +36780,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -36681,8 +36814,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -36714,11 +36847,11 @@ namespace Opc.Ua
         NodeId _objectId,
         uint fileHandle,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region ReadMethodState Class
-    #if (!OPCUA_EXCLUDE_ReadMethodState)
+#if (!OPCUA_EXCLUDE_ReadMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -36736,7 +36869,7 @@ namespace Opc.Ua
             return new ReadMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -36759,7 +36892,7 @@ namespace Opc.Ua
            "AAIAAAABAf////8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAOEtAC4AROEtAACWAQAA" +
            "AAEAKgEBEwAAAAQAAABEYXRhAA//////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -36785,7 +36918,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -36814,7 +36947,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -36852,8 +36985,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -36890,11 +37023,11 @@ namespace Opc.Ua
         uint fileHandle,
         int length,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region WriteMethodState Class
-    #if (!OPCUA_EXCLUDE_WriteMethodState)
+#if (!OPCUA_EXCLUDE_WriteMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -36912,7 +37045,7 @@ namespace Opc.Ua
             return new WriteMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -36934,7 +37067,7 @@ namespace Opc.Ua
            "aWxlSGFuZGxlAAf/////AAAAAAABACoBARMAAAAEAAAARGF0YQAP/////wAAAAAAAQAoAQEAAAABAAAA" +
            "AgAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -36960,7 +37093,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -36984,7 +37117,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -37020,8 +37153,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -37055,11 +37188,11 @@ namespace Opc.Ua
         uint fileHandle,
         byte[] data,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region GetPositionMethodState Class
-    #if (!OPCUA_EXCLUDE_GetPositionMethodState)
+#if (!OPCUA_EXCLUDE_GetPositionMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -37077,7 +37210,7 @@ namespace Opc.Ua
             return new GetPositionMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -37100,7 +37233,7 @@ namespace Opc.Ua
            "AAAPAAAAT3V0cHV0QXJndW1lbnRzAQDmLQAuAETmLQAAlgEAAAABACoBARcAAAAIAAAAUG9zaXRpb24A" +
            "Cf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -37126,7 +37259,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -37153,7 +37286,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -37189,8 +37322,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -37225,11 +37358,11 @@ namespace Opc.Ua
         NodeId _objectId,
         uint fileHandle,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region SetPositionMethodState Class
-    #if (!OPCUA_EXCLUDE_SetPositionMethodState)
+#if (!OPCUA_EXCLUDE_SetPositionMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -37247,7 +37380,7 @@ namespace Opc.Ua
             return new SetPositionMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -37269,7 +37402,7 @@ namespace Opc.Ua
            "AAoAAABGaWxlSGFuZGxlAAf/////AAAAAAABACoBARcAAAAIAAAAUG9zaXRpb24ACf////8AAAAAAAEA" +
            "KAEBAAAAAQAAAAIAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -37295,7 +37428,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -37319,7 +37452,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -37355,8 +37488,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -37390,11 +37523,11 @@ namespace Opc.Ua
         uint fileHandle,
         ulong position,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region FileDirectoryState Class
-    #if (!OPCUA_EXCLUDE_FileDirectoryState)
+#if (!OPCUA_EXCLUDE_FileDirectoryState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -37412,7 +37545,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.FileDirectoryType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -37458,7 +37591,7 @@ namespace Opc.Ua
            "dHMBAFU0AC4ARFU0AACWAQAAAAEAKgEBGAAAAAkAAABOZXdOb2RlSWQAEf////8AAAAAAAEAKAEBAAAA" +
            "AQAAAAEAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -37567,7 +37700,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -37685,11 +37818,11 @@ namespace Opc.Ua
         private MoveOrCopyMethodState m_moveOrCopyMethod;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region CreateDirectoryMethodState Class
-    #if (!OPCUA_EXCLUDE_CreateDirectoryMethodState)
+#if (!OPCUA_EXCLUDE_CreateDirectoryMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -37707,7 +37840,7 @@ namespace Opc.Ua
             return new CreateDirectoryMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -37730,7 +37863,7 @@ namespace Opc.Ua
            "YKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEAIDQALgBEIDQAAJYBAAAAAQAqAQEeAAAADwAAAERp" +
            "cmVjdG9yeU5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -37756,7 +37889,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -37783,7 +37916,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -37819,8 +37952,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -37855,11 +37988,11 @@ namespace Opc.Ua
         NodeId _objectId,
         string directoryName,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region CreateFileMethodState Class
-    #if (!OPCUA_EXCLUDE_CreateFileMethodState)
+#if (!OPCUA_EXCLUDE_CreateFileMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -37877,7 +38010,7 @@ namespace Opc.Ua
             return new CreateFileMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -37901,7 +38034,7 @@ namespace Opc.Ua
            "NAAuAEQjNAAAlgIAAAABACoBARkAAAAKAAAARmlsZU5vZGVJZAAR/////wAAAAAAAQAqAQEZAAAACgAA" +
            "AEZpbGVIYW5kbGUAB/////8AAAAAAAEAKAEBAAAAAQAAAAIAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -37927,7 +38060,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -37959,7 +38092,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -37998,8 +38131,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -38039,11 +38172,11 @@ namespace Opc.Ua
         string fileName,
         bool requestFileOpen,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region DeleteFileMethodState Class
-    #if (!OPCUA_EXCLUDE_DeleteFileMethodState)
+#if (!OPCUA_EXCLUDE_DeleteFileMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -38061,7 +38194,7 @@ namespace Opc.Ua
             return new DeleteFileMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -38082,7 +38215,7 @@ namespace Opc.Ua
            "//8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAJTQALgBEJTQAAJYBAAAAAQAqAQEdAAAA" +
            "DgAAAE9iamVjdFRvRGVsZXRlABH/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -38108,7 +38241,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -38130,7 +38263,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -38164,8 +38297,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -38197,11 +38330,11 @@ namespace Opc.Ua
         NodeId _objectId,
         NodeId objectToDelete,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region MoveOrCopyMethodState Class
-    #if (!OPCUA_EXCLUDE_MoveOrCopyMethodState)
+#if (!OPCUA_EXCLUDE_MoveOrCopyMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -38219,7 +38352,7 @@ namespace Opc.Ua
             return new MoveOrCopyMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -38244,7 +38377,7 @@ namespace Opc.Ua
            "cHV0QXJndW1lbnRzAQAoNAAuAEQoNAAAlgEAAAABACoBARgAAAAJAAAATmV3Tm9kZUlkABH/////AAAA" +
            "AAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -38270,7 +38403,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -38303,7 +38436,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -38345,8 +38478,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -38387,11 +38520,11 @@ namespace Opc.Ua
         bool createCopy,
         string newName,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region TemporaryFileTransferState Class
-    #if (!OPCUA_EXCLUDE_TemporaryFileTransferState)
+#if (!OPCUA_EXCLUDE_TemporaryFileTransferState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -38409,7 +38542,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.TemporaryFileTransferType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -38452,7 +38585,7 @@ namespace Opc.Ua
            "F2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAIk9AC4ARIk9AACWAQAAAAEAKgEBJQAAABYAAABD" +
            "b21wbGV0aW9uU3RhdGVNYWNoaW5lABH/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -38561,7 +38694,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -38679,11 +38812,11 @@ namespace Opc.Ua
         private CloseAndCommitMethodState m_closeAndCommitMethod;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region GenerateFileForReadMethodState Class
-    #if (!OPCUA_EXCLUDE_GenerateFileForReadMethodState)
+#if (!OPCUA_EXCLUDE_GenerateFileForReadMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -38701,7 +38834,7 @@ namespace Opc.Ua
             return new GenerateFileForReadMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -38726,7 +38859,7 @@ namespace Opc.Ua
            "ACoBASUAAAAWAAAAQ29tcGxldGlvblN0YXRlTWFjaGluZQAR/////wAAAAAAAQAoAQEAAAABAAAAAwAA" +
            "AAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -38752,7 +38885,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -38785,7 +38918,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -38823,8 +38956,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -38865,11 +38998,11 @@ namespace Opc.Ua
         NodeId _objectId,
         object generateOptions,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region GenerateFileForWriteMethodState Class
-    #if (!OPCUA_EXCLUDE_GenerateFileForWriteMethodState)
+#if (!OPCUA_EXCLUDE_GenerateFileForWriteMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -38887,7 +39020,7 @@ namespace Opc.Ua
             return new GenerateFileForWriteMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -38911,7 +39044,7 @@ namespace Opc.Ua
            "AAoAAABGaWxlTm9kZUlkABH/////AAAAAAABACoBARkAAAAKAAAARmlsZUhhbmRsZQAH/////wAAAAAA" +
            "AQAoAQEAAAABAAAAAgAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -38937,7 +39070,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -38967,7 +39100,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -39004,8 +39137,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -39043,11 +39176,11 @@ namespace Opc.Ua
         NodeId _objectId,
         object generateOptions,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region CloseAndCommitMethodState Class
-    #if (!OPCUA_EXCLUDE_CloseAndCommitMethodState)
+#if (!OPCUA_EXCLUDE_CloseAndCommitMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -39065,7 +39198,7 @@ namespace Opc.Ua
             return new CloseAndCommitMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -39088,7 +39221,7 @@ namespace Opc.Ua
            "AAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQC6PQAuAES6PQAAlgEAAAABACoBASUAAAAWAAAAQ29tcGxl" +
            "dGlvblN0YXRlTWFjaGluZQAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -39114,7 +39247,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -39141,7 +39274,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -39177,8 +39310,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -39213,11 +39346,11 @@ namespace Opc.Ua
         NodeId _objectId,
         uint fileHandle,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region FileTransferStateMachineState Class
-    #if (!OPCUA_EXCLUDE_FileTransferStateMachineState)
+#if (!OPCUA_EXCLUDE_FileTransferStateMachineState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -39235,7 +39368,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.FileTransferStateMachineType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -39264,7 +39397,7 @@ namespace Opc.Ua
            "AAAV/////wEB/////wEAAAAVYIkKAgAAAAAAAgAAAElkAgAAG0UPAAAuAEQbRQ8AABH/////AQH/////" +
            "AAAAAARhggoEAAAAAAAFAAAAUmVzZXQBAOM9AC8BAOM94z0AAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -39301,7 +39434,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -39353,11 +39486,11 @@ namespace Opc.Ua
         private MethodState m_resetMethod;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region RoleSetState Class
-    #if (!OPCUA_EXCLUDE_RoleSetState)
+#if (!OPCUA_EXCLUDE_RoleSetState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -39375,7 +39508,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.RoleSetType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -39409,7 +39542,7 @@ namespace Opc.Ua
            "Z3VtZW50cwEAgT4ALgBEgT4AAJYBAAAAAQAqAQEZAAAACgAAAFJvbGVOb2RlSWQAEf////8AAAAAAAEA" +
            "KAEBAAAAAQAAAAEAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -39470,7 +39603,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -39544,11 +39677,11 @@ namespace Opc.Ua
         private RemoveRoleMethodState m_removeRoleMethod;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AddRoleMethodState Class
-    #if (!OPCUA_EXCLUDE_AddRoleMethodState)
+#if (!OPCUA_EXCLUDE_AddRoleMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -39566,7 +39699,7 @@ namespace Opc.Ua
             return new AddRoleMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -39590,7 +39723,7 @@ namespace Opc.Ua
            "PgAAlgEAAAABACoBARkAAAAKAAAAUm9sZU5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB" +
            "/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -39616,7 +39749,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -39645,7 +39778,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -39683,8 +39816,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -39721,11 +39854,11 @@ namespace Opc.Ua
         string roleName,
         string namespaceUri,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region RemoveRoleMethodState Class
-    #if (!OPCUA_EXCLUDE_RemoveRoleMethodState)
+#if (!OPCUA_EXCLUDE_RemoveRoleMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -39743,7 +39876,7 @@ namespace Opc.Ua
             return new RemoveRoleMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -39764,7 +39897,7 @@ namespace Opc.Ua
            "//8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAhj4ALgBEhj4AAJYBAAAAAQAqAQEZAAAA" +
            "CgAAAFJvbGVOb2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -39790,7 +39923,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -39812,7 +39945,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -39846,8 +39979,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -39879,11 +40012,11 @@ namespace Opc.Ua
         NodeId _objectId,
         NodeId roleNodeId,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region RoleState Class
-    #if (!OPCUA_EXCLUDE_RoleState)
+#if (!OPCUA_EXCLUDE_RoleState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -39901,7 +40034,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.RoleType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -40054,7 +40187,7 @@ namespace Opc.Ua
            "CgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEANz8ALgBENz8AAJYBAAAAAQAqAQEZAAAACAAAAEVuZHBv" +
            "aW50AQCoPP////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -40355,7 +40488,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -40649,11 +40782,11 @@ namespace Opc.Ua
         private RemoveEndpointMethodState m_removeEndpointMethod;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AddIdentityMethodState Class
-    #if (!OPCUA_EXCLUDE_AddIdentityMethodState)
+#if (!OPCUA_EXCLUDE_AddIdentityMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -40671,7 +40804,7 @@ namespace Opc.Ua
             return new AddIdentityMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -40692,7 +40825,7 @@ namespace Opc.Ua
            "////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBABU9AC4ARBU9AACWAQAAAAEAKgEBFQAA" +
            "AAQAAABSdWxlAQASPf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -40718,7 +40851,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -40740,7 +40873,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -40774,8 +40907,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -40807,11 +40940,11 @@ namespace Opc.Ua
         NodeId _objectId,
         IdentityMappingRuleType rule,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region RemoveIdentityMethodState Class
-    #if (!OPCUA_EXCLUDE_RemoveIdentityMethodState)
+#if (!OPCUA_EXCLUDE_RemoveIdentityMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -40829,7 +40962,7 @@ namespace Opc.Ua
             return new RemoveIdentityMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -40850,7 +40983,7 @@ namespace Opc.Ua
            "AQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBABc9AC4ARBc9AACWAQAAAAEAKgEB" +
            "FQAAAAQAAABSdWxlAQASPf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -40876,7 +41009,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -40898,7 +41031,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -40932,8 +41065,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -40965,11 +41098,11 @@ namespace Opc.Ua
         NodeId _objectId,
         IdentityMappingRuleType rule,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region AddApplicationMethodState Class
-    #if (!OPCUA_EXCLUDE_AddApplicationMethodState)
+#if (!OPCUA_EXCLUDE_AddApplicationMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -40987,7 +41120,7 @@ namespace Opc.Ua
             return new AddApplicationMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -41008,7 +41141,7 @@ namespace Opc.Ua
            "AQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBADk/AC4ARDk/AACWAQAAAAEAKgEB" +
            "HQAAAA4AAABBcHBsaWNhdGlvblVyaQAM/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -41034,7 +41167,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -41056,7 +41189,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -41090,8 +41223,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -41123,11 +41256,11 @@ namespace Opc.Ua
         NodeId _objectId,
         string applicationUri,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region RemoveApplicationMethodState Class
-    #if (!OPCUA_EXCLUDE_RemoveApplicationMethodState)
+#if (!OPCUA_EXCLUDE_RemoveApplicationMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -41145,7 +41278,7 @@ namespace Opc.Ua
             return new RemoveApplicationMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -41167,7 +41300,7 @@ namespace Opc.Ua
            "KgEBHQAAAA4AAABBcHBsaWNhdGlvblVyaQAM/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAA" +
            "AAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -41193,7 +41326,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -41215,7 +41348,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -41249,8 +41382,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -41282,11 +41415,11 @@ namespace Opc.Ua
         NodeId _objectId,
         string applicationUri,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region AddEndpointMethodState Class
-    #if (!OPCUA_EXCLUDE_AddEndpointMethodState)
+#if (!OPCUA_EXCLUDE_AddEndpointMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -41304,7 +41437,7 @@ namespace Opc.Ua
             return new AddEndpointMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -41325,7 +41458,7 @@ namespace Opc.Ua
            "////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAD0/AC4ARD0/AACWAQAAAAEAKgEBGQAA" +
            "AAgAAABFbmRwb2ludAEAqDz/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -41351,7 +41484,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -41373,7 +41506,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -41407,8 +41540,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -41440,11 +41573,11 @@ namespace Opc.Ua
         NodeId _objectId,
         EndpointType endpoint,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region RemoveEndpointMethodState Class
-    #if (!OPCUA_EXCLUDE_RemoveEndpointMethodState)
+#if (!OPCUA_EXCLUDE_RemoveEndpointMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -41462,7 +41595,7 @@ namespace Opc.Ua
             return new RemoveEndpointMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -41483,7 +41616,7 @@ namespace Opc.Ua
            "AQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAD8/AC4ARD8/AACWAQAAAAEAKgEB" +
            "GQAAAAgAAABFbmRwb2ludAEAqDz/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -41509,7 +41642,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -41531,7 +41664,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -41565,8 +41698,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -41598,11 +41731,11 @@ namespace Opc.Ua
         NodeId _objectId,
         EndpointType endpoint,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region RoleMappingRuleChangedAuditEventState Class
-    #if (!OPCUA_EXCLUDE_RoleMappingRuleChangedAuditEventState)
+#if (!OPCUA_EXCLUDE_RoleMappingRuleChangedAuditEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -41620,7 +41753,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.RoleMappingRuleChangedAuditEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -41661,7 +41794,7 @@ namespace Opc.Ua
            "Ef////8BAf////8AAAAAF2CJCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwIAADtFDwAALgBEO0UPAAAY" +
            "AQAAAAEAAAAAAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -41673,11 +41806,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region DictionaryEntryState Class
-    #if (!OPCUA_EXCLUDE_DictionaryEntryState)
+#if (!OPCUA_EXCLUDE_DictionaryEntryState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -41695,7 +41828,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.DictionaryEntryType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -41722,7 +41855,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAGwAAAERpY3Rpb25hcnlFbnRyeVR5cGVJbnN0YW5jZQEAtUQBALVEtUQA" +
            "AP////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -41734,11 +41867,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region DictionaryFolderState Class
-    #if (!OPCUA_EXCLUDE_DictionaryFolderState)
+#if (!OPCUA_EXCLUDE_DictionaryFolderState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -41756,7 +41889,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.DictionaryFolderType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -41783,7 +41916,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAHAAAAERpY3Rpb25hcnlGb2xkZXJUeXBlSW5zdGFuY2UBALdEAQC3RLdE" +
            "AAD/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -41795,11 +41928,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region IrdiDictionaryEntryState Class
-    #if (!OPCUA_EXCLUDE_IrdiDictionaryEntryState)
+#if (!OPCUA_EXCLUDE_IrdiDictionaryEntryState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -41817,7 +41950,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.IrdiDictionaryEntryType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -41844,7 +41977,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAHwAAAElyZGlEaWN0aW9uYXJ5RW50cnlUeXBlSW5zdGFuY2UBAL5EAQC+" +
            "RL5EAAD/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -41856,11 +41989,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region UriDictionaryEntryState Class
-    #if (!OPCUA_EXCLUDE_UriDictionaryEntryState)
+#if (!OPCUA_EXCLUDE_UriDictionaryEntryState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -41878,7 +42011,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.UriDictionaryEntryType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -41905,7 +42038,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAHgAAAFVyaURpY3Rpb25hcnlFbnRyeVR5cGVJbnN0YW5jZQEAwEQBAMBE" +
            "wEQAAP////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -41917,11 +42050,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region BaseInterfaceState Class
-    #if (!OPCUA_EXCLUDE_BaseInterfaceState)
+#if (!OPCUA_EXCLUDE_BaseInterfaceState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -41939,7 +42072,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.BaseInterfaceType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -41966,7 +42099,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAGQAAAEJhc2VJbnRlcmZhY2VUeXBlSW5zdGFuY2UBAMJEAQDCRMJEAAD/" +
            "////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -41978,11 +42111,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region IOrderedObjectState Class
-    #if (!OPCUA_EXCLUDE_IOrderedObjectState)
+#if (!OPCUA_EXCLUDE_IOrderedObjectState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -42000,7 +42133,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.IOrderedObjectType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -42028,7 +42161,7 @@ namespace Opc.Ua
            "/////wEAAAAVYIkKAgAAAAAADAAAAE51bWJlckluTGlzdAEA3VsALgBE3VsAAAAa/////wEB/////wAA" +
            "AAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -42065,7 +42198,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -42117,11 +42250,11 @@ namespace Opc.Ua
         private PropertyState m_numberInList;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region OrderedListState Class
-    #if (!OPCUA_EXCLUDE_OrderedListState)
+#if (!OPCUA_EXCLUDE_OrderedListState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -42139,7 +42272,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.OrderedListType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -42176,7 +42309,7 @@ namespace Opc.Ua
            "AAApAAEAVQgBAAAAFWCJCgIAAAAAAAsAAABOb2RlVmVyc2lvbgEA5VsALgBE5VsAAAAM/////wEB////" +
            "/wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -42213,7 +42346,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -42265,11 +42398,11 @@ namespace Opc.Ua
         private PropertyState<string> m_nodeVersion;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region DataItemState Class
-    #if (!OPCUA_EXCLUDE_DataItemState)
+#if (!OPCUA_EXCLUDE_DataItemState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -42299,7 +42432,7 @@ namespace Opc.Ua
             return ValueRanks.Any;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -42344,7 +42477,7 @@ namespace Opc.Ua
            "//8CAAAAFWCJCgIAAAAAAAoAAABEZWZpbml0aW9uAQA+CQAuAEQ+CQAAAAz/////AQH/////AAAAABVg" +
            "iQoCAAAAAAAOAAAAVmFsdWVQcmVjaXNpb24BAD8JAC4ARD8JAAAAC/////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -42405,7 +42538,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -42528,11 +42661,11 @@ namespace Opc.Ua
         #endregion
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region BaseAnalogState Class
-    #if (!OPCUA_EXCLUDE_BaseAnalogState)
+#if (!OPCUA_EXCLUDE_BaseAnalogState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -42562,7 +42695,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -42617,7 +42750,7 @@ namespace Opc.Ua
            "////AAAAABVgiQoCAAAAAAAHAAAARVVSYW5nZQEAoEQALgBEoEQAAAEAdAP/////AQH/////AAAAABVg" +
            "iQoCAAAAAAAQAAAARW5naW5lZXJpbmdVbml0cwEAoUQALgBEoUQAAAEAdwP/////AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -42702,7 +42835,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -42847,11 +42980,11 @@ namespace Opc.Ua
         #endregion
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region AnalogItemState Class
-    #if (!OPCUA_EXCLUDE_AnalogItemState)
+#if (!OPCUA_EXCLUDE_AnalogItemState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -42881,7 +43014,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -42908,7 +43041,7 @@ namespace Opc.Ua
            "//////////8VYIECAgAAAAAAFgAAAEFuYWxvZ0l0ZW1UeXBlSW5zdGFuY2UBAEAJAQBACUAJAAAAGgEB" +
            "/////wEAAAAVYIkKAgAAAAAABwAAAEVVUmFuZ2UBAEEJAC4AREEJAAABAHQD/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -42969,11 +43102,11 @@ namespace Opc.Ua
         #endregion
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region AnalogUnitState Class
-    #if (!OPCUA_EXCLUDE_AnalogUnitState)
+#if (!OPCUA_EXCLUDE_AnalogUnitState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -43003,7 +43136,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -43031,7 +43164,7 @@ namespace Opc.Ua
            "/////wEAAAAVYIkKAgAAAAAAEAAAAEVuZ2luZWVyaW5nVW5pdHMBAF5EAC4ARF5EAAABAHcD/////wEB" +
            "/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -43092,11 +43225,11 @@ namespace Opc.Ua
         #endregion
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region AnalogUnitRangeState Class
-    #if (!OPCUA_EXCLUDE_AnalogUnitRangeState)
+#if (!OPCUA_EXCLUDE_AnalogUnitRangeState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -43126,7 +43259,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -43155,7 +43288,7 @@ namespace Opc.Ua
            "////AAAAABVgiQoCAAAAAAAQAAAARW5naW5lZXJpbmdVbml0cwEAp0QALgBEp0QAAAEAdwP/////AQH/" +
            "////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -43216,11 +43349,11 @@ namespace Opc.Ua
         #endregion
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region DiscreteItemState Class
-    #if (!OPCUA_EXCLUDE_DiscreteItemState)
+#if (!OPCUA_EXCLUDE_DiscreteItemState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -43250,7 +43383,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -43277,7 +43410,7 @@ namespace Opc.Ua
            "//////////8VYIECAgAAAAAAGAAAAERpc2NyZXRlSXRlbVR5cGVJbnN0YW5jZQEARAkBAEQJRAkAAAAY" +
            "AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -43338,11 +43471,11 @@ namespace Opc.Ua
         #endregion
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region TwoStateDiscreteState Class
-    #if (!OPCUA_EXCLUDE_TwoStateDiscreteState)
+#if (!OPCUA_EXCLUDE_TwoStateDiscreteState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -43372,7 +43505,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -43400,7 +43533,7 @@ namespace Opc.Ua
            "AAAAAQEB/////wIAAAAVYIkKAgAAAAAACgAAAEZhbHNlU3RhdGUBAEYJAC4AREYJAAAAFf////8BAf//" +
            "//8AAAAAFWCJCgIAAAAAAAkAAABUcnVlU3RhdGUBAEcJAC4AREcJAAAAFf////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -43461,7 +43594,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -43535,11 +43668,11 @@ namespace Opc.Ua
         private PropertyState<LocalizedText> m_trueState;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region MultiStateDiscreteState Class
-    #if (!OPCUA_EXCLUDE_MultiStateDiscreteState)
+#if (!OPCUA_EXCLUDE_MultiStateDiscreteState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -43569,7 +43702,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -43597,7 +43730,7 @@ namespace Opc.Ua
            "SAkAAAAcAQH/////AQAAABdgiQoCAAAAAAALAAAARW51bVN0cmluZ3MBAEkJAC4AREkJAAAAFQEAAAAB" +
            "AAAAAAAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -43658,11 +43791,11 @@ namespace Opc.Ua
         #endregion
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region MultiStateValueDiscreteState Class
-    #if (!OPCUA_EXCLUDE_MultiStateValueDiscreteState)
+#if (!OPCUA_EXCLUDE_MultiStateValueDiscreteState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -43692,7 +43825,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -43721,7 +43854,7 @@ namespace Opc.Ua
            "HQEAAAABAAAAAAAAAAEB/////wAAAAAVYIkKAgAAAAAACwAAAFZhbHVlQXNUZXh0AQDFLAAuAETFLAAA" +
            "ABX/////AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -43782,7 +43915,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -43905,11 +44038,11 @@ namespace Opc.Ua
         #endregion
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region ArrayItemState Class
-    #if (!OPCUA_EXCLUDE_ArrayItemState)
+#if (!OPCUA_EXCLUDE_ArrayItemState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -43939,7 +44072,7 @@ namespace Opc.Ua
             return ValueRanks.OneOrMoreDimensions;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -43979,7 +44112,7 @@ namespace Opc.Ua
            "ABVgiQoCAAAAAAAFAAAAVGl0bGUBAPsuAC4ARPsuAAAAFf////8BAf////8AAAAAFWCJCgIAAAAAAA0A" +
            "AABBeGlzU2NhbGVUeXBlAQD8LgAuAET8LgAAAQAtL/////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -44112,7 +44245,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -44301,11 +44434,11 @@ namespace Opc.Ua
         #endregion
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region YArrayItemState Class
-    #if (!OPCUA_EXCLUDE_YArrayItemState)
+#if (!OPCUA_EXCLUDE_YArrayItemState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -44335,7 +44468,7 @@ namespace Opc.Ua
             return ValueRanks.TwoDimensions;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -44367,7 +44500,7 @@ namespace Opc.Ua
            "////AAAAABVgiQoCAAAAAAAPAAAAWEF4aXNEZWZpbml0aW9uAQAFLwAuAEQFLwAAAQAvL/////8BAf//" +
            "//8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -44404,7 +44537,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -44505,11 +44638,11 @@ namespace Opc.Ua
         #endregion
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region XYArrayItemState Class
-    #if (!OPCUA_EXCLUDE_XYArrayItemState)
+#if (!OPCUA_EXCLUDE_XYArrayItemState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -44539,7 +44672,7 @@ namespace Opc.Ua
             return ValueRanks.TwoDimensions;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -44571,7 +44704,7 @@ namespace Opc.Ua
            "AQH/////AAAAABVgiQoCAAAAAAAPAAAAWEF4aXNEZWZpbml0aW9uAQAOLwAuAEQOLwAAAQAvL/////8B" +
            "Af////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -44608,7 +44741,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -44709,11 +44842,11 @@ namespace Opc.Ua
         #endregion
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region ImageItemState Class
-    #if (!OPCUA_EXCLUDE_ImageItemState)
+#if (!OPCUA_EXCLUDE_ImageItemState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -44743,7 +44876,7 @@ namespace Opc.Ua
             return 3;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -44776,7 +44909,7 @@ namespace Opc.Ua
            "Af////8AAAAAFWCJCgIAAAAAAA8AAABZQXhpc0RlZmluaXRpb24BABgvAC4ARBgvAAABAC8v/////wEB" +
            "/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -44837,7 +44970,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -44960,11 +45093,11 @@ namespace Opc.Ua
         #endregion
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region CubeItemState Class
-    #if (!OPCUA_EXCLUDE_CubeItemState)
+#if (!OPCUA_EXCLUDE_CubeItemState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -44994,7 +45127,7 @@ namespace Opc.Ua
             return 4;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -45028,7 +45161,7 @@ namespace Opc.Ua
            "/wEB/////wAAAAAVYIkKAgAAAAAADwAAAFpBeGlzRGVmaW5pdGlvbgEAIy8ALgBEIy8AAAEALy//////" +
            "AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -45113,7 +45246,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -45258,11 +45391,11 @@ namespace Opc.Ua
         #endregion
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region NDimensionArrayItemState Class
-    #if (!OPCUA_EXCLUDE_NDimensionArrayItemState)
+#if (!OPCUA_EXCLUDE_NDimensionArrayItemState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -45292,7 +45425,7 @@ namespace Opc.Ua
             return ValueRanks.OneOrMoreDimensions;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -45324,7 +45457,7 @@ namespace Opc.Ua
            "/////wAAAAAXYIkKAgAAAAAADgAAAEF4aXNEZWZpbml0aW9uAQAsLwAuAEQsLwAAAQAvLwEAAAABAAAA" +
            "AAAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -45361,7 +45494,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -45462,11 +45595,11 @@ namespace Opc.Ua
         #endregion
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region SyntaxReferenceEntryState Class
-    #if (!OPCUA_EXCLUDE_SyntaxReferenceEntryState)
+#if (!OPCUA_EXCLUDE_SyntaxReferenceEntryState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -45484,7 +45617,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.SyntaxReferenceEntryType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -45512,7 +45645,7 @@ namespace Opc.Ua
            "t363fgAA/////wEAAAAVYIkKAgAAAAAACgAAAENvbW1vbk5hbWUBALl+AC4ARLl+AAAADP////8BAf//" +
            "//8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -45549,7 +45682,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -45601,11 +45734,11 @@ namespace Opc.Ua
         private PropertyState<string> m_commonName;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region UnitState Class
-    #if (!OPCUA_EXCLUDE_UnitState)
+#if (!OPCUA_EXCLUDE_UnitState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -45623,7 +45756,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.UnitType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -45660,7 +45793,7 @@ namespace Opc.Ua
            "VW5pdFN5c3RlbQEAvX4ALgBEvX4AAAAM/////wEB/////wAAAAAVYIkKAgAAAAAACgAAAERpc2NpcGxp" +
            "bmUBAL5+AC4ARL5+AAAADP////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -45745,7 +45878,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -45841,11 +45974,11 @@ namespace Opc.Ua
         private PropertyState<string> m_discipline;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region ServerUnitState Class
-    #if (!OPCUA_EXCLUDE_ServerUnitState)
+#if (!OPCUA_EXCLUDE_ServerUnitState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -45863,7 +45996,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.ServerUnitType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -45914,7 +46047,7 @@ namespace Opc.Ua
            "Ff////8BAf////8AAAAAFWCJCgIAAAAAAAoAAABVbml0U3lzdGVtAQDRfgAuAETRfgAAAAz/////AQH/" +
            "////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -45999,7 +46132,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -46095,11 +46228,11 @@ namespace Opc.Ua
         private UnitState m_coherentUnit;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AlternativeUnitState Class
-    #if (!OPCUA_EXCLUDE_AlternativeUnitState)
+#if (!OPCUA_EXCLUDE_AlternativeUnitState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -46117,7 +46250,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AlternativeUnitType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -46175,7 +46308,7 @@ namespace Opc.Ua
            "AAAAAAAQAAAATWF0aE1MQ29udmVyc2lvbgEA2X4ALgBE2X4AAAAM/////wEB/////wAAAAAVYIkKAgAA" +
            "AAAAFwAAAE1hdGhNTEludmVyc2VDb252ZXJzaW9uAQDafgAuAETafgAAAAz/////AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -46260,7 +46393,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -46356,11 +46489,11 @@ namespace Opc.Ua
         private PropertyState<string> m_mathMLInverseConversion;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region QuantityState Class
-    #if (!OPCUA_EXCLUDE_QuantityState)
+#if (!OPCUA_EXCLUDE_QuantityState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -46378,7 +46511,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.QuantityType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -46435,7 +46568,7 @@ namespace Opc.Ua
            "AAAACQAAAERpbWVuc2lvbgEA4H4ALgBE4H4AAAEAtn7/////AQH/////AAAAAARggAoBAAAAAAALAAAA" +
            "U2VydmVyVW5pdHMBAOF+AC8AOuF+AAD/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -46568,7 +46701,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -46708,11 +46841,11 @@ namespace Opc.Ua
         private BaseObjectState m_serverUnits;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region QuantitiesFolderState Class
-    #if (!OPCUA_EXCLUDE_QuantitiesFolderState)
+#if (!OPCUA_EXCLUDE_QuantitiesFolderState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -46730,7 +46863,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.QuantitiesFolderType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -46757,7 +46890,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAHAAAAFF1YW50aXRpZXNGb2xkZXJUeXBlSW5zdGFuY2UBAPZ+AQD2fvZ+" +
            "AAD/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -46769,11 +46902,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region TwoStateVariableState Class
-    #if (!OPCUA_EXCLUDE_TwoStateVariableState)
+#if (!OPCUA_EXCLUDE_TwoStateVariableState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -46803,7 +46936,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -46868,7 +47001,7 @@ namespace Opc.Ua
            "////AAAAABVgiQoCAAAAAAAJAAAAVHJ1ZVN0YXRlAQBmKwAuAERmKwAAABX/////AQH/////AAAAABVg" +
            "iQoCAAAAAAAKAAAARmFsc2VTdGF0ZQEAZysALgBEZysAAAAV/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -46984,7 +47117,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -47123,11 +47256,11 @@ namespace Opc.Ua
         private PropertyState<LocalizedText> m_falseState;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region ConditionVariableState Class
-    #if (!OPCUA_EXCLUDE_ConditionVariableState)
+#if (!OPCUA_EXCLUDE_ConditionVariableState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -47157,7 +47290,7 @@ namespace Opc.Ua
             return ValueRanks.Any;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -47185,7 +47318,7 @@ namespace Opc.Ua
            "IwAAABgBAf////8BAAAAFWCJCgIAAAAAAA8AAABTb3VyY2VUaW1lc3RhbXABACsjAC4ARCsjAAABACYB" +
            "/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -47222,7 +47355,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -47323,11 +47456,11 @@ namespace Opc.Ua
         #endregion
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region ConditionState Class
-    #if (!OPCUA_EXCLUDE_ConditionState)
+#if (!OPCUA_EXCLUDE_ConditionState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -47345,7 +47478,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.ConditionType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -47421,7 +47554,7 @@ namespace Opc.Ua
            "Y29tbWVudC4BACoBAUIAAAAHAAAAQ29tbWVudAAV/////wAAAAADAAAAACQAAABUaGUgY29tbWVudCB0" +
            "byBhZGQgdG8gdGhlIGNvbmRpdGlvbi4BACgBAQAAAAEAAAACAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -47698,7 +47831,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -47970,11 +48103,11 @@ namespace Opc.Ua
         private AddCommentMethodState m_addCommentMethod;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region ConditionRefresh2MethodState Class
-    #if (!OPCUA_EXCLUDE_ConditionRefresh2MethodState)
+#if (!OPCUA_EXCLUDE_ConditionRefresh2MethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -47992,7 +48125,7 @@ namespace Opc.Ua
             return new ConditionRefresh2MethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -48016,7 +48149,7 @@ namespace Opc.Ua
            "ZAEAIAH/////AAAAAAMAAAAAMQAAAFRoZSBpZGVudGlmaWVyIGZvciB0aGUgbW9uaXRvcmVkIGl0ZW0g" +
            "dG8gcmVmcmVzaC4BACgBAQAAAAEAAAACAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -48042,7 +48175,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -48066,7 +48199,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -48102,8 +48235,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -48137,11 +48270,11 @@ namespace Opc.Ua
         uint subscriptionId,
         uint monitoredItemId,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region ConditionRefreshMethodState Class
-    #if (!OPCUA_EXCLUDE_ConditionRefreshMethodState)
+#if (!OPCUA_EXCLUDE_ConditionRefreshMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -48159,7 +48292,7 @@ namespace Opc.Ua
             return new ConditionRefreshMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -48181,7 +48314,7 @@ namespace Opc.Ua
            "AQFWAAAADgAAAFN1YnNjcmlwdGlvbklkAQAgAf////8AAAAAAwAAAAAvAAAAVGhlIGlkZW50aWZpZXIg" +
            "Zm9yIHRoZSBzdWJzY3JpcHRpb24gdG8gcmVmcmVzaC4BACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -48207,7 +48340,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -48229,7 +48362,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -48263,8 +48396,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -48296,11 +48429,11 @@ namespace Opc.Ua
         NodeId _objectId,
         uint subscriptionId,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region AddCommentMethodState Class
-    #if (!OPCUA_EXCLUDE_AddCommentMethodState)
+#if (!OPCUA_EXCLUDE_AddCommentMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -48318,7 +48451,7 @@ namespace Opc.Ua
             return new AddCommentMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -48341,7 +48474,7 @@ namespace Opc.Ua
            "byBjb21tZW50LgEAKgEBQgAAAAcAAABDb21tZW50ABX/////AAAAAAMAAAAAJAAAAFRoZSBjb21tZW50" +
            "IHRvIGFkZCB0byB0aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAIAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -48367,7 +48500,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -48391,7 +48524,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -48427,8 +48560,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -48462,11 +48595,11 @@ namespace Opc.Ua
         byte[] eventId,
         LocalizedText comment,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region DialogConditionState Class
-    #if (!OPCUA_EXCLUDE_DialogConditionState)
+#if (!OPCUA_EXCLUDE_DialogConditionState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -48484,7 +48617,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.DialogConditionType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -48563,7 +48696,7 @@ namespace Opc.Ua
            "RPleAACWAgAAAAEAKgEBHwAAABAAAABTZWxlY3RlZFJlc3BvbnNlAAb/////AAAAAAABACoBARYAAAAH" +
            "AAAAQ29tbWVudAAV/////wAAAAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -48792,7 +48925,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -49020,11 +49153,11 @@ namespace Opc.Ua
         private DialogResponse2MethodState m_respond2Method;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region DialogResponseMethodState Class
-    #if (!OPCUA_EXCLUDE_DialogResponseMethodState)
+#if (!OPCUA_EXCLUDE_DialogResponseMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -49042,7 +49175,7 @@ namespace Opc.Ua
             return new DialogResponseMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -49064,7 +49197,7 @@ namespace Opc.Ua
            "HwAAABAAAABTZWxlY3RlZFJlc3BvbnNlAAb/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAA" +
            "AA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -49090,7 +49223,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -49112,7 +49245,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -49146,8 +49279,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -49179,11 +49312,11 @@ namespace Opc.Ua
         NodeId _objectId,
         int selectedResponse,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region DialogResponse2MethodState Class
-    #if (!OPCUA_EXCLUDE_DialogResponse2MethodState)
+#if (!OPCUA_EXCLUDE_DialogResponse2MethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -49201,7 +49334,7 @@ namespace Opc.Ua
             return new DialogResponse2MethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -49223,7 +49356,7 @@ namespace Opc.Ua
            "AR8AAAAQAAAAU2VsZWN0ZWRSZXNwb25zZQAG/////wAAAAAAAQAqAQEWAAAABwAAAENvbW1lbnQAFf//" +
            "//8AAAAAAAEAKAEBAAAAAQAAAAIAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -49249,7 +49382,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -49273,7 +49406,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -49309,8 +49442,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -49344,11 +49477,11 @@ namespace Opc.Ua
         int selectedResponse,
         LocalizedText comment,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region AcknowledgeableConditionState Class
-    #if (!OPCUA_EXCLUDE_AcknowledgeableConditionState)
+#if (!OPCUA_EXCLUDE_AcknowledgeableConditionState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -49366,7 +49499,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AcknowledgeableConditionType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -49457,7 +49590,7 @@ namespace Opc.Ua
            "KgEBQgAAAAcAAABDb21tZW50ABX/////AAAAAAMAAAAAJAAAAFRoZSBjb21tZW50IHRvIGFkZCB0byB0" +
            "aGUgY29uZGl0aW9uLgEAKAEBAAAAAQAAAAIAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -49566,7 +49699,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -49684,11 +49817,11 @@ namespace Opc.Ua
         private AddCommentMethodState m_confirmMethod;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AlarmConditionState Class
-    #if (!OPCUA_EXCLUDE_AlarmConditionState)
+#if (!OPCUA_EXCLUDE_AlarmConditionState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -49706,7 +49839,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AlarmConditionType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -50076,7 +50209,7 @@ namespace Opc.Ua
            "QXJndW1lbnRzAQBCYgAuAERCYgAAlgEAAAABACoBARkAAAAGAAAAR3JvdXBzABEBAAAAAQAAAAAAAAAA" +
            "AQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -50785,7 +50918,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -51453,11 +51586,11 @@ namespace Opc.Ua
         private GetGroupMembershipsMethodState m_getGroupMembershipsMethod;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region WithCommentMethodState Class
-    #if (!OPCUA_EXCLUDE_WithCommentMethodState)
+#if (!OPCUA_EXCLUDE_WithCommentMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -51475,7 +51608,7 @@ namespace Opc.Ua
             return new WithCommentMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -51496,7 +51629,7 @@ namespace Opc.Ua
            "////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAAdfAC4ARAdfAACWAQAAAAEAKgEBFgAA" +
            "AAcAAABDb21tZW50ABX/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -51522,7 +51655,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -51544,7 +51677,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -51578,8 +51711,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -51611,11 +51744,11 @@ namespace Opc.Ua
         NodeId _objectId,
         LocalizedText comment,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region GetGroupMembershipsMethodState Class
-    #if (!OPCUA_EXCLUDE_GetGroupMembershipsMethodState)
+#if (!OPCUA_EXCLUDE_GetGroupMembershipsMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -51633,7 +51766,7 @@ namespace Opc.Ua
             return new GetGroupMembershipsMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -51655,7 +51788,7 @@ namespace Opc.Ua
            "AAEAKgEBGQAAAAYAAABHcm91cHMAEQEAAAABAAAAAAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAA" +
            "AA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -51681,7 +51814,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -51705,7 +51838,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -51738,8 +51871,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -51772,11 +51905,11 @@ namespace Opc.Ua
         MethodState _method,
         NodeId _objectId,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region AlarmGroupState Class
-    #if (!OPCUA_EXCLUDE_AlarmGroupState)
+#if (!OPCUA_EXCLUDE_AlarmGroupState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -51794,7 +51927,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AlarmGroupType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -51821,7 +51954,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAFgAAAEFsYXJtR3JvdXBUeXBlSW5zdGFuY2UBABVAAQAVQBVAAAD/////" +
            "AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -51833,11 +51966,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AlarmSuppressionGroupState Class
-    #if (!OPCUA_EXCLUDE_AlarmSuppressionGroupState)
+#if (!OPCUA_EXCLUDE_AlarmSuppressionGroupState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -51855,7 +51988,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AlarmSuppressionGroupType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -51882,7 +52015,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAIQAAAEFsYXJtU3VwcHJlc3Npb25Hcm91cFR5cGVJbnN0YW5jZQEAQH0B" +
            "AEB9QH0AAP////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -51894,11 +52027,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region ShelvedStateMachineState Class
-    #if (!OPCUA_EXCLUDE_ShelvedStateMachineState)
+#if (!OPCUA_EXCLUDE_ShelvedStateMachineState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -51916,7 +52049,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.ShelvedStateMachineType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -51992,7 +52125,7 @@ namespace Opc.Ua
            "YKkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAQC5YAAuAES5YAAAlgEAAAABACoBARYAAAAHAAAAQ29t" +
            "bWVudAAV/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -52173,7 +52306,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -52357,11 +52490,11 @@ namespace Opc.Ua
         private WithCommentMethodState m_oneShotShelve2Method;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region TimedShelveMethodState Class
-    #if (!OPCUA_EXCLUDE_TimedShelveMethodState)
+#if (!OPCUA_EXCLUDE_TimedShelveMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -52379,7 +52512,7 @@ namespace Opc.Ua
             return new TimedShelveMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -52400,7 +52533,7 @@ namespace Opc.Ua
            "////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBANcXAC4ARNcXAACWAQAAAAEAKgEBHQAA" +
            "AAwAAABTaGVsdmluZ1RpbWUBACIB/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -52426,7 +52559,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -52448,7 +52581,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -52482,8 +52615,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -52515,11 +52648,11 @@ namespace Opc.Ua
         NodeId _objectId,
         double shelvingTime,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region TimedShelve2MethodState Class
-    #if (!OPCUA_EXCLUDE_TimedShelve2MethodState)
+#if (!OPCUA_EXCLUDE_TimedShelve2MethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -52537,7 +52670,7 @@ namespace Opc.Ua
             return new TimedShelve2MethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -52559,7 +52692,7 @@ namespace Opc.Ua
            "AAAMAAAAU2hlbHZpbmdUaW1lAQAiAf////8AAAAAAAEAKgEBFgAAAAcAAABDb21tZW50ABX/////AAAA" +
            "AAABACgBAQAAAAEAAAACAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -52585,7 +52718,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -52609,7 +52742,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -52645,8 +52778,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -52680,11 +52813,11 @@ namespace Opc.Ua
         double shelvingTime,
         LocalizedText comment,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region LimitAlarmState Class
-    #if (!OPCUA_EXCLUDE_LimitAlarmState)
+#if (!OPCUA_EXCLUDE_LimitAlarmState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -52702,7 +52835,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.LimitAlarmType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -52924,7 +53057,7 @@ namespace Opc.Ua
            "d0RlYWRiYW5kAQDIYAAuAETIYAAAAAv/////AQH/////AAAAABVgiQoCAAAAAAAOAAAATG93TG93RGVh" +
            "ZGJhbmQBAMlgAC4ARMlgAAAAC/////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -53321,7 +53454,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -53703,11 +53836,11 @@ namespace Opc.Ua
         private PropertyState<double> m_lowLowDeadband;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region ExclusiveLimitStateMachineState Class
-    #if (!OPCUA_EXCLUDE_ExclusiveLimitStateMachineState)
+#if (!OPCUA_EXCLUDE_ExclusiveLimitStateMachineState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -53725,7 +53858,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.ExclusiveLimitStateMachineType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -53754,7 +53887,7 @@ namespace Opc.Ua
            "Rw8AABX/////AQH/////AQAAABVgiQoCAAAAAAACAAAASWQCAABgRw8AAC4ARGBHDwAAEf////8BAf//" +
            "//8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -53766,11 +53899,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region ExclusiveLimitAlarmState Class
-    #if (!OPCUA_EXCLUDE_ExclusiveLimitAlarmState)
+#if (!OPCUA_EXCLUDE_ExclusiveLimitAlarmState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -53788,7 +53921,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.ExclusiveLimitAlarmType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -53859,7 +53992,7 @@ namespace Opc.Ua
            "LgBE9iQAAAAR/////wEB/////wAAAAAVYIkKAgAAAAAADgAAAFRyYW5zaXRpb25UaW1lAQD5JAAuAET5" +
            "JAAAAQAmAf////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -53896,7 +54029,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -53948,11 +54081,11 @@ namespace Opc.Ua
         private ExclusiveLimitStateMachineState m_limitState;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region NonExclusiveLimitAlarmState Class
-    #if (!OPCUA_EXCLUDE_NonExclusiveLimitAlarmState)
+#if (!OPCUA_EXCLUDE_NonExclusiveLimitAlarmState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -53970,7 +54103,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.NonExclusiveLimitAlarmType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -54087,7 +54220,7 @@ namespace Opc.Ua
            "AAAAAAACAAAASWQBAEAnAC4AREAnAAAAAf////8BAf////8AAAAAFWCJCgIAAAAAAA4AAABUcmFuc2l0" +
            "aW9uVGltZQEARCcALgBERCcAAAEAJgH/////AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -54196,7 +54329,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -54314,11 +54447,11 @@ namespace Opc.Ua
         private TwoStateVariableState m_lowLowState;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region NonExclusiveLevelAlarmState Class
-    #if (!OPCUA_EXCLUDE_NonExclusiveLevelAlarmState)
+#if (!OPCUA_EXCLUDE_NonExclusiveLevelAlarmState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -54336,7 +54469,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.NonExclusiveLevelAlarmType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -54402,7 +54535,7 @@ namespace Opc.Ua
            "YIkKAgAAAAAACQAAAElucHV0Tm9kZQIAAA5JDwAALgBEDkkPAAAR/////wEB/////wAAAAAVYIkKAgAA" +
            "AAAAEwAAAFN1cHByZXNzZWRPclNoZWx2ZWQCAAA6SQ8AAC4ARDpJDwAAAf////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -54414,11 +54547,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region ExclusiveLevelAlarmState Class
-    #if (!OPCUA_EXCLUDE_ExclusiveLevelAlarmState)
+#if (!OPCUA_EXCLUDE_ExclusiveLevelAlarmState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -54436,7 +54569,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.ExclusiveLevelAlarmType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -54505,7 +54638,7 @@ namespace Opc.Ua
            "DwAAFf////8BAf////8BAAAAFWCJCgIAAAAAAAIAAABJZAIAAFhKDwAALgBEWEoPAAAR/////wEB////" +
            "/wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -54517,11 +54650,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region NonExclusiveDeviationAlarmState Class
-    #if (!OPCUA_EXCLUDE_NonExclusiveDeviationAlarmState)
+#if (!OPCUA_EXCLUDE_NonExclusiveDeviationAlarmState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -54539,7 +54672,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.NonExclusiveDeviationAlarmType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -54616,7 +54749,7 @@ namespace Opc.Ua
            "ABVgiQoCAAAAAAAMAAAAU2V0cG9pbnROb2RlAQAaKQAuAEQaKQAAABH/////AQH/////AAAAABVgiQoC" +
            "AAAAAAAQAAAAQmFzZVNldHBvaW50Tm9kZQEAiEEALgBEiEEAAAAR/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -54677,7 +54810,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -54751,11 +54884,11 @@ namespace Opc.Ua
         private PropertyState<NodeId> m_baseSetpointNode;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region NonExclusiveRateOfChangeAlarmState Class
-    #if (!OPCUA_EXCLUDE_NonExclusiveRateOfChangeAlarmState)
+#if (!OPCUA_EXCLUDE_NonExclusiveRateOfChangeAlarmState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -54773,7 +54906,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.NonExclusiveRateOfChangeAlarmType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -54850,7 +54983,7 @@ namespace Opc.Ua
            "AAAAABVgiQoCAAAAAAAQAAAARW5naW5lZXJpbmdVbml0cwEA2kEALgBE2kEAAAEAdwP/////AQH/////" +
            "AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -54887,7 +55020,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -54939,11 +55072,11 @@ namespace Opc.Ua
         private PropertyState<EUInformation> m_engineeringUnits;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region ExclusiveDeviationAlarmState Class
-    #if (!OPCUA_EXCLUDE_ExclusiveDeviationAlarmState)
+#if (!OPCUA_EXCLUDE_ExclusiveDeviationAlarmState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -54961,7 +55094,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.ExclusiveDeviationAlarmType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -55041,7 +55174,7 @@ namespace Opc.Ua
            "AAAAFWCJCgIAAAAAABAAAABCYXNlU2V0cG9pbnROb2RlAQCxQQAuAESxQQAAABH/////AQH/////AAAA" +
            "AA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -55102,7 +55235,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -55176,11 +55309,11 @@ namespace Opc.Ua
         private PropertyState<NodeId> m_baseSetpointNode;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region ExclusiveRateOfChangeAlarmState Class
-    #if (!OPCUA_EXCLUDE_ExclusiveRateOfChangeAlarmState)
+#if (!OPCUA_EXCLUDE_ExclusiveRateOfChangeAlarmState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -55198,7 +55331,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.ExclusiveRateOfChangeAlarmType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -55277,7 +55410,7 @@ namespace Opc.Ua
            "//8BAf////8AAAAAFWCJCgIAAAAAABAAAABFbmdpbmVlcmluZ1VuaXRzAQADQgAuAEQDQgAAAQB3A///" +
            "//8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -55314,7 +55447,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -55366,11 +55499,11 @@ namespace Opc.Ua
         private PropertyState<EUInformation> m_engineeringUnits;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region DiscreteAlarmState Class
-    #if (!OPCUA_EXCLUDE_DiscreteAlarmState)
+#if (!OPCUA_EXCLUDE_DiscreteAlarmState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -55388,7 +55521,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.DiscreteAlarmType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -55453,7 +55586,7 @@ namespace Opc.Ua
            "AAAVYIkKAgAAAAAACQAAAElucHV0Tm9kZQIAAOhNDwAALgBE6E0PAAAR/////wEB/////wAAAAAVYIkK" +
            "AgAAAAAAEwAAAFN1cHByZXNzZWRPclNoZWx2ZWQCAAAUTg8AAC4ARBRODwAAAf////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -55465,11 +55598,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region OffNormalAlarmState Class
-    #if (!OPCUA_EXCLUDE_OffNormalAlarmState)
+#if (!OPCUA_EXCLUDE_OffNormalAlarmState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -55487,7 +55620,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.OffNormalAlarmType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -55553,7 +55686,7 @@ namespace Opc.Ua
            "CgIAAAAAABMAAABTdXBwcmVzc2VkT3JTaGVsdmVkAgAAuk4PAAAuAES6Tg8AAAH/////AQH/////AAAA" +
            "ABVgiQoCAAAAAAALAAAATm9ybWFsU3RhdGUBAJYrAC4ARJYrAAAAEf////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -55590,7 +55723,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -55642,11 +55775,11 @@ namespace Opc.Ua
         private PropertyState<NodeId> m_normalState;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region SystemOffNormalAlarmState Class
-    #if (!OPCUA_EXCLUDE_SystemOffNormalAlarmState)
+#if (!OPCUA_EXCLUDE_SystemOffNormalAlarmState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -55664,7 +55797,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.SystemOffNormalAlarmType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -55731,7 +55864,7 @@ namespace Opc.Ua
            "////AAAAABVgiQoCAAAAAAALAAAATm9ybWFsU3RhdGUCAACSTw8AAC4ARJJPDwAAEf////8BAf////8A" +
            "AAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -55743,11 +55876,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region TripAlarmState Class
-    #if (!OPCUA_EXCLUDE_TripAlarmState)
+#if (!OPCUA_EXCLUDE_TripAlarmState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -55765,7 +55898,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.TripAlarmType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -55831,7 +55964,7 @@ namespace Opc.Ua
            "AAATAAAAU3VwcHJlc3NlZE9yU2hlbHZlZAIAAAdQDwAALgBEB1APAAAB/////wEB/////wAAAAAVYIkK" +
            "AgAAAAAACwAAAE5vcm1hbFN0YXRlAgAAOVAPAAAuAEQ5UA8AABH/////AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -55843,11 +55976,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region InstrumentDiagnosticAlarmState Class
-    #if (!OPCUA_EXCLUDE_InstrumentDiagnosticAlarmState)
+#if (!OPCUA_EXCLUDE_InstrumentDiagnosticAlarmState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -55865,7 +55998,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.InstrumentDiagnosticAlarmType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -55932,7 +56065,7 @@ namespace Opc.Ua
            "//8BAf////8AAAAAFWCJCgIAAAAAAAsAAABOb3JtYWxTdGF0ZQIAAOBQDwAALgBE4FAPAAAR/////wEB" +
            "/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -55944,11 +56077,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region SystemDiagnosticAlarmState Class
-    #if (!OPCUA_EXCLUDE_SystemDiagnosticAlarmState)
+#if (!OPCUA_EXCLUDE_SystemDiagnosticAlarmState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -55966,7 +56099,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.SystemDiagnosticAlarmType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -56033,7 +56166,7 @@ namespace Opc.Ua
            "/////wAAAAAVYIkKAgAAAAAACwAAAE5vcm1hbFN0YXRlAgAAh1EPAAAuAESHUQ8AABH/////AQH/////" +
            "AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -56045,11 +56178,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region CertificateExpirationAlarmState Class
-    #if (!OPCUA_EXCLUDE_CertificateExpirationAlarmState)
+#if (!OPCUA_EXCLUDE_CertificateExpirationAlarmState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -56067,7 +56200,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.CertificateExpirationAlarmType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -56146,7 +56279,7 @@ namespace Opc.Ua
            "AAAAABVgiQoCAAAAAAAPAAAAQ2VydGlmaWNhdGVUeXBlAQAONAAuAEQONAAAABH/////AQH/////AAAA" +
            "ABVgiQoCAAAAAAALAAAAQ2VydGlmaWNhdGUBAA80AC4ARA80AAAAD/////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -56255,7 +56388,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -56373,11 +56506,11 @@ namespace Opc.Ua
         private PropertyState<byte[]> m_certificate;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region DiscrepancyAlarmState Class
-    #if (!OPCUA_EXCLUDE_DiscrepancyAlarmState)
+#if (!OPCUA_EXCLUDE_DiscrepancyAlarmState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -56395,7 +56528,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.DiscrepancyAlarmType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -56471,7 +56604,7 @@ namespace Opc.Ua
            "FWCJCgIAAAAAAAwAAABFeHBlY3RlZFRpbWUBAEBDAC4AREBDAAABACIB/////wEB/////wAAAAAVYIkK" +
            "AgAAAAAACQAAAFRvbGVyYW5jZQEAQUMALgBEQUMAAAAL/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -56556,7 +56689,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -56652,11 +56785,11 @@ namespace Opc.Ua
         private PropertyState<double> m_tolerance;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region BaseConditionClassState Class
-    #if (!OPCUA_EXCLUDE_BaseConditionClassState)
+#if (!OPCUA_EXCLUDE_BaseConditionClassState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -56674,7 +56807,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.BaseConditionClassType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -56701,7 +56834,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAHgAAAEJhc2VDb25kaXRpb25DbGFzc1R5cGVJbnN0YW5jZQEAmysBAJsr" +
            "mysAAP////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -56713,11 +56846,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region ProcessConditionClassState Class
-    #if (!OPCUA_EXCLUDE_ProcessConditionClassState)
+#if (!OPCUA_EXCLUDE_ProcessConditionClassState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -56735,7 +56868,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.ProcessConditionClassType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -56762,7 +56895,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAIQAAAFByb2Nlc3NDb25kaXRpb25DbGFzc1R5cGVJbnN0YW5jZQEAnCsB" +
            "AJwrnCsAAP////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -56774,11 +56907,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region MaintenanceConditionClassState Class
-    #if (!OPCUA_EXCLUDE_MaintenanceConditionClassState)
+#if (!OPCUA_EXCLUDE_MaintenanceConditionClassState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -56796,7 +56929,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.MaintenanceConditionClassType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -56823,7 +56956,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAJQAAAE1haW50ZW5hbmNlQ29uZGl0aW9uQ2xhc3NUeXBlSW5zdGFuY2UB" +
            "AJ0rAQCdK50rAAD/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -56835,11 +56968,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region SystemConditionClassState Class
-    #if (!OPCUA_EXCLUDE_SystemConditionClassState)
+#if (!OPCUA_EXCLUDE_SystemConditionClassState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -56857,7 +56990,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.SystemConditionClassType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -56884,7 +57017,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAIAAAAFN5c3RlbUNvbmRpdGlvbkNsYXNzVHlwZUluc3RhbmNlAQCeKwEA" +
            "niueKwAA/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -56896,11 +57029,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region SafetyConditionClassState Class
-    #if (!OPCUA_EXCLUDE_SafetyConditionClassState)
+#if (!OPCUA_EXCLUDE_SafetyConditionClassState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -56918,7 +57051,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.SafetyConditionClassType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -56945,7 +57078,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAIAAAAFNhZmV0eUNvbmRpdGlvbkNsYXNzVHlwZUluc3RhbmNlAQBCQwEA" +
            "QkNCQwAA/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -56957,11 +57090,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region HighlyManagedAlarmConditionClassState Class
-    #if (!OPCUA_EXCLUDE_HighlyManagedAlarmConditionClassState)
+#if (!OPCUA_EXCLUDE_HighlyManagedAlarmConditionClassState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -56979,7 +57112,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.HighlyManagedAlarmConditionClassType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -57006,7 +57139,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAALAAAAEhpZ2hseU1hbmFnZWRBbGFybUNvbmRpdGlvbkNsYXNzVHlwZUlu" +
            "c3RhbmNlAQBDQwEAQ0NDQwAA/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -57018,11 +57151,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region TrainingConditionClassState Class
-    #if (!OPCUA_EXCLUDE_TrainingConditionClassState)
+#if (!OPCUA_EXCLUDE_TrainingConditionClassState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -57040,7 +57173,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.TrainingConditionClassType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -57067,7 +57200,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAIgAAAFRyYWluaW5nQ29uZGl0aW9uQ2xhc3NUeXBlSW5zdGFuY2UBAERD" +
            "AQBEQ0RDAAD/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -57079,11 +57212,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region StatisticalConditionClassState Class
-    #if (!OPCUA_EXCLUDE_StatisticalConditionClassState)
+#if (!OPCUA_EXCLUDE_StatisticalConditionClassState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -57101,7 +57234,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.StatisticalConditionClassType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -57128,7 +57261,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAJQAAAFN0YXRpc3RpY2FsQ29uZGl0aW9uQ2xhc3NUeXBlSW5zdGFuY2UB" +
            "AOlIAQDpSOlIAAD/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -57140,11 +57273,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region TestingConditionClassState Class
-    #if (!OPCUA_EXCLUDE_TestingConditionClassState)
+#if (!OPCUA_EXCLUDE_TestingConditionClassState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -57162,7 +57295,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.TestingConditionClassType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -57189,7 +57322,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAIQAAAFRlc3RpbmdDb25kaXRpb25DbGFzc1R5cGVJbnN0YW5jZQEARUMB" +
            "AEVDRUMAAP////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -57201,11 +57334,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditConditionEventState Class
-    #if (!OPCUA_EXCLUDE_AuditConditionEventState)
+#if (!OPCUA_EXCLUDE_AuditConditionEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -57223,7 +57356,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditConditionEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -57264,7 +57397,7 @@ namespace Opc.Ua
            "AAAXYIkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAgAA6VIPAAAuAETpUg8AABgBAAAAAQAAAAAAAAAB" +
            "Af////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -57276,11 +57409,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditConditionEnableEventState Class
-    #if (!OPCUA_EXCLUDE_AuditConditionEnableEventState)
+#if (!OPCUA_EXCLUDE_AuditConditionEnableEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -57298,7 +57431,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditConditionEnableEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -57339,7 +57472,7 @@ namespace Opc.Ua
            "/////wAAAAAXYIkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAgAA/1IPAAAuAET/Ug8AABgBAAAAAQAA" +
            "AAAAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -57351,11 +57484,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditConditionCommentEventState Class
-    #if (!OPCUA_EXCLUDE_AuditConditionCommentEventState)
+#if (!OPCUA_EXCLUDE_AuditConditionCommentEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -57373,7 +57506,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditConditionCommentEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -57416,7 +57549,7 @@ namespace Opc.Ua
            "/////wEB/////wAAAAAVYIkKAgAAAAAABwAAAENvbW1lbnQBAEsuAC4AREsuAAAAFf////8BAf////8A" +
            "AAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -57477,7 +57610,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -57551,11 +57684,11 @@ namespace Opc.Ua
         private PropertyState<LocalizedText> m_comment;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditConditionRespondEventState Class
-    #if (!OPCUA_EXCLUDE_AuditConditionRespondEventState)
+#if (!OPCUA_EXCLUDE_AuditConditionRespondEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -57573,7 +57706,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditConditionRespondEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -57615,7 +57748,7 @@ namespace Opc.Ua
            "AAAAAAAAAQH/////AAAAABVgiQoCAAAAAAAQAAAAU2VsZWN0ZWRSZXNwb25zZQEATC4ALgBETC4AAAAH" +
            "/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -57652,7 +57785,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -57704,11 +57837,11 @@ namespace Opc.Ua
         private PropertyState<uint> m_selectedResponse;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditConditionAcknowledgeEventState Class
-    #if (!OPCUA_EXCLUDE_AuditConditionAcknowledgeEventState)
+#if (!OPCUA_EXCLUDE_AuditConditionAcknowledgeEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -57726,7 +57859,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditConditionAcknowledgeEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -57769,7 +57902,7 @@ namespace Opc.Ua
            "AAAAD/////8BAf////8AAAAAFWCJCgIAAAAAAAcAAABDb21tZW50AQBNLgAuAERNLgAAABX/////AQH/" +
            "////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -57830,7 +57963,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -57904,11 +58037,11 @@ namespace Opc.Ua
         private PropertyState<LocalizedText> m_comment;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditConditionConfirmEventState Class
-    #if (!OPCUA_EXCLUDE_AuditConditionConfirmEventState)
+#if (!OPCUA_EXCLUDE_AuditConditionConfirmEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -57926,7 +58059,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditConditionConfirmEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -57969,7 +58102,7 @@ namespace Opc.Ua
            "/////wEB/////wAAAAAVYIkKAgAAAAAABwAAAENvbW1lbnQBAE4uAC4ARE4uAAAAFf////8BAf////8A" +
            "AAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -58030,7 +58163,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -58104,11 +58237,11 @@ namespace Opc.Ua
         private PropertyState<LocalizedText> m_comment;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditConditionShelvingEventState Class
-    #if (!OPCUA_EXCLUDE_AuditConditionShelvingEventState)
+#if (!OPCUA_EXCLUDE_AuditConditionShelvingEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -58126,7 +58259,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditConditionShelvingEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -58177,7 +58310,7 @@ namespace Opc.Ua
            "AAAAAAAAAAEB/////wAAAAAVYIkKAgAAAAAADAAAAFNoZWx2aW5nVGltZQEATy4ALgBETy4AAAEAIgH/" +
            "////AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -58214,7 +58347,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -58266,11 +58399,11 @@ namespace Opc.Ua
         private PropertyState<double> m_shelvingTime;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditConditionSuppressionEventState Class
-    #if (!OPCUA_EXCLUDE_AuditConditionSuppressionEventState)
+#if (!OPCUA_EXCLUDE_AuditConditionSuppressionEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -58288,7 +58421,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditConditionSuppressionEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -58329,7 +58462,7 @@ namespace Opc.Ua
            "////AQH/////AAAAABdgiQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMCAACDUw8AAC4ARINTDwAAGAEA" +
            "AAABAAAAAAAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -58341,11 +58474,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditConditionSilenceEventState Class
-    #if (!OPCUA_EXCLUDE_AuditConditionSilenceEventState)
+#if (!OPCUA_EXCLUDE_AuditConditionSilenceEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -58363,7 +58496,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditConditionSilenceEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -58404,7 +58537,7 @@ namespace Opc.Ua
            "Af////8AAAAAF2CJCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwIAAJlTDwAALgBEmVMPAAAYAQAAAAEA" +
            "AAAAAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -58416,11 +58549,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditConditionResetEventState Class
-    #if (!OPCUA_EXCLUDE_AuditConditionResetEventState)
+#if (!OPCUA_EXCLUDE_AuditConditionResetEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -58438,7 +58571,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditConditionResetEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -58479,7 +58612,7 @@ namespace Opc.Ua
            "////AAAAABdgiQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMCAACvUw8AAC4ARK9TDwAAGAEAAAABAAAA" +
            "AAAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -58491,11 +58624,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditConditionOutOfServiceEventState Class
-    #if (!OPCUA_EXCLUDE_AuditConditionOutOfServiceEventState)
+#if (!OPCUA_EXCLUDE_AuditConditionOutOfServiceEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -58513,7 +58646,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditConditionOutOfServiceEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -58554,7 +58687,7 @@ namespace Opc.Ua
            "/////wEB/////wAAAAAXYIkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAgAAxVMPAAAuAETFUw8AABgB" +
            "AAAAAQAAAAAAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -58566,11 +58699,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region RefreshStartEventState Class
-    #if (!OPCUA_EXCLUDE_RefreshStartEventState)
+#if (!OPCUA_EXCLUDE_RefreshStartEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -58588,7 +58721,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.RefreshStartEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -58622,7 +58755,7 @@ namespace Opc.Ua
            "zlMPAAAuAETOUw8AABX/////AQH/////AAAAABVgiQoCAAAAAAAIAAAAU2V2ZXJpdHkCAADPUw8AAC4A" +
            "RM9TDwAABf////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -58634,11 +58767,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region RefreshEndEventState Class
-    #if (!OPCUA_EXCLUDE_RefreshEndEventState)
+#if (!OPCUA_EXCLUDE_RefreshEndEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -58656,7 +58789,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.RefreshEndEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -58690,7 +58823,7 @@ namespace Opc.Ua
            "DwAALgBE21MPAAAV/////wEB/////wAAAAAVYIkKAgAAAAAACAAAAFNldmVyaXR5AgAA3FMPAAAuAETc" +
            "Uw8AAAX/////AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -58702,11 +58835,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region RefreshRequiredEventState Class
-    #if (!OPCUA_EXCLUDE_RefreshRequiredEventState)
+#if (!OPCUA_EXCLUDE_RefreshRequiredEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -58724,7 +58857,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.RefreshRequiredEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -58758,7 +58891,7 @@ namespace Opc.Ua
            "AgAA6FMPAAAuAEToUw8AABX/////AQH/////AAAAABVgiQoCAAAAAAAIAAAAU2V2ZXJpdHkCAADpUw8A" +
            "AC4AROlTDwAABf////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -58770,11 +58903,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AlarmMetricsState Class
-    #if (!OPCUA_EXCLUDE_AlarmMetricsState)
+#if (!OPCUA_EXCLUDE_AlarmMetricsState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -58792,7 +58925,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AlarmMetricsType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -58829,7 +58962,7 @@ namespace Opc.Ua
            "fUOIQwAAAAv/////AQH/////AQAAABVgiQoCAAAAAAAEAAAAUmF0ZQEAiUMALgBEiUMAAAAF/////wEB" +
            "/////wAAAAAEYYIKBAAAAAAABQAAAFJlc2V0AQDqSAAvAQDqSOpIAAABAQEAAAABAPkLAAEATwgAAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -59058,7 +59191,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -59286,11 +59419,11 @@ namespace Opc.Ua
         private MethodState m_resetMethod;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AlarmRateVariableState Class
-    #if (!OPCUA_EXCLUDE_AlarmRateVariableState)
+#if (!OPCUA_EXCLUDE_AlarmRateVariableState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -59320,7 +59453,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -59348,7 +59481,7 @@ namespace Opc.Ua
            "QwAAAAv/////AQH/////AQAAABVgiQoCAAAAAAAEAAAAUmF0ZQEAfkMALgBEfkMAAAAF/////wEB////" +
            "/wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -59385,7 +59518,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -59437,11 +59570,11 @@ namespace Opc.Ua
         private PropertyState<ushort> m_rate;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AlarmStateVariableState Class
-    #if (!OPCUA_EXCLUDE_AlarmStateVariableState)
+#if (!OPCUA_EXCLUDE_AlarmStateVariableState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -59471,7 +59604,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -59504,7 +59637,7 @@ namespace Opc.Ua
            "fQAAAAf/////AQH/////AAAAABVgiQoCAAAAAAAGAAAARmlsdGVyAQD6fQAuAET6fQAAAQBKAv////8B" +
            "Af////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -59661,7 +59794,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -59823,11 +59956,11 @@ namespace Opc.Ua
         private PropertyState<ContentFilter> m_filter;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region ProgramStateMachineState Class
-    #if (!OPCUA_EXCLUDE_ProgramStateMachineState)
+#if (!OPCUA_EXCLUDE_ProgramStateMachineState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -59845,7 +59978,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.ProgramStateMachineType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -59925,7 +60058,7 @@ namespace Opc.Ua
            "AExhc3RNZXRob2RSZXR1cm5TdGF0dXMBAAkPAC8APwkPAAAAE/////8BAf////8AAAAABGCACgEAAAAA" +
            "AA8AAABGaW5hbFJlc3VsdERhdGEBAAoPAC8AOgoPAAD/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -60058,7 +60191,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -60198,11 +60331,11 @@ namespace Opc.Ua
         private BaseObjectState m_finalResultData;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region ProgramTransitionEventState Class
-    #if (!OPCUA_EXCLUDE_ProgramTransitionEventState)
+#if (!OPCUA_EXCLUDE_ProgramTransitionEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -60220,7 +60353,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.ProgramTransitionEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -60260,7 +60393,7 @@ namespace Opc.Ua
            "AElkAgAACVQPAAAuAEQJVA8AABj/////AQH/////AAAAABVgiQoCAAAAAAASAAAASW50ZXJtZWRpYXRl" +
            "UmVzdWx0AQBLCQAvAD9LCQAAABj/////AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -60297,7 +60430,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -60349,11 +60482,11 @@ namespace Opc.Ua
         private BaseDataVariableState m_intermediateResult;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditProgramTransitionEventState Class
-    #if (!OPCUA_EXCLUDE_AuditProgramTransitionEventState)
+#if (!OPCUA_EXCLUDE_AuditProgramTransitionEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -60371,7 +60504,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditProgramTransitionEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -60415,7 +60548,7 @@ namespace Opc.Ua
            "////AAAAABVgiQoCAAAAAAAQAAAAVHJhbnNpdGlvbk51bWJlcgEAYy4ALgBEYy4AAAAH/////wEB////" +
            "/wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -60452,7 +60585,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -60504,11 +60637,11 @@ namespace Opc.Ua
         private PropertyState<uint> m_transitionNumber;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region ProgramTransitionAuditEventState Class
-    #if (!OPCUA_EXCLUDE_ProgramTransitionAuditEventState)
+#if (!OPCUA_EXCLUDE_ProgramTransitionAuditEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -60526,7 +60659,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.ProgramTransitionAuditEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -60570,7 +60703,7 @@ namespace Opc.Ua
            "////AAAAABVgiQoCAAAAAAAKAAAAVHJhbnNpdGlvbgEA8Q4ALwEAzwrxDgAAABX/////AQH/////AQAA" +
            "ABVgiQoCAAAAAAACAAAASWQBAPIOAC4ARPIOAAAAEf////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -60607,7 +60740,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -60659,11 +60792,11 @@ namespace Opc.Ua
         private FiniteTransitionVariableState m_transition;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region ProgramDiagnosticState Class
-    #if (!OPCUA_EXCLUDE_ProgramDiagnosticState)
+#if (!OPCUA_EXCLUDE_ProgramDiagnosticState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -60693,7 +60826,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -60730,7 +60863,7 @@ namespace Opc.Ua
            "EgAAAExhc3RNZXRob2RDYWxsVGltZQEAVQkALgBEVQkAAAEAJgH/////AQH/////AAAAABVgiQoCAAAA" +
            "AAAWAAAATGFzdE1ldGhvZFJldHVyblN0YXR1cwEAVgkALgBEVgkAAAEAKwH/////AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -60983,7 +61116,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -61419,16 +61552,26 @@ namespace Opc.Ua
 
         private void UpdateChildrenChangeMasks(ISystemContext context, ref ProgramDiagnosticDataType newValue, ref StatusCode statusCode, ref DateTime timestamp)
         {
-            if (!Utils.IsEqual(m_value.CreateSessionId, newValue.CreateSessionId)) UpdateChildVariableStatus(m_variable.CreateSessionId, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.CreateClientName, newValue.CreateClientName)) UpdateChildVariableStatus(m_variable.CreateClientName, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.InvocationCreationTime, newValue.InvocationCreationTime)) UpdateChildVariableStatus(m_variable.InvocationCreationTime, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.LastTransitionTime, newValue.LastTransitionTime)) UpdateChildVariableStatus(m_variable.LastTransitionTime, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.LastMethodCall, newValue.LastMethodCall)) UpdateChildVariableStatus(m_variable.LastMethodCall, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.LastMethodSessionId, newValue.LastMethodSessionId)) UpdateChildVariableStatus(m_variable.LastMethodSessionId, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.LastMethodInputArguments, newValue.LastMethodInputArguments)) UpdateChildVariableStatus(m_variable.LastMethodInputArguments, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.LastMethodOutputArguments, newValue.LastMethodOutputArguments)) UpdateChildVariableStatus(m_variable.LastMethodOutputArguments, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.LastMethodCallTime, newValue.LastMethodCallTime)) UpdateChildVariableStatus(m_variable.LastMethodCallTime, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.LastMethodReturnStatus, newValue.LastMethodReturnStatus)) UpdateChildVariableStatus(m_variable.LastMethodReturnStatus, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.CreateSessionId, newValue.CreateSessionId))
+                UpdateChildVariableStatus(m_variable.CreateSessionId, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.CreateClientName, newValue.CreateClientName))
+                UpdateChildVariableStatus(m_variable.CreateClientName, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.InvocationCreationTime, newValue.InvocationCreationTime))
+                UpdateChildVariableStatus(m_variable.InvocationCreationTime, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.LastTransitionTime, newValue.LastTransitionTime))
+                UpdateChildVariableStatus(m_variable.LastTransitionTime, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.LastMethodCall, newValue.LastMethodCall))
+                UpdateChildVariableStatus(m_variable.LastMethodCall, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.LastMethodSessionId, newValue.LastMethodSessionId))
+                UpdateChildVariableStatus(m_variable.LastMethodSessionId, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.LastMethodInputArguments, newValue.LastMethodInputArguments))
+                UpdateChildVariableStatus(m_variable.LastMethodInputArguments, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.LastMethodOutputArguments, newValue.LastMethodOutputArguments))
+                UpdateChildVariableStatus(m_variable.LastMethodOutputArguments, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.LastMethodCallTime, newValue.LastMethodCallTime))
+                UpdateChildVariableStatus(m_variable.LastMethodCallTime, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.LastMethodReturnStatus, newValue.LastMethodReturnStatus))
+                UpdateChildVariableStatus(m_variable.LastMethodReturnStatus, ref statusCode, ref timestamp);
         }
 
         private void UpdateParent(ISystemContext context, ref StatusCode statusCode, ref DateTime timestamp)
@@ -61440,7 +61583,8 @@ namespace Opc.Ua
 
         private void UpdateChildVariableStatus(BaseVariableState child, ref StatusCode statusCode, ref DateTime timestamp)
         {
-            if (child == null) return;
+            if (child == null)
+                return;
             child.StatusCode = statusCode;
             if (timestamp == DateTime.MinValue)
             {
@@ -62106,11 +62250,11 @@ namespace Opc.Ua
         #endregion
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region ProgramDiagnostic2State Class
-    #if (!OPCUA_EXCLUDE_ProgramDiagnostic2State)
+#if (!OPCUA_EXCLUDE_ProgramDiagnostic2State)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -62140,7 +62284,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -62180,7 +62324,7 @@ namespace Opc.Ua
            "AAABACYB/////wEB/////wAAAAAVYIkKAgAAAAAAFgAAAExhc3RNZXRob2RSZXR1cm5TdGF0dXMBACM8" +
            "AC8APyM8AAAAE/////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -62481,7 +62625,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -62975,18 +63119,30 @@ namespace Opc.Ua
 
         private void UpdateChildrenChangeMasks(ISystemContext context, ref ProgramDiagnostic2DataType newValue, ref StatusCode statusCode, ref DateTime timestamp)
         {
-            if (!Utils.IsEqual(m_value.CreateSessionId, newValue.CreateSessionId)) UpdateChildVariableStatus(m_variable.CreateSessionId, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.CreateClientName, newValue.CreateClientName)) UpdateChildVariableStatus(m_variable.CreateClientName, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.InvocationCreationTime, newValue.InvocationCreationTime)) UpdateChildVariableStatus(m_variable.InvocationCreationTime, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.LastTransitionTime, newValue.LastTransitionTime)) UpdateChildVariableStatus(m_variable.LastTransitionTime, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.LastMethodCall, newValue.LastMethodCall)) UpdateChildVariableStatus(m_variable.LastMethodCall, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.LastMethodSessionId, newValue.LastMethodSessionId)) UpdateChildVariableStatus(m_variable.LastMethodSessionId, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.LastMethodInputArguments, newValue.LastMethodInputArguments)) UpdateChildVariableStatus(m_variable.LastMethodInputArguments, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.LastMethodOutputArguments, newValue.LastMethodOutputArguments)) UpdateChildVariableStatus(m_variable.LastMethodOutputArguments, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.LastMethodInputValues, newValue.LastMethodInputValues)) UpdateChildVariableStatus(m_variable.LastMethodInputValues, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.LastMethodOutputValues, newValue.LastMethodOutputValues)) UpdateChildVariableStatus(m_variable.LastMethodOutputValues, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.LastMethodCallTime, newValue.LastMethodCallTime)) UpdateChildVariableStatus(m_variable.LastMethodCallTime, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.LastMethodReturnStatus, newValue.LastMethodReturnStatus)) UpdateChildVariableStatus(m_variable.LastMethodReturnStatus, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.CreateSessionId, newValue.CreateSessionId))
+                UpdateChildVariableStatus(m_variable.CreateSessionId, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.CreateClientName, newValue.CreateClientName))
+                UpdateChildVariableStatus(m_variable.CreateClientName, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.InvocationCreationTime, newValue.InvocationCreationTime))
+                UpdateChildVariableStatus(m_variable.InvocationCreationTime, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.LastTransitionTime, newValue.LastTransitionTime))
+                UpdateChildVariableStatus(m_variable.LastTransitionTime, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.LastMethodCall, newValue.LastMethodCall))
+                UpdateChildVariableStatus(m_variable.LastMethodCall, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.LastMethodSessionId, newValue.LastMethodSessionId))
+                UpdateChildVariableStatus(m_variable.LastMethodSessionId, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.LastMethodInputArguments, newValue.LastMethodInputArguments))
+                UpdateChildVariableStatus(m_variable.LastMethodInputArguments, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.LastMethodOutputArguments, newValue.LastMethodOutputArguments))
+                UpdateChildVariableStatus(m_variable.LastMethodOutputArguments, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.LastMethodInputValues, newValue.LastMethodInputValues))
+                UpdateChildVariableStatus(m_variable.LastMethodInputValues, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.LastMethodOutputValues, newValue.LastMethodOutputValues))
+                UpdateChildVariableStatus(m_variable.LastMethodOutputValues, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.LastMethodCallTime, newValue.LastMethodCallTime))
+                UpdateChildVariableStatus(m_variable.LastMethodCallTime, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.LastMethodReturnStatus, newValue.LastMethodReturnStatus))
+                UpdateChildVariableStatus(m_variable.LastMethodReturnStatus, ref statusCode, ref timestamp);
         }
 
         private void UpdateParent(ISystemContext context, ref StatusCode statusCode, ref DateTime timestamp)
@@ -62998,7 +63154,8 @@ namespace Opc.Ua
 
         private void UpdateChildVariableStatus(BaseVariableState child, ref StatusCode statusCode, ref DateTime timestamp)
         {
-            if (child == null) return;
+            if (child == null)
+                return;
             child.StatusCode = statusCode;
             if (timestamp == DateTime.MinValue)
             {
@@ -63794,11 +63951,11 @@ namespace Opc.Ua
         #endregion
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region HistoricalDataConfigurationState Class
-    #if (!OPCUA_EXCLUDE_HistoricalDataConfigurationState)
+#if (!OPCUA_EXCLUDE_HistoricalDataConfigurationState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -63816,7 +63973,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.HistoricalDataConfigurationType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -63957,7 +64114,7 @@ namespace Opc.Ua
            "////AAAAABVgiQoCAAAAAAAUAAAATWF4Q291bnRTdG9yZWRWYWx1ZXMBAGx/AC4ARGx/AAAAB/////8B" +
            "Af////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -64282,7 +64439,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -64598,11 +64755,11 @@ namespace Opc.Ua
         private PropertyState<uint> m_maxCountStoredValues;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region HistoricalEventConfigurationState Class
-    #if (!OPCUA_EXCLUDE_HistoricalEventConfigurationState)
+#if (!OPCUA_EXCLUDE_HistoricalEventConfigurationState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -64620,7 +64777,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.HistoricalEventConfigurationType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -64678,7 +64835,7 @@ namespace Opc.Ua
            "/////wAAAAAXYIkKAgAAAAAAEQAAAFNvcnRCeUV2ZW50RmllbGRzAQDUSAAuAETUSAAAAQBZAgEAAAAB" +
            "AAAAAAAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -64787,7 +64944,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -64905,11 +65062,11 @@ namespace Opc.Ua
         private PropertyState<SimpleAttributeOperand[]> m_sortByEventFields;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region HistoricalExternalEventSourceState Class
-    #if (!OPCUA_EXCLUDE_HistoricalExternalEventSourceState)
+#if (!OPCUA_EXCLUDE_HistoricalExternalEventSourceState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -64927,7 +65084,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.HistoricalExternalEventSourceType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -65014,7 +65171,7 @@ namespace Opc.Ua
            "AAAAFWCJCgIAAAAAABUAAABIaXN0b3JpY2FsRXZlbnRGaWx0ZXIBAHh/AC4ARHh/AAABANUC/////wEB" +
            "/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -65195,7 +65352,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -65379,11 +65536,11 @@ namespace Opc.Ua
         private PropertyState<EventFilter> m_historicalEventFilter;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region HistoryServerCapabilitiesState Class
-    #if (!OPCUA_EXCLUDE_HistoryServerCapabilitiesState)
+#if (!OPCUA_EXCLUDE_HistoryServerCapabilitiesState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -65401,7 +65558,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.HistoryServerCapabilitiesType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -65454,7 +65611,7 @@ namespace Opc.Ua
            "////AAAAABVgiQoCAAAAAAAYAAAAU2VydmVyVGltZXN0YW1wU3VwcG9ydGVkAQCWSgAuAESWSgAAAAH/" +
            "////AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -65851,7 +66008,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -66233,11 +66390,11 @@ namespace Opc.Ua
         private PropertyState<bool> m_serverTimestampSupported;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditHistoryEventUpdateEventState Class
-    #if (!OPCUA_EXCLUDE_AuditHistoryEventUpdateEventState)
+#if (!OPCUA_EXCLUDE_AuditHistoryEventUpdateEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -66255,7 +66412,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditHistoryEventUpdateEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -66300,7 +66457,7 @@ namespace Opc.Ua
            "AQH/////AAAAABdgiQoCAAAAAAAJAAAAT2xkVmFsdWVzAQDWCwAuAETWCwAAAQCYAwEAAAABAAAAAAAA" +
            "AAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -66433,7 +66590,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -66573,11 +66730,11 @@ namespace Opc.Ua
         private PropertyState<HistoryEventFieldList[]> m_oldValues;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditHistoryValueUpdateEventState Class
-    #if (!OPCUA_EXCLUDE_AuditHistoryValueUpdateEventState)
+#if (!OPCUA_EXCLUDE_AuditHistoryValueUpdateEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -66595,7 +66752,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditHistoryValueUpdateEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -66639,7 +66796,7 @@ namespace Opc.Ua
            "AQAAAAAAAAABAf////8AAAAAF2CJCgIAAAAAAAkAAABPbGRWYWx1ZXMBANkLAC4ARNkLAAAAFwEAAAAB" +
            "AAAAAAAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -66748,7 +66905,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -66866,11 +67023,11 @@ namespace Opc.Ua
         private PropertyState<DataValue[]> m_oldValues;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditHistoryAnnotationUpdateEventState Class
-    #if (!OPCUA_EXCLUDE_AuditHistoryAnnotationUpdateEventState)
+#if (!OPCUA_EXCLUDE_AuditHistoryAnnotationUpdateEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -66888,7 +67045,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditHistoryAnnotationUpdateEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -66931,7 +67088,7 @@ namespace Opc.Ua
            "AEReSwAAAQB7AwEAAAABAAAAAAAAAAEB/////wAAAAAXYIkKAgAAAAAACQAAAE9sZFZhbHVlcwEAX0sA" +
            "LgBEX0sAAAEAewMBAAAAAQAAAAAAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -67016,7 +67173,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -67112,11 +67269,11 @@ namespace Opc.Ua
         private PropertyState<Annotation[]> m_oldValues;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditHistoryDeleteEventState Class
-    #if (!OPCUA_EXCLUDE_AuditHistoryDeleteEventState)
+#if (!OPCUA_EXCLUDE_AuditHistoryDeleteEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -67134,7 +67291,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditHistoryDeleteEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -67175,7 +67332,7 @@ namespace Opc.Ua
            "AAAR/////wEB/////wAAAAAVYIkKAgAAAAAACwAAAFVwZGF0ZWROb2RlAQDTCwAuAETTCwAAABH/////" +
            "AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -67212,7 +67369,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -67264,11 +67421,11 @@ namespace Opc.Ua
         private PropertyState<NodeId> m_updatedNode;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditHistoryRawModifyDeleteEventState Class
-    #if (!OPCUA_EXCLUDE_AuditHistoryRawModifyDeleteEventState)
+#if (!OPCUA_EXCLUDE_AuditHistoryRawModifyDeleteEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -67286,7 +67443,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditHistoryRawModifyDeleteEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -67331,7 +67488,7 @@ namespace Opc.Ua
            "AAAAABdgiQoCAAAAAAAJAAAAT2xkVmFsdWVzAQDaCwAuAETaCwAAABcBAAAAAQAAAAAAAAABAf////8A" +
            "AAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -67440,7 +67597,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -67558,11 +67715,11 @@ namespace Opc.Ua
         private PropertyState<DataValue[]> m_oldValues;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditHistoryAtTimeDeleteEventState Class
-    #if (!OPCUA_EXCLUDE_AuditHistoryAtTimeDeleteEventState)
+#if (!OPCUA_EXCLUDE_AuditHistoryAtTimeDeleteEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -67580,7 +67737,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditHistoryAtTimeDeleteEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -67623,7 +67780,7 @@ namespace Opc.Ua
            "AAEAAAAAAAAAAQH/////AAAAABdgiQoCAAAAAAAJAAAAT2xkVmFsdWVzAQDNCwAuAETNCwAAABcBAAAA" +
            "AQAAAAAAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -67684,7 +67841,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -67758,11 +67915,11 @@ namespace Opc.Ua
         private PropertyState<DataValue[]> m_oldValues;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditHistoryEventDeleteEventState Class
-    #if (!OPCUA_EXCLUDE_AuditHistoryEventDeleteEventState)
+#if (!OPCUA_EXCLUDE_AuditHistoryEventDeleteEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -67780,7 +67937,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditHistoryEventDeleteEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -67823,7 +67980,7 @@ namespace Opc.Ua
            "AAAAAAAAAQH/////AAAAABVgiQoCAAAAAAAJAAAAT2xkVmFsdWVzAQDQCwAuAETQCwAAAQCYA/////8B" +
            "Af////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -67884,7 +68041,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -67958,11 +68115,11 @@ namespace Opc.Ua
         private PropertyState<HistoryEventFieldList> m_oldValues;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditHistoryConfigurationChangeEventState Class
-    #if (!OPCUA_EXCLUDE_AuditHistoryConfigurationChangeEventState)
+#if (!OPCUA_EXCLUDE_AuditHistoryConfigurationChangeEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -67980,7 +68137,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditHistoryConfigurationChangeEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -68019,7 +68176,7 @@ namespace Opc.Ua
            "ANVUDwAALgBE1VQPAAAM/////wEB/////wAAAAAVYIkKAgAAAAAADAAAAENsaWVudFVzZXJJZAIAANZU" +
            "DwAALgBE1lQPAAAM/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -68031,11 +68188,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuditHistoryBulkInsertEventState Class
-    #if (!OPCUA_EXCLUDE_AuditHistoryBulkInsertEventState)
+#if (!OPCUA_EXCLUDE_AuditHistoryBulkInsertEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -68053,7 +68210,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuditHistoryBulkInsertEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -68094,7 +68251,7 @@ namespace Opc.Ua
            "AQH/////AAAAABVgiQoCAAAAAAAJAAAAU3RhcnRUaW1lAQA2gAAuAEQ2gAAAAQAmAf////8BAf////8A" +
            "AAAAFWCJCgIAAAAAAAcAAABFbmRUaW1lAQA3gAAuAEQ3gAAAAQAmAf////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -68179,7 +68336,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -68275,11 +68432,11 @@ namespace Opc.Ua
         private PropertyState<DateTime> m_endTime;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region OpenWithMasksMethodState Class
-    #if (!OPCUA_EXCLUDE_OpenWithMasksMethodState)
+#if (!OPCUA_EXCLUDE_OpenWithMasksMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -68297,7 +68454,7 @@ namespace Opc.Ua
             return new OpenWithMasksMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -68320,7 +68477,7 @@ namespace Opc.Ua
            "AAAAT3V0cHV0QXJndW1lbnRzAQDjMAAuAETjMAAAlgEAAAABACoBARkAAAAKAAAARmlsZUhhbmRsZQAH" +
            "/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -68346,7 +68503,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -68373,7 +68530,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -68409,8 +68566,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -68445,11 +68602,11 @@ namespace Opc.Ua
         NodeId _objectId,
         uint masks,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region CloseAndUpdateMethodState Class
-    #if (!OPCUA_EXCLUDE_CloseAndUpdateMethodState)
+#if (!OPCUA_EXCLUDE_CloseAndUpdateMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -68467,7 +68624,7 @@ namespace Opc.Ua
             return new CloseAndUpdateMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -68490,7 +68647,7 @@ namespace Opc.Ua
            "AAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQDlMAAuAETlMAAAlgEAAAABACoBASMAAAAUAAAAQXBwbHlD" +
            "aGFuZ2VzUmVxdWlyZWQAAf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -68516,7 +68673,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -68543,7 +68700,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -68579,8 +68736,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -68615,11 +68772,11 @@ namespace Opc.Ua
         NodeId _objectId,
         uint fileHandle,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region AddCertificateMethodState Class
-    #if (!OPCUA_EXCLUDE_AddCertificateMethodState)
+#if (!OPCUA_EXCLUDE_AddCertificateMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -68637,7 +68794,7 @@ namespace Opc.Ua
             return new AddCertificateMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -68659,7 +68816,7 @@ namespace Opc.Ua
            "GgAAAAsAAABDZXJ0aWZpY2F0ZQAP/////wAAAAAAAQAqAQEjAAAAFAAAAElzVHJ1c3RlZENlcnRpZmlj" +
            "YXRlAAH/////AAAAAAABACgBAQAAAAEAAAACAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -68685,7 +68842,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -68709,7 +68866,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -68745,8 +68902,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -68780,11 +68937,11 @@ namespace Opc.Ua
         byte[] certificate,
         bool isTrustedCertificate,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region RemoveCertificateMethodState Class
-    #if (!OPCUA_EXCLUDE_RemoveCertificateMethodState)
+#if (!OPCUA_EXCLUDE_RemoveCertificateMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -68802,7 +68959,7 @@ namespace Opc.Ua
             return new RemoveCertificateMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -68824,7 +68981,7 @@ namespace Opc.Ua
            "KgEBGQAAAAoAAABUaHVtYnByaW50AAz/////AAAAAAABACoBASMAAAAUAAAASXNUcnVzdGVkQ2VydGlm" +
            "aWNhdGUAAf////8AAAAAAAEAKAEBAAAAAQAAAAIAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -68850,7 +69007,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -68874,7 +69031,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -68910,8 +69067,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -68945,11 +69102,11 @@ namespace Opc.Ua
         string thumbprint,
         bool isTrustedCertificate,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region TrustListState Class
-    #if (!OPCUA_EXCLUDE_TrustListState)
+#if (!OPCUA_EXCLUDE_TrustListState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -68967,7 +69124,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.TrustListType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -69066,7 +69223,7 @@ namespace Opc.Ua
            "AABUaHVtYnByaW50AAz/////AAAAAAABACoBASMAAAAUAAAASXNUcnVzdGVkQ2VydGlmaWNhdGUAAf//" +
            "//8AAAAAAAEAKAEBAAAAAQAAAAIAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -69271,7 +69428,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -69477,11 +69634,11 @@ namespace Opc.Ua
         private RemoveCertificateMethodState m_removeCertificateMethod;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region TrustListOutOfDateAlarmState Class
-    #if (!OPCUA_EXCLUDE_TrustListOutOfDateAlarmState)
+#if (!OPCUA_EXCLUDE_TrustListOutOfDateAlarmState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -69499,7 +69656,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.TrustListOutOfDateAlarmType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -69568,7 +69725,7 @@ namespace Opc.Ua
            "YIkKAgAAAAAADgAAAExhc3RVcGRhdGVUaW1lAQD3SwAuAET3SwAAAQAmAf////8BAf////8AAAAAFWCJ" +
            "CgIAAAAAAA8AAABVcGRhdGVGcmVxdWVuY3kBAPhLAC4ARPhLAAABACIB/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -69653,7 +69810,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -69749,11 +69906,11 @@ namespace Opc.Ua
         private PropertyState<double> m_updateFrequency;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region CertificateGroupState Class
-    #if (!OPCUA_EXCLUDE_CertificateGroupState)
+#if (!OPCUA_EXCLUDE_CertificateGroupState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -69771,7 +69928,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.CertificateGroupType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -70044,7 +70201,7 @@ namespace Opc.Ua
            "HwAAAAwAAABDZXJ0aWZpY2F0ZXMADwEAAAABAAAAAAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAA" +
            "AA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -70201,7 +70358,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -70363,11 +70520,11 @@ namespace Opc.Ua
         private GetRejectedListMethodState m_getRejectedListMethod;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region CertificateGroupFolderState Class
-    #if (!OPCUA_EXCLUDE_CertificateGroupFolderState)
+#if (!OPCUA_EXCLUDE_CertificateGroupFolderState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -70385,7 +70542,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.CertificateGroupFolderType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -70649,7 +70806,7 @@ namespace Opc.Ua
            "AAABAAAAAgAAAAEB/////wAAAAAXYIkKAgAAAAAAEAAAAENlcnRpZmljYXRlVHlwZXMBAFs2AC4ARFs2" +
            "AAAAEQEAAAABAAAAAAAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -70734,7 +70891,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -70830,11 +70987,11 @@ namespace Opc.Ua
         private CertificateGroupState m_defaultUserTokenGroup;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region CertificateState Class
-    #if (!OPCUA_EXCLUDE_CertificateState)
+#if (!OPCUA_EXCLUDE_CertificateState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -70852,7 +71009,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.CertificateType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -70879,7 +71036,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAFwAAAENlcnRpZmljYXRlVHlwZUluc3RhbmNlAQAMMQEADDEMMQAA////" +
            "/wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -70891,11 +71048,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region ApplicationCertificateState Class
-    #if (!OPCUA_EXCLUDE_ApplicationCertificateState)
+#if (!OPCUA_EXCLUDE_ApplicationCertificateState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -70913,7 +71070,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.ApplicationCertificateType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -70940,7 +71097,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAIgAAAEFwcGxpY2F0aW9uQ2VydGlmaWNhdGVUeXBlSW5zdGFuY2UBAA0x" +
            "AQANMQ0xAAD/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -70952,11 +71109,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region HttpsCertificateState Class
-    #if (!OPCUA_EXCLUDE_HttpsCertificateState)
+#if (!OPCUA_EXCLUDE_HttpsCertificateState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -70974,7 +71131,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.HttpsCertificateType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -71001,7 +71158,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAHAAAAEh0dHBzQ2VydGlmaWNhdGVUeXBlSW5zdGFuY2UBAA4xAQAOMQ4x" +
            "AAD/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -71013,11 +71170,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region UserCertificateState Class
-    #if (!OPCUA_EXCLUDE_UserCertificateState)
+#if (!OPCUA_EXCLUDE_UserCertificateState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -71035,7 +71192,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.UserCertificateType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -71062,7 +71219,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAGwAAAFVzZXJDZXJ0aWZpY2F0ZVR5cGVJbnN0YW5jZQEAe0sBAHtLe0sA" +
            "AP////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -71074,11 +71231,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region TlsCertificateState Class
-    #if (!OPCUA_EXCLUDE_TlsCertificateState)
+#if (!OPCUA_EXCLUDE_TlsCertificateState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -71096,7 +71253,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.TlsCertificateType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -71123,7 +71280,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAGgAAAFRsc0NlcnRpZmljYXRlVHlwZUluc3RhbmNlAQB8SwEAfEt8SwAA" +
            "/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -71135,11 +71292,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region TlsServerCertificateState Class
-    #if (!OPCUA_EXCLUDE_TlsServerCertificateState)
+#if (!OPCUA_EXCLUDE_TlsServerCertificateState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -71157,7 +71314,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.TlsServerCertificateType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -71184,7 +71341,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAIAAAAFRsc1NlcnZlckNlcnRpZmljYXRlVHlwZUluc3RhbmNlAQB9SwEA" +
            "fUt9SwAA/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -71196,11 +71353,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region TlsClientCertificateState Class
-    #if (!OPCUA_EXCLUDE_TlsClientCertificateState)
+#if (!OPCUA_EXCLUDE_TlsClientCertificateState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -71218,7 +71375,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.TlsClientCertificateType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -71245,7 +71402,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAIAAAAFRsc0NsaWVudENlcnRpZmljYXRlVHlwZUluc3RhbmNlAQB+SwEA" +
            "fkt+SwAA/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -71257,11 +71414,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region UserCredentialCertificateState Class
-    #if (!OPCUA_EXCLUDE_UserCredentialCertificateState)
+#if (!OPCUA_EXCLUDE_UserCredentialCertificateState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -71279,7 +71436,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.UserCredentialCertificateType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -71306,7 +71463,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAJQAAAFVzZXJDcmVkZW50aWFsQ2VydGlmaWNhdGVUeXBlSW5zdGFuY2UB" +
            "AE07AQBNO007AAD/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -71318,11 +71475,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region RsaMinApplicationCertificateState Class
-    #if (!OPCUA_EXCLUDE_RsaMinApplicationCertificateState)
+#if (!OPCUA_EXCLUDE_RsaMinApplicationCertificateState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -71340,7 +71497,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.RsaMinApplicationCertificateType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -71367,7 +71524,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAKAAAAFJzYU1pbkFwcGxpY2F0aW9uQ2VydGlmaWNhdGVUeXBlSW5zdGFu" +
            "Y2UBAA8xAQAPMQ8xAAD/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -71379,11 +71536,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region RsaSha256ApplicationCertificateState Class
-    #if (!OPCUA_EXCLUDE_RsaSha256ApplicationCertificateState)
+#if (!OPCUA_EXCLUDE_RsaSha256ApplicationCertificateState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -71401,7 +71558,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.RsaSha256ApplicationCertificateType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -71428,7 +71585,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAKwAAAFJzYVNoYTI1NkFwcGxpY2F0aW9uQ2VydGlmaWNhdGVUeXBlSW5z" +
            "dGFuY2UBABAxAQAQMRAxAAD/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -71440,11 +71597,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region EccApplicationCertificateState Class
-    #if (!OPCUA_EXCLUDE_EccApplicationCertificateState)
+#if (!OPCUA_EXCLUDE_EccApplicationCertificateState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -71462,7 +71619,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.EccApplicationCertificateType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -71489,7 +71646,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAJQAAAEVjY0FwcGxpY2F0aW9uQ2VydGlmaWNhdGVUeXBlSW5zdGFuY2UB" +
            "APFbAQDxW/FbAAD/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -71501,11 +71658,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region EccNistP256ApplicationCertificateState Class
-    #if (!OPCUA_EXCLUDE_EccNistP256ApplicationCertificateState)
+#if (!OPCUA_EXCLUDE_EccNistP256ApplicationCertificateState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -71523,7 +71680,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.EccNistP256ApplicationCertificateType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -71550,7 +71707,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAALQAAAEVjY05pc3RQMjU2QXBwbGljYXRpb25DZXJ0aWZpY2F0ZVR5cGVJ" +
            "bnN0YW5jZQEA8lsBAPJb8lsAAP////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -71562,11 +71719,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region EccNistP384ApplicationCertificateState Class
-    #if (!OPCUA_EXCLUDE_EccNistP384ApplicationCertificateState)
+#if (!OPCUA_EXCLUDE_EccNistP384ApplicationCertificateState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -71584,7 +71741,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.EccNistP384ApplicationCertificateType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -71611,7 +71768,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAALQAAAEVjY05pc3RQMzg0QXBwbGljYXRpb25DZXJ0aWZpY2F0ZVR5cGVJ" +
            "bnN0YW5jZQEA81sBAPNb81sAAP////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -71623,11 +71780,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region EccBrainpoolP256r1ApplicationCertificateState Class
-    #if (!OPCUA_EXCLUDE_EccBrainpoolP256r1ApplicationCertificateState)
+#if (!OPCUA_EXCLUDE_EccBrainpoolP256r1ApplicationCertificateState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -71645,7 +71802,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.EccBrainpoolP256r1ApplicationCertificateType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -71672,7 +71829,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAANAAAAEVjY0JyYWlucG9vbFAyNTZyMUFwcGxpY2F0aW9uQ2VydGlmaWNh" +
            "dGVUeXBlSW5zdGFuY2UBAPRbAQD0W/RbAAD/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -71684,11 +71841,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region EccBrainpoolP384r1ApplicationCertificateState Class
-    #if (!OPCUA_EXCLUDE_EccBrainpoolP384r1ApplicationCertificateState)
+#if (!OPCUA_EXCLUDE_EccBrainpoolP384r1ApplicationCertificateState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -71706,7 +71863,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.EccBrainpoolP384r1ApplicationCertificateType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -71733,7 +71890,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAANAAAAEVjY0JyYWlucG9vbFAzODRyMUFwcGxpY2F0aW9uQ2VydGlmaWNh" +
            "dGVUeXBlSW5zdGFuY2UBAPVbAQD1W/VbAAD/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -71745,11 +71902,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region EccCurve25519ApplicationCertificateState Class
-    #if (!OPCUA_EXCLUDE_EccCurve25519ApplicationCertificateState)
+#if (!OPCUA_EXCLUDE_EccCurve25519ApplicationCertificateState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -71767,7 +71924,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.EccCurve25519ApplicationCertificateType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -71794,7 +71951,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAALwAAAEVjY0N1cnZlMjU1MTlBcHBsaWNhdGlvbkNlcnRpZmljYXRlVHlw" +
            "ZUluc3RhbmNlAQD2WwEA9lv2WwAA/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -71806,11 +71963,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region EccCurve448ApplicationCertificateState Class
-    #if (!OPCUA_EXCLUDE_EccCurve448ApplicationCertificateState)
+#if (!OPCUA_EXCLUDE_EccCurve448ApplicationCertificateState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -71828,7 +71985,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.EccCurve448ApplicationCertificateType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -71855,7 +72012,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAALQAAAEVjY0N1cnZlNDQ4QXBwbGljYXRpb25DZXJ0aWZpY2F0ZVR5cGVJ" +
            "bnN0YW5jZQEA91sBAPdb91sAAP////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -71867,11 +72024,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region ConfigurationFileState Class
-    #if (!OPCUA_EXCLUDE_ConfigurationFileState)
+#if (!OPCUA_EXCLUDE_ConfigurationFileState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -71889,7 +72046,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.ConfigurationFileType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -71956,7 +72113,7 @@ namespace Opc.Ua
            "EwEAAAABAAAAAAAAAAABACoBARsAAAAKAAAATmV3VmVyc2lvbgEABlL/////AAAAAAABACoBARcAAAAI" +
            "AAAAVXBkYXRlSWQADv////8AAAAAAAEAKAEBAAAAAQAAAAMAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -72113,7 +72270,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -72275,11 +72432,11 @@ namespace Opc.Ua
         private ConfigurationFileCloseAndUpdateMethodState m_closeAndUpdateMethod;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region ConfigurationFileCloseAndUpdateMethodState Class
-    #if (!OPCUA_EXCLUDE_ConfigurationFileCloseAndUpdateMethodState)
+#if (!OPCUA_EXCLUDE_ConfigurationFileCloseAndUpdateMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -72297,7 +72454,7 @@ namespace Opc.Ua
             return new ConfigurationFileCloseAndUpdateMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -72324,7 +72481,7 @@ namespace Opc.Ua
            "c3VsdHMAEwEAAAABAAAAAAAAAAABACoBARsAAAAKAAAATmV3VmVyc2lvbgEABlL/////AAAAAAABACoB" +
            "ARcAAAAIAAAAVXBkYXRlSWQADv////8AAAAAAAEAKAEBAAAAAQAAAAMAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -72350,7 +72507,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -72391,7 +72548,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -72437,8 +72594,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -72487,11 +72644,11 @@ namespace Opc.Ua
         double revertAfterTime,
         double restartDelayTime,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region ConfigurationFileConfirmUpdateMethodState Class
-    #if (!OPCUA_EXCLUDE_ConfigurationFileConfirmUpdateMethodState)
+#if (!OPCUA_EXCLUDE_ConfigurationFileConfirmUpdateMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -72509,7 +72666,7 @@ namespace Opc.Ua
             return new ConfigurationFileConfirmUpdateMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -72531,7 +72688,7 @@ namespace Opc.Ua
            "AESwPAAAlgEAAAABACoBARcAAAAIAAAAVXBkYXRlSWQADv////8AAAAAAAEAKAEBAAAAAQAAAAEAAAAB" +
            "Af////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -72557,7 +72714,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -72579,7 +72736,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -72613,8 +72770,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -72646,11 +72803,11 @@ namespace Opc.Ua
         NodeId _objectId,
         Uuid updateId,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region ConfigurationUpdatedAuditEventState Class
-    #if (!OPCUA_EXCLUDE_ConfigurationUpdatedAuditEventState)
+#if (!OPCUA_EXCLUDE_ConfigurationUpdatedAuditEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -72668,7 +72825,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.ConfigurationUpdatedAuditEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -72709,7 +72866,7 @@ namespace Opc.Ua
            "/////wEB/////wAAAAAVYIkKAgAAAAAACgAAAE5ld1ZlcnNpb24BALc8AC4ARLc8AAABAAZS/////wEB" +
            "/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -72770,7 +72927,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -72844,11 +73001,11 @@ namespace Opc.Ua
         private PropertyState<uint> m_newVersion;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region TrustListUpdateRequestedAuditEventState Class
-    #if (!OPCUA_EXCLUDE_TrustListUpdateRequestedAuditEventState)
+#if (!OPCUA_EXCLUDE_TrustListUpdateRequestedAuditEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -72866,7 +73023,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.TrustListUpdateRequestedAuditEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -72907,7 +73064,7 @@ namespace Opc.Ua
            "AAAR/////wEB/////wAAAAAXYIkKAgAAAAAADgAAAElucHV0QXJndW1lbnRzAgAA4lUPAAAuAETiVQ8A" +
            "ABgBAAAAAQAAAAAAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -72919,11 +73076,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region TrustListUpdatedAuditEventState Class
-    #if (!OPCUA_EXCLUDE_TrustListUpdatedAuditEventState)
+#if (!OPCUA_EXCLUDE_TrustListUpdatedAuditEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -72941,7 +73098,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.TrustListUpdatedAuditEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -72983,7 +73140,7 @@ namespace Opc.Ua
            "AAAAAAAAAQH/////AAAAABVgiQoCAAAAAAALAAAAVHJ1c3RMaXN0SWQBABl+AC4ARBl+AAAAEf////8B" +
            "Af////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -73020,7 +73177,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -73072,11 +73229,11 @@ namespace Opc.Ua
         private PropertyState<NodeId> m_trustListId;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region UpdateCertificateMethodState Class
-    #if (!OPCUA_EXCLUDE_UpdateCertificateMethodState)
+#if (!OPCUA_EXCLUDE_UpdateCertificateMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -73094,7 +73251,7 @@ namespace Opc.Ua
             return new UpdateCertificateMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -73121,7 +73278,7 @@ namespace Opc.Ua
            "MQAAlgEAAAABACoBASMAAAAUAAAAQXBwbHlDaGFuZ2VzUmVxdWlyZWQAAf////8AAAAAAAEAKAEBAAAA" +
            "AQAAAAEAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -73147,7 +73304,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -73184,7 +73341,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -73230,8 +73387,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -73276,11 +73433,11 @@ namespace Opc.Ua
         string privateKeyFormat,
         byte[] privateKey,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region CreateSigningRequestMethodState Class
-    #if (!OPCUA_EXCLUDE_CreateSigningRequestMethodState)
+#if (!OPCUA_EXCLUDE_CreateSigningRequestMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -73298,7 +73455,7 @@ namespace Opc.Ua
             return new CreateSigningRequestMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -73324,7 +73481,7 @@ namespace Opc.Ua
            "Z3VtZW50cwEAxzEALgBExzEAAJYBAAAAAQAqAQEhAAAAEgAAAENlcnRpZmljYXRlUmVxdWVzdAAP////" +
            "/wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -73350,7 +73507,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -73385,7 +73542,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -73429,8 +73586,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -73473,11 +73630,11 @@ namespace Opc.Ua
         bool regeneratePrivateKey,
         byte[] nonce,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region CreateSelfSignedCertificateMethodState Class
-    #if (!OPCUA_EXCLUDE_CreateSelfSignedCertificateMethodState)
+#if (!OPCUA_EXCLUDE_CreateSelfSignedCertificateMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -73495,7 +73652,7 @@ namespace Opc.Ua
             return new CreateSelfSignedCertificateMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -73522,7 +73679,7 @@ namespace Opc.Ua
            "AAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEAgUsALgBEgUsAAJYBAAAAAQAqAQEaAAAACwAA" +
            "AENlcnRpZmljYXRlAA//////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -73548,7 +73705,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -73587,7 +73744,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -73635,8 +73792,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -73683,11 +73840,11 @@ namespace Opc.Ua
         ushort lifetimeInDays,
         ushort keySizeInBits,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region DeleteCertificateMethodState Class
-    #if (!OPCUA_EXCLUDE_DeleteCertificateMethodState)
+#if (!OPCUA_EXCLUDE_DeleteCertificateMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -73705,7 +73862,7 @@ namespace Opc.Ua
             return new DeleteCertificateMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -73727,7 +73884,7 @@ namespace Opc.Ua
            "KgEBIQAAABIAAABDZXJ0aWZpY2F0ZUdyb3VwSWQAEf////8AAAAAAAEAKgEBIAAAABEAAABDZXJ0aWZp" +
            "Y2F0ZVR5cGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -73753,7 +73910,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -73777,7 +73934,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -73813,8 +73970,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -73848,11 +74005,11 @@ namespace Opc.Ua
         NodeId certificateGroupId,
         NodeId certificateTypeId,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region GetRejectedListMethodState Class
-    #if (!OPCUA_EXCLUDE_GetRejectedListMethodState)
+#if (!OPCUA_EXCLUDE_GetRejectedListMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -73870,7 +74027,7 @@ namespace Opc.Ua
             return new GetRejectedListMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -73892,7 +74049,7 @@ namespace Opc.Ua
            "AQEfAAAADAAAAENlcnRpZmljYXRlcwAPAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8A" +
            "AAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -73918,7 +74075,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -73942,7 +74099,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -73975,8 +74132,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -74009,11 +74166,11 @@ namespace Opc.Ua
         MethodState _method,
         NodeId _objectId,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region GetCertificatesMethodState Class
-    #if (!OPCUA_EXCLUDE_GetCertificatesMethodState)
+#if (!OPCUA_EXCLUDE_GetCertificatesMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -74031,7 +74188,7 @@ namespace Opc.Ua
             return new GetCertificatesMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -74055,7 +74212,7 @@ namespace Opc.Ua
            "AAAAQ2VydGlmaWNhdGVUeXBlSWRzABEBAAAAAQAAAAAAAAAAAQAqAQEfAAAADAAAAENlcnRpZmljYXRl" +
            "cwAPAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAIAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -74081,7 +74238,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -74111,7 +74268,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -74148,8 +74305,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -74187,11 +74344,11 @@ namespace Opc.Ua
         NodeId _objectId,
         NodeId certificateGroupId,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region TransactionDiagnosticsState Class
-    #if (!OPCUA_EXCLUDE_TransactionDiagnosticsState)
+#if (!OPCUA_EXCLUDE_TransactionDiagnosticsState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -74209,7 +74366,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.TransactionDiagnosticsType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -74242,7 +74399,7 @@ namespace Opc.Ua
            "AAEB/////wAAAAAXYIkKAgAAAAAABgAAAEVycm9ycwEAJH4ALgBEJH4AAAEAHX4BAAAAAQAAAAAAAAAB" +
            "Af////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -74399,7 +74556,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -74561,11 +74718,11 @@ namespace Opc.Ua
         private PropertyState<TransactionErrorType[]> m_errors;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region ApplicationConfigurationFolderState Class
-    #if (!OPCUA_EXCLUDE_ApplicationConfigurationFolderState)
+#if (!OPCUA_EXCLUDE_ApplicationConfigurationFolderState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -74583,7 +74740,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.ApplicationConfigurationFolderType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -74610,7 +74767,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAKgAAAEFwcGxpY2F0aW9uQ29uZmlndXJhdGlvbkZvbGRlclR5cGVJbnN0" +
            "YW5jZQEAFkEBABZBFkEAAP////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -74622,11 +74779,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region ApplicationConfigurationFileState Class
-    #if (!OPCUA_EXCLUDE_ApplicationConfigurationFileState)
+#if (!OPCUA_EXCLUDE_ApplicationConfigurationFileState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -74644,7 +74801,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.ApplicationConfigurationFileType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -74721,7 +74878,7 @@ namespace Opc.Ua
            "AAAAQ2VydGlmaWNhdGVHcm91cFB1cnBvc2VzAQDYSwAuAETYSwAAABEBAAAAAQAAAAAAAAABAf////8A" +
            "AAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -74926,7 +75083,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -75132,11 +75289,11 @@ namespace Opc.Ua
         private PropertyState<NodeId[]> m_certificateGroupPurposes;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region ServerConfigurationState Class
-    #if (!OPCUA_EXCLUDE_ServerConfigurationState)
+#if (!OPCUA_EXCLUDE_ServerConfigurationState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -75154,7 +75311,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.ServerConfigurationType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -75522,7 +75679,7 @@ namespace Opc.Ua
            "ZVR5cGVzAQAKQQAuAEQKQQAAABEBAAAAAQAAAAAAAAABAf////8AAAAAF2CJCgIAAAAAABgAAABDZXJ0" +
            "aWZpY2F0ZUdyb3VwUHVycG9zZXMBAN5LAC4ARN5LAAAAEQEAAAABAAAAAAAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -76087,7 +76244,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -76623,11 +76780,11 @@ namespace Opc.Ua
         private ApplicationConfigurationFileState m_configurationFile;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region ApplicationConfigurationState Class
-    #if (!OPCUA_EXCLUDE_ApplicationConfigurationState)
+#if (!OPCUA_EXCLUDE_ApplicationConfigurationState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -76645,7 +76802,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.ApplicationConfigurationType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -76765,7 +76922,7 @@ namespace Opc.Ua
            "ZWRlbnRpYWxzAQDfSwAvAQBYRN9LAAD/////AAAAAARggAoBAAAAAAAVAAAAQXV0aG9yaXphdGlvblNl" +
            "cnZpY2VzAQDjSwAvAQAEXONLAAD/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -76850,7 +77007,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -76946,11 +77103,11 @@ namespace Opc.Ua
         private AuthorizationServicesConfigurationFolderState m_authorizationServices;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region CertificateUpdateRequestedAuditEventState Class
-    #if (!OPCUA_EXCLUDE_CertificateUpdateRequestedAuditEventState)
+#if (!OPCUA_EXCLUDE_CertificateUpdateRequestedAuditEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -76968,7 +77125,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.CertificateUpdateRequestedAuditEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -77009,7 +77166,7 @@ namespace Opc.Ua
            "Xw8AABH/////AQH/////AAAAABdgiQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMCAACLXw8AAC4ARItf" +
            "DwAAGAEAAAABAAAAAAAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -77021,11 +77178,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region CertificateUpdatedAuditEventState Class
-    #if (!OPCUA_EXCLUDE_CertificateUpdatedAuditEventState)
+#if (!OPCUA_EXCLUDE_CertificateUpdatedAuditEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -77043,7 +77200,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.CertificateUpdatedAuditEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -77086,7 +77243,7 @@ namespace Opc.Ua
            "ABH/////AQH/////AAAAABVgiQoCAAAAAAAPAAAAQ2VydGlmaWNhdGVUeXBlAQCoNQAuAESoNQAAABH/" +
            "////AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -77147,7 +77304,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -77221,11 +77378,11 @@ namespace Opc.Ua
         private PropertyState<NodeId> m_certificateType;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region CreateCredentialMethodState Class
-    #if (!OPCUA_EXCLUDE_CreateCredentialMethodState)
+#if (!OPCUA_EXCLUDE_CreateCredentialMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -77243,7 +77400,7 @@ namespace Opc.Ua
             return new CreateCredentialMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -77268,7 +77425,7 @@ namespace Opc.Ua
            "QXJndW1lbnRzAQBXRAAuAERXRAAAlgEAAAABACoBAR8AAAAQAAAAQ3JlZGVudGlhbE5vZGVJZAAR////" +
            "/wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -77294,7 +77451,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -77327,7 +77484,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -77369,8 +77526,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -77411,11 +77568,11 @@ namespace Opc.Ua
         string profileUri,
         string[] endpointUrls,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region KeyCredentialConfigurationFolderState Class
-    #if (!OPCUA_EXCLUDE_KeyCredentialConfigurationFolderState)
+#if (!OPCUA_EXCLUDE_KeyCredentialConfigurationFolderState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -77433,7 +77590,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.KeyCredentialConfigurationFolderType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -77480,7 +77637,7 @@ namespace Opc.Ua
            "AABPdXRwdXRBcmd1bWVudHMBAHREAC4ARHREAACWAQAAAAEAKgEBHwAAABAAAABDcmVkZW50aWFsTm9k" +
            "ZUlkABH/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -77517,7 +77674,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -77569,11 +77726,11 @@ namespace Opc.Ua
         private CreateCredentialMethodState m_createCredentialMethod;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region GetEncryptingKeyMethodState Class
-    #if (!OPCUA_EXCLUDE_GetEncryptingKeyMethodState)
+#if (!OPCUA_EXCLUDE_GetEncryptingKeyMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -77591,7 +77748,7 @@ namespace Opc.Ua
             return new GetEncryptingKeyMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -77616,7 +77773,7 @@ namespace Opc.Ua
            "////AAAAAAABACoBAScAAAAYAAAAUmV2aXNlZFNlY3VyaXR5UG9saWN5VXJpAAz/////AAAAAAABACgB" +
            "AQAAAAEAAAACAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -77642,7 +77799,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -77674,7 +77831,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -77713,8 +77870,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -77754,11 +77911,11 @@ namespace Opc.Ua
         string credentialId,
         string requestedSecurityPolicyUri,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region KeyCredentialConfigurationState Class
-    #if (!OPCUA_EXCLUDE_KeyCredentialConfigurationState)
+#if (!OPCUA_EXCLUDE_KeyCredentialConfigurationState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -77776,7 +77933,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.KeyCredentialConfigurationType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -77881,7 +78038,7 @@ namespace Opc.Ua
            "eVBvbGljeVVyaQAM/////wAAAAAAAQAoAQEAAAABAAAABAAAAAEB/////wAAAAAEYYIKBAAAAAAAEAAA" +
            "AERlbGV0ZUNyZWRlbnRpYWwBAFhGAC8BAFhGWEYAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -78086,7 +78243,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -78292,11 +78449,11 @@ namespace Opc.Ua
         private MethodState m_deleteCredentialMethod;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region KeyCredentialUpdateMethodState Class
-    #if (!OPCUA_EXCLUDE_KeyCredentialUpdateMethodState)
+#if (!OPCUA_EXCLUDE_KeyCredentialUpdateMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -78314,7 +78471,7 @@ namespace Opc.Ua
             return new KeyCredentialUpdateMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -78338,7 +78495,7 @@ namespace Opc.Ua
            "AAEAKgEBIAAAABEAAABTZWN1cml0eVBvbGljeVVyaQAM/////wAAAAAAAQAoAQEAAAABAAAABAAAAAEB" +
            "/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -78364,7 +78521,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -78392,7 +78549,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -78432,8 +78589,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -78471,11 +78628,11 @@ namespace Opc.Ua
         string certificateThumbprint,
         string securityPolicyUri,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region KeyCredentialAuditEventState Class
-    #if (!OPCUA_EXCLUDE_KeyCredentialAuditEventState)
+#if (!OPCUA_EXCLUDE_KeyCredentialAuditEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -78493,7 +78650,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.KeyCredentialAuditEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -78535,7 +78692,7 @@ namespace Opc.Ua
            "AAAAAQH/////AAAAABVgiQoCAAAAAAALAAAAUmVzb3VyY2VVcmkBAGxGAC4ARGxGAAAADP////8BAf//" +
            "//8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -78572,7 +78729,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -78624,11 +78781,11 @@ namespace Opc.Ua
         private PropertyState<string> m_resourceUri;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region KeyCredentialUpdatedAuditEventState Class
-    #if (!OPCUA_EXCLUDE_KeyCredentialUpdatedAuditEventState)
+#if (!OPCUA_EXCLUDE_KeyCredentialUpdatedAuditEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -78646,7 +78803,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.KeyCredentialUpdatedAuditEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -78688,7 +78845,7 @@ namespace Opc.Ua
            "AAABAAAAAAAAAAEB/////wAAAAAVYIkKAgAAAAAACwAAAFJlc291cmNlVXJpAgAA218PAAAuAETbXw8A" +
            "AAz/////AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -78700,11 +78857,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region KeyCredentialDeletedAuditEventState Class
-    #if (!OPCUA_EXCLUDE_KeyCredentialDeletedAuditEventState)
+#if (!OPCUA_EXCLUDE_KeyCredentialDeletedAuditEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -78722,7 +78879,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.KeyCredentialDeletedAuditEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -78764,7 +78921,7 @@ namespace Opc.Ua
            "AAABAAAAAAAAAAEB/////wAAAAAVYIkKAgAAAAAACwAAAFJlc291cmNlVXJpAQCQRgAuAESQRgAAAAz/" +
            "////AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -78776,11 +78933,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuthorizationServicesConfigurationFolderState Class
-    #if (!OPCUA_EXCLUDE_AuthorizationServicesConfigurationFolderState)
+#if (!OPCUA_EXCLUDE_AuthorizationServicesConfigurationFolderState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -78798,7 +78955,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuthorizationServicesConfigurationFolderType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -78825,7 +78982,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAANAAAAEF1dGhvcml6YXRpb25TZXJ2aWNlc0NvbmZpZ3VyYXRpb25Gb2xk" +
            "ZXJUeXBlSW5zdGFuY2UBAARcAQAEXARcAAD/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -78837,11 +78994,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AuthorizationServiceConfigurationState Class
-    #if (!OPCUA_EXCLUDE_AuthorizationServiceConfigurationState)
+#if (!OPCUA_EXCLUDE_AuthorizationServiceConfigurationState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -78859,7 +79016,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AuthorizationServiceConfigurationType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -78889,7 +79046,7 @@ namespace Opc.Ua
            "RQAAAA//////AQH/////AAAAABVgiQoCAAAAAAARAAAASXNzdWVyRW5kcG9pbnRVcmwBAJlGAC4ARJlG" +
            "AAAADP////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -78974,7 +79131,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -79070,11 +79227,11 @@ namespace Opc.Ua
         private PropertyState<string> m_issuerEndpointUrl;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AggregateConfigurationState Class
-    #if (!OPCUA_EXCLUDE_AggregateConfigurationState)
+#if (!OPCUA_EXCLUDE_AggregateConfigurationState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -79092,7 +79249,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AggregateConfigurationType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -79123,7 +79280,7 @@ namespace Opc.Ua
            "AQH/////AAAAABVgiQoCAAAAAAAWAAAAVXNlU2xvcGVkRXh0cmFwb2xhdGlvbgEAtysALgBEtysAAAAB" +
            "/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -79232,7 +79389,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -79350,11 +79507,11 @@ namespace Opc.Ua
         private PropertyState<bool> m_useSlopedExtrapolation;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region PubSubKeyServiceState Class
-    #if (!OPCUA_EXCLUDE_PubSubKeyServiceState)
+#if (!OPCUA_EXCLUDE_PubSubKeyServiceState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -79372,7 +79529,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.PubSubKeyServiceType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -79501,7 +79658,7 @@ namespace Opc.Ua
            "AQAAAAEAKgEBGwAAAAwAAABQdXNoVGFyZ2V0SWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf//" +
            "//8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -79610,7 +79767,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -79728,11 +79885,11 @@ namespace Opc.Ua
         private PubSubKeyPushTargetFolderState m_keyPushTargets;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region GetSecurityKeysMethodState Class
-    #if (!OPCUA_EXCLUDE_GetSecurityKeysMethodState)
+#if (!OPCUA_EXCLUDE_GetSecurityKeysMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -79750,7 +79907,7 @@ namespace Opc.Ua
             return new GetSecurityKeysMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -79777,7 +79934,7 @@ namespace Opc.Ua
            "AQAqAQEeAAAADQAAAFRpbWVUb05leHRLZXkBACIB/////wAAAAAAAQAqAQEcAAAACwAAAEtleUxpZmV0" +
            "aW1lAQAiAf////8AAAAAAAEAKAEBAAAAAQAAAAUAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -79803,7 +79960,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -79846,7 +80003,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -79890,8 +80047,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -79942,11 +80099,11 @@ namespace Opc.Ua
         uint startingTokenId,
         uint requestedKeyCount,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region GetSecurityGroupMethodState Class
-    #if (!OPCUA_EXCLUDE_GetSecurityGroupMethodState)
+#if (!OPCUA_EXCLUDE_GetSecurityGroupMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -79964,7 +80121,7 @@ namespace Opc.Ua
             return new GetSecurityGroupMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -79987,7 +80144,7 @@ namespace Opc.Ua
            "AAAXYKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEAWzwALgBEWzwAAJYBAAAAAQAqAQEiAAAAEwAA" +
            "AFNlY3VyaXR5R3JvdXBOb2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -80013,7 +80170,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -80040,7 +80197,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -80076,8 +80233,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -80112,11 +80269,11 @@ namespace Opc.Ua
         NodeId _objectId,
         string securityGroupId,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region AddSecurityGroupMethodState Class
-    #if (!OPCUA_EXCLUDE_AddSecurityGroupMethodState)
+#if (!OPCUA_EXCLUDE_AddSecurityGroupMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -80134,7 +80291,7 @@ namespace Opc.Ua
             return new AddSecurityGroupMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -80161,7 +80318,7 @@ namespace Opc.Ua
            "//8AAAAAAAEAKgEBIgAAABMAAABTZWN1cml0eUdyb3VwTm9kZUlkABH/////AAAAAAABACgBAQAAAAEA" +
            "AAACAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -80187,7 +80344,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -80225,7 +80382,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -80270,8 +80427,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -80317,11 +80474,11 @@ namespace Opc.Ua
         uint maxFutureKeyCount,
         uint maxPastKeyCount,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region RemoveSecurityGroupMethodState Class
-    #if (!OPCUA_EXCLUDE_RemoveSecurityGroupMethodState)
+#if (!OPCUA_EXCLUDE_RemoveSecurityGroupMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -80339,7 +80496,7 @@ namespace Opc.Ua
             return new RemoveSecurityGroupMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -80361,7 +80518,7 @@ namespace Opc.Ua
            "AQAqAQEiAAAAEwAAAFNlY3VyaXR5R3JvdXBOb2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAAB" +
            "Af////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -80387,7 +80544,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -80409,7 +80566,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -80443,8 +80600,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -80476,11 +80633,11 @@ namespace Opc.Ua
         NodeId _objectId,
         NodeId securityGroupNodeId,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region AddSecurityGroupFolderMethodState Class
-    #if (!OPCUA_EXCLUDE_AddSecurityGroupFolderMethodState)
+#if (!OPCUA_EXCLUDE_AddSecurityGroupFolderMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -80498,7 +80655,7 @@ namespace Opc.Ua
             return new AddSecurityGroupFolderMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -80521,7 +80678,7 @@ namespace Opc.Ua
            "CgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAMpiAC4ARMpiAACWAQAAAAEAKgEBKAAAABkAAABTZWN1" +
            "cml0eUdyb3VwRm9sZGVyTm9kZUlkABH/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -80547,7 +80704,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -80574,7 +80731,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -80610,8 +80767,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -80646,11 +80803,11 @@ namespace Opc.Ua
         NodeId _objectId,
         string name,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region RemoveSecurityGroupFolderMethodState Class
-    #if (!OPCUA_EXCLUDE_RemoveSecurityGroupFolderMethodState)
+#if (!OPCUA_EXCLUDE_RemoveSecurityGroupFolderMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -80668,7 +80825,7 @@ namespace Opc.Ua
             return new RemoveSecurityGroupFolderMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -80690,7 +80847,7 @@ namespace Opc.Ua
            "AJYBAAAAAQAqAQEoAAAAGQAAAFNlY3VyaXR5R3JvdXBGb2xkZXJOb2RlSWQAEf////8AAAAAAAEAKAEB" +
            "AAAAAQAAAAEAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -80716,7 +80873,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -80738,7 +80895,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -80772,8 +80929,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -80805,11 +80962,11 @@ namespace Opc.Ua
         NodeId _objectId,
         NodeId securityGroupFolderNodeId,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region SecurityGroupFolderState Class
-    #if (!OPCUA_EXCLUDE_SecurityGroupFolderState)
+#if (!OPCUA_EXCLUDE_SecurityGroupFolderState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -80827,7 +80984,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.SecurityGroupFolderType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -80906,7 +81063,7 @@ namespace Opc.Ua
            "dXBwb3J0ZWRTZWN1cml0eVBvbGljeVVyaXMBAOViAC4AROViAAAADAEAAAABAAAAAAAAAAEB/////wAA" +
            "AAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -81039,7 +81196,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -81179,11 +81336,11 @@ namespace Opc.Ua
         private PropertyState<string[]> m_supportedSecurityPolicyUris;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region SecurityGroupState Class
-    #if (!OPCUA_EXCLUDE_SecurityGroupState)
+#if (!OPCUA_EXCLUDE_SecurityGroupState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -81201,7 +81358,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.SecurityGroupType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -81251,7 +81408,7 @@ namespace Opc.Ua
            "AAAAAA4AAABJbnZhbGlkYXRlS2V5cwEAGGQALwEAGGQYZAAAAQH/////AAAAAARhggoEAAAAAAAQAAAA" +
            "Rm9yY2VLZXlSb3RhdGlvbgEAGWQALwEAGWQZZAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -81432,7 +81589,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -81616,11 +81773,11 @@ namespace Opc.Ua
         private MethodState m_forceKeyRotationMethod;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region ConnectSecurityGroupsMethodState Class
-    #if (!OPCUA_EXCLUDE_ConnectSecurityGroupsMethodState)
+#if (!OPCUA_EXCLUDE_ConnectSecurityGroupsMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -81638,7 +81795,7 @@ namespace Opc.Ua
             return new ConnectSecurityGroupsMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -81662,7 +81819,7 @@ namespace Opc.Ua
            "KgEBIQAAAA4AAABDb25uZWN0UmVzdWx0cwATAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAEAAAABAf//" +
            "//8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -81688,7 +81845,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -81715,7 +81872,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -81751,8 +81908,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -81787,11 +81944,11 @@ namespace Opc.Ua
         NodeId _objectId,
         NodeId[] securityGroupIds,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region DisconnectSecurityGroupsMethodState Class
-    #if (!OPCUA_EXCLUDE_DisconnectSecurityGroupsMethodState)
+#if (!OPCUA_EXCLUDE_DisconnectSecurityGroupsMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -81809,7 +81966,7 @@ namespace Opc.Ua
             return new DisconnectSecurityGroupsMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -81833,7 +81990,7 @@ namespace Opc.Ua
            "AAEAKgEBJAAAABEAAABEaXNjb25uZWN0UmVzdWx0cwATAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAEA" +
            "AAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -81859,7 +82016,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -81886,7 +82043,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -81922,8 +82079,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -81958,11 +82115,11 @@ namespace Opc.Ua
         NodeId _objectId,
         NodeId[] securityGroupIds,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region PubSubKeyPushTargetState Class
-    #if (!OPCUA_EXCLUDE_PubSubKeyPushTargetState)
+#if (!OPCUA_EXCLUDE_PubSubKeyPushTargetState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -81980,7 +82137,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.PubSubKeyPushTargetType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -82025,7 +82182,7 @@ namespace Opc.Ua
            "AAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAAEYYIKBAAAAAAAEAAAAFRyaWdnZXJL" +
            "ZXlVcGRhdGUBAC9kAC8BAC9kL2QAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -82302,7 +82459,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -82574,11 +82731,11 @@ namespace Opc.Ua
         private MethodState m_triggerKeyUpdateMethod;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region PubSubKeyPushTargetFolderState Class
-    #if (!OPCUA_EXCLUDE_PubSubKeyPushTargetFolderState)
+#if (!OPCUA_EXCLUDE_PubSubKeyPushTargetFolderState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -82596,7 +82753,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.PubSubKeyPushTargetFolderType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -82664,7 +82821,7 @@ namespace Opc.Ua
            "AAABACoBASUAAAAWAAAAUHVzaFRhcmdldEZvbGRlck5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAA" +
            "AQAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -82773,7 +82930,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -82891,11 +83048,11 @@ namespace Opc.Ua
         private RemovePushTargetFolderMethodState m_removePushTargetFolderMethod;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AddPushTargetMethodState Class
-    #if (!OPCUA_EXCLUDE_AddPushTargetMethodState)
+#if (!OPCUA_EXCLUDE_AddPushTargetMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -82913,7 +83070,7 @@ namespace Opc.Ua
             return new AddPushTargetMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -82940,7 +83097,7 @@ namespace Opc.Ua
            "ACoBARsAAAAMAAAAUHVzaFRhcmdldElkABH/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAA" +
            "AA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -82966,7 +83123,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -83003,7 +83160,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -83049,8 +83206,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -83095,11 +83252,11 @@ namespace Opc.Ua
         ushort requestedKeyCount,
         double retryInterval,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region RemovePushTargetMethodState Class
-    #if (!OPCUA_EXCLUDE_RemovePushTargetMethodState)
+#if (!OPCUA_EXCLUDE_RemovePushTargetMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -83117,7 +83274,7 @@ namespace Opc.Ua
             return new RemovePushTargetMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -83138,7 +83295,7 @@ namespace Opc.Ua
            "AAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAJGMALgBEJGMAAJYBAAAAAQAq" +
            "AQEbAAAADAAAAFB1c2hUYXJnZXRJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -83164,7 +83321,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -83186,7 +83343,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -83220,8 +83377,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -83253,11 +83410,11 @@ namespace Opc.Ua
         NodeId _objectId,
         NodeId pushTargetId,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region AddPushTargetFolderMethodState Class
-    #if (!OPCUA_EXCLUDE_AddPushTargetFolderMethodState)
+#if (!OPCUA_EXCLUDE_AddPushTargetFolderMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -83275,7 +83432,7 @@ namespace Opc.Ua
             return new AddPushTargetFolderMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -83298,7 +83455,7 @@ namespace Opc.Ua
            "AAAAAA8AAABPdXRwdXRBcmd1bWVudHMBACdjAC4ARCdjAACWAQAAAAEAKgEBJQAAABYAAABQdXNoVGFy" +
            "Z2V0Rm9sZGVyTm9kZUlkABH/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -83324,7 +83481,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -83351,7 +83508,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -83387,8 +83544,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -83423,11 +83580,11 @@ namespace Opc.Ua
         NodeId _objectId,
         string name,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region RemovePushTargetFolderMethodState Class
-    #if (!OPCUA_EXCLUDE_RemovePushTargetFolderMethodState)
+#if (!OPCUA_EXCLUDE_RemovePushTargetFolderMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -83445,7 +83602,7 @@ namespace Opc.Ua
             return new RemovePushTargetFolderMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -83467,7 +83624,7 @@ namespace Opc.Ua
            "AAAAAQAqAQElAAAAFgAAAFB1c2hUYXJnZXRGb2xkZXJOb2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAA" +
            "AAEAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -83493,7 +83650,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -83515,7 +83672,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -83549,8 +83706,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -83582,11 +83739,11 @@ namespace Opc.Ua
         NodeId _objectId,
         NodeId pushTargetFolderNodeId,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region PublishSubscribeState Class
-    #if (!OPCUA_EXCLUDE_PublishSubscribeState)
+#if (!OPCUA_EXCLUDE_PublishSubscribeState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -83604,7 +83761,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.PublishSubscribeType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -83955,7 +84112,7 @@ namespace Opc.Ua
            "AENvbmZpZ3VyYXRpb25Qcm9wZXJ0aWVzAQCNfgAuAESNfgAAAQDFOAEAAAABAAAAAAAAAAEB/////wAA" +
            "AAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -84328,7 +84485,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -84688,11 +84845,11 @@ namespace Opc.Ua
         private PropertyState<KeyValuePair[]> m_configurationProperties;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region SetSecurityKeysMethodState Class
-    #if (!OPCUA_EXCLUDE_SetSecurityKeysMethodState)
+#if (!OPCUA_EXCLUDE_SetSecurityKeysMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -84710,7 +84867,7 @@ namespace Opc.Ua
             return new SetSecurityKeysMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -84735,7 +84892,7 @@ namespace Opc.Ua
            "AAAAAAAAAAABACoBAR4AAAANAAAAVGltZVRvTmV4dEtleQEAIgH/////AAAAAAABACoBARwAAAALAAAA" +
            "S2V5TGlmZXRpbWUBACIB/////wAAAAAAAQAoAQEAAAABAAAABwAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -84761,7 +84918,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -84795,7 +84952,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -84841,8 +84998,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -84886,11 +85043,11 @@ namespace Opc.Ua
         double timeToNextKey,
         double keyLifetime,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region AddConnectionMethodState Class
-    #if (!OPCUA_EXCLUDE_AddConnectionMethodState)
+#if (!OPCUA_EXCLUDE_AddConnectionMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -84908,7 +85065,7 @@ namespace Opc.Ua
             return new AddConnectionMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -84931,7 +85088,7 @@ namespace Opc.Ua
            "YKkKAgAAAAAADwAAAE91dHB1dEFyZ3VtZW50cwEAT0EALgBET0EAAJYBAAAAAQAqAQEbAAAADAAAAENv" +
            "bm5lY3Rpb25JZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -84957,7 +85114,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -84984,7 +85141,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -85020,8 +85177,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -85056,11 +85213,11 @@ namespace Opc.Ua
         NodeId _objectId,
         PubSubConnectionDataType configuration,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region RemoveConnectionMethodState Class
-    #if (!OPCUA_EXCLUDE_RemoveConnectionMethodState)
+#if (!OPCUA_EXCLUDE_RemoveConnectionMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -85078,7 +85235,7 @@ namespace Opc.Ua
             return new RemoveConnectionMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -85099,7 +85256,7 @@ namespace Opc.Ua
            "AAABAf////8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAaDcALgBEaDcAAJYBAAAAAQAq" +
            "AQEbAAAADAAAAENvbm5lY3Rpb25JZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -85125,7 +85282,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -85147,7 +85304,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -85181,8 +85338,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -85214,11 +85371,11 @@ namespace Opc.Ua
         NodeId _objectId,
         NodeId connectionId,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region PubSubConfigurationState Class
-    #if (!OPCUA_EXCLUDE_PubSubConfigurationState)
+#if (!OPCUA_EXCLUDE_PubSubConfigurationState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -85236,7 +85393,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.PubSubConfigurationType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -85305,7 +85462,7 @@ namespace Opc.Ua
            "AENvbmZpZ3VyYXRpb25PYmplY3RzABEBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAABAAAAAEB/////wAA" +
            "AAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -85366,7 +85523,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -85440,11 +85597,11 @@ namespace Opc.Ua
         private PubSubConfigurationTypeCloseAndUpdateMethodState m_closeAndUpdateMethod;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region PubSubConfigurationTypeReserveIdsMethodState Class
-    #if (!OPCUA_EXCLUDE_PubSubConfigurationTypeReserveIdsMethodState)
+#if (!OPCUA_EXCLUDE_PubSubConfigurationTypeReserveIdsMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -85462,7 +85619,7 @@ namespace Opc.Ua
             return new PubSubConfigurationTypeReserveIdsMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -85489,7 +85646,7 @@ namespace Opc.Ua
            "AAAAAQAqAQEjAAAAEAAAAERhdGFTZXRXcml0ZXJJZHMABQEAAAABAAAAAAAAAAABACgBAQAAAAEAAAAD" +
            "AAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -85515,7 +85672,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -85552,7 +85709,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -85594,8 +85751,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -85640,11 +85797,11 @@ namespace Opc.Ua
         ushort numReqWriterGroupIds,
         ushort numReqDataSetWriterIds,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region PubSubConfigurationTypeCloseAndUpdateMethodState Class
-    #if (!OPCUA_EXCLUDE_PubSubConfigurationTypeCloseAndUpdateMethodState)
+#if (!OPCUA_EXCLUDE_PubSubConfigurationTypeCloseAndUpdateMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -85662,7 +85819,7 @@ namespace Opc.Ua
             return new PubSubConfigurationTypeCloseAndUpdateMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -85690,7 +85847,7 @@ namespace Opc.Ua
            "AAAAFAAAAENvbmZpZ3VyYXRpb25PYmplY3RzABEBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAABAAAAAEB" +
            "/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -85716,7 +85873,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -85756,7 +85913,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -85799,8 +85956,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -85848,11 +86005,11 @@ namespace Opc.Ua
         bool requireCompleteUpdate,
         PubSubConfigurationRefDataType[] configurationReferences,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region PublishedDataSetState Class
-    #if (!OPCUA_EXCLUDE_PublishedDataSetState)
+#if (!OPCUA_EXCLUDE_PublishedDataSetState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -85870,7 +86027,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.PublishedDataSetType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -85943,7 +86100,7 @@ namespace Opc.Ua
            "AAAASW5wdXRBcmd1bWVudHMBAH48AC4ARH48AACWAQAAAAEAKgEBFgAAAAcAAABGaWVsZElkABH/////" +
            "AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -86076,7 +86233,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -86216,11 +86373,11 @@ namespace Opc.Ua
         private ExtensionFieldsState m_extensionFields;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region ExtensionFieldsState Class
-    #if (!OPCUA_EXCLUDE_ExtensionFieldsState)
+#if (!OPCUA_EXCLUDE_ExtensionFieldsState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -86238,7 +86395,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.ExtensionFieldsType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -86272,7 +86429,7 @@ namespace Opc.Ua
            "AAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEAhzwALgBEhzwAAJYBAAAAAQAqAQEWAAAABwAA" +
            "AEZpZWxkSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -86333,7 +86490,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -86407,11 +86564,11 @@ namespace Opc.Ua
         private RemoveExtensionFieldMethodState m_removeExtensionFieldMethod;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AddExtensionFieldMethodState Class
-    #if (!OPCUA_EXCLUDE_AddExtensionFieldMethodState)
+#if (!OPCUA_EXCLUDE_AddExtensionFieldMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -86429,7 +86586,7 @@ namespace Opc.Ua
             return new AddExtensionFieldMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -86453,7 +86610,7 @@ namespace Opc.Ua
            "AQCKPAAuAESKPAAAlgEAAAABACoBARYAAAAHAAAARmllbGRJZAAR/////wAAAAAAAQAoAQEAAAABAAAA" +
            "AQAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -86479,7 +86636,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -86508,7 +86665,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -86546,8 +86703,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -86584,11 +86741,11 @@ namespace Opc.Ua
         QualifiedName fieldName,
         object fieldValue,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region RemoveExtensionFieldMethodState Class
-    #if (!OPCUA_EXCLUDE_RemoveExtensionFieldMethodState)
+#if (!OPCUA_EXCLUDE_RemoveExtensionFieldMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -86606,7 +86763,7 @@ namespace Opc.Ua
             return new RemoveExtensionFieldMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -86627,7 +86784,7 @@ namespace Opc.Ua
            "izyLPAAAAQH/////AQAAABdgqQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAIw8AC4ARIw8AACWAQAA" +
            "AAEAKgEBFgAAAAcAAABGaWVsZElkABH/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -86653,7 +86810,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -86675,7 +86832,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -86709,8 +86866,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -86742,11 +86899,11 @@ namespace Opc.Ua
         NodeId _objectId,
         NodeId fieldId,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region PublishedDataItemsState Class
-    #if (!OPCUA_EXCLUDE_PublishedDataItemsState)
+#if (!OPCUA_EXCLUDE_PublishedDataItemsState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -86764,7 +86921,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.PublishedDataItemsType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -86837,7 +86994,7 @@ namespace Opc.Ua
            "AAE5/////wAAAAAAAQAqAQEgAAAADQAAAFJlbW92ZVJlc3VsdHMAEwEAAAABAAAAAAAAAAABACgBAQAA" +
            "AAEAAAACAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -86922,7 +87079,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -87018,11 +87175,11 @@ namespace Opc.Ua
         private PublishedDataItemsRemoveVariablesMethodState m_removeVariablesMethod;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region PublishedDataItemsAddVariablesMethodState Class
-    #if (!OPCUA_EXCLUDE_PublishedDataItemsAddVariablesMethodState)
+#if (!OPCUA_EXCLUDE_PublishedDataItemsAddVariablesMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -87040,7 +87197,7 @@ namespace Opc.Ua
             return new PublishedDataItemsAddVariablesMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -87067,7 +87224,7 @@ namespace Opc.Ua
            "////AAAAAAABACoBAR0AAAAKAAAAQWRkUmVzdWx0cwATAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAIA" +
            "AAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -87093,7 +87250,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -87129,7 +87286,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -87172,8 +87329,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -87217,11 +87374,11 @@ namespace Opc.Ua
         bool[] promotedFields,
         PublishedVariableDataType[] variablesToAdd,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region PublishedDataItemsRemoveVariablesMethodState Class
-    #if (!OPCUA_EXCLUDE_PublishedDataItemsRemoveVariablesMethodState)
+#if (!OPCUA_EXCLUDE_PublishedDataItemsRemoveVariablesMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -87239,7 +87396,7 @@ namespace Opc.Ua
             return new PublishedDataItemsRemoveVariablesMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -87264,7 +87421,7 @@ namespace Opc.Ua
            "AQEoAAAAFwAAAE5ld0NvbmZpZ3VyYXRpb25WZXJzaW9uAQABOf////8AAAAAAAEAKgEBIAAAAA0AAABS" +
            "ZW1vdmVSZXN1bHRzABMBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -87290,7 +87447,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -87322,7 +87479,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -87361,8 +87518,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -87402,11 +87559,11 @@ namespace Opc.Ua
         ConfigurationVersionDataType configurationVersion,
         uint[] variablesToRemove,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region PublishedEventsState Class
-    #if (!OPCUA_EXCLUDE_PublishedEventsState)
+#if (!OPCUA_EXCLUDE_PublishedEventsState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -87424,7 +87581,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.PublishedEventsType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -87478,7 +87635,7 @@ namespace Opc.Ua
            "dW1lbnRzAQCdPAAuAESdPAAAlgEAAAABACoBASgAAAAXAAAATmV3Q29uZmlndXJhdGlvblZlcnNpb24B" +
            "AAE5/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -87587,7 +87744,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -87705,11 +87862,11 @@ namespace Opc.Ua
         private PublishedEventsTypeModifyFieldSelectionMethodState m_modifyFieldSelectionMethod;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region DataSetFolderState Class
-    #if (!OPCUA_EXCLUDE_DataSetFolderState)
+#if (!OPCUA_EXCLUDE_DataSetFolderState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -87727,7 +87884,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.DataSetFolderType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -87887,7 +88044,7 @@ namespace Opc.Ua
            "b0IALgBEb0IAAJYBAAAAAQAqAQEiAAAAEwAAAERhdGFTZXRGb2xkZXJOb2RlSWQAEf////8AAAAAAAEA" +
            "KAEBAAAAAQAAAAEAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -88068,7 +88225,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -88252,11 +88409,11 @@ namespace Opc.Ua
         private RemoveDataSetFolderMethodState m_removeDataSetFolderMethod;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region PublishedEventsTypeModifyFieldSelectionMethodState Class
-    #if (!OPCUA_EXCLUDE_PublishedEventsTypeModifyFieldSelectionMethodState)
+#if (!OPCUA_EXCLUDE_PublishedEventsTypeModifyFieldSelectionMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -88274,7 +88431,7 @@ namespace Opc.Ua
             return new PublishedEventsTypeModifyFieldSelectionMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -88300,7 +88457,7 @@ namespace Opc.Ua
            "dXRBcmd1bWVudHMBAJ48AC4ARJ48AACWAQAAAAEAKgEBKAAAABcAAABOZXdDb25maWd1cmF0aW9uVmVy" +
            "c2lvbgEAATn/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -88326,7 +88483,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -88359,7 +88516,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -88401,8 +88558,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -88443,11 +88600,11 @@ namespace Opc.Ua
         bool[] promotedFields,
         SimpleAttributeOperand[] selectedFields,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region AddPublishedDataItemsMethodState Class
-    #if (!OPCUA_EXCLUDE_AddPublishedDataItemsMethodState)
+#if (!OPCUA_EXCLUDE_AddPublishedDataItemsMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -88465,7 +88622,7 @@ namespace Opc.Ua
             return new AddPublishedDataItemsMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -88492,7 +88649,7 @@ namespace Opc.Ua
            "AQABOf////8AAAAAAAEAKgEBHQAAAAoAAABBZGRSZXN1bHRzABMBAAAAAQAAAAAAAAAAAQAoAQEAAAAB" +
            "AAAAAwAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -88518,7 +88675,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -88557,7 +88714,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -88601,8 +88758,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -88649,11 +88806,11 @@ namespace Opc.Ua
         ushort[] fieldFlags,
         PublishedVariableDataType[] variablesToAdd,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region AddPublishedEventsMethodState Class
-    #if (!OPCUA_EXCLUDE_AddPublishedEventsMethodState)
+#if (!OPCUA_EXCLUDE_AddPublishedEventsMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -88671,7 +88828,7 @@ namespace Opc.Ua
             return new AddPublishedEventsMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -88698,7 +88855,7 @@ namespace Opc.Ua
            "ASUAAAAUAAAAQ29uZmlndXJhdGlvblZlcnNpb24BAAE5/////wAAAAAAAQAqAQEcAAAADQAAAERhdGFT" +
            "ZXROb2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAIAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -88724,7 +88881,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -88764,7 +88921,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -88811,8 +88968,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -88860,11 +89017,11 @@ namespace Opc.Ua
         SimpleAttributeOperand[] selectedFields,
         ContentFilter filter,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region AddPublishedDataItemsTemplateMethodState Class
-    #if (!OPCUA_EXCLUDE_AddPublishedDataItemsTemplateMethodState)
+#if (!OPCUA_EXCLUDE_AddPublishedDataItemsTemplateMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -88882,7 +89039,7 @@ namespace Opc.Ua
             return new AddPublishedDataItemsTemplateMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -88907,7 +89064,7 @@ namespace Opc.Ua
            "iEIALgBEiEIAAJYCAAAAAQAqAQEcAAAADQAAAERhdGFTZXROb2RlSWQAEf////8AAAAAAAEAKgEBHQAA" +
            "AAoAAABBZGRSZXN1bHRzABMBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -88933,7 +89090,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -88967,7 +89124,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -89008,8 +89165,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -89051,11 +89208,11 @@ namespace Opc.Ua
         DataSetMetaDataType dataSetMetaData,
         PublishedVariableDataType[] variablesToAdd,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region AddPublishedEventsTemplateMethodState Class
-    #if (!OPCUA_EXCLUDE_AddPublishedEventsTemplateMethodState)
+#if (!OPCUA_EXCLUDE_AddPublishedEventsTemplateMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -89073,7 +89230,7 @@ namespace Opc.Ua
             return new AddPublishedEventsTemplateMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -89099,7 +89256,7 @@ namespace Opc.Ua
            "ZW50cwEAqkIALgBEqkIAAJYBAAAAAQAqAQEcAAAADQAAAERhdGFTZXROb2RlSWQAEf////8AAAAAAAEA" +
            "KAEBAAAAAQAAAAEAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -89125,7 +89282,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -89160,7 +89317,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -89204,8 +89361,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -89248,11 +89405,11 @@ namespace Opc.Ua
         SimpleAttributeOperand[] selectedFields,
         ContentFilter filter,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region RemovePublishedDataSetMethodState Class
-    #if (!OPCUA_EXCLUDE_RemovePublishedDataSetMethodState)
+#if (!OPCUA_EXCLUDE_RemovePublishedDataSetMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -89270,7 +89427,7 @@ namespace Opc.Ua
             return new RemovePublishedDataSetMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -89292,7 +89449,7 @@ namespace Opc.Ua
            "AAAAAQAqAQEcAAAADQAAAERhdGFTZXROb2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf//" +
            "//8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -89318,7 +89475,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -89340,7 +89497,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -89374,8 +89531,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -89407,11 +89564,11 @@ namespace Opc.Ua
         NodeId _objectId,
         NodeId dataSetNodeId,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region AddDataSetFolderMethodState Class
-    #if (!OPCUA_EXCLUDE_AddDataSetFolderMethodState)
+#if (!OPCUA_EXCLUDE_AddDataSetFolderMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -89429,7 +89586,7 @@ namespace Opc.Ua
             return new AddDataSetFolderMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -89452,7 +89609,7 @@ namespace Opc.Ua
            "AA8AAABPdXRwdXRBcmd1bWVudHMBAK1CAC4ARK1CAACWAQAAAAEAKgEBIgAAABMAAABEYXRhU2V0Rm9s" +
            "ZGVyTm9kZUlkABH/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -89478,7 +89635,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -89505,7 +89662,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -89541,8 +89698,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -89577,11 +89734,11 @@ namespace Opc.Ua
         NodeId _objectId,
         string name,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region RemoveDataSetFolderMethodState Class
-    #if (!OPCUA_EXCLUDE_RemoveDataSetFolderMethodState)
+#if (!OPCUA_EXCLUDE_RemoveDataSetFolderMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -89599,7 +89756,7 @@ namespace Opc.Ua
             return new RemoveDataSetFolderMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -89621,7 +89778,7 @@ namespace Opc.Ua
            "AQAqAQEiAAAAEwAAAERhdGFTZXRGb2xkZXJOb2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAAB" +
            "Af////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -89647,7 +89804,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -89669,7 +89826,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -89703,8 +89860,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -89736,11 +89893,11 @@ namespace Opc.Ua
         NodeId _objectId,
         NodeId dataSetFolderNodeId,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region PubSubConnectionState Class
-    #if (!OPCUA_EXCLUDE_PubSubConnectionState)
+#if (!OPCUA_EXCLUDE_PubSubConnectionState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -89758,7 +89915,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.PubSubConnectionType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -89933,7 +90090,7 @@ namespace Opc.Ua
            "AJYBAAAAAQAqAQEWAAAABwAAAEdyb3VwSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8A" +
            "AAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -90186,7 +90343,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -90436,11 +90593,11 @@ namespace Opc.Ua
         private PubSubConnectionTypeRemoveGroupMethodState m_removeGroupMethod;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region GetConnectionMethodState Class
-    #if (!OPCUA_EXCLUDE_GetConnectionMethodState)
+#if (!OPCUA_EXCLUDE_GetConnectionMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -90458,7 +90615,7 @@ namespace Opc.Ua
             return new GetConnectionMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -90482,7 +90639,7 @@ namespace Opc.Ua
            "bmZpZ3VyYXRpb24BAAE9/////wAAAAAAAQAqAQEXAAAACAAAAENoZWNrU3VtAA//////AAAAAAABACgB" +
            "AQAAAAEAAAACAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -90508,7 +90665,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -90538,7 +90695,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -90575,8 +90732,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -90614,11 +90771,11 @@ namespace Opc.Ua
         NodeId _objectId,
         bool includeChildren,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region ModifyConnectionMethodState Class
-    #if (!OPCUA_EXCLUDE_ModifyConnectionMethodState)
+#if (!OPCUA_EXCLUDE_ModifyConnectionMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -90636,7 +90793,7 @@ namespace Opc.Ua
             return new ModifyConnectionMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -90661,7 +90818,7 @@ namespace Opc.Ua
            "dEFyZ3VtZW50cwEAs1wALgBEs1wAAJYBAAAAAQAqAQEaAAAACwAAAE5ld0NoZWNrU3VtAA//////AAAA" +
            "AAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -90687,7 +90844,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -90720,7 +90877,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -90762,8 +90919,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -90804,11 +90961,11 @@ namespace Opc.Ua
         byte[] checkSum,
         bool force,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region PubSubConnectionTypeAddWriterGroupMethodState Class
-    #if (!OPCUA_EXCLUDE_PubSubConnectionTypeAddWriterGroupMethodState)
+#if (!OPCUA_EXCLUDE_PubSubConnectionTypeAddWriterGroupMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -90826,7 +90983,7 @@ namespace Opc.Ua
             return new PubSubConnectionTypeAddWriterGroupMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -90850,7 +91007,7 @@ namespace Opc.Ua
            "AJYBAAAAAQAqAQEWAAAABwAAAEdyb3VwSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8A" +
            "AAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -90876,7 +91033,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -90903,7 +91060,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -90939,8 +91096,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -90975,11 +91132,11 @@ namespace Opc.Ua
         NodeId _objectId,
         WriterGroupDataType configuration,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region PubSubConnectionAddReaderGroupGroupMethodState Class
-    #if (!OPCUA_EXCLUDE_PubSubConnectionAddReaderGroupGroupMethodState)
+#if (!OPCUA_EXCLUDE_PubSubConnectionAddReaderGroupGroupMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -90997,7 +91154,7 @@ namespace Opc.Ua
             return new PubSubConnectionAddReaderGroupGroupMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -91021,7 +91178,7 @@ namespace Opc.Ua
            "AACWAQAAAAEAKgEBFgAAAAcAAABHcm91cElkABH/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////" +
            "AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -91047,7 +91204,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -91074,7 +91231,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -91110,8 +91267,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -91146,11 +91303,11 @@ namespace Opc.Ua
         NodeId _objectId,
         ReaderGroupDataType configuration,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region PubSubConnectionTypeRemoveGroupMethodState Class
-    #if (!OPCUA_EXCLUDE_PubSubConnectionTypeRemoveGroupMethodState)
+#if (!OPCUA_EXCLUDE_PubSubConnectionTypeRemoveGroupMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -91168,7 +91325,7 @@ namespace Opc.Ua
             return new PubSubConnectionTypeRemoveGroupMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -91190,7 +91347,7 @@ namespace Opc.Ua
            "LgBEDTkAAJYBAAAAAQAqAQEWAAAABwAAAEdyb3VwSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAAB" +
            "Af////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -91216,7 +91373,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -91238,7 +91395,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -91272,8 +91429,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -91305,11 +91462,11 @@ namespace Opc.Ua
         NodeId _objectId,
         NodeId groupId,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region ConnectionTransportState Class
-    #if (!OPCUA_EXCLUDE_ConnectionTransportState)
+#if (!OPCUA_EXCLUDE_ConnectionTransportState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -91327,7 +91484,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.ConnectionTransportType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -91354,7 +91511,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAHwAAAENvbm5lY3Rpb25UcmFuc3BvcnRUeXBlSW5zdGFuY2UBADlFAQA5" +
            "RTlFAAD/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -91366,11 +91523,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region PubSubGroupState Class
-    #if (!OPCUA_EXCLUDE_PubSubGroupState)
+#if (!OPCUA_EXCLUDE_PubSubGroupState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -91388,7 +91545,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.PubSubGroupType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -91439,7 +91596,7 @@ namespace Opc.Ua
            "AAEAAAAAAAAAAQH/////AAAAAARggAoBAAAAAAAGAAAAU3RhdHVzAQChOwAvAQAzOaE7AAD/////AQAA" +
            "ABVgiQoCAAAAAAAFAAAAU3RhdGUBAKI7AC8AP6I7AAABADc5/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -91596,7 +91753,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -91758,11 +91915,11 @@ namespace Opc.Ua
         private PubSubStatusState m_status;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region WriterGroupState Class
-    #if (!OPCUA_EXCLUDE_WriterGroupState)
+#if (!OPCUA_EXCLUDE_WriterGroupState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -91780,7 +91937,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.WriterGroupType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -91978,7 +92135,7 @@ namespace Opc.Ua
            "AElGAC4ARElGAACWAQAAAAEAKgEBIgAAABMAAABEYXRhU2V0V3JpdGVyTm9kZUlkABH/////AAAAAAAB" +
            "ACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -92255,7 +92412,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -92527,11 +92684,11 @@ namespace Opc.Ua
         private PubSubGroupTypeRemoveWriterMethodState m_removeDataSetWriterMethod;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region GetWriterGroupMethodState Class
-    #if (!OPCUA_EXCLUDE_GetWriterGroupMethodState)
+#if (!OPCUA_EXCLUDE_GetWriterGroupMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -92549,7 +92706,7 @@ namespace Opc.Ua
             return new GetWriterGroupMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -92573,7 +92730,7 @@ namespace Opc.Ua
            "b25maWd1cmF0aW9uAQB4PP////8AAAAAAAEAKgEBFwAAAAgAAABDaGVja1N1bQAP/////wAAAAAAAQAo" +
            "AQEAAAABAAAAAgAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -92599,7 +92756,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -92629,7 +92786,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -92666,8 +92823,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -92705,11 +92862,11 @@ namespace Opc.Ua
         NodeId _objectId,
         bool includeChildren,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region ModifyWriterGroupMethodState Class
-    #if (!OPCUA_EXCLUDE_ModifyWriterGroupMethodState)
+#if (!OPCUA_EXCLUDE_ModifyWriterGroupMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -92727,7 +92884,7 @@ namespace Opc.Ua
             return new ModifyWriterGroupMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -92752,7 +92909,7 @@ namespace Opc.Ua
            "dXRBcmd1bWVudHMBAMZcAC4ARMZcAACWAQAAAAEAKgEBGgAAAAsAAABOZXdDaGVja1N1bQAP/////wAA" +
            "AAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -92778,7 +92935,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -92811,7 +92968,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -92853,8 +93010,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -92895,11 +93052,11 @@ namespace Opc.Ua
         byte[] checkSum,
         bool force,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region PubSubGroupTypeAddWriterMethodState Class
-    #if (!OPCUA_EXCLUDE_PubSubGroupTypeAddWriterMethodState)
+#if (!OPCUA_EXCLUDE_PubSubGroupTypeAddWriterMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -92917,7 +93074,7 @@ namespace Opc.Ua
             return new PubSubGroupTypeAddWriterMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -92941,7 +93098,7 @@ namespace Opc.Ua
            "ASIAAAATAAAARGF0YVNldFdyaXRlck5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB////" +
            "/wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -92967,7 +93124,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -92994,7 +93151,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -93030,8 +93187,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -93066,11 +93223,11 @@ namespace Opc.Ua
         NodeId _objectId,
         DataSetWriterDataType configuration,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region PubSubGroupTypeRemoveWriterMethodState Class
-    #if (!OPCUA_EXCLUDE_PubSubGroupTypeRemoveWriterMethodState)
+#if (!OPCUA_EXCLUDE_PubSubGroupTypeRemoveWriterMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -93088,7 +93245,7 @@ namespace Opc.Ua
             return new PubSubGroupTypeRemoveWriterMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -93110,7 +93267,7 @@ namespace Opc.Ua
            "OQAAlgEAAAABACoBASIAAAATAAAARGF0YVNldFdyaXRlck5vZGVJZAAR/////wAAAAAAAQAoAQEAAAAB" +
            "AAAAAQAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -93136,7 +93293,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -93158,7 +93315,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -93192,8 +93349,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -93225,11 +93382,11 @@ namespace Opc.Ua
         NodeId _objectId,
         NodeId dataSetWriterNodeId,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region WriterGroupTransportState Class
-    #if (!OPCUA_EXCLUDE_WriterGroupTransportState)
+#if (!OPCUA_EXCLUDE_WriterGroupTransportState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -93247,7 +93404,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.WriterGroupTransportType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -93274,7 +93431,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAIAAAAFdyaXRlckdyb3VwVHJhbnNwb3J0VHlwZUluc3RhbmNlAQBNRgEA" +
            "TUZNRgAA/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -93286,11 +93443,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region WriterGroupMessageState Class
-    #if (!OPCUA_EXCLUDE_WriterGroupMessageState)
+#if (!OPCUA_EXCLUDE_WriterGroupMessageState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -93308,7 +93465,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.WriterGroupMessageType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -93335,7 +93492,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAHgAAAFdyaXRlckdyb3VwTWVzc2FnZVR5cGVJbnN0YW5jZQEATkYBAE5G" +
            "TkYAAP////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -93347,11 +93504,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region ReaderGroupState Class
-    #if (!OPCUA_EXCLUDE_ReaderGroupState)
+#if (!OPCUA_EXCLUDE_ReaderGroupState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -93369,7 +93526,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.ReaderGroupType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -93545,7 +93702,7 @@ namespace Opc.Ua
            "qQoCAAAAAAAOAAAASW5wdXRBcmd1bWVudHMBAF5SAC4ARF5SAACWAQAAAAEAKgEBIgAAABMAAABEYXRh" +
            "U2V0UmVhZGVyTm9kZUlkABH/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -93678,7 +93835,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -93818,11 +93975,11 @@ namespace Opc.Ua
         private PubSubGroupTypeRemoveReaderMethodState m_removeDataSetReaderMethod;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region GetReaderGroupMethodState Class
-    #if (!OPCUA_EXCLUDE_GetReaderGroupMethodState)
+#if (!OPCUA_EXCLUDE_GetReaderGroupMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -93840,7 +93997,7 @@ namespace Opc.Ua
             return new GetReaderGroupMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -93864,7 +94021,7 @@ namespace Opc.Ua
            "b25maWd1cmF0aW9uAQCgPP////8AAAAAAAEAKgEBFwAAAAgAAABDaGVja1N1bQAP/////wAAAAAAAQAo" +
            "AQEAAAABAAAAAgAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -93890,7 +94047,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -93920,7 +94077,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -93957,8 +94114,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -93996,11 +94153,11 @@ namespace Opc.Ua
         NodeId _objectId,
         bool includeChildren,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region ModifyReaderGroupMethodState Class
-    #if (!OPCUA_EXCLUDE_ModifyReaderGroupMethodState)
+#if (!OPCUA_EXCLUDE_ModifyReaderGroupMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -94018,7 +94175,7 @@ namespace Opc.Ua
             return new ModifyReaderGroupMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -94043,7 +94200,7 @@ namespace Opc.Ua
            "dXRBcmd1bWVudHMBANxcAC4ARNxcAACWAQAAAAEAKgEBGgAAAAsAAABOZXdDaGVja1N1bQAP/////wAA" +
            "AAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -94069,7 +94226,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -94102,7 +94259,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -94144,8 +94301,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -94186,11 +94343,11 @@ namespace Opc.Ua
         byte[] checkSum,
         bool force,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region PubSubGroupTypeAddReaderMethodState Class
-    #if (!OPCUA_EXCLUDE_PubSubGroupTypeAddReaderMethodState)
+#if (!OPCUA_EXCLUDE_PubSubGroupTypeAddReaderMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -94208,7 +94365,7 @@ namespace Opc.Ua
             return new PubSubGroupTypeAddReaderMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -94232,7 +94389,7 @@ namespace Opc.Ua
            "ASIAAAATAAAARGF0YVNldFJlYWRlck5vZGVJZAAR/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB////" +
            "/wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -94258,7 +94415,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -94285,7 +94442,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -94321,8 +94478,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -94357,11 +94514,11 @@ namespace Opc.Ua
         NodeId _objectId,
         DataSetReaderDataType configuration,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region PubSubGroupTypeRemoveReaderMethodState Class
-    #if (!OPCUA_EXCLUDE_PubSubGroupTypeRemoveReaderMethodState)
+#if (!OPCUA_EXCLUDE_PubSubGroupTypeRemoveReaderMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -94379,7 +94536,7 @@ namespace Opc.Ua
             return new PubSubGroupTypeRemoveReaderMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -94401,7 +94558,7 @@ namespace Opc.Ua
            "OQAAlgEAAAABACoBASIAAAATAAAARGF0YVNldFJlYWRlck5vZGVJZAAR/////wAAAAAAAQAoAQEAAAAB" +
            "AAAAAQAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -94427,7 +94584,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -94449,7 +94606,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -94483,8 +94640,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -94516,11 +94673,11 @@ namespace Opc.Ua
         NodeId _objectId,
         NodeId dataSetReaderNodeId,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region ReaderGroupTransportState Class
-    #if (!OPCUA_EXCLUDE_ReaderGroupTransportState)
+#if (!OPCUA_EXCLUDE_ReaderGroupTransportState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -94538,7 +94695,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.ReaderGroupTransportType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -94565,7 +94722,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAIAAAAFJlYWRlckdyb3VwVHJhbnNwb3J0VHlwZUluc3RhbmNlAQBiUgEA" +
            "YlJiUgAA/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -94577,11 +94734,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region ReaderGroupMessageState Class
-    #if (!OPCUA_EXCLUDE_ReaderGroupMessageState)
+#if (!OPCUA_EXCLUDE_ReaderGroupMessageState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -94599,7 +94756,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.ReaderGroupMessageType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -94626,7 +94783,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAHgAAAFJlYWRlckdyb3VwTWVzc2FnZVR5cGVJbnN0YW5jZQEAY1IBAGNS" +
            "Y1IAAP////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -94638,11 +94795,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region DataSetWriterState Class
-    #if (!OPCUA_EXCLUDE_DataSetWriterState)
+#if (!OPCUA_EXCLUDE_DataSetWriterState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -94660,7 +94817,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.DataSetWriterType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -94808,7 +94965,7 @@ namespace Opc.Ua
            "AAAAFWCpCgIAAAAAABAAAABEaWFnbm9zdGljc0xldmVsAQCPTAAuAESPTAAABgAAAAABAAtN/////wEB" +
            "/////wAAAAAEYIAKAQAAAAAACgAAAExpdmVWYWx1ZXMBAItMAC8AOotMAAD/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -95013,7 +95170,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -95219,11 +95376,11 @@ namespace Opc.Ua
         private PubSubDiagnosticsDataSetWriterState m_diagnostics;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region GetDataSetWriterMethodState Class
-    #if (!OPCUA_EXCLUDE_GetDataSetWriterMethodState)
+#if (!OPCUA_EXCLUDE_GetDataSetWriterMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -95241,7 +95398,7 @@ namespace Opc.Ua
             return new GetDataSetWriterMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -95263,7 +95420,7 @@ namespace Opc.Ua
            "KgEBHgAAAA0AAABDb25maWd1cmF0aW9uAQDtPP////8AAAAAAAEAKgEBFwAAAAgAAABDaGVja1N1bQAP" +
            "/////wAAAAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -95289,7 +95446,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -95316,7 +95473,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -95350,8 +95507,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -95387,11 +95544,11 @@ namespace Opc.Ua
         MethodState _method,
         NodeId _objectId,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region ModifyDataSetWriterMethodState Class
-    #if (!OPCUA_EXCLUDE_ModifyDataSetWriterMethodState)
+#if (!OPCUA_EXCLUDE_ModifyDataSetWriterMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -95409,7 +95566,7 @@ namespace Opc.Ua
             return new ModifyDataSetWriterMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -95433,7 +95590,7 @@ namespace Opc.Ua
            "//8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAOdcAC4AROdcAACWAQAAAAEAKgEBGgAA" +
            "AAsAAABOZXdDaGVja1N1bQAP/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -95459,7 +95616,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -95490,7 +95647,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -95530,8 +95687,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -95570,11 +95727,11 @@ namespace Opc.Ua
         byte[] checkSum,
         bool force,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region DataSetWriterTransportState Class
-    #if (!OPCUA_EXCLUDE_DataSetWriterTransportState)
+#if (!OPCUA_EXCLUDE_DataSetWriterTransportState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -95592,7 +95749,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.DataSetWriterTransportType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -95619,7 +95776,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAIgAAAERhdGFTZXRXcml0ZXJUcmFuc3BvcnRUeXBlSW5zdGFuY2UBAMk7" +
            "AQDJO8k7AAD/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -95631,11 +95788,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region DataSetWriterMessageState Class
-    #if (!OPCUA_EXCLUDE_DataSetWriterMessageState)
+#if (!OPCUA_EXCLUDE_DataSetWriterMessageState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -95653,7 +95810,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.DataSetWriterMessageType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -95680,7 +95837,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAIAAAAERhdGFTZXRXcml0ZXJNZXNzYWdlVHlwZUluc3RhbmNlAQBoUgEA" +
            "aFJoUgAA/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -95692,11 +95849,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region DataSetReaderState Class
-    #if (!OPCUA_EXCLUDE_DataSetReaderState)
+#if (!OPCUA_EXCLUDE_DataSetReaderState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -95714,7 +95871,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.DataSetReaderType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -95926,7 +96083,7 @@ namespace Opc.Ua
            "cHV0QXJndW1lbnRzAQDvQwAuAETvQwAAlgEAAAABACoBARsAAAAMAAAAUGFyZW50Tm9kZUlkABH/////" +
            "AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -96395,7 +96552,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -96843,11 +97000,11 @@ namespace Opc.Ua
         private DataSetReaderTypeCreateDataSetMirrorMethodState m_createDataSetMirrorMethod;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region DataSetReaderTransportState Class
-    #if (!OPCUA_EXCLUDE_DataSetReaderTransportState)
+#if (!OPCUA_EXCLUDE_DataSetReaderTransportState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -96865,7 +97022,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.DataSetReaderTransportType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -96892,7 +97049,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAIgAAAERhdGFTZXRSZWFkZXJUcmFuc3BvcnRUeXBlSW5zdGFuY2UBANc7" +
            "AQDXO9c7AAD/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -96904,11 +97061,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region DataSetReaderMessageState Class
-    #if (!OPCUA_EXCLUDE_DataSetReaderMessageState)
+#if (!OPCUA_EXCLUDE_DataSetReaderMessageState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -96926,7 +97083,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.DataSetReaderMessageType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -96953,7 +97110,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAIAAAAERhdGFTZXRSZWFkZXJNZXNzYWdlVHlwZUluc3RhbmNlAQBwUgEA" +
            "cFJwUgAA/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -96965,11 +97122,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region GetDataSetReaderMethodState Class
-    #if (!OPCUA_EXCLUDE_GetDataSetReaderMethodState)
+#if (!OPCUA_EXCLUDE_GetDataSetReaderMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -96987,7 +97144,7 @@ namespace Opc.Ua
             return new GetDataSetReaderMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -97009,7 +97166,7 @@ namespace Opc.Ua
            "KgEBHgAAAA0AAABDb25maWd1cmF0aW9uAQAHPf////8AAAAAAAEAKgEBFwAAAAgAAABDaGVja1N1bQAP" +
            "/////wAAAAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -97035,7 +97192,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -97062,7 +97219,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -97096,8 +97253,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -97133,11 +97290,11 @@ namespace Opc.Ua
         MethodState _method,
         NodeId _objectId,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region ModifyDataSetReaderMethodState Class
-    #if (!OPCUA_EXCLUDE_ModifyDataSetReaderMethodState)
+#if (!OPCUA_EXCLUDE_ModifyDataSetReaderMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -97155,7 +97312,7 @@ namespace Opc.Ua
             return new ModifyDataSetReaderMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -97179,7 +97336,7 @@ namespace Opc.Ua
            "//8AAAAAF2CpCgIAAAAAAA8AAABPdXRwdXRBcmd1bWVudHMBAPJcAC4ARPJcAACWAQAAAAEAKgEBGgAA" +
            "AAsAAABOZXdDaGVja1N1bQAP/////wAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -97205,7 +97362,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -97236,7 +97393,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -97276,8 +97433,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -97316,11 +97473,11 @@ namespace Opc.Ua
         byte[] checkSum,
         bool force,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region DataSetReaderTypeCreateTargetVariablesMethodState Class
-    #if (!OPCUA_EXCLUDE_DataSetReaderTypeCreateTargetVariablesMethodState)
+#if (!OPCUA_EXCLUDE_DataSetReaderTypeCreateTargetVariablesMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -97338,7 +97495,7 @@ namespace Opc.Ua
             return new DataSetReaderTypeCreateTargetVariablesMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -97363,7 +97520,7 @@ namespace Opc.Ua
            "AACWAQAAAAEAKgEBHQAAAAoAAABBZGRSZXN1bHRzABMBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAQAA" +
            "AAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -97389,7 +97546,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -97418,7 +97575,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -97456,8 +97613,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -97494,11 +97651,11 @@ namespace Opc.Ua
         ConfigurationVersionDataType configurationVersion,
         FieldTargetDataType[] targetVariablesToAdd,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region DataSetReaderTypeCreateDataSetMirrorMethodState Class
-    #if (!OPCUA_EXCLUDE_DataSetReaderTypeCreateDataSetMirrorMethodState)
+#if (!OPCUA_EXCLUDE_DataSetReaderTypeCreateDataSetMirrorMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -97516,7 +97673,7 @@ namespace Opc.Ua
             return new DataSetReaderTypeCreateDataSetMirrorMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -97540,7 +97697,7 @@ namespace Opc.Ua
            "AAAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQD1QwAuAET1QwAAlgEAAAABACoBARsAAAAM" +
            "AAAAUGFyZW50Tm9kZUlkABH/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -97566,7 +97723,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -97595,7 +97752,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -97633,8 +97790,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -97671,11 +97828,11 @@ namespace Opc.Ua
         string parentNodeName,
         RolePermissionType[] rolePermissions,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region SubscribedDataSetState Class
-    #if (!OPCUA_EXCLUDE_SubscribedDataSetState)
+#if (!OPCUA_EXCLUDE_SubscribedDataSetState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -97693,7 +97850,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.SubscribedDataSetType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -97720,7 +97877,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAHQAAAFN1YnNjcmliZWREYXRhU2V0VHlwZUluc3RhbmNlAQAEOwEABDsE" +
            "OwAA/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -97732,11 +97889,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region TargetVariablesState Class
-    #if (!OPCUA_EXCLUDE_TargetVariablesState)
+#if (!OPCUA_EXCLUDE_TargetVariablesState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -97754,7 +97911,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.TargetVariablesType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -97819,7 +97976,7 @@ namespace Opc.Ua
            "OwAuAEQQOwAAlgEAAAABACoBASAAAAANAAAAUmVtb3ZlUmVzdWx0cwATAQAAAAEAAAAAAAAAAAEAKAEB" +
            "AAAAAQAAAAEAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -97904,7 +98061,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -98000,11 +98157,11 @@ namespace Opc.Ua
         private TargetVariablesTypeRemoveTargetVariablesMethodState m_removeTargetVariablesMethod;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region TargetVariablesTypeAddTargetVariablesMethodState Class
-    #if (!OPCUA_EXCLUDE_TargetVariablesTypeAddTargetVariablesMethodState)
+#if (!OPCUA_EXCLUDE_TargetVariablesTypeAddTargetVariablesMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -98022,7 +98179,7 @@ namespace Opc.Ua
             return new TargetVariablesTypeAddTargetVariablesMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -98047,7 +98204,7 @@ namespace Opc.Ua
            "AJYBAAAAAQAqAQEdAAAACgAAAEFkZFJlc3VsdHMAEwEAAAABAAAAAAAAAAABACgBAQAAAAEAAAABAAAA" +
            "AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -98073,7 +98230,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -98102,7 +98259,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -98140,8 +98297,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -98178,11 +98335,11 @@ namespace Opc.Ua
         ConfigurationVersionDataType configurationVersion,
         FieldTargetDataType[] targetVariablesToAdd,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region TargetVariablesTypeRemoveTargetVariablesMethodState Class
-    #if (!OPCUA_EXCLUDE_TargetVariablesTypeRemoveTargetVariablesMethodState)
+#if (!OPCUA_EXCLUDE_TargetVariablesTypeRemoveTargetVariablesMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -98200,7 +98357,7 @@ namespace Opc.Ua
             return new TargetVariablesTypeRemoveTargetVariablesMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -98225,7 +98382,7 @@ namespace Opc.Ua
            "AAABACoBASAAAAANAAAAUmVtb3ZlUmVzdWx0cwATAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAEAAAAB" +
            "Af////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -98251,7 +98408,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -98280,7 +98437,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -98318,8 +98475,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -98356,11 +98513,11 @@ namespace Opc.Ua
         ConfigurationVersionDataType configurationVersion,
         uint[] targetsToRemove,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region SubscribedDataSetMirrorState Class
-    #if (!OPCUA_EXCLUDE_SubscribedDataSetMirrorState)
+#if (!OPCUA_EXCLUDE_SubscribedDataSetMirrorState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -98378,7 +98535,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.SubscribedDataSetMirrorType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -98405,7 +98562,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAIwAAAFN1YnNjcmliZWREYXRhU2V0TWlycm9yVHlwZUluc3RhbmNlAQAX" +
            "OwEAFzsXOwAA/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -98417,11 +98574,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region SubscribedDataSetFolderState Class
-    #if (!OPCUA_EXCLUDE_SubscribedDataSetFolderState)
+#if (!OPCUA_EXCLUDE_SubscribedDataSetFolderState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -98439,7 +98596,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.SubscribedDataSetFolderType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -98526,7 +98683,7 @@ namespace Opc.Ua
            "AQAMXQAuAEQMXQAAlgEAAAABACoBASIAAAATAAAARGF0YVNldEZvbGRlck5vZGVJZAAR/////wAAAAAA" +
            "AQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -98635,7 +98792,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -98753,11 +98910,11 @@ namespace Opc.Ua
         private RemoveDataSetFolderMethodState m_removeDataSetFolderMethod;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AddSubscribedDataSetMethodState Class
-    #if (!OPCUA_EXCLUDE_AddSubscribedDataSetMethodState)
+#if (!OPCUA_EXCLUDE_AddSubscribedDataSetMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -98775,7 +98932,7 @@ namespace Opc.Ua
             return new AddSubscribedDataSetMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -98799,7 +98956,7 @@ namespace Opc.Ua
            "ASYAAAAXAAAAU3Vic2NyaWJlZERhdGFTZXROb2RlSWQAEf////8AAAAAAAEAKAEBAAAAAQAAAAEAAAAB" +
            "Af////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -98825,7 +98982,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -98852,7 +99009,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -98888,8 +99045,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -98924,11 +99081,11 @@ namespace Opc.Ua
         NodeId _objectId,
         StandaloneSubscribedDataSetDataType subscribedDataSet,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region RemoveSubscribedDataSetMethodState Class
-    #if (!OPCUA_EXCLUDE_RemoveSubscribedDataSetMethodState)
+#if (!OPCUA_EXCLUDE_RemoveSubscribedDataSetMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -98946,7 +99103,7 @@ namespace Opc.Ua
             return new RemoveSubscribedDataSetMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -98968,7 +99125,7 @@ namespace Opc.Ua
            "AQAAAAEAKgEBJgAAABcAAABTdWJzY3JpYmVkRGF0YVNldE5vZGVJZAAR/////wAAAAAAAQAoAQEAAAAB" +
            "AAAAAQAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -98994,7 +99151,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -99016,7 +99173,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -99050,8 +99207,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -99083,11 +99240,11 @@ namespace Opc.Ua
         NodeId _objectId,
         NodeId subscribedDataSetNodeId,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region StandaloneSubscribedDataSetState Class
-    #if (!OPCUA_EXCLUDE_StandaloneSubscribedDataSetState)
+#if (!OPCUA_EXCLUDE_StandaloneSubscribedDataSetState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -99105,7 +99262,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.StandaloneSubscribedDataSetType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -99135,7 +99292,7 @@ namespace Opc.Ua
            "////AQH/////AAAAABVgiQoCAAAAAAALAAAASXNDb25uZWN0ZWQBABddAC4ARBddAAAAAf////8BAf//" +
            "//8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -99220,7 +99377,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -99316,11 +99473,11 @@ namespace Opc.Ua
         private PropertyState<bool> m_isConnected;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region PubSubStatusState Class
-    #if (!OPCUA_EXCLUDE_PubSubStatusState)
+#if (!OPCUA_EXCLUDE_PubSubStatusState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -99338,7 +99495,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.PubSubStatusType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -99383,7 +99540,7 @@ namespace Opc.Ua
            "AAAAAAAGAAAARW5hYmxlAQA1OQAvAQA1OTU5AAABAf////8AAAAABGGCCgQAAAAAAAcAAABEaXNhYmxl" +
            "AQA2OQAvAQA2OTY5AAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -99468,7 +99625,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -99564,11 +99721,11 @@ namespace Opc.Ua
         private MethodState m_disableMethod;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region PubSubDiagnosticsState Class
-    #if (!OPCUA_EXCLUDE_PubSubDiagnosticsState)
+#if (!OPCUA_EXCLUDE_PubSubDiagnosticsState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -99586,7 +99743,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.PubSubDiagnosticsType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -99648,7 +99805,7 @@ namespace Opc.Ua
            "EAAAAERpYWdub3N0aWNzTGV2ZWwBAAhNAC4ARAhNAAAGAAAAAAEAC03/////AQH/////AAAAAARggAoB" +
            "AAAAAAAKAAAATGl2ZVZhbHVlcwEACk0ALwA6Ck0AAP////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -99829,7 +99986,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -100013,11 +100170,11 @@ namespace Opc.Ua
         private BaseObjectState m_liveValues;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region PubSubDiagnosticsCounterState Class
-    #if (!OPCUA_EXCLUDE_PubSubDiagnosticsCounterState)
+#if (!OPCUA_EXCLUDE_PubSubDiagnosticsCounterState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -100047,7 +100204,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -100087,7 +100244,7 @@ namespace Opc.Ua
            "//8BAf////8AAAAAFWCJCgIAAAAAAA8AAABUaW1lRmlyc3RDaGFuZ2UBABFNAC4ARBFNAAAADf////8B" +
            "Af////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -100196,7 +100353,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -100314,11 +100471,11 @@ namespace Opc.Ua
         private PropertyState<DateTime> m_timeFirstChange;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region PubSubDiagnosticsRootState Class
-    #if (!OPCUA_EXCLUDE_PubSubDiagnosticsRootState)
+#if (!OPCUA_EXCLUDE_PubSubDiagnosticsRootState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -100336,7 +100493,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.PubSubDiagnosticsRootType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -100409,7 +100566,7 @@ namespace Opc.Ua
            "//8BAf////8BAAAAFWCpCgIAAAAAABAAAABEaWFnbm9zdGljc0xldmVsAQBJTQAuAERJTQAABgAAAAAB" +
            "AAtN/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -100421,11 +100578,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region PubSubDiagnosticsConnectionState Class
-    #if (!OPCUA_EXCLUDE_PubSubDiagnosticsConnectionState)
+#if (!OPCUA_EXCLUDE_PubSubDiagnosticsConnectionState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -100443,7 +100600,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.PubSubDiagnosticsConnectionType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -100509,7 +100666,7 @@ namespace Opc.Ua
            "ZGRyZXNzAQB4TQAvAD94TQAAAAz/////AQH/////AQAAABVgqQoCAAAAAAAQAAAARGlhZ25vc3RpY3NM" +
            "ZXZlbAEAeU0ALgBEeU0AAAYAAAAAAQALTf////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -100521,11 +100678,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region PubSubDiagnosticsWriterGroupState Class
-    #if (!OPCUA_EXCLUDE_PubSubDiagnosticsWriterGroupState)
+#if (!OPCUA_EXCLUDE_PubSubDiagnosticsWriterGroupState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -100543,7 +100700,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.PubSubDiagnosticsWriterGroupType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -100626,7 +100783,7 @@ namespace Opc.Ua
            "VG9OZXh0VG9rZW5JRAEAvU0ALwA/vU0AAAEAIgH/////AQH/////AQAAABVgqQoCAAAAAAAQAAAARGlh" +
            "Z25vc3RpY3NMZXZlbAEAvk0ALgBEvk0AAAYCAAAAAQALTf////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -100638,11 +100795,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region PubSubDiagnosticsReaderGroupState Class
-    #if (!OPCUA_EXCLUDE_PubSubDiagnosticsReaderGroupState)
+#if (!OPCUA_EXCLUDE_PubSubDiagnosticsReaderGroupState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -100660,7 +100817,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.PubSubDiagnosticsReaderGroupType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -100739,7 +100896,7 @@ namespace Opc.Ua
            "cmF0aW9uYWxEYXRhU2V0UmVhZGVycwEA/k0ALwA//k0AAAAF/////wEB/////wEAAAAVYKkKAgAAAAAA" +
            "EAAAAERpYWdub3N0aWNzTGV2ZWwBAP9NAC4ARP9NAAAGAAAAAAEAC03/////AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -100751,11 +100908,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region PubSubDiagnosticsDataSetWriterState Class
-    #if (!OPCUA_EXCLUDE_PubSubDiagnosticsDataSetWriterState)
+#if (!OPCUA_EXCLUDE_PubSubDiagnosticsDataSetWriterState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -100773,7 +100930,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.PubSubDiagnosticsDataSetWriterType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -100848,7 +101005,7 @@ namespace Opc.Ua
            "AC8APzlOAAAAB/////8BAf////8BAAAAFWCpCgIAAAAAABAAAABEaWFnbm9zdGljc0xldmVsAQA6TgAu" +
            "AEQ6TgAABgIAAAABAAtN/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -100860,11 +101017,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region PubSubDiagnosticsDataSetReaderState Class
-    #if (!OPCUA_EXCLUDE_PubSubDiagnosticsDataSetReaderState)
+#if (!OPCUA_EXCLUDE_PubSubDiagnosticsDataSetReaderState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -100882,7 +101039,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.PubSubDiagnosticsDataSetReaderType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -100965,7 +101122,7 @@ namespace Opc.Ua
            "fU4ALwA/fU4AAAEAIgH/////AQH/////AQAAABVgqQoCAAAAAAAQAAAARGlhZ25vc3RpY3NMZXZlbAEA" +
            "fk4ALgBEfk4AAAYCAAAAAQALTf////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -100977,11 +101134,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region PubSubCapabilitiesState Class
-    #if (!OPCUA_EXCLUDE_PubSubCapabilitiesState)
+#if (!OPCUA_EXCLUDE_PubSubCapabilitiesState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -100999,7 +101156,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.PubSubCapabilitiesType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -101132,7 +101289,7 @@ namespace Opc.Ua
            "AABTdXBwb3J0U2VjdXJpdHlLZXlQdXNoAQCPfwAuAESPfwAAAAH/////AQH/////AAAAABVgiQoCAAAA" +
            "AAAYAAAAU3VwcG9ydFNlY3VyaXR5S2V5U2VydmVyAQBQgAAuAERQgAAAAAH/////AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -101529,7 +101686,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -101911,11 +102068,11 @@ namespace Opc.Ua
         private PropertyState<bool> m_supportSecurityKeyServer;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region PubSubStatusEventState Class
-    #if (!OPCUA_EXCLUDE_PubSubStatusEventState)
+#if (!OPCUA_EXCLUDE_PubSubStatusEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -101933,7 +102090,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.PubSubStatusEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -101969,7 +102126,7 @@ namespace Opc.Ua
            "Ef////8BAf////8AAAAAFWCJCgIAAAAAAAcAAABHcm91cElkAQC6PAAuAES6PAAAABH/////AQH/////" +
            "AAAAABVgiQoCAAAAAAAFAAAAU3RhdGUBALs8AC4ARLs8AAABADc5/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -102054,7 +102211,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -102150,11 +102307,11 @@ namespace Opc.Ua
         private PropertyState<PubSubState> m_state;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region PubSubTransportLimitsExceedEventState Class
-    #if (!OPCUA_EXCLUDE_PubSubTransportLimitsExceedEventState)
+#if (!OPCUA_EXCLUDE_PubSubTransportLimitsExceedEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -102172,7 +102329,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.PubSubTransportLimitsExceedEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -102210,7 +102367,7 @@ namespace Opc.Ua
            "ADc5/////wEB/////wAAAAAVYIkKAgAAAAAABgAAAEFjdHVhbAEAyTwALgBEyTwAAAAH/////wEB////" +
            "/wAAAAAVYIkKAgAAAAAABwAAAE1heGltdW0BAMo8AC4ARMo8AAAAB/////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -102271,7 +102428,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -102345,11 +102502,11 @@ namespace Opc.Ua
         private PropertyState<uint> m_maximum;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region PubSubCommunicationFailureEventState Class
-    #if (!OPCUA_EXCLUDE_PubSubCommunicationFailureEventState)
+#if (!OPCUA_EXCLUDE_PubSubCommunicationFailureEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -102367,7 +102524,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.PubSubCommunicationFailureEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -102405,7 +102562,7 @@ namespace Opc.Ua
            "Nzn/////AQH/////AAAAABVgiQoCAAAAAAAFAAAARXJyb3IBANg8AC4ARNg8AAAAE/////8BAf////8A" +
            "AAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -102442,7 +102599,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -102494,11 +102651,11 @@ namespace Opc.Ua
         private PropertyState<StatusCode> m_error;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region UadpWriterGroupMessageState Class
-    #if (!OPCUA_EXCLUDE_UadpWriterGroupMessageState)
+#if (!OPCUA_EXCLUDE_UadpWriterGroupMessageState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -102516,7 +102673,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.UadpWriterGroupMessageType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -102557,7 +102714,7 @@ namespace Opc.Ua
            "AQAiAf////8BAf////8AAAAAF2CJCgIAAAAAABAAAABQdWJsaXNoaW5nT2Zmc2V0AQB2UgAuAER2UgAA" +
            "AQAiAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -102690,7 +102847,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -102830,11 +102987,11 @@ namespace Opc.Ua
         private PropertyState<double[]> m_publishingOffset;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region UadpDataSetWriterMessageState Class
-    #if (!OPCUA_EXCLUDE_UadpDataSetWriterMessageState)
+#if (!OPCUA_EXCLUDE_UadpDataSetWriterMessageState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -102852,7 +103009,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.UadpDataSetWriterMessageType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -102883,7 +103040,7 @@ namespace Opc.Ua
            "UgAuAER6UgAAAAX/////AQH/////AAAAABVgiQoCAAAAAAANAAAARGF0YVNldE9mZnNldAEAe1IALgBE" +
            "e1IAAAAF/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -102992,7 +103149,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -103110,11 +103267,11 @@ namespace Opc.Ua
         private PropertyState<ushort> m_dataSetOffset;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region UadpDataSetReaderMessageState Class
-    #if (!OPCUA_EXCLUDE_UadpDataSetReaderMessageState)
+#if (!OPCUA_EXCLUDE_UadpDataSetReaderMessageState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -103132,7 +103289,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.UadpDataSetReaderMessageType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -103168,7 +103325,7 @@ namespace Opc.Ua
            "UgAuAESEUgAAAQAiAf////8BAf////8AAAAAFWCJCgIAAAAAAA0AAABSZWNlaXZlT2Zmc2V0AQCFUgAu" +
            "AESFUgAAAQAiAf////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -103397,7 +103554,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -103625,11 +103782,11 @@ namespace Opc.Ua
         private PropertyState<double> m_receiveOffset;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region JsonWriterGroupMessageState Class
-    #if (!OPCUA_EXCLUDE_JsonWriterGroupMessageState)
+#if (!OPCUA_EXCLUDE_JsonWriterGroupMessageState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -103647,7 +103804,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.JsonWriterGroupMessageType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -103675,7 +103832,7 @@ namespace Opc.Ua
            "AQCGUoZSAAD/////AQAAABVgiQoCAAAAAAAZAAAATmV0d29ya01lc3NhZ2VDb250ZW50TWFzawEAh1IA" +
            "LgBEh1IAAAEAJj3/////AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -103712,7 +103869,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -103764,11 +103921,11 @@ namespace Opc.Ua
         private PropertyState<uint> m_networkMessageContentMask;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region JsonDataSetWriterMessageState Class
-    #if (!OPCUA_EXCLUDE_JsonDataSetWriterMessageState)
+#if (!OPCUA_EXCLUDE_JsonDataSetWriterMessageState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -103786,7 +103943,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.JsonDataSetWriterMessageType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -103814,7 +103971,7 @@ namespace Opc.Ua
            "iFIBAIhSiFIAAP////8BAAAAFWCJCgIAAAAAABkAAABEYXRhU2V0TWVzc2FnZUNvbnRlbnRNYXNrAQCJ" +
            "UgAuAESJUgAAAQAqPf////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -103851,7 +104008,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -103903,11 +104060,11 @@ namespace Opc.Ua
         private PropertyState<uint> m_dataSetMessageContentMask;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region JsonDataSetReaderMessageState Class
-    #if (!OPCUA_EXCLUDE_JsonDataSetReaderMessageState)
+#if (!OPCUA_EXCLUDE_JsonDataSetReaderMessageState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -103925,7 +104082,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.JsonDataSetReaderMessageType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -103954,7 +104111,7 @@ namespace Opc.Ua
            "UgAuAESLUgAAAQAmPf////8BAf////8AAAAAFWCJCgIAAAAAABkAAABEYXRhU2V0TWVzc2FnZUNvbnRl" +
            "bnRNYXNrAQCMUgAuAESMUgAAAQAqPf////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -104015,7 +104172,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -104089,11 +104246,11 @@ namespace Opc.Ua
         private PropertyState<uint> m_dataSetMessageContentMask;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region DatagramConnectionTransportState Class
-    #if (!OPCUA_EXCLUDE_DatagramConnectionTransportState)
+#if (!OPCUA_EXCLUDE_DatagramConnectionTransportState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -104111,7 +104268,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.DatagramConnectionTransportType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -104181,7 +104338,7 @@ namespace Opc.Ua
            "/////wEB/////wAAAAAXYIkKAgAAAAAACwAAAERhdGFncmFtUW9zAQC2YwAuAES2YwAAAQAzXAEAAAAB" +
            "AAAAAAAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -104314,7 +104471,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -104454,11 +104611,11 @@ namespace Opc.Ua
         private PropertyState<QosDataType[]> m_datagramQos;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region DatagramWriterGroupTransportState Class
-    #if (!OPCUA_EXCLUDE_DatagramWriterGroupTransportState)
+#if (!OPCUA_EXCLUDE_DatagramWriterGroupTransportState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -104476,7 +104633,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.DatagramWriterGroupTransportType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -104574,7 +104731,7 @@ namespace Opc.Ua
            "AAAAFWCJCgIAAAAAABUAAABEaXNjb3ZlcnlBbm5vdW5jZVJhdGUBAChdAC4ARChdAAAAB/////8BAf//" +
            "//8AAAAAFWCJCgIAAAAAAAUAAABUb3BpYwEAKV0ALgBEKV0AAAAM/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -104755,7 +104912,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -104939,11 +105096,11 @@ namespace Opc.Ua
         private PropertyState<string> m_topic;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region DatagramDataSetReaderTransportState Class
-    #if (!OPCUA_EXCLUDE_DatagramDataSetReaderTransportState)
+#if (!OPCUA_EXCLUDE_DatagramDataSetReaderTransportState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -104961,7 +105118,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.DatagramDataSetReaderTransportType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -105029,7 +105186,7 @@ namespace Opc.Ua
            "F2CJCgIAAAAAAAsAAABEYXRhZ3JhbVFvcwEA1l0ALgBE1l0AAAEAOFwBAAAAAQAAAAAAAAABAf////8A" +
            "AAAAFWCJCgIAAAAAAAUAAABUb3BpYwEA110ALgBE110AAAAM/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -105138,7 +105295,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -105256,11 +105413,11 @@ namespace Opc.Ua
         private PropertyState<string> m_topic;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region BrokerConnectionTransportState Class
-    #if (!OPCUA_EXCLUDE_BrokerConnectionTransportState)
+#if (!OPCUA_EXCLUDE_BrokerConnectionTransportState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -105278,7 +105435,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.BrokerConnectionTransportType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -105307,7 +105464,7 @@ namespace Opc.Ua
            "//8BAf////8AAAAAFWCJCgIAAAAAABgAAABBdXRoZW50aWNhdGlvblByb2ZpbGVVcmkBAEo7AC4AREo7" +
            "AAAADP////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -105368,7 +105525,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -105442,11 +105599,11 @@ namespace Opc.Ua
         private PropertyState<string> m_authenticationProfileUri;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region BrokerWriterGroupTransportState Class
-    #if (!OPCUA_EXCLUDE_BrokerWriterGroupTransportState)
+#if (!OPCUA_EXCLUDE_BrokerWriterGroupTransportState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -105464,7 +105621,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.BrokerWriterGroupTransportType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -105495,7 +105652,7 @@ namespace Opc.Ua
            "AQH/////AAAAABVgiQoCAAAAAAAaAAAAUmVxdWVzdGVkRGVsaXZlcnlHdWFyYW50ZWUBAJE7AC4ARJE7" +
            "AAABAKA6/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -105604,7 +105761,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -105722,11 +105879,11 @@ namespace Opc.Ua
         private PropertyState<BrokerTransportQualityOfService> m_requestedDeliveryGuarantee;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region BrokerDataSetWriterTransportState Class
-    #if (!OPCUA_EXCLUDE_BrokerDataSetWriterTransportState)
+#if (!OPCUA_EXCLUDE_BrokerDataSetWriterTransportState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -105744,7 +105901,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.BrokerDataSetWriterTransportType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -105777,7 +105934,7 @@ namespace Opc.Ua
            "OwAAAQCgOv////8BAf////8AAAAAFWCJCgIAAAAAABIAAABNZXRhRGF0YVVwZGF0ZVRpbWUBAJVSAC4A" +
            "RJVSAAABACIB/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -105934,7 +106091,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -106096,11 +106253,11 @@ namespace Opc.Ua
         private PropertyState<double> m_metaDataUpdateTime;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region BrokerDataSetReaderTransportState Class
-    #if (!OPCUA_EXCLUDE_BrokerDataSetReaderTransportState)
+#if (!OPCUA_EXCLUDE_BrokerDataSetReaderTransportState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -106118,7 +106275,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.BrokerDataSetReaderTransportType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -106150,7 +106307,7 @@ namespace Opc.Ua
            "PDwAAAEAoDr/////AQH/////AAAAABVgiQoCAAAAAAARAAAATWV0YURhdGFRdWV1ZU5hbWUBAJhSAC4A" +
            "RJhSAAAADP////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -106283,7 +106440,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -106423,11 +106580,11 @@ namespace Opc.Ua
         private PropertyState<string> m_metaDataQueueName;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region NetworkAddressState Class
-    #if (!OPCUA_EXCLUDE_NetworkAddressState)
+#if (!OPCUA_EXCLUDE_NetworkAddressState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -106445,7 +106602,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.NetworkAddressType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -106474,7 +106631,7 @@ namespace Opc.Ua
            "/////wEAAAAXYIkKAgAAAAAACgAAAFNlbGVjdGlvbnMBAK5EAC4ARK5EAAAAGAEAAAABAAAAAAAAAAEB" +
            "/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -106511,7 +106668,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -106563,11 +106720,11 @@ namespace Opc.Ua
         private SelectionListState<string> m_networkInterface;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region NetworkAddressUrlState Class
-    #if (!OPCUA_EXCLUDE_NetworkAddressUrlState)
+#if (!OPCUA_EXCLUDE_NetworkAddressUrlState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -106585,7 +106742,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.NetworkAddressUrlType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -106615,7 +106772,7 @@ namespace Opc.Ua
            "AAAAAAAAAAEB/////wAAAAAVYIkKAgAAAAAAAwAAAFVybAEAnVIALwA/nVIAAAAM/////wEB/////wAA" +
            "AAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -106652,7 +106809,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -106704,11 +106861,11 @@ namespace Opc.Ua
         private BaseDataVariableState<string> m_url;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AliasNameState Class
-    #if (!OPCUA_EXCLUDE_AliasNameState)
+#if (!OPCUA_EXCLUDE_AliasNameState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -106726,7 +106883,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AliasNameType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -106753,7 +106910,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAFQAAAEFsaWFzTmFtZVR5cGVJbnN0YW5jZQEAn1sBAJ9bn1sAAP////8A" +
            "AAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -106765,11 +106922,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AliasNameCategoryState Class
-    #if (!OPCUA_EXCLUDE_AliasNameCategoryState)
+#if (!OPCUA_EXCLUDE_AliasNameCategoryState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -106787,7 +106944,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.AliasNameCategoryType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -106829,7 +106986,7 @@ namespace Opc.Ua
            "AAAAAAAAAAEAKAEBAAAAAQAAAAEAAAABAf////8AAAAAFWCJCgIAAAAAAAoAAABMYXN0Q2hhbmdlAQBS" +
            "gAAuAERSgAAAAQAGUv////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -106890,7 +107047,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -106964,11 +107121,11 @@ namespace Opc.Ua
         private PropertyState<uint> m_lastChange;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region FindAliasMethodState Class
-    #if (!OPCUA_EXCLUDE_FindAliasMethodState)
+#if (!OPCUA_EXCLUDE_FindAliasMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -106986,7 +107143,7 @@ namespace Opc.Ua
             return new FindAliasMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -107010,7 +107167,7 @@ namespace Opc.Ua
            "dXRwdXRBcmd1bWVudHMBAKtbAC4ARKtbAACWAQAAAAEAKgEBIgAAAA0AAABBbGlhc05vZGVMaXN0AQCs" +
            "WwEAAAABAAAAAAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -107036,7 +107193,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -107065,7 +107222,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -107103,8 +107260,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -107141,11 +107298,11 @@ namespace Opc.Ua
         string aliasNameSearchPattern,
         NodeId referenceTypeFilter,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region UserManagementState Class
-    #if (!OPCUA_EXCLUDE_UserManagementState)
+#if (!OPCUA_EXCLUDE_UserManagementState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -107163,7 +107320,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.UserManagementType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -107219,7 +107376,7 @@ namespace Opc.Ua
            "AQEaAAAACwAAAE9sZFBhc3N3b3JkAAz/////AAAAAAABACoBARoAAAALAAAATmV3UGFzc3dvcmQADP//" +
            "//8AAAAAAAEAKAEBAAAAAQAAAAIAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -107424,7 +107581,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -107630,11 +107787,11 @@ namespace Opc.Ua
         private ChangePasswordMethodState m_changePasswordMethod;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AddUserMethodState Class
-    #if (!OPCUA_EXCLUDE_AddUserMethodState)
+#if (!OPCUA_EXCLUDE_AddUserMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -107652,7 +107809,7 @@ namespace Opc.Ua
             return new AddUserMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -107675,7 +107832,7 @@ namespace Opc.Ua
            "ABEAAABVc2VyQ29uZmlndXJhdGlvbgEA117/////AAAAAAABACoBARoAAAALAAAARGVzY3JpcHRpb24A" +
            "DP////8AAAAAAAEAKAEBAAAAAQAAAAQAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -107701,7 +107858,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -107729,7 +107886,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -107769,8 +107926,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -107808,11 +107965,11 @@ namespace Opc.Ua
         uint userConfiguration,
         string description,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region ModifyUserMethodState Class
-    #if (!OPCUA_EXCLUDE_ModifyUserMethodState)
+#if (!OPCUA_EXCLUDE_ModifyUserMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -107830,7 +107987,7 @@ namespace Opc.Ua
             return new ModifyUserMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -107855,7 +108012,7 @@ namespace Opc.Ua
            "AAAAAQAqAQEgAAAAEQAAAE1vZGlmeURlc2NyaXB0aW9uAAH/////AAAAAAABACoBARoAAAALAAAARGVz" +
            "Y3JpcHRpb24ADP////8AAAAAAAEAKAEBAAAAAQAAAAcAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -107881,7 +108038,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -107915,7 +108072,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -107961,8 +108118,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -108006,11 +108163,11 @@ namespace Opc.Ua
         bool modifyDescription,
         string description,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region RemoveUserMethodState Class
-    #if (!OPCUA_EXCLUDE_RemoveUserMethodState)
+#if (!OPCUA_EXCLUDE_RemoveUserMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -108028,7 +108185,7 @@ namespace Opc.Ua
             return new RemoveUserMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -108049,7 +108206,7 @@ namespace Opc.Ua
            "//8BAAAAF2CpCgIAAAAAAA4AAABJbnB1dEFyZ3VtZW50cwEA314ALgBE314AAJYBAAAAAQAqAQEXAAAA" +
            "CAAAAFVzZXJOYW1lAAz/////AAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -108075,7 +108232,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -108097,7 +108254,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -108131,8 +108288,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -108164,11 +108321,11 @@ namespace Opc.Ua
         NodeId _objectId,
         string userName,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region ChangePasswordMethodState Class
-    #if (!OPCUA_EXCLUDE_ChangePasswordMethodState)
+#if (!OPCUA_EXCLUDE_ChangePasswordMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -108186,7 +108343,7 @@ namespace Opc.Ua
             return new ChangePasswordMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -108208,7 +108365,7 @@ namespace Opc.Ua
            "GgAAAAsAAABPbGRQYXNzd29yZAAM/////wAAAAAAAQAqAQEaAAAACwAAAE5ld1Bhc3N3b3JkAAz/////" +
            "AAAAAAABACgBAQAAAAEAAAACAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -108234,7 +108391,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -108258,7 +108415,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -108294,8 +108451,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -108329,11 +108486,11 @@ namespace Opc.Ua
         string oldPassword,
         string newPassword,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region MultiStateDictionaryEntryDiscreteBaseState Class
-    #if (!OPCUA_EXCLUDE_MultiStateDictionaryEntryDiscreteBaseState)
+#if (!OPCUA_EXCLUDE_MultiStateDictionaryEntryDiscreteBaseState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -108363,7 +108520,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -108404,7 +108561,7 @@ namespace Opc.Ua
            "AAAAAAAYAAAAVmFsdWVBc0RpY3Rpb25hcnlFbnRyaWVzAQCLSgAuAESLSgAAABEBAAAAAQAAAAAAAAAB" +
            "Af////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -108465,7 +108622,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -108588,11 +108745,11 @@ namespace Opc.Ua
         #endregion
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region MultiStateDictionaryEntryDiscreteState Class
-    #if (!OPCUA_EXCLUDE_MultiStateDictionaryEntryDiscreteState)
+#if (!OPCUA_EXCLUDE_MultiStateDictionaryEntryDiscreteState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -108622,7 +108779,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -108654,7 +108811,7 @@ namespace Opc.Ua
            "AAAAABgAAABWYWx1ZUFzRGljdGlvbmFyeUVudHJpZXMBAJJKAC4ARJJKAAAAEQEAAAABAAAAAAAAAAEB" +
            "/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -108715,11 +108872,11 @@ namespace Opc.Ua
         #endregion
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region RequestTicketsMethodState Class
-    #if (!OPCUA_EXCLUDE_RequestTicketsMethodState)
+#if (!OPCUA_EXCLUDE_RequestTicketsMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -108737,7 +108894,7 @@ namespace Opc.Ua
             return new RequestTicketsMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -108758,7 +108915,7 @@ namespace Opc.Ua
            "AQH/////AQAAABdgqQoCAAAAAAAPAAAAT3V0cHV0QXJndW1lbnRzAQCAZAAuAESAZAAAlgEAAAABACoB" +
            "ARwAAAAHAAAAVGlja2V0cwEAfmQBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAQAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -108784,7 +108941,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -108808,7 +108965,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -108841,8 +108998,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -108875,11 +109032,11 @@ namespace Opc.Ua
         MethodState _method,
         NodeId _objectId,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region SetRegistrarEndpointsMethodState Class
-    #if (!OPCUA_EXCLUDE_SetRegistrarEndpointsMethodState)
+#if (!OPCUA_EXCLUDE_SetRegistrarEndpointsMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -108897,7 +109054,7 @@ namespace Opc.Ua
             return new SetRegistrarEndpointsMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -108919,7 +109076,7 @@ namespace Opc.Ua
            "AAABACoBAR8AAAAKAAAAUmVnaXN0cmFycwEANAEBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAQAAAAEB" +
            "/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -108945,7 +109102,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -108967,7 +109124,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -109001,8 +109158,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -109034,11 +109191,11 @@ namespace Opc.Ua
         NodeId _objectId,
         ApplicationDescription[] registrars,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region ProvisionableDeviceState Class
-    #if (!OPCUA_EXCLUDE_ProvisionableDeviceState)
+#if (!OPCUA_EXCLUDE_ProvisionableDeviceState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -109056,7 +109213,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.ProvisionableDeviceType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -109099,7 +109256,7 @@ namespace Opc.Ua
            "SW5wdXRBcmd1bWVudHMBAPxoAC4ARPxoAACWAQAAAAEAKgEBHwAAAAoAAABSZWdpc3RyYXJzAQA0AQEA" +
            "AAABAAAAAAAAAAABACgBAQAAAAEAAAABAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -109184,7 +109341,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -109280,11 +109437,11 @@ namespace Opc.Ua
         private SetRegistrarEndpointsMethodState m_setRegistrarEndpointsMethod;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region IIetfBaseNetworkInterfaceState Class
-    #if (!OPCUA_EXCLUDE_IIetfBaseNetworkInterfaceState)
+#if (!OPCUA_EXCLUDE_IIetfBaseNetworkInterfaceState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -109302,7 +109459,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.IIetfBaseNetworkInterfaceType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -109344,7 +109501,7 @@ namespace Opc.Ua
            "Zm91bmRhdGlvbi5vcmcvVUEvdW5pdHMvdW4vY2VmYWN0MDFCAAMCAAAAZW4FAAAAYml0L3MDAgAAAGVu" +
            "DgAAAGJpdCBwZXIgc2Vjb25kAQB3A/////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -109453,7 +109610,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -109571,11 +109728,11 @@ namespace Opc.Ua
         private AnalogUnitState<ulong> m_speed;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region IIeeeBaseEthernetPortState Class
-    #if (!OPCUA_EXCLUDE_IIeeeBaseEthernetPortState)
+#if (!OPCUA_EXCLUDE_IIeeeBaseEthernetPortState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -109593,7 +109750,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.IIeeeBaseEthernetPortType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -109625,7 +109782,7 @@ namespace Opc.Ua
            "AAAAAAAGAAAARHVwbGV4AQBlXgAvAD9lXgAAAQCSXv////8BAf////8AAAAAFWCJCgIAAAAAAA4AAABN" +
            "YXhGcmFtZUxlbmd0aAEAZl4ALwA/Zl4AAAAF/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -109710,7 +109867,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -109806,11 +109963,11 @@ namespace Opc.Ua
         private BaseDataVariableState<ushort> m_maxFrameLength;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region IIeeeAutoNegotiationStatusState Class
-    #if (!OPCUA_EXCLUDE_IIeeeAutoNegotiationStatusState)
+#if (!OPCUA_EXCLUDE_IIeeeAutoNegotiationStatusState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -109828,7 +109985,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.IIeeeAutoNegotiationStatusType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -109856,7 +110013,7 @@ namespace Opc.Ua
            "AQCpXgEAqV6pXgAA/////wEAAAAVYIkKAgAAAAAAEQAAAE5lZ290aWF0aW9uU3RhdHVzAQCqXgAvAD+q" +
            "XgAAAQCYXv////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -109893,7 +110050,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -109945,11 +110102,11 @@ namespace Opc.Ua
         private BaseDataVariableState<NegotiationStatus> m_negotiationStatus;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region IBaseEthernetCapabilitiesState Class
-    #if (!OPCUA_EXCLUDE_IBaseEthernetCapabilitiesState)
+#if (!OPCUA_EXCLUDE_IBaseEthernetCapabilitiesState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -109967,7 +110124,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.IBaseEthernetCapabilitiesType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -109995,7 +110152,7 @@ namespace Opc.Ua
            "AGdeAQBnXmdeAAD/////AQAAABVgiQoCAAAAAAAOAAAAVmxhblRhZ0NhcGFibGUBAGheAC8AP2heAAAA" +
            "Af////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -110032,7 +110189,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -110084,11 +110241,11 @@ namespace Opc.Ua
         private BaseDataVariableState<bool> m_vlanTagCapable;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region IVlanIdState Class
-    #if (!OPCUA_EXCLUDE_IVlanIdState)
+#if (!OPCUA_EXCLUDE_IVlanIdState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -110106,7 +110263,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.IVlanIdType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -110133,7 +110290,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAEwAAAElWbGFuSWRUeXBlSW5zdGFuY2UBAIJiAQCCYoJiAAD/////AQAA" +
            "ABVgiQoCAAAAAAAGAAAAVmxhbklkAQCDYgAvAD+DYgAAAAX/////AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -110170,7 +110327,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -110222,11 +110379,11 @@ namespace Opc.Ua
         private BaseDataVariableState<ushort> m_vlanId;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region ISrClassState Class
-    #if (!OPCUA_EXCLUDE_ISrClassState)
+#if (!OPCUA_EXCLUDE_ISrClassState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -110244,7 +110401,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.ISrClassType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -110273,7 +110430,7 @@ namespace Opc.Ua
            "UHJpb3JpdHkBAGteAC8AP2teAAAAA/////8BAf////8AAAAAFWCJCgIAAAAAAAMAAABWaWQBAGxeAC8A" +
            "P2xeAAAABf////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -110358,7 +110515,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -110454,11 +110611,11 @@ namespace Opc.Ua
         private BaseDataVariableState<ushort> m_vid;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region IIeeeBaseTsnStreamState Class
-    #if (!OPCUA_EXCLUDE_IIeeeBaseTsnStreamState)
+#if (!OPCUA_EXCLUDE_IIeeeBaseTsnStreamState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -110476,7 +110633,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.IIeeeBaseTsnStreamType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -110524,7 +110681,7 @@ namespace Opc.Ua
            "ABIAAABBY2N1bXVsYXRlZExhdGVuY3kBAHFeAC8AP3FeAAAAB/////8BAf////8AAAAAFWCJCgIAAAAA" +
            "AAkAAABTckNsYXNzSWQBAHJeAC8AP3JeAAAAA/////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -110657,7 +110814,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -110797,11 +110954,11 @@ namespace Opc.Ua
         private BaseDataVariableState<byte> m_srClassId;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region IIeeeBaseTsnTrafficSpecificationState Class
-    #if (!OPCUA_EXCLUDE_IIeeeBaseTsnTrafficSpecificationState)
+#if (!OPCUA_EXCLUDE_IIeeeBaseTsnTrafficSpecificationState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -110819,7 +110976,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.IIeeeBaseTsnTrafficSpecificationType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -110849,7 +111006,7 @@ namespace Opc.Ua
            "XgAAAAf/////AQH/////AAAAABVgiQoCAAAAAAAIAAAASW50ZXJ2YWwBAHZeAC8AP3ZeAAABACte////" +
            "/wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -110934,7 +111091,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -111030,11 +111187,11 @@ namespace Opc.Ua
         private BaseDataVariableState<UnsignedRationalNumber> m_interval;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region IIeeeBaseTsnStatusStreamState Class
-    #if (!OPCUA_EXCLUDE_IIeeeBaseTsnStatusStreamState)
+#if (!OPCUA_EXCLUDE_IIeeeBaseTsnStatusStreamState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -111052,7 +111209,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.IIeeeBaseTsnStatusStreamType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -111101,7 +111258,7 @@ namespace Opc.Ua
            "////AAAAABdgiQoCAAAAAAAXAAAARmFpbHVyZVN5c3RlbUlkZW50aWZpZXIBAHteAC8AP3teAAAAAwIA" +
            "AAACAAAAAAAAAAgAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -111210,7 +111367,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -111328,11 +111485,11 @@ namespace Opc.Ua
         private BaseDataVariableState m_failureSystemIdentifier;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region IIeeeTsnInterfaceConfigurationState Class
-    #if (!OPCUA_EXCLUDE_IIeeeTsnInterfaceConfigurationState)
+#if (!OPCUA_EXCLUDE_IIeeeTsnInterfaceConfigurationState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -111350,7 +111507,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.IIeeeTsnInterfaceConfigurationType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -111388,7 +111545,7 @@ namespace Opc.Ua
            "AAz/////AQH/////AAAAABVgiQoCAAAAAAANAAAASW50ZXJmYWNlTmFtZQEAfl4ALwA/fl4AAAAM////" +
            "/wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -111449,7 +111606,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -111523,11 +111680,11 @@ namespace Opc.Ua
         private BaseDataVariableState<string> m_interfaceName;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region IIeeeTsnInterfaceConfigurationTalkerState Class
-    #if (!OPCUA_EXCLUDE_IIeeeTsnInterfaceConfigurationTalkerState)
+#if (!OPCUA_EXCLUDE_IIeeeTsnInterfaceConfigurationTalkerState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -111545,7 +111702,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.IIeeeTsnInterfaceConfigurationTalkerType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -111583,7 +111740,7 @@ namespace Opc.Ua
            "AAAvAD+sZg8AAAz/////AQH/////AAAAABVgiQoCAAAAAAAPAAAAVGltZUF3YXJlT2Zmc2V0AQCCXgAv" +
            "AD+CXgAAAAf/////AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -111620,7 +111777,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -111672,11 +111829,11 @@ namespace Opc.Ua
         private BaseDataVariableState<uint> m_timeAwareOffset;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region IIeeeTsnInterfaceConfigurationListenerState Class
-    #if (!OPCUA_EXCLUDE_IIeeeTsnInterfaceConfigurationListenerState)
+#if (!OPCUA_EXCLUDE_IIeeeTsnInterfaceConfigurationListenerState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -111694,7 +111851,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.IIeeeTsnInterfaceConfigurationListenerType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -111732,7 +111889,7 @@ namespace Opc.Ua
            "Zg8AAC8AP65mDwAADP////8BAf////8AAAAAFWCJCgIAAAAAAA0AAABSZWNlaXZlT2Zmc2V0AQCGXgAv" +
            "AD+GXgAAAAf/////AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -111769,7 +111926,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -111821,11 +111978,11 @@ namespace Opc.Ua
         private BaseDataVariableState<uint> m_receiveOffset;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region IIeeeTsnMacAddressState Class
-    #if (!OPCUA_EXCLUDE_IIeeeTsnMacAddressState)
+#if (!OPCUA_EXCLUDE_IIeeeTsnMacAddressState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -111843,7 +112000,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.IIeeeTsnMacAddressType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -111881,7 +112038,7 @@ namespace Opc.Ua
            "AAABAAAABgAAAAEB/////wAAAAAXYIkKAgAAAAAADQAAAFNvdXJjZUFkZHJlc3MBAIleAC8AP4leAAAA" +
            "AwEAAAABAAAABgAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -111942,7 +112099,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -112016,11 +112173,11 @@ namespace Opc.Ua
         private BaseDataVariableState<byte[]> m_sourceAddress;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region IIeeeTsnVlanTagState Class
-    #if (!OPCUA_EXCLUDE_IIeeeTsnVlanTagState)
+#if (!OPCUA_EXCLUDE_IIeeeTsnVlanTagState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -112038,7 +112195,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.IIeeeTsnVlanTagType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -112066,7 +112223,7 @@ namespace Opc.Ua
            "AP////8CAAAAFWCJCgIAAAAAAAYAAABWbGFuSWQBAIteAC8AP4teAAAABf////8BAf////8AAAAAFWCJ" +
            "CgIAAAAAABEAAABQcmlvcml0eUNvZGVQb2ludAEAjF4ALwA/jF4AAAAD/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -112127,7 +112284,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -112201,11 +112358,11 @@ namespace Opc.Ua
         private BaseDataVariableState<byte> m_priorityCodePoint;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region IPriorityMappingEntryState Class
-    #if (!OPCUA_EXCLUDE_IPriorityMappingEntryState)
+#if (!OPCUA_EXCLUDE_IPriorityMappingEntryState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -112223,7 +112380,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.IPriorityMappingEntryType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -112272,7 +112429,7 @@ namespace Opc.Ua
            "ABVgiQoCAAAAAAASAAAAUHJpb3JpdHlWYWx1ZV9EU0NQAQCRXgAvAD+RXgAAAAf/////AQH/////AAAA" +
            "AA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -112381,7 +112538,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -112499,11 +112656,11 @@ namespace Opc.Ua
         private BaseDataVariableState<uint> m_priorityValue_DSCP;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region IetfBaseNetworkInterfaceState Class
-    #if (!OPCUA_EXCLUDE_IetfBaseNetworkInterfaceState)
+#if (!OPCUA_EXCLUDE_IetfBaseNetworkInterfaceState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -112521,7 +112678,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.IetfBaseNetworkInterfaceType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -112563,7 +112720,7 @@ namespace Opc.Ua
            "L3d3dy5vcGNmb3VuZGF0aW9uLm9yZy9VQS91bml0cy91bi9jZWZhY3QwMUIAAwIAAABlbgUAAABiaXQv" +
            "cwMCAAAAZW4OAAAAYml0IHBlciBzZWNvbmQBAHcD/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -112672,7 +112829,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -112790,11 +112947,11 @@ namespace Opc.Ua
         private AnalogUnitState<ulong> m_speed;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region PriorityMappingTableState Class
-    #if (!OPCUA_EXCLUDE_PriorityMappingTableState)
+#if (!OPCUA_EXCLUDE_PriorityMappingTableState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -112812,7 +112969,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.PriorityMappingTableType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -112871,7 +113028,7 @@ namespace Opc.Ua
            "AgAAAAEAKgEBGQAAAAoAAABNYXBwaW5nVXJpAAz/////AAAAAAABACoBARwAAAANAAAAUHJpb3JpdHlM" +
            "YWJlbAAM/////wAAAAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -112956,7 +113113,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -113052,11 +113209,11 @@ namespace Opc.Ua
         private DeletePriorityMappingEntryMethodState m_deletePriorityMappingEntryMethod;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AddPriorityMappingEntryMethodState Class
-    #if (!OPCUA_EXCLUDE_AddPriorityMappingEntryMethodState)
+#if (!OPCUA_EXCLUDE_AddPriorityMappingEntryMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -113074,7 +113231,7 @@ namespace Opc.Ua
             return new AddPriorityMappingEntryMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -113098,7 +113255,7 @@ namespace Opc.Ua
            "ASEAAAASAAAAUHJpb3JpdHlWYWx1ZV9EU0NQAAf/////AAAAAAABACgBAQAAAAEAAAAEAAAAAQH/////" +
            "AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -113124,7 +113281,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -113152,7 +113309,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -113192,8 +113349,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -113231,11 +113388,11 @@ namespace Opc.Ua
         byte priorityValue_PCP,
         uint priorityValue_DSCP,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region DeletePriorityMappingEntryMethodState Class
-    #if (!OPCUA_EXCLUDE_DeletePriorityMappingEntryMethodState)
+#if (!OPCUA_EXCLUDE_DeletePriorityMappingEntryMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -113253,7 +113410,7 @@ namespace Opc.Ua
             return new DeletePriorityMappingEntryMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -113275,7 +113432,7 @@ namespace Opc.Ua
            "AACWAgAAAAEAKgEBGQAAAAoAAABNYXBwaW5nVXJpAAz/////AAAAAAABACoBARwAAAANAAAAUHJpb3Jp" +
            "dHlMYWJlbAAM/////wAAAAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -113301,7 +113458,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -113325,7 +113482,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -113361,8 +113518,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -113396,11 +113553,11 @@ namespace Opc.Ua
         string mappingUri,
         string priorityLabel,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region LldpInformationState Class
-    #if (!OPCUA_EXCLUDE_LldpInformationState)
+#if (!OPCUA_EXCLUDE_LldpInformationState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -113418,7 +113575,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.LldpInformationType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -113468,7 +113625,7 @@ namespace Opc.Ua
            "Af////8AAAAAFWCJCgIAAAAAABEAAABTeXN0ZW1EZXNjcmlwdGlvbgEAKEoALgBEKEoAAAAM/////wEB" +
            "/////wAAAAAEYIAKAQAAAAAABQAAAFBvcnRzAQArSgAvAD0rSgAA/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -113553,7 +113710,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -113649,11 +113806,11 @@ namespace Opc.Ua
         private FolderState m_ports;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region LldpRemoteStatisticsState Class
-    #if (!OPCUA_EXCLUDE_LldpRemoteStatisticsState)
+#if (!OPCUA_EXCLUDE_LldpRemoteStatisticsState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -113671,7 +113828,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.LldpRemoteStatisticsType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -113702,7 +113859,7 @@ namespace Opc.Ua
            "FWCJCgIAAAAAAAsAAABSZW1vdGVEcm9wcwEAOEoALwA/OEoAAAAH/////wEB/////wAAAAAVYIkKAgAA" +
            "AAAADQAAAFJlbW90ZUFnZW91dHMBADlKAC8APzlKAAAAB/////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -113835,7 +113992,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -113975,11 +114132,11 @@ namespace Opc.Ua
         private BaseDataVariableState<uint> m_remoteAgeouts;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region LldpLocalSystemState Class
-    #if (!OPCUA_EXCLUDE_LldpLocalSystemState)
+#if (!OPCUA_EXCLUDE_LldpLocalSystemState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -113997,7 +114154,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.LldpLocalSystemType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -114048,7 +114205,7 @@ namespace Opc.Ua
            "AAAVYIkKAgAAAAAAGQAAAFN5c3RlbUNhcGFiaWxpdGllc0VuYWJsZWQBAEBKAC4AREBKAAABAAxK////" +
            "/wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -114205,7 +114362,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -114367,11 +114524,11 @@ namespace Opc.Ua
         private PropertyState<uint> m_systemCapabilitiesEnabled;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region LldpPortInformationState Class
-    #if (!OPCUA_EXCLUDE_LldpPortInformationState)
+#if (!OPCUA_EXCLUDE_LldpPortInformationState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -114389,7 +114546,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.LldpPortInformationType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -114449,7 +114606,7 @@ namespace Opc.Ua
            "CUoBAAAAAQAAAAAAAAABAf////8AAAAABGCACgEAAAAAABEAAABSZW1vdGVTeXN0ZW1zRGF0YQEASEoA" +
            "LwA9SEoAAP////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -114630,7 +114787,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -114814,11 +114971,11 @@ namespace Opc.Ua
         private FolderState m_remoteSystemsData;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region LldpRemoteSystemState Class
-    #if (!OPCUA_EXCLUDE_LldpRemoteSystemState)
+#if (!OPCUA_EXCLUDE_LldpRemoteSystemState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -114836,7 +114993,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.LldpRemoteSystemType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -114957,7 +115114,7 @@ namespace Opc.Ua
            "QWRkcmVzcwEAZ0oALwA/Z0oAAAEACkoBAAAAAQAAAAAAAAABAf////8AAAAAF2CJCgIAAAAAABAAAABS" +
            "ZW1vdGVVbmtub3duVGx2AQCGSgAvAD+GSgAAAQALSgEAAAABAAAAAAAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -115330,7 +115487,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -115690,11 +115847,11 @@ namespace Opc.Ua
         private BaseDataVariableState<LldpTlvType[]> m_remoteUnknownTlv;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region ReferenceDescriptionVariableState Class
-    #if (!OPCUA_EXCLUDE_ReferenceDescriptionVariableState)
+#if (!OPCUA_EXCLUDE_ReferenceDescriptionVariableState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -115724,7 +115881,7 @@ namespace Opc.Ua
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -115761,7 +115918,7 @@ namespace Opc.Ua
            "Y2UBAJF/AQCRf5F/AAABAJN//////wEB/////wEAAAAXYIkKAgAAAAAAEwAAAFJlZmVyZW5jZVJlZmlu" +
            "ZW1lbnQBAJJ/AC4ARJJ/AAABAJR/AQAAAAEAAAAAAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -115798,7 +115955,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -115850,11 +116007,11 @@ namespace Opc.Ua
         private PropertyState<ReferenceListEntryDataType[]> m_referenceRefinement;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region LogObjectState Class
-    #if (!OPCUA_EXCLUDE_LogObjectState)
+#if (!OPCUA_EXCLUDE_LogObjectState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -115872,7 +116029,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.LogObjectType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -115936,7 +116093,7 @@ namespace Opc.Ua
            "/////wAAAAAVYIkKAgAAAAAADwAAAE1pbmltdW1TZXZlcml0eQEAIE0ALgBEIE0AAAAF/////wEB////" +
            "/wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -116045,7 +116202,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -116163,11 +116320,11 @@ namespace Opc.Ua
         private PropertyState<ushort> m_minimumSeverity;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region GetRecordsMethodState Class
-    #if (!OPCUA_EXCLUDE_GetRecordsMethodState)
+#if (!OPCUA_EXCLUDE_GetRecordsMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -116185,7 +116342,7 @@ namespace Opc.Ua
             return new GetRecordsMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -116212,7 +116369,7 @@ namespace Opc.Ua
            "ZXN1bHRzAQAhTf////8AAAAAAAEAKgEBIwAAABQAAABDb250aW51YXRpb25Qb2ludE91dAAP/////wAA" +
            "AAAAAQAoAQEAAAABAAAAAgAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -116238,7 +116395,7 @@ namespace Opc.Ua
             {
                 throw new System.InvalidOperationException();
             }
-            
+
             if (OnCall == null)
             {
                 return base.Call(_context, _objectId, _inputArguments, _outputArguments);
@@ -116278,7 +116435,7 @@ namespace Opc.Ua
             return _result;
         }
 
-        #if (OPCUA_INCLUDE_ASYNC)
+#if (OPCUA_INCLUDE_ASYNC)
         /// <remarks />
         protected override async ValueTask<ServiceResult> CallAsync(
             ISystemContext _context,
@@ -116325,8 +116482,8 @@ namespace Opc.Ua
 
             return _result.ServiceResult;
         }
-        #endif
-        
+#endif
+
         #endregion
 
         #region Private Fields
@@ -116374,11 +116531,11 @@ namespace Opc.Ua
         uint requestMask,
         byte[] continuationPointIn,
         CancellationToken cancellationToken);
-    #endif
+#endif
     #endregion
 
     #region BaseLogEventState Class
-    #if (!OPCUA_EXCLUDE_BaseLogEventState)
+#if (!OPCUA_EXCLUDE_BaseLogEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -116396,7 +116553,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.BaseLogEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -116450,7 +116607,7 @@ namespace Opc.Ua
            "/////wEB/////wAAAAAVYIkKAgAAAAAACQAAAEVycm9yQ29kZQEApUsALgBEpUsAAAAT/////wEB////" +
            "/wAAAAAVYIkKAgAAAAAADQAAAEVycm9yQ29kZU5vZGUBAKZLAC4ARKZLAAAAEf////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -116511,7 +116668,7 @@ namespace Opc.Ua
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -116585,11 +116742,11 @@ namespace Opc.Ua
         private PropertyState<NodeId> m_errorCodeNode;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region LogOverflowEventState Class
-    #if (!OPCUA_EXCLUDE_LogOverflowEventState)
+#if (!OPCUA_EXCLUDE_LogOverflowEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -116607,7 +116764,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.LogOverflowEventType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -116641,7 +116798,7 @@ namespace Opc.Ua
            "Zg8AAC4ARMJmDwAAFf////8BAf////8AAAAAFWCJCgIAAAAAAAgAAABTZXZlcml0eQIAAMNmDwAALgBE" +
            "w2YPAAAF/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -116653,11 +116810,11 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region LogEntryConditionClassState Class
-    #if (!OPCUA_EXCLUDE_LogEntryConditionClassState)
+#if (!OPCUA_EXCLUDE_LogEntryConditionClassState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -116675,7 +116832,7 @@ namespace Opc.Ua
             return Opc.Ua.NodeId.Create(Opc.Ua.ObjectTypes.LogEntryConditionClassType, Opc.Ua.Namespaces.OpcUa, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -116702,7 +116859,7 @@ namespace Opc.Ua
            "//////////8EYIACAQAAAAAAIgAAAExvZ0VudHJ5Q29uZGl0aW9uQ2xhc3NUeXBlSW5zdGFuY2UBAKpL" +
            "AQCqS6pLAAD/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -116714,6 +116871,6 @@ namespace Opc.Ua
         #region Private Fields
         #endregion
     }
-    #endif
+#endif
     #endregion
 }

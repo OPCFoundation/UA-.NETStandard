@@ -37,7 +37,7 @@ using Opc.Ua;
 namespace TestData
 {
     #region GenerateValuesMethodState Class
-    #if (!OPCUA_EXCLUDE_GenerateValuesMethodState)
+#if (!OPCUA_EXCLUDE_GenerateValuesMethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -55,7 +55,7 @@ namespace TestData
             return new GenerateValuesMethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -78,7 +78,7 @@ namespace TestData
            "ACUAAABUaGUgbnVtYmVyIG9mIG5ldyB2YWx1ZXMgdG8gZ2VuZXJhdGUuAQAoAQEAAAABAAAAAAAAAAEB" +
            "/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -130,11 +130,11 @@ namespace TestData
         MethodState _method,
         NodeId _objectId,
         uint iterations);
-    #endif
+#endif
     #endregion
 
     #region GenerateValuesEventState Class
-    #if (!OPCUA_EXCLUDE_GenerateValuesEventState)
+#if (!OPCUA_EXCLUDE_GenerateValuesEventState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -152,7 +152,7 @@ namespace TestData
             return Opc.Ua.NodeId.Create(TestData.ObjectTypes.GenerateValuesEventType, TestData.Namespaces.TestData, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -188,7 +188,7 @@ namespace TestData
            "AwAAAAf/////AQH/////AAAAABVgiQoCAAAAAQANAAAATmV3VmFsdWVDb3VudAEB9gMALgBE9gMAAAAH" +
            "/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -249,7 +249,7 @@ namespace TestData
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -323,11 +323,11 @@ namespace TestData
         private PropertyState<uint> m_newValueCount;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region TestDataObjectState Class
-    #if (!OPCUA_EXCLUDE_TestDataObjectState)
+#if (!OPCUA_EXCLUDE_TestDataObjectState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -345,7 +345,7 @@ namespace TestData
             return Opc.Ua.NodeId.Create(TestData.ObjectTypes.TestDataObjectType, TestData.Namespaces.TestData, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -412,7 +412,7 @@ namespace TestData
            "VGhlIGNvbW1lbnQgdG8gYWRkIHRvIHRoZSBjb25kaXRpb24uAQAoAQEAAAABAAAAAAAAAAEB/////wAA" +
            "AAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -497,7 +497,7 @@ namespace TestData
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -593,11 +593,11 @@ namespace TestData
         private AcknowledgeableConditionState m_cycleComplete;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region ScalarStructureVariableState Class
-    #if (!OPCUA_EXCLUDE_ScalarStructureVariableState)
+#if (!OPCUA_EXCLUDE_ScalarStructureVariableState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -627,7 +627,7 @@ namespace TestData
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -679,7 +679,7 @@ namespace TestData
            "AVEEAC8AP1EEAAAAG/////8BAf////8AAAAAFWCJCgIAAAABAA0AAABVSW50ZWdlclZhbHVlAQFSBAAv" +
            "AD9SBAAAABz/////AQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -1340,7 +1340,7 @@ namespace TestData
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -2269,33 +2269,60 @@ namespace TestData
 
         private void UpdateChildrenChangeMasks(ISystemContext context, ref ScalarStructureDataType newValue, ref StatusCode statusCode, ref DateTime timestamp)
         {
-            if (!Utils.IsEqual(m_value.BooleanValue, newValue.BooleanValue)) UpdateChildVariableStatus(m_variable.BooleanValue, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.SByteValue, newValue.SByteValue)) UpdateChildVariableStatus(m_variable.SByteValue, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.ByteValue, newValue.ByteValue)) UpdateChildVariableStatus(m_variable.ByteValue, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.Int16Value, newValue.Int16Value)) UpdateChildVariableStatus(m_variable.Int16Value, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.UInt16Value, newValue.UInt16Value)) UpdateChildVariableStatus(m_variable.UInt16Value, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.Int32Value, newValue.Int32Value)) UpdateChildVariableStatus(m_variable.Int32Value, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.UInt32Value, newValue.UInt32Value)) UpdateChildVariableStatus(m_variable.UInt32Value, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.Int64Value, newValue.Int64Value)) UpdateChildVariableStatus(m_variable.Int64Value, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.UInt64Value, newValue.UInt64Value)) UpdateChildVariableStatus(m_variable.UInt64Value, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.FloatValue, newValue.FloatValue)) UpdateChildVariableStatus(m_variable.FloatValue, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.DoubleValue, newValue.DoubleValue)) UpdateChildVariableStatus(m_variable.DoubleValue, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.StringValue, newValue.StringValue)) UpdateChildVariableStatus(m_variable.StringValue, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.DateTimeValue, newValue.DateTimeValue)) UpdateChildVariableStatus(m_variable.DateTimeValue, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.GuidValue, newValue.GuidValue)) UpdateChildVariableStatus(m_variable.GuidValue, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.ByteStringValue, newValue.ByteStringValue)) UpdateChildVariableStatus(m_variable.ByteStringValue, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.XmlElementValue, newValue.XmlElementValue)) UpdateChildVariableStatus(m_variable.XmlElementValue, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.NodeIdValue, newValue.NodeIdValue)) UpdateChildVariableStatus(m_variable.NodeIdValue, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.ExpandedNodeIdValue, newValue.ExpandedNodeIdValue)) UpdateChildVariableStatus(m_variable.ExpandedNodeIdValue, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.QualifiedNameValue, newValue.QualifiedNameValue)) UpdateChildVariableStatus(m_variable.QualifiedNameValue, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.LocalizedTextValue, newValue.LocalizedTextValue)) UpdateChildVariableStatus(m_variable.LocalizedTextValue, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.StatusCodeValue, newValue.StatusCodeValue)) UpdateChildVariableStatus(m_variable.StatusCodeValue, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.VariantValue, newValue.VariantValue)) UpdateChildVariableStatus(m_variable.VariantValue, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.EnumerationValue, newValue.EnumerationValue)) UpdateChildVariableStatus(m_variable.EnumerationValue, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.StructureValue, newValue.StructureValue)) UpdateChildVariableStatus(m_variable.StructureValue, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.NumberValue, newValue.NumberValue)) UpdateChildVariableStatus(m_variable.NumberValue, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.IntegerValue, newValue.IntegerValue)) UpdateChildVariableStatus(m_variable.IntegerValue, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.UIntegerValue, newValue.UIntegerValue)) UpdateChildVariableStatus(m_variable.UIntegerValue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.BooleanValue, newValue.BooleanValue))
+                UpdateChildVariableStatus(m_variable.BooleanValue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.SByteValue, newValue.SByteValue))
+                UpdateChildVariableStatus(m_variable.SByteValue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.ByteValue, newValue.ByteValue))
+                UpdateChildVariableStatus(m_variable.ByteValue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.Int16Value, newValue.Int16Value))
+                UpdateChildVariableStatus(m_variable.Int16Value, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.UInt16Value, newValue.UInt16Value))
+                UpdateChildVariableStatus(m_variable.UInt16Value, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.Int32Value, newValue.Int32Value))
+                UpdateChildVariableStatus(m_variable.Int32Value, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.UInt32Value, newValue.UInt32Value))
+                UpdateChildVariableStatus(m_variable.UInt32Value, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.Int64Value, newValue.Int64Value))
+                UpdateChildVariableStatus(m_variable.Int64Value, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.UInt64Value, newValue.UInt64Value))
+                UpdateChildVariableStatus(m_variable.UInt64Value, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.FloatValue, newValue.FloatValue))
+                UpdateChildVariableStatus(m_variable.FloatValue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.DoubleValue, newValue.DoubleValue))
+                UpdateChildVariableStatus(m_variable.DoubleValue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.StringValue, newValue.StringValue))
+                UpdateChildVariableStatus(m_variable.StringValue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.DateTimeValue, newValue.DateTimeValue))
+                UpdateChildVariableStatus(m_variable.DateTimeValue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.GuidValue, newValue.GuidValue))
+                UpdateChildVariableStatus(m_variable.GuidValue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.ByteStringValue, newValue.ByteStringValue))
+                UpdateChildVariableStatus(m_variable.ByteStringValue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.XmlElementValue, newValue.XmlElementValue))
+                UpdateChildVariableStatus(m_variable.XmlElementValue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.NodeIdValue, newValue.NodeIdValue))
+                UpdateChildVariableStatus(m_variable.NodeIdValue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.ExpandedNodeIdValue, newValue.ExpandedNodeIdValue))
+                UpdateChildVariableStatus(m_variable.ExpandedNodeIdValue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.QualifiedNameValue, newValue.QualifiedNameValue))
+                UpdateChildVariableStatus(m_variable.QualifiedNameValue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.LocalizedTextValue, newValue.LocalizedTextValue))
+                UpdateChildVariableStatus(m_variable.LocalizedTextValue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.StatusCodeValue, newValue.StatusCodeValue))
+                UpdateChildVariableStatus(m_variable.StatusCodeValue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.VariantValue, newValue.VariantValue))
+                UpdateChildVariableStatus(m_variable.VariantValue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.EnumerationValue, newValue.EnumerationValue))
+                UpdateChildVariableStatus(m_variable.EnumerationValue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.StructureValue, newValue.StructureValue))
+                UpdateChildVariableStatus(m_variable.StructureValue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.NumberValue, newValue.NumberValue))
+                UpdateChildVariableStatus(m_variable.NumberValue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.IntegerValue, newValue.IntegerValue))
+                UpdateChildVariableStatus(m_variable.IntegerValue, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.UIntegerValue, newValue.UIntegerValue))
+                UpdateChildVariableStatus(m_variable.UIntegerValue, ref statusCode, ref timestamp);
         }
 
         private void UpdateParent(ISystemContext context, ref StatusCode statusCode, ref DateTime timestamp)
@@ -2307,7 +2334,8 @@ namespace TestData
 
         private void UpdateChildVariableStatus(BaseVariableState child, ref StatusCode statusCode, ref DateTime timestamp)
         {
-            if (child == null) return;
+            if (child == null)
+                return;
             child.StatusCode = statusCode;
             if (timestamp == DateTime.MinValue)
             {
@@ -4078,11 +4106,11 @@ namespace TestData
         #endregion
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region ScalarValue1MethodState Class
-    #if (!OPCUA_EXCLUDE_ScalarValue1MethodState)
+#if (!OPCUA_EXCLUDE_ScalarValue1MethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -4100,7 +4128,7 @@ namespace TestData
             return new ScalarValue1MethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -4134,7 +4162,7 @@ namespace TestData
            "AAn/////AAAAAAABACoBARcAAAAIAAAARmxvYXRPdXQACv////8AAAAAAAEAKgEBGAAAAAkAAABEb3Vi" +
            "bGVPdXQAC/////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -4262,11 +4290,11 @@ namespace TestData
         ref ulong uInt64Out,
         ref float floatOut,
         ref double doubleOut);
-    #endif
+#endif
     #endregion
 
     #region ScalarValue2MethodState Class
-    #if (!OPCUA_EXCLUDE_ScalarValue2MethodState)
+#if (!OPCUA_EXCLUDE_ScalarValue2MethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -4284,7 +4312,7 @@ namespace TestData
             return new ScalarValue2MethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -4318,7 +4346,7 @@ namespace TestData
            "T3V0ABT/////AAAAAAABACoBAR8AAAAQAAAATG9jYWxpemVkVGV4dE91dAAV/////wAAAAAAAQAqAQEc" +
            "AAAADQAAAFN0YXR1c0NvZGVPdXQAE/////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -4439,11 +4467,11 @@ namespace TestData
         ref QualifiedName qualifiedNameOut,
         ref LocalizedText localizedTextOut,
         ref StatusCode statusCodeOut);
-    #endif
+#endif
     #endregion
 
     #region ScalarValue3MethodState Class
-    #if (!OPCUA_EXCLUDE_ScalarValue3MethodState)
+#if (!OPCUA_EXCLUDE_ScalarValue3MethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -4461,7 +4489,7 @@ namespace TestData
             return new ScalarValue3MethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -4487,7 +4515,7 @@ namespace TestData
            "AA4AAABFbnVtZXJhdGlvbk91dAAd/////wAAAAAAAQAqAQEbAAAADAAAAFN0cnVjdHVyZU91dAAW////" +
            "/wAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -4559,11 +4587,11 @@ namespace TestData
         ref object variantOut,
         ref int enumerationOut,
         ref ExtensionObject structureOut);
-    #endif
+#endif
     #endregion
 
     #region ScalarValueObjectState Class
-    #if (!OPCUA_EXCLUDE_ScalarValueObjectState)
+#if (!OPCUA_EXCLUDE_ScalarValueObjectState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -4581,7 +4609,7 @@ namespace TestData
             return Opc.Ua.NodeId.Create(TestData.ObjectTypes.ScalarValueObjectType, TestData.Namespaces.TestData, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -4678,7 +4706,7 @@ namespace TestData
            "b3JXaXRoT3B0aW9uYWxGaWVsZHNWYWx1ZQEB/w0ALwA//w0AAAEBAQ7/////AQH/////AAAAABVgiQoC" +
            "AAAAAQAUAAAATXVsdGlwbGVWZWN0b3JzVmFsdWUBAR4OAC8APx4OAAABAR8O/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -5435,7 +5463,7 @@ namespace TestData
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -6147,11 +6175,11 @@ namespace TestData
         private BaseDataVariableState<MultipleVectors> m_multipleVectorsValue;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region StructureValueObjectState Class
-    #if (!OPCUA_EXCLUDE_StructureValueObjectState)
+#if (!OPCUA_EXCLUDE_StructureValueObjectState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -6169,7 +6197,7 @@ namespace TestData
             return Opc.Ua.NodeId.Create(TestData.ObjectTypes.StructureValueObjectType, TestData.Namespaces.TestData, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -6264,7 +6292,7 @@ namespace TestData
            "AC4ARBYFAAAAC/////8BAf////8AAAAAFWCJCgIAAAABAAEAAABZAQEXBQAuAEQXBQAAAAv/////AQH/" +
            "////AAAAABVgiQoCAAAAAQABAAAAWgEBGAUALgBEGAUAAAAL/////wEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -6325,7 +6353,7 @@ namespace TestData
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -6399,11 +6427,11 @@ namespace TestData
         private VectorVariableState m_vectorStructure;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AnalogScalarValueObjectState Class
-    #if (!OPCUA_EXCLUDE_AnalogScalarValueObjectState)
+#if (!OPCUA_EXCLUDE_AnalogScalarValueObjectState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -6421,7 +6449,7 @@ namespace TestData
             return Opc.Ua.NodeId.Create(TestData.ObjectTypes.AnalogScalarValueObjectType, TestData.Namespaces.TestData, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -6511,7 +6539,7 @@ namespace TestData
            "/////wEB/////wEAAAAVYIkKAgAAAAAABwAAAEVVUmFuZ2UBAaQFAC4ARKQFAAABAHQD/////wEB////" +
            "/wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -6836,7 +6864,7 @@ namespace TestData
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -7152,11 +7180,11 @@ namespace TestData
         private AnalogItemState m_uIntegerValue;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region ArrayValue1MethodState Class
-    #if (!OPCUA_EXCLUDE_ArrayValue1MethodState)
+#if (!OPCUA_EXCLUDE_ArrayValue1MethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -7174,7 +7202,7 @@ namespace TestData
             return new ArrayValue1MethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -7210,7 +7238,7 @@ namespace TestData
            "AAAAAAAAAQAqAQEcAAAACQAAAERvdWJsZU91dAALAQAAAAEAAAAAAAAAAAEAKAEBAAAAAQAAAAAAAAAB" +
            "Af////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -7338,11 +7366,11 @@ namespace TestData
         ref ulong[] uInt64Out,
         ref float[] floatOut,
         ref double[] doubleOut);
-    #endif
+#endif
     #endregion
 
     #region ArrayValue2MethodState Class
-    #if (!OPCUA_EXCLUDE_ArrayValue2MethodState)
+#if (!OPCUA_EXCLUDE_ArrayValue2MethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -7360,7 +7388,7 @@ namespace TestData
             return new ArrayValue2MethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -7396,7 +7424,7 @@ namespace TestData
            "AQAAAAAAAAAAAQAqAQEgAAAADQAAAFN0YXR1c0NvZGVPdXQAEwEAAAABAAAAAAAAAAABACgBAQAAAAEA" +
            "AAAAAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -7517,11 +7545,11 @@ namespace TestData
         ref QualifiedName[] qualifiedNameOut,
         ref LocalizedText[] localizedTextOut,
         ref StatusCode[] statusCodeOut);
-    #endif
+#endif
     #endregion
 
     #region ArrayValue3MethodState Class
-    #if (!OPCUA_EXCLUDE_ArrayValue3MethodState)
+#if (!OPCUA_EXCLUDE_ArrayValue3MethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -7539,7 +7567,7 @@ namespace TestData
             return new ArrayValue3MethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -7565,7 +7593,7 @@ namespace TestData
            "AAAAAAAAAAEAKgEBIQAAAA4AAABFbnVtZXJhdGlvbk91dAAdAQAAAAEAAAAAAAAAAAEAKgEBHwAAAAwA" +
            "AABTdHJ1Y3R1cmVPdXQAFgEAAAABAAAAAAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -7637,11 +7665,11 @@ namespace TestData
         ref Variant[] variantOut,
         ref int[] enumerationOut,
         ref ExtensionObject[] structureOut);
-    #endif
+#endif
     #endregion
 
     #region ArrayValueObjectState Class
-    #if (!OPCUA_EXCLUDE_ArrayValueObjectState)
+#if (!OPCUA_EXCLUDE_ArrayValueObjectState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -7659,7 +7687,7 @@ namespace TestData
             return Opc.Ua.NodeId.Create(TestData.ObjectTypes.ArrayValueObjectType, TestData.Namespaces.TestData, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -7758,7 +7786,7 @@ namespace TestData
            "VmFsdWUBARkOAC8APxkOAAABAQEOAQAAAAEAAAAAAAAAAQH/////AAAAABdgiQoCAAAAAQAUAAAATXVs" +
            "dGlwbGVWZWN0b3JzVmFsdWUBASsOAC8APysOAAABAR8OAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -8515,7 +8543,7 @@ namespace TestData
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -9227,11 +9255,11 @@ namespace TestData
         private BaseDataVariableState<MultipleVectors[]> m_multipleVectorsValue;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region AnalogArrayValueObjectState Class
-    #if (!OPCUA_EXCLUDE_AnalogArrayValueObjectState)
+#if (!OPCUA_EXCLUDE_AnalogArrayValueObjectState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -9249,7 +9277,7 @@ namespace TestData
             return Opc.Ua.NodeId.Create(TestData.ObjectTypes.AnalogArrayValueObjectType, TestData.Namespaces.TestData, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -9340,7 +9368,7 @@ namespace TestData
            "AQANAAAAVUludGVnZXJWYWx1ZQEBkgYALwEAQAmSBgAAABwBAAAAAQAAAAAAAAABAf////8BAAAAFWCJ" +
            "CgIAAAAAAAcAAABFVVJhbmdlAQGWBgAuAESWBgAAAQB0A/////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -9665,7 +9693,7 @@ namespace TestData
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -9981,11 +10009,11 @@ namespace TestData
         private AnalogItemState<object[]> m_uIntegerValue;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region UserScalarValueObjectState Class
-    #if (!OPCUA_EXCLUDE_UserScalarValueObjectState)
+#if (!OPCUA_EXCLUDE_UserScalarValueObjectState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -10003,7 +10031,7 @@ namespace TestData
             return Opc.Ua.NodeId.Create(TestData.ObjectTypes.UserScalarValueObjectType, TestData.Namespaces.TestData, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -10090,7 +10118,7 @@ namespace TestData
            "AAEADwAAAFN0YXR1c0NvZGVWYWx1ZQEBAgcALwA/AgcAAAEBrAb/////AQH/////AAAAABVgiQoCAAAA" +
            "AQAMAAAAVmFyaWFudFZhbHVlAQEDBwAvAD8DBwAAAQGtBv////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -10631,7 +10659,7 @@ namespace TestData
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -11145,11 +11173,11 @@ namespace TestData
         private BaseDataVariableState m_variantValue;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region UserScalarValue1MethodState Class
-    #if (!OPCUA_EXCLUDE_UserScalarValue1MethodState)
+#if (!OPCUA_EXCLUDE_UserScalarValue1MethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -11167,7 +11195,7 @@ namespace TestData
             return new UserScalarValue1MethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -11203,7 +11231,7 @@ namespace TestData
            "AAAAAQAqAQEaAAAACQAAAERvdWJsZU91dAEBogb/////AAAAAAABACoBARoAAAAJAAAAU3RyaW5nT3V0" +
            "AQGjBv////8AAAAAAAEAKAEBAAAAAQAAAAAAAAABAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -11338,11 +11366,11 @@ namespace TestData
         ref float floatOut,
         ref double doubleOut,
         ref string stringOut);
-    #endif
+#endif
     #endregion
 
     #region UserScalarValue2MethodState Class
-    #if (!OPCUA_EXCLUDE_UserScalarValue2MethodState)
+#if (!OPCUA_EXCLUDE_UserScalarValue2MethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -11360,7 +11388,7 @@ namespace TestData
             return new UserScalarValue2MethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -11395,7 +11423,7 @@ namespace TestData
            "AAABACoBAR4AAAANAAAAU3RhdHVzQ29kZU91dAEBrAb/////AAAAAAABACoBARsAAAAKAAAAVmFyaWFu" +
            "dE91dAEBrQb/////AAAAAAABACgBAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -11516,11 +11544,11 @@ namespace TestData
         ref LocalizedText localizedTextOut,
         ref StatusCode statusCodeOut,
         ref object variantOut);
-    #endif
+#endif
     #endregion
 
     #region UserArrayValueObjectState Class
-    #if (!OPCUA_EXCLUDE_UserArrayValueObjectState)
+#if (!OPCUA_EXCLUDE_UserArrayValueObjectState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -11538,7 +11566,7 @@ namespace TestData
             return Opc.Ua.NodeId.Create(TestData.ObjectTypes.UserArrayValueObjectType, TestData.Namespaces.TestData, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -11628,7 +11656,7 @@ namespace TestData
            "ZQEBXgcALwA/XgcAAAEBrAYBAAAAAQAAAAAAAAABAf////8AAAAAF2CJCgIAAAABAAwAAABWYXJpYW50" +
            "VmFsdWUBAV8HAC8AP18HAAABAa0GAQAAAAEAAAAAAAAAAQH/////AAAAAA==";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -12169,7 +12197,7 @@ namespace TestData
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -12683,11 +12711,11 @@ namespace TestData
         private BaseDataVariableState<object[]> m_variantValue;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region VectorVariableState Class
-    #if (!OPCUA_EXCLUDE_VectorVariableState)
+#if (!OPCUA_EXCLUDE_VectorVariableState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -12717,7 +12745,7 @@ namespace TestData
             return ValueRanks.Scalar;
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -12746,7 +12774,7 @@ namespace TestData
            "BwAuAERiBwAAAAv/////AQH/////AAAAABVgiQoCAAAAAQABAAAAWQEBYwcALgBEYwcAAAAL/////wEB" +
            "/////wAAAAAVYIkKAgAAAAEAAQAAAFoBAWQHAC4ARGQHAAAAC/////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -12831,7 +12859,7 @@ namespace TestData
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -13064,9 +13092,12 @@ namespace TestData
 
         private void UpdateChildrenChangeMasks(ISystemContext context, ref Vector newValue, ref StatusCode statusCode, ref DateTime timestamp)
         {
-            if (!Utils.IsEqual(m_value.X, newValue.X)) UpdateChildVariableStatus(m_variable.X, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.Y, newValue.Y)) UpdateChildVariableStatus(m_variable.Y, ref statusCode, ref timestamp);
-            if (!Utils.IsEqual(m_value.Z, newValue.Z)) UpdateChildVariableStatus(m_variable.Z, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.X, newValue.X))
+                UpdateChildVariableStatus(m_variable.X, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.Y, newValue.Y))
+                UpdateChildVariableStatus(m_variable.Y, ref statusCode, ref timestamp);
+            if (!Utils.IsEqual(m_value.Z, newValue.Z))
+                UpdateChildVariableStatus(m_variable.Z, ref statusCode, ref timestamp);
         }
 
         private void UpdateParent(ISystemContext context, ref StatusCode statusCode, ref DateTime timestamp)
@@ -13078,7 +13109,8 @@ namespace TestData
 
         private void UpdateChildVariableStatus(BaseVariableState child, ref StatusCode statusCode, ref DateTime timestamp)
         {
-            if (child == null) return;
+            if (child == null)
+                return;
             child.StatusCode = statusCode;
             if (timestamp == DateTime.MinValue)
             {
@@ -13289,11 +13321,11 @@ namespace TestData
         #endregion
     }
     #endregion
-    #endif
+#endif
     #endregion
 
     #region UserArrayValue1MethodState Class
-    #if (!OPCUA_EXCLUDE_UserArrayValue1MethodState)
+#if (!OPCUA_EXCLUDE_UserArrayValue1MethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -13311,7 +13343,7 @@ namespace TestData
             return new UserArrayValue1MethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -13349,7 +13381,7 @@ namespace TestData
            "AQAAAAAAAAAAAQAqAQEeAAAACQAAAFN0cmluZ091dAEBowYBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAA" +
            "AAAAAAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -13484,11 +13516,11 @@ namespace TestData
         ref float[] floatOut,
         ref double[] doubleOut,
         ref string[] stringOut);
-    #endif
+#endif
     #endregion
 
     #region UserArrayValue2MethodState Class
-    #if (!OPCUA_EXCLUDE_UserArrayValue2MethodState)
+#if (!OPCUA_EXCLUDE_UserArrayValue2MethodState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -13506,7 +13538,7 @@ namespace TestData
             return new UserArrayValue2MethodState(parent);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -13543,7 +13575,7 @@ namespace TestData
            "AR8AAAAKAAAAVmFyaWFudE91dAEBrQYBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAAAAAAEB/////wAA" +
            "AAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Event Callbacks
@@ -13664,11 +13696,11 @@ namespace TestData
         ref LocalizedText[] localizedTextOut,
         ref StatusCode[] statusCodeOut,
         ref Variant[] variantOut);
-    #endif
+#endif
     #endregion
 
     #region MethodTestState Class
-    #if (!OPCUA_EXCLUDE_MethodTestState)
+#if (!OPCUA_EXCLUDE_MethodTestState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -13686,7 +13718,7 @@ namespace TestData
             return Opc.Ua.NodeId.Create(TestData.ObjectTypes.MethodTestType, TestData.Namespaces.TestData, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -13859,7 +13891,7 @@ namespace TestData
            "AAAAAAABACoBAR8AAAAKAAAAVmFyaWFudE91dAEBrQYBAAAAAQAAAAAAAAAAAQAoAQEAAAABAAAAAAAA" +
            "AAEB/////wAAAAA=";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -14112,7 +14144,7 @@ namespace TestData
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -14362,11 +14394,11 @@ namespace TestData
         private UserArrayValue2MethodState m_userArrayMethod2Method;
         #endregion
     }
-    #endif
+#endif
     #endregion
 
     #region TestSystemConditionState Class
-    #if (!OPCUA_EXCLUDE_TestSystemConditionState)
+#if (!OPCUA_EXCLUDE_TestSystemConditionState)
     /// <remarks />
     /// <exclude />
     [System.CodeDom.Compiler.GeneratedCodeAttribute("Opc.Ua.ModelCompiler", "1.0.0.0")]
@@ -14384,7 +14416,7 @@ namespace TestData
             return Opc.Ua.NodeId.Create(TestData.ObjectTypes.TestSystemConditionType, TestData.Namespaces.TestData, namespaceUris);
         }
 
-        #if (!OPCUA_EXCLUDE_InitializationStrings)
+#if (!OPCUA_EXCLUDE_InitializationStrings)
         /// <remarks />
         protected override void Initialize(ISystemContext context)
         {
@@ -14438,7 +14470,7 @@ namespace TestData
            "Y29uZGl0aW9uLgEAKAEBAAAAAQAAAAAAAAABAf////8AAAAAFWCJCgIAAAABABIAAABNb25pdG9yZWRO" +
            "b2RlQ291bnQBAbUHAC4ARLUHAAAABv////8BAf////8AAAAA";
         #endregion
-        #endif
+#endif
         #endregion
 
         #region Public Properties
@@ -14475,7 +14507,7 @@ namespace TestData
 
             base.GetChildren(context, children);
         }
-            
+
         /// <remarks />
         protected override BaseInstanceState FindChild(
             ISystemContext context,
@@ -14527,6 +14559,6 @@ namespace TestData
         private PropertyState<int> m_monitoredNodeCount;
         #endregion
     }
-    #endif
+#endif
     #endregion
 }
